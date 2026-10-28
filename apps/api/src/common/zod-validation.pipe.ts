@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { BadRequestException, type ArgumentMetadata, type PipeTransform } from '@nestjs/common';
+import type { ApiErrorIssue } from '@diet-app/shared';
 import { z, type ZodType } from 'zod';
 
 /**
@@ -20,14 +21,28 @@ export class ZodValidationPipe<T> implements PipeTransform {
         statusCode: 400,
         error: 'VALIDATION_FAILED',
         message: 'Request payload failed validation.',
-        issues: result.error.issues.map((i) => ({
+        issues: result.error.issues.map((i): ApiErrorIssue => ({
           path: [...parameter, ...i.path].join('.'),
           message: i.message,
+          ...kindOf(i),
         })),
       });
     }
     return result.data;
   }
+}
+
+/** The kind of a refusal, and the bound of one that has a bound. */
+function kindOf(
+  issue: z.core.$ZodIssue,
+): Pick<ApiErrorIssue, 'code' | 'minimum' | 'maximum' | 'inclusive'> {
+  if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
+    return { code: issue.code, minimum: issue.minimum, inclusive: issue.inclusive ?? true };
+  }
+  if (issue.code === 'too_big' && typeof issue.maximum === 'number') {
+    return { code: issue.code, maximum: issue.maximum, inclusive: issue.inclusive ?? true };
+  }
+  return { code: issue.code };
 }
 
 /**

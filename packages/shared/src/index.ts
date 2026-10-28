@@ -32,4 +32,4 @@ export * from './notification.js';
 export * from './policy-report.js';
 
 /** Standard API error envelope returned for any non-2xx response. */
-export { ApiError } from './error.js';
+export { ApiError, ApiErrorIssue } from './error.js';

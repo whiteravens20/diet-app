@@ -8888,20 +8888,7 @@
           "issues": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "path": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "path",
-                "message"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/ApiErrorIssue"
             }
           },
           "details": {
@@ -8916,6 +8903,35 @@
           "statusCode",
           "error",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "ApiErrorIssue": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "minimum": {
+            "type": "number"
+          },
+          "maximum": {
+            "type": "number"
+          },
+          "inclusive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "message",
+          "code"
         ],
         "additionalProperties": false
       },

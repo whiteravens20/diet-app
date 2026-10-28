@@ -49,6 +49,7 @@ export function clientDate(header: string | string[] | undefined, now: Date): st
         {
           path: CLIENT_DATE_HEADER,
           message: `Must be the day it is where the client is, as YYYY-MM-DD: ${server} or a day next to it.`,
+          code: 'custom',
         },
       ],
     });

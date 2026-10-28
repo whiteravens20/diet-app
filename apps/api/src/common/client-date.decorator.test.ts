@@ -52,7 +52,13 @@ describe('the day of a request', () => {
     } catch (error) {
       expect((error as BadRequestException).getResponse()).toMatchObject({
         error: 'VALIDATION_FAILED',
-        issues: [{ path: 'x-client-date', message: expect.stringContaining('2026-03-01') }],
+        issues: [
+          {
+            path: 'x-client-date',
+            message: expect.stringContaining('2026-03-01'),
+            code: 'custom',
+          },
+        ],
       });
     }
   });
