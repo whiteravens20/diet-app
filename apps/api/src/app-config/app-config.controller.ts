@@ -12,7 +12,7 @@ import {
 import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
-import { depthByMealCount } from '../engine/coverage.js';
+import { supplyByMealCount } from '../engine/coverage.js';
 import { MailService } from '../mail/mail.service.js';
 import { TurnstileService } from '../auth/turnstile.service.js';
 import { PACKAGE_VERSION } from './package-version.js';
@@ -36,7 +36,7 @@ export class AppConfigController {
     private readonly coverage: CatalogueCoverageService,
   ) {}
 
-  /** What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how deep its catalogue is. */
+  /** What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet. */
   @Get()
   @Answers(PublicConfig)
   async get(): Promise<PublicConfig> {
@@ -54,7 +54,7 @@ export class AppConfigController {
         operatorContact: this.config.get('OPERATOR_CONTACT', { infer: true }) ?? null,
         version: this.config.get('APP_VERSION', { infer: true }) ?? PACKAGE_VERSION,
       },
-      catalogue: { depth: depthByMealCount(await this.coverage.recent()) },
+      catalogue: { supply: supplyByMealCount(await this.coverage.recent()) },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
       plans: {
         maxRepeatsPerRecipe:

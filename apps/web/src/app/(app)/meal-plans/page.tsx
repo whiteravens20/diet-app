@@ -134,7 +134,7 @@ function MealPlansContent() {
   const [mealCount, setMealCount] = useState<number | ''>('');
   const [calorieTarget, setCalorieTarget] = useState('');
   const config = useConfig().data;
-  const depth = config?.catalogue.depth;
+  const supply = config?.catalogue.supply;
 
   // Whether the account has a model to ask. Without one, what asks a model
   // stays where it is, disabled, and one line over the plans says why.
@@ -575,12 +575,12 @@ function MealPlansContent() {
                         {t('asInProfile', { value: tDiet(active.dietType) })}
                       </option>
                       {NAMED_DIETS.map((offered) => {
-                        const supply = supplyOf(depth, offered, planMeals)?.supply;
+                        const level = supplyOf(supply, offered, planMeals)?.level;
                         return (
                           <option key={offered} value={offered}>
-                            {supply === 'none'
+                            {level === 'none'
                               ? tCatalogue('dietNone', { diet: tDiet(offered) })
-                              : supply === 'thin'
+                              : level === 'thin'
                                 ? tCatalogue('dietThin', { diet: tDiet(offered) })
                                 : tDiet(offered)}
                           </option>

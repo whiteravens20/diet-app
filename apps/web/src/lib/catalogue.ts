@@ -1,7 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { CatalogueDepth, DietType, MealCountKey } from '@diet-app/shared';
-import { VARIETY_DEPTH } from '@diet-app/shared/constants';
+import type { CatalogueSupply, DietType, MealCountKey, Supply } from '@diet-app/shared';
 
 /**
  * The diets that have a split of protein, fat and carbohydrate of their own.
@@ -18,34 +17,15 @@ export const NAMED_DIETS: readonly DietType[] = [
   'mediterranean',
 ];
 
-export interface Supply {
-  supply: 'none' | 'thin' | 'enough';
-  /** What the meal with the fewest recipes can choose from. */
-  recipes: number;
-  /** The largest smaller number of meals a day the catalogue can make a plan for on this diet, or null when there is none. */
-  fewerMeals: number | null;
-}
-
 /**
- * How well the catalogue serves a diet at a number of meals a day, by the meal
- * it has the fewest recipes for. `none`: that meal has no recipe, so no plan
- * can be made from the catalogue. `thin`: it has too few for a week inside the
- * default limit on repeats. Null while the catalogue's answer is not known.
+ * How well the catalogue serves a diet at a number of meals a day, as the API
+ * says it. Null before the configuration has answered, and for a number of
+ * meals a day nobody can have.
  */
 export function supplyOf(
-  depth: CatalogueDepth | undefined,
+  supply: CatalogueSupply | undefined,
   diet: DietType,
   mealCount: number,
 ): Supply | null {
-  const byCount = depth?.[diet];
-  const recipes = byCount?.[String(mealCount) as MealCountKey];
-  if (byCount === undefined || recipes === undefined) return null;
-  const fewerMeals =
-    [4, 3, 2].find((count) => count < mealCount && byCount[String(count) as MealCountKey] > 0) ??
-    null;
-  return {
-    supply: recipes === 0 ? 'none' : recipes < VARIETY_DEPTH ? 'thin' : 'enough',
-    recipes,
-    fewerMeals,
-  };
+  return supply?.[diet]?.[String(mealCount) as MealCountKey] ?? null;
 }

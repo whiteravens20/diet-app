@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet } from '@diet-app/shared';
+import { DietType, MEAL_SLOTS_BY_COUNT, MealType, VARIETY_DEPTH, fitsDiet } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COVERAGE_TARGET } from '../engine/coverage.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -52,16 +52,19 @@ describe('what the catalogue can serve', () => {
     return shared.filter((r) => r.mealTypes.includes(meal) && fitsDiet(r.dietTags, diet)).length;
   };
 
-  it('is published for every diet and number of meals: the recipes the thinnest meal can choose from', async () => {
-    const { depth } = (await t.http().get('/api/config').expect(200)).body.catalogue;
+  it('is published for every diet and number of meals: the recipes the thinnest meal can choose from, and whether that is enough', async () => {
+    const { supply } = (await t.http().get('/api/config').expect(200)).body.catalogue;
 
     for (const diet of DietType.options) {
       for (const [count, meals] of Object.entries(MEAL_SLOTS_BY_COUNT)) {
         const thinnest = Math.min(...(await Promise.all(meals.map((meal) => counted(diet, meal)))));
-        expect(depth[diet][count], `${diet}, ${count} meals`).toBe(thinnest);
+        expect(supply[diet][count].recipes, `${diet}, ${count} meals`).toBe(thinnest);
+        expect(supply[diet][count].level, `${diet}, ${count} meals`).toBe(
+          thinnest === 0 ? 'none' : thinnest < VARIETY_DEPTH ? 'thin' : 'enough',
+        );
       }
     }
-    expect(depth.balanced['3']).toBeGreaterThan(0);
+    expect(supply.balanced['3'].recipes).toBeGreaterThan(0);
   });
 
   it('is shown to the administrator meal by meal, with how many a release needs for each', async () => {
@@ -217,7 +220,7 @@ describe('what the catalogue can serve', () => {
   });
 
   it('leaves out what an update retired, and is read anew once a minute or when the administrator looks', async () => {
-    const before = (await t.http().get('/api/config')).body.catalogue.depth;
+    const before = (await t.http().get('/api/config')).body.catalogue.supply;
     const dinners = await t.prisma.recipe.findMany({
       where: { createdByUserId: null, mealTypes: { has: 'dinner' } },
       select: { id: true },
@@ -228,15 +231,15 @@ describe('what the catalogue can serve', () => {
     });
 
     // Kept for a minute: the public configuration is asked for on every page.
-    expect((await t.http().get('/api/config')).body.catalogue.depth).toEqual(before);
+    expect((await t.http().get('/api/config')).body.catalogue.supply).toEqual(before);
     // The administrator's statistics count anew, and what they found is what is published from then on.
     const { coverage } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
-    const after = (await t.http().get('/api/config')).body.catalogue.depth;
+    const after = (await t.http().get('/api/config')).body.catalogue.supply;
 
-    expect(before.balanced['2']).toBeGreaterThan(0);
+    expect(before.balanced['2'].recipes).toBeGreaterThan(0);
     expect(coverage.balanced.dinner).toBe(0);
-    expect(after.balanced['2']).toBe(0);
-    expect(after.balanced['3']).toBe(0);
+    expect(after.balanced['2']).toEqual({ level: 'none', recipes: 0, fewerMeals: null });
+    expect(after.balanced['3']).toMatchObject({ level: 'none', recipes: 0 });
   });
 
   it('is named when a plan cannot be made: which meal, which diet', async () => {

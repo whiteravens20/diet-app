@@ -2874,8 +2874,8 @@
         "tags": [
           "config"
         ],
-        "summary": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how deep its catalogue is.",
-        "description": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how deep its catalogue is.\n\nAsked by anyone.",
+        "summary": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet.",
+        "description": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet.\n\nAsked by anyone.",
         "security": [],
         "responses": {
           "200": {
@@ -9417,7 +9417,14 @@
           "below_bmr"
         ]
       },
-      "CatalogueDepth": {
+      "CatalogueScope": {
+        "type": "string",
+        "enum": [
+          "curated",
+          "all"
+        ]
+      },
+      "CatalogueSupply": {
         "type": "object",
         "propertyNames": {
           "$ref": "#/components/schemas/DietType"
@@ -9428,8 +9435,7 @@
             "$ref": "#/components/schemas/MealCountKey"
           },
           "additionalProperties": {
-            "type": "integer",
-            "minimum": 0
+            "$ref": "#/components/schemas/Supply"
           },
           "required": [
             "2",
@@ -9447,13 +9453,6 @@
           "keto",
           "mediterranean",
           "custom"
-        ]
-      },
-      "CatalogueScope": {
-        "type": "string",
-        "enum": [
-          "curated",
-          "all"
         ]
       },
       "CatalogueUpdateState": {
@@ -14703,12 +14702,12 @@
           "catalogue": {
             "type": "object",
             "properties": {
-              "depth": {
-                "$ref": "#/components/schemas/CatalogueDepth"
+              "supply": {
+                "$ref": "#/components/schemas/CatalogueSupply"
               }
             },
             "required": [
-              "depth"
+              "supply"
             ],
             "additionalProperties": false
           },
@@ -17320,6 +17319,41 @@
           "allergen",
           "excluded_ingredient"
         ]
+      },
+      "Supply": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "none",
+              "thin",
+              "enough"
+            ]
+          },
+          "recipes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fewerMeals": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "level",
+          "recipes",
+          "fewerMeals"
+        ],
+        "additionalProperties": false
       },
       "SwapIngredientRequest": {
         "type": "object",

@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  CatalogueDepth,
+  CatalogueSupply,
   FavoriteSet,
   MealPlan,
   MealSwapPreview,
@@ -19,7 +19,7 @@ import type {
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import * as files from '@/lib/save-file';
-import { aDepth, aPublicConfig } from '@/testing/public-config';
+import { aPublicConfig, aSupply } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 import { dayAnchor } from './plan-card';
@@ -172,9 +172,9 @@ const daysOnTheCalendar = (plan: MealPlan): PlanCalendarDay[] =>
 /** The favourite sets the profile has, for the tests that are about them. */
 let favoriteSets: FavoriteSet[] = [];
 
-/** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. AI is off for them unless `aiMode` says otherwise. */
+/** The page of somebody with that one profile and `plans`, on an instance whose catalogue the API says `supply` of. AI is off for them unless `aiMode` says otherwise. */
 async function renderPage(
-  depth: CatalogueDepth = aDepth(9),
+  supply: CatalogueSupply = aSupply(),
   plans: MealPlan[] = [],
   aiMode: 'none' | 'admin' = 'none',
   operator: Partial<PublicConfig> = {},
@@ -216,7 +216,7 @@ async function renderPage(
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['config'], aPublicConfig({ catalogue: { depth }, ...operator }));
+  client.setQueryData(['config'], aPublicConfig({ catalogue: { supply }, ...operator }));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
@@ -267,9 +267,9 @@ describe('the plan page, where the catalogue is short of recipes', () => {
   });
 
   it("warns on the form when the profile's diet has no recipe for one of its meals", async () => {
-    const depth = aDepth(9);
-    depth.vegan = { 2: 9, 3: 9, 4: 0, 5: 0 };
-    await renderPage(depth);
+    const supply = aSupply();
+    supply.vegan['4'] = { level: 'none', recipes: 0, fewerMeals: 3 };
+    await renderPage(supply);
 
     expect(screen.getByRole('status').textContent).toContain(
       'no plan can be made: choose another diet, or no more than 3 meals a day.',
@@ -277,9 +277,9 @@ describe('the plan page, where the catalogue is short of recipes', () => {
   });
 
   it('warns that plans will repeat when one of the meals has few', async () => {
-    const depth = aDepth(9);
-    depth.vegan['4'] = 2;
-    await renderPage(depth);
+    const supply = aSupply();
+    supply.vegan['4'] = { level: 'thin', recipes: 2, fewerMeals: 3 };
+    await renderPage(supply);
 
     expect(screen.getByRole('status').textContent).toContain('has only 2 recipes to choose from');
   });
@@ -409,7 +409,7 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
   it('asks the same of a plan that is made again, on top of what the plan may let give way already', async () => {
     onTheDay('2026-01-05');
     const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['variety_floor'] } });
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     const post = vi
       .spyOn(api, 'post')
       .mockRejectedValueOnce(refusal(oneBreakfast))
@@ -445,7 +445,7 @@ describe('the plan page, on a plan and how it was made', () => {
   });
 
   const open = async (plan: MealPlan) => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
   };
 
@@ -573,7 +573,7 @@ describe('the plan page, when a plan is made again', () => {
     };
   };
   const open = async (plan: MealPlan) => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('3-day plan · Vegan'));
   };
   /** The window for the whole of the plan, opened from the plan's own button. */
@@ -794,7 +794,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
   const scramble = anOffer('66666666-6666-4666-8666-666666666666', 'Tofu scramble');
   const toast = anOffer('77777777-7777-4777-8777-777777777777', 'Tomato toast');
   const open = async () => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
   };
   const theOffer = () => screen.findByRole('group', { name: messages.mealPlans.offerTitle });
@@ -900,7 +900,7 @@ describe('the list of plans on the plan page', () => {
 
   it('reads the plans as summaries, and a plan whole only when it is opened', async () => {
     const plan = aPlan();
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     const get = vi.mocked(api.get);
 
     await screen.findByText('1-day plan · Vegan');
@@ -938,7 +938,7 @@ describe('the list of plans on the plan page', () => {
         ),
       );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    client.setQueryData(['config'], aPublicConfig({ catalogue: { depth: aDepth(9) } }));
+    client.setQueryData(['config'], aPublicConfig({ catalogue: { supply: aSupply() } }));
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
         <QueryClientProvider client={client}>
@@ -980,7 +980,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
     };
   };
   const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {
-    await renderPage(aDepth(9), [plan], aiMode);
+    await renderPage(aSupply(), [plan], aiMode);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     return screen.findByRole('button', { name: 'Oat porridge' });
   };
@@ -1066,7 +1066,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
   });
 
   it('marks a plan that was made with the help of a model on its row in the list', async () => {
-    await renderPage(aDepth(9), [aPlan({ generationMode: 'ai_assisted' })]);
+    await renderPage(aSupply(), [aPlan({ generationMode: 'ai_assisted' })]);
 
     const row = await screen.findByText('1-day plan · Vegan');
     expect(row.textContent).toContain(messages.aiMark.label);
@@ -1171,7 +1171,7 @@ describe('the plan page, on how a day stands against its target', () => {
     return { ...plan, days: [{ ...plan.days[0]!, ...day }] };
   };
   const opened = async (plan: MealPlan) => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     await screen.findByRole('button', { name: 'Oat porridge' });
   };
@@ -1310,7 +1310,7 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     return { ...plan, days: [{ ...plan.days[0]!, meals }] };
   };
   const opened = async (plan: MealPlan) => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     await screen.findAllByRole('button', { name: 'Oat porridge' });
   };
@@ -1499,10 +1499,10 @@ describe('the plan page, on what a plan is made for', () => {
   });
 
   it("warns about the diet and the meals the form names, not the profile's, and says of each diet what the catalogue has for it", async () => {
-    const depth = aDepth(9);
-    depth.keto = { 2: 9, 3: 9, 4: 0, 5: 0 };
-    depth.low_carb['4'] = 2;
-    await renderPage(depth);
+    const supply = aSupply();
+    supply.keto['4'] = { level: 'none', recipes: 0, fewerMeals: 3 };
+    supply.low_carb['4'] = { level: 'thin', recipes: 2, fewerMeals: 3 };
+    await renderPage(supply);
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByRole('option', { name: 'Keto (no recipes yet)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Low carb (few recipes)' })).toBeInTheDocument();
@@ -1563,7 +1563,7 @@ describe('the plan page, on what a plan is made for', () => {
   });
 
   it('says the number the operator set for the repeats of a recipe, and sends none of its own: the server applies it', async () => {
-    await renderPage(aDepth(9), [], 'none', {
+    await renderPage(aSupply(), [], 'none', {
       plans: { ...aPublicConfig().plans, maxRepeatsPerRecipe: 3 },
     });
     await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
@@ -1598,7 +1598,7 @@ describe('the calendar on the plan page', () => {
       .filter((path) => path.startsWith('/meal-plans?'));
 
   it('asks for the month it is for the profile whose plans the page shows', async () => {
-    await renderPage(aDepth(9), [aPlan()]);
+    await renderPage(aSupply(), [aPlan()]);
 
     expect(await screen.findByRole('grid', { name: 'January 2026' })).toBeInTheDocument();
     expect(vi.mocked(api.get)).toHaveBeenCalledWith(
@@ -1608,7 +1608,7 @@ describe('the calendar on the plan page', () => {
 
   it('opens the plan of a day that is chosen, with the list narrowed to the plans of that day, and goes to the day', async () => {
     const plan = aPlan();
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
 
     await userEvent.click(
       await screen.findByRole('button', { name: /^Mon, Jan 5: 230 of 2,000 kcal/ }),
@@ -1629,7 +1629,7 @@ describe('the calendar on the plan page', () => {
   });
 
   it('takes a day without a plan as the day the next plan begins on, and puts the reader at the form', async () => {
-    await renderPage(aDepth(9), [aPlan()]);
+    await renderPage(aSupply(), [aPlan()]);
     const startDate = screen.getByLabelText(texts.startDate);
     expect(startDate).toHaveValue('2026-01-05');
 
@@ -1649,7 +1649,7 @@ describe('the plan page, on a plan taken out of the application', () => {
   const texts = messages.mealPlans.export;
   /** The page with the one plan open. */
   async function anOpenPlan() {
-    await renderPage(aDepth(9), [aPlan()]);
+    await renderPage(aSupply(), [aPlan()]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     await screen.findByText('Mon, Jan 5');
   }
@@ -1722,7 +1722,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     wasted: true,
   } as const;
   const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {
-    await renderPage(aDepth(9), [plan], aiMode);
+    await renderPage(aSupply(), [plan], aiMode);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     await screen.findByRole('button', { name: 'Oat porridge' });
   };
@@ -1755,7 +1755,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
 
   it('offers no other ways for a day the user skips', async () => {
     const plan = aPlan();
-    await renderPage(aDepth(9), [
+    await renderPage(aSupply(), [
       { ...plan, days: [{ ...plan.days[0]!, skipped: true, meals: [] }] },
     ]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
@@ -1790,7 +1790,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     address.search = `plan=${plan.id}&day=2026-01-05`;
     const get = vi.spyOn(api, 'get');
 
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
 
     // The plan is open without a click, and was read whole.
     expect(await screen.findByRole('button', { name: 'Oat porridge' })).toBeInTheDocument();
@@ -1812,7 +1812,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     address.search = search;
     const get = vi.spyOn(api, 'get');
 
-    await renderPage(aDepth(9), [aPlan()]);
+    await renderPage(aSupply(), [aPlan()]);
 
     await screen.findByText('1-day plan · Vegan');
     expect(screen.queryByRole('button', { name: 'Oat porridge' })).toBeNull();
@@ -1859,7 +1859,7 @@ describe('the plan page, on the day it is today', () => {
   };
 
   const open = async (plan: MealPlan) => {
-    await renderPage(aDepth(9), [plan]);
+    await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('3-day plan · Vegan'));
   };
 

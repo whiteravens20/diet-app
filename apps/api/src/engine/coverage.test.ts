@@ -3,13 +3,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   MACRO_OUT_OF_REACH,
-  depthByMealCount,
   macroReachByDiet,
   recipesPerDietAndMeal,
+  supplyByMealCount,
   thinnestCell,
+  type CoverageMatrix,
 } from './coverage.js';
 import { macroSplitOf } from './nutrition.js';
-import type { MealType } from '@diet-app/shared';
+import { VARIETY_DEPTH, type MealType } from '@diet-app/shared';
 
 const recipe = (mealTypes: string[], dietTags: string[] = []) => ({ mealTypes, dietTags });
 
@@ -61,12 +62,16 @@ describe('how many recipes each diet has for each meal', () => {
   });
 
   it('gives, for a number of meals a day, what the thinnest of those meals can choose from', () => {
-    const depth = depthByMealCount(matrix);
+    const supply = supplyByMealCount(matrix);
+    const recipes = (diet: 'vegetarian' | 'balanced' | 'keto') =>
+      Object.fromEntries(
+        Object.entries(supply[diet]).map(([count, cell]) => [count, cell.recipes]),
+      );
 
     // two meals: breakfast and dinner; three add lunch; four a snack; five a second breakfast
-    expect(depth.vegetarian).toEqual({ 2: 1, 3: 1, 4: 1, 5: 0 });
-    expect(depth.balanced).toEqual({ 2: 2, 3: 2, 4: 1, 5: 0 });
-    expect(depth.keto).toEqual({ 2: 0, 3: 0, 4: 0, 5: 0 });
+    expect(recipes('vegetarian')).toEqual({ 2: 1, 3: 1, 4: 1, 5: 0 });
+    expect(recipes('balanced')).toEqual({ 2: 2, 3: 2, 4: 1, 5: 0 });
+    expect(recipes('keto')).toEqual({ 2: 0, 3: 0, 4: 0, 5: 0 });
   });
 
   it('names the thinnest cell of the diets a catalogue has to serve', () => {
@@ -174,5 +179,54 @@ describe('what the plans of a diet reach of its split, with the recipes there ar
 
     expect(reach.keto!.distance).toBeCloseTo(0, 2);
     expect(reach.keto!.fat).toBeCloseTo(macroSplitOf('keto').fat, 2);
+  });
+});
+
+describe('how well the catalogue serves a diet at a number of meals a day', () => {
+  const meals = (counts: Partial<Record<MealType, number>>): Record<MealType, number> => ({
+    breakfast: 9,
+    lunch: 9,
+    dinner: 9,
+    snack: 9,
+    second_breakfast: 9,
+    ...counts,
+  });
+  const matrix = Object.fromEntries(
+    Object.keys(recipesPerDietAndMeal([])).map((diet) => [diet, meals({})]),
+  ) as CoverageMatrix;
+  // Four meals add a snack to three, five a second breakfast to four.
+  matrix.vegan = meals({ lunch: VARIETY_DEPTH - 1, snack: 1, second_breakfast: 0 });
+  matrix.keto = meals({ breakfast: 0 });
+  matrix.mediterranean = meals({ lunch: 0 });
+  const supply = supplyByMealCount(matrix);
+
+  it('is none when one of the meals of the day has no recipe', () => {
+    expect(supply.vegan['5']).toMatchObject({ level: 'none', recipes: 0 });
+  });
+
+  it('is thin under what a week without too many repeats needs', () => {
+    expect(supply.vegan['4']).toMatchObject({ level: 'thin', recipes: 1 });
+    expect(supply.vegan['3']).toMatchObject({ level: 'thin', recipes: VARIETY_DEPTH - 1 });
+  });
+
+  it('is enough from there on', () => {
+    expect(supply.vegan['2']).toEqual({ level: 'enough', recipes: 9, fewerMeals: null });
+    expect(supply.balanced['5']).toEqual({ level: 'enough', recipes: 9, fewerMeals: 4 });
+    matrix.balanced = meals({ lunch: VARIETY_DEPTH });
+    expect(supplyByMealCount(matrix).balanced['3']).toMatchObject({
+      level: 'enough',
+      recipes: VARIETY_DEPTH,
+    });
+  });
+
+  it('names the largest smaller number of meals a day that can be planned', () => {
+    expect(supply.vegan['5'].fewerMeals).toBe(4);
+    expect(supply.mediterranean['5'].fewerMeals).toBe(2);
+    expect(supply.mediterranean['3'].fewerMeals).toBe(2);
+  });
+
+  it('names none when fewer meals would not help: the meal without a recipe is part of every day', () => {
+    expect(supply.keto['5'].fewerMeals).toBeNull();
+    expect(supply.mediterranean['2'].fewerMeals).toBeNull();
   });
 });

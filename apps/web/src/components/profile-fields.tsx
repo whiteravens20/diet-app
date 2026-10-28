@@ -288,7 +288,7 @@ export function DietFields({
   const t = useTranslations('profile');
   const tCatalogue = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
-  const depth = useConfig().data?.catalogue.depth;
+  const supply = useConfig().data?.catalogue.supply;
   // The fields stay the form's own; these follow them for the marks.
   const [diet, setDiet] = useState(firstDiet);
   const [mealCount, setMealCount] = useState(firstMealCount ?? 3);
@@ -309,12 +309,12 @@ export function DietFields({
           onChange={(e) => setDiet(e.target.value as DietType)}
         >
           {diets.map((d) => {
-            const supply = meals ? supplyOf(depth, d, mealCount)?.supply : undefined;
+            const level = meals ? supplyOf(supply, d, mealCount)?.level : undefined;
             return (
               <option key={d} value={d}>
-                {supply === 'none'
+                {level === 'none'
                   ? tCatalogue('dietNone', { diet: tDiet(d) })
-                  : supply === 'thin'
+                  : level === 'thin'
                     ? tCatalogue('dietThin', { diet: tDiet(d) })
                     : tDiet(d)}
               </option>

@@ -5,15 +5,19 @@ import {
   DietType,
   MEAL_SLOTS_BY_COUNT,
   PLAN_RELAXATIONS,
-  type CatalogueDepth,
+  type CatalogueSupply,
   type PublicConfig,
+  type Supply,
 } from '@diet-app/shared';
 
-/** A catalogue with `recipes` to choose from for every diet at every number of meals a day. */
-export function aDepth(recipes: number): CatalogueDepth {
+/** What the API says of a diet at a number of meals a day where the catalogue has plenty. */
+const ENOUGH: Supply = { level: 'enough', recipes: 9, fewerMeals: null };
+
+/** A catalogue with enough for every diet at every number of meals a day, as the API says it; a test changes the cells it is about. */
+export function aSupply(): CatalogueSupply {
   return Object.fromEntries(
-    DietType.options.map((diet) => [diet, { 2: recipes, 3: recipes, 4: recipes, 5: recipes }]),
-  ) as CatalogueDepth;
+    DietType.options.map((diet) => [diet, { 2: ENOUGH, 3: ENOUGH, 4: ENOUGH, 5: ENOUGH }]),
+  ) as CatalogueSupply;
 }
 
 /** Nothing switched on, nothing published by the operator, plenty of recipes; a test overrides what it is about. */
@@ -23,7 +27,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     email: { enabled: false },
     ai: { ollamaUserPolicy: 'off' },
     instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
-    catalogue: { depth: aDepth(9) },
+    catalogue: { supply: aSupply() },
     accounts: { maxProfiles: 2 },
     plans: {
       maxRepeatsPerRecipe: null,

@@ -11,11 +11,13 @@
 import {
   DietType,
   MEAL_SLOTS_BY_COUNT,
+  MealCountKey,
   MealType,
+  VARIETY_DEPTH,
   fitsDiet,
-  type CatalogueDepth,
+  type CatalogueSupply,
   type Macros,
-  type MealCountKey,
+  type Supply,
 } from '@diet-app/shared';
 import { energyShares, macroSplitOf, splitDistance } from './nutrition.js';
 import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from './optimizer.js';
@@ -52,18 +54,32 @@ export function recipesPerDietAndMeal(
   return matrix;
 }
 
-/** For each diet and number of meals a day: the recipes its thinnest meal can choose from. */
-export function depthByMealCount(matrix: CoverageMatrix): CatalogueDepth {
-  const depth = {} as CatalogueDepth;
+/**
+ * For each diet and number of meals a day, how well the catalogue serves it:
+ * by the recipes the thinnest of the day's meals can choose from, and the
+ * largest smaller number of meals a day that can be planned at all.
+ */
+export function supplyByMealCount(matrix: CoverageMatrix): CatalogueSupply {
+  const supply = {} as CatalogueSupply;
   for (const diet of DietType.options) {
-    depth[diet] = Object.fromEntries(
-      Object.entries(MEAL_SLOTS_BY_COUNT).map(([count, meals]) => [
-        count,
-        Math.min(...meals.map((meal) => matrix[diet][meal])),
-      ]),
-    ) as Record<MealCountKey, number>;
+    const thinnest = (count: number): number =>
+      Math.min(...MEAL_SLOTS_BY_COUNT[count]!.map((meal) => matrix[diet][meal]));
+    supply[diet] = Object.fromEntries(
+      MealCountKey.options.map((key): [MealCountKey, Supply] => {
+        const count = Number(key);
+        const recipes = thinnest(count);
+        return [
+          key,
+          {
+            level: recipes === 0 ? 'none' : recipes < VARIETY_DEPTH ? 'thin' : 'enough',
+            recipes,
+            fewerMeals: [4, 3, 2].find((fewer) => fewer < count && thinnest(fewer) > 0) ?? null,
+          },
+        ];
+      }),
+    ) as Record<MealCountKey, Supply>;
   }
-  return depth;
+  return supply;
 }
 
 /** The emptiest cell among the diets that need recipes of their own; the first in a fixed order when several are as empty. */

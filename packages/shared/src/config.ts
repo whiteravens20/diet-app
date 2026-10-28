@@ -24,13 +24,25 @@ export const MealCountKey = z.enum(['2', '3', '4', '5']);
 export type MealCountKey = z.infer<typeof MealCountKey>;
 
 /**
- * For every diet and number of meals a day: how many shared recipes the
- * thinnest of those meals has to choose from. Zero means no plan can be made
- * for the pair from the catalogue alone; under `VARIETY_DEPTH` a plan repeats
- * itself.
+ * How well the catalogue serves a diet at a number of meals a day, by the meal
+ * of the day it has the fewest shared recipes for. `level` is `none` when that
+ * meal has no recipe, so no plan can be made for the pair from the catalogue
+ * alone; `thin` under `VARIETY_DEPTH`, where a week repeats a dish more often
+ * than the default limit on repeats allows; `enough` from there on.
+ * `recipes` is what that meal has to choose from, and `fewerMeals` the largest
+ * smaller number of meals a day the catalogue can make a plan for on the diet,
+ * or null where fewer meals would not help.
  */
-export const CatalogueDepth = z.record(DietType, z.record(MealCountKey, z.number().int().min(0)));
-export type CatalogueDepth = z.infer<typeof CatalogueDepth>;
+export const Supply = z.object({
+  level: z.enum(['none', 'thin', 'enough']),
+  recipes: z.number().int().min(0),
+  fewerMeals: z.number().int().min(2).max(4).nullable(),
+});
+export type Supply = z.infer<typeof Supply>;
+
+/** For every diet and number of meals a day, how well the catalogue serves it. */
+export const CatalogueSupply = z.record(DietType, z.record(MealCountKey, Supply));
+export type CatalogueSupply = z.infer<typeof CatalogueSupply>;
 
 /**
  * Public, unauthenticated runtime configuration the web app needs before a user
@@ -62,7 +74,7 @@ export const PublicConfig = z.object({
     version: z.string(),
   }),
   catalogue: z.object({
-    depth: CatalogueDepth,
+    supply: CatalogueSupply,
   }),
   accounts: z.object({
     /** How many profiles an account may hold on this instance. */

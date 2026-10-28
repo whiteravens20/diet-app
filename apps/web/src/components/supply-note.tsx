@@ -25,11 +25,11 @@ export function SupplyNote({
 }) {
   const t = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
-  const found = supplyOf(useConfig().data?.catalogue.depth, diet, mealCount);
-  if (!found || found.supply === 'enough') return null;
+  const found = supplyOf(useConfig().data?.catalogue.supply, diet, mealCount);
+  if (!found || found.level === 'enough') return null;
   return (
     <p role="status" className={cn('text-xs text-warning', className)}>
-      {found.supply === 'none'
+      {found.level === 'none'
         ? t('none', {
             diet: tDiet(diet),
             count: mealCount,
