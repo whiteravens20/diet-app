@@ -335,7 +335,7 @@
     "LOCKED_RECIPE_INELIGIBLE": "Przypiętego przepisu nie można dodać do tego planu: jest niedostępny albo wyklucza go dieta, alergeny, pomijane składniki lub oznaczenie do unikania.",
     "PLAN_NEEDS_RELAXATION": "Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie.",
     "RANGE_OUTSIDE_PLAN": "Te dni nie należą do tego planu albo pierwszy jest późniejszy niż ostatni.",
-    "NOTHING_TO_REGENERATE": "Wszystkie te dni już minęły. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz.",
+    "NOTHING_TO_REGENERATE": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian.",
     "CUSTOM_MEAL_INVALID_MACROS": "Makroskładniki własnego posiłku muszą być liczbami nieujemnymi.",
     "OFF_DIET_FAVORITE_NOT_ALLOWED": "Tego ulubionego przepisu nie można tu wstawić: nie pasuje do posiłku lub diety albo wykluczają go alergeny, pomijane składniki lub oznaczenie do unikania.",
     "CUSTOM_MEAL_NOT_SWAPPABLE": "Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika.",

@@ -707,8 +707,8 @@
       409
     ],
     "messages": {
-      "en": "Every one of those days is before today. Days in the past are made again only when you say so.",
-      "pl": "Wszystkie te dni już minęły. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz."
+      "en": "Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are.",
+      "pl": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian."
     }
   },
   "NOTIFICATION_NOT_FOUND": {

@@ -322,9 +322,15 @@ export type PlannedMeal = z.infer<typeof PlannedMeal>;
 const RerollOptions = z.object({
   /** Make days before today again as well. They are left as they are otherwise. */
   includePast: z.boolean().default(false),
-  /** Replace the meals marked as eaten. Otherwise they stay, and the rest of their day is filled around them. */
+  /**
+   * Replace the meals marked as eaten. Otherwise they stay, and the rest of
+   * their day is filled around them. A day the user skips keeps them always.
+   */
   replaceEaten: z.boolean().default(false),
-  /** Replace the user's own meals. Otherwise they stay, and what they hold is counted in their day. */
+  /**
+   * Replace the user's own meals. Otherwise they stay, and what they hold is
+   * counted in their day. A day the user skips keeps them always.
+   */
   replaceCustom: z.boolean().default(false),
   /**
    * Drop a lock whose recipe may no longer go into the plan (it was deleted,
@@ -352,9 +358,9 @@ export type RegenerateDayRequest = z.infer<typeof RegenerateDayRequest>;
  * days. Either way the meals that stay, and the days that are not made again,
  * count for the limits of the plan.
  *
- * 400 `RANGE_OUTSIDE_PLAN` when a date is no day of the plan or `from` is
- * after `to`; 409 `NOTHING_TO_REGENERATE` when every day asked for is before
- * today and `includePast` is not set.
+ * A day the user skips is left as it is. 400 `RANGE_OUTSIDE_PLAN` when a date
+ * is no day of the plan or `from` is after `to`; 409 `NOTHING_TO_REGENERATE`
+ * when every day asked for is skipped, or before today without `includePast`.
  */
 export const RegenerateRequest = RerollOptions.extend({
   from: CalendarDay.optional(),

@@ -86,7 +86,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `METHOD_NOT_ALLOWED` | 405 | That action is not available here. | Ta operacja nie jest tutaj dostępna. |
 | `MODEL_PICK_INVALID` | 400 | This suggestion is no longer good for what it was made for. Ask for another. | Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową. |
 | `NAMER_IN_PROGRESS` | 409 | An ingredient-namer run is already in progress. | Generowanie nazw składników już trwa. |
-| `NOTHING_TO_REGENERATE` | 409 | Every one of those days is before today. Days in the past are made again only when you say so. | Wszystkie te dni już minęły. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz. |
+| `NOTHING_TO_REGENERATE` | 409 | Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are. | Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian. |
 | `NOTIFICATION_NOT_FOUND` | 404 | Notification not found. | Nie znaleziono powiadomienia. |
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |

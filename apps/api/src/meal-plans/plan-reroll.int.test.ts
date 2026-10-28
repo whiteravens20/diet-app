@@ -9,6 +9,7 @@ import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.
 import { createTestApp, TEST_TODAY, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
+import { isoDate } from './plan-days.js';
 
 describe('making a plan again, or a part of it', () => {
   let t: TestApp;
@@ -187,6 +188,64 @@ describe('making a plan again, or a part of it', () => {
       expect(
         again.days[0]!.meals.some((meal) => meal.id === breakfast.id || meal.eatenAt !== null),
       ).toBe(false);
+    });
+  });
+
+  /**
+   * The plan once its day `index` is skipped, as the settings of a day skip
+   * it: it keeps what was eaten of it. The settings of a day that has passed by
+   * the server's clock stay as they are, so the plan is to begin today.
+   */
+  const skip = async (of: MealPlan, index: number): Promise<MealPlan> => {
+    const day = of.days[index]!;
+    return (
+      await t
+        .http()
+        .put(`/api/meal-plans/${of.id}/days/${day.id}/settings`)
+        .set(as(user))
+        .send({
+          dayType: 'normal',
+          skip: true,
+          mealCount: day.mealCount,
+          calorieTarget: null,
+          cookTimeBudgetMinutes: null,
+          useUpBy: false,
+          revision: of.revision,
+        })
+        .expect(200)
+    ).body as MealPlan;
+  };
+
+  describe('a day the user skips', () => {
+    it('keeps what was eaten of it, also when the meals eaten on the other days are replaced', async () => {
+      const plan = await aPlan(t, user, profile, {
+        durationDays: 2,
+        startDate: isoDate(new Date()),
+      });
+      for (const day of plan.days) {
+        const breakfast = day.meals.find((meal) => meal.mealType === 'breakfast')!;
+        await plans.setEaten(user.id, 'en', plan.id, breakfast.id, true);
+      }
+      const skipped = await skip(await fresh(plan), 1);
+      expect(skipped.days[1]!.meals.map((meal) => meal.eatenAt !== null)).toEqual([true]);
+
+      const again: MealPlan = (await regenerate(skipped, { replaceEaten: true }).expect(201)).body;
+
+      expect(again.days[0]!.meals.some((meal) => meal.eatenAt !== null)).toBe(false);
+      expect(again.days[1]).toMatchObject({ skipped: true, meals: skipped.days[1]!.meals });
+    });
+
+    it('is nothing to make again on its own', async () => {
+      const skipped = await skip(
+        await aPlan(t, user, profile, { durationDays: 2, startDate: isoDate(new Date()) }),
+        1,
+      );
+
+      expect((await changeDay(skipped, 1).expect(409)).body.error).toBe('NOTHING_TO_REGENERATE');
+      expect(
+        (await regenerate(skipped, { from: skipped.days[1]!.date }).expect(409)).body.error,
+      ).toBe('NOTHING_TO_REGENERATE');
+      expect((await fresh(skipped)).revision).toBe(skipped.revision);
     });
   });
 

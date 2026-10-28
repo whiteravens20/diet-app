@@ -56,6 +56,7 @@ import {
   customMacros,
   dayMealCount,
   isoDate,
+  isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
@@ -200,8 +201,10 @@ export class PlanGenerationService {
    * for them needs: all of the plan's days, or those from `range.from` to
    * `range.to`. Days before today, meals marked as eaten and the user's own
    * meals stay unless the options say otherwise, and whatever stays counts for
-   * the limits of the plan and for what its day has left. Read once, for as
-   * many draws as are made of it; nothing is written.
+   * the limits of the plan and for what its day has left. A day the user skips
+   * gets nothing, and keeps what was eaten of it and the user's own meals
+   * whatever the options say. Read once, for as many draws as are made of it;
+   * nothing is written.
    *
    * Without a range the plan is made again: as it was asked for, with the
    * profile as it is now for what was left to the profile, and with what each
@@ -311,10 +314,11 @@ export class PlanGenerationService {
         };
       }
 
+      const skipped = o?.skip === true;
       const staying = day.meals.filter(
         (meal) =>
-          (meal.eatenAt !== null && !options.replaceEaten) ||
-          (meal.source === 'USER_CUSTOM' && !options.replaceCustom),
+          (meal.eatenAt !== null && (skipped || !options.replaceEaten)) ||
+          (meal.source === 'USER_CUSTOM' && (skipped || !options.replaceCustom)),
       );
       filled.push({ dayIndex, dayId: day.id, staying: staying.map((meal) => meal.id) });
       // A meal of the catalogue that stays holds its place among the day's meals; one of the user's own is beside them.
@@ -394,6 +398,13 @@ export class PlanGenerationService {
     clientToday: string | null,
   ): Promise<void> {
     const prepared = await this.prepare(userId, planId, range, options, clientToday);
+    if (prepared.filled.every(({ dayIndex }) => isSkipped(prepared.plan.days[dayIndex]!))) {
+      throw new ConflictException({
+        error: 'NOTHING_TO_REGENERATE',
+        message:
+          'Every day asked for is skipped or before today. A skipped day is left as it is, and days in the past are made again only when the request says so.',
+      });
+    }
     const {
       plan,
       made,
