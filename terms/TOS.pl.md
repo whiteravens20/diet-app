@@ -16,9 +16,20 @@ Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za
 
 Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowany, ale nadal obowiązują Cię regulamin i cennik tego dostawcy. Gdy korzystasz z AI instancji, operator płaci za Twoje zapytania w miesięcznych limitach, które pokazuje aplikacja. Operator decyduje o tym, które konta mogą z niego korzystać. Może też ten dostęp odebrać, na przykład po nadużyciu.
 
-## 4. Wartości odżywcze to nie porada medyczna
+## 4. To nie porada medyczna
 
-Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana z prowadzonej bazy składników. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych. Zanim zmienisz dietę z powodu choroby, zapytaj wykwalifikowanego specjalistę.
+Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana z prowadzonej bazy składników. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych.
+
+Cel kaloryczny profilu i tempo utraty wagi są wyliczane ze wzoru dla dorosłych na podstawie wieku, płci, wzrostu, wagi i aktywności. To przybliżenie dla zdrowej osoby dorosłej: aplikacja nie zna Twojego stanu zdrowia, niczego nie diagnozuje ani nie leczy i nie zastępuje lekarza ani dietetyka.
+
+Zanim zaczniesz odchudzanie albo zmienisz dietę, zapytaj lekarza lub dietetyka, jeśli:
+
+- masz mniej niż 18 lat;
+- jesteś w ciąży albo karmisz piersią;
+- masz zaburzenia odżywiania teraz albo w przeszłości;
+- chorujesz przewlekle (na przykład na cukrzycę albo choroby nerek) albo przyjmujesz leki, na które wpływa dieta.
+
+Jeśli podczas diety źle się poczujesz, przerwij ją i skontaktuj się z lekarzem. Z diety, celów i planów aplikacji korzystasz na własną odpowiedzialność. Operator nie odpowiada za szkody wynikające z ich stosowania, w granicach opisanych w punkcie 9.
 
 ## 5. Treści tworzone z pomocą AI
 

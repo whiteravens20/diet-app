@@ -16,9 +16,20 @@ Creating an account requires an email address and a password that you keep secre
 
 When you add a key of an AI provider in Settings, the instance stores it encrypted, but the provider's own terms and prices still apply to you. When you use the instance's AI, the operator pays for your requests within the monthly limits the application shows. The operator decides which accounts may use it, and may take that back, for example after misuse.
 
-## 4. Nutrition is not medical advice
+## 4. Not medical advice
 
-Every calorie, macronutrient and micronutrient value in the application is computed from a curated ingredient database. The values are estimates and have not been checked for any medical or therapeutic purpose. Ask a qualified professional before you change your diet because of a health condition.
+Every calorie, macronutrient and micronutrient value in the application is computed from a curated ingredient database. The values are estimates and have not been checked for any medical or therapeutic purpose.
+
+A profile's calorie target and pace of weight loss are worked out from an equation for adults, from age, sex, height, weight and activity. They are an approximation for a healthy adult: the application knows nothing of your health, does not diagnose or treat anything and does not replace a doctor or a dietitian.
+
+Before you start losing weight or change your diet, ask a doctor or a dietitian if:
+
+- you are under 18;
+- you are pregnant or breastfeeding;
+- you have an eating disorder, now or in the past;
+- you have a long-term illness (such as diabetes or kidney disease), or take medicines that your diet affects.
+
+If you feel unwell while following a plan, stop and see a doctor. You follow the diet, targets and plans of the application at your own risk. The operator is not liable for damage that comes of following them, within the limits set out in section 9.
 
 ## 5. Content written with AI
 
