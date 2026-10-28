@@ -1948,7 +1948,8 @@
     "under": "{kcal, number} kcal dziennie poniżej Twojego zapotrzebowania.",
     "over": "{kcal, number} kcal dziennie powyżej Twojego zapotrzebowania.",
     "macros": "Białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g dziennie.",
-    "said": "Cel dzienny: {kcal, number} kcal."
+    "said": "Cel dzienny: {kcal, number} kcal.",
+    "notAdvice": "To przybliżenie dla zdrowej osoby dorosłej, a nie porada medyczna. Więcej w <link>regulaminie</link>."
   },
   "calculator": {
     "title": "Kalkulator",

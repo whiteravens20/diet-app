@@ -121,6 +121,25 @@ describe('what the figures of a form come to', () => {
     expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
   });
 
+  it('says beside the figures that they are no medical advice, with the terms a new tab opens', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
+    show(figures());
+    await pass(0);
+
+    expect(
+      screen.getByText(/An approximation for a healthy adult, not medical advice\./),
+    ).toBeInTheDocument();
+    const terms = screen.getByRole('link', { name: 'terms' });
+    expect(terms).toHaveAttribute('href', '/terms');
+    expect(terms).toHaveAttribute('target', '_blank');
+  });
+
+  it('says nothing of medical advice while there are no figures', () => {
+    show(null);
+
+    expect(screen.queryByText(/not medical advice/)).toBeNull();
+  });
+
   it('is not asked again for figures it was asked for before', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
     const { type } = show(figures());

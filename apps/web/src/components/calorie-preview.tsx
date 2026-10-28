@@ -3,6 +3,7 @@
 'use client';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import type { CaloriePreview, CaloriePreviewRequest } from '@diet-app/shared';
@@ -56,7 +57,8 @@ export function useCaloriePreview(asked: CaloriePreviewRequest | null): {
  * The figures a form's numbers come to, beside the form: the target of a
  * day, maintenance, what the body uses at rest, the grams of protein, fat
  * and carbohydrate, and what stands behind a target that is not simply
- * maintenance less the pace. The warnings for somebody under 18 or
+ * maintenance less the pace, and that the figures are no medical advice,
+ * with the terms that say more. The warnings for somebody under 18 or
  * underweight are the form's own to give, with the box that answers them.
  */
 export function CaloriePreviewPanel({
@@ -121,6 +123,20 @@ export function CaloriePreviewPanel({
           </p>
           <p className="text-sm">{t('macros', c.targetMacros)}</p>
           <TargetNotices calories={c} risk={false} />
+          <p className="text-xs text-muted-foreground">
+            {t.rich('notAdvice', {
+              link: (chunks) => (
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline underline-offset-2"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })}
+          </p>
         </div>
       ) : waiting ? (
         // There are figures to work out, and the answer is on its way: nothing is asked of the reader.

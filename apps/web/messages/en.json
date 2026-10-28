@@ -1948,7 +1948,8 @@
     "under": "{kcal, number} kcal a day under your maintenance.",
     "over": "{kcal, number} kcal a day over your maintenance.",
     "macros": "Protein {protein, number} g · fat {fat, number} g · carbohydrate {carbs, number} g a day.",
-    "said": "Daily target: {kcal, number} kcal."
+    "said": "Daily target: {kcal, number} kcal.",
+    "notAdvice": "An approximation for a healthy adult, not medical advice. More in the <link>terms</link>."
   },
   "calculator": {
     "title": "Calculator",
