@@ -51,6 +51,19 @@ export const Ingredient = z.object({
   perishable: z.boolean().default(false),
   brand: z.string().nullable().default(null),
   storageHint: z.string().nullable().default(null),
+  /**
+   * The units an amount of it can be given in, in a recipe of one's own:
+   * those the API converts into `canonicalUnit`, that one first. Pieces go by
+   * `gramsPerPiece`, grams and millilitres into each other by `density`.
+   */
+  recipeUnits: z.array(Unit).min(1),
+  /**
+   * The units the pantry takes it in, the one to offer first first: what is
+   * counted (`displayUnit`) is kept in its pieces alone, so that it is never
+   * in the pantry twice; anything else in the units of `recipeUnits`. An
+   * amount in another unit is refused with `UNIT_NOT_CONVERTIBLE`.
+   */
+  pantryUnits: z.array(Unit).min(1),
 });
 export type Ingredient = z.infer<typeof Ingredient>;
 

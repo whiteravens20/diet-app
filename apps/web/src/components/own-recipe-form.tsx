@@ -33,10 +33,7 @@ const PREVIEW_DELAY_MS = 400;
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** What an ingredient line needs to know about its ingredient: its name and the units it can be measured in. */
-export type LineIngredient = Pick<
-  Ingredient,
-  'id' | 'name' | 'canonicalUnit' | 'gramsPerPiece' | 'density'
->;
+type LineIngredient = Pick<Ingredient, 'id' | 'name' | 'recipeUnits'>;
 
 /** One line as it is typed: the amount stays text while somebody types it. */
 interface Line {
@@ -73,20 +70,6 @@ export const EMPTY_RECIPE: OwnRecipeDraft = {
   cuisine: null,
   ingredients: [],
 };
-
-/**
- * Whether an amount of `ingredient` in `unit` can be worked out, as the
- * engine works it out: grams and millilitres into each other by the
- * ingredient's density, pieces by the weight of one.
- */
-export function measurableIn(unit: Unit, ingredient: LineIngredient): boolean {
-  const target = ingredient.canonicalUnit;
-  if (unit === target) return true;
-  const grams = (from: Unit) => from === 'g' || ingredient.density !== null;
-  if (unit === 'piece') return ingredient.gramsPerPiece !== null && grams(target);
-  if (target === 'piece') return ingredient.gramsPerPiece !== null && grams(unit);
-  return ingredient.density !== null;
-}
 
 /** A field named by the place the API gives a problem, as the form names it. */
 type Problem = { path: string; rule: string };
@@ -230,7 +213,7 @@ export function OwnRecipeForm({
         key: nextKey,
         ingredient,
         quantity: '',
-        unit: ingredient.canonicalUnit,
+        unit: ingredient.recipeUnits[0]!,
         note: '',
       },
     ]);
@@ -417,13 +400,11 @@ export function OwnRecipeForm({
                   className={selectClass}
                   aria-label={t('unitOf', { name: line.ingredient.name })}
                 >
-                  {(['g', 'ml', 'piece'] as const)
-                    .filter((unit) => measurableIn(unit, line.ingredient))
-                    .map((unit) => (
-                      <option key={unit} value={unit}>
-                        {unit === 'piece' ? t('unitPiece') : unit}
-                      </option>
-                    ))}
+                  {line.ingredient.recipeUnits.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit === 'piece' ? t('unitPiece') : unit}
+                    </option>
+                  ))}
                 </select>
               </Field>
               <Field label={t('fieldNote')}>

@@ -19,8 +19,7 @@ const egg = {
   id: '22222222-2222-4222-8222-222222222222',
   name: 'Egg',
   canonicalUnit: 'g',
-  gramsPerPiece: 50,
-  density: null,
+  recipeUnits: ['g', 'piece'],
 } as Ingredient;
 
 const recipe = (origin: Recipe['origin']): Recipe => ({

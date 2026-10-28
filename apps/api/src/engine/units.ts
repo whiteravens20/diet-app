@@ -7,7 +7,7 @@
  * Recipes may express quantities in any unit; this module converts everything to
  * the ingredient's canonical unit so totals and nutrition are reproducible.
  */
-import type { Unit } from '@diet-app/shared';
+import { UNITS, type Unit } from '@diet-app/shared';
 
 export interface ConvertibleIngredient {
   canonicalUnit: Unit;
@@ -65,6 +65,26 @@ export function convertUnit(
   // above) — kept as a defensive guard if a new unit is ever added.
   /* v8 ignore next */
   throw new UnitConversionError(`unsupported conversion ${unit} → ${target}`);
+}
+
+/**
+ * The units an amount of an ingredient can be given in: those an amount
+ * converts from into the unit the ingredient is measured in, that one first.
+ */
+export function unitsOf(ingredient: ConvertibleIngredient): Unit[] {
+  const converts = (unit: Unit): boolean => {
+    try {
+      convertUnit(1, unit, ingredient.canonicalUnit, ingredient);
+      return true;
+    } catch (err) {
+      if (err instanceof UnitConversionError) return false;
+      throw err;
+    }
+  };
+  return [
+    ingredient.canonicalUnit,
+    ...UNITS.filter((unit) => unit !== ingredient.canonicalUnit && converts(unit)),
+  ];
 }
 
 function gramsPerPiece(

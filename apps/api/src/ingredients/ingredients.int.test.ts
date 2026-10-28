@@ -53,6 +53,23 @@ describe('the ingredient catalogue, as a client asks it', () => {
     expect(await names({ search: '' }, 'en')).toHaveLength((await names({})).length);
   });
 
+  it('says the units an amount of each is given in, in a recipe and in the pantry, the one to offer first first', async () => {
+    const units = async (search: string) => {
+      const found = (await ask({ search }).expect(200)).body as Ingredient[];
+      expect(found).toHaveLength(1);
+      return { recipe: found[0]!.recipeUnits, pantry: found[0]!.pantryUnits };
+    };
+
+    // Counted: the pantry keeps it in its pieces alone.
+    expect(await units('Large egg')).toEqual({ recipe: ['g', 'piece'], pantry: ['piece'] });
+    // Measured in millilitres, and weighed through its density.
+    expect(await units('Whole milk')).toEqual({ recipe: ['ml', 'g'], pantry: ['ml', 'g'] });
+    // Weighed by the piece, and not counted.
+    expect(await units('Banana')).toEqual({ recipe: ['g', 'piece'], pantry: ['g', 'piece'] });
+    // Weighed alone.
+    expect(await units('Broccoli')).toEqual({ recipe: ['g'], pantry: ['g'] });
+  });
+
   it('takes the signs of a pattern for what they are: text', async () => {
     expect(await names({ search: '%' })).toEqual([]);
     expect(await names({ search: '_' })).toEqual([]);

@@ -14,7 +14,7 @@ const texts = messages.inventory;
 
 const profile = { id: '6f1c2b1e-7a52-4a3a-9d0e-000000000001', name: 'Anna' } as Profile;
 
-/** A drink measured in millilitres whose bottle has a weight, but which has no density. */
+/** A drink measured in millilitres whose bottle has a weight, but which has no density: the API keeps it in millilitres alone. */
 const bottled = Ingredient.parse({
   id: '2dad81f3-0d9d-44e1-9ef3-000000000001',
   name: 'Bottled kefir',
@@ -26,9 +26,11 @@ const bottled = Ingredient.parse({
   carbsPer100: 4,
   gramsPerPiece: 400,
   displayUnit: 'piece',
+  recipeUnits: ['ml'],
+  pantryUnits: ['ml'],
 });
 
-/** Something counted in pieces, each of a known weight, with no density. */
+/** Something measured in pieces, each of a known weight, with no density: pieces first, or grams. */
 const dumplings = Ingredient.parse({
   id: '2dad81f3-0d9d-44e1-9ef3-000000000002',
   name: 'Frozen dumplings',
@@ -39,6 +41,8 @@ const dumplings = Ingredient.parse({
   fatPer100: 100,
   carbsPer100: 600,
   gramsPerPiece: 25,
+  recipeUnits: ['piece', 'g'],
+  pantryUnits: ['piece', 'g'],
 });
 
 /** A row of the pantry: `quantity` pieces of `ingredient`, best before `bestBefore`. */
@@ -96,7 +100,7 @@ describe('the form that puts an ingredient into the pantry', () => {
     vi.restoreAllMocks();
   });
 
-  it('offers only the units the ingredient can be kept in, and starts at one of them', async () => {
+  it('offers only the units the API says the ingredient can be kept in, and starts at the first of them', async () => {
     const { post } = await open([bottled]);
 
     await pick(bottled);
@@ -112,12 +116,12 @@ describe('the form that puts an ingredient into the pantry', () => {
     );
   });
 
-  it('offers grams of what is kept in pieces of a known weight', async () => {
+  it('offers grams of what is kept in pieces of a known weight, as the API says', async () => {
     await open([dumplings]);
 
     await pick(dumplings);
 
-    expect(unitsOffered()).toEqual(['g', 'piece']);
+    expect(unitsOffered()).toEqual(['piece', 'g']);
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('piece');
   });
 
@@ -129,6 +133,8 @@ describe('the form that puts an ingredient into the pantry', () => {
       canonicalUnit: 'g',
       gramsPerPiece: 55,
       displayUnit: 'piece',
+      recipeUnits: ['g', 'piece'],
+      pantryUnits: ['piece'],
     });
     await open([egg]);
 
@@ -152,6 +158,8 @@ describe('a row of the pantry', () => {
       canonicalUnit: 'g',
       gramsPerPiece: 5,
       displayUnit: 'clove',
+      recipeUnits: ['g', 'piece'],
+      pantryUnits: ['piece'],
     });
     await open([], [aRow(dumplings, 12, '2026-11-05'), aRow(garlic, 3, null)]);
 

@@ -20,7 +20,7 @@
  *  - A quantity that is not zero is never shown as zero.
  */
 import type { DisplayAmount, DisplayUnit, NaturalUnit, Unit } from '@diet-app/shared';
-import { convertUnit, UnitConversionError, type ConvertibleIngredient } from './units.js';
+import { convertUnit, unitsOf, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 /** An ingredient as the display rules need to know it. */
 export type DisplayedIngredient = ConvertibleIngredient & {
@@ -86,6 +86,15 @@ export function isCounted(
     ingredient.displayUnit !== null &&
     converted(1, 'piece', ingredient.canonicalUnit, ingredient) !== null
   );
+}
+
+/**
+ * The units the pantry takes an ingredient in, the one to offer first first:
+ * pieces alone for what is counted, so that it is never in the pantry twice;
+ * otherwise every unit an amount of it converts from.
+ */
+export function pantryUnitsOf(ingredient: DisplayedIngredient): Unit[] {
+  return isCounted(ingredient) ? ['piece'] : unitsOf(ingredient);
 }
 
 /** A quantity of at least one step: what is there is never shown as nothing. */

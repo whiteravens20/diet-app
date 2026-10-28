@@ -1,9 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { pantryUnits, Unit } from '@diet-app/shared';
+import { Unit } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
-import { isCounted } from './display.js';
-import { UnitConversionError, convertUnit, nutritionFor, toCanonical } from './units.js';
+import { isCounted, pantryUnitsOf } from './display.js';
+import { UnitConversionError, convertUnit, nutritionFor, toCanonical, unitsOf } from './units.js';
 
 const milk = { canonicalUnit: 'ml' as const, gramsPerPiece: null, density: 1.03 };
 const egg = { canonicalUnit: 'g' as const, gramsPerPiece: 55, density: null };
@@ -89,7 +89,19 @@ describe('convertUnit', () => {
   });
 });
 
-describe('the units the contract lets a pantry keep an ingredient in', () => {
+describe('the units an amount of an ingredient is given in', () => {
+  it('are the unit it is measured in first, then those an amount converts from', () => {
+    expect(unitsOf(rice)).toEqual(['g']);
+    expect(unitsOf(egg)).toEqual(['g', 'piece']);
+    expect(unitsOf(milk)).toEqual(['ml', 'g']);
+    expect(unitsOf(bottledMilk)).toEqual(['ml', 'g', 'piece']);
+    expect(unitsOf({ ...bottledMilk, density: null })).toEqual(['ml']);
+    expect(unitsOf(eggPiece)).toEqual(['piece', 'g']);
+    expect(unitsOf(scoop)).toEqual(['piece', 'g', 'ml']);
+  });
+});
+
+describe('the units a pantry keeps an ingredient in', () => {
   it('are the ones this converts into the unit the ingredient is measured in, and pieces alone for what is counted', () => {
     for (const canonicalUnit of Unit.options) {
       for (const gramsPerPiece of [null, 0, 55]) {
@@ -106,8 +118,12 @@ describe('the units the contract lets a pantry keep an ingredient in', () => {
               }
             });
 
-            expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(
-              isCounted(ingredient) ? ['piece'] : converted,
+            const offered = pantryUnitsOf(ingredient);
+            expect(new Set(offered), JSON.stringify(ingredient)).toEqual(
+              new Set(isCounted(ingredient) ? ['piece'] : converted),
+            );
+            expect(offered[0], JSON.stringify(ingredient)).toBe(
+              isCounted(ingredient) ? 'piece' : canonicalUnit,
             );
           }
         }

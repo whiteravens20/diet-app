@@ -9,7 +9,7 @@ import type { Ingredient, OwnRecipePreview } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
-import { EMPTY_RECIPE, measurableIn, OwnRecipeForm, type OwnRecipeDraft } from './own-recipe-form';
+import { EMPTY_RECIPE, OwnRecipeForm, type OwnRecipeDraft } from './own-recipe-form';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -20,22 +20,19 @@ const rice = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'White rice',
   canonicalUnit: 'g',
-  gramsPerPiece: null,
-  density: null,
+  recipeUnits: ['g'],
 } as Ingredient;
 const egg = {
   id: '22222222-2222-4222-8222-222222222222',
   name: 'Egg',
   canonicalUnit: 'g',
-  gramsPerPiece: 50,
-  density: null,
+  recipeUnits: ['g', 'piece'],
 } as Ingredient;
 const milk = {
   id: '33333333-3333-4333-8333-333333333333',
   name: 'Milk',
   canonicalUnit: 'ml',
-  gramsPerPiece: null,
-  density: 1.03,
+  recipeUnits: ['ml', 'g'],
 } as Ingredient;
 const serving: OwnRecipePreview = {
   nutritionPerServing: { calories: 412, protein: 20, fat: 11, carbs: 58 },
@@ -50,7 +47,7 @@ function opened(
   answer?: () => Promise<unknown>,
 ) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
-    Promise.resolve((path.startsWith('/ingredients?search=') ? [rice, egg] : []) as never),
+    Promise.resolve((path.startsWith('/ingredients?search=') ? [rice, egg, milk] : []) as never),
   );
   const saved = answer ?? (() => Promise.resolve({ id: '99999999-9999-4999-8999-999999999999' }));
   const post = vi
@@ -87,15 +84,18 @@ afterEach(() => {
 });
 
 describe('the units an ingredient of a recipe is offered in', () => {
-  it('are the ones the engine can work an amount out of', () => {
-    const units = (ingredient: Ingredient) =>
-      (['g', 'ml', 'piece'] as const).filter((unit) => measurableIn(unit, ingredient));
+  it('are the ones the API says an amount of it can be given in, the first of them chosen', async () => {
+    opened();
 
-    expect(units(rice)).toEqual(['g']);
-    expect(units(egg)).toEqual(['g', 'piece']);
-    expect(units(milk)).toEqual(['g', 'ml']);
-    expect(units({ ...milk, gramsPerPiece: 250 })).toEqual(['g', 'ml', 'piece']);
-    expect(units({ ...milk, density: null, gramsPerPiece: 250 })).toEqual(['ml']);
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: new RegExp(`^${text.addIngredient}`) }),
+      'mi',
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Milk' }));
+
+    const unit = screen.getByRole('combobox', { name: 'Unit of Milk' });
+    expect(unit).toHaveValue('ml');
+    expect([...unit.querySelectorAll('option')].map((option) => option.value)).toEqual(['ml', 'g']);
   });
 });
 

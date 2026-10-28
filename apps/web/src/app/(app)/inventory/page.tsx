@@ -7,7 +7,7 @@ import { Package, Trash } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
-import { pantryUnits, UNITS } from '@diet-app/shared/units';
+import { UNITS } from '@diet-app/shared/units';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -366,12 +366,8 @@ function AddInventoryForm({
                           onClick={() => {
                             setPickedIngredient(i);
                             setSearch('');
-                            // What is counted is kept in pieces of its own, the rest as it is weighed or measured.
-                            setUnit(
-                              i.displayUnit && pantryUnits(i).includes('piece')
-                                ? 'piece'
-                                : i.canonicalUnit,
-                            );
+                            // The unit the API offers first: pieces of what is counted, the rest as it is weighed or measured.
+                            setUnit(i.pantryUnits[0]!);
                           }}
                         >
                           {i.name}
@@ -412,7 +408,7 @@ function AddInventoryForm({
               onChange={(e) => setUnit(e.target.value as Unit)}
             >
               {/* Only what the ingredient can be converted from: stock in any other unit would count as nothing. */}
-              {(pickedIngredient ? pantryUnits(pickedIngredient) : UNITS).map((choice) => (
+              {(pickedIngredient?.pantryUnits ?? UNITS).map((choice) => (
                 <option key={choice} value={choice}>
                   {choice === 'piece' ? unitName(pickedIngredient?.displayUnit ?? 'piece') : choice}
                 </option>

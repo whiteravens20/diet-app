@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Ingredient, Locale } from '@diet-app/shared';
 import { collatedFor, containing } from '../common/collation.js';
+import { pantryUnitsOf } from '../engine/display.js';
+import { unitsOf } from '../engine/units.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Read access to the curated ingredient database. Static seed data. */
@@ -127,5 +129,7 @@ export function toIngredientDto(
     perishable: row.perishable,
     brand: row.brand,
     storageHint: text.storageHint,
+    recipeUnits: unitsOf(row),
+    pantryUnits: pantryUnitsOf(row),
   };
 }

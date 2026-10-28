@@ -43,7 +43,7 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
  *
  * Refused with 400 `UNIT_NOT_CONVERTIBLE` when the ingredient cannot be
  * converted from `unit` (pieces of something that has no weight per piece;
- * `pantryUnits` says which units are taken), and with 400
+ * the ingredient's `pantryUnits` say which units are taken), and with 400
  * `QUANTITY_TOO_LARGE` when the row would hold more than its unit's ceiling
  * (`MAX_QUANTITY`).
  */

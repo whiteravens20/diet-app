@@ -71,9 +71,7 @@ export default function EditOwnRecipePage() {
       ingredient: byId.get(line.ingredientId) ?? {
         id: line.ingredientId,
         name: line.name,
-        canonicalUnit: line.unit,
-        gramsPerPiece: null,
-        density: null,
+        recipeUnits: [line.unit],
       },
       quantity: line.quantity,
       unit: line.unit,
