@@ -1,8 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { DietType } from './enums.js';
-import { MAX_PLAN_DAYS } from './meal-plan.js';
+import { DietType, MealType } from './enums.js';
+import { MAX_PLAN_DAYS, PlanRelaxation } from './meal-plan.js';
 import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 
 /**
@@ -75,6 +75,13 @@ export const PublicConfig = z.object({
      * held to the limits of its profile only.
      */
     maxRepeatsPerRecipe: z.number().int().min(1).max(MAX_PLAN_DAYS).nullable(),
+    /** The meals of a day at each number of meals a day, in the order of the day. */
+    mealSlots: z.record(MealCountKey, z.array(MealType)),
+    /**
+     * The limits of a plan that can give way when no recipe is left for a
+     * meal inside them, in the order in which they do.
+     */
+    relaxations: z.array(PlanRelaxation),
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

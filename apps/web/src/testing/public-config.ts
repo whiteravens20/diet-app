@@ -1,7 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /** The public configuration a component under test finds already loaded. */
-import { DietType, type CatalogueDepth, type PublicConfig } from '@diet-app/shared';
+import {
+  DietType,
+  MEAL_SLOTS_BY_COUNT,
+  PLAN_RELAXATIONS,
+  type CatalogueDepth,
+  type PublicConfig,
+} from '@diet-app/shared';
 
 /** A catalogue with `recipes` to choose from for every diet at every number of meals a day. */
 export function aDepth(recipes: number): CatalogueDepth {
@@ -19,7 +25,16 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
     catalogue: { depth: aDepth(9) },
     accounts: { maxProfiles: 2 },
-    plans: { maxRepeatsPerRecipe: null },
+    plans: {
+      maxRepeatsPerRecipe: null,
+      mealSlots: {
+        2: MEAL_SLOTS_BY_COUNT[2]!,
+        3: MEAL_SLOTS_BY_COUNT[3]!,
+        4: MEAL_SLOTS_BY_COUNT[4]!,
+        5: MEAL_SLOTS_BY_COUNT[5]!,
+      },
+      relaxations: [...PLAN_RELAXATIONS],
+    },
     ...overrides,
   };
 }

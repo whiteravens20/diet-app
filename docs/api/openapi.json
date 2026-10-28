@@ -14740,10 +14740,36 @@
                     "type": "null"
                   }
                 ]
+              },
+              "mealSlots": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/components/schemas/MealCountKey"
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MealType"
+                  }
+                },
+                "required": [
+                  "2",
+                  "3",
+                  "4",
+                  "5"
+                ]
+              },
+              "relaxations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanRelaxation"
+                }
               }
             },
             "required": [
-              "maxRepeatsPerRecipe"
+              "maxRepeatsPerRecipe",
+              "mealSlots",
+              "relaxations"
             ],
             "additionalProperties": false
           }

@@ -2,7 +2,13 @@
 
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PublicConfig } from '@diet-app/shared';
+import {
+  MEAL_SLOTS_BY_COUNT,
+  MealCountKey,
+  PLAN_RELAXATIONS,
+  PublicConfig,
+  type MealType,
+} from '@diet-app/shared';
 import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
@@ -16,7 +22,8 @@ import { PACKAGE_VERSION } from './package-version.js';
  * non-secret operator choices the front-end needs before sign-in (whether to
  * render Turnstile + the site key, whether email flows are available), what
  * the operator publishes about the instance, which diets the catalogue has
- * recipes for, and the limits the operator set for accounts and plans.
+ * recipes for, the limits the operator set for accounts and plans, and how a
+ * plan's days are laid out.
  * Mirrors the unauthenticated HealthController, and is limited like it and
  * every other route.
  */
@@ -52,6 +59,10 @@ export class AppConfigController {
       plans: {
         maxRepeatsPerRecipe:
           this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }) ?? null,
+        mealSlots: Object.fromEntries(
+          MealCountKey.options.map((count) => [count, MEAL_SLOTS_BY_COUNT[Number(count)]!]),
+        ) as Record<MealCountKey, MealType[]>,
+        relaxations: [...PLAN_RELAXATIONS],
       },
     };
   }

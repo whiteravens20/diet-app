@@ -56,10 +56,31 @@ describe('GET /api/config', () => {
   });
 
   it('publishes the most a recipe repeats in a plan that names no number, and that the operator set none', async () => {
-    expect((await configOf({ DEFAULT_MAX_REPEATS_PER_RECIPE: 3 })).plans).toEqual({
-      maxRepeatsPerRecipe: 3,
+    expect((await configOf({ DEFAULT_MAX_REPEATS_PER_RECIPE: 3 })).plans.maxRepeatsPerRecipe).toBe(
+      3,
+    );
+    expect((await configOf({})).plans.maxRepeatsPerRecipe).toBeNull();
+  });
+
+  it('publishes the meals of a day at each number of meals, in the order of the day', async () => {
+    expect((await configOf({})).plans.mealSlots).toEqual({
+      '2': ['breakfast', 'dinner'],
+      '3': ['breakfast', 'lunch', 'dinner'],
+      '4': ['breakfast', 'lunch', 'dinner', 'snack'],
+      '5': ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'],
     });
-    expect((await configOf({})).plans).toEqual({ maxRepeatsPerRecipe: null });
+  });
+
+  it("publishes the order in which a plan's limits give way, the kinds of protein first and the times in seven days last", async () => {
+    expect((await configOf({})).plans.relaxations).toEqual([
+      'ingredient_cap',
+      'kind_same_day',
+      'variety_floor',
+      'cook_time',
+      'same_day',
+      'consecutive_days',
+      'weekly_cap',
+    ]);
   });
 
   it('never carries a secret', async () => {

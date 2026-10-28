@@ -44,7 +44,7 @@ describe('the most a recipe repeats in a plan, where the operator set a number',
   it('is published, so that the form of a plan can say it', async () => {
     const { plans } = (await t.http().get('/api/config').expect(200)).body;
 
-    expect(plans).toEqual({ maxRepeatsPerRecipe: 1 });
+    expect(plans.maxRepeatsPerRecipe).toBe(1);
   });
 
   it('holds a plan that names no number of its own: it is refused as one that named it would be', async () => {

@@ -1563,7 +1563,9 @@ describe('the plan page, on what a plan is made for', () => {
   });
 
   it('says the number the operator set for the repeats of a recipe, and sends none of its own: the server applies it', async () => {
-    await renderPage(aDepth(9), [], 'none', { plans: { maxRepeatsPerRecipe: 3 } });
+    await renderPage(aDepth(9), [], 'none', {
+      plans: { ...aPublicConfig().plans, maxRepeatsPerRecipe: 3 },
+    });
     await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
 
     const field = screen.getByLabelText(messages.mealPlans.advanced.varietyFloor);
