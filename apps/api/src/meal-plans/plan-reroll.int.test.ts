@@ -1,6 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { AddCustomMealRequest, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
+import {
+  AddCustomMealRequest,
+  ProfileInput,
+  type MealPlan,
+  type Profile,
+  type RerollPreview,
+} from '@diet-app/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -191,6 +197,89 @@ describe('making a plan again, or a part of it', () => {
     });
   });
 
+  describe('what a re-roll would do, asked before', () => {
+    let plan: MealPlan;
+
+    beforeEach(async () => {
+      plan = await aPlan(t, user, profile, { durationDays: 5 });
+      todayIs('2026-01-07');
+    });
+
+    const preview = (of: MealPlan, body?: Record<string, unknown>) =>
+      t.http().post(`/api/meal-plans/${of.id}/regenerate/preview`).set(as(user)).send(body);
+    const previewDay = (of: MealPlan, day: number, body?: Record<string, unknown>) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${of.id}/days/${of.days[day]!.id}/regenerate/preview`)
+        .set(as(user))
+        .send(body);
+
+    it('says what the re-roll then does: the days that get other meals, the meals that give place, and what is kept and why', async () => {
+      const breakfast = plan.days[2]!.meals.find((meal) => meal.mealType === 'breakfast')!;
+      const eaten = (await plans.setEaten(user.id, 'en', plan.id, breakfast.id, true)).plan;
+
+      const said: RerollPreview = (await preview(eaten).expect(200)).body;
+      const again: MealPlan = (await regenerate(eaten).expect(201)).body;
+
+      const changed = again.days.filter(
+        (day, i) => JSON.stringify(mealIds(again)[i]) !== JSON.stringify(mealIds(eaten)[i]),
+      );
+      const gone = eaten.days
+        .flatMap((day) => day.meals)
+        .filter((meal) => !again.days.some((day) => day.meals.some((m) => m.id === meal.id)));
+      expect(said).toEqual({
+        days: changed.length,
+        replaced: gone.length,
+        kept: { outside: 0, past: 2, skipped: 0, eaten: 1, custom: 0, locked: 0 },
+        couldGo: { past: true, eaten: true, custom: false },
+        fromToday: null,
+      });
+      expect(said.days).toBe(3);
+    });
+
+    it('is asked of one day as of the days from it to it, and writes nothing', async () => {
+      const ofTheDay: RerollPreview = (await previewDay(plan, 3).expect(200)).body;
+      const ofTheDays: RerollPreview = (
+        await preview(plan, { from: plan.days[3]!.date, to: plan.days[3]!.date }).expect(200)
+      ).body;
+
+      expect(ofTheDay).toEqual(ofTheDays);
+      expect(ofTheDay).toMatchObject({ days: 1, kept: { outside: 4 } });
+      expect((await fresh(plan)).revision).toBe(plan.revision);
+    });
+
+    it('answers a choice the re-roll refuses as nothing to make again with nothing, and says why', async () => {
+      await regenerate(plan, { to: '2026-01-06' }).expect(409);
+
+      expect((await preview(plan, { to: '2026-01-06' }).expect(200)).body).toMatchObject({
+        days: 0,
+        replaced: 0,
+        kept: { past: 2, outside: 3 },
+        couldGo: { past: true },
+      });
+      expect((await previewDay(plan, 0, { includePast: true }).expect(200)).body).toMatchObject({
+        days: 1,
+        kept: { past: 0, outside: 4 },
+      });
+    });
+
+    it('refuses days that are not days of the plan, as the re-roll does', async () => {
+      for (const body of [{ from: '2026-01-04' }, { from: '2026-01-08', to: '2026-01-06' }])
+        expect((await preview(plan, body).expect(400)).body.error).toBe('RANGE_OUTSIDE_PLAN');
+    });
+
+    it('says when the days from today on are no choice of their own: before the plan, and after it', async () => {
+      const fromToday = async () =>
+        ((await preview(plan).expect(200)).body as RerollPreview).fromToday;
+
+      expect(await fromToday()).toBeNull();
+      todayIs('2026-01-05');
+      expect(await fromToday()).toBe('not_begun');
+      todayIs('2026-01-10');
+      expect(await fromToday()).toBe('over');
+    });
+  });
+
   /**
    * The plan once its day `index` is skipped, as the settings of a day skip
    * it: it keeps what was eaten of it. The settings of a day that has passed by
@@ -233,6 +322,25 @@ describe('making a plan again, or a part of it', () => {
 
       expect(again.days[0]!.meals.some((meal) => meal.eatenAt !== null)).toBe(false);
       expect(again.days[1]).toMatchObject({ skipped: true, meals: skipped.days[1]!.meals });
+    });
+
+    it('is said to be kept as it is before a re-roll is asked for', async () => {
+      const plan = await aPlan(t, user, profile, {
+        durationDays: 2,
+        startDate: isoDate(new Date()),
+      });
+      const skipped = await skip(plan, 1);
+
+      const said: RerollPreview = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${skipped.id}/regenerate/preview`)
+          .set(as(user))
+          .send({ replaceEaten: true })
+          .expect(200)
+      ).body;
+
+      expect(said).toMatchObject({ days: 1, kept: { skipped: 1 } });
     });
 
     it('is nothing to make again on its own', async () => {

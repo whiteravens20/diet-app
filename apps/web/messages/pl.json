@@ -1171,6 +1171,7 @@
       "keptLocked": "{count, plural, one {# posiłek przypięty do swojego przepisu} few {# posiłki przypięte do swoich przepisów} many {# posiłków przypiętych do swoich przepisów} other {# posiłku przypiętego do swojego przepisu}}",
       "nothingPast": "Wybrane dni już minęły, a dni, które minęły, zostają bez zmian. Zaznacz powyżej „Dni, które już minęły”, żeby ułożyć ponownie również je.",
       "nothingKept": "W wybranych dniach nic by się nie zmieniło.",
+      "errPreview": "Nie udało się sprawdzić, co się zmieni.",
       "confirm": "Ułóż ponownie"
     },
     "limitsInTheWay": "Tego planu nie da się ułożyć w jego limitach. {count, plural, one {Jeden posiłek wyszedłby} few {# posiłki wyszłyby} many {# posiłków wyszłoby} other {# posiłku wyszłoby}} poza limit: {limits}.",

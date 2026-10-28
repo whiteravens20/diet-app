@@ -38,6 +38,7 @@ import {
   RebalanceResult,
   RegenerateDayRequest,
   RegenerateRequest,
+  RerollPreview,
   SetMealEatenRequest,
   SubstituteSuggestion,
   SwapIngredientRequest,
@@ -166,6 +167,42 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.generation.regenerate(user.id, locale, id, options, today);
+  }
+
+  /**
+   * What making a plan again, or the days of it that the request names, would
+   * do to it as it stands: the days and the meals replaced, and what is kept
+   * and why, read as the re-roll reads the plan. Nothing is drawn and nothing
+   * is written. Asked again as the choice changes in a window, so it is held
+   * to what a window asks for in a minute.
+   */
+  @Post(':id/regenerate/preview')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RerollPreview)
+  previewRegenerate(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(RegenerateRequest)) request: RegenerateRequest,
+    @ClientDate() today: string | null,
+  ) {
+    const { from, to, ...options } = request;
+    return this.generation.previewReroll(user.id, id, { from, to }, options, today);
+  }
+
+  /** What re-rolling the meals of a single day would do, as the preview of the plan says it of that day. */
+  @Post(':id/days/:dayId/regenerate/preview')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RerollPreview)
+  previewRegenerateDay(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(RegenerateDayRequest)) options: RegenerateDayRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.generation.previewRerollDay(user.id, id, dayId, options, today);
   }
 
   /** Re-roll the meals of a single day. */

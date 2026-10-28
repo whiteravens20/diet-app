@@ -426,6 +426,18 @@ describe('the budgets of the server, at the reference catalogue', () => {
         ).ms;
       },
     );
+    // What a re-roll would do is asked again as the choice changes in a window: one read of the plan, whatever its days hold.
+    await measure('POST /meal-plans/:id/regenerate/preview', READ, async (index) => {
+      const plan = plans[index % ACCOUNTS]!;
+      return (
+        await ask(
+          accounts[index % ACCOUNTS]!.user,
+          'POST',
+          `/api/meal-plans/${plan.id}/regenerate/preview`,
+          {},
+        )
+      ).ms;
+    });
     await measure(
       'POST /meal-plans/:id/days/:dayId/regenerate',
       { ms: 800, statements: 45 },

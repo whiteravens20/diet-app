@@ -369,6 +369,51 @@ export const RegenerateRequest = RerollOptions.extend({
 export type RegenerateRequest = z.infer<typeof RegenerateRequest>;
 
 /**
+ * What a re-roll of a plan, of a part of it or of one day would do to the plan
+ * as it stands, asked with the request the re-roll would be asked with: the
+ * plan read as the re-roll reads it when the request arrives. Nothing is
+ * drawn, so whether the limits of the plan hold is known only from the
+ * re-roll itself.
+ */
+export const RerollPreview = z.object({
+  /**
+   * The days that get other meals: a meal of them gives place, or a meal of
+   * the day's that none of its meals holds is filled.
+   */
+  days: z.number().int().min(0),
+  /** The meals on those days that give place to others. */
+  replaced: z.number().int().min(0),
+  /** What stays as it is, and why. */
+  kept: z.object({
+    /** The days of the plan that were not asked for. */
+    outside: z.number().int().min(0),
+    /** The days asked for that are before today: they stay unless `includePast` is set. */
+    past: z.number().int().min(0),
+    /** The days asked for that the user skips: they keep what they hold. */
+    skipped: z.number().int().min(0),
+    /** The meals on the days filled again that were eaten: they stay unless `replaceEaten` is set. */
+    eaten: z.number().int().min(0),
+    /** The user's own meals on those days: they stay unless `replaceCustom` is set. */
+    custom: z.number().int().min(0),
+    /** The meals on those days locked to the recipe they have, which they get again. */
+    locked: z.number().int().min(0),
+  }),
+  /**
+   * What the days asked for hold that the request could let go as well: days
+   * before today (`includePast`), and on the days that would be filled again,
+   * meals marked as eaten (`replaceEaten`) and the user's own (`replaceCustom`).
+   */
+  couldGo: z.object({ past: z.boolean(), eaten: z.boolean(), custom: z.boolean() }),
+  /**
+   * Why the days from today on (`from` the client's day) are no choice of
+   * their own for this plan: it has not begun, so that is all of it
+   * (`not_begun`), or it is over (`over`). Null where they are one.
+   */
+  fromToday: z.enum(['not_begun', 'over']).nullable(),
+});
+export type RerollPreview = z.infer<typeof RerollPreview>;
+
+/**
  * The advanced overrides as surfaced on a generated day (the `date` is
  * already on the day row, so it's omitted here). Null when the day used the
  * basic flow. The rebalancer reads `dayType`; the UI renders the rest.

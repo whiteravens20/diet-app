@@ -2,25 +2,19 @@
 
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { MealPlan, PlanRelaxation } from '@diet-app/shared';
+import type { MealPlan, PlanRelaxation, RerollPreview } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { useSettled } from '@/lib/use-settled';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  fromTodayRefused,
-  rerollOutcome,
-  whatCouldGo,
-  type Reroll,
-  type RerollChoice,
-  type RerollScope,
-} from './reroll';
+import { type Reroll, type RerollScope } from './reroll';
 
 /** What the window opens on: how much of the plan, which day for one day, and whether every limit is to hold. */
 export interface RerollStart {
@@ -34,20 +28,20 @@ export type RerollAsked = Omit<Reroll, 'planId'>;
 
 const selectClass = 'rounded-md border border-input bg-background px-2 py-1 text-sm';
 
-/** The parts of a plan a re-roll leaves as they are, in the order they are named. */
+/** The parts of a plan a re-roll leaves as they are, in the order they are named, with the text that names each. */
 const KEPT = [
-  'keptOutside',
-  'keptPast',
-  'keptSkipped',
-  'keptEaten',
-  'keptCustom',
-  'keptLocked',
+  ['outside', 'keptOutside'],
+  ['past', 'keptPast'],
+  ['skipped', 'keptSkipped'],
+  ['eaten', 'keptEaten'],
+  ['custom', 'keptCustom'],
+  ['locked', 'keptLocked'],
 ] as const;
 
 /**
  * The window in which a plan is made again: how much of it, what of it may be
- * replaced that is otherwise left alone, and, before anything is asked of the
- * API, what would be replaced and what kept.
+ * replaced that is otherwise left alone, and, before the plan is made again,
+ * what would be replaced and what kept, as the API reads the plan.
  */
 export function RerollDialog({
   planId,
@@ -127,13 +121,13 @@ function RerollForm({
   const t = useTranslations('mealPlans.reroll');
   const tCommon = useTranslations('common');
   const fmt = useFormat();
+  const errorText = useErrorText();
   const id = useId();
   // The user's own day, as the API is told it with the request.
   const today = localDate();
   const days = plan.days;
   const first = days[0]!.date;
   const last = days.at(-1)!.date;
-  const notFromToday = fromTodayRefused(days, today);
 
   const [scope, setScope] = useState<RerollScope>(start.scope);
   // Dates in this form sort as text.
@@ -149,25 +143,39 @@ function RerollForm({
   const [replaceCustom, setReplaceCustom] = useState(false);
   const [holdLimits, setHoldLimits] = useState(start.holdLimits ?? false);
 
-  // What is asked about is what the days chosen hold: a tick for something they do not hold says nothing.
-  const nothingMore = {
-    scope,
-    from,
-    to,
-    day,
-    includePast: false,
-    replaceEaten: false,
-    replaceCustom: false,
-  };
-  const past = whatCouldGo(days, nothingMore, today).past;
-  const withPast = { ...nothingMore, includePast: past && includePast };
-  const couldGo = whatCouldGo(days, withPast, today);
-  const choice: RerollChoice = {
-    ...withPast,
-    replaceEaten: couldGo.eaten && replaceEaten,
-    replaceCustom: couldGo.custom && replaceCustom,
-  };
-  const outcome = rerollOutcome(days, choice, today);
+  // What the API is asked what a re-roll would do: the days chosen, and what of them may go as well.
+  const dayId = days.find((d) => d.date === day)?.id;
+  const asked = JSON.stringify({
+    path:
+      scope === 'day'
+        ? `/meal-plans/${plan.id}/days/${dayId}/regenerate/preview`
+        : `/meal-plans/${plan.id}/regenerate/preview`,
+    body: {
+      ...(scope === 'range' ? { from, to } : {}),
+      ...(scope === 'from_today' ? { from: today } : {}),
+      ...(includePast ? { includePast: true } : {}),
+      ...(replaceEaten ? { replaceEaten: true } : {}),
+      ...(replaceCustom ? { replaceCustom: true } : {}),
+    },
+  });
+  // Asked once the choice has paused: every tick is a question of its own.
+  const settled = useSettled(asked, 300);
+  const preview = useQuery({
+    queryKey: ['reroll-preview', plan.id, plan.revision, settled],
+    queryFn: () => {
+      const { path, body } = JSON.parse(settled) as { path: string; body: object };
+      return api.post<RerollPreview>(path, body);
+    },
+    placeholderData: keepPreviousData,
+    gcTime: 0,
+    retry: false,
+  });
+  // What is shown is for the choice on the screen only: while a newer question is on its way, the older answer is greyed.
+  const shown = preview.data;
+  const current = shown !== undefined && !preview.isPlaceholderData && settled === asked;
+  const notFromToday = shown?.fromToday;
+  // What the days chosen hold that may go as well: a tick is offered, and sent, only where it lets something go.
+  const couldGo = shown?.couldGo ?? { past: false, eaten: false, custom: false };
   const mayGiveWay = plan.options.allowRelaxations;
 
   const scopes: { scope: RerollScope; label: string; hint: string; off?: boolean }[] = [
@@ -181,6 +189,7 @@ function RerollForm({
           : notFromToday === 'over'
             ? t('fromTodayOver')
             : t('partHint'),
+      // Not on offer until the API has said whether it is one.
       off: notFromToday !== null,
     },
     ...(days.length > 1
@@ -194,14 +203,14 @@ function RerollForm({
       className="space-y-4 p-4 text-sm"
       onSubmit={(event) => {
         event.preventDefault();
-        if (outcome.days === 0) return;
+        if (!current || shown.days === 0) return;
         onSubmit({
-          ...(scope === 'day' ? { dayId: days.find((d) => d.date === day)!.id } : {}),
+          ...(scope === 'day' ? { dayId } : {}),
           ...(scope === 'range' ? { from, to } : {}),
           ...(scope === 'from_today' ? { from: today } : {}),
-          ...(choice.includePast ? { includePast: true } : {}),
-          ...(choice.replaceEaten ? { replaceEaten: true } : {}),
-          ...(choice.replaceCustom ? { replaceCustom: true } : {}),
+          ...(couldGo.past && includePast ? { includePast: true } : {}),
+          ...(couldGo.eaten && replaceEaten ? { replaceEaten: true } : {}),
+          ...(couldGo.custom && replaceCustom ? { replaceCustom: true } : {}),
           ...(holdLimits && mayGiveWay.length > 0 ? { allowRelaxations: [] } : {}),
         });
         onClose();
@@ -283,10 +292,10 @@ function RerollForm({
         ))}
       </fieldset>
 
-      {(past || couldGo.eaten || couldGo.custom) && (
+      {(couldGo.past || couldGo.eaten || couldGo.custom) && (
         <fieldset className="space-y-1">
           <legend className="font-medium">{t('also')}</legend>
-          {past && (
+          {couldGo.past && (
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -333,29 +342,50 @@ function RerollForm({
         </label>
       )}
 
-      {/* Said before anything is asked of the API, and again whenever the choice changes. */}
+      {/* Said before the plan is made again, and again whenever the choice changes: the API works it out, this says it. */}
       <div
         aria-live="polite"
         className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
       >
-        {outcome.days === 0 ? (
-          <p className="text-warning">{t(outcome.keptPast > 0 ? 'nothingPast' : 'nothingKept')}</p>
-        ) : (
-          <p className="font-medium">
-            {t('replaced', { meals: outcome.replaced, days: outcome.days })}
-          </p>
+        {preview.isError && (
+          <div className="space-y-2">
+            <p role="alert">{errorText(preview.error, t('errPreview'))}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void preview.refetch()}
+            >
+              {tCommon('retry')}
+            </Button>
+          </div>
         )}
-        {KEPT.some((part) => outcome[part] > 0) ? (
-          <>
-            <p>{t('kept')}</p>
-            <ul className="list-disc pl-5">
-              {KEPT.filter((part) => outcome[part] > 0).map((part) => (
-                <li key={part}>{t(part, { count: outcome[part] })}</li>
-              ))}
-            </ul>
-          </>
+        {shown === undefined ? (
+          !preview.isError && <Skeleton className="h-16" />
         ) : (
-          <p>{t('keptNothing')}</p>
+          <div className={current ? 'space-y-1' : 'space-y-1 opacity-60'}>
+            {shown.days === 0 ? (
+              <p className="text-warning">
+                {t(shown.kept.past > 0 ? 'nothingPast' : 'nothingKept')}
+              </p>
+            ) : (
+              <p className="font-medium">
+                {t('replaced', { meals: shown.replaced, days: shown.days })}
+              </p>
+            )}
+            {KEPT.some(([part]) => shown.kept[part] > 0) ? (
+              <>
+                <p>{t('kept')}</p>
+                <ul className="list-disc pl-5">
+                  {KEPT.filter(([part]) => shown.kept[part] > 0).map(([part, text]) => (
+                    <li key={part}>{t(text, { count: shown.kept[part] })}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>{t('keptNothing')}</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -363,7 +393,7 @@ function RerollForm({
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon('cancel')}
         </Button>
-        <Button type="submit" size="sm" disabled={outcome.days === 0}>
+        <Button type="submit" size="sm" disabled={!current || shown.days === 0}>
           {t('confirm')}
         </Button>
       </div>

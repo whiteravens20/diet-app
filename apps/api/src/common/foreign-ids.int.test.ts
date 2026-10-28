@@ -128,6 +128,18 @@ const ASKS: Ask[] = [
     () => ({ includePast: true }),
   ],
   [
+    'ask what making a plan again would do',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/regenerate/preview`,
+    () => ({ includePast: true }),
+  ],
+  [
+    'ask what filling a day of a plan again would do',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/regenerate/preview`,
+    () => ({ includePast: true }),
+  ],
+  [
     'ask for other ways to fill a day of a plan',
     'post',
     (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/variations`,

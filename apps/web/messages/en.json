@@ -1171,6 +1171,7 @@
       "keptLocked": "{count, plural, one {# meal locked to its recipe} other {# meals locked to their recipes}}",
       "nothingPast": "The days chosen have passed, and days that have passed are left as they are. Tick them above to make them again as well.",
       "nothingKept": "Nothing would change on the days chosen.",
+      "errPreview": "Could not work out what would change.",
       "confirm": "Make again"
     },
     "limitsInTheWay": "This plan cannot be filled inside its limits. {count, plural, one {One meal} other {# meals}} would go outside: {limits}.",

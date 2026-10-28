@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-171 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+173 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -156,6 +156,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. |  | 204 |  |
 | `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate` | an account | Re-roll the meals of a single day. | `RegenerateDayRequest` | 201 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/:id/days/:dayId/regenerate/preview` | an account | What re-rolling the meals of a single day would do, as the preview of the plan says it of that day. | `RegenerateDayRequest` | 200 `RerollPreview` | 60 in a minute |
 | `PUT /api/meal-plans/:id/days/:dayId/settings` | an account | Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. | `ApplyDaySettingsRequest` | 200 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/settings/preview` | an account | What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go. Nothing is written. Asked again as the settings are changed in a window, so it is held to what a window asks for in a minute. | `DaySettings` | 200 `DaySettingsPreview` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/variations` | an account | Other ways to fill a day: the engine makes them as it makes a day again, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written. One request makes the day up to eight times over, so it is held to half of what making a day again is. | `WeighRequest` | 200 `DayVariations` | 10 in a minute |
@@ -165,6 +166,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/meal-plans/:id/meals/:mealId/substitutes` | an account | The substitutes the catalogue's own rules name for the ingredients of a planned meal. |  | 200 a list of `SubstituteSuggestion` |  |
 | `POST /api/meal-plans/:id/rebalance` | an account | Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. | `RebalanceRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/regenerate` | an account | Make a plan again, or the days of it that the request names. | `RegenerateRequest` | 201 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/:id/regenerate/preview` | an account | What making a plan again, or the days of it that the request names, would do to it as it stands: the days and the meals replaced, and what is kept and why, read as the re-roll reads the plan. Nothing is drawn and nothing is written. Asked again as the choice changes in a window, so it is held to what a window asks for in a minute. | `RegenerateRequest` | 200 `RerollPreview` | 60 in a minute |
 | `POST /api/meal-plans/:id/use-up` | an account | Swaps that would use up what the plan opens: the engine finds them, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written; a suggestion is taken as any swap is. The limit is that of making a plan: every meal of the plan is looked at. | `WeighRequest` | 200 `UseUpSuggestions` | 20 in a minute |
 | `POST /api/meal-plans/ai-swap-meal/preview` | an account | A recipe to put in the place of a planned meal, as `swap-meal/preview` offers one, with a model asked which of the recipes the engine puts before it to take. `aiMeta` says who picked; nothing is written. | `AiSwapMealRequest` | 201 `AiMealSwapPreview` | 30 in a minute |
 | `GET /api/meal-plans/calendar` | an account | The days of the profile's plans in a span of days, for a calendar. | query `PlanCalendarQuery` | 200 `PlanCalendar` | 60 in a minute |

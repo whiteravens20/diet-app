@@ -14,6 +14,7 @@ import type {
   Profile,
   PublicConfig,
   RelaxationNeeded,
+  RerollPreview,
   UnfilledMeal,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -234,14 +235,58 @@ const ofAMeal = (action: string): RegExp => new RegExp(`^${action}: `);
 const onTheDay = (day: string) =>
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${day}T12:00:00`) });
 
-/** The window a plan is made again in, once it has read the plan. */
+/** The window a plan is made again in, once it has read the plan and says what the API answered of a re-roll. */
 async function rerollWindow() {
   const dialog = within(
     await screen.findByRole('dialog', { name: messages.mealPlans.reroll.title }),
   );
   await dialog.findByRole('button', { name: messages.mealPlans.reroll.confirm });
+  await dialog.findByText(/^(Replaced: |Nothing would change|The days chosen have passed)/);
   return dialog;
 }
+
+/** What the API answers of a re-roll of the plan of the tests on its second day, unless a test says otherwise. */
+const aPreview = (over: Partial<RerollPreview> = {}): RerollPreview => ({
+  days: 2,
+  replaced: 2,
+  kept: { outside: 0, past: 1, skipped: 0, eaten: 0, custom: 0, locked: 0 },
+  couldGo: { past: true, eaten: false, custom: false },
+  fromToday: null,
+  ...over,
+});
+
+/**
+ * The API as the window and the page ask it: what a re-roll would do, by
+ * `preview` of the body it is asked with, and the re-roll itself by `reroll`.
+ */
+function answering(
+  preview: (body: Record<string, unknown>) => RerollPreview,
+  reroll: () => Promise<unknown> = () => Promise.reject(new Error('no re-roll was expected')),
+) {
+  return vi
+    .spyOn(api, 'post')
+    .mockImplementation(((path: string, body?: unknown) =>
+      path.endsWith('/regenerate/preview')
+        ? Promise.resolve().then(() => preview((body ?? {}) as Record<string, unknown>))
+        : reroll()) as never);
+}
+
+/** The re-rolls asked for, without the questions of what they would do. */
+const rerolls = (post: ReturnType<typeof answering>) =>
+  post.mock.calls.filter(([path]) => !String(path).endsWith('/preview'));
+
+/** Waits until the window has asked the API what a re-roll of `body` would do, and has the answer. */
+const waitForTheAnswerTo = (post: ReturnType<typeof answering>, body: Record<string, unknown>) =>
+  vi.waitFor(async () => {
+    expect(
+      post.mock.calls.some(
+        ([path, sent]) =>
+          String(path).endsWith('/preview') && JSON.stringify(sent) === JSON.stringify(body),
+      ),
+    ).toBe(true);
+    await post.mock.results.at(-1)!.value;
+    expect(screen.getByRole('button', { name: messages.mealPlans.reroll.confirm })).toBeEnabled();
+  });
 const recalculate = (asked: Awaited<ReturnType<typeof rerollWindow>>) =>
   userEvent.click(asked.getByRole('button', { name: messages.mealPlans.reroll.confirm }));
 
@@ -410,10 +455,15 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
     onTheDay('2026-01-05');
     const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['variety_floor'] } });
     await renderPage(aSupply(), [plan]);
-    const post = vi
-      .spyOn(api, 'post')
-      .mockRejectedValueOnce(refusal(oneBreakfast))
-      .mockResolvedValue(plan as never);
+    let refused = false;
+    const post = answering(
+      () => aPreview({ kept: { ...aPreview().kept, past: 0 }, days: 1, replaced: 1 }),
+      () => {
+        if (refused) return Promise.resolve(plan);
+        refused = true;
+        return Promise.reject(refusal(oneBreakfast));
+      },
+    );
 
     await userEvent.click(
       await screen.findByRole('button', { name: messages.mealPlans.recalculate }),
@@ -421,10 +471,9 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
     await recalculate(await rerollWindow());
     await userEvent.click(await lettingGiveWay(1));
 
-    expect(post.mock.calls[0]).toEqual([`/meal-plans/${plan.id}/regenerate`, undefined]);
-    expect(post.mock.calls[1]).toEqual([
-      `/meal-plans/${plan.id}/regenerate`,
-      { allowRelaxations: ['variety_floor', 'weekly_cap'] },
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, undefined],
+      [`/meal-plans/${plan.id}/regenerate`, { allowRelaxations: ['variety_floor', 'weekly_cap'] }],
     ]);
   });
 
@@ -502,7 +551,10 @@ describe('the plan page, on a plan and how it was made', () => {
       options: { ...aPlan().options, allowRelaxations: ['cook_time', 'weekly_cap'] },
     });
     await open(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+    const post = answering(
+      () => aPreview({ kept: { ...aPreview().kept, past: 0 }, days: 1, replaced: 1 }),
+      () => Promise.resolve(plan),
+    );
 
     expect(
       screen.getByText(
@@ -519,23 +571,26 @@ describe('the plan page, on a plan and how it was made', () => {
     ).toBeChecked();
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, {
-      allowRelaxations: [],
-    });
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { allowRelaxations: [] }],
+    ]);
   });
 
   it('leaves the limits as the plan has them when the window is asked for nothing about them', async () => {
     onTheDay('2026-01-05');
     const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['cook_time'] } });
     await open(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+    const post = answering(
+      () => aPreview({ kept: { ...aPreview().kept, past: 0 }, days: 1, replaced: 1 }),
+      () => Promise.resolve(plan),
+    );
 
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
     const asked = await rerollWindow();
     expect(asked.getByLabelText(/^Stay inside every limit this time/)).not.toBeChecked();
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, undefined);
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, undefined]]);
   });
 
   it('says nothing of how a plan was made when the plan is from before that was kept', async () => {
@@ -576,7 +631,7 @@ describe('the plan page, when a plan is made again', () => {
     await renderPage(aSupply(), [plan]);
     await userEvent.click(await screen.findByText('3-day plan · Vegan'));
   };
-  /** The window for the whole of the plan, opened from the plan's own button. */
+  /** The window for the whole of the plan, opened from the plan's own button, once it says what the API answered. */
   const forThePlan = async (plan: MealPlan) => {
     await open(plan);
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
@@ -586,51 +641,88 @@ describe('the plan page, when a plan is made again', () => {
     new ApiClientError(status, code, 'the text of the API');
   const texts = messages.mealPlans.reroll;
 
-  it('says in the window, before anything is asked of the API, what would be replaced and what kept', async () => {
-    const post = vi.spyOn(api, 'post');
-    const asked = await forThePlan(threeDays());
+  it('says in the window what the API answers a re-roll would replace and keep, asked again as the choice changes', async () => {
+    const plan = threeDays();
+    const post = answering((body) =>
+      body.includePast
+        ? aPreview({ days: 3, replaced: 3, kept: { ...aPreview().kept, past: 0 } })
+        : aPreview(),
+    );
+    const asked = await forThePlan(plan);
 
-    expect(asked.getByText('Replaced: 2 meals on 2 days.')).toBeInTheDocument();
+    expect(await asked.findByText('Replaced: 2 meals on 2 days.')).toBeInTheDocument();
     expect(asked.getByText('1 day that has passed')).toBeInTheDocument();
-    // Nothing on these days is eaten or the user's own: there is nothing to ask about either.
+    // Nothing on these days is eaten or the user's own, the API says: there is nothing to ask about either.
     expect(asked.queryByLabelText(texts.replaceEaten)).toBeNull();
     expect(asked.queryByLabelText(texts.replaceCustom)).toBeNull();
 
     await userEvent.click(asked.getByLabelText(texts.includePast));
 
-    expect(asked.getByText('Replaced: 3 meals on 3 days.')).toBeInTheDocument();
+    expect(await asked.findByText('Replaced: 3 meals on 3 days.')).toBeInTheDocument();
     expect(asked.getByText(texts.keptNothing)).toBeInTheDocument();
-    expect(post).not.toHaveBeenCalled();
+    expect(post.mock.calls).toEqual([
+      [`/meal-plans/${plan.id}/regenerate/preview`, {}],
+      [`/meal-plans/${plan.id}/regenerate/preview`, { includePast: true }],
+    ]);
+  });
+
+  it('says when the API could not say what would change, asks again on request, and makes nothing again meanwhile', async () => {
+    let fails = true;
+    answering(() => {
+      if (fails) throw refusal(429, 'RATE_LIMITED');
+      return aPreview();
+    });
+    await open(threeDays());
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
+    const asked = within(await screen.findByRole('dialog', { name: texts.title }));
+
+    expect(await asked.findByRole('alert')).toBeInTheDocument();
+    expect(asked.getByRole('button', { name: texts.confirm })).toBeDisabled();
+    fails = false;
+    await userEvent.click(asked.getByRole('button', { name: messages.common.retry }));
+
+    expect(await asked.findByText('Replaced: 2 meals on 2 days.')).toBeInTheDocument();
+    expect(asked.getByRole('button', { name: texts.confirm })).toBeEnabled();
   });
 
   it('asks for the whole plan with nothing of its own', async () => {
     const plan = threeDays();
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
     const asked = await forThePlan(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
     await recalculate(asked);
 
-    expect(post.mock.calls).toEqual([[`/meal-plans/${plan.id}/regenerate`, undefined]]);
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, undefined]]);
     // The window closes on the request: what comes of it is said on the page.
     expect(screen.queryByRole('dialog', { name: texts.title })).toBeNull();
   });
 
   it('asks for what is left of the plan from today', async () => {
     const plan = threeDays();
+    const post = answering(
+      (body) =>
+        body.from ? aPreview({ kept: { ...aPreview().kept, past: 0, outside: 1 } }) : aPreview(),
+      () => Promise.resolve(plan),
+    );
     const asked = await forThePlan(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
     await userEvent.click(asked.getByLabelText(texts.fromToday));
-    expect(asked.getByText('1 day outside the days chosen')).toBeInTheDocument();
+    expect(await asked.findByText('1 day outside the days chosen')).toBeInTheDocument();
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, { from: '2026-01-06' });
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, { from: '2026-01-06' }]]);
   });
 
   it('asks for the days from one day to another, and offers no last day before the first', async () => {
     const plan = threeDays();
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
     const asked = await forThePlan(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
     await userEvent.click(asked.getByLabelText(texts.range));
     const last = asked.getByLabelText(texts.rangeTo);
@@ -643,18 +735,21 @@ describe('the plan page, when a plan is made again', () => {
 
     await userEvent.selectOptions(asked.getByLabelText(texts.rangeFrom), '2026-01-06');
     await userEvent.selectOptions(last, '2026-01-06');
+    await waitForTheAnswerTo(post, { from: '2026-01-06', to: '2026-01-06' });
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, {
-      from: '2026-01-06',
-      to: '2026-01-06',
-    });
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { from: '2026-01-06', to: '2026-01-06' }],
+    ]);
   });
 
-  it('asks for one day, the one whose own button opened the window', async () => {
+  it('asks for one day, the one whose own button opened the window, of the day itself', async () => {
     const plan = threeDays();
+    const post = answering(
+      () => aPreview({ days: 1, replaced: 1, kept: { ...aPreview().kept, past: 0, outside: 2 } }),
+      () => Promise.resolve(plan),
+    );
     await open(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
     await userEvent.click(
       screen.getAllByRole('button', { name: messages.mealPlans.changeDay })[2]!,
@@ -664,51 +759,70 @@ describe('the plan page, when a plan is made again', () => {
     expect(asked.getByLabelText(texts.day)).toBeChecked();
     expect(asked.getByLabelText(texts.dayWhich)).toHaveValue('2026-01-07');
     expect(asked.getByText('Replaced: 1 meal on 1 day.')).toBeInTheDocument();
+    expect(post.mock.calls[0]).toEqual([
+      `/meal-plans/${plan.id}/days/${plan.days[2]!.id}/regenerate/preview`,
+      {},
+    ]);
     await recalculate(asked);
 
-    expect(post.mock.calls).toEqual([
+    expect(rerolls(post)).toEqual([
       [`/meal-plans/${plan.id}/days/${plan.days[2]!.id}/regenerate`, undefined],
     ]);
   });
 
-  it("asks about the meals that were eaten and the user's own where the days chosen hold them, and replaces them when told to", async () => {
+  it("asks about the meals that were eaten and the user's own where the API says the days hold them, and replaces them when told to", async () => {
     const plan = threeDays();
-    const breakfast = plan.days[2]!.meals[0]!;
-    plan.days[2]!.meals = [
-      { ...breakfast, eatenAt: '2026-01-07T08:00:00.000Z' },
-      {
-        ...breakfast,
-        id: '33333339-3333-4333-8333-333333333333',
-        mealType: 'lunch',
-        recipe: null,
-        source: 'USER_CUSTOM',
-        customName: 'Soup from the canteen',
-      },
-    ];
+    const holding = { past: false, eaten: true, custom: true };
+    const post = answering(
+      (body) =>
+        body.replaceEaten && body.replaceCustom
+          ? aPreview({ days: 2, replaced: 3, couldGo: holding })
+          : aPreview({
+              days: 1,
+              replaced: 1,
+              kept: { ...aPreview().kept, past: 0, eaten: 1, custom: 1 },
+              couldGo: holding,
+            }),
+      () => Promise.resolve(plan),
+    );
     const asked = await forThePlan(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
-    // The last day keeps both of its meals, so only today gets another.
     expect(asked.getByText('Replaced: 1 meal on 1 day.')).toBeInTheDocument();
     expect(asked.getByText('1 meal marked as eaten')).toBeInTheDocument();
     expect(asked.getByText('1 meal of your own')).toBeInTheDocument();
+    expect(asked.queryByLabelText(texts.includePast)).toBeNull();
 
     await userEvent.click(asked.getByLabelText(texts.replaceEaten));
     await userEvent.click(asked.getByLabelText(texts.replaceCustom));
-    expect(asked.getByText('Replaced: 3 meals on 2 days.')).toBeInTheDocument();
+    expect(await asked.findByText('Replaced: 3 meals on 2 days.')).toBeInTheDocument();
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, {
-      replaceEaten: true,
-      replaceCustom: true,
-    });
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { replaceEaten: true, replaceCustom: true }],
+    ]);
   });
 
-  it('asks for nothing while every day chosen has passed, says why, and asks for those days once it is told to', async () => {
+  it('asks for nothing while the API says every day chosen has passed, says why, and asks for those days once it is told to', async () => {
     vi.setSystemTime(new Date('2026-02-01T12:00:00'));
     const plan = threeDays();
+    const post = answering(
+      (body) =>
+        body.includePast
+          ? aPreview({
+              days: 3,
+              replaced: 3,
+              kept: { ...aPreview().kept, past: 0 },
+              fromToday: 'over',
+            })
+          : aPreview({
+              days: 0,
+              replaced: 0,
+              kept: { ...aPreview().kept, past: 3 },
+              fromToday: 'over',
+            }),
+      () => Promise.resolve(plan),
+    );
     const asked = await forThePlan(plan);
-    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
 
     expect(asked.getByText(texts.nothingPast)).toBeInTheDocument();
     expect(asked.getByRole('button', { name: texts.confirm })).toBeDisabled();
@@ -717,13 +831,23 @@ describe('the plan page, when a plan is made again', () => {
     expect(asked.getByLabelText(texts.fromToday)).toHaveAccessibleDescription(texts.fromTodayOver);
 
     await userEvent.click(asked.getByLabelText(texts.includePast));
+    await waitForTheAnswerTo(post, { includePast: true });
     await recalculate(asked);
 
-    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, { includePast: true });
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, { includePast: true }]]);
   });
 
-  it('says of a plan that has not begun that what is left of it is the whole of it', async () => {
+  it('says of a plan the API says has not begun that what is left of it is the whole of it', async () => {
     vi.setSystemTime(new Date('2026-01-02T12:00:00'));
+    answering(() =>
+      aPreview({
+        days: 3,
+        replaced: 3,
+        kept: { ...aPreview().kept, past: 0 },
+        couldGo: { past: false, eaten: false, custom: false },
+        fromToday: 'not_begun',
+      }),
+    );
     const asked = await forThePlan(threeDays());
 
     expect(asked.getByLabelText(texts.fromToday)).toBeDisabled();
@@ -750,13 +874,19 @@ describe('the plan page, when a plan is made again', () => {
     'offers to send a request refused with $code again with what would let it through',
     async ({ code, status, button, allowed }) => {
       const plan = threeDays();
+      let refused = false;
+      const post = answering(
+        () => aPreview(),
+        () => {
+          if (refused) return Promise.resolve(plan);
+          refused = true;
+          return Promise.reject(refusal(status, code));
+        },
+      );
       const asked = await forThePlan(plan);
-      const post = vi
-        .spyOn(api, 'post')
-        .mockRejectedValueOnce(refusal(status, code))
-        .mockResolvedValue(plan as never);
 
       await userEvent.click(asked.getByLabelText(texts.range));
+      await waitForTheAnswerTo(post, { from: '2026-01-06', to: '2026-01-07' });
       await recalculate(asked);
       expect(
         await screen.findByText(messages.errors[code as 'NOTHING_TO_REGENERATE']),
@@ -764,7 +894,7 @@ describe('the plan page, when a plan is made again', () => {
       await userEvent.click(await screen.findByRole('button', { name: button }));
 
       // The same days, with that allowed.
-      expect(post.mock.calls[1]).toEqual([
+      expect(rerolls(post)[1]).toEqual([
         `/meal-plans/${plan.id}/regenerate`,
         { from: '2026-01-06', to: '2026-01-07', ...allowed },
       ]);

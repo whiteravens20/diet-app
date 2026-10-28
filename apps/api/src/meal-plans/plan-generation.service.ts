@@ -18,6 +18,7 @@ import {
   RegenerateDayRequest,
   RegenerateRequest,
   type DayOverride,
+  type RerollPreview,
   type GeneratePlanRequest,
   type Locale,
   type MacroSplit,
@@ -54,13 +55,13 @@ import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
 import {
   customMacros,
-  dayMealCount,
   isoDate,
   isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
 import { writePlan } from './plan-write.js';
+import { readReroll, rerollDayOf, rerollOutcome } from './reroll-reading.js';
 
 /**
  * Making a plan and making it again. Both are the deterministic optimiser's
@@ -177,6 +178,70 @@ export class PlanGenerationService {
     options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
     clientToday: string | null = null,
   ): Promise<MealPlan> {
+    const date = await this.dateOfDay(userId, planId, dayId);
+    await this.reroll(userId, planId, { from: date, to: date }, options, clientToday);
+    return this.plans.get(userId, locale, planId);
+  }
+
+  /**
+   * What a re-roll of the days from `range.from` to `range.to` (all of the
+   * plan's days without them) would do to the plan as it stands, read as
+   * `prepare` reads it for the re-roll (`rerollOutcome`). Nothing is drawn and
+   * nothing is written.
+   */
+  async previewReroll(
+    userId: string,
+    planId: string,
+    range: { from?: string; to?: string },
+    options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
+    clientToday: string | null = null,
+  ): Promise<RerollPreview> {
+    const plan = await this.prisma.mealPlan.findFirst({
+      where: { id: planId, profile: { userId } },
+      select: {
+        options: true,
+        profile: { select: { mealCount: true } },
+        days: {
+          orderBy: { date: 'asc' },
+          select: {
+            date: true,
+            overrides: true,
+            meals: { select: { mealType: true, recipeId: true, source: true, eatenAt: true } },
+          },
+        },
+      },
+    });
+    if (!plan?.profile)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    const dates = plan.days.map((day) => isoDate(day.date));
+    const span = spanOf(dates, range);
+    const today = clientToday ?? this.today();
+    const { mealCount } = PlanOptions.parse(plan.options);
+    const profileCount = plan.profile.mealCount;
+    const days = plan.days.map((day, index) =>
+      rerollDayOf(day, dates[index]!, mealCount, profileCount),
+    );
+    return {
+      ...rerollOutcome(days, { ...span, ...options }, today),
+      // Dates in this form sort as text.
+      fromToday: today <= dates[0]! ? 'not_begun' : today > dates.at(-1)! ? 'over' : null,
+    };
+  }
+
+  /** What a re-roll of one day of a plan would do, as `previewReroll` says it of that day. */
+  async previewRerollDay(
+    userId: string,
+    planId: string,
+    dayId: string,
+    options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
+    clientToday: string | null = null,
+  ): Promise<RerollPreview> {
+    const date = await this.dateOfDay(userId, planId, dayId);
+    return this.previewReroll(userId, planId, { from: date, to: date }, options, clientToday);
+  }
+
+  /** The date of a day of a plan of the account's. */
+  private async dateOfDay(userId: string, planId: string, dayId: string): Promise<string> {
     // The plan first: whoever asks about a plan that is not theirs learns nothing about its days.
     const plan = await this.prisma.mealPlan.findFirst({
       where: { id: planId, profile: { userId } },
@@ -191,9 +256,7 @@ export class PlanGenerationService {
     if (!day || day.planId !== planId) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
-    const date = isoDate(day.date);
-    await this.reroll(userId, planId, { from: date, to: date }, options, clientToday);
-    return this.plans.get(userId, locale, planId);
+    return isoDate(day.date);
   }
 
   /**
@@ -245,19 +308,18 @@ export class PlanGenerationService {
 
     const dates = plan.days.map((day) => isoDate(day.date));
     const whole = range.from === undefined && range.to === undefined;
-    const first = range.from ?? dates[0]!;
-    const last = range.to ?? dates.at(-1)!;
-    // Dates in this form sort as text.
-    if (!dates.includes(first) || !dates.includes(last) || first > last) {
-      throw new BadRequestException({
-        error: 'RANGE_OUTSIDE_PLAN',
-        message: `The days from ${first} to ${last} are not days of this plan, in that order.`,
-      });
-    }
+    const span = spanOf(dates, range);
     const today = clientToday ?? this.today();
-    const again = (date: string): boolean =>
-      date >= first && date <= last && (options.includePast || date >= today);
-    if (!dates.some(again)) {
+    const made = PlanOptions.parse(plan.options);
+    const profileCount = plan.profile.mealCount;
+    const readings = plan.days.map((day, index) =>
+      readReroll(
+        rerollDayOf(day, dates[index]!, made.mealCount, profileCount),
+        { ...span, ...options },
+        today,
+      ),
+    );
+    if (readings.every((reading) => reading.fate === 'outside' || reading.fate === 'past')) {
       throw new ConflictException({
         error: 'NOTHING_TO_REGENERATE',
         message:
@@ -266,7 +328,6 @@ export class PlanGenerationService {
     }
 
     const profile = await this.plans.loadProfile(userId, plan.profileId);
-    const made = PlanOptions.parse(plan.options);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
@@ -278,6 +339,7 @@ export class PlanGenerationService {
     const days = plan.days.map((day, dayIndex): ResolvedDay => {
       const iso = dates[dayIndex]!;
       const o = parseDayOverrides(day.overrides);
+      const reading = readings[dayIndex]!;
       const kept = (meal: (typeof day.meals)[number]): KeptMeal => {
         // A meal of the user's own holds what the user said it holds; one of the catalogue what its recipe does.
         const own = customMacros(meal.customMacros);
@@ -301,7 +363,7 @@ export class PlanGenerationService {
           },
         };
       };
-      if (!again(iso)) {
+      if (reading.fate === 'outside' || reading.fate === 'past') {
         return {
           date: day.date,
           isoDate: iso,
@@ -314,34 +376,20 @@ export class PlanGenerationService {
         };
       }
 
-      const skipped = o?.skip === true;
-      const staying = day.meals.filter(
-        (meal) =>
-          (meal.eatenAt !== null && (skipped || !options.replaceEaten)) ||
-          (meal.source === 'USER_CUSTOM' && (skipped || !options.replaceCustom)),
-      );
-      filled.push({ dayIndex, dayId: day.id, staying: staying.map((meal) => meal.id) });
-      // A meal of the catalogue that stays holds its place among the day's meals; one of the user's own is beside them.
-      const held = new Set(
-        staying.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType),
-      );
-      // A day's own meals of the catalogue say how many it has, where neither the day nor the plan was asked for a number.
-      const mealCount = dayMealCount(day, made.mealCount, profile.mealCount);
+      filled.push({ dayIndex, dayId: day.id, staying: reading.staying.map((meal) => meal.id) });
       return {
         date: day.date,
         isoDate: iso,
-        mealSlots: (MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!).filter(
-          (slot) => !held.has(slot),
-        ),
+        mealSlots: reading.slots,
         calorieTarget: whole ? dayTarget(base, o) : day.calorieTarget,
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
         lockedSlots: o?.lockedSlots
-          ?.filter((lock) => !held.has(lock.mealType))
-          .map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId })),
+          ? reading.locks.map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId }))
+          : undefined,
         useUpBy: o?.useUpBy ?? false,
         skip: o?.skip ?? false,
         overrides: o,
-        kept: staying.map(kept),
+        kept: reading.staying.map(kept),
       };
     });
 
@@ -994,6 +1042,27 @@ interface ResolvedDay {
   kept?: KeptMeal[];
   /** Recipes the day is filled with only where the limits leave no other (`OptimizerDay.avoid`). */
   avoid?: ReadonlySet<string>;
+}
+
+/**
+ * The first and the last day a re-roll asks for: all of the plan's days
+ * without a range. Refused where a date is no day of the plan, or the first is
+ * after the last.
+ */
+function spanOf(
+  dates: readonly string[],
+  range: { from?: string; to?: string },
+): { first: string; last: string } {
+  const first = range.from ?? dates[0]!;
+  const last = range.to ?? dates.at(-1)!;
+  // Dates in this form sort as text.
+  if (!dates.includes(first) || !dates.includes(last) || first > last) {
+    throw new BadRequestException({
+      error: 'RANGE_OUTSIDE_PLAN',
+      message: `The days from ${first} to ${last} are not days of this plan, in that order.`,
+    });
+  }
+  return { first, last };
 }
 
 /** Collapse a request `DayOverride` into the persisted JSON (only set keys). */
