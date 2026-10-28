@@ -53,6 +53,17 @@ describe('the weights a profile logs', () => {
     if (languages) Object.defineProperty(window.navigator, 'languages', languages);
   });
 
+  it("are drawn as the API gives them by day, in the reader's time zone", async () => {
+    await shown(aProfile(), 'kg');
+
+    const zone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(api.get).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(`^/weights/days\\?profileId=${aProfile().id}&since=[^&]+&timeZone=${zone}$`),
+      ),
+    );
+  });
+
   it('are typed and shown in kilograms for an account that chose them, and sent as typed', async () => {
     const { post, field, log } = await shown(aProfile(), 'kg');
 

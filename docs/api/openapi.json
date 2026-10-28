@@ -7855,6 +7855,68 @@
           }
         }
       }
+    },
+    "/api/weights/days": {
+      "get": {
+        "operationId": "Weights_days",
+        "tags": [
+          "weights"
+        ],
+        "summary": "The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first.",
+        "description": "The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first. A day is one of the time zone the client names (`?timeZone=`); `?since=` leaves out the days before the one it falls on.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "timeZone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeightDay"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17977,6 +18039,27 @@
             "type": "boolean"
           }
         }
+      },
+      "WeightDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "kg": {
+            "type": "number"
+          },
+          "mean": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "kg",
+          "mean"
+        ],
+        "additionalProperties": false
       },
       "WeightEntry": {
         "type": "object",

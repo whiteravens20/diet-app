@@ -11,7 +11,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CreateWeightEntryRequest, WeightEntry, WeightListQuery } from '@diet-app/shared';
+import {
+  CreateWeightEntryRequest,
+  WeightDay,
+  WeightDaysQuery,
+  WeightEntry,
+  WeightListQuery,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -37,6 +43,26 @@ export class WeightsController {
     return this.weights.list(
       user.id,
       query.profileId,
+      query.since ? new Date(query.since) : undefined,
+    );
+  }
+
+  /**
+   * The weights of a profile by day, as a chart draws them: each day's last
+   * entry and the mean of the seven days that end with it, the oldest day
+   * first. A day is one of the time zone the client names (`?timeZone=`);
+   * `?since=` leaves out the days before the one it falls on.
+   */
+  @Get('days')
+  @AnswersListOf(WeightDay)
+  days(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(WeightDaysQuery)) query: WeightDaysQuery,
+  ) {
+    return this.weights.days(
+      user.id,
+      query.profileId,
+      query.timeZone,
       query.since ? new Date(query.since) : undefined,
     );
   }

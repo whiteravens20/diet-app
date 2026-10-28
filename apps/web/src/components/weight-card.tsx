@@ -7,15 +7,14 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { Undo2 } from 'lucide-react';
-import type { Profile, WeightEntry } from '@diet-app/shared';
+import type { Profile, WeightDay, WeightEntry } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useFormat } from '@/lib/use-format';
-import { weightSeries } from '@/lib/weight-series';
+import { readersZone, useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 
 /** Fetched when a chart is first shown: the charting library is the heaviest thing the dashboard has. */
@@ -58,6 +57,16 @@ export function WeightCard({ profile }: { profile: Profile }) {
       );
     },
   });
+  // The same ninety days as the chart draws them, by the days of the reader's time zone.
+  const days = useQuery({
+    queryKey: ['weights', profile.id, 'days'],
+    queryFn: () => {
+      const since = new Date(Date.now() - 90 * DAY_MS).toISOString();
+      return api.get<WeightDay[]>(
+        `/weights/days?profileId=${profile.id}&since=${encodeURIComponent(since)}&timeZone=${encodeURIComponent(readersZone())}`,
+      );
+    },
+  });
 
   const log = useMutation({
     mutationFn: (v: number) => api.post<WeightEntry>('/weights', { profileId: profile.id, kg: v }),
@@ -91,10 +100,10 @@ export function WeightCard({ profile }: { profile: Profile }) {
     log.mutate(toKilograms(v, unit));
   }
 
-  const points = weightSeries(entries.data ?? []).map((point) => ({
-    ...point,
-    kg: shownWeight(point.kg, unit),
-    ma7: shownWeight(point.ma7, unit),
+  const points = (days.data ?? []).map((day) => ({
+    ...day,
+    kg: shownWeight(day.kg, unit),
+    mean: shownWeight(day.mean, unit),
   }));
   const hasData = points.length > 0;
   // The line across the chart: where the profile wants to be, or where it began.

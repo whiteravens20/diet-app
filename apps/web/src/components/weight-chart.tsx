@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import type { WeightUnit } from '@diet-app/shared';
 import { useFormat } from '@/lib/use-format';
-import type { WeightPoint } from '@/lib/weight-series';
+import type { WeightDay } from '@diet-app/shared';
 
 /** As high as the chart, so that the card does not jump when the chart arrives. */
 export const WEIGHT_CHART_HEIGHT = 220;
@@ -33,7 +33,7 @@ export function WeightChart({
   reference,
   unit,
 }: {
-  points: WeightPoint[];
+  points: WeightDay[];
   reference: { value: number; label: string };
   unit: WeightUnit;
 }) {
@@ -87,7 +87,7 @@ export function WeightChart({
         />
         <Line
           type="monotone"
-          dataKey="ma7"
+          dataKey="mean"
           stroke="var(--color-primary)"
           strokeWidth={2}
           dot={false}

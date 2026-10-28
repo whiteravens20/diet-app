@@ -84,6 +84,25 @@ describe('a request that says something wrongly', () => {
       await log({ recordedAt: new Date(Date.now() + 5 * 3_600_000).toISOString() }).expect(201);
       await log({}).expect(201);
     });
+
+    it('is refused: weights by day without a time zone, or in one there is not', async () => {
+      const days = (query: Record<string, string>) =>
+        t
+          .http()
+          .get('/api/weights/days')
+          .query({ profileId: profile.id, ...query })
+          .set(as(user));
+
+      expect(refusedAt(await days({}))).toBe('timeZone');
+      const none = await days({ timeZone: 'Europe/Atlantis' });
+      expect(refusedAt(none)).toBe('timeZone');
+      expect(none.body.issues).toEqual([
+        { path: 'timeZone', message: expect.any(String), code: 'custom' },
+      ]);
+      expect(refusedAt(await days({ timeZone: `Europe/${'W'.repeat(64)}` }))).toBe('timeZone');
+      await days({ timeZone: 'Europe/Warsaw' }).expect(200);
+      await days({ timeZone: 'UTC', since: '2026-01-01T00:00:00.000Z' }).expect(200);
+    });
   });
 
   describe('about favourites', () => {

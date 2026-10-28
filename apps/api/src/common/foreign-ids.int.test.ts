@@ -300,6 +300,11 @@ const ASKS: Ask[] = [
 
   ['read the weights of a profile', 'get', (ids) => `/api/weights?profileId=${ids.profile}`],
   [
+    'read the weights of a profile by day',
+    'get',
+    (ids) => `/api/weights/days?profileId=${ids.profile}&timeZone=Europe/Warsaw`,
+  ],
+  [
     'log a weight for a profile',
     'post',
     () => '/api/weights',

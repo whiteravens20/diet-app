@@ -6,9 +6,10 @@ import { FIRST_DAY } from './enums.js';
 /**
  * Per-profile weight log + reminder cadence.
  *
- * Raw entries land on the client; the dashboard derives the 90-day trend
- * line, the 7-day moving average and the delta against `Profile.weightKg`
- * from these rows. `Profile.weightKg` is the weight the profile registered:
+ * The entries are listed as they were logged, and by day as a chart draws
+ * them (`WeightDay`): each day's weight and the mean of the seven days that
+ * end with it, worked out by the API for the client's time zone. The delta
+ * against `Profile.weightKg` is the client's to show. `Profile.weightKg` is the weight the profile registered:
  * the calorie calculation takes it as the current body weight, and it is not
  * a target. Nothing is precomputed server-side, so an edit / delete is
  * visible immediately.
@@ -58,6 +59,47 @@ export const WeightListQuery = z.object({
   since: z.string().datetime().optional(),
 });
 export type WeightListQuery = z.infer<typeof WeightListQuery>;
+
+/** Whether this runtime knows `zone` as a time zone, as IANA names one. */
+function isTimeZone(zone: string): boolean {
+  try {
+    Intl.DateTimeFormat('en', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The weights of a profile by day, each day as it is where the client is:
+ * `timeZone` names the zone as IANA does (`Europe/Warsaw`). `since` leaves out
+ * the days before the one it falls on there; the means of the first days
+ * count the six days before them all the same.
+ */
+export const WeightDaysQuery = z.object({
+  profileId: z.string().uuid(),
+  since: z.string().datetime().optional(),
+  timeZone: z.string().max(64).refine(isTimeZone, {
+    message: 'Must be a time zone as IANA names it, such as Europe/Warsaw.',
+  }),
+});
+export type WeightDaysQuery = z.infer<typeof WeightDaysQuery>;
+
+/** A day of a profile's weights, as a chart draws it. */
+export const WeightDay = z.object({
+  /** The day, where the client is: `2026-03-01`. */
+  date: z.string().date(),
+  /** What was logged that day, its last entry where there are several: kilograms, to the hundredth. */
+  kg: z.number(),
+  /**
+   * The mean of the seven days of the calendar that end with this one, each
+   * day that has a weight by its last entry: kilograms, to the hundredth. Not
+   * of the last seven entries: somebody who steps on the scales once a week
+   * has a mean of one entry, not of seven weeks.
+   */
+  mean: z.number(),
+});
+export type WeightDay = z.infer<typeof WeightDay>;
 
 export const WeightEntry = z.object({
   id: z.string().uuid(),

@@ -12,6 +12,7 @@ import {
   type Notification,
   type Profile,
   type ShoppingList,
+  type WeightDay,
   type WeightEntry,
 } from '@diet-app/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -219,6 +220,17 @@ describe('how much a profile may hold, and how much of a list one answer shows',
       expect(listed).toHaveLength(MAX_WEIGHTS_LISTED);
       expect(Date.parse(listed[0]!.recordedAt)).toBe(now);
       expect(Date.parse(listed.at(-1)!.recordedAt)).toBe(now - (MAX_WEIGHTS_LISTED - 1) * DAY);
+      // By day, of the same thousand: one entry a day is a thousand days.
+      const byDay: WeightDay[] = (
+        await t
+          .http()
+          .get('/api/weights/days')
+          .query({ profileId: profile.id, timeZone: 'UTC' })
+          .set(as(user))
+          .expect(200)
+      ).body;
+      expect(byDay).toHaveLength(MAX_WEIGHTS_LISTED);
+      expect(byDay.at(-1)!.date).toBe(new Date(now).toISOString().slice(0, 10));
       const lately: WeightEntry[] = (
         await t
           .http()

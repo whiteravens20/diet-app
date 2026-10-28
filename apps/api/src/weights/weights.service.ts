@@ -1,16 +1,26 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { MAX_WEIGHTS_LISTED, type WeightEntry, type WeightEntryInput } from '@diet-app/shared';
+import {
+  MAX_WEIGHTS_LISTED,
+  type WeightDay,
+  type WeightEntry,
+  type WeightEntryInput,
+} from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { dayIn, weightDays } from './weight-days.js';
 
 /**
- * Per-profile weight log. The dashboard chart, 7-day moving average
- * and delta against the weight the profile registered (`Profile.weightKg`,
- * which the calorie calculation takes as the current body weight) are all
- * derived client-side from the rows this service returns, so a corrected
- * entry shows up immediately without a server round-trip beyond the
- * create/delete itself.
+ * A week and a day: the six days before the day of a moment, wherever a
+ * change of the clocks puts their start, and the day itself.
+ */
+const WEEK_BEFORE_MS = 8 * 24 * 60 * 60 * 1000;
+
+/**
+ * Per-profile weight log: the entries as they were logged, and by day as the
+ * dashboard's chart draws them with the mean of each seven days. Nothing is
+ * kept of the days: they are worked out from the entries at every request,
+ * so a corrected entry shows at once.
  */
 @Injectable()
 export class WeightsService {
@@ -29,6 +39,34 @@ export class WeightsService {
       take: MAX_WEIGHTS_LISTED,
     });
     return rows.map((r) => this.toDto(r));
+  }
+
+  /**
+   * The days of a profile's weights in `timeZone`, as a chart draws them
+   * (`weightDays`), from the day `since` falls on there. What was logged in the
+   * week before it is read as well, for the means of the first days; of a
+   * thousand entries at most, the newest.
+   */
+  async days(
+    userId: string,
+    profileId: string,
+    timeZone: string,
+    since?: Date,
+  ): Promise<WeightDay[]> {
+    await this.assertProfile(userId, profileId);
+    const rows = await this.prisma.weightEntry.findMany({
+      where: {
+        profileId,
+        ...(since ? { recordedAt: { gte: new Date(since.getTime() - WEEK_BEFORE_MS) } } : {}),
+      },
+      orderBy: { recordedAt: 'desc' },
+      take: MAX_WEIGHTS_LISTED,
+      select: { kg: true, recordedAt: true },
+    });
+    const days = weightDays(rows, timeZone);
+    if (!since) return days;
+    const first = dayIn(timeZone)(since);
+    return days.filter((day) => day.date >= first);
   }
 
   async create(userId: string, profileId: string, input: WeightEntryInput): Promise<WeightEntry> {

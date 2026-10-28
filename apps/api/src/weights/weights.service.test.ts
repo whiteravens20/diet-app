@@ -111,3 +111,44 @@ describe('WeightsService happy paths', () => {
     });
   });
 });
+
+describe('the weights of a profile by day', () => {
+  const entries = [
+    { kg: 80, recordedAt: new Date('2026-06-10T08:00:00Z') },
+    { kg: 82, recordedAt: new Date('2026-06-04T08:00:00Z') },
+  ];
+
+  it('reads the week before the day of `since` as well, and leaves out the days before that day', async () => {
+    const prisma = makePrisma();
+    prisma.weightEntry.findMany.mockResolvedValue(entries);
+    const since = new Date('2026-06-08T12:00:00Z');
+
+    const days = await makeService(prisma).days('user-1', 'p1', 'Europe/Warsaw', since);
+
+    expect(prisma.weightEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { profileId: 'p1', recordedAt: { gte: new Date('2026-05-31T12:00:00Z') } },
+      }),
+    );
+    // The 4th is read for the mean of the 10th, and not answered as a day of its own.
+    expect(days).toEqual([{ date: '2026-06-10', kg: 80, mean: 81 }]);
+  });
+
+  it('reads every entry, a thousand at most, without `since`', async () => {
+    const prisma = makePrisma();
+    prisma.weightEntry.findMany.mockResolvedValue(entries);
+
+    const days = await makeService(prisma).days('user-1', 'p1', 'UTC');
+
+    expect(prisma.weightEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { profileId: 'p1' }, take: 1000 }),
+    );
+    expect(days.map((day) => day.date)).toEqual(['2026-06-04', '2026-06-10']);
+  });
+
+  it("answers PROFILE_NOT_FOUND for another user's profile", async () => {
+    await expect(
+      makeService(makePrisma('user-2')).days('user-1', 'p1', 'UTC'),
+    ).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
+  });
+});

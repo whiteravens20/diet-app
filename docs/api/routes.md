@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-170 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+171 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -268,3 +268,4 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/weights` | an account | The weights noted for a profile, the newest first. `?since=` leaves out what is older than a moment: a chart of three months asks for three months. | query `WeightListQuery` | 200 a list of `WeightEntry` |  |
 | `POST /api/weights` | an account | Note a weight of a profile for a day. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
 | `DELETE /api/weights/:id` | an account | Remove a noted weight. |  | 204 |  |
+| `GET /api/weights/days` | an account | The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first. A day is one of the time zone the client names (`?timeZone=`); `?since=` leaves out the days before the one it falls on. | query `WeightDaysQuery` | 200 a list of `WeightDay` |  |

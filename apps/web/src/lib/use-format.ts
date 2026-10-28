@@ -45,7 +45,7 @@ export interface Format {
 const utcDay = (day: string): Date => new Date(`${day.slice(0, 10)}T00:00:00Z`);
 
 /** The time zone the reader lives in: the browser's. The application knows no other. */
-const readersZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const readersZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /**
  * Dates, numbers and units as the language of the application writes them.
