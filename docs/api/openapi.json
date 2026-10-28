@@ -3476,7 +3476,7 @@
           "inventory"
         ],
         "summary": "Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces.",
-        "description": "Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces.\n\nAsked by an account.",
+        "description": "Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -3490,6 +3490,17 @@
             "description": "The language names and texts are answered in. English without it.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
             }
           }
         ],
@@ -3798,7 +3809,7 @@
           "meal-plans"
         ],
         "summary": "Add a user-authored custom meal to a day.",
-        "description": "Add a user-authored custom meal to a day.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "description": "Add a user-authored custom meal to a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -3830,6 +3841,17 @@
             "description": "The language names and texts are answered in. English without it.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
             }
           }
         ],
@@ -7928,10 +7950,23 @@
           "weights"
         ],
         "summary": "Note a weight of a profile for a day.",
-        "description": "Note a weight of a profile for a day.\n\nAsked by an account.",
+        "description": "Note a weight of a profile for a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing.\n\nAsked by an account.",
         "security": [
           {
             "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
           }
         ],
         "requestBody": {

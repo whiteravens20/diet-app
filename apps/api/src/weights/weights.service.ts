@@ -7,6 +7,7 @@ import {
   type WeightEntry,
   type WeightEntryInput,
 } from '@diet-app/shared';
+import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { dayIn, weightDays } from './weight-days.js';
 
@@ -69,16 +70,38 @@ export class WeightsService {
     return days.filter((day) => day.date >= first);
   }
 
-  async create(userId: string, profileId: string, input: WeightEntryInput): Promise<WeightEntry> {
-    await this.assertProfile(userId, profileId);
-    const row = await this.prisma.weightEntry.create({
-      data: {
-        profileId,
-        kg: input.kg,
-        recordedAt: input.recordedAt ? new Date(input.recordedAt) : new Date(),
+  /**
+   * Note a weight. Sent again with its key, the request is answered with the
+   * entry the first one noted, and notes nothing.
+   */
+  create(
+    userId: string,
+    profileId: string,
+    input: WeightEntryInput,
+    key: string | null = null,
+  ): Promise<WeightEntry> {
+    return writeOnce(this.prisma, {
+      userId,
+      key,
+      route: 'POST /weights',
+      request: { profileId, ...input },
+      write: async (keep) => {
+        await this.assertProfile(userId, profileId);
+        const row = await this.prisma.$transaction(async (tx) => {
+          const noted = await tx.weightEntry.create({
+            data: {
+              profileId,
+              kg: input.kg,
+              recordedAt: input.recordedAt ? new Date(input.recordedAt) : new Date(),
+            },
+          });
+          await keep(tx, noted.id);
+          return noted;
+        });
+        return this.toDto(row);
       },
+      replay: (id) => this.entry(userId, id),
     });
-    return this.toDto(row);
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -91,6 +114,17 @@ export class WeightsService {
         error: 'WEIGHT_ENTRY_NOT_FOUND',
         message: 'Weight entry not found.',
       });
+  }
+
+  /** A noted weight of one of the user's profiles, as it is now. */
+  private async entry(userId: string, id: string): Promise<WeightEntry> {
+    const row = await this.prisma.weightEntry.findFirst({ where: { id, profile: { userId } } });
+    if (!row)
+      throw new NotFoundException({
+        error: 'WEIGHT_ENTRY_NOT_FOUND',
+        message: 'Weight entry not found.',
+      });
+    return this.toDto(row);
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {

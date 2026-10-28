@@ -69,6 +69,7 @@ model User {
   secondFactor       SecondFactor?
   signInChallenges   SignInChallenge[]
   browserSignInCodes BrowserSignInCode[]
+  idempotencyKeys    IdempotencyKey[]
 }
 
 // One refresh token of a session. A session is the chain of tokens that
@@ -96,6 +97,23 @@ model RefreshToken {
 
   @@index([userId])
   @@index([familyId])
+}
+
+// The key a client sent with an addition it may send again when the answer is
+// lost (`Idempotency-Key`), kept with the account for a week: the addition sent
+// again under it is answered from what the first one wrote (`resultId`)
+// instead of being written twice. `digest` is a hash of the route and the
+// request, which another request under the same key does not match.
+model IdempotencyKey {
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  key       String
+  digest    String
+  resultId  String
+  createdAt DateTime @default(now())
+
+  @@id([userId, key])
+  @@index([createdAt])
 }
 
 // A code with which an application signs a browser in to its account: asked

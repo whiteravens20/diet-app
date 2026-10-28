@@ -7,6 +7,7 @@ import { AddressResealService } from './auth/address-reseal.service.js';
 import { BrowserSignIn } from './auth/browser-sign-in.service.js';
 import { pruneLinks } from './auth/one-time-links.js';
 import { SessionsService } from './auth/sessions.service.js';
+import { pruneIdempotencyKeys } from './common/idempotency.js';
 import { runAlone } from './common/job-lock.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
@@ -61,6 +62,14 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
           logger.log(
             `Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s), sign-in challenge(s) and browser code(s).`,
           );
+      },
+    ],
+    [
+      'removal of the keys of additions sent more than a week ago',
+      async () => {
+        const removed = await pruneIdempotencyKeys(prisma);
+        if (removed > 0)
+          logger.log(`Removed ${removed} key(s) of additions sent more than a week ago.`);
       },
     ],
     // What was encrypted before a value was sealed for its account. Each run

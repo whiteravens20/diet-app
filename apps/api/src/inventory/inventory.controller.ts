@@ -19,6 +19,7 @@ import {
   type Locale,
 } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { IdempotencyKey } from '../common/idempotency-key.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -41,16 +42,19 @@ export class InventoryController {
     return this.inventory.list(user.id, locale, profileId);
   }
 
-  /** Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. */
+  /**
+   * Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing.
+   */
   @Post()
   @Answers(InventoryItem)
   upsert(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
+    @IdempotencyKey() key: string | null,
     @Body(new ZodValidationPipe(UpsertInventoryItemRequest)) dto: UpsertInventoryItemRequest,
   ) {
     const { profileId, ...body } = dto;
-    return this.inventory.upsert(user.id, locale, profileId, body);
+    return this.inventory.upsert(user.id, locale, profileId, body, key);
   }
 
   /** Change a row of the pantry. */

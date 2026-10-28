@@ -32,6 +32,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
 import { shownReport } from './generation-report.js';
+import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
   averageDay,
@@ -202,74 +203,86 @@ export class MealPlansService {
    * of one (`replaces`), which then leaves the day. The macros are frozen on
    * the row as the user entered them — the engine never recomputes them, because
    * a custom meal has no ingredient list. Adding it changes the day total, so a
-   * day rebalance runs immediately.
+   * day rebalance runs immediately. Sent again with its key, the request is
+   * answered with the plan as it is now, without a rebalance, and adds nothing.
    */
-  async addCustomMeal(
+  addCustomMeal(
     userId: string,
     locale: Locale,
     planId: string,
     date: string,
     req: AddCustomMealRequest,
+    key: string | null = null,
   ): Promise<RebalanceResult> {
-    const day = await this.loadDay(userId, planId, date);
-    if (
-      ![
-        req.nutrition.calories,
-        req.nutrition.protein,
-        req.nutrition.fat,
-        req.nutrition.carbs,
-      ].every((v) => Number.isFinite(v) && v >= 0)
-    ) {
-      throw new BadRequestException({
-        error: 'CUSTOM_MEAL_INVALID_MACROS',
-        message: 'Custom meal macros must be non-negative numbers.',
-      });
-    }
-
-    const overrides = parseDayOverrides(day.overrides);
-    const summary = await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
-      // Adding a meal to a previously-skipped day un-skips it (it now has content).
-      if (overrides?.skip) {
-        const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
-        delete rest.skip;
-        await tx.mealPlanDay.update({
-          where: { id: day.id },
-          data: {
-            overrides:
-              Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull,
-          },
-        });
-      }
-      if (req.replaces) {
-        const replaced = await tx.plannedMeal.deleteMany({
-          where: { id: req.replaces, dayId: day.id },
-        });
-        if (replaced.count !== 1)
-          throw new NotFoundException({
-            error: 'MEAL_NOT_FOUND',
-            message: 'Planned meal not found.',
+    return writeOnce(this.prisma, {
+      userId,
+      key,
+      route: `POST /meal-plans/${planId}/days/${date}/custom-meal`,
+      request: req,
+      write: async (keep) => {
+        const day = await this.loadDay(userId, planId, date);
+        if (
+          ![
+            req.nutrition.calories,
+            req.nutrition.protein,
+            req.nutrition.fat,
+            req.nutrition.carbs,
+          ].every((v) => Number.isFinite(v) && v >= 0)
+        ) {
+          throw new BadRequestException({
+            error: 'CUSTOM_MEAL_INVALID_MACROS',
+            message: 'Custom meal macros must be non-negative numbers.',
           });
-      }
-      await tx.plannedMeal.create({
-        data: {
-          dayId: day.id,
-          recipeId: null,
-          mealType: req.mealType,
-          servings: req.servings,
-          quantityScale: 1,
-          source: 'USER_CUSTOM',
-          customName: req.name,
-          customMacros: {
-            calories: req.nutrition.calories,
-            protein: req.nutrition.protein,
-            fat: req.nutrition.fat,
-            carbs: req.nutrition.carbs,
-          },
-        },
-      });
-      return this.rebalanceDayInternal(day.id, tx);
+        }
+
+        const overrides = parseDayOverrides(day.overrides);
+        const summary = await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
+          // Adding a meal to a previously-skipped day un-skips it (it now has content).
+          if (overrides?.skip) {
+            const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
+            delete rest.skip;
+            await tx.mealPlanDay.update({
+              where: { id: day.id },
+              data: {
+                overrides:
+                  Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull,
+              },
+            });
+          }
+          if (req.replaces) {
+            const replaced = await tx.plannedMeal.deleteMany({
+              where: { id: req.replaces, dayId: day.id },
+            });
+            if (replaced.count !== 1)
+              throw new NotFoundException({
+                error: 'MEAL_NOT_FOUND',
+                message: 'Planned meal not found.',
+              });
+          }
+          await tx.plannedMeal.create({
+            data: {
+              dayId: day.id,
+              recipeId: null,
+              mealType: req.mealType,
+              servings: req.servings,
+              quantityScale: 1,
+              source: 'USER_CUSTOM',
+              customName: req.name,
+              customMacros: {
+                calories: req.nutrition.calories,
+                protein: req.nutrition.protein,
+                fat: req.nutrition.fat,
+                carbs: req.nutrition.carbs,
+              },
+            },
+          });
+          await keep(tx, planId);
+          return this.rebalanceDayInternal(day.id, tx);
+        });
+        return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+      },
+      replay: (id) => this.buildRebalanceResult(userId, locale, id, 'day', null),
     });
-    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
   /**

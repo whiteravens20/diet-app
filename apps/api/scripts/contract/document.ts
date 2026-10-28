@@ -123,7 +123,7 @@ function seconds(count: number): string {
   return `${count} s`;
 }
 
-/** The parameters of a route: what its path names, what it reads of the query string, and the two headers some routes go by. */
+/** The parameters of a route: what its path names, what it reads of the query string, and the headers some routes go by. */
 function parametersOf(route: Route, inputs: Record<string, Json>): Json[] {
   const parameters: Json[] = route.pathValues.map((value) => ({
     name: value.name,
@@ -167,6 +167,16 @@ function parametersOf(route: Route, inputs: Record<string, Json>): Json[] {
       required: false,
       description: 'The language names and texts are answered in. English without it.',
       schema: { type: 'string' },
+    });
+  }
+  if (route.readsIdempotencyKey) {
+    parameters.push({
+      name: 'Idempotency-Key',
+      in: 'header',
+      required: false,
+      description:
+        'A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.',
+      schema: { type: 'string', minLength: 1, maxLength: 128 },
     });
   }
   return parameters;

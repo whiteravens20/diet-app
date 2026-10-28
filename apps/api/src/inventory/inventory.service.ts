@@ -15,6 +15,7 @@ import {
   isCounted,
   UnitConversionError,
 } from '../engine/index.js';
+import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
@@ -54,72 +55,88 @@ export class InventoryService {
    * Upsert: posting `(profileId, ingredientId, unit)` that already exists
    * aggregates the quantity; otherwise creates a new row. `bestBefore`
    * overwrites when supplied so the latest update wins. What is counted goes
-   * into its row in pieces, whatever unit it is given in.
+   * into its row in pieces, whatever unit it is given in. Sent again with its
+   * key, the request is answered with the row the first one went to, as the
+   * row is now, and adds nothing.
    */
-  async upsert(
+  upsert(
     userId: string,
     locale: Locale,
     profileId: string,
     body: UpsertInventoryItem,
+    key: string | null = null,
   ): Promise<InventoryItem> {
-    await this.assertProfile(userId, profileId);
-    const ingredient = await this.prisma.ingredient.findUnique({
-      where: { id: body.ingredientId },
-      select: {
-        id: true,
-        canonicalUnit: true,
-        gramsPerPiece: true,
-        density: true,
-        displayUnit: true,
+    return writeOnce(this.prisma, {
+      userId,
+      key,
+      route: 'POST /inventory',
+      request: { profileId, ...body },
+      write: async (keep) => {
+        await this.assertProfile(userId, profileId);
+        const ingredient = await this.prisma.ingredient.findUnique({
+          where: { id: body.ingredientId },
+          select: {
+            id: true,
+            canonicalUnit: true,
+            gramsPerPiece: true,
+            density: true,
+            displayUnit: true,
+          },
+        });
+        if (!ingredient) {
+          throw new NotFoundException({
+            error: 'INGREDIENT_NOT_FOUND',
+            message: 'Ingredient not found.',
+          });
+        }
+        // Stock that cannot be added up with the rest would count as nothing
+        // everywhere: no list would see it and no plan would use it.
+        try {
+          convertUnit(body.quantity, body.unit, ingredient.canonicalUnit, ingredient);
+        } catch (err) {
+          if (!(err instanceof UnitConversionError)) throw err;
+          throw new BadRequestException({
+            error: 'UNIT_NOT_CONVERTIBLE',
+            message: `This ingredient cannot be kept in ${body.unit}: use ${ingredient.canonicalUnit}.`,
+          });
+        }
+
+        // Eggs, slices and cloves are counted, not weighed: never in the pantry twice.
+        const unit = isCounted(ingredient) ? 'piece' : body.unit;
+        const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
+
+        const where = {
+          profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit },
+        };
+        const saved = await this.prisma.$transaction(async (tx) => {
+          await lockPantry(tx, profileId, body.ingredientId);
+          const existing = await tx.inventoryItem.findUnique({ where });
+          assertWithinCeiling((existing?.quantity ?? 0) + quantity, unit);
+          if (!existing) await assertRoomInPantry(tx, profileId);
+          const row = await tx.inventoryItem.upsert({
+            where,
+            create: {
+              profileId,
+              ingredientId: body.ingredientId,
+              quantity,
+              unit,
+              bestBefore: this.parseDate(body.bestBefore),
+            },
+            update: {
+              quantity: { increment: quantity },
+              ...(body.bestBefore !== undefined
+                ? { bestBefore: this.parseDate(body.bestBefore) }
+                : {}),
+            },
+            include: this.withIngredient(locale),
+          });
+          await keep(tx, row.id);
+          return row;
+        });
+        return this.toDto(saved, locale);
       },
+      replay: (id) => this.read(userId, locale, id),
     });
-    if (!ingredient) {
-      throw new NotFoundException({
-        error: 'INGREDIENT_NOT_FOUND',
-        message: 'Ingredient not found.',
-      });
-    }
-    // Stock that cannot be added up with the rest would count as nothing
-    // everywhere: no list would see it and no plan would use it.
-    try {
-      convertUnit(body.quantity, body.unit, ingredient.canonicalUnit, ingredient);
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-      throw new BadRequestException({
-        error: 'UNIT_NOT_CONVERTIBLE',
-        message: `This ingredient cannot be kept in ${body.unit}: use ${ingredient.canonicalUnit}.`,
-      });
-    }
-
-    // Eggs, slices and cloves are counted, not weighed: never in the pantry twice.
-    const unit = isCounted(ingredient) ? 'piece' : body.unit;
-    const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
-
-    const key = {
-      profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit },
-    };
-    const saved = await this.prisma.$transaction(async (tx) => {
-      await lockPantry(tx, profileId, body.ingredientId);
-      const existing = await tx.inventoryItem.findUnique({ where: key });
-      assertWithinCeiling((existing?.quantity ?? 0) + quantity, unit);
-      if (!existing) await assertRoomInPantry(tx, profileId);
-      return tx.inventoryItem.upsert({
-        where: key,
-        create: {
-          profileId,
-          ingredientId: body.ingredientId,
-          quantity,
-          unit,
-          bestBefore: this.parseDate(body.bestBefore),
-        },
-        update: {
-          quantity: { increment: quantity },
-          ...(body.bestBefore !== undefined ? { bestBefore: this.parseDate(body.bestBefore) } : {}),
-        },
-        include: this.withIngredient(locale),
-      });
-    });
-    return this.toDto(saved, locale);
   }
 
   async patch(
@@ -161,6 +178,16 @@ export class InventoryService {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
     if (!profile || profile.userId !== userId)
       throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+  }
+
+  /** A row of one of the user's pantries, as it is now. */
+  private async read(userId: string, locale: Locale, id: string): Promise<InventoryItem> {
+    const row = await this.prisma.inventoryItem.findFirst({
+      where: { id, profile: { userId } },
+      include: this.withIngredient(locale),
+    });
+    if (!row) throw this.notFound();
+    return this.toDto(row, locale);
   }
 
   private notFound(): NotFoundException {

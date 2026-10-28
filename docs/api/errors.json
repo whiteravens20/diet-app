@@ -405,6 +405,15 @@
       "pl": "Brak dostępu."
     }
   },
+  "IDEMPOTENCY_KEY_REUSED": {
+    "statuses": [
+      422
+    ],
+    "messages": {
+      "en": "This change was sent under the key of another one, so it was not saved. Try again.",
+      "pl": "Tę zmianę wysłano pod kluczem innej, więc jej nie zapisano. Spróbuj ponownie."
+    }
+  },
   "IMPORT_IN_PROGRESS": {
     "statuses": [
       409

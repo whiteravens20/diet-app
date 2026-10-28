@@ -143,7 +143,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/inventory` | an account | What a profile's pantry holds, by aisle and by name as the request's language sorts names. | `?profileId=` | 200 a list of `InventoryItem` |  |
-| `POST /api/inventory` | an account | Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. | `UpsertInventoryItemRequest` | 201 `InventoryItem` |  |
+| `POST /api/inventory` | an account | Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing. | `UpsertInventoryItemRequest` | 201 `InventoryItem` |  |
 | `DELETE /api/inventory/:id` | an account | Take a row out of the pantry. |  | 204 |  |
 | `PATCH /api/inventory/:id` | an account | Change a row of the pantry. | `PatchInventoryItem` | 200 `InventoryItem` |  |
 
@@ -154,7 +154,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/meal-plans` | an account | The plans of a profile, a page at a time, narrowed by their days and by whether they are over. | query `PlanListQuery` | 200 `MealPlanPage` |  |
 | `GET /api/meal-plans/:id` | an account | One plan, with its days and their meals. |  | 200 `MealPlan` |  |
 | `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. |  | 204 |  |
-| `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
+| `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate` | an account | Re-roll the meals of a single day. | `RegenerateDayRequest` | 201 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate/preview` | an account | What re-rolling the meals of a single day would do, as the preview of the plan says it of that day. | `RegenerateDayRequest` | 200 `RerollPreview` | 60 in a minute |
 | `PUT /api/meal-plans/:id/days/:dayId/settings` | an account | Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. | `ApplyDaySettingsRequest` | 200 `MealPlan` | 20 in a minute |
@@ -268,6 +268,6 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/weights` | an account | The weights noted for a profile, the newest first. `?since=` leaves out what is older than a moment: a chart of three months asks for three months. | query `WeightListQuery` | 200 a list of `WeightEntry` |  |
-| `POST /api/weights` | an account | Note a weight of a profile for a day. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
+| `POST /api/weights` | an account | Note a weight of a profile for a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
 | `DELETE /api/weights/:id` | an account | Remove a noted weight. |  | 204 |  |
 | `GET /api/weights/days` | an account | The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first. A day is one of the time zone the client names (`?timeZone=`); `?since=` leaves out the days before the one it falls on. | query `WeightDaysQuery` | 200 a list of `WeightDay` |  |

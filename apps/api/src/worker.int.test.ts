@@ -65,6 +65,22 @@ describe('the worker', () => {
     ).toBe(1);
   });
 
+  it('removes the keys of additions sent more than a week ago, and keeps the newer ones', async () => {
+    const user = await aUser(t);
+    const eightDaysAgo = new Date(Date.now() - 8 * 86_400_000);
+    await t.prisma.idempotencyKey.createMany({
+      data: [
+        { userId: user.id, key: 'old', digest: 'd', resultId: 'r', createdAt: eightDaysAgo },
+        { userId: user.id, key: 'new', digest: 'd', resultId: 'r' },
+      ],
+    });
+
+    await runJobs(prisma, jobs, logger);
+
+    expect(log.error).not.toHaveBeenCalled();
+    expect((await t.prisma.idempotencyKey.findMany()).map((kept) => kept.key)).toEqual(['new']);
+  });
+
   it('leaves a job that runs elsewhere to whoever runs it, and runs the others', async () => {
     const ran = vi.fn().mockResolvedValue(undefined);
     const two: Job[] = [

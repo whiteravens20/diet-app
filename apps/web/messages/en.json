@@ -398,6 +398,7 @@
     "INVALID_REVIEWER_SESSION": "Your reviewer session expired. Please sign in again.",
     "AI_MONTHLY_LIMIT_REACHED": "You've used your AI requests for this month.",
     "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found.",
+    "IDEMPOTENCY_KEY_REUSED": "This change was sent under the key of another one, so it was not saved. Try again.",
     "ITEM_NOT_FOUND": "Shopping list item not found.",
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Those dates are not within the plan. Pick dates the plan covers.",
     "SHOPPING_LIST_LIMIT": "This plan already has as many shopping lists as it can hold. Delete one first.",

@@ -19,6 +19,7 @@ import {
   WeightListQuery,
 } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { IdempotencyKey } from '../common/idempotency-key.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -67,15 +68,20 @@ export class WeightsController {
     );
   }
 
-  /** Note a weight of a profile for a day. */
+  /**
+   * Note a weight of a profile for a day. Sent again with the same
+   * `Idempotency-Key` within a week, it is answered with the entry the first
+   * request noted and notes nothing.
+   */
   @Post()
   @Answers(WeightEntry)
   create(
     @CurrentUser() user: RequestUser,
+    @IdempotencyKey() key: string | null,
     @Body(new ZodValidationPipe(CreateWeightEntryRequest)) dto: CreateWeightEntryRequest,
   ) {
     const { profileId, ...body } = dto;
-    return this.weights.create(user.id, profileId, body);
+    return this.weights.create(user.id, profileId, body, key);
   }
 
   /** Remove a noted weight. */

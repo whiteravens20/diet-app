@@ -52,6 +52,7 @@ import {
 } from '@diet-app/shared';
 import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { IdempotencyKey } from '../common/idempotency-key.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -320,18 +321,23 @@ export class MealPlansController {
     return this.swaps.apply(user.id, locale, dto);
   }
 
-  /** Add a user-authored custom meal to a day. */
+  /**
+   * Add a user-authored custom meal to a day. Sent again with the same
+   * `Idempotency-Key` within a week, it is answered with the plan as it is now,
+   * without a rebalance, and adds nothing.
+   */
   @Post(':id/days/:date/custom-meal')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(RebalanceResult)
   addCustomMeal(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
+    @IdempotencyKey() key: string | null,
     @Param('id', requiredUuid) id: string,
     @Param('date', requiredDate) date: string,
     @Body(new ZodValidationPipe(AddCustomMealRequest)) dto: AddCustomMealRequest,
   ) {
-    return this.plans.addCustomMeal(user.id, locale, id, date, dto);
+    return this.plans.addCustomMeal(user.id, locale, id, date, dto, key);
   }
 
   /** Take a meal off its day, whichever it is (rebalances the day). */

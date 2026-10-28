@@ -17,6 +17,7 @@ import { AdminSessionGuard } from '../../src/admin/admin-session.guard.js';
 import { JwtAuthGuard } from '../../src/auth/jwt-auth.guard.js';
 import { ANSWERS, ANSWERS_WITH_A_FILE } from '../../src/common/answers.decorator.js';
 import { ClientDate } from '../../src/common/client-date.decorator.js';
+import { IdempotencyKey } from '../../src/common/idempotency-key.decorator.js';
 import { RequestLocale } from '../../src/common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../../src/common/zod-validation.pipe.js';
 import { CREDENTIAL_COUNTS, type CredentialCount } from '../../src/rate-limit/trackers.js';
@@ -62,6 +63,8 @@ export interface Route {
   /** The route goes by the day it is for the client (`X-Client-Date`), and answers in the client's language (`Accept-Language`). */
   readsClientDate: boolean;
   readsLanguage: boolean;
+  /** The route writes an addition once however often it is sent with its key (`Idempotency-Key`). */
+  readsIdempotencyKey: boolean;
   answers: ZodType | null;
   /** The media type of the file the route answers with, when it answers with one. */
   answersWithAFile: string | null;
@@ -140,6 +143,7 @@ const schemaOf = (pipes: unknown[] | undefined): ZodType | null =>
 export async function readRoutes(): Promise<Route[]> {
   const clientDate = factoryOf(ClientDate);
   const language = factoryOf(RequestLocale);
+  const idempotencyKey = factoryOf(IdempotencyKey);
   const routes: Route[] = [];
 
   for (const path of controllerFiles()) {
@@ -202,6 +206,7 @@ export async function readRoutes(): Promise<Route[]> {
           pathValues: [],
           readsClientDate: false,
           readsLanguage: false,
+          readsIdempotencyKey: false,
           answers: (Reflect.getMetadata(ANSWERS, handler) as ZodType | undefined) ?? null,
           answersWithAFile:
             (Reflect.getMetadata(ANSWERS_WITH_A_FILE, handler) as string | undefined) ?? null,
@@ -211,6 +216,7 @@ export async function readRoutes(): Promise<Route[]> {
           if (argument.factory !== undefined) {
             if (argument.factory === clientDate) route.readsClientDate = true;
             if (argument.factory === language) route.readsLanguage = true;
+            if (argument.factory === idempotencyKey) route.readsIdempotencyKey = true;
             continue;
           }
           // The framework's own kinds of parameter: 3 is the body, 4 the query string, 5 the path.

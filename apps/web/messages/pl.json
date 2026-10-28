@@ -398,6 +398,7 @@
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
     "AI_MONTHLY_LIMIT_REACHED": "Skończył się Twój miesięczny limit zapytań AI.",
     "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
+    "IDEMPOTENCY_KEY_REUSED": "Tę zmianę wysłano pod kluczem innej, więc jej nie zapisano. Spróbuj ponownie.",
     "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów.",
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje.",
     "SHOPPING_LIST_LIMIT": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich.",

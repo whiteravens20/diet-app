@@ -9,7 +9,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WeightsService } from './weights.service.js';
 
 function makePrisma(profileOwner: string | null = 'user-1') {
-  return {
+  const prisma = {
+    // A transaction runs on the same double: what it writes is asserted on the double.
+    $transaction: vi.fn((write: (tx: unknown) => Promise<unknown>) => write(prisma)),
     profile: {
       findUnique: vi
         .fn()
@@ -33,6 +35,7 @@ function makePrisma(profileOwner: string | null = 'user-1') {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
+  return prisma;
 }
 
 function makeService(prisma: ReturnType<typeof makePrisma>) {

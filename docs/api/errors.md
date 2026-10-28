@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 149 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -53,6 +53,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `FAVORITE_SET_LIMIT_REACHED` | 409 | This profile already has as many favorite sets as it can hold. Delete one first. | Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich. |
 | `FAVORITE_SET_NOT_ELIGIBLE` | 400 | This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid. | Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania. |
 | `FORBIDDEN` | 403 | You don't have access to that. | Brak dostępu. |
+| `IDEMPOTENCY_KEY_REUSED` | 422 | This change was sent under the key of another one, so it was not saved. Try again. | Tę zmianę wysłano pod kluczem innej, więc jej nie zapisano. Spróbuj ponownie. |
 | `IMPORT_IN_PROGRESS` | 409 | A USDA import is already in progress. | Import USDA już trwa. |
 | `IMPORT_NOT_JSON` | 400 | This is not a JSON document of recipes. | To nie jest dokument JSON z przepisami. |
 | `INGREDIENT_NOT_FOUND` | 404 | Ingredient not found. | Nie znaleziono składnika. |
