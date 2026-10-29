@@ -8,15 +8,13 @@
  * The id says which secret sealed a key without revealing anything about it.
  * A key sealed under another secret (the operator changed it, or restored a
  * database from another instance) is then recognised for what it is, instead
- * of looking like damage. Keys stored before ids were written have none and
- * are opened with the current secret.
+ * of looking like damage.
  */
 import { createHmac } from 'node:crypto';
-import { decrypt, encrypt, inCurrentForm } from '../common/crypto.js';
+import { decrypt, encrypt } from '../common/crypto.js';
 
 /** Why a stored key could not be opened; for the log, not for the user. */
-type UnreadableKey =
-  'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
+type UnreadableKey = 'sealed under another secret' | 'damaged';
 
 export type OpenedKey = { ok: true; key: string } | { ok: false; why: UnreadableKey };
 
@@ -33,37 +31,25 @@ function contextOf(ownerId: string | null): string {
   return `ai-provider-key:${ownerId ?? 'instance'}`;
 }
 
-/** The id in front of a stored key, when it has one, and the ciphertext after it. */
-function partsOf(stored: string): { id: string | null; ciphertext: string } {
-  const cut = stored.indexOf(':');
-  const rest = stored.slice(cut + 1);
-  // An id stands in front of a ciphertext of the current form, or of the three
-  // parts of the earlier one. Three parts alone were written before ids.
-  const hasId = cut > 0 && (inCurrentForm(rest) || rest.split(':').length === 3);
-  return hasId ? { id: stored.slice(0, cut), ciphertext: rest } : { id: null, ciphertext: stored };
-}
-
 export function sealKey(plaintext: string, secretHex: string, ownerId: string | null): string {
   return `${secretId(secretHex)}:${encrypt(plaintext, secretHex, contextOf(ownerId))}`;
 }
 
+/** What `secretId` gives: eight hex digits. */
+const SECRET_ID = /^[0-9a-f]{8}$/;
+
 export function openKey(stored: string, secretHex: string, ownerId: string | null): OpenedKey {
-  const { id, ciphertext } = partsOf(stored);
-  if (id !== null && id !== secretId(secretHex)) {
+  const cut = stored.indexOf(':');
+  const id = cut > 0 ? stored.slice(0, cut) : '';
+  if (!SECRET_ID.test(id)) return { ok: false, why: 'damaged' };
+  if (id !== secretId(secretHex)) {
     return { ok: false, why: 'sealed under another secret' };
   }
   try {
-    return { ok: true, key: decrypt(ciphertext, secretHex, contextOf(ownerId)) };
+    return { ok: true, key: decrypt(stored.slice(cut + 1), secretHex, contextOf(ownerId)) };
   } catch {
-    // With a matching id the secret is right, so the stored value is damaged
-    // or was sealed for another account. Without an id there is no telling
-    // damage from another secret.
-    return { ok: false, why: id !== null ? 'damaged' : 'damaged, or sealed under another secret' };
+    // The id matches, so the secret is right: the stored value is damaged or
+    // was sealed for another account.
+    return { ok: false, why: 'damaged' };
   }
-}
-
-/** True for a key stored as `sealKey` stores one now: with the secret's id, bound to its owner. */
-export function isSealedForOwner(stored: string): boolean {
-  const { id, ciphertext } = partsOf(stored);
-  return id !== null && inCurrentForm(ciphertext);
 }

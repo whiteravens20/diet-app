@@ -2,14 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ciphertextWrittenBefore as writtenBefore } from '../testing/old-ciphertext.js';
-import {
-  blindIndex,
-  decrypt,
-  deriveKey,
-  encrypt,
-  inCurrentForm,
-  pepperPassword,
-} from './crypto.js';
+import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from './crypto.js';
 
 const KEY = 'a'.repeat(64); // 32 bytes hex
 const KEY2 = 'b'.repeat(64);
@@ -26,7 +19,6 @@ describe('a value encrypted for storage', () => {
     expect(encrypt('user@example.com', KEY, MINE)).toMatch(
       /^v2:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/,
     );
-    expect(inCurrentForm(encrypt('user@example.com', KEY, MINE))).toBe(true);
   });
 
   it('is written differently every time', () => {
@@ -79,28 +71,13 @@ describe('a value encrypted for storage', () => {
     expect(() => decrypt(make(iv!, tag!, data!), KEY, MINE)).toThrow();
   });
 
-  describe('written before the form had a version', () => {
-    it('still opens, whoever it is read for: nothing was bound to it', () => {
-      const old = writtenBefore('user@example.com', KEY);
-
-      expect(inCurrentForm(old)).toBe(false);
-      expect(decrypt(old, KEY, MINE)).toBe('user@example.com');
-      expect(decrypt(old, KEY, THEIRS)).toBe('user@example.com');
-    });
-
-    it('does not open with a shortened tag either', () => {
-      const [iv, tag, data] = writtenBefore('secret', KEY).split(':');
-
-      expect(() => decrypt([iv, tag!.slice(0, 8), data].join(':'), KEY, MINE)).toThrow(
-        'malformed ciphertext',
-      );
-    });
-
-    it('is not what a value of the current form becomes when its version is cut off', () => {
-      const stored = encrypt('user@example.com', KEY, MINE);
-
-      expect(() => decrypt(stored.slice('v2:'.length), KEY, THEIRS)).toThrow();
-    });
+  it('opens no value of the form from before versions, which had nothing bound to it', () => {
+    expect(() => decrypt(writtenBefore('user@example.com', KEY), KEY, MINE)).toThrow(
+      'malformed ciphertext',
+    );
+    expect(() =>
+      decrypt(encrypt('user@example.com', KEY, MINE).slice('v2:'.length), KEY, THEIRS),
+    ).toThrow('malformed ciphertext');
   });
 });
 

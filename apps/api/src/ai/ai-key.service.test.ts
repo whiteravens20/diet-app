@@ -272,8 +272,8 @@ describe('AiKeyService.list', () => {
 
     expect(list.map((entry) => [entry.provider, entry.hasKey, entry.keyUnreadable])).toEqual([
       ['openai', true, false],
-      // Stored before keys carried the id of their secret: still readable.
-      ['openrouter', true, false],
+      // Stored in the form from before keys carried the id of their secret: no longer read.
+      ['openrouter', true, true],
       ['anthropic', true, true],
       ['ollama', false, false],
       ['openai', true, true],
@@ -297,7 +297,7 @@ describe('AiKeyService.resolveChain', () => {
         provider: 'openai',
         model: 'gpt-4o',
         priority: 0,
-        encryptedKey: ciphertextWrittenBefore('sk-a', ENC_KEY),
+        encryptedKey: sealKey('sk-a', ENC_KEY, 'user-1'),
         baseUrl: null,
       },
     ]);

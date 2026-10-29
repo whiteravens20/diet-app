@@ -45,23 +45,20 @@ export function encrypt(plaintext: string, keyHex: string, context: string): str
 
 /**
  * Reverses {@link encrypt}. Throws when the value was changed, was written
- * for another context or under another key, or is not a ciphertext.
- *
- * A value of three parts was written before the form had a version, with no
- * context bound to it: it opens for any context, until `inCurrentForm` values
- * have taken the place of all of them.
+ * for another context or under another key, or is not a ciphertext of the
+ * form `encrypt` writes.
  */
 export function decrypt(ciphertext: string, keyHex: string, context: string): string {
   const parts = ciphertext.split(':');
-  const current = parts[0] === VERSION;
-  const [ivHex, tagHex, dataHex] = current ? parts.slice(1) : parts;
+  const [version, ivHex, tagHex, dataHex] = parts;
   const iv = Buffer.from(ivHex ?? '', 'hex');
   const tag = Buffer.from(tagHex ?? '', 'hex');
   const data = Buffer.from(dataHex ?? '', 'hex');
   // The tag's length is part of the form: one cut short would still verify,
   // against far fewer guesses, if the length were left to the stored value.
   if (
-    parts.length !== (current ? 4 : 3) ||
+    parts.length !== 4 ||
+    version !== VERSION ||
     iv.length !== IV_BYTES ||
     tag.length !== TAG_BYTES ||
     data.length === 0 ||
@@ -72,17 +69,9 @@ export function decrypt(ciphertext: string, keyHex: string, context: string): st
   const decipher = createDecipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, {
     authTagLength: TAG_BYTES,
   });
-  if (current) decipher.setAAD(Buffer.from(context, 'utf8'));
+  decipher.setAAD(Buffer.from(context, 'utf8'));
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
-}
-
-/** What every value in the form `encrypt` writes begins with; a query can tell the two forms apart by it. */
-export const CURRENT_FORM_PREFIX = `${VERSION}:`;
-
-/** True for a value in the form `encrypt` writes: one that is not has no context bound to it yet. */
-export function inCurrentForm(ciphertext: string): boolean {
-  return ciphertext.startsWith(CURRENT_FORM_PREFIX);
 }
 
 /**

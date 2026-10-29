@@ -3,11 +3,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
-import { CURRENT_FORM_PREFIX } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { adminAccessOf } from './ai-quota.service.js';
-import { isSealedForOwner, openKey, sealKey } from './key-cipher.js';
+import { openKey, sealKey } from './key-cipher.js';
 import {
   assertAllowedOllamaUrl,
   isOperatorOllama,
@@ -208,47 +207,6 @@ export class AiKeyService {
         mode: 'admin',
       },
     ];
-  }
-
-  /**
-   * Keys stored before a key was sealed for its account open in any row.
-   * This seals each of them for its own, once; a key that cannot be read
-   * (damaged, or sealed under another secret) is left as it is, and its owner
-   * is told so wherever the key is listed.
-   */
-  async resealKeys(): Promise<{ sealed: number; unreadable: number }> {
-    const result = { sealed: 0, unreadable: 0 };
-    for (let after = ''; ;) {
-      const rows = await this.prisma.aiProviderConfig.findMany({
-        // A key in the current form has the id of its secret in front of the ciphertext's version.
-        where: {
-          encryptedKey: { not: null },
-          NOT: { encryptedKey: { contains: `:${CURRENT_FORM_PREFIX}` } },
-          id: { gt: after },
-        },
-        select: { id: true, userId: true, encryptedKey: true },
-        orderBy: { id: 'asc' },
-        take: 200,
-      });
-      if (rows.length === 0) break;
-      after = rows.at(-1)!.id;
-      for (const row of rows) {
-        const stored = row.encryptedKey!;
-        if (isSealedForOwner(stored)) continue;
-        const opened = openKey(stored, this.encKey, row.userId);
-        if (!opened.ok) {
-          result.unreadable += 1;
-          continue;
-        }
-        // Only while the row still holds what was read: a key saved in the meantime is sealed already.
-        const written = await this.prisma.aiProviderConfig.updateMany({
-          where: { id: row.id, encryptedKey: stored },
-          data: { encryptedKey: sealKey(opened.key, this.encKey, row.userId) },
-        });
-        result.sealed += written.count;
-      }
-    }
-    return result;
   }
 
   private toDto(row: {

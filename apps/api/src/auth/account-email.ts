@@ -2,7 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { blindIndex, decrypt, deriveKey, encrypt, inCurrentForm } from '../common/crypto.js';
+import { blindIndex, decrypt, deriveKey, encrypt } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 
 /**
@@ -52,10 +52,5 @@ export class AccountEmail {
 
   openPending(sealed: string, userId: string): string {
     return decrypt(sealed, this.key, `pending-email:${userId}`);
-  }
-
-  /** True when a stored address is in the form in which it is bound to its account. */
-  isBound(sealed: string): boolean {
-    return inCurrentForm(sealed);
   }
 }

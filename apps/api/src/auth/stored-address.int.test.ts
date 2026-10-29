@@ -51,14 +51,12 @@ describe('the address of an account, as the database holds it', () => {
     expect(() => emails.open(sealed, other.id)).toThrow();
   });
 
-  it('still reads where it was written before addresses were sealed for their account', async () => {
+  it('does not open in the form from before addresses were sealed for their account', () => {
     const key = deriveKey('b2'.repeat(32), 'email-encryption');
-    await t.prisma.user.update({
-      where: { id: user.id },
-      data: { emailEncrypted: ciphertextWrittenBefore(user.email, key) },
-    });
 
-    expect((await me(user).expect(200)).body.email).toBe(user.email);
+    expect(() => emails.open(ciphertextWrittenBefore(user.email, key), user.id)).toThrow(
+      'malformed ciphertext',
+    );
   });
 
   describe('an address the account asked to change to', () => {

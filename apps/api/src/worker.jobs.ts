@@ -1,9 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { INestApplicationContext, Logger } from '@nestjs/common';
-import { AiKeyService } from './ai/ai-key.service.js';
 import { AccountSecondFactor } from './auth/account-second-factor.service.js';
-import { AddressResealService } from './auth/address-reseal.service.js';
 import { BrowserSignIn } from './auth/browser-sign-in.service.js';
 import { pruneLinks } from './auth/one-time-links.js';
 import { SessionsService } from './auth/sessions.service.js';
@@ -31,8 +29,6 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
   const sessions = app.get(SessionsService);
   const secondFactor = app.get(AccountSecondFactor);
   const browsers = app.get(BrowserSignIn);
-  const addresses = app.get(AddressResealService);
-  const providerKeys = app.get(AiKeyService);
   const prisma = app.get(PrismaService);
 
   return [
@@ -70,29 +66,6 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
         const removed = await pruneIdempotencyKeys(prisma);
         if (removed > 0)
           logger.log(`Removed ${removed} key(s) of additions sent more than a week ago.`);
-      },
-    ],
-    // What was encrypted before a value was sealed for its account. Each run
-    // after the first finds nothing to do, unless a database from before was
-    // restored in the meantime.
-    [
-      'sealing of stored addresses for their accounts',
-      async () => {
-        const { sealed, unreadable } = await addresses.run();
-        if (sealed > 0)
-          logger.log(`Sealed ${sealed} stored address(es) for the account each belongs to.`);
-        if (unreadable > 0)
-          logger.warn(
-            `${unreadable} stored address(es) cannot be read with DATA_ENCRYPTION_SECRET as it is set: those accounts cannot be shown or mailed.`,
-          );
-      },
-    ],
-    [
-      'sealing of stored provider keys for their accounts',
-      async () => {
-        const { sealed } = await providerKeys.resealKeys();
-        if (sealed > 0)
-          logger.log(`Sealed ${sealed} stored provider key(s) for the account each belongs to.`);
       },
     ],
   ];

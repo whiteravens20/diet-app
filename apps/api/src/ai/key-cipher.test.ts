@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ciphertextWrittenBefore as writtenBefore } from '../testing/old-ciphertext.js';
-import { isSealedForOwner, openKey, sealKey } from './key-cipher.js';
+import { openKey, sealKey } from './key-cipher.js';
 
 const SECRET = 'a1'.repeat(32);
 const OTHER_SECRET = 'b2'.repeat(32);
@@ -30,7 +30,6 @@ describe('a stored provider key', () => {
     expect(first).not.toContain('sk-live-123');
     expect(first).not.toContain(SECRET.slice(0, 16));
     expect(first).not.toContain(OWNER);
-    expect(isSealedForOwner(first)).toBe(true);
   });
 
   it('does not open in the row of another account, nor as the key of the instance', () => {
@@ -53,35 +52,16 @@ describe('a stored provider key', () => {
     expect(openKey(damaged, SECRET, OWNER)).toEqual({ ok: false, why: 'damaged' });
   });
 
-  describe('stored before keys were bound to their owner', () => {
-    it('still opens with the id of its secret in front, and is known for what it is', () => {
-      const stored = `${idOf(SECRET)}:${writtenBefore('sk-mid-789', SECRET)}`;
-
-      expect(openKey(stored, SECRET, OWNER)).toEqual({ ok: true, key: 'sk-mid-789' });
-      expect(openKey(stored, OTHER_SECRET, OWNER)).toEqual({
-        ok: false,
-        why: 'sealed under another secret',
-      });
-      expect(isSealedForOwner(stored)).toBe(false);
-    });
-
-    it('still opens when it was stored before ids were written', () => {
-      const stored = writtenBefore('sk-old-456', SECRET);
-
-      expect(openKey(stored, SECRET, OWNER)).toEqual({ ok: true, key: 'sk-old-456' });
-      expect(isSealedForOwner(stored)).toBe(false);
-    });
-  });
-
   it.each([
-    ['one stored before ids, after the secret changed', writtenBefore('sk-old-456', OTHER_SECRET)],
+    [
+      'one of the form from before keys were bound to their owner',
+      `${idOf(SECRET)}:${writtenBefore('sk-mid-789', SECRET)}`,
+    ],
+    ['one stored before ids were written', writtenBefore('sk-old-456', SECRET)],
     ['a value that is not a ciphertext at all', '00:00:00'],
     ['an empty value', ''],
     ['text', 'not a ciphertext'],
-  ])('reports %s as unreadable instead of failing', (_name, stored) => {
-    expect(openKey(stored, SECRET, OWNER)).toEqual({
-      ok: false,
-      why: 'damaged, or sealed under another secret',
-    });
+  ])('reports %s as damaged instead of failing', (_name, stored) => {
+    expect(openKey(stored, SECRET, OWNER)).toEqual({ ok: false, why: 'damaged' });
   });
 });
