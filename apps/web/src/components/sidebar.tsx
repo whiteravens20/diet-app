@@ -2,6 +2,7 @@
 
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -110,7 +111,7 @@ export function Sidebar() {
     <>
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card p-4 md:flex">
         <div className="flex items-center justify-between px-2">
-          <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
+          <Brand name={tCommon('appName')} size={28} className="text-lg" />
           <div className="flex items-center gap-1">
             <NotificationsBell />
             <ThemeToggle />
@@ -131,7 +132,7 @@ export function Sidebar() {
           >
             <Menu size={20} aria-hidden />
           </Button>
-          <span className="text-base font-semibold tracking-tight">{tCommon('appName')}</span>
+          <Brand name={tCommon('appName')} size={24} className="text-base" />
         </div>
         <div className="flex items-center gap-1">
           <NotificationsBell align="end" />
@@ -146,7 +147,7 @@ export function Sidebar() {
       >
         <div className="flex h-full flex-col p-4">
           <div className="flex items-center justify-between px-2">
-            <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
+            <Brand name={tCommon('appName')} size={28} className="text-lg" />
             <Button
               variant="ghost"
               size="sm"
@@ -160,5 +161,15 @@ export function Sidebar() {
         </div>
       </Dialog>
     </>
+  );
+}
+
+/** The application's name beside its icon, where the sidebar, the phone's bar and its drawer begin. */
+function Brand({ name, size, className }: { name: string; size: number; className: string }) {
+  return (
+    <span className={cn('flex items-center gap-2 font-semibold tracking-tight', className)}>
+      <Image src="/icon-192.png" alt="" width={size} height={size} className="rounded-md" />
+      {name}
+    </span>
   );
 }

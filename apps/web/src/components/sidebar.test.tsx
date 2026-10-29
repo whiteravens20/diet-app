@@ -71,6 +71,18 @@ describe('the navigation of a signed-in account', () => {
     vi.restoreAllMocks();
   });
 
+  it("names the application beside its icon, in the bar beside the pages and in the phone's bar", () => {
+    shown();
+
+    for (const bar of [screen.getByRole('complementary'), screen.getByRole('banner')]) {
+      const icon = bar.querySelector('img');
+      expect(decodeURIComponent(icon?.getAttribute('src') ?? '')).toContain('/icon-192.png');
+      // The icon says nothing the name beside it does not.
+      expect(icon?.getAttribute('alt')).toBe('');
+      expect(icon?.parentElement?.textContent).toBe(messages.common.appName);
+    }
+  });
+
   it('links to every page of the account, and says which one the reader is on', () => {
     shown();
 
