@@ -41,6 +41,9 @@ export default defineConfig<Options>({
     { name: 'phone-pl', use: { viewport: phone, appLocale: 'pl', hasTouch: true, isMobile: true } },
     { name: 'desktop-en-dark', use: { viewport: desktop, appLocale: 'en', colorScheme: 'dark' } },
     // Safari's engine on an iPhone's screen, in Polish: what Chromium lets through and WebKit does not.
-    { name: 'iphone-pl', use: { ...devices['iPhone 17'], appLocale: 'pl' } },
+    // No pictures of a failure: before a picture Playwright puts an empty style element into the page,
+    // for WebKit to bring its animations up to date, and WebKit holds it to the page's policy, so every
+    // test would end on a breach of its own making. The trace of a failure has the pictures.
+    { name: 'iphone-pl', use: { ...devices['iPhone 17'], appLocale: 'pl', screenshot: 'off' } },
   ],
 });
