@@ -211,6 +211,18 @@ const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 /** What stands in the way of somebody using the page as it is now: the two graver of the four degrees. */
 export async function barriers(page: Page): Promise<string[]> {
+  // Once what is changing has come to its end: WebKit ends even a transition cut short for less motion
+  // only at its next frame, and until then a button that has just been enabled is drawn as a disabled one.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity),
+        )
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ).then(() => undefined),
+  );
   const { violations } = await new AxeBuilder({ page }).withTags(RULES).analyze();
   return violations
     .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
