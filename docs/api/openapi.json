@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Diet App API",
-    "version": "0.139.0",
+    "version": "0.147.0",
     "description": "What the API of Diet App is asked and what it answers. Written by `npm run contract` from the controllers and from the schemas of `@diet-app/shared`; the integration tests hold every answer to the schema its route names here.",
     "license": {
       "name": "AGPL-3.0-only",
