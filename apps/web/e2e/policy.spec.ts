@@ -223,7 +223,9 @@ test.describe('the content security policy of a page', () => {
     const answer = await told;
     expect(answer.request().method()).toBe('POST');
     expect(answer.status()).toBe(204);
-    expect(violationsSeen().length).toBeGreaterThanOrEqual(1);
+    // The page is told as well, which in WebKit can come after the report has left.
+    const seen: string[] = [];
+    await expect.poll(() => seen.push(...violationsSeen())).toBeGreaterThanOrEqual(1);
   });
 
   test('leaves the application to do what it does: a shopping list is made into a document', async ({
