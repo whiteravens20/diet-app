@@ -183,6 +183,27 @@ describe('AiKeyService.upsert', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('passes on a failure other than a refused address as it is, and saves nothing', async () => {
+    const config = makeConfig();
+    const failure = new Error('configuration unreadable');
+    const service = makeService(prisma, {
+      get: (k: string) => {
+        if (k === 'OLLAMA_ALLOWED_HOSTS') throw failure;
+        return config.get(k);
+      },
+    });
+    await expect(
+      service.upsert('user-1', {
+        provider: 'ollama',
+        model: 'llama3.1:8b',
+        baseUrl: 'http://ollama:11434',
+        priority: 0,
+        enabled: true,
+      } as never),
+    ).rejects.toBe(failure);
+    expect(prisma.aiProviderConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('does not persist a baseUrl for non-Ollama providers', async () => {
     const service = makeService(prisma);
     await service.upsert('user-1', {
