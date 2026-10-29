@@ -578,6 +578,7 @@
       "foundationPlusSr": "Foundation + SR Legacy (~8k)",
       "runImport": "Run import",
       "running": "Importing…",
+      "olderFile": "The imported foods were written by an older version of the importer ({when}), and the catalogue update loads them as they are. Run the import again to bring them up to date.",
       "demoKeyHint": "Using the public demonstration key, which allows only a few requests an hour: enough for Foundation at most. Set FDC_API_KEY in .env, a free key of your own, for the larger SR Legacy import.",
       "progress": "Page {page}/{total} · {kept, number} kept",
       "doneSummary": "Done. Wrote {kept, number} ingredients · {skipped, number} listed twice · excluded {excluded, number} by category.",

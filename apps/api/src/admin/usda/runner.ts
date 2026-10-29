@@ -17,12 +17,14 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { FoodImportState } from '@diet-app/shared';
 import type { Env } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobState } from '../job-state.js';
 import { resolveDataDir } from '../seed/data-hash.js';
 import {
   ImportFailure,
+  importedFoods,
   runImport,
   type ImportFailureReason,
   type ImportProgress,
@@ -78,8 +80,9 @@ export class UsdaImportRunner {
     this.job = new JobState(prisma, 'food import', UsdaImportRunner.idle);
   }
 
-  getState(): Promise<ImportRunnerState> {
-    return this.job.read();
+  /** Where the run stands, with the imported foods on disk as they are now. */
+  async getState(): Promise<FoodImportState> {
+    return { ...(await this.job.read()), file: importedFoods(resolveDataDir()) };
   }
 
   /**

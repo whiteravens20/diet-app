@@ -1,11 +1,20 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { chmodSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  unlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ImportFailure,
+  importedFoods,
   pageFetcher,
   runImport,
   settingsFromEnvironment,
@@ -88,14 +97,42 @@ describe('importing foods', () => {
     expect(result.skipped).toBe(1);
   });
 
-  it('writes the same file for the same input, and leaves nothing else behind', async () => {
+  it('writes the same file for the same input, and leaves nothing else behind but its record', async () => {
     const first = await imported();
     const second = await imported([...foods].reverse());
 
     expect(readFileSync(second.result.outFile, 'utf8')).toBe(
       readFileSync(first.result.outFile, 'utf8'),
     );
-    expect(readdirSync(first.outDir)).toEqual(['ingredients.generated.json']);
+    expect(readdirSync(first.outDir).sort()).toEqual([
+      'ingredients.generated.json',
+      'ingredients.generated.record.json',
+    ]);
+  });
+
+  it('records that this version of the importer wrote the foods, and when', async () => {
+    const before = Date.now();
+    const { outDir } = await imported();
+
+    const file = importedFoods(outDir);
+    expect(file?.current).toBe(true);
+    expect(Date.parse(file!.writtenAt)).toBeGreaterThanOrEqual(before - 1000);
+  });
+
+  it("takes foods without a record for an older importer's, written when the file was", async () => {
+    const { outDir, result } = await imported();
+    unlinkSync(join(outDir, 'ingredients.generated.record.json'));
+    const june = new Date('2026-06-12T08:00:00Z');
+    utimesSync(result.outFile, june, june);
+
+    expect(importedFoods(outDir)).toEqual({ writtenAt: june.toISOString(), current: false });
+
+    writeFileSync(join(outDir, 'ingredients.generated.record.json'), '{"importer":0}');
+    expect(importedFoods(outDir)?.current).toBe(false);
+  });
+
+  it('has nothing to say where no foods were imported', () => {
+    expect(importedFoods(mkdtempSync(join(tmpdir(), 'usda-import-')))).toBeNull();
   });
 
   // Root may write anywhere.

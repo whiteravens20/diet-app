@@ -24,6 +24,7 @@ const idle: UsdaImportRunnerState = {
   error: null,
   errorReason: null,
   retryAfterSeconds: null,
+  file: null,
 };
 
 /** The card as the panel shows it after a run that ended in `state`. */
@@ -46,6 +47,20 @@ const failed = (
 describe('the food import card', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('says when the imported foods were written by an older importer, and not when by this one', async () => {
+    await renderAfter({ file: { writtenAt: '2026-06-12T08:00:00.000Z', current: false } });
+    expect(
+      await screen.findByText(
+        /^The imported foods were written by an older version of the importer \(/,
+      ),
+    ).toBeInTheDocument();
+
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+    await renderAfter({ file: { writtenAt: '2026-10-30T08:00:00.000Z', current: true } });
+    expect(screen.queryByText(/older version of the importer/)).not.toBeInTheDocument();
   });
 
   it('says when to try again once the key has had its requests, and what allows more', async () => {

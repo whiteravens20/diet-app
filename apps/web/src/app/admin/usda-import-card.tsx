@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminApi, type UsdaImportRunnerState } from '@/lib/admin-api';
+import { useFormat } from '@/lib/use-format';
 import { useErrorText } from '@/lib/use-error-text';
 
 /**
@@ -17,6 +18,7 @@ import { useErrorText } from '@/lib/use-error-text';
  */
 export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unknown> }) {
   const t = useTranslations('admin.usda');
+  const fmt = useFormat();
   const errorText = useErrorText();
   const [run, setRun] = useState<UsdaImportRunnerState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +106,11 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">{t('explain')}</p>
+        {run?.file && !run.file.current && !running && (
+          <p className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
+            {t('olderFile', { when: fmt.moment(run.file.writtenAt) })}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <select
             aria-label={t('dataSets')}

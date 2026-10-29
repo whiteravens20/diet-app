@@ -47,6 +47,7 @@ infra/mirror/key.pub
 
 # Ingredients data
 /data/ingredients.generated.json
+/data/ingredients.generated.record.json
 
 # Curation-queue sidecar files. The local-mode ship runner writes
 # operator-controlled approved drafts here as a portable backup. They are

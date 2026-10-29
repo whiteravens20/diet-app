@@ -13,7 +13,15 @@
  * The output is the same file for the same input (rows are sorted by slug),
  * and it replaces the old one in one step.
  */
-import { accessSync, constants, renameSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { FdcDataTypes } from '@diet-app/shared';
 import { classify } from './classify.js';
@@ -247,6 +255,36 @@ export function pageFetcher(options: {
 }
 
 /**
+ * The version of this importer. Raised when what it writes changes, so that the panel offers a
+ * new import over foods an older one wrote.
+ */
+const IMPORTER_VERSION = 1;
+
+/** The record beside the imported foods: which version of the importer wrote them, and when. */
+const IMPORT_RECORD = 'ingredients.generated.record.json';
+
+/**
+ * The imported foods in `dir`, or null where there are none: when they were written, and whether
+ * this version of the importer wrote them. A file without a record was written by an importer from
+ * before the record; its time is then the file's own.
+ */
+export function importedFoods(dir: string): { writtenAt: string; current: boolean } | null {
+  const file = join(dir, 'ingredients.generated.json');
+  if (!existsSync(file)) return null;
+  let record: { importer?: unknown; writtenAt?: unknown } = {};
+  try {
+    record = JSON.parse(readFileSync(join(dir, IMPORT_RECORD), 'utf8')) as typeof record;
+  } catch {
+    // No record, or one that cannot be read: an older importer's file.
+  }
+  return {
+    writtenAt:
+      typeof record.writtenAt === 'string' ? record.writtenAt : statSync(file).mtime.toISOString(),
+    current: record.importer === IMPORTER_VERSION,
+  };
+}
+
+/**
  * Run the full import. Writes `ingredients.generated.json` to `outDir` and
  * returns counters. Throws an `ImportFailure` that says why when the source or
  * the directory stands in the way; the runner hands that on to the panel.
@@ -324,6 +362,11 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
   const draft = `${outFile}.${process.pid}.tmp`;
   writeFileSync(draft, `${JSON.stringify(ingredients, null, 2)}\n`);
   renameSync(draft, outFile);
+  // Written after the foods: a run that dies between the two leaves a file the panel takes for an older importer's.
+  writeFileSync(
+    join(opts.outDir, IMPORT_RECORD),
+    `${JSON.stringify({ importer: IMPORTER_VERSION, writtenAt: new Date().toISOString(), dataTypes: opts.dataTypes })}\n`,
+  );
 
   return {
     kept,

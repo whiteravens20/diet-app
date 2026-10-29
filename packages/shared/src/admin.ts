@@ -231,6 +231,11 @@ export const FoodImportState = z.object({
   errorReason: FoodImportFailure.nullable(),
   /** How long the source asks to wait before the next try, in seconds, when it said so. */
   retryAfterSeconds: z.number().nullable(),
+  /**
+   * The imported foods on disk, or null where there are none: when they were written, and whether
+   * this version of the importer wrote them. Foods an older one wrote are offered an import again.
+   */
+  file: z.object({ writtenAt: z.string(), current: z.boolean() }).nullable(),
 });
 export type FoodImportState = z.infer<typeof FoodImportState>;
 

@@ -10941,6 +10941,29 @@
               "number",
               "null"
             ]
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "writtenAt": {
+                    "type": "string"
+                  },
+                  "current": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "writtenAt",
+                  "current"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -10958,7 +10981,8 @@
           "result",
           "error",
           "errorReason",
-          "retryAfterSeconds"
+          "retryAfterSeconds",
+          "file"
         ],
         "additionalProperties": false
       },
