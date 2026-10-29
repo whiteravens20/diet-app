@@ -14,11 +14,11 @@ Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za
 
 ## 3. Własne klucze AI i AI instancji
 
-Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowany, ale nadal obowiązują Cię regulamin i cennik tego dostawcy. Gdy korzystasz z AI instancji, operator płaci za Twoje zapytania w miesięcznych limitach, które pokazuje aplikacja. Operator decyduje o tym, które konta mogą z niego korzystać. Może też ten dostęp odebrać, na przykład po nadużyciu.
+Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowany, ale nadal obowiązują Cię regulamin i cennik tego dostawcy. Gdy korzystasz z AI instancji, operator płaci za Twoje zapytania w miesięcznych limitach, które pokazuje aplikacja. Operator decyduje o tym, które konta mogą z niego korzystać. Może też ten dostęp odebrać, na przykład po nadużyciu. [Jeśli AI instancji jest włączone: przez jaką usługę działa i gdzie.] Zapytanie zawiera to, czego potrzebuje, na przykład składniki przepisu, posiłki planu albo dietę i preferencje profilu. Nigdy nie zawiera Twojego adresu e-mail ani hasła. Z własnym kluczem zapytanie trafia zamiast tego do dostawcy tego klucza.
 
 ## 4. To nie porada medyczna
 
-Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana z prowadzonej bazy składników. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych.
+Każda wartość kalorii i makroskładników przepisu i planu posiłków jest wyliczana z prowadzonej bazy składników; posiłek własny ma wartości, które sam wpisujesz. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych.
 
 Cel kaloryczny profilu i tempo utraty wagi są wyliczane ze wzoru dla dorosłych na podstawie wieku, płci, wzrostu, wagi i aktywności. To przybliżenie dla zdrowej osoby dorosłej: aplikacja nie zna Twojego stanu zdrowia, niczego nie diagnozuje ani nie leczy i nie zastępuje lekarza ani dietetyka.
 
@@ -41,7 +41,7 @@ Przepis zgłoszony do wspólnej biblioteki jest przez samo zgłoszenie udostępn
 
 ## 7. Twoje dane
 
-Twoje dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik.
+Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, oraz hasło, zapisane tylko w postaci, z której nie da się go odczytać. Zawiera też to, co wpisujesz: profile (na przykład wiek, płeć, wzrost, wagę, cele i upodobania kulinarne), wpisy wagi, plany posiłków i listy zakupów, spiżarnię, oznaczone przepisy i własne przepisy, sesje logowania, dodane klucze dostawców AI (zaszyfrowane) oraz zapis użycia AI. Dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik. Usunięcie konta od razu usuwa je z bazy; kopie zrobione wcześniej zostają, dopóki nie zostaną zastąpione.
 
 ## 8. Ochrona przed botami
 
