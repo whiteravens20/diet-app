@@ -46,7 +46,7 @@ test.describe('the content security policy of a page', () => {
         "'strict-dynamic'",
       );
     }
-    for (const path of ['/icon.svg', '/imagery/recipes.webp']) {
+    for (const path of ['/favicon.ico', '/imagery/recipes.webp']) {
       expect((await request.get(path)).headers()['content-security-policy'], path).toBeUndefined();
     }
   });

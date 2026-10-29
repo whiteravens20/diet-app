@@ -18,8 +18,11 @@ export const metadata: Metadata = {
   description:
     'Calorie-targeted meal plans, deterministic nutrition and consolidated shopping lists. Self-hostable, BYOK AI.',
   manifest: '/manifest.webmanifest',
-  // The one drawing of the application, and the bitmap a phone puts on its home screen.
-  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }], apple: '/apple-touch-icon.png' },
+  // The favicon at 16, 32 and 48 pixels in one file, and the bitmap a phone puts on its home screen.
+  icons: {
+    icon: [{ url: '/favicon.ico', sizes: '16x16 32x32 48x48' }],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {

@@ -62,6 +62,6 @@ export const config = {
   // Every path but the API (the web server only passes it on), the files of
   // the build and what `public/` holds: none of those is a page.
   matcher: [
-    '/((?!api/|_next/static/|_next/image|fonts/|imagery/|icon.svg|icon-192.png|icon-512.png|icon-maskable-512.png|apple-touch-icon.png|favicon.ico).*)',
+    '/((?!api/|_next/static/|_next/image|fonts/|imagery/|icon-192.png|icon-512.png|icon-maskable-512.png|apple-touch-icon.png|favicon.ico).*)',
   ],
 };

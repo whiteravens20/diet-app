@@ -191,7 +191,6 @@ describe('what the proxy runs for', () => {
     '/_next/image',
     '/imagery/recipes.webp',
     '/fonts/Inter-Regular.ttf',
-    '/icon.svg',
     '/icon-192.png',
     '/icon-512.png',
     '/icon-maskable-512.png',
