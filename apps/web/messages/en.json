@@ -150,7 +150,7 @@
       "listsTitle": "Consolidated lists",
       "listsBody": "A shopping list made from your plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, with the packs each row takes. What your pantry holds is taken off.",
       "nutritionTitle": "Worked out, not made up",
-      "nutritionBody": "Every calorie and macro comes from a curated ingredient database and is worked out by the app itself: the same inputs always give the same numbers, never invented ones.",
+      "nutritionBody": "Every calorie and macro of a plan and a recipe comes from a curated ingredient database and is worked out by the app itself: the same inputs always give the same numbers, never invented ones.",
       "aiTitle": "AI only if you want it",
       "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
     }
