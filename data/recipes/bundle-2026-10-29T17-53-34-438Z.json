@@ -1,0 +1,4051 @@
+[
+  {
+    "slug": "chickpea-avocado-and-tomato-toast",
+    "title": {
+      "en": "Chickpea, avocado, and tomato toast",
+      "pl": "Tosty z ciecierzycą, awokado i pomidorem"
+    },
+    "description": {
+      "en": "Crisp whole-grain toast topped with creamy mashed chickpeas and avocado, finished with fresh tomato.",
+      "pl": "Chrupiące tosty pełnoziarniste z kremową pastą z ciecierzycy i awokado, podane ze świeżym pomidorem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 5,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "whole-grain-bread",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "chickpeas",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Toast the whole-grain bread until crisp.",
+        "Mash the chickpeas and avocado together in a bowl.",
+        "Spread the mixture over the toast and top with sliced tomato.",
+        "Drizzle with olive oil and serve."
+      ],
+      "pl": [
+        "Opiecz chleb pełnoziarnisty, aż będzie chrupiący.",
+        "Rozgnieć ciecierzycę z awokado w misce.",
+        "Rozsmaruj pastę na tostach i ułóż na wierzchu pokrojonego pomidora.",
+        "Skrop oliwą i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "savory-millet-skillet-with-tofu-and-mushrooms",
+    "title": {
+      "en": "Savory millet skillet with tofu and mushrooms",
+      "pl": "Kasza jaglana z tofu i pieczarkami z patelni"
+    },
+    "description": {
+      "en": "Tender millet with golden tofu, mushrooms, and wilted spinach makes a hearty savory breakfast.",
+      "pl": "Miękka kasza jaglana z rumianym tofu, pieczarkami i szpinakiem to sycące, wytrawne śniadanie."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "millet",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "soy-sauce",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the millet, then simmer it in water until tender, about 20 minutes.",
+        "Dice the onion and cut the tofu into small cubes.",
+        "Heat the olive oil in a skillet and cook the onion until softened.",
+        "Add the mushrooms and tofu, and cook until the mushrooms soften and the tofu is lightly browned.",
+        "Stir in the cooked millet and spinach until the spinach wilts.",
+        "Season with soy sauce and black pepper, then serve warm."
+      ],
+      "pl": [
+        "Opłucz kaszę jaglaną, a następnie gotuj ją w wodzie do miękkości, około 20 minut.",
+        "Pokrój cebulę w kostkę, a tofu w małe kawałki.",
+        "Rozgrzej oliwę na patelni i smaż cebulę, aż zmięknie.",
+        "Dodaj pieczarki i tofu, a następnie smaż, aż pieczarki zmiękną, a tofu lekko się zarumieni.",
+        "Dodaj ugotowaną kaszę jaglaną i szpinak. Mieszaj, aż szpinak zwiędnie.",
+        "Dopraw sosem sojowym i czarnym pieprzem, po czym podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-sweet-potato-tofu-breakfast-skillet",
+    "title": {
+      "en": "Quinoa, sweet potato, and tofu breakfast skillet",
+      "pl": "Śniadaniowa patelnia z komosą ryżową, batatem i tofu"
+    },
+    "description": {
+      "en": "A warm, savory breakfast with fluffy quinoa, golden sweet potato, tofu, and edamame, finished with spinach and pumpkin seeds.",
+      "pl": "Ciepłe, wytrawne śniadanie z puszystą komosą ryżową, rumianym batatem, tofu i edamame, podane ze szpinakiem i pestkami dyni."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 35,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "sweet-potato",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 70,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa, then simmer it in water until tender, about 15 minutes.",
+        "Peel the sweet potato and cut it into small cubes. Dice the onion, mince the garlic, and cut the tofu into bite-sized pieces.",
+        "Heat half the olive oil in a large skillet over medium heat. Add the sweet potato and onion and cook, stirring occasionally, until the potato is tender and golden, about 15 minutes.",
+        "Stir in the garlic, paprika, salt, and black pepper.",
+        "Add the tofu and edamame and cook, stirring gently, until heated through, about 5 minutes.",
+        "Fold in the cooked quinoa and spinach and cook until the spinach wilts.",
+        "Stir in the remaining olive oil and parsley, then serve topped with pumpkin seeds."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową, a następnie gotuj ją w wodzie do miękkości, około 15 minut.",
+        "Obierz batata i pokrój go w drobną kostkę. Pokrój cebulę w kostkę, posiekaj czosnek, a tofu pokrój na kawałki wielkości kęsa.",
+        "Rozgrzej połowę oliwy na dużej patelni na średnim ogniu. Dodaj batata i cebulę, a następnie smaż, od czasu do czasu mieszając, aż batat zmięknie i się zarumieni, około 15 minut.",
+        "Dodaj czosnek, paprykę mieloną, sól i pieprz czarny, po czym wymieszaj.",
+        "Dodaj tofu i edamame. Smaż około 5 minut, delikatnie mieszając, aż składniki będą gorące.",
+        "Dodaj ugotowaną komosę ryżową i szpinak. Wymieszaj i gotuj, aż szpinak zwiędnie.",
+        "Wlej pozostałą oliwę i dodaj natkę pietruszki. Podawaj posypane pestkami dyni."
+      ]
+    }
+  },
+  {
+    "slug": "apple-oat-chia-bites-with-peanut-butter",
+    "title": {
+      "en": "Apple oat chia bites with peanut butter",
+      "pl": "Jabłkowo-owsiane kulki chia z masłem orzechowym"
+    },
+    "description": {
+      "en": "Soft, no-bake bites made with grated apple, oats, chia seeds, and peanut butter.",
+      "pl": "Miękkie kulki bez pieczenia z tartego jabłka, płatków owsianych, nasion chia i masła orzechowego."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "apple",
+        "quantity": 70,
+        "unit": "g"
+      },
+      {
+        "slug": "rolled-oats",
+        "quantity": 25,
+        "unit": "g"
+      },
+      {
+        "slug": "chia-seeds",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "peanut-butter",
+        "quantity": 12,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Grate the apple into a bowl.",
+        "Add the rolled oats, chia seeds, and peanut butter, then mix until combined.",
+        "Let the mixture stand for 5 minutes so the chia seeds can absorb some moisture.",
+        "Shape into small bites and chill briefly before serving."
+      ],
+      "pl": [
+        "Zetrzyj jabłko do miski.",
+        "Dodaj płatki owsiane, nasiona chia i masło orzechowe, a następnie wymieszaj.",
+        "Odstaw masę na 5 minut, aby nasiona chia wchłonęły część wilgoci.",
+        "Uformuj małe kulki i przed podaniem krótko je schłodź."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-and-black-bean-stuffed-bell-peppers",
+    "title": {
+      "en": "Quinoa and black bean stuffed bell peppers",
+      "pl": "Papryki faszerowane komosą ryżową i czarną fasolą"
+    },
+    "description": {
+      "en": "Tender baked pepper halves filled with quinoa, black beans, tomato, and avocado, with a crunchy pumpkin seed topping.",
+      "pl": "Miękkie połówki pieczonej papryki z farszem z komosy ryżowej, czarnej fasoli, pomidora i awokado, posypane chrupiącymi pestkami dyni."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "bell-pepper",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "quinoa",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "black-beans",
+        "quantity": 70,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 4,
+        "unit": "ml"
+      },
+      {
+        "slug": "lime-juice",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 5,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa and simmer it in water until tender, then drain any excess water.",
+        "Halve the bell peppers lengthwise and remove the seeds.",
+        "Brush the pepper halves with olive oil and bake at 200°C for 12 minutes.",
+        "Dice the tomato and avocado, then stir them into the cooked quinoa with the black beans, lime juice, and chopped parsley.",
+        "Spoon the filling into the pepper halves and scatter the pumpkin seeds over it.",
+        "Bake for 10–12 minutes more, until the peppers are tender, then serve warm."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową i gotuj ją w wodzie do miękkości, a następnie odcedź nadmiar wody.",
+        "Przekrój papryki wzdłuż na połówki i usuń nasiona.",
+        "Posmaruj połówki papryki oliwą i piecz w temperaturze 200°C przez 12 minut.",
+        "Pokrój pomidora i awokado w kostkę, a następnie wymieszaj je z ugotowaną komosą, czarną fasolą, sokiem z limonki i posiekaną natką pietruszki.",
+        "Nałóż farsz do połówek papryki i posyp pestkami dyni.",
+        "Piecz jeszcze 10–12 minut, aż papryka zmięknie. Podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-tofu-stuffed-mushroom-caps",
+    "title": {
+      "en": "Quinoa and tofu stuffed mushroom caps",
+      "pl": "Kapelusze pieczarek faszerowane komosą ryżową i tofu"
+    },
+    "description": {
+      "en": "Baked mushroom caps filled with a savoury quinoa, tofu, and spinach mixture, finished with walnuts and lemon juice.",
+      "pl": "Pieczone kapelusze pieczarek z wytrawnym farszem z komosy ryżowej, tofu i szpinaku, z orzechami włoskimi i sokiem z cytryny."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "mushrooms",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "quinoa",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "walnuts",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 3,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa and simmer it in water until tender.",
+        "Preheat the oven to 200°C and arrange the mushrooms cap-side down in a baking dish.",
+        "Chop the mushroom stems and garlic, then cook them in a pan with the olive oil for 3 minutes.",
+        "Crumble the tofu into the pan and stir in the paprika and chopped spinach.",
+        "Add the cooked quinoa, chopped parsley, and lemon juice, then mix the filling.",
+        "Spoon the filling into the mushroom caps and top with chopped walnuts.",
+        "Bake for 15–18 minutes, until the mushrooms are tender and the filling is hot."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową i gotuj ją w wodzie do miękkości.",
+        "Rozgrzej piekarnik do 200°C i ułóż pieczarki w naczyniu do pieczenia kapeluszami do dołu.",
+        "Posiekaj nóżki pieczarek i czosnek, a następnie smaż je na patelni z oliwą przez 3 minuty.",
+        "Pokrusz tofu na patelnię i wmieszaj paprykę mieloną oraz posiekany szpinak.",
+        "Dodaj ugotowaną komosę, posiekaną natkę pietruszki i sok z cytryny, po czym wymieszaj farsz.",
+        "Nałóż farsz do kapeluszy pieczarek i posyp posiekanymi orzechami włoskimi.",
+        "Piecz przez 15–18 minut, aż pieczarki zmiękną, a farsz będzie gorący."
+      ]
+    }
+  },
+  {
+    "slug": "bacon-mushroom-scrambled-eggs",
+    "title": {
+      "en": "Bacon and mushroom scrambled eggs",
+      "pl": "Jajecznica z boczkiem i pieczarkami"
+    },
+    "description": {
+      "en": "Soft scrambled eggs with crisp bacon and browned mushrooms, cooked in butter.",
+      "pl": "Delikatna jajecznica z chrupiącym boczkiem i przyrumienionymi pieczarkami, usmażona na maśle."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 10,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "bacon",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "butter",
+        "quantity": 8,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Slice the mushrooms and cut the bacon into small pieces.",
+        "Melt the butter in a skillet over medium heat. Add the bacon and cook until crisp.",
+        "Add the mushrooms and cook until browned and tender.",
+        "Beat the eggs, pour them into the skillet, and stir gently until softly set."
+      ],
+      "pl": [
+        "Pokrój pieczarki w plasterki, a boczek w małe kawałki.",
+        "Rozpuść masło na patelni na średnim ogniu. Dodaj boczek i smaż, aż będzie chrupiący.",
+        "Dodaj pieczarki i smaż, aż się przyrumienią i zmiękną.",
+        "Roztrzep jajka, wlej je na patelnię i delikatnie mieszaj, aż się zetną, pozostając miękkie."
+      ]
+    }
+  },
+  {
+    "slug": "salmon-cauliflower-spinach-breakfast-frittata",
+    "title": {
+      "en": "Salmon, cauliflower, and spinach breakfast frittata",
+      "pl": "Śniadaniowa frittata z łososiem, kalafiorem i szpinakiem"
+    },
+    "description": {
+      "en": "A tender baked frittata with salmon, cauliflower, spinach, and feta, seasoned with garlic and dill.",
+      "pl": "Delikatna pieczona frittata z łososiem, kalafiorem, szpinakiem i fetą, doprawiona czosnkiem i koperkiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "salmon-fillet",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cauliflower",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 50,
+        "unit": "ml"
+      },
+      {
+        "slug": "butter",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "dill",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 190°C and grease a baking dish with some of the butter.",
+        "Cut the cauliflower into small florets. Cook them in a covered pan with a little water until nearly tender, then drain.",
+        "Mince the garlic and cut the salmon into bite-size pieces.",
+        "Melt the remaining butter in a skillet, add the garlic and spinach, and cook until the spinach wilts.",
+        "Beat the eggs with the heavy cream, dill, salt, and black pepper.",
+        "Arrange the cauliflower, spinach, and salmon in the baking dish. Crumble the feta over the top.",
+        "Pour the egg mixture into the dish and bake until set in the center and the salmon is cooked through, about 20–25 minutes."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C i posmaruj naczynie do pieczenia częścią masła.",
+        "Podziel kalafior na małe różyczki. Gotuj je pod przykryciem na patelni z odrobiną wody, aż prawie zmiękną, a następnie odcedź.",
+        "Posiekaj czosnek i pokrój łososia na niewielkie kawałki.",
+        "Rozpuść pozostałe masło na patelni, dodaj czosnek i szpinak, a następnie smaż, aż szpinak zwiędnie.",
+        "Roztrzep jajka ze śmietanką, koperkiem, solą i pieprzem czarnym.",
+        "Ułóż kalafior, szpinak i łososia w naczyniu. Pokrusz na wierzchu fetę.",
+        "Wlej masę jajeczną do naczynia i piecz około 20–25 minut, aż środek się zetnie, a łosoś będzie gotowy."
+      ]
+    }
+  },
+  {
+    "slug": "skillet-chicken-thigh-with-cucumber-and-sour-cream-dip",
+    "title": {
+      "en": "Skillet chicken thigh with cucumber and sour cream dip",
+      "pl": "Smażone udo kurczaka z ogórkiem i dipem ze śmietany"
+    },
+    "description": {
+      "en": "Tender pan-cooked chicken with crisp cucumber and a cool sour cream dip.",
+      "pl": "Soczyste mięso z patelni podane z chrupiącym ogórkiem i chłodnym dipem ze śmietany."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "chicken-thigh",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "sour-cream",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Cut the chicken thigh into bite-size pieces.",
+        "Heat the olive oil in a skillet and cook the chicken, turning occasionally, until browned and cooked through.",
+        "Slice the cucumber and spoon the sour cream into a small bowl.",
+        "Serve the chicken with the cucumber and sour cream for dipping."
+      ],
+      "pl": [
+        "Pokrój udo kurczaka na małe kawałki.",
+        "Rozgrzej oliwę na patelni i smaż kurczaka, od czasu do czasu obracając, aż się zarumieni i będzie gotowy w środku.",
+        "Pokrój ogórek w plasterki, a śmietanę przełóż do małej miseczki.",
+        "Podawaj kurczaka z ogórkiem i śmietaną do maczania."
+      ]
+    }
+  },
+  {
+    "slug": "salmon-feta-and-walnut-cucumber-snack",
+    "title": {
+      "en": "Salmon, feta, and walnut cucumber snack",
+      "pl": "Przekąska z łososiem, fetą, orzechami włoskimi i ogórkiem"
+    },
+    "description": {
+      "en": "Warm flakes of salmon tossed with cucumber, salty feta, and crunchy walnuts, brightened with lemon and dill.",
+      "pl": "Ciepłe kawałki łososia z ogórkiem, słoną fetą i chrupiącymi orzechami włoskimi, z cytryną i koperkiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 12,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "salmon-fillet",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "walnuts",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "dill",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 0.5,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Brush the salmon with some of the olive oil and cook it in a skillet over medium heat until just cooked through.",
+        "Let the salmon cool briefly, then break it into bite-size flakes.",
+        "Dice the cucumber, crumble the feta, and roughly chop the walnuts.",
+        "Toss the salmon, cucumber, feta, and walnuts together.",
+        "Drizzle with the remaining olive oil and lemon juice, then finish with dill and black pepper."
+      ],
+      "pl": [
+        "Posmaruj łososia częścią oliwy i smaż na patelni na średnim ogniu, aż będzie gotowy w środku.",
+        "Odczekaj chwilę, aż łosoś przestygnie, a następnie podziel go na małe kawałki.",
+        "Pokrój ogórek w kostkę, pokrusz fetę i grubo posiekaj orzechy włoskie.",
+        "Wymieszaj łososia z ogórkiem, fetą i orzechami.",
+        "Skrop pozostałą oliwą i sokiem z cytryny, a na koniec dodaj koperek i pieprz czarny."
+      ]
+    }
+  },
+  {
+    "slug": "shrimp-and-cheddar-stuffed-mushrooms",
+    "title": {
+      "en": "Shrimp and cheddar stuffed mushrooms",
+      "pl": "Pieczarki faszerowane krewetkami i cheddarem"
+    },
+    "description": {
+      "en": "Juicy mushroom caps filled with creamy shrimp, cheddar, and wilted spinach, then baked until golden.",
+      "pl": "Soczyste pieczarki nadziewane kremowym farszem z krewetek, cheddara i zwiędniętego szpinaku, zapieczone na złoty kolor."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 20,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "shrimp",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "cheddar-cheese",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 50,
+        "unit": "ml"
+      },
+      {
+        "slug": "butter",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 4,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 200°C and remove the stems from the mushrooms.",
+        "Brush the mushroom caps with olive oil and arrange them cavity-side up in a baking dish.",
+        "Chop the spinach, garlic, and parsley.",
+        "Melt the butter in a skillet and cook the shrimp until pink and opaque.",
+        "Stir in the garlic and spinach and cook until the spinach wilts.",
+        "Pour in the heavy cream, then stir in the cheddar, salt, and black pepper until the cheese begins to melt.",
+        "Spoon the shrimp mixture into the mushroom caps.",
+        "Bake for 12–15 minutes, until the mushrooms are tender and the tops are bubbling.",
+        "Scatter the parsley over the stuffed mushrooms and serve warm."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 200°C i usuń trzonki pieczarek.",
+        "Posmaruj kapelusze oliwą i ułóż je w naczyniu do pieczenia wgłębieniami do góry.",
+        "Posiekaj szpinak, czosnek i natkę pietruszki.",
+        "Rozpuść masło na patelni i smaż krewetki, aż będą różowe i nieprzezroczyste.",
+        "Dodaj czosnek i szpinak, a następnie smaż, aż szpinak zwiędnie.",
+        "Wlej śmietankę, dodaj cheddar, sól i pieprz czarny, po czym mieszaj, aż ser zacznie się topić.",
+        "Nałóż farsz z krewetkami do kapeluszy pieczarek.",
+        "Piecz przez 12–15 minut, aż pieczarki zmiękną, a wierzch farszu zacznie bulgotać.",
+        "Posyp faszerowane pieczarki natką pietruszki i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "tofu-and-potato-breakfast-hash-with-green-beans",
+    "title": {
+      "en": "Tofu and potato breakfast hash with green beans",
+      "pl": "Śniadaniowa patelnia z tofu, ziemniakami i fasolką szparagową"
+    },
+    "description": {
+      "en": "Golden potatoes, tofu, and green beans make a hearty skillet breakfast, seasoned with ginger and soy sauce.",
+      "pl": "Zrumienione ziemniaki, tofu i fasolka szparagowa tworzą sycące śniadanie z patelni, doprawione imbirem i sosem sojowym."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 12,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "tofu",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "potato",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "green-beans",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "bell-pepper",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "soy-sauce",
+        "quantity": 12,
+        "unit": "ml"
+      },
+      {
+        "slug": "ginger",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Cut the potatoes into small cubes and the bell pepper into bite-sized pieces.",
+        "Heat the olive oil in a large skillet and cook the potatoes for 10 minutes, stirring occasionally.",
+        "Add the green beans and bell pepper, then cook for 6 minutes.",
+        "Crumble the tofu into the skillet and stir in the soy sauce and grated ginger.",
+        "Cook for 5 minutes, stirring gently, until the tofu is hot and the vegetables are tender.",
+        "Season with black pepper and serve warm."
+      ],
+      "pl": [
+        "Pokrój ziemniaki w małą kostkę, a paprykę na kawałki wielkości kęsa.",
+        "Rozgrzej oliwę na dużej patelni i smaż ziemniaki przez 10 minut, od czasu do czasu mieszając.",
+        "Dodaj fasolkę szparagową i paprykę, a następnie smaż przez 6 minut.",
+        "Pokrusz tofu na patelnię i dodaj sos sojowy oraz starty imbir.",
+        "Gotuj przez 5 minut, delikatnie mieszając, aż tofu będzie gorące, a warzywa miękkie.",
+        "Dopraw czarnym pieprzem i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "cocoa-banana-oat-bites-with-peanut-butter-and-chia",
+    "title": {
+      "en": "Cocoa banana oat bites with peanut butter and chia",
+      "pl": "Kakaowe kulki owsiane z bananem, masłem orzechowym i chia"
+    },
+    "description": {
+      "en": "Soft, cocoa-rich bites with banana, oats, peanut butter, and chia seeds.",
+      "pl": "Miękkie, kakaowe kulki z bananem, płatkami owsianymi, masłem orzechowym i nasionami chia."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "banana",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "rolled-oats",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "peanut-butter",
+        "quantity": 12,
+        "unit": "g"
+      },
+      {
+        "slug": "cocoa-powder",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "chia-seeds",
+        "quantity": 5,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Mash the banana in a small bowl.",
+        "Stir in the rolled oats, peanut butter, cocoa powder, and chia seeds.",
+        "Let the mixture stand for five minutes so the chia seeds can thicken it.",
+        "Shape into small bites and serve."
+      ],
+      "pl": [
+        "Rozgnieć banana w małej misce.",
+        "Dodaj płatki owsiane, masło orzechowe, kakao i nasiona chia, a następnie wymieszaj.",
+        "Odstaw masę na pięć minut, żeby nasiona chia ją zagęściły.",
+        "Uformuj małe kulki i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "edamame-avocado-wraps-with-cucumber-and-lime",
+    "title": {
+      "en": "Edamame avocado wraps with cucumber and lime",
+      "pl": "Tortille z edamame, awokado, ogórkiem i limonką"
+    },
+    "description": {
+      "en": "Small, fresh wraps filled with mashed edamame, creamy avocado, and crisp cucumber.",
+      "pl": "Małe, świeże tortille z rozgniecionym edamame, kremowym awokado i chrupiącym ogórkiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 5,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "tortilla-wrap",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "lime-juice",
+        "quantity": 8,
+        "unit": "ml"
+      },
+      {
+        "slug": "soy-sauce",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "ginger",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Cook the edamame in boiling water until tender, then drain well.",
+        "Mash the edamame with the avocado in a bowl.",
+        "Mix in the soy sauce, grated ginger, and lime juice.",
+        "Cut the cucumber into thin strips.",
+        "Spread the edamame mixture over the tortilla wraps, add the cucumber, and roll them up.",
+        "Cut each wrap in half and serve."
+      ],
+      "pl": [
+        "Ugotuj edamame we wrzątku do miękkości, a następnie dokładnie odcedź.",
+        "Rozgnieć edamame z awokado w misce.",
+        "Dodaj sos sojowy, starty imbir i sok z limonki, po czym wymieszaj.",
+        "Pokrój ogórka w cienkie paski.",
+        "Rozsmaruj masę z edamame na tortillach, dodaj ogórka i zwiń.",
+        "Przekrój każdą tortillę na pół i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "red-lentil-pumpkin-seed-fritters-with-lemon",
+    "title": {
+      "en": "Red lentil and pumpkin seed fritters with lemon",
+      "pl": "Placuszki z czerwonej soczewicy i pestek dyni z cytryną"
+    },
+    "description": {
+      "en": "Tender lentil fritters with grated vegetables and crunchy pumpkin seeds, brightened with lemon.",
+      "pl": "Delikatne placuszki z soczewicy i startych warzyw, z chrupiącymi pestkami dyni i cytrynową nutą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 35,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "red-lentils",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "carrot",
+        "quantity": 35,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 0.5,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 10,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the red lentils, then simmer them in water until soft, about 15 minutes; drain well.",
+        "Grate the zucchini and carrot, then squeeze out excess moisture.",
+        "Finely chop the onion, garlic, and parsley.",
+        "Coarsely chop the pumpkin seeds.",
+        "Mash the lentils in a bowl and stir in the zucchini, carrot, onion, garlic, parsley, pumpkin seeds, paprika, salt, and black pepper.",
+        "Shape the mixture into small, flat fritters.",
+        "Heat the olive oil in a pan over medium heat.",
+        "Cook the fritters in batches until golden on both sides and heated through.",
+        "Drizzle with the lemon juice and serve."
+      ],
+      "pl": [
+        "Opłucz czerwoną soczewicę, a następnie gotuj ją w wodzie około 15 minut, aż zmięknie; dokładnie odcedź.",
+        "Zetrzyj cukinię i marchew, a następnie odciśnij nadmiar płynu.",
+        "Drobno posiekaj cebulę, czosnek i natkę pietruszki.",
+        "Grubo posiekaj pestki dyni.",
+        "Rozgnieć soczewicę w misce i wymieszaj z cukinią, marchewką, cebulą, czosnkiem, natką pietruszki, pestkami dyni, papryką mieloną, solą i czarnym pieprzem.",
+        "Uformuj małe, płaskie placuszki.",
+        "Rozgrzej oliwę na patelni na średnim ogniu.",
+        "Smaż placuszki partiami, aż będą rumiane z obu stron i gorące w środku.",
+        "Skrop sokiem z cytryny i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "greek-yogurt-with-strawberries-walnuts-and-honey",
+    "title": {
+      "en": "Greek yogurt with strawberries, walnuts, and honey",
+      "pl": "Jogurt grecki z truskawkami, orzechami włoskimi i miodem"
+    },
+    "description": {
+      "en": "A cool, creamy breakfast topped with juicy strawberries and crunchy walnuts.",
+      "pl": "Kremowe, schłodzone śniadanie z soczystymi truskawkami i chrupiącymi orzechami włoskimi."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "greek-yogurt",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "strawberries",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "walnuts",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "honey",
+        "quantity": 15,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Spoon the Greek yogurt into a bowl.",
+        "Hull and slice the strawberries, then arrange them over the yogurt.",
+        "Scatter the walnuts on top and drizzle with honey."
+      ],
+      "pl": [
+        "Przełóż jogurt grecki do miseczki.",
+        "Usuń szypułki z truskawek, pokrój je i ułóż na jogurcie.",
+        "Posyp całość orzechami włoskimi i polej miodem."
+      ]
+    }
+  },
+  {
+    "slug": "tomato-spinach-and-feta-eggs-on-rye-toast",
+    "title": {
+      "en": "Tomato, spinach, and feta eggs on rye toast",
+      "pl": "Jajka z pomidorem, szpinakiem i fetą na grzance z chleba żytniego"
+    },
+    "description": {
+      "en": "Soft eggs nestle in a quick tomato and spinach pan sauce, served over crisp rye toast with crumbled feta.",
+      "pl": "Delikatne jajka w szybkim sosie z pomidorów i szpinaku, podane na chrupiącej grzance z chleba żytniego i posypane fetą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 20,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "rye-bread",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Toast the rye bread until crisp.",
+        "Warm the olive oil in a skillet over medium heat.",
+        "Add the chopped tomato and cook for 4 minutes, stirring until it softens.",
+        "Stir in the spinach and black pepper, and cook until the spinach wilts.",
+        "Make two small spaces in the vegetables and crack in the eggs.",
+        "Cover the skillet and cook until the egg whites are set but the yolks are still soft.",
+        "Spoon the vegetables and eggs over the rye toast, then crumble the feta on top."
+      ],
+      "pl": [
+        "Zrumień chleb żytni w tosterze lub na suchej patelni.",
+        "Rozgrzej oliwę na patelni na średnim ogniu.",
+        "Dodaj pokrojonego pomidora i smaż przez 4 minuty, mieszając, aż zmięknie.",
+        "Dodaj szpinak i pieprz, a następnie smaż, aż szpinak zwiędnie.",
+        "Zrób w warzywach dwa niewielkie wgłębienia i wbij do nich jajka.",
+        "Przykryj patelnię i gotuj, aż białka się zetną, a żółtka pozostaną miękkie.",
+        "Nałóż warzywa i jajka na grzanki, a całość posyp pokruszoną fetą."
+      ]
+    }
+  },
+  {
+    "slug": "chickpea-potato-breakfast-frittata-with-tomato-and-feta",
+    "title": {
+      "en": "Chickpea and potato breakfast frittata with tomato and feta",
+      "pl": "Śniadaniowa frittata z ciecierzycą, ziemniakami, pomidorem i fetą"
+    },
+    "description": {
+      "en": "A hearty oven-finished frittata with tender chickpeas and potatoes, brightened with tomato, spinach, and herbs.",
+      "pl": "Sycąca frittata dopieczona w piekarniku, z miękką ciecierzycą i ziemniakami oraz pomidorem, szpinakiem i ziołami."
+    },
+    "servings": 3,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 40,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "chickpeas",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "potato",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 45,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "dried-oregano",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 190°C.",
+        "Cut the potato into small cubes and boil until just tender, about 8 minutes; drain well.",
+        "Chop the onion and tomato, mince the garlic, and roughly chop the parsley.",
+        "Warm the olive oil in an oven-safe skillet over medium heat.",
+        "Add the onion and cook for 4 minutes until softened.",
+        "Stir in the garlic, tomato, and dried oregano, and cook for 2 minutes.",
+        "Add the chickpeas, potato, and spinach, stirring until the spinach begins to wilt.",
+        "Whisk the eggs with the black pepper, then pour them evenly over the vegetables.",
+        "Crumble the feta over the top and scatter on the parsley.",
+        "Cook on the stovetop for 3 minutes, gently loosening the edges as they set.",
+        "Transfer the skillet to the oven and bake for 10–12 minutes, until the center is set.",
+        "Rest for 5 minutes, slice, and serve warm."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C.",
+        "Pokrój ziemniaka w drobną kostkę i gotuj około 8 minut, aż będzie prawie miękki; dokładnie odcedź.",
+        "Posiekaj cebulę i pomidora, drobno posiekaj czosnek, a natkę pietruszki grubo posiekaj.",
+        "Rozgrzej oliwę na patelni, którą można wstawić do piekarnika.",
+        "Dodaj cebulę i smaż przez 4 minuty, aż zmięknie.",
+        "Dodaj czosnek, pomidora i suszone oregano, po czym smaż przez 2 minuty.",
+        "Dodaj ciecierzycę, ziemniaka i szpinak; mieszaj, aż szpinak zacznie więdnąć.",
+        "Roztrzep jajka z pieprzem i równomiernie wlej je na warzywa.",
+        "Pokrusz fetę na wierzchu i posyp całość natką pietruszki.",
+        "Smaż na kuchence przez 3 minuty, delikatnie odgarniając ścinające się brzegi.",
+        "Wstaw patelnię do piekarnika i piecz 10–12 minut, aż środek się zetnie.",
+        "Odstaw na 5 minut, pokrój i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "chicken-zucchini-and-cheddar-breakfast-skillet",
+    "title": {
+      "en": "Chicken, zucchini, and cheddar breakfast skillet",
+      "pl": "Śniadaniowa patelnia z kurczakiem, cukinią i cheddarem"
+    },
+    "description": {
+      "en": "A hearty skillet of browned chicken, soft zucchini, and eggs topped with cheddar and sour cream.",
+      "pl": "Sycące danie z patelni: rumiany kurczak, miękka cukinia i jajka, podane z cheddarem oraz śmietaną."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 12,
+    "cookMinutes": 20,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "chicken-thigh",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cheddar-cheese",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "sour-cream",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 25,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Dice the chicken, zucchini, and onion.",
+        "Heat the olive oil in a skillet and cook the chicken with the paprika and black pepper until browned and cooked through.",
+        "Add the onion and zucchini, then cook until the vegetables soften.",
+        "Beat the eggs, pour them into the skillet, and stir gently until just set.",
+        "Scatter the cheddar over the top, cover briefly until it melts, then serve with sour cream."
+      ],
+      "pl": [
+        "Pokrój kurczaka, cukinię i cebulę w kostkę.",
+        "Rozgrzej oliwę na patelni i smaż kurczaka z papryką mieloną oraz pieprzem, aż się zarumieni i będzie gotowy w środku.",
+        "Dodaj cebulę i cukinię, a następnie smaż, aż warzywa zmiękną.",
+        "Roztrzep jajka, wlej je na patelnię i delikatnie mieszaj, aż się zetną.",
+        "Posyp całość cheddarem i na chwilę przykryj, aby ser się roztopił. Podawaj ze śmietaną."
+      ]
+    }
+  },
+  {
+    "slug": "baked-eggs-with-shrimp-spinach-feta-and-olives",
+    "title": {
+      "en": "Baked eggs with shrimp, spinach, feta, and olives",
+      "pl": "Jajka zapiekane z krewetkami, szpinakiem, fetą i oliwkami"
+    },
+    "description": {
+      "en": "Eggs baked with shrimp, mushrooms, and spinach in a creamy mixture, finished with feta, olives, and dill.",
+      "pl": "Jajka zapiekane z krewetkami, pieczarkami i szpinakiem w kremowej masie, z fetą, oliwkami i koperkiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "large-egg",
+        "quantity": 4,
+        "unit": "piece"
+      },
+      {
+        "slug": "shrimp",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 80,
+        "unit": "ml"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "black-olives",
+        "quantity": 25,
+        "unit": "g"
+      },
+      {
+        "slug": "butter",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "dill",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 190°C and butter a small baking dish.",
+        "Chop the garlic, mushrooms, spinach, and dill.",
+        "Melt the remaining butter in a skillet and cook the mushrooms until they begin to soften.",
+        "Add the garlic and shrimp, then cook briefly until the shrimp turn pink.",
+        "Stir in the spinach and cook until wilted, then transfer the mixture to the baking dish.",
+        "Whisk the eggs with the heavy cream, salt, and black pepper, then pour over the shrimp mixture.",
+        "Crumble the feta over the top and scatter on the black olives and dill.",
+        "Bake until the eggs are just set, about 18 minutes, and serve warm."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C i posmaruj masłem małe naczynie do zapiekania.",
+        "Posiekaj czosnek, pieczarki, szpinak i koperek.",
+        "Roztop pozostałe masło na patelni i smaż pieczarki, aż zaczną mięknąć.",
+        "Dodaj czosnek i krewetki, po czym krótko smaż, aż krewetki zrobią się różowe.",
+        "Dodaj szpinak i smaż, aż zwiędnie, a następnie przełóż całość do naczynia.",
+        "Roztrzep jajka ze śmietanką, solą i pieprzem, po czym wlej masę do naczynia z krewetkami.",
+        "Pokrusz fetę na wierzchu i dodaj czarne oliwki oraz koperek.",
+        "Piecz około 18 minut, aż jajka się zetną. Podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "coconut-lime-shrimp",
+    "title": {
+      "en": "Coconut lime shrimp",
+      "pl": "Krewetki w mleczku kokosowym z limonką"
+    },
+    "description": {
+      "en": "Tender shrimp simmered in a creamy coconut sauce with ginger, garlic, and a bright touch of lime.",
+      "pl": "Delikatne krewetki duszone w kremowym sosie kokosowym z imbirem, czosnkiem i świeżą nutą limonki."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 10,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "shrimp",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "coconut-milk",
+        "quantity": 70,
+        "unit": "ml"
+      },
+      {
+        "slug": "coconut-oil",
+        "quantity": 7,
+        "unit": "ml"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "ginger",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "lime-juice",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "salt",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Finely grate the ginger and mince the garlic.",
+        "Warm the coconut oil in a small skillet over medium heat.",
+        "Add the ginger and garlic and stir for about 30 seconds.",
+        "Add the shrimp and cook, stirring, until they begin to turn pink.",
+        "Pour in the coconut milk and heavy cream, then simmer gently until the shrimp are cooked through and the sauce has thickened slightly.",
+        "Stir in the lime juice and salt, then serve warm."
+      ],
+      "pl": [
+        "Drobno zetrzyj imbir i posiekaj czosnek.",
+        "Rozgrzej olej kokosowy na małej patelni na średnim ogniu.",
+        "Dodaj imbir i czosnek, po czym mieszaj przez około 30 sekund.",
+        "Dodaj krewetki i smaż, mieszając, aż zaczną różowieć.",
+        "Wlej mleczko kokosowe i śmietankę, a następnie duś na małym ogniu, aż krewetki będą gotowe, a sos lekko zgęstnieje.",
+        "Dodaj sok z limonki i sól, wymieszaj i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "caprese-mozzarella-toast",
+    "title": {
+      "en": "Caprese mozzarella toast",
+      "pl": "Tost caprese z mozzarellą"
+    },
+    "description": {
+      "en": "A small open-faced toast with juicy tomato, mozzarella, fresh basil, and olive oil.",
+      "pl": "Mały tost z soczystym pomidorem, mozzarellą, świeżą bazylią i oliwą."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 3,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "whole-grain-bread",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "mozzarella",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "basil",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Toast the bread until crisp.",
+        "Slice the tomato and mozzarella, then arrange them on the toast.",
+        "Scatter over the basil, drizzle with olive oil, and serve."
+      ],
+      "pl": [
+        "Opiecz chleb, aż będzie chrupiący.",
+        "Pokrój pomidora i mozzarellę, a następnie ułóż je na grzance.",
+        "Posyp bazylią, skrop oliwą i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "salmon-quinoa-mini-cakes-with-lemon-dill-yogurt",
+    "title": {
+      "en": "Salmon and quinoa mini cakes with lemon-dill yogurt",
+      "pl": "Małe kotleciki z łososia i komosy ryżowej z jogurtem cytrynowo-koperkowym"
+    },
+    "description": {
+      "en": "Small golden salmon and quinoa cakes served with a fresh lemon-dill yogurt dip.",
+      "pl": "Małe, rumiane kotleciki z łososia i komosy ryżowej podawane ze świeżym dipem jogurtowym z cytryną i koperkiem."
+    },
+    "servings": 4,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 25,
+    "cookMinutes": 20,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "salmon-fillet",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "quinoa",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "dill",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "greek-yogurt",
+        "quantity": 100,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa and simmer it in water until tender, then drain and let it cool.",
+        "Finely chop the salmon, spinach, onion, and garlic.",
+        "Grate the zucchini and squeeze out excess liquid.",
+        "Mix the salmon, quinoa, spinach, zucchini, onion, garlic, egg, parsley, half the dill, salt, and black pepper.",
+        "Stir the Greek yogurt with the lemon juice and remaining dill to make the dip.",
+        "Shape the salmon mixture into small cakes.",
+        "Heat the olive oil in a pan and cook the cakes in batches for about 4 minutes per side, until cooked through and golden.",
+        "Serve the cakes warm with the lemon-dill yogurt."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową i gotuj ją w wodzie do miękkości, a następnie odcedź i ostudź.",
+        "Drobno posiekaj łososia, szpinak, cebulę i czosnek.",
+        "Zetrzyj cukinię i odciśnij z niej nadmiar płynu.",
+        "Wymieszaj łososia, komosę ryżową, szpinak, cukinię, cebulę, czosnek, jajko, natkę pietruszki, połowę koperku, sól i pieprz.",
+        "Wymieszaj jogurt grecki z sokiem z cytryny i pozostałym koperkiem, aby przygotować dip.",
+        "Uformuj z masy małe kotleciki.",
+        "Rozgrzej oliwę na patelni i smaż kotleciki partiami po około 4 minuty z każdej strony, aż się zarumienią i będą gotowe w środku.",
+        "Podawaj kotleciki na ciepło z jogurtem cytrynowo-koperkowym."
+      ]
+    }
+  },
+  {
+    "slug": "greek-yogurt-bowl-with-banana-blueberries-chia-and-almonds",
+    "title": {
+      "en": "Greek yogurt bowl with banana, blueberries, chia, almonds, and honey",
+      "pl": "Jogurt grecki z bananem, borówkami, chia, migdałami i miodem"
+    },
+    "description": {
+      "en": "A creamy, lightly sweet snack topped with juicy berries, banana, crunchy almonds, and chia.",
+      "pl": "Kremowa, lekko słodka przekąska z soczystymi borówkami, bananem, chrupiącymi migdałami i nasionami chia."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "greek-yogurt",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "banana",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "blueberries",
+        "quantity": 35,
+        "unit": "g"
+      },
+      {
+        "slug": "chia-seeds",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "almonds",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "honey",
+        "quantity": 6,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Spoon the Greek yogurt into a small bowl.",
+        "Slice the banana and scatter it over the yogurt with the blueberries.",
+        "Sprinkle with chia seeds and almonds.",
+        "Drizzle with honey and serve."
+      ],
+      "pl": [
+        "Przełóż jogurt grecki do małej miseczki.",
+        "Pokrój banana i ułóż go na jogurcie razem z borówkami.",
+        "Posyp nasionami chia i migdałami.",
+        "Polej miodem i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "bacon-cheddar-spinach-egg-cups",
+    "title": {
+      "en": "Bacon, cheddar, and spinach egg cups",
+      "pl": "Babeczki jajeczne z boczkiem, cheddarem i szpinakiem"
+    },
+    "description": {
+      "en": "Bite-sized baked eggs with crisp bacon, melted cheddar, and tender spinach.",
+      "pl": "Małe zapiekane jajka z chrupiącym boczkiem, roztopionym cheddarem i delikatnym szpinakiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 8,
+    "cookMinutes": 15,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "large-egg",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "slug": "bacon",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "cheddar-cheese",
+        "quantity": 35,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 190°C and lightly grease two muffin cups with olive oil.",
+        "Chop the bacon and spinach, then divide them between the cups.",
+        "Crack an egg into each cup and sprinkle with cheddar.",
+        "Bake for 12–15 minutes, until the whites are set, then let the cups cool briefly before serving."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C i lekko posmaruj oliwą dwie foremki na muffiny.",
+        "Pokrój boczek i szpinak, a następnie rozłóż je w foremkach.",
+        "Wbij po jednym jajku do każdej foremki i posyp cheddarem.",
+        "Piecz 12–15 minut, aż białka się zetną. Przed podaniem odczekaj chwilę."
+      ]
+    }
+  },
+  {
+    "slug": "shrimp-avocado-lettuce-cups",
+    "title": {
+      "en": "Shrimp and avocado lettuce cups",
+      "pl": "Łódeczki z sałaty z krewetkami i awokado"
+    },
+    "description": {
+      "en": "Warm, lightly seasoned shrimp tucked into crisp lettuce with creamy avocado and feta.",
+      "pl": "Delikatnie doprawione, ciepłe krewetki podane w chrupiących liściach sałaty z kremowym awokado i fetą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 12,
+    "cookMinutes": 5,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "shrimp",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "romaine-lettuce",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "dill",
+        "quantity": 3,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Pat the shrimp dry and chop the dill.",
+        "Heat half the olive oil in a pan and cook the shrimp for 2–3 minutes, turning once, until opaque.",
+        "Cut the cucumber and avocado into small pieces, then toss them with the lemon juice and remaining olive oil.",
+        "Arrange the romaine leaves on a plate and fill them with the avocado mixture and shrimp.",
+        "Crumble the feta over the cups, scatter with dill, and serve."
+      ],
+      "pl": [
+        "Osusz krewetki i posiekaj koperek.",
+        "Rozgrzej na patelni połowę oliwy i smaż krewetki przez 2–3 minuty, raz je obracając, aż staną się nieprzezroczyste.",
+        "Pokrój ogórek i awokado na małe kawałki, a następnie wymieszaj je z sokiem z cytryny i resztą oliwy.",
+        "Ułóż liście sałaty rzymskiej na talerzu i napełnij je mieszanką z awokado oraz krewetkami.",
+        "Pokrusz fetę na łódeczkach, posyp koperkiem i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "beef-and-gouda-stuffed-mushroom-bites",
+    "title": {
+      "en": "Beef and Gouda stuffed mushroom bites",
+      "pl": "Pieczarki faszerowane wołowiną i goudą"
+    },
+    "description": {
+      "en": "Tender mushroom caps filled with garlicky beef, wilted spinach, and a golden Gouda topping.",
+      "pl": "Miękkie kapelusze pieczarek nadziewane wołowiną z czosnkiem i szpinakiem, zapieczone pod złocistą goudą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "ground-beef",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "gouda-cheese",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "butter",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 8,
+        "unit": "ml"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 200°C and line a baking tray with parchment.",
+        "Remove the mushroom stems and finely chop them; arrange the caps on the tray.",
+        "Melt the butter in a pan with the olive oil, then add the chopped stems and cook until softened.",
+        "Add the ground beef, breaking it up as it browns. Stir in the minced garlic, paprika, salt, and black pepper.",
+        "Add the spinach and cook until wilted, then stir in the chopped parsley.",
+        "Spoon the beef mixture into the mushroom caps and top with grated Gouda.",
+        "Bake for 15–18 minutes, until the mushrooms are tender and the cheese is bubbling."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 200°C i wyłóż blachę papierem do pieczenia.",
+        "Usuń nóżki pieczarek i drobno je posiekaj. Ułóż kapelusze na blasze.",
+        "Rozpuść masło na patelni z oliwą, dodaj posiekane nóżki i smaż, aż zmiękną.",
+        "Dodaj mieloną wołowinę i rozdrabniaj ją podczas smażenia. Wsyp posiekany czosnek, paprykę mieloną, sól i pieprz czarny.",
+        "Dodaj szpinak i smaż, aż zwiędnie, a następnie wmieszaj posiekaną natkę pietruszki.",
+        "Nałóż farsz wołowy do kapeluszy pieczarek i posyp startą goudą.",
+        "Piecz 15–18 minut, aż pieczarki zmiękną, a ser zacznie bulgotać."
+      ]
+    }
+  },
+  {
+    "slug": "millet-porridge-with-coconut-blueberries-and-chia",
+    "title": {
+      "en": "Millet porridge with coconut, blueberries, and chia",
+      "pl": "Jaglanka z mleczkiem kokosowym, borówkami i chia"
+    },
+    "description": {
+      "en": "A gently spiced millet porridge with creamy coconut milk, juicy blueberries, and chia seeds.",
+      "pl": "Delikatnie korzenna jaglanka z kremowym mleczkiem kokosowym, soczystymi borówkami i nasionami chia."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 25,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "millet",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "coconut-milk",
+        "quantity": 120,
+        "unit": "ml"
+      },
+      {
+        "slug": "blueberries",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "chia-seeds",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "walnuts",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "cinnamon",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the millet under cold water.",
+        "Put the millet in a saucepan with the coconut milk and enough water to cover it generously.",
+        "Bring to a gentle simmer and cook, stirring occasionally, until the millet is tender.",
+        "Stir in the cinnamon and chia seeds, then let the porridge stand for a few minutes.",
+        "Serve topped with blueberries and chopped walnuts."
+      ],
+      "pl": [
+        "Opłucz kaszę jaglaną pod zimną wodą.",
+        "Wsyp kaszę do rondla, dodaj mleczko kokosowe i tyle wody, aby obficie ją przykryła.",
+        "Doprowadź do łagodnego wrzenia i gotuj, od czasu do czasu mieszając, aż kasza zmięknie.",
+        "Dodaj cynamon i nasiona chia, a następnie odstaw jaglankę na kilka minut.",
+        "Podawaj z borówkami i posiekanymi orzechami włoskimi."
+      ]
+    }
+  },
+  {
+    "slug": "banana-tofu-oat-pancakes-with-blueberries",
+    "title": {
+      "en": "Banana tofu oat pancakes with blueberries",
+      "pl": "Placki owsiane z bananem i tofu, z borówkami"
+    },
+    "description": {
+      "en": "Tender oat pancakes with banana and tofu, served with warm blueberries.",
+      "pl": "Miękkie placki owsiane z bananem i tofu, podawane z ciepłymi borówkami."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 12,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "rolled-oats",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "banana",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "blueberries",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 3,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Grind the oats into a coarse flour.",
+        "Mash the banana and crumble the tofu, then stir both into the oats with 30 ml water to make a thick batter.",
+        "Heat the olive oil in a nonstick pan over medium heat.",
+        "Spoon the batter into small pancakes and cook for 3–4 minutes per side, until golden and cooked through.",
+        "Warm the blueberries briefly in the pan and serve them over the pancakes."
+      ],
+      "pl": [
+        "Zmiel płatki owsiane na gruboziarnistą mąkę.",
+        "Rozgnieć banana i pokrusz tofu, a następnie wymieszaj oba składniki z płatkami i 30 ml wody, aby powstało gęste ciasto.",
+        "Rozgrzej oliwę na nieprzywierającej patelni na średnim ogniu.",
+        "Nakładaj niewielkie porcje ciasta i smaż placki po 3–4 minuty z każdej strony, aż się zarumienią i będą gotowe w środku.",
+        "Krótko podgrzej borówki na patelni i podawaj je na plackach."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-edamame-breakfast-bowl-with-lemon-and-herbs",
+    "title": {
+      "en": "Quinoa and edamame breakfast bowl with lemon and herbs",
+      "pl": "Śniadaniowa miska z komosą ryżową, edamame, cytryną i ziołami"
+    },
+    "description": {
+      "en": "A warm, savory breakfast bowl of fluffy quinoa, edamame and sautéed vegetables, finished with lemon, parsley and pumpkin seeds.",
+      "pl": "Ciepła, wytrawna miska śniadaniowa z puszystą komosą ryżową, edamame i podsmażonymi warzywami, z cytryną, natką pietruszki i pestkami dyni."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "broccoli",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "bell-pepper",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 3,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa, then simmer it in water until tender, about 15 minutes.",
+        "Finely chop the onion and garlic, and slice the mushrooms and bell pepper.",
+        "Heat the olive oil in a large skillet. Add the onion and mushrooms and cook for 5 minutes, stirring occasionally.",
+        "Add the garlic, bell pepper and broccoli, and cook for 5 minutes more.",
+        "Stir in the edamame and spinach, then cook until the edamame is hot and the spinach has wilted.",
+        "Fold in the cooked quinoa, lemon juice, salt and black pepper.",
+        "Divide between bowls and finish with chopped parsley and pumpkin seeds."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową, a następnie gotuj ją w wodzie przez około 15 minut, aż będzie miękka.",
+        "Drobno posiekaj cebulę i czosnek, a pieczarki oraz paprykę pokrój w plasterki.",
+        "Rozgrzej oliwę na dużej patelni. Dodaj cebulę i pieczarki, po czym smaż przez 5 minut, od czasu do czasu mieszając.",
+        "Dodaj czosnek, paprykę i brokuł, a następnie smaż jeszcze przez 5 minut.",
+        "Dodaj edamame i szpinak, po czym podgrzewaj, aż edamame będzie gorące, a szpinak zwiędnie.",
+        "Wmieszaj ugotowaną komosę ryżową, sok z cytryny, sól i czarny pieprz.",
+        "Rozłóż danie do misek i posyp posiekaną natką pietruszki oraz pestkami dyni."
+      ]
+    }
+  },
+  {
+    "slug": "orange-edamame-and-almond-snack-bowl",
+    "title": {
+      "en": "Orange, edamame, and almond snack bowl",
+      "pl": "Miska z pomarańczą, edamame i migdałami"
+    },
+    "description": {
+      "en": "A bright, citrusy snack with tender edamame and crunchy almonds.",
+      "pl": "Orzeźwiająca przekąska z delikatnym edamame i chrupiącymi migdałami."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 5,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "orange",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "almonds",
+        "quantity": 8,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Cook the edamame according to its package directions, then drain and cool.",
+        "Peel the orange, separate it into segments, and cut the segments into bite-sized pieces.",
+        "Combine the orange and edamame in a bowl, then scatter the chopped almonds over the top."
+      ],
+      "pl": [
+        "Ugotuj edamame zgodnie z instrukcją na opakowaniu, odcedź i ostudź.",
+        "Obierz pomarańczę, podziel ją na cząstki i pokrój je na mniejsze kawałki.",
+        "Wymieszaj pomarańczę z edamame w miseczce i posyp posiekanymi migdałami."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-edamame-and-zucchini-snack-cakes",
+    "title": {
+      "en": "Quinoa, edamame, and zucchini snack cakes",
+      "pl": "Placuszki z komosy ryżowej, edamame i cukinii"
+    },
+    "description": {
+      "en": "Golden little cakes bring together quinoa, edamame, zucchini, and pumpkin seeds in a savory bite.",
+      "pl": "Rumiane placuszki łączą komosę ryżową, edamame, cukinię i pestki dyni w wytrawną przekąskę."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa and simmer it in water until tender, then drain well and let it cool slightly.",
+        "Cook the edamame until tender and drain it.",
+        "Grate the zucchini and squeeze out excess moisture.",
+        "Mash about half of the edamame in a bowl, then stir in the quinoa, zucchini, pumpkin seeds, chopped parsley, minced garlic, and salt.",
+        "Fold in the remaining edamame and shape the mixture into small cakes.",
+        "Heat the olive oil in a pan over medium heat.",
+        "Cook the cakes for 3–4 minutes on each side, until golden and heated through."
+      ],
+      "pl": [
+        "Przepłucz komosę ryżową i gotuj ją w wodzie do miękkości, a następnie dokładnie odcedź i lekko przestudź.",
+        "Ugotuj edamame do miękkości i odcedź.",
+        "Zetrzyj cukinię i odciśnij nadmiar wody.",
+        "Rozgnieć w misce mniej więcej połowę edamame, po czym wymieszaj z komosą, cukinią, pestkami dyni, posiekaną natką pietruszki, drobno posiekanym czosnkiem i solą.",
+        "Dodaj pozostałe edamame i uformuj z masy małe placuszki.",
+        "Rozgrzej oliwę na patelni na średnim ogniu.",
+        "Smaż placuszki po 3–4 minuty z każdej strony, aż się zarumienią i będą gorące w środku."
+      ]
+    }
+  },
+  {
+    "slug": "stuffed-zucchini-boats-with-couscous-and-edamame",
+    "title": {
+      "en": "Zucchini boats stuffed with couscous and edamame",
+      "pl": "Cukinie faszerowane kuskusem i edamame"
+    },
+    "description": {
+      "en": "Tender roasted zucchini boats hold a lemony couscous and edamame filling with carrot, parsley, and pumpkin seeds.",
+      "pl": "Miękka pieczona cukinia kryje farsz z kuskusu i edamame z cytryną, marchewką, natką pietruszki i pestkami dyni."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "lunch",
+      "dinner"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 35,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "zucchini",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "slug": "couscous",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "carrot",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 200°C.",
+        "Halve the zucchini lengthwise and scoop out the centers, leaving sturdy shells.",
+        "Brush the zucchini shells with half the olive oil, place them cut-side up in a baking dish, and roast for 12 minutes.",
+        "Put the couscous in a bowl, cover it with boiling water, and leave it until tender; fluff with a fork.",
+        "Cook the edamame until tender, then drain.",
+        "Grate the carrot and finely chop the onion, garlic, and parsley.",
+        "Heat the remaining olive oil in a pan and cook the onion and carrot until softened; stir in the garlic and paprika.",
+        "Mix the vegetables with the couscous, edamame, pumpkin seeds, lemon juice, parsley, and salt.",
+        "Spoon the filling into the zucchini shells and bake for 12–15 minutes, until the zucchini is tender."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 200°C.",
+        "Przekrój cukinię wzdłuż na pół i wydrąż środek, pozostawiając dość grube ścianki.",
+        "Posmaruj łódeczki z cukinii połową oliwy, ułóż je przeciętą stroną do góry w naczyniu do pieczenia i piecz przez 12 minut.",
+        "Wsyp kuskus do miski, zalej wrzątkiem i odstaw, aż zmięknie; spulchnij widelcem.",
+        "Ugotuj edamame do miękkości i odcedź.",
+        "Zetrzyj marchewkę, a cebulę, czosnek i natkę pietruszki drobno posiekaj.",
+        "Rozgrzej resztę oliwy na patelni i podsmaż cebulę z marchewką, aż zmiękną; dodaj czosnek i paprykę mieloną.",
+        "Wymieszaj warzywa z kuskusem, edamame, pestkami dyni, sokiem z cytryny, natką pietruszki i solą.",
+        "Nałóż farsz do łódeczek z cukinii i piecz przez 12–15 minut, aż cukinia zmięknie."
+      ]
+    }
+  },
+  {
+    "slug": "avocado-egg-and-tomato-whole-grain-toast",
+    "title": {
+      "en": "Avocado, egg and tomato on whole-grain toast",
+      "pl": "Tosty pełnoziarniste z awokado, jajkiem i pomidorem"
+    },
+    "description": {
+      "en": "Crisp whole-grain toast topped with creamy avocado, tomato and softly fried eggs.",
+      "pl": "Chrupiące tosty pełnoziarniste z kremowym awokado, pomidorem i delikatnie usmażonymi jajkami."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 5,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "whole-grain-bread",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 3,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Toast the whole-grain bread until crisp.",
+        "Halve the avocado, remove the stone and mash the flesh with a fork.",
+        "Warm the olive oil in a pan and fry the eggs until the whites are set.",
+        "Spread the avocado over the toast, add sliced tomato and top with the eggs."
+      ],
+      "pl": [
+        "Opiecz chleb pełnoziarnisty, aż będzie chrupiący.",
+        "Przekrój awokado na pół, usuń pestkę i rozgnieć miąższ widelcem.",
+        "Rozgrzej oliwę na patelni i usmaż jajka, aż białka się zetną.",
+        "Posmaruj tosty awokado, dodaj pokrojonego pomidora i ułóż na wierzchu jajka."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-breakfast-skillet-with-spinach-tomato-and-feta",
+    "title": {
+      "en": "Quinoa breakfast skillet with spinach, tomato and feta",
+      "pl": "Śniadaniowa patelnia z komosą ryżową, szpinakiem, pomidorem i fetą"
+    },
+    "description": {
+      "en": "A warm, savoury breakfast skillet with fluffy quinoa, tender spinach and tomato, finished with baked eggs and crumbled feta.",
+      "pl": "Ciepłe, wytrawne śniadanie z puszystą komosą ryżową, miękkim szpinakiem i pomidorem, zapieczone z jajkami i posypane fetą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 12,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "onion",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa, then simmer it in water until tender, about 15 minutes.",
+        "Dice the onion and tomato.",
+        "Heat the olive oil in a skillet and cook the onion for 4 minutes, until softened.",
+        "Stir in the tomato, paprika and salt, and cook for 3 minutes.",
+        "Add the spinach and cooked quinoa, stirring until the spinach wilts.",
+        "Make two wells in the mixture, crack an egg into each, cover the skillet and cook until the eggs are set.",
+        "Crumble the feta over the skillet and serve warm."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową i gotuj ją w wodzie około 15 minut, aż będzie miękka.",
+        "Pokrój cebulę i pomidora w kostkę.",
+        "Rozgrzej oliwę na patelni i smaż cebulę przez 4 minuty, aż zmięknie.",
+        "Dodaj pomidora, paprykę mieloną i sól, a następnie smaż przez 3 minuty.",
+        "Dodaj szpinak i ugotowaną komosę ryżową, mieszając, aż szpinak zwiędnie.",
+        "Zrób dwa wgłębienia w mieszance, wbij do każdego jajko, przykryj patelnię i smaż, aż jajka się zetną.",
+        "Pokrusz fetę na wierzchu i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "trout-spinach-and-cream-scramble",
+    "title": {
+      "en": "Trout, spinach, and cream scramble",
+      "pl": "Jajecznica z pstrągiem, szpinakiem i śmietanką"
+    },
+    "description": {
+      "en": "Soft scrambled eggs with buttery spinach and flakes of trout make a rich, savory breakfast.",
+      "pl": "Delikatna jajecznica z maślanym szpinakiem i kawałkami pstrąga to pożywne, wytrawne śniadanie."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 10,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "trout-fillet",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "butter",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 50,
+        "unit": "ml"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 30,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Whisk the eggs with the heavy cream.",
+        "Melt the butter in a nonstick skillet over medium heat.",
+        "Add the trout and spinach, and cook until the spinach wilts and the trout flakes easily.",
+        "Pour in the egg mixture and stir gently until softly set."
+      ],
+      "pl": [
+        "Roztrzep jajka ze śmietanką.",
+        "Rozpuść masło na nieprzywierającej patelni na średnim ogniu.",
+        "Dodaj pstrąga i szpinak, a następnie smaż, aż szpinak zwiędnie, a pstrąg zacznie rozpadać się na płatki.",
+        "Wlej masę jajeczną i delikatnie mieszaj, aż jajka lekko się zetną."
+      ]
+    }
+  },
+  {
+    "slug": "chicken-zucchini-and-gouda-breakfast-frittata",
+    "title": {
+      "en": "Chicken, zucchini, and Gouda breakfast frittata",
+      "pl": "Śniadaniowa frittata z kurczakiem, cukinią i goudą"
+    },
+    "description": {
+      "en": "A golden skillet frittata with tender chicken, zucchini, and melted Gouda.",
+      "pl": "Złocista frittata z patelni z delikatnym kurczakiem, cukinią i ciągnącą się goudą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "chicken-thigh",
+        "quantity": 140,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "gouda-cheese",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 40,
+        "unit": "ml"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Preheat the oven to 190°C.",
+        "Whisk the eggs with the heavy cream and salt.",
+        "Cut the chicken into small pieces, slice the zucchini, and mince the garlic.",
+        "Heat the olive oil in an ovenproof skillet and cook the chicken until browned and cooked through.",
+        "Add the zucchini and garlic, and cook until the zucchini begins to soften.",
+        "Pour the egg mixture into the skillet and scatter the Gouda over it.",
+        "Cook over low heat until the edges begin to set, then transfer the skillet to the oven.",
+        "Bake until the center is just set, about 10 minutes, then rest briefly before serving."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C.",
+        "Roztrzep jajka ze śmietanką i solą.",
+        "Pokrój kurczaka na małe kawałki, cukinię w plasterki, a czosnek drobno posiekaj.",
+        "Rozgrzej oliwę na patelni, którą można wstawić do piekarnika. Smaż kurczaka, aż się zrumieni i będzie gotowy w środku.",
+        "Dodaj cukinię i czosnek, a następnie smaż, aż cukinia zacznie mięknąć.",
+        "Wlej masę jajeczną na patelnię i posyp goudą.",
+        "Smaż na małym ogniu, aż brzegi zaczną się ścinać, po czym wstaw patelnię do piekarnika.",
+        "Piecz około 10 minut, aż środek się zetnie, a następnie odstaw na chwilę przed podaniem."
+      ]
+    }
+  },
+  {
+    "slug": "beef-cauliflower-and-cheddar-breakfast-bake",
+    "title": {
+      "en": "Beef, cauliflower, and cheddar breakfast bake",
+      "pl": "Śniadaniowa zapiekanka z wołowiną, kalafiorem i cheddarem"
+    },
+    "description": {
+      "en": "A hearty oven-baked breakfast with seasoned beef, tender cauliflower, creamy eggs, and a fresh avocado topping.",
+      "pl": "Sycące śniadanie z piekarnika: doprawiona wołowina, miękki kalafior, kremowa masa jajeczna i świeże awokado."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 40,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "ground-beef",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cauliflower",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cheddar-cheese",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "butter",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 80,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Preheat the oven to 190°C and grease a small baking dish with some of the butter.",
+        "Cut the cauliflower into small florets and cook in boiling water until just tender, then drain well.",
+        "Melt the remaining butter in a skillet and brown the ground beef, breaking it into small pieces.",
+        "Add the mushrooms and paprika, and cook until the mushrooms soften.",
+        "Stir in the spinach and cook until wilted, then season with salt and black pepper.",
+        "Whisk the eggs with the heavy cream.",
+        "Spread the cauliflower and beef mixture in the prepared dish, pour over the egg mixture, and scatter the cheddar on top.",
+        "Bake until the center is set and the top is golden, about 20 minutes.",
+        "Halve and slice the avocado, then serve it alongside the warm bake."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C i natłuść niewielkie naczynie do zapiekania częścią masła.",
+        "Podziel kalafior na małe różyczki, ugotuj do lekkiej miękkości, a następnie dokładnie odcedź.",
+        "Rozpuść resztę masła na patelni i podsmaż mieloną wołowinę, rozdrabniając ją na małe kawałki.",
+        "Dodaj pieczarki i paprykę mieloną, po czym smaż, aż pieczarki zmiękną.",
+        "Dodaj szpinak i smaż, aż zwiędnie, a następnie dopraw solą i czarnym pieprzem.",
+        "Roztrzep jajka ze śmietanką.",
+        "Przełóż kalafior i wołowinę do przygotowanego naczynia, wlej masę jajeczną i posyp cheddarem.",
+        "Piecz około 20 minut, aż środek się zetnie, a wierzch się przyrumieni.",
+        "Przekrój awokado, pokrój je w plasterki i podaj obok ciepłej zapiekanki."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-with-chickpeas-and-tomato",
+    "title": {
+      "en": "Quinoa with chickpeas and tomato",
+      "pl": "Komosa ryżowa z ciecierzycą i pomidorem"
+    },
+    "description": {
+      "en": "A warm, simple bowl of fluffy quinoa and chickpeas with fresh tomato and olive oil.",
+      "pl": "Prosta, ciepła miska puszystej komosy ryżowej i ciecierzycy ze świeżym pomidorem i oliwą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "lunch"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 15,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "chickpeas",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa, then simmer it in water until tender, about 15 minutes.",
+        "Drain and rinse the chickpeas, then dice the tomato.",
+        "Fluff the quinoa with a fork and stir in the chickpeas and tomato.",
+        "Drizzle with olive oil and serve warm."
+      ],
+      "pl": [
+        "Opłucz komosę ryżową, a następnie gotuj ją w wodzie około 15 minut, aż zmięknie.",
+        "Odcedź i opłucz ciecierzycę, a pomidora pokrój w kostkę.",
+        "Spulchnij komosę widelcem i wymieszaj ją z ciecierzycą oraz pomidorem.",
+        "Skrop oliwą i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "brown-rice-bowl-with-ginger-soy-tofu-edamame-and-broccoli",
+    "title": {
+      "en": "Brown rice bowl with ginger-soy tofu, edamame, and broccoli",
+      "pl": "Miska brązowego ryżu z tofu w sosie sojowo-imbirowym, edamame i brokułem"
+    },
+    "description": {
+      "en": "A hearty rice bowl with crisp-edged tofu, green edamame, and broccoli in a ginger-soy glaze.",
+      "pl": "Sycąca miska ryżu z rumianym tofu, zielonym edamame i brokułem w sosie imbirowo-sojowym."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "lunch"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "brown-rice",
+        "quantity": 130,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "broccoli",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "soy-sauce",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "ginger",
+        "quantity": 10,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the brown rice and simmer it in water until tender, following the package timing.",
+        "Cut the tofu into cubes and finely chop the garlic and ginger.",
+        "Heat half the olive oil in a pan and brown the tofu on all sides.",
+        "Add the garlic, ginger, and soy sauce, then stir until the tofu is coated.",
+        "Steam or simmer the broccoli and edamame in water until tender, about 5 minutes, then drain.",
+        "Divide the rice between bowls and top with the tofu, broccoli, and edamame.",
+        "Drizzle with the remaining olive oil and serve."
+      ],
+      "pl": [
+        "Opłucz brązowy ryż i gotuj go w wodzie do miękkości, zgodnie z czasem podanym na opakowaniu.",
+        "Pokrój tofu w kostkę, a czosnek i imbir drobno posiekaj.",
+        "Rozgrzej na patelni połowę oliwy i obsmaż tofu z każdej strony.",
+        "Dodaj czosnek, imbir i sos sojowy, a następnie wymieszaj, aby tofu pokryło się sosem.",
+        "Ugotuj brokuł i edamame na parze lub w wodzie przez około 5 minut, aż zmiękną, po czym je odcedź.",
+        "Rozłóż ryż do misek i dodaj tofu, brokuł oraz edamame.",
+        "Skrop pozostałą oliwą i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "quinoa-with-tofu-tomato-and-spinach",
+    "title": {
+      "en": "Quinoa with tofu, tomato, and spinach",
+      "pl": "Komosa ryżowa z tofu, pomidorem i szpinakiem"
+    },
+    "description": {
+      "en": "A colorful skillet dinner with fluffy quinoa, golden tofu, fresh tomato, and wilted spinach.",
+      "pl": "Kolorowe danie z patelni: puszysta komosa ryżowa, zarumienione tofu, świeży pomidor i szpinak."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "dinner"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 20,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the quinoa and simmer it in water until tender, about 15 minutes.",
+        "Cut the tofu into cubes and dice the tomato.",
+        "Heat the olive oil in a skillet and cook the tofu until golden on several sides.",
+        "Add the tomato and spinach, stirring until the spinach wilts.",
+        "Fluff the quinoa with a fork and serve topped with the tofu and vegetables."
+      ],
+      "pl": [
+        "Przepłucz komosę ryżową i gotuj ją w wodzie do miękkości, około 15 minut.",
+        "Pokrój tofu w kostkę, a pomidora w drobną kostkę.",
+        "Rozgrzej oliwę na patelni i smaż tofu, aż zarumieni się z kilku stron.",
+        "Dodaj pomidora i szpinak, mieszając, aż szpinak zwiędnie.",
+        "Spulchnij komosę widelcem i podawaj z tofu oraz warzywami."
+      ]
+    }
+  },
+  {
+    "slug": "paprika-millet-and-kidney-bean-stew-with-zucchini",
+    "title": {
+      "en": "Paprika millet and kidney bean stew with zucchini",
+      "pl": "Paprykowy gulasz z kaszy jaglanej, czerwonej fasoli i cukinii"
+    },
+    "description": {
+      "en": "A hearty one-pot stew of millet and kidney beans with tender zucchini, tomato, and a smoky touch of paprika.",
+      "pl": "Sycący gulasz z jednego garnka: kasza jaglana i czerwona fasola z miękką cukinią, pomidorami i aromatyczną mieloną papryką."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "dinner"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 35,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "millet",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "kidney-beans",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "canned-tomatoes",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "zucchini",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 1,
+        "unit": "piece"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 15,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the millet and drain the kidney beans.",
+        "Dice the onion and zucchini, and mince the garlic.",
+        "Warm the olive oil in a large pot over medium heat.",
+        "Add the onion and zucchini and cook, stirring, until the onion softens, about 5 minutes.",
+        "Stir in the garlic and paprika and cook for 30 seconds.",
+        "Add the millet, canned tomatoes, kidney beans, and 400 ml water.",
+        "Bring the mixture to a boil, then cover and simmer gently until the millet is tender, about 20 minutes.",
+        "Stir in the pumpkin seeds and serve hot."
+      ],
+      "pl": [
+        "Przepłucz kaszę jaglaną i odsącz czerwoną fasolę.",
+        "Pokrój cebulę i cukinię w kostkę, a czosnek drobno posiekaj.",
+        "Rozgrzej oliwę w dużym garnku na średnim ogniu.",
+        "Dodaj cebulę i cukinię. Smaż, mieszając, aż cebula zmięknie, około 5 minut.",
+        "Dodaj czosnek i mieloną paprykę, po czym smaż przez 30 sekund.",
+        "Wsyp kaszę, dodaj pomidory z puszki, czerwoną fasolę i 400 ml wody.",
+        "Doprowadź do wrzenia, przykryj i gotuj na małym ogniu, aż kasza będzie miękka, około 20 minut.",
+        "Wsyp pestki dyni, wymieszaj i podawaj na gorąco."
+      ]
+    }
+  },
+  {
+    "slug": "mackerel-cucumber-bites-with-dill-cream",
+    "title": {
+      "en": "Mackerel cucumber bites with dill cream",
+      "pl": "Koreczki z makrelą i ogórkiem z kremem koperkowym"
+    },
+    "description": {
+      "en": "Pan-seared mackerel on crisp cucumber rounds, served with lemony dill sour cream.",
+      "pl": "Podsmażona makrela na chrupiących plasterkach ogórka, podana ze śmietaną z koperkiem i cytryną."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 10,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "mackerel-fillet",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "sour-cream",
+        "quantity": 30,
+        "unit": "g"
+      },
+      {
+        "slug": "dill",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 0.3,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Pat the mackerel dry and season it with salt and black pepper.",
+        "Heat the olive oil in a small pan and cook the mackerel until browned and cooked through, turning once.",
+        "Stir the lemon juice and chopped dill into the sour cream.",
+        "Slice the cucumber into thick rounds and arrange them on a plate.",
+        "Flake the mackerel into small pieces and place them on the cucumber rounds.",
+        "Top each bite with dill cream and serve."
+      ],
+      "pl": [
+        "Osusz makrelę i dopraw ją solą oraz czarnym pieprzem.",
+        "Rozgrzej oliwę na małej patelni i smaż makrelę, aż się zarumieni i będzie gotowa w środku, obracając ją raz.",
+        "Wymieszaj sok z cytryny i posiekany koperek ze śmietaną.",
+        "Pokrój ogórka w grube plastry i ułóż je na talerzu.",
+        "Podziel makrelę na małe kawałki i ułóż je na plastrach ogórka.",
+        "Nałóż na każdy kawałek krem koperkowy i podawaj."
+      ]
+    }
+  },
+  {
+    "slug": "smoked-salmon-cucumber-bites-with-dill-cream",
+    "title": {
+      "en": "Smoked salmon and cucumber bites with dill cream",
+      "pl": "Koreczki z łososiem wędzonym i ogórkiem z kremem koperkowym"
+    },
+    "description": {
+      "en": "Cool cucumber rounds topped with smoked salmon and tangy dill sour cream make a fresh little snack.",
+      "pl": "Chrupiące plasterki ogórka z łososiem wędzonym i wyrazistą śmietaną z koperkiem to lekka przekąska."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "smoked-salmon",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "cucumber",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "sour-cream",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "dill",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Slice the cucumber into thick rounds and arrange them on a plate.",
+        "Stir the dill and olive oil into the sour cream.",
+        "Top each cucumber round with smoked salmon and a small spoonful of dill cream."
+      ],
+      "pl": [
+        "Pokrój ogórka w grube plasterki i ułóż je na talerzu.",
+        "Wymieszaj koperek i oliwę ze śmietaną.",
+        "Na każdym plasterku ogórka ułóż łososia wędzonego i odrobinę kremu koperkowego."
+      ]
+    }
+  },
+  {
+    "slug": "red-lentil-breakfast-stew-with-tomato-and-spinach",
+    "title": {
+      "en": "Red lentil breakfast stew with tomato and spinach",
+      "pl": "Śniadaniowa potrawka z czerwonej soczewicy, pomidorów i szpinaku"
+    },
+    "description": {
+      "en": "A thick, warming lentil bowl simmered with tomato and spinach, with a gentle paprika-garlic finish.",
+      "pl": "Gęsta, rozgrzewająca potrawka z soczewicy duszonej z pomidorami i szpinakiem, doprawiona mieloną papryką i czosnkiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "red-lentils",
+        "quantity": 160,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 25,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Dice the onion, mince the garlic, and chop the tomato.",
+        "Warm the olive oil in a saucepan over medium heat.",
+        "Add the onion and cook for 4 minutes, stirring until softened.",
+        "Stir in the garlic and paprika and cook for 30 seconds.",
+        "Add the red lentils, tomato, and 500 ml water, then bring to a gentle boil.",
+        "Lower the heat and simmer for 18–20 minutes, stirring occasionally, until the lentils are tender and the stew is thick.",
+        "Fold in the spinach and cook until wilted, then serve warm."
+      ],
+      "pl": [
+        "Pokrój cebulę i pomidora w kostkę, a czosnek drobno posiekaj.",
+        "Rozgrzej oliwę w rondlu na średnim ogniu.",
+        "Dodaj cebulę i smaż przez 4 minuty, mieszając, aż zmięknie.",
+        "Dodaj czosnek i mieloną paprykę, po czym smaż przez 30 sekund.",
+        "Wsyp czerwoną soczewicę, dodaj pomidora i 500 ml wody, a następnie zagotuj.",
+        "Zmniejsz ogień i gotuj przez 18–20 minut, od czasu do czasu mieszając, aż soczewica zmięknie, a potrawka zgęstnieje.",
+        "Dodaj szpinak i gotuj, aż zwiędnie. Podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "buckwheat-breakfast-skillet-with-tofu-and-black-beans",
+    "title": {
+      "en": "Buckwheat breakfast skillet with tofu and black beans",
+      "pl": "Śniadaniowa patelnia z kaszą gryczaną, tofu i czarną fasolą"
+    },
+    "description": {
+      "en": "A hearty savory breakfast of fluffy buckwheat, spiced tofu, black beans, and wilted spinach, finished with pumpkin seeds.",
+      "pl": "Sycące, wytrawne śniadanie z puszystej kaszy gryczanej, przyprawionego tofu, czarnej fasoli i szpinaku, posypane pestkami dyni."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "buckwheat-groats",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "tofu",
+        "quantity": 120,
+        "unit": "g"
+      },
+      {
+        "slug": "black-beans",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "onion",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "pumpkin-seeds",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the buckwheat and cook it in water until tender, about 15 minutes.",
+        "Dice the onion and tomato, and crumble the tofu.",
+        "Heat the olive oil in a skillet and soften the onion for 3 minutes.",
+        "Add the tofu and paprika, then cook for 4 minutes, stirring occasionally.",
+        "Stir in the tomato and black beans and cook until heated through.",
+        "Fold in the spinach and cook until just wilted.",
+        "Serve the tofu and bean mixture over the buckwheat, topped with pumpkin seeds."
+      ],
+      "pl": [
+        "Opłucz kaszę gryczaną i gotuj ją w wodzie przez około 15 minut, aż będzie miękka.",
+        "Pokrój cebulę i pomidora w kostkę, a tofu pokrusz.",
+        "Rozgrzej oliwę na patelni i smaż cebulę przez 3 minuty, aż zmięknie.",
+        "Dodaj tofu i paprykę mieloną, po czym smaż przez 4 minuty, od czasu do czasu mieszając.",
+        "Dodaj pomidora i czarną fasolę, a następnie podgrzej całość.",
+        "Dodaj szpinak i gotuj, aż zwiędnie.",
+        "Podawaj tofu z fasolą na kaszy gryczanej, posypane pestkami dyni."
+      ]
+    }
+  },
+  {
+    "slug": "lemony-millet-edamame-breakfast-bowl",
+    "title": {
+      "en": "Millet breakfast bowl with edamame and spinach",
+      "pl": "Śniadaniowa miska z kaszą jaglaną, edamame i szpinakiem"
+    },
+    "description": {
+      "en": "A warm, savoury bowl of fluffy millet and tender edamame, folded with spinach and brightened with lemon.",
+      "pl": "Ciepła, wytrawna miska z puszystą kaszą jaglaną i delikatnym edamame, ze szpinakiem i odrobiną cytryny."
+    },
+    "servings": 1,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 5,
+    "cookMinutes": 15,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "millet",
+        "quantity": 45,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 8,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 5,
+        "unit": "ml"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Rinse the millet, then simmer it in water until tender, about 15 minutes.",
+        "Cook the edamame in water until tender, then drain.",
+        "Stir the spinach into the hot millet until it wilts.",
+        "Fold in the edamame, olive oil, and lemon juice, then serve warm."
+      ],
+      "pl": [
+        "Opłucz kaszę jaglaną, a następnie gotuj ją w wodzie około 15 minut, aż będzie miękka.",
+        "Ugotuj edamame w wodzie do miękkości, a następnie odcedź.",
+        "Dodaj szpinak do gorącej kaszy i wymieszaj, aż zwiędnie.",
+        "Dodaj edamame, oliwę z oliwek i sok z cytryny, wymieszaj i podawaj na ciepło."
+      ]
+    }
+  },
+  {
+    "slug": "chicken-mushroom-and-feta-breakfast-bake",
+    "title": {
+      "en": "Chicken, mushroom and feta breakfast bake",
+      "pl": "Śniadaniowa zapiekanka z kurczakiem, pieczarkami i fetą"
+    },
+    "description": {
+      "en": "A savory oven-baked breakfast with chicken, mushrooms, spinach and a creamy egg base topped with feta.",
+      "pl": "Wytrawna zapiekanka śniadaniowa z kurczakiem, pieczarkami, szpinakiem, kremową masą jajeczną i fetą."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast",
+      "second_breakfast"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "chicken-thigh",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "feta-cheese",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "heavy-cream",
+        "quantity": 40,
+        "unit": "ml"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 190°C and lightly grease a small baking dish with some of the olive oil.",
+        "Cut the chicken into bite-size pieces and slice the mushrooms.",
+        "Heat the remaining olive oil in a pan. Cook the chicken until lightly browned and cooked through, then add the mushrooms and cook until softened.",
+        "Whisk the eggs with the heavy cream, salt and black pepper.",
+        "Stir the spinach into the chicken and mushroom mixture, then transfer it to the baking dish.",
+        "Pour the egg mixture over the filling and crumble the feta on top.",
+        "Bake for 20–25 minutes, until the centre is set. Rest briefly before serving."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 190°C i lekko natłuść niewielkie naczynie do zapiekania częścią oliwy.",
+        "Pokrój kurczaka na małe kawałki, a pieczarki w plasterki.",
+        "Rozgrzej pozostałą oliwę na patelni. Smaż kurczaka, aż się lekko przyrumieni i będzie gotowy w środku, następnie dodaj pieczarki i smaż, aż zmiękną.",
+        "Roztrzep jajka ze śmietanką, solą i pieprzem.",
+        "Dodaj szpinak do kurczaka z pieczarkami, a następnie przełóż całość do naczynia do zapiekania.",
+        "Wlej masę jajeczną na farsz i pokrusz na wierzchu fetę.",
+        "Piecz przez 20–25 minut, aż środek się zetnie. Przed podaniem odstaw na chwilę."
+      ]
+    }
+  },
+  {
+    "slug": "baked-quinoa-chickpea-and-edamame-bites",
+    "title": {
+      "en": "Baked quinoa, chickpea, and edamame bites",
+      "pl": "Pieczone kąski z komosy ryżowej, ciecierzycy i edamame"
+    },
+    "description": {
+      "en": "Small golden bites with tender quinoa, chickpeas, and edamame, brightened with lemon and parsley.",
+      "pl": "Małe, rumiane kąski z delikatną komosą ryżową, ciecierzycą i edamame, z cytryną i natką pietruszki."
+    },
+    "servings": 3,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 20,
+    "cookMinutes": 40,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "quinoa",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "chickpeas",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "edamame",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "carrot",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "paprika",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 200°C and line a baking tray.",
+        "Rinse the quinoa, then simmer it in water until tender, about 15 minutes; drain any excess water and let it cool slightly.",
+        "Boil the edamame until tender, then drain.",
+        "Mash the chickpeas in a bowl, leaving some texture, and stir in the quinoa, edamame, grated carrot, chopped parsley, paprika, salt, and lemon juice.",
+        "Drizzle in the olive oil and mix until combined, then shape the mixture into small bites and arrange them on the tray.",
+        "Bake for 20–25 minutes, turning the bites once, until golden and firm."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 200°C i wyłóż blachę papierem do pieczenia.",
+        "Opłucz komosę ryżową, a następnie gotuj ją na małym ogniu w wodzie do miękkości, około 15 minut; odlej nadmiar wody i lekko przestudź.",
+        "Ugotuj edamame do miękkości, a następnie odcedź.",
+        "Rozgnieć ciecierzycę w misce, pozostawiając niewielkie kawałki, i wymieszaj z komosą, edamame, startą marchewką, posiekaną natką pietruszki, papryką, solą i sokiem z cytryny.",
+        "Wlej oliwę i wymieszaj składniki, a następnie uformuj małe kąski i ułóż je na blasze.",
+        "Piecz przez 20–25 minut, raz obracając kąski, aż się zarumienią i stężeją."
+      ]
+    }
+  },
+  {
+    "slug": "tuna-chickpea-toast-with-tomato",
+    "title": {
+      "en": "Tuna and chickpea toast with tomato",
+      "pl": "Grzanki z tuńczykiem, ciecierzycą i pomidorem"
+    },
+    "description": {
+      "en": "Crisp whole-grain toast topped with a lemony mash of chickpeas and tuna, fresh tomato, and parsley.",
+      "pl": "Chrupiące grzanki pełnoziarniste z cytrynową pastą z ciecierzycy i tuńczyka, świeżym pomidorem oraz natką pietruszki."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "snack",
+      "second_breakfast"
+    ],
+    "prepMinutes": 12,
+    "cookMinutes": 3,
+    "difficulty": "easy",
+    "ingredients": [
+      {
+        "slug": "chickpeas",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "canned-tuna",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "whole-grain-bread",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "tomato",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 18,
+        "unit": "ml"
+      },
+      {
+        "slug": "lemon-juice",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "parsley",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "slug": "black-pepper",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Toast the whole-grain bread until crisp.",
+        "Drain the chickpeas and tuna. Mash the chickpeas in a bowl with the lemon juice, olive oil, and black pepper.",
+        "Flake the tuna into the chickpea mash and stir in the chopped parsley.",
+        "Dice the tomato, spoon the tuna mixture onto the toast, and top with tomato before serving."
+      ],
+      "pl": [
+        "Opiecz chleb pełnoziarnisty, aż będzie chrupiący.",
+        "Odcedź ciecierzycę i tuńczyka. Rozgnieć ciecierzycę w misce z sokiem z cytryny, oliwą i czarnym pieprzem.",
+        "Rozdrobnij tuńczyka widelcem, dodaj do pasty z ciecierzycy i wymieszaj z posiekaną natką pietruszki.",
+        "Pokrój pomidora w kostkę, rozłóż pastę na grzankach i przed podaniem posyp pomidorem."
+      ]
+    }
+  },
+  {
+    "slug": "coconut-lime-shrimp-with-cauliflower-and-spinach",
+    "title": {
+      "en": "Coconut-lime shrimp with cauliflower and spinach",
+      "pl": "Krewetki kokosowo-limonkowe z kalafiorem i szpinakiem"
+    },
+    "description": {
+      "en": "Juicy shrimp simmered in a creamy coconut and lime sauce with tender cauliflower and wilted spinach.",
+      "pl": "Soczyste krewetki duszone w kremowym sosie kokosowo-limonkowym z miękkim kalafiorem i szpinakiem."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "lunch",
+      "dinner"
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "shrimp",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "slug": "cauliflower",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "slug": "coconut-milk",
+        "quantity": 150,
+        "unit": "ml"
+      },
+      {
+        "slug": "coconut-oil",
+        "quantity": 40,
+        "unit": "ml"
+      },
+      {
+        "slug": "garlic",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "slug": "ginger",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "slug": "lime-juice",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "slug": "salt",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Cut the cauliflower into small florets, mince the garlic, and finely grate the ginger.",
+        "Warm the coconut oil in a large skillet over medium heat.",
+        "Add the garlic and ginger and cook for 30 seconds, stirring so they do not brown.",
+        "Add the cauliflower and salt, then stir to coat.",
+        "Pour in the coconut milk, cover, and simmer for 8–10 minutes, until the cauliflower is nearly tender.",
+        "Add the shrimp and cook uncovered, stirring occasionally, until pink and cooked through.",
+        "Stir in the spinach and lime juice and cook until the spinach wilts.",
+        "Taste the sauce and serve hot."
+      ],
+      "pl": [
+        "Podziel kalafior na małe różyczki, posiekaj czosnek i drobno zetrzyj imbir.",
+        "Rozgrzej olej kokosowy na dużej patelni na średnim ogniu.",
+        "Dodaj czosnek i imbir, smaż przez 30 sekund, mieszając, aby się nie zrumieniły.",
+        "Dodaj kalafior i sól, a następnie wymieszaj.",
+        "Wlej mleczko kokosowe, przykryj i gotuj na małym ogniu przez 8–10 minut, aż kalafior prawie zmięknie.",
+        "Dodaj krewetki i gotuj bez przykrycia, od czasu do czasu mieszając, aż staną się różowe i będą gotowe.",
+        "Dodaj szpinak i sok z limonki, a następnie gotuj, aż szpinak zwiędnie.",
+        "Spróbuj sosu i podawaj danie na gorąco."
+      ]
+    }
+  },
+  {
+    "slug": "bacon-mushroom-cheddar-skillet-with-avocado",
+    "title": {
+      "en": "Bacon and mushroom skillet with cheddar and avocado",
+      "pl": "Patelnia z boczkiem, pieczarkami, cheddarem i awokado"
+    },
+    "description": {
+      "en": "A hearty skillet of crisp bacon, tender mushrooms, soft eggs and melted cheddar, served with fresh avocado.",
+      "pl": "Sycące danie z patelni: chrupiący boczek, miękkie pieczarki, jajka i roztopiony cheddar, podane ze świeżym awokado."
+    },
+    "servings": 2,
+    "mealTypes": [
+      "breakfast"
+    ],
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "slug": "bacon",
+        "quantity": 60,
+        "unit": "g"
+      },
+      {
+        "slug": "mushrooms",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "slug": "olive-oil",
+        "quantity": 8,
+        "unit": "ml"
+      },
+      {
+        "slug": "spinach",
+        "quantity": 40,
+        "unit": "g"
+      },
+      {
+        "slug": "large-egg",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "slug": "cheddar-cheese",
+        "quantity": 50,
+        "unit": "g"
+      },
+      {
+        "slug": "avocado",
+        "quantity": 80,
+        "unit": "g"
+      }
+    ],
+    "steps": {
+      "en": [
+        "Dice the bacon and slice the mushrooms.",
+        "Heat the olive oil in a skillet over medium heat and cook the bacon until lightly crisp.",
+        "Add the mushrooms and cook until tender, stirring occasionally.",
+        "Stir in the spinach and cook until wilted.",
+        "Beat the eggs, pour them into the skillet and stir gently until just set.",
+        "Scatter the cheddar over the eggs and let it melt, then serve with sliced avocado."
+      ],
+      "pl": [
+        "Pokrój boczek w kostkę, a pieczarki w plasterki.",
+        "Rozgrzej oliwę na patelni na średnim ogniu i smaż boczek, aż lekko się zarumieni.",
+        "Dodaj pieczarki i smaż, od czasu do czasu mieszając, aż zmiękną.",
+        "Dodaj szpinak i smaż, aż zwiędnie.",
+        "Roztrzep jajka, wlej je na patelnię i delikatnie mieszaj, aż się zetną.",
+        "Posyp jajka cheddarem i poczekaj, aż się roztopi. Podawaj z pokrojonym awokado."
+      ]
+    }
+  }
+]

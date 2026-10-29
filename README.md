@@ -205,7 +205,7 @@ The CLI alternative is `npm run db:seed`. See
 
 ## Where the recipes come from
 
-The repository holds a fixed base of 131 reviewed recipes, in `data/recipes.json` and
+The repository holds a fixed base of 183 reviewed recipes, in `data/recipes.json` and
 `data/recipes/` (see [data/README.md](data/README.md)). Every instance starts from it, and
 it changes only in this repository.
 
