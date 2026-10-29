@@ -66,15 +66,15 @@ loaded by themselves**: a start only brings the database to the current schema.
 Load them on the first run, in the admin panel:
 
 1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD`.
-2. (Optional) On the host, fetch USDA whole foods:
-   `FDC_API_KEY=<key> npm run import:usda` (defaults to **Foundation**, ~330
-   generic foods). Writes `data/ingredients.generated.json` — without it only the
-   hand-curated baseline (93 ingredients) is available. `FDC_DATA_TYPES` can
-   include `SR Legacy` for the full ~7 k corpus, but see
+2. (Optional) Fetch USDA whole foods with **Run import** on the panel's USDA
+   importer (defaults to **Foundation**, ~330 generic foods). It writes
+   `data/ingredients.generated.json` — without it only the hand-curated baseline
+   (93 ingredients) is available. `SR Legacy` adds the full ~7 k corpus, but see
    [data/README.md](../../data/README.md#choosing-fdc_data_types) for why that
-   is rarely worth it.
-   **Run import** on the admin panel does the same from inside the API
-   container, which writes into `data/` on the host as user 1000. Where the
+   is rarely worth it. In a checkout of the repository,
+   `FDC_API_KEY=<key> npm run import:usda` does the same on the host.
+   The panel's import runs inside the API container, which writes into `data/`
+   on the host as user 1000. Where the
    repository belongs to another user (root on a server, for example), give
    that user the directory first: `chown 1000 data`. The panel says so when it
    cannot write, and asks nothing of the food database until it can. Without

@@ -183,18 +183,18 @@ to the current schema. Loading the curated data (the ingredients and recipes of
 is something an administrator does, in the panel:
 
 1. Set `ADMIN_PASSWORD` in `.env` (and optionally `ADMIN_USER`, defaults to `admin`).
-2. (Optional) Run the USDA importer to add public-domain whole foods:
-   ```bash
-   FDC_API_KEY=<key> npm run import:usda
-   ```
-   Defaults to USDA **Foundation**: about 330 clean generic foods, some 270 of
-   which the catalogue does not hold already. Without an importer run, only the
-   hand-curated baseline (93 ingredients) seeds. See
-   [data/README.md](data/README.md#choosing-fdc_data_types) before enabling
-   `SR Legacy` — it adds ~7 k entries, but most are brand names or cuts of one
-   animal: every one of them is put before the model that drafts recipes, and
+2. Open <http://localhost:3000/admin> and sign in.
+3. (Optional) Add public-domain whole foods with the panel's **USDA importer**:
+   choose the data sets and click **Run import**. **Foundation** brings about 330
+   clean generic foods, some 270 of which the catalogue does not hold already.
+   Without an import, only the hand-curated baseline (93 ingredients) seeds. The
+   public demonstration key allows a few requests an hour, enough for Foundation
+   at most; a free key of your own goes in `FDC_API_KEY` in `.env`. See
+   [data/README.md](data/README.md#choosing-fdc_data_types) before adding
+   `SR Legacy`: it adds ~7 k entries, but most are brand names or cuts of one
+   animal; every one of them is put before the model that drafts recipes, and
    the catalogue update takes minutes where it took seconds.
-3. Open <http://localhost:3000/admin>, sign in, click **Update database**.
+4. Click **Update database**.
 
 The admin panel surfaces ingredient/recipe/substitution counts and a
 data-hash check so subsequent edits or re-imports show "update available"
