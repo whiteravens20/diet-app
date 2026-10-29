@@ -238,6 +238,14 @@ test.describe('the content security policy of a page', () => {
   });
 });
 
+test.describe('the headers of an answer', () => {
+  test('say nothing of what serves the pages and files', async ({ request }) => {
+    for (const path of ['/', '/login', '/terms', '/no-such-page', '/favicon.ico']) {
+      expect((await request.get(path)).headers()['x-powered-by'], path).toBeUndefined();
+    }
+  });
+});
+
 test.describe('an instance that is not served over https', () => {
   test('sends no header that is for https alone, and upgrades none of its own requests', async ({
     request,

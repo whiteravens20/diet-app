@@ -15,6 +15,8 @@ const config: NextConfig = {
   // Standalone output → minimal production Docker image.
   output: 'standalone',
   reactStrictMode: true,
+  // An answer does not say what serves it.
+  poweredByHeader: false,
   // Keep `next dev` from generating files in the repository.
   agentRules: false,
   // Transpile the shared contract package (it ships as TypeScript-built ESM).
