@@ -1655,7 +1655,8 @@
       "label": "Recipe pages",
       "summary": "Showing {start}–{end} of {total}",
       "prev": "Prev",
-      "next": "Next"
+      "next": "Next",
+      "position": "Page {page} of {pages}"
     },
     "edit": "Edit"
   },

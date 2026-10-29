@@ -1655,7 +1655,8 @@
       "label": "Strony przepisów",
       "summary": "Wyświetlam {start}–{end} z {total}",
       "prev": "Poprzednia",
-      "next": "Następna"
+      "next": "Następna",
+      "position": "Strona {page} z {pages}"
     },
     "edit": "Edytuj"
   },

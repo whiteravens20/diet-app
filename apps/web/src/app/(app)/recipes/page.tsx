@@ -619,7 +619,9 @@ function Pagination({
 }) {
   const t = useTranslations('recipes');
   // Sliding window: show current ± 2, plus first / last with ellipses where
-  // there's a gap. Keeps the bar short on a 37-page library.
+  // there's a gap. Keeps the bar short on a 37-page library. Until the screen
+  // is wide enough for it beside the navigation, the bar says which page it is
+  // instead.
   const pages: (number | 'gap')[] = [];
   const lo = Math.max(2, page - 2);
   const hi = Math.min(totalPages - 1, page + 2);
@@ -650,23 +652,28 @@ function Pagination({
         >
           {t('pagination.prev')}
         </Button>
-        {pages.map((p, idx) =>
-          p === 'gap' ? (
-            <span key={`gap-${idx}`} className="px-2 text-xs text-muted-foreground">
-              …
-            </span>
-          ) : (
-            <Button
-              key={p}
-              type="button"
-              size="sm"
-              variant={p === page ? 'primary' : 'outline'}
-              onClick={() => onChange(p)}
-            >
-              {p}
-            </Button>
-          ),
-        )}
+        <span className="px-2 text-xs text-muted-foreground lg:hidden">
+          {t('pagination.position', { page, pages: totalPages })}
+        </span>
+        <div className="hidden items-center gap-1 lg:flex">
+          {pages.map((p, idx) =>
+            p === 'gap' ? (
+              <span key={`gap-${idx}`} className="px-2 text-xs text-muted-foreground">
+                …
+              </span>
+            ) : (
+              <Button
+                key={p}
+                type="button"
+                size="sm"
+                variant={p === page ? 'primary' : 'outline'}
+                onClick={() => onChange(p)}
+              >
+                {p}
+              </Button>
+            ),
+          )}
+        </div>
         <Button
           type="button"
           size="sm"

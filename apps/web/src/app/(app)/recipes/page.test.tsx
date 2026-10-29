@@ -17,8 +17,23 @@ const TOFU = '7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d';
 /** What the page asked the library for, last: the parts of the query by name. */
 let asked: URLSearchParams = new URLSearchParams();
 
-/** The page of an account with `profiles` profiles, the first favouring `favoured` ingredients, and `mine` its own recipes. */
-async function renderPage(profiles = 1, favoured: string[] = [TOFU], mine: unknown[] = []) {
+/** What the library answers: the recipes of the page asked for, and how many there are in all. */
+interface Library {
+  items: ({ title: string } & Record<string, unknown>)[];
+  total: number;
+  totalPages: number;
+}
+
+/**
+ * The page of an account with `profiles` profiles, the first favouring `favoured` ingredients, and `mine` its own recipes;
+ * the library answers with `library`, empty unless said.
+ */
+async function renderPage(
+  profiles = 1,
+  favoured: string[] = [TOFU],
+  mine: unknown[] = [],
+  library: Library = { items: [], total: 0, totalPages: 0 },
+) {
   vi.spyOn(api, 'get').mockImplementation((path: string) => {
     if (path.startsWith('/recipes?')) asked = new URLSearchParams(path.slice('/recipes?'.length));
     return Promise.resolve(
@@ -40,7 +55,7 @@ async function renderPage(profiles = 1, favoured: string[] = [TOFU], mine: unkno
                 preferences: { favoriteIngredientIds: i === 0 ? favoured : [] },
               }))
             : path.startsWith('/recipes?')
-              ? { items: [], page: 1, pageSize: 36, total: 0, totalPages: 0 }
+              ? { ...library, page: Number(asked.get('page')), pageSize: 36 }
               : path.startsWith('/ingredients?search=')
                 ? [{ id: TOFU, name: 'Firm tofu' }]
                 : path.startsWith('/ingredients?ids=')
@@ -57,7 +72,7 @@ async function renderPage(profiles = 1, favoured: string[] = [TOFU], mine: unkno
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  await screen.findByText(texts.noneAtAll);
+  await screen.findByText(library.items[0]?.title ?? texts.noneAtAll);
 }
 
 /** Wait until the library was asked with `part` set to `value`, and say everything it was asked. */
@@ -165,6 +180,51 @@ describe('the recipe library, narrowed', () => {
       expect(Object.fromEntries(asked)).toEqual({ page: '1', pageSize: '36' }),
     );
     expect(screen.getByText(texts.moreFilters)).toBeInTheDocument();
+  });
+});
+
+describe('the recipe library, a page at a time', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    asked = new URLSearchParams();
+  });
+
+  it('says which page of how many is shown, and asks for the next', async () => {
+    await renderPage(1, [TOFU], [], {
+      items: [
+        {
+          id: '3d8b2f1a-0c1d-4e2f-9a3b-4c5d6e7f8a01',
+          title: 'A curated dinner',
+          description: '',
+          servings: 1,
+          mealTypes: ['dinner'],
+          dietTags: [],
+          ingredients: [],
+          steps: ['Cook.'],
+          prepMinutes: 10,
+          cookMinutes: 10,
+          difficulty: 'easy',
+          cuisine: null,
+          allergens: [],
+          nutritionPerServing: { calories: 500, protein: 30, fat: 20, carbs: 50 },
+          origin: 'curated',
+          byModel: null,
+          source: null,
+        },
+      ],
+      total: 183,
+      totalPages: 6,
+    });
+
+    const pages = within(screen.getByRole('navigation', { name: texts.pagination.label }));
+    expect(pages.getByText('Page 1 of 6')).toBeInTheDocument();
+    expect(pages.getByText('Showing 1–36 of 183')).toBeInTheDocument();
+    expect(pages.getByRole('button', { name: texts.pagination.prev })).toBeDisabled();
+
+    await userEvent.click(pages.getByRole('button', { name: texts.pagination.next }));
+
+    expect(await askedWith('page', '2')).toEqual({ page: '2', pageSize: '36' });
+    expect(await screen.findByText('Page 2 of 6')).toBeInTheDocument();
   });
 });
 
