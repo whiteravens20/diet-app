@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import type { Options } from './e2e/fixtures';
 
 /**
@@ -9,9 +9,10 @@ import type { Options } from './e2e/fixtures';
  * `E2E_ADMIN_PASSWORD` let them into the admin panel (left out, the panel's
  * tests are skipped). Nothing here starts the application.
  *
- * A project is one reader: a language, a size of screen, light or dark. The
- * tests of a project share one account and one browser session and change
- * what the next one finds, so they run one at a time.
+ * A project is one reader: a language, a size of screen, light or dark, and
+ * the engine of a browser. The tests of a project share one account and one
+ * browser session and change what the next one finds, so they run one at a
+ * time.
  */
 const desktop = { width: 1280, height: 800 };
 const phone = { width: 375, height: 667 };
@@ -39,5 +40,7 @@ export default defineConfig<Options>({
     { name: 'phone-en', use: { viewport: phone, appLocale: 'en', hasTouch: true, isMobile: true } },
     { name: 'phone-pl', use: { viewport: phone, appLocale: 'pl', hasTouch: true, isMobile: true } },
     { name: 'desktop-en-dark', use: { viewport: desktop, appLocale: 'en', colorScheme: 'dark' } },
+    // Safari's engine on an iPhone's screen, in Polish: what Chromium lets through and WebKit does not.
+    { name: 'iphone-pl', use: { ...devices['iPhone 17'], appLocale: 'pl' } },
   ],
 });

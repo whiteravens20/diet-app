@@ -118,8 +118,16 @@ export const test = base.extend<
    */
   session: [
     async ({ browser, account }, provide, workerInfo) => {
-      const { baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion } =
-        workerInfo.project.use;
+      const {
+        baseURL,
+        viewport,
+        colorScheme,
+        hasTouch,
+        isMobile,
+        reducedMotion,
+        userAgent,
+        deviceScaleFactor,
+      } = workerInfo.project.use;
       const appLocale = (workerInfo.project.use as Options).appLocale ?? 'en';
       const kept = join(STATE, `${workerInfo.project.name}.json`);
       const context = await browser.newContext({
@@ -129,6 +137,8 @@ export const test = base.extend<
         hasTouch,
         isMobile,
         reducedMotion,
+        userAgent,
+        deviceScaleFactor,
         storageState: existsSync(kept) ? kept : undefined,
       });
       await context.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);

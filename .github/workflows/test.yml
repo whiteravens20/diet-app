@@ -136,15 +136,16 @@ jobs:
           exit 1
       # What only a browser shows is tested in one, against the stack that
       # just came up: that nothing keeps somebody from using a page, in both
-      # languages, on a phone and on a desktop, in light and dark; how a window
-      # over a page and the navigation behave; that every page fits a narrow
-      # screen; and what an account leaves behind in the page.
+      # languages, on a phone and on a desktop, in light and dark, in Chromium
+      # and in WebKit, Safari's engine; how a window over a page and the
+      # navigation behave; that every page fits a narrow screen; and what an
+      # account leaves behind in the page.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      - name: Install the browser the tests drive
+      - name: Install the browsers the tests drive
         working-directory: apps/web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       - name: Run the browser tests against the stack
         working-directory: apps/web
         env:
