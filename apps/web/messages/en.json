@@ -525,7 +525,7 @@
     "errEaten": "The meal could not be marked.",
     "errRebalance": "The plan's day could not be resized.",
     "copyTitle": "Copy another day",
-    "copyNote": "Brings what was eaten that day into this one: its entries, and the meals its plan marked as eaten.",
+    "copyNote": "Copies what was eaten that day into this one: its entries, and the meals its plan marked as eaten. That day stays as it is.",
     "copyFrom": "From the day",
     "copyButton": "Copy into {day}",
     "copied": "{count, plural, =0 {That day holds nothing to copy.} one {One entry copied.} other {# entries copied.}}",

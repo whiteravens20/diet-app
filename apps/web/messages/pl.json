@@ -525,7 +525,7 @@
     "errEaten": "Nie udało się oznaczyć posiłku.",
     "errRebalance": "Nie udało się dopasować porcji dnia planu.",
     "copyTitle": "Skopiuj inny dzień",
-    "copyNote": "Przenosi na ten dzień to, co zjedzono tamtego dnia: jego wpisy i posiłki oznaczone w planie jako zjedzone.",
+    "copyNote": "Kopiuje na ten dzień to, co zjedzono tamtego dnia: jego wpisy i posiłki oznaczone w planie jako zjedzone. Tamten dzień zostaje bez zmian.",
     "copyFrom": "Z dnia",
     "copyButton": "Skopiuj na {day}",
     "copied": "{count, plural, =0 {Tamten dzień nie ma nic do skopiowania.} one {Skopiowano jeden wpis.} few {Skopiowano # wpisy.} many {Skopiowano # wpisów.} other {Skopiowano # wpisu.}}",
