@@ -15,6 +15,7 @@ import {
   type MealType,
 } from '@diet-app/shared';
 import { storedSplit } from '../common/stored-split.js';
+import { diaryDays } from '../diary/diary-days.js';
 import {
   fitServings,
   macrosForCalories,
@@ -98,13 +99,17 @@ export class DaySettingsService {
     const split = sharesOf(storedSplit(plan.macroSplit));
     const fateOf = new Map(change.fates.map((fate) => [fate.mealId, fate]));
     const left = day.meals.filter((meal) => fateOf.get(meal.id)!.fate !== 'removed');
+    // What the diary holds for the day is eaten, and counts as the day's view counts it.
+    const entered =
+      (await diaryDays(this.prisma, plan.profileId, day.date, day.date)).get(date) ?? null;
     // What the day comes to is known here only where no recipe is drawn; a skipped day has no target to fit.
     const dayCalories =
       change.drawn.length > 0
         ? null
         : change.resizes
-          ? this.plans.resizedKcal(left, change.target)
-          : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0);
+          ? this.plans.resizedKcal(left, change.target, entered)
+          : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
+            (entered?.nutrition.calories ?? 0);
     const changesMeals =
       change.added.length > 0 || change.fates.some((fate) => fate.fate !== 'stays');
     const lists = changesMeals

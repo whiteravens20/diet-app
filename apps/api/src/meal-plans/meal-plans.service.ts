@@ -47,6 +47,7 @@ import {
   type MealAmount,
 } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
+import { diaryDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { writePlan } from './plan-write.js';
 import {
   dislikedIn,
@@ -195,7 +196,17 @@ export class MealPlansService {
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    return this.toDto(plan, locale, await restrictionsFor(this.prisma, plan));
+    const [restrictions, diary] = await Promise.all([
+      restrictionsFor(this.prisma, plan),
+      this.diaryOf(plan.profileId, plan.days),
+    ]);
+    return this.toDto(plan, locale, restrictions, diary);
+  }
+
+  /** What the profile's diary holds for the days of a plan, by date: one statement, and none for a plan without days. */
+  private diaryOf(profileId: string, days: { date: Date }[]): Promise<Map<string, DiaryOnDay>> {
+    if (days.length === 0) return Promise.resolve(new Map());
+    return diaryDays(this.prisma, profileId, days[0]!.date, days.at(-1)!.date);
   }
 
   /**
@@ -437,11 +448,13 @@ export class MealPlansService {
 
   /**
    * Rebalance one day's unchecked, non-custom meals toward its target and
-   * persist the new quantity scales. Returns the summary the UI toast renders,
-   * or null when the day has vanished or is skipped, which has no target to
-   * keep to. Runs inside the transaction of the edit that changed the day,
-   * whichever service made it. `exact` brings the day to its target itself,
-   * not just inside the window around it: for a target that was just changed.
+   * persist the new quantity scales. What the profile's diary holds for the
+   * day counts as eaten, as an eaten meal does. Returns the summary the UI
+   * toast renders, or null when the day has vanished or is skipped, which has
+   * no target to keep to. Runs inside the transaction of the edit that changed
+   * the day, whichever service made it. `exact` brings the day to its target
+   * itself, not just inside the window around it: for a target that was just
+   * changed.
    */
   async rebalanceDayInternal(
     dayId: string,
@@ -450,18 +463,23 @@ export class MealPlansService {
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
-      include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
+      include: {
+        plan: { select: { profileId: true } },
+        meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } },
+      },
     });
-    if (!day || isSkipped(day)) return null;
+    if (!day?.plan || isSkipped(day)) return null;
     const rows = day.meals.map(toRebalanceRow);
-    const macrosBefore = rowsMacros(rows, (r) => r.quantityScale);
+    const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
+    const counted = [...rows, ...diaryRows(diary.get(isoDate(day.date)))];
+    const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
     const { scales, feasibility } = rebalanceDay(
-      rows.map(toEngineMeal),
+      counted.map(toEngineMeal),
       day.calorieTarget,
       exact ? 0 : REBALANCE_TOLERANCE,
     );
     const changes = await this.persistScales(rows, scales, tx);
-    const macrosAfter = rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale);
+    const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
     return { feasibility, changes, macrosBefore, macrosAfter };
   }
 
@@ -469,7 +487,7 @@ export class MealPlansService {
    * Share the surplus/deficit across the days from `from` to the end of the
    * plan. A day before `today` is done with: its meals stay as they are, and
    * what it is off by is made up for by the days from today on. A skipped day
-   * takes no part.
+   * takes no part. What the profile's diary holds for a day counts as eaten.
    */
   private async rebalanceRestInternal(
     planId: string,
@@ -489,24 +507,31 @@ export class MealPlansService {
     if (!plan) return null;
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
+    const diary =
+      days.length === 0
+        ? new Map<string, DiaryOnDay>()
+        : await diaryDays(tx, plan.profileId, days[0]!.date, days.at(-1)!.date);
     const dayRows = days.map((d) => ({
       target: d.calorieTarget,
       past: isoDate(d.date) < today,
       rows: d.meals.map(toRebalanceRow),
+      // Each day's own row of what its diary holds: the ids of the meals are the plan's.
+      diary: diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
     }));
     const allRows = dayRows.flatMap((d) => d.rows);
-    const macrosBefore = rowsMacros(allRows, (r) => r.quantityScale);
+    const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
+    const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
     const { scales, feasibility, unabsorbed } = rebalanceDays(
       dayRows.map((d) => ({
         target: d.target,
-        meals: d.rows.map((row) => ({
+        meals: [...d.rows, ...d.diary].map((row) => ({
           ...toEngineMeal(row),
           locked: toEngineMeal(row).locked || d.past,
         })),
       })),
     );
     const changes = await this.persistScales(allRows, scales, tx);
-    const macrosAfter = rowsMacros(allRows, (r) => scales.get(r.id) ?? r.quantityScale);
+    const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
     return {
       feasibility,
       changes,
@@ -537,12 +562,13 @@ export class MealPlansService {
   }
 
   /**
-   * What the meals of a day would come to, in kcal, brought to `target` as a
-   * change of the day's target brings them (`rebalanceDayInternal` with
-   * `exact`). Nothing is written.
+   * What a day would come to, in kcal, with its meals brought to `target` as
+   * a change of the day's target brings them (`rebalanceDayInternal` with
+   * `exact`): the meals, and what its diary holds as eaten. Nothing is
+   * written.
    */
-  resizedKcal(meals: RebalanceMealRow[], target: number): number {
-    const rows = meals.map(toRebalanceRow);
+  resizedKcal(meals: RebalanceMealRow[], target: number, diary: DiaryOnDay | null): number {
+    const rows = [...meals.map(toRebalanceRow), ...diaryRows(diary)];
     const { scales } = rebalanceDay(rows.map(toEngineMeal), target, 0);
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
@@ -629,7 +655,12 @@ export class MealPlansService {
     };
   }
 
-  private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {
+  private toDto(
+    plan: PlanWithRelations,
+    locale: Locale,
+    restrictions: Restrictions,
+    diary: Map<string, DiaryOnDay>,
+  ): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     // What a plan on the custom diet aims at is the split it was made with.
     const ownSplit = sharesOf(storedSplit(plan.macroSplit));
@@ -706,7 +737,12 @@ export class MealPlansService {
           nutrition: mealNutrition(m),
         };
       });
-      const dayNutrition = sumNutrition(meals.map((m) => m.nutrition));
+      // What the diary holds for the day is eaten, beside the meals.
+      const entered = diary.get(isoDate(day.date)) ?? null;
+      const dayNutrition = sumNutrition([
+        ...meals.map((m) => m.nutrition),
+        ...(entered ? [entered.nutrition] : []),
+      ]);
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
       return {
@@ -714,6 +750,7 @@ export class MealPlansService {
         date: isoDate(day.date),
         meals,
         dayNutrition,
+        diary: entered,
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
@@ -867,6 +904,15 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
     // Pinned out of the rebalance set: user-owned custom macros or already eaten.
     locked: m.source === 'USER_CUSTOM' || m.eatenAt != null,
   };
+}
+
+/**
+ * What a day's diary holds, as a row the rebalance counts and never moves:
+ * eaten, like a meal marked as eaten. None where the diary holds nothing for
+ * the day. Its id is no meal's.
+ */
+function diaryRows(diary: DiaryOnDay | null | undefined, id = 'diary'): RebalanceRow[] {
+  return diary ? [{ id, per: diary.nutrition, servings: 1, quantityScale: 1, locked: true }] : [];
 }
 
 const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({

@@ -122,6 +122,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
         },
       ],
       dayNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+      diary: null,
       calorieTarget: 2000,
       targetMacros: { protein: 100, fat: 62, carbs: 260 },
       calorieDelta: -1770,

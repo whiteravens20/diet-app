@@ -13265,6 +13265,30 @@
           "dayNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "diary": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "entries": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "nutrition": {
+                    "$ref": "#/components/schemas/Nutrition"
+                  }
+                },
+                "required": [
+                  "entries",
+                  "nutrition"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "calorieTarget": {
             "type": "number"
           },
@@ -13315,6 +13339,7 @@
           "date",
           "meals",
           "dayNutrition",
+          "diary",
           "calorieTarget",
           "targetMacros",
           "calorieDelta",

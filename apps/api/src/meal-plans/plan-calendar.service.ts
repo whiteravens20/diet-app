@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import type { PlanCalendar, PlanCalendarQuery } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { diaryDays } from '../diary/diary-days.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { isoDate, isSkipped, mealNutrition, standingOf, sumNutrition } from './plan-days.js';
 
@@ -24,7 +25,8 @@ export class PlanCalendarService {
    *
    * However many plans a profile has, no more is read than one day of a plan
    * for each day of the span: the database picks the plan of each day, and
-   * only those days are read with their meals.
+   * only those days are read with their meals. What the profile's diary holds
+   * for a day counts as eaten, as the view of the plan counts it.
    */
   async calendar(userId: string, asked: PlanCalendarQuery): Promise<PlanCalendar> {
     await this.plans.loadProfile(userId, asked.profileId);
@@ -62,10 +64,18 @@ export class PlanCalendarService {
       },
       orderBy: { date: 'asc' },
     });
+    const diary = await diaryDays(
+      this.prisma,
+      asked.profileId,
+      new Date(asked.from),
+      new Date(asked.to),
+    );
 
     return {
       days: days.map((day) => {
-        const calories = sumNutrition(day.meals.map(mealNutrition)).calories;
+        const calories =
+          sumNutrition(day.meals.map(mealNutrition)).calories +
+          (diary.get(isoDate(day.date))?.nutrition.calories ?? 0);
         const skipped = isSkipped(day);
         return {
           date: isoDate(day.date),

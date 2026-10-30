@@ -427,7 +427,15 @@ export const MealPlanDay = z.object({
   id: z.string().uuid(),
   date: z.string().date(),
   meals: z.array(PlannedMeal),
-  dayNutrition: Nutrition, // sum of meal nutrition
+  /** What the day comes to: its meals, and the entries of the profile's diary for its date. */
+  dayNutrition: Nutrition,
+  /**
+   * What the profile's diary holds for the day besides its meals: how many
+   * entries, and what they come to. They count in `dayNutrition` and in where
+   * the day stands, as eaten, and a rebalance leaves room for them. Null when
+   * the diary holds none for the day.
+   */
+  diary: z.object({ entries: z.number().int().min(1), nutrition: Nutrition }).nullable(),
   calorieTarget: z.number(),
   /** What the day aims at of protein, fat and carbohydrate, in grams: its calorie target split as the plan's diet splits a day. */
   targetMacros: Macros,
@@ -585,7 +593,7 @@ export const MealPlan = z.object({
   durationDays: z.number().int(),
   dietType: DietType,
   days: z.array(MealPlanDay),
-  /** Averages over the days that are not skipped, and the optimiser's reuse score (0-1). */
+  /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
   targetMacros: Macros,

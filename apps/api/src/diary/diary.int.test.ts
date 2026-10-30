@@ -1,10 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type {
+  DaySettingsPreview,
   DiaryCopyResult,
   DiaryDay,
   DiaryEntry,
   MealPlan,
+  PlanCalendar,
   Profile,
   RebalanceResult,
 } from '@diet-app/shared';
@@ -476,6 +478,16 @@ describe('the diary of a profile', () => {
           .send({ eaten: true })
           .expect(200)
       ).body;
+    const rebalance = async (body: object): Promise<RebalanceResult> =>
+      (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/rebalance`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send(body)
+          .expect(201)
+      ).body;
 
     it("aims at the plan's day, shows its meals, and counts those marked as eaten with the entries", async () => {
       const today = planDay(plan, day(0));
@@ -508,6 +520,93 @@ describe('the diary of a profile', () => {
 
       expect((await dayOf(day(0))).plan!.id).toBe(later.id);
       expect((await dayOf(day(-1))).plan!.id).toBe(plan.id);
+    });
+
+    it('counts the entries in the day of the plan, in where it stands and in the calendar', async () => {
+      const before = planDay(plan, day(0));
+      await aMeal(1200);
+
+      const after = planDay(await planOf(plan.id), day(0));
+      const calendar = (
+        await t
+          .http()
+          .get(`/api/meal-plans/calendar?profileId=${profile.id}&from=${day(-1)}&to=${day(1)}`)
+          .set(as(user))
+          .expect(200)
+      ).body as PlanCalendar;
+      const shown = await dayOf(day(0));
+
+      expect(after.diary).toEqual({
+        entries: 1,
+        nutrition: { calories: 1200, protein: 0, fat: 0, carbs: 300 },
+      });
+      expect(after.dayNutrition.calories).toBe(before.dayNutrition.calories + 1200);
+      expect(after.calorieDelta).toBe(after.dayNutrition.calories - after.calorieTarget);
+      expect(after.offTarget).toBe('over');
+      expect(planDay(await planOf(plan.id), day(1)).diary).toBeNull();
+      expect(calendar.days.find((d) => d.date === day(0))).toMatchObject({
+        calories: after.dayNutrition.calories,
+        offTarget: 'over',
+      });
+      expect(shown.plan).toMatchObject({ calorieDelta: after.calorieDelta, offTarget: 'over' });
+    });
+
+    it('leaves room for the entries when the day is rebalanced, so that a second rebalance changes nothing', async () => {
+      await aMeal(600);
+
+      const first = await rebalance({ scope: 'day', date: day(0) });
+      const second = await rebalance({ scope: 'day', date: day(0) });
+
+      const today = planDay(first.plan, day(0));
+      expect(first.rebalance!.changes.length).toBeGreaterThan(0);
+      expect(today.offTarget).toBeNull();
+      expect(Math.abs(today.dayNutrition.calories - today.calorieTarget)).toBeLessThanOrEqual(
+        today.calorieTarget * 0.1,
+      );
+      expect(second.rebalance!.changes).toEqual([]);
+      // The day a meal is marked as eaten is rebalanced with the entries counted as well.
+      const eaten = await eat(today.meals[0]!.id);
+      expect(planDay(eaten.plan, day(0)).offTarget).toBeNull();
+    });
+
+    it('spreads what the entries of a day put over its target over the days from today on', async () => {
+      const before = await planOf(plan.id);
+      await aMeal(900, day(-1));
+
+      const spread = await rebalance({ scope: 'plan', date: day(-1) });
+
+      const kcal = (of: MealPlan, date: string) =>
+        planDay(of, date).meals.reduce((sum, meal) => sum + meal.nutrition.calories, 0);
+      // Yesterday is done with: its meals stay as they are, and today and tomorrow make up for it.
+      expect(kcal(spread.plan, day(-1))).toBe(kcal(before, day(-1)));
+      expect(kcal(spread.plan, day(0))).toBeLessThan(kcal(before, day(0)));
+      expect(kcal(spread.plan, day(1))).toBeLessThan(kcal(before, day(1)));
+    });
+
+    it('says that a new target of the day does not fit where its entries leave its meals too little room', async () => {
+      await aMeal(3000);
+      const today = planDay(plan, day(0));
+
+      const preview = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${today.id}/settings/preview`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send({
+            dayType: 'training',
+            skip: false,
+            mealCount: today.mealCount,
+            calorieTarget: null,
+            cookTimeBudgetMinutes: null,
+            useUpBy: false,
+          })
+          .expect(200)
+      ).body as DaySettingsPreview;
+
+      // The meals go no smaller than half a serving: with 3,000 kcal eaten the day stays over.
+      expect(preview.dayCalories).toBeGreaterThan(preview.calorieTarget.then);
+      expect(preview.fits).toBe(false);
     });
   });
 

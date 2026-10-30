@@ -26,6 +26,7 @@ const DAY: MealPlanDay = {
   date: '2026-01-06',
   meals: [],
   dayNutrition: { calories: 2000, protein: 120, fat: 60, carbs: 240 },
+  diary: null,
   calorieTarget: 2000,
   targetMacros: { protein: 125, fat: 67, carbs: 225 },
   calorieDelta: 0,
