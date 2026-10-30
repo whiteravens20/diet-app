@@ -355,6 +355,23 @@ describe('the diary', () => {
     expect(screen.queryByText(texts.planOnTarget)).not.toBeInTheDocument();
   });
 
+  it('shows a meal copied from a plan in round servings, and leaves them alone when only its meal changes', async () => {
+    await renderPage(aDay({ entries: [anEntry({ servings: 0.9707324547961999 })] }));
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(anEntry() as never);
+    const user = userEvent.setup();
+
+    expect(screen.getByText(/0\.97 servings/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Change Soup from the canteen' }));
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    const servings = window.getByRole('spinbutton', { name: texts.servings });
+    expect(servings).toHaveValue(0.97);
+    expect(servings).toBeValid();
+    await user.selectOptions(window.getByRole('combobox', { name: texts.mealLabel }), 'dinner');
+    await user.click(window.getByRole('button', { name: messages.common.save }));
+
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${anEntry().id}`, { mealType: 'dinner' });
+  });
+
   it('shows an amount of an ingredient as it was written, and asks for a change in the same words', async () => {
     await renderPage(
       aDay({

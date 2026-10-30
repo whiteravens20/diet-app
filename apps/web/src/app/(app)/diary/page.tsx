@@ -42,7 +42,7 @@ import { LoadFailed } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { RebalanceToast } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
-import { EditEntryDialog } from './edit-entry-dialog';
+import { EditEntryDialog, shownServings } from './edit-entry-dialog';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -669,8 +669,8 @@ function MealSection({
                 <p className="text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {entry.amount
-                    ? amount(entry.amount.shown.quantity, entry.amount.shown.unit)
-                    : t('servingsShown', { count: entry.servings ?? 1 })}
+                    ? written(entry.amount.shown)
+                    : t('servingsShown', { count: shownServings(entry.servings) })}
                   {' · '}
                   {t('mealKcal', { kcal: entry.nutrition.calories })}
                   {' · '}

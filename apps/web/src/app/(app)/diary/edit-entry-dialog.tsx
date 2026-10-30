@@ -18,6 +18,10 @@ import { Field, Input } from '@/components/ui/input';
 const selectClass =
   'w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring';
 
+/** Servings as a person reads them: a meal of a plan copied here holds whatever its plan resized it to. */
+export const shownServings = (servings: number | null): number =>
+  Math.round((servings ?? 1) * 100) / 100;
+
 /**
  * The window an entry of the diary is changed in: the meal it is under, and
  * how much of it there was, in servings or in the amount of its ingredient as
@@ -42,8 +46,10 @@ export function EditEntryDialog({
   const tMeal = useTranslations('enums.mealType');
   const unitName = useUnitName();
   const [mealType, setMealType] = useState<MealType>(entry.mealType);
-  const [servings, setServings] = useState(String(entry.servings ?? 1));
-  const [quantity, setQuantity] = useState(String(entry.amount?.quantity ?? ''));
+  const servingsAtFirst = String(shownServings(entry.servings));
+  const quantityAtFirst = String(entry.amount?.quantity ?? '');
+  const [servings, setServings] = useState(servingsAtFirst);
+  const [quantity, setQuantity] = useState(quantityAtFirst);
 
   return (
     <Dialog open onClose={onClose} label={t('editTitle')} className="max-w-md">
@@ -60,9 +66,11 @@ export function EditEntryDialog({
         className="space-y-4 p-4"
         onSubmit={(e) => {
           e.preventDefault();
+          // An amount left alone stays exactly what it was: what is shown of it may be rounded.
           onSubmit({
             mealType,
-            ...(entry.amount ? { quantity: Number(quantity) } : { servings: Number(servings) }),
+            ...(quantity !== quantityAtFirst ? { quantity: Number(quantity) } : {}),
+            ...(servings !== servingsAtFirst ? { servings: Number(servings) } : {}),
           });
         }}
       >
@@ -99,9 +107,10 @@ export function EditEntryDialog({
               type="number"
               inputMode="decimal"
               required
-              min={OWN_MEAL_LIMITS.servings.min}
+              // A meal of a plan copied here may hold less than an entry can be written with, and no round number.
+              min={Math.min(OWN_MEAL_LIMITS.servings.min, Number(servingsAtFirst))}
               max={OWN_MEAL_LIMITS.servings.max}
-              step={0.25}
+              step="any"
               value={servings}
               onChange={(e) => setServings(e.target.value)}
             />
