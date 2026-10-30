@@ -214,6 +214,7 @@ function DiaryContent() {
     setError(null);
     setNotice(null);
     setToast(null);
+    copy.reset();
   };
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
@@ -353,6 +354,8 @@ function DiaryContent() {
                 date={date}
                 today={today}
                 busy={copy.isPending}
+                // What came here is not copied again by a second press: a quick double click would write it twice.
+                copied={copy.isSuccess && copy.data.copied > 0 ? copy.variables : null}
                 onCopy={(from) => {
                   leave();
                   copy.mutate(from);
@@ -777,11 +780,14 @@ function CopyDay({
   date,
   today,
   busy,
+  copied,
   onCopy,
 }: {
   date: string;
   today: string;
   busy: boolean;
+  /** The day copied here last, while the page stays on this day. */
+  copied: string | null;
   onCopy: (from: string) => void;
 }) {
   const t = useTranslations('diary');
@@ -789,6 +795,7 @@ function CopyDay({
   const id = useId();
   const [from, setFrom] = useState(() => dayAfter(date, -1));
   const itself = from === date;
+  const done = from === copied;
   return (
     <Card>
       <CardHeader>
@@ -803,7 +810,7 @@ function CopyDay({
           onSubmit={(e) => {
             e.preventDefault();
             // The browser holds the day to one there is, today or before it.
-            if (isDay(from) && !itself) onCopy(from);
+            if (isDay(from) && !itself && !done) onCopy(from);
           }}
         >
           <div>
@@ -824,14 +831,19 @@ function CopyDay({
           <Button
             type="submit"
             variant="outline"
-            disabled={busy || itself}
-            aria-describedby={itself ? `${id}-itself` : `${id}-note`}
+            disabled={busy || itself || done}
+            aria-describedby={itself ? `${id}-itself` : done ? `${id}-done` : `${id}-note`}
           >
             {t('copyButton', { day: fmt.day(date) })}
           </Button>
           {itself && (
             <p id={`${id}-itself`} className="w-full text-xs text-muted-foreground">
               {t('copySameDay')}
+            </p>
+          )}
+          {done && (
+            <p id={`${id}-done`} className="w-full text-xs text-muted-foreground">
+              {t('copyDone')}
             </p>
           )}
         </form>

@@ -537,6 +537,7 @@
     "pickRecipeFirst": "Najpierw znajdź i wybierz przepis.",
     "pickIngredientFirst": "Najpierw znajdź i wybierz składnik.",
     "copySameDay": "Wybierz inny dzień niż ten.",
+    "copyDone": "Ten dzień jest już skopiowany.",
     "planPastNote": "Ten dzień już minął. Jeśli plan ma jeszcze dni od dziś, na stronie planu można rozłożyć na nie różnicę."
   },
   "favoriteSets": {

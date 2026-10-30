@@ -557,6 +557,27 @@ describe('the diary', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('2 entries copied.');
   });
 
+  it('copies a day once, however quickly a second press comes, and goes on to copy another', async () => {
+    await renderPage();
+    const posted = vi.spyOn(api, 'post').mockResolvedValue({ copied: 2, day: aDay() } as never);
+    const user = userEvent.setup();
+    const button = screen.getByRole('button', { name: /^Copy into/ });
+
+    await user.dblClick(button);
+
+    await screen.findByText(texts.copyDone);
+    expect(posted).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(texts.copyDone);
+
+    fireEvent.change(screen.getByLabelText(texts.copyFrom), {
+      target: { value: dayAfter(TODAY, -2) },
+    });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(posted).toHaveBeenCalledTimes(2);
+  });
+
   it('says that a day holds nothing yet where neither a plan nor an entry is there', async () => {
     await renderPage(
       aDay({

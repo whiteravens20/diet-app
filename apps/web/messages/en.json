@@ -537,6 +537,7 @@
     "pickRecipeFirst": "Find and pick a recipe first.",
     "pickIngredientFirst": "Find and pick an ingredient first.",
     "copySameDay": "Pick a day other than this one.",
+    "copyDone": "That day is copied already.",
     "planPastNote": "This day is over. If the plan still has days from today on, what it is off by can be spread over them on the plan's page."
   },
   "favoriteSets": {
