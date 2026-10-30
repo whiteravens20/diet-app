@@ -98,10 +98,12 @@ function DiaryContent() {
     return isDay(asked) ? asked : today;
   });
 
+  // Read anew whenever the page opens: the plan's page, a profile and a recipe change what a day shows.
   const day = useQuery({
     queryKey: ['diary', active?.id, date],
     queryFn: () => api.get<DiaryDay>(`/diary/day?profileId=${active!.id}&date=${date}`),
     enabled: active !== null,
+    staleTime: 0,
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -123,8 +125,15 @@ function DiaryContent() {
       qc.invalidateQueries({ queryKey: ['plan-overview'] }),
     ]);
 
+  /** What was said of the step before goes when the next one starts. */
+  const nextStep = () => {
+    setError(null);
+    setNotice(null);
+  };
+
   const add = useMutation({
     mutationFn: (body: CreateDiaryEntryRequest) => api.post<DiaryEntry>('/diary/entries', body),
+    onMutate: nextStep,
     onSuccess: async () => {
       setAdding(null);
       await refresh();
@@ -134,6 +143,7 @@ function DiaryContent() {
   const update = useMutation({
     mutationFn: ({ id, change }: { id: string; change: UpdateDiaryEntryRequest }) =>
       api.patch<DiaryEntry>(`/diary/entries/${id}`, change),
+    onMutate: nextStep,
     onSuccess: async () => {
       setEditing(null);
       await refresh();
@@ -142,6 +152,7 @@ function DiaryContent() {
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/diary/entries/${id}`),
+    onMutate: nextStep,
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
@@ -151,6 +162,7 @@ function DiaryContent() {
       api.patch<RebalanceResult>(`/meal-plans/${planId}/meals/${meal.id}/eaten`, {
         eaten: !meal.eaten,
       }),
+    onMutate: nextStep,
     onSuccess: async (result, { planId }) => {
       setToast(
         result.rebalance && result.rebalance.changes.length > 0
@@ -164,6 +176,7 @@ function DiaryContent() {
   const rebalance = useMutation({
     mutationFn: ({ planId, body }: { planId: string; body: RebalanceRequest }) =>
       api.post<RebalanceResult>(`/meal-plans/${planId}/rebalance`, body),
+    onMutate: nextStep,
     onSuccess: async (result, { planId, body }) => {
       // An undo puts the portions back and has nothing more to say.
       setToast(
@@ -330,10 +343,7 @@ function DiaryContent() {
                   setDialogError(null);
                   setEditing(entry);
                 }}
-                onRemove={(entry) => {
-                  setError(null);
-                  remove.mutate(entry.id);
-                }}
+                onRemove={(entry) => remove.mutate(entry.id)}
               />
             ))}
 
