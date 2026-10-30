@@ -2927,6 +2927,316 @@
         }
       }
     },
+    "/api/diary/copy": {
+      "post": {
+        "operationId": "Diary_copy",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Copy what was eaten on one day into another of today or before it: the entries of the day, and the meals its plan marked as eaten, which come in as entries.",
+        "description": "Copy what was eaten on one day into another of today or before it: the entries of the day, and the meals its plan marked as eaten, which come in as entries. Nothing is copied where the day would then hold more than the most. Sent again with the same `Idempotency-Key` within a week, it is answered with the day as it is now and copies nothing.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyDiaryDayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryCopyResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/day": {
+      "get": {
+        "operationId": "Diary_day",
+        "tags": [
+          "diary"
+        ],
+        "summary": "A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten.",
+        "description": "A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryDay"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/diary/entries": {
+      "post": {
+        "operationId": "Diary_create",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Write an entry for a day of today or before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy.",
+        "description": "Write an entry for a day of today or before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDiaryEntryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryEntry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/entries/{id}": {
+      "delete": {
+        "operationId": "Diary_remove",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Remove an entry.",
+        "description": "Remove an entry.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      },
+      "patch": {
+        "operationId": "Diary_update",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion.",
+        "description": "Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDiaryEntryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryEntry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/favorite-sets": {
       "get": {
         "operationId": "FavoriteSets_list",
@@ -9915,6 +10225,26 @@
           "no_cook"
         ]
       },
+      "CopyDiaryDayRequest": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "to": {
+            "$ref": "#/components/schemas/CalendarDay"
+          }
+        },
+        "required": [
+          "profileId",
+          "from",
+          "to"
+        ]
+      },
       "CoverageMatrix": {
         "type": "object",
         "propertyNames": {
@@ -9946,6 +10276,135 @@
           "keto",
           "mediterranean",
           "custom"
+        ]
+      },
+      "CreateDiaryEntryRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "date": {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "kind": {
+                "type": "string",
+                "const": "recipe"
+              },
+              "recipeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "servings": {
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 20
+              }
+            },
+            "required": [
+              "profileId",
+              "date",
+              "mealType",
+              "kind",
+              "recipeId",
+              "servings"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "date": {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "kind": {
+                "type": "string",
+                "const": "ingredient"
+              },
+              "ingredientId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  },
+                  "unit": {
+                    "$ref": "#/components/schemas/Unit"
+                  }
+                },
+                "required": [
+                  "quantity",
+                  "unit"
+                ]
+              }
+            },
+            "required": [
+              "profileId",
+              "date",
+              "mealType",
+              "kind",
+              "ingredientId",
+              "amount"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "date": {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "kind": {
+                "type": "string",
+                "const": "meal"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "servings": {
+                "default": 1,
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 20
+              },
+              "nutrition": {
+                "$ref": "#/components/schemas/DiaryMealNutrition"
+              }
+            },
+            "required": [
+              "profileId",
+              "date",
+              "mealType",
+              "kind",
+              "name",
+              "nutrition"
+            ]
+          }
         ]
       },
       "CreateFavoriteSetRequest": {
@@ -10408,6 +10867,330 @@
         "required": [
           "currentPassword"
         ]
+      },
+      "DiaryCopyResult": {
+        "type": "object",
+        "properties": {
+          "copied": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40
+          },
+          "day": {
+            "$ref": "#/components/schemas/DiaryDay"
+          }
+        },
+        "required": [
+          "copied",
+          "day"
+        ],
+        "additionalProperties": false
+      },
+      "DiaryDay": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "protein": {
+                "type": "number",
+                "minimum": 0
+              },
+              "fat": {
+                "type": "number",
+                "minimum": 0
+              },
+              "carbs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "calories": {
+                "type": "number",
+                "minimum": 0
+              },
+              "from": {
+                "type": "string",
+                "enum": [
+                  "plan",
+                  "profile"
+                ]
+              }
+            },
+            "required": [
+              "protein",
+              "fat",
+              "carbs",
+              "calories",
+              "from"
+            ],
+            "additionalProperties": false
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "skipped": {
+                    "type": "boolean"
+                  },
+                  "meals": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DiaryPlanMeal"
+                    }
+                  },
+                  "calorieDelta": {
+                    "type": "number"
+                  },
+                  "offTarget": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "over",
+                          "under"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "skipped",
+                  "meals",
+                  "calorieDelta",
+                  "offTarget"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entries": {
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiaryEntry"
+            }
+          },
+          "eaten": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "estimated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profileId",
+          "date",
+          "target",
+          "plan",
+          "entries",
+          "eaten",
+          "estimated"
+        ],
+        "additionalProperties": false
+      },
+      "DiaryEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DiaryEntryKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ingredientId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "servings": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "number"
+                  },
+                  "unit": {
+                    "$ref": "#/components/schemas/Unit"
+                  },
+                  "shown": {
+                    "$ref": "#/components/schemas/DisplayAmount"
+                  }
+                },
+                "required": [
+                  "quantity",
+                  "unit",
+                  "shown"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "estimated": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "date",
+          "mealType",
+          "kind",
+          "name",
+          "recipeId",
+          "ingredientId",
+          "servings",
+          "amount",
+          "nutrition",
+          "estimated",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "DiaryEntryKind": {
+        "type": "string",
+        "enum": [
+          "recipe",
+          "ingredient",
+          "meal"
+        ]
+      },
+      "DiaryMealNutrition": {
+        "type": "object",
+        "properties": {
+          "calories": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "protein": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "fat": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "carbs": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "calories"
+        ]
+      },
+      "DiaryPlanMeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eaten": {
+            "type": "boolean"
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/Nutrition"
+          }
+        },
+        "required": [
+          "id",
+          "mealType",
+          "name",
+          "recipeId",
+          "eaten",
+          "nutrition"
+        ],
+        "additionalProperties": false
       },
       "DietType": {
         "type": "string",
@@ -17996,6 +18779,24 @@
           "ml",
           "piece"
         ]
+      },
+      "UpdateDiaryEntryRequest": {
+        "type": "object",
+        "properties": {
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "servings": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 20
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 5000
+          }
+        }
       },
       "UpdateFavoriteSetRequest": {
         "type": "object",

@@ -8,8 +8,10 @@ import {
   deficitForWeeklyTarget,
   effectiveDayTarget,
   energyShares,
+  estimatedMacros,
   macroSplitOf,
   macrosForCalories,
+  scaledFigures,
   sharesOf,
   splitDistance,
   type CalorieEngineInput,
@@ -401,5 +403,66 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
       const { protein, fat, carbs } = macroSplitOf(diet);
       expect(protein + fat + carbs).toBeCloseTo(1);
     }
+  });
+});
+
+describe('what something eaten comes to', () => {
+  it('is its figures as many times as it was taken', () => {
+    expect(scaledFigures({ calories: 400, protein: 20, fat: 10, carbs: 50 }, 1.5)).toEqual({
+      calories: 600,
+      protein: 30,
+      fat: 15,
+      carbs: 75,
+    });
+  });
+
+  it('leaves the macronutrients given as they are, and shares what is left of the energy among the others as the split does', () => {
+    const balanced = macroSplitOf('balanced');
+    // 30 g of protein carry 120 kcal of 500; fat and carbohydrate take the 380 left, 30 to 45.
+    const macros = estimatedMacros(500, { protein: 30 }, balanced)!;
+
+    expect(macros.protein).toBe(30);
+    expect(macros.fat * 9).toBeCloseTo(380 * (30 / 75));
+    expect(macros.carbs * 4).toBeCloseTo(380 * (45 / 75));
+  });
+
+  it('splits the whole of the energy when only the energy is known', () => {
+    const macros = estimatedMacros(2000, {}, macroSplitOf('balanced'))!;
+
+    // What the day's target would give the same energy, before rounding.
+    expect(macros.protein).toBeCloseTo(125);
+    expect(macros.fat).toBeCloseTo(600 / 9);
+    expect(macros.carbs).toBeCloseTo(225);
+  });
+
+  it('estimates nothing when all three are given', () => {
+    expect(estimatedMacros(300, { protein: 10, fat: 10, carbs: 30 }, macroSplitOf('keto'))).toEqual(
+      { protein: 10, fat: 10, carbs: 30 },
+    );
+  });
+
+  it('gives the missing ones nothing when the ones given carry the whole energy, as a label rounds them', () => {
+    // 25 g of fat carry 225 kcal of 220: a label's rounding, not a contradiction.
+    expect(estimatedMacros(220, { fat: 25 }, macroSplitOf('balanced'))).toEqual({
+      protein: 0,
+      fat: 25,
+      carbs: 0,
+    });
+  });
+
+  it('refuses figures whose macronutrients carry clearly more energy than the whole', () => {
+    // 50 g of protein carry 200 kcal; the whole is said to be 100.
+    expect(estimatedMacros(100, { protein: 50 }, macroSplitOf('balanced'))).toBeNull();
+    // A tenth and five kilocalories over is still a label's rounding.
+    expect(estimatedMacros(100, { protein: 28.75 }, macroSplitOf('balanced'))).not.toBeNull();
+    expect(estimatedMacros(100, { protein: 29 }, macroSplitOf('balanced'))).toBeNull();
+  });
+
+  it('gives the missing ones equal parts where the split gives them none', () => {
+    const macros = estimatedMacros(400, { protein: 25 }, { protein: 1, fat: 0, carbs: 0 })!;
+
+    // 300 kcal left: 150 to fat and 150 to carbohydrate.
+    expect(macros.fat * 9).toBeCloseTo(150);
+    expect(macros.carbs * 4).toBeCloseTo(150);
   });
 });

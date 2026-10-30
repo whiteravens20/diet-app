@@ -285,6 +285,18 @@ function pickRecipe(
   return match ?? fallback;
 }
 
+/** A recipe's title in `locale`, the English one where it has none in it, the canonical column where it has no translation at all. */
+export function pickTitle(
+  locale: Locale,
+  translations: { locale: string; title: string }[] | undefined,
+  fallback: string,
+): string {
+  if (!translations || translations.length === 0) return fallback;
+  const match =
+    translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
+  return match?.title ?? fallback;
+}
+
 export function pickIngredient(
   locale: Locale,
   translations: { locale: string; name: string }[] | undefined,

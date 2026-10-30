@@ -142,6 +142,54 @@ export function macrosForCalories(
   };
 }
 
+/** Energy and the three macronutrients of something eaten, in kcal and grams. */
+type Figures = Macros & { calories: number };
+
+/** What `figures` come to taken `factor` times: servings of a meal, or another amount of the same food. */
+export function scaledFigures(figures: Figures, factor: number): Figures {
+  return {
+    calories: figures.calories * factor,
+    protein: figures.protein * factor,
+    fat: figures.fat * factor,
+    carbs: figures.carbs * factor,
+  };
+}
+
+/**
+ * How much more energy the macronutrients somebody typed may carry than the
+ * energy typed with them before the two are taken to contradict each other: a
+ * label rounds its figures, and counts some carbohydrates at less than four
+ * kilocalories a gram.
+ */
+const TYPED_ENERGY_SLACK = { share: 0.1, kcal: 5 };
+
+/**
+ * The macronutrients of something known by its energy and by some of them:
+ * those left out share what is left of the energy, in the proportions `split`
+ * (shares of one) gives them. Null where the ones given carry clearly more
+ * energy than the whole, which cannot both be right.
+ */
+export function estimatedMacros(
+  calories: number,
+  known: Partial<Macros>,
+  split: Macros,
+): Macros | null {
+  const parts = ['protein', 'fat', 'carbs'] as const;
+  const knownKcal = parts.reduce((sum, part) => sum + (known[part] ?? 0) * KCAL_PER_GRAM[part], 0);
+  if (knownKcal > calories * (1 + TYPED_ENERGY_SLACK.share) + TYPED_ENERGY_SLACK.kcal) return null;
+  const missing = parts.filter((part) => known[part] === undefined);
+  const missingShare = missing.reduce((sum, part) => sum + split[part], 0);
+  const left = Math.max(0, calories - knownKcal);
+  const grams = (part: (typeof parts)[number]): number => {
+    const given = known[part];
+    if (given !== undefined) return given;
+    // Shares that leave the missing ones nothing give them equal parts.
+    const share = missingShare > 0 ? split[part] / missingShare : 1 / missing.length;
+    return (left * share) / KCAL_PER_GRAM[part];
+  };
+  return { protein: grams('protein'), fat: grams('fat'), carbs: grams('carbs') };
+}
+
 /**
  * The calorie target of a profile, with everything a client needs to explain
  * it.

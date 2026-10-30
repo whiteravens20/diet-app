@@ -301,6 +301,7 @@ model Profile {
   inventory     InventoryItem[]
   weightEntries WeightEntry[]
   notifications Notification[]
+  diaryEntries  DiaryEntry[]
 
   @@index([userId])
 }
@@ -318,6 +319,50 @@ model WeightEntry {
   createdAt  DateTime @default(now())
 
   @@index([profileId, recordedAt(sort: Desc)])
+}
+
+// What a profile ate on a calendar day besides the meals its plan marks as
+// eaten: a recipe in servings, an ingredient of the catalogue in an amount,
+// or a meal of its own by its figures. The figures are those worked out when
+// the entry was written, for the amount it holds, so that a later change of
+// the catalogue does not rewrite what was eaten; a change of the amount
+// changes them in proportion. `name` is the name it had then, in the
+// writer's language: what is shown once the recipe or the ingredient is gone.
+model DiaryEntry {
+  id           String         @id @default(uuid())
+  profile      Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId    String
+  date         DateTime       @db.Date
+  mealType     String
+  kind         DiaryEntryKind
+  recipe       Recipe?        @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  recipeId     String?
+  ingredient   Ingredient?    @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  ingredientId String?
+  name         String
+  // Servings of a recipe or of a meal of its own; null for an ingredient.
+  servings     Float?
+  // The amount of an ingredient as it was given; null for the other kinds.
+  quantity     Float?
+  unit         Unit?
+  calories     Float
+  protein      Float
+  fat          Float
+  carbs        Float
+  // Its macronutrients were estimated from its energy: a meal of its own
+  // written without them.
+  estimated    Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+
+  @@index([profileId, date])
+  @@index([recipeId])
+  @@index([ingredientId])
+}
+
+enum DiaryEntryKind {
+  recipe
+  ingredient
+  meal
 }
 
 // Device-agnostic notification surface. The web client polls
@@ -472,6 +517,7 @@ model Ingredient {
   translations         IngredientTranslation[]
   ingredientNameDrafts IngredientNameDraft[]
   inventoryItems       InventoryItem[]
+  diaryEntries         DiaryEntry[]
 
   @@index([category])
 }
@@ -591,6 +637,7 @@ model Recipe {
   plannedMeals PlannedMeal[]
   favorites    Favorite[]
   translations RecipeTranslation[]
+  diaryEntries DiaryEntry[]
 
   @@unique([createdByUserId, fingerprint])
   @@index([fingerprint])

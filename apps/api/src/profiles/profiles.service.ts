@@ -23,6 +23,7 @@ import { storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
 import { calculateCalories, sharesOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { calorieInputOf } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -147,19 +148,7 @@ export class ProfilesService {
 
   /** Deterministic calorie/macro calculation for a profile. */
   async calories(userId: string, id: string): Promise<CalorieCalculation> {
-    const p = await this.load(userId, id);
-    return calculateCalories({
-      age: p.age,
-      sex: p.sex,
-      heightCm: p.heightCm,
-      weightKg: p.weightKg,
-      activityLevel: p.activityLevel,
-      dietType: p.dietType,
-      customMacroSplit: sharesOf(storedSplit(p.customMacroSplit)),
-      weeklyLossTarget: p.weeklyLossTarget as WeeklyTarget,
-      manualCalorieTarget: p.manualCalorieTarget,
-      riskAcknowledged: p.riskAcknowledgedAt !== null,
-    });
+    return calculateCalories(calorieInputOf(await this.load(userId, id)));
   }
 
   /**

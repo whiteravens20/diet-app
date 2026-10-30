@@ -130,6 +130,16 @@ export const OWN_MEAL_LIMITS = {
   perServing: { calories: 5000, protein: 500, fat: 500, carbs: 1000 },
 } as const;
 
+/** The most entries a day of a profile's diary holds. */
+export const MAX_DIARY_ENTRIES_A_DAY = 40;
+
+/**
+ * The most of one ingredient a diary entry may hold, in the unit it is given
+ * in: more than anybody eats of one food in a day, and a bound on a slip of
+ * the keyboard.
+ */
+export const DIARY_QUANTITY_LIMITS = { g: 5000, ml: 5000, piece: 50 } as const;
+
 /** The most recipes one import looks at: the first of its document. */
 export const MOST_RECIPES_PER_IMPORT = 100;
 

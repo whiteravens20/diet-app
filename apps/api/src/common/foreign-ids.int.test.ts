@@ -30,6 +30,7 @@ interface Ids {
   item: string;
   pantry: string;
   weight: string;
+  diaryEntry: string;
   ownRecipe: string;
   set: string;
   notification: string;
@@ -324,6 +325,38 @@ const ASKS: Ask[] = [
   ],
   ['delete a weight', 'delete', (ids) => `/api/weights/${ids.weight}`],
 
+  [
+    'read a day of the diary of a profile',
+    'get',
+    (ids) => `/api/diary/day?profileId=${ids.profile}&date=${ids.date}`,
+  ],
+  [
+    'write an entry into the diary of a profile',
+    'post',
+    () => '/api/diary/entries',
+    (ids) => ({
+      profileId: ids.profile,
+      date: '2026-01-01',
+      mealType: 'lunch',
+      kind: 'meal',
+      name: 'Soup',
+      nutrition: { calories: 300 },
+    }),
+  ],
+  [
+    'change an entry of a diary',
+    'patch',
+    (ids) => `/api/diary/entries/${ids.diaryEntry}`,
+    () => ({ servings: 2 }),
+  ],
+  ['delete an entry of a diary', 'delete', (ids) => `/api/diary/entries/${ids.diaryEntry}`],
+  [
+    'copy a day of the diary of a profile',
+    'post',
+    () => '/api/diary/copy',
+    (ids) => ({ profileId: ids.profile, from: '2026-01-01', to: '2026-01-02' }),
+  ],
+
   ['read the favourites of a profile', 'get', (ids) => `/api/favorites?profileId=${ids.profile}`],
   [
     'mark a recipe for a profile',
@@ -479,6 +512,20 @@ describe('what belongs to another account', () => {
       data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g' },
     });
     const weight = await t.prisma.weightEntry.create({ data: { profileId: profile.id, kg: 80 } });
+    const diaryEntry = await t.prisma.diaryEntry.create({
+      data: {
+        profileId: profile.id,
+        date: new Date('2026-01-01'),
+        mealType: 'lunch',
+        kind: 'meal',
+        name: 'Soup',
+        servings: 1,
+        calories: 300,
+        protein: 15,
+        fat: 10,
+        carbs: 38,
+      },
+    });
     await t.prisma.favorite.create({ data: { profileId: profile.id, recipeId: own.id } });
     const set = await t.prisma.favoriteSet.create({
       data: { profileId: profile.id, label: 'Workday', slots: { lunch: curated.id } },
@@ -507,6 +554,7 @@ describe('what belongs to another account', () => {
       item: item.id,
       pantry: pantry.id,
       weight: weight.id,
+      diaryEntry: diaryEntry.id,
       ownRecipe: own.id,
       set: set.id,
       notification: notification.id,
@@ -562,6 +610,12 @@ describe('what belongs to another account', () => {
       await t.prisma.inventoryItem.findMany({ where: { profileId: theirs.profile } }),
     ),
     weights: await t.prisma.weightEntry.count({ where: { profileId: theirs.profile } }),
+    diary: JSON.stringify(
+      await t.prisma.diaryEntry.findMany({
+        where: { profileId: theirs.profile },
+        orderBy: { id: 'asc' },
+      }),
+    ),
     favourites: await t.prisma.favorite.count({ where: { profileId: theirs.profile } }),
     sets: JSON.stringify(
       await t.prisma.favoriteSet.findMany({ where: { profileId: theirs.profile } }),

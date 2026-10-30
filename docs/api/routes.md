@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-173 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+178 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -107,6 +107,16 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `POST /api/csp-reports` | anyone | Take a browser's report of something a page was not allowed to do. | `PolicyReport` | 204 | 60 in a minute |
+
+## diary
+
+| Route | Asked by | What it does | Takes | Answers | Limit |
+|---|---|---|---|---|---|
+| `POST /api/diary/copy` | an account | Copy what was eaten on one day into another of today or before it: the entries of the day, and the meals its plan marked as eaten, which come in as entries. Nothing is copied where the day would then hold more than the most. Sent again with the same `Idempotency-Key` within a week, it is answered with the day as it is now and copies nothing. | `CopyDiaryDayRequest` | 201 `DiaryCopyResult` | 20 in a minute |
+| `GET /api/diary/day` | an account | A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten. | query `DiaryDayQuery` | 200 `DiaryDay` |  |
+| `POST /api/diary/entries` | an account | Write an entry for a day of today or before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
+| `DELETE /api/diary/entries/:id` | an account | Remove an entry. |  | 204 | 60 in a minute |
+| `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
 
 ## favorite-sets
 

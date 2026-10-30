@@ -28,6 +28,7 @@ export * from './drafts.js';
 export * from './admin.js';
 export * from './recipe-import.js';
 export * from './weight.js';
+export * from './diary.js';
 export * from './notification.js';
 export * from './policy-report.js';
 
