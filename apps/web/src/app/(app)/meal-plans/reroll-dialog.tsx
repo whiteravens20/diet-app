@@ -181,6 +181,7 @@ function RerollForm({
   const diaryCounts = days.some(
     (d) =>
       d.diary !== null &&
+      !d.skipped &&
       (d.date >= today || includePast) &&
       (scope === 'day'
         ? d.date === day
