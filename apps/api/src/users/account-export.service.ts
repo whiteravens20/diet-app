@@ -19,7 +19,7 @@ const day = (date: Date | null): string | null => (date ? isoDate(date) : null);
 /**
  * Everything an account holds, written out as one JSON document: the account
  * as it sees itself, its profiles with what they prefer, and what was logged,
- * kept, marked, planned and listed for them.
+ * eaten, kept, marked, planned and listed for them.
  *
  * Nothing that proves who somebody is leaves with it: no password, no token,
  * no secret of a second factor, no key to a provider (only that there is
@@ -127,6 +127,32 @@ export class AccountExportService {
         profileId: entry.profileId,
         kg: entry.kg,
         recordedAt: entry.recordedAt.toISOString(),
+      }),
+    );
+
+    yield* list(
+      'diary',
+      (page) => this.prisma.diaryEntry.findMany({ where: ofTheAccount, ...page }),
+      (entry) => ({
+        profileId: entry.profileId,
+        date: isoDate(entry.date),
+        mealType: entry.mealType,
+        kind: entry.kind,
+        name: entry.name,
+        recipeId: entry.recipeId,
+        ingredientId: entry.ingredientId,
+        servings: entry.servings,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        // The figures as they were worked out when the entry was written, for the amount it holds.
+        nutrition: {
+          calories: entry.calories,
+          protein: entry.protein,
+          fat: entry.fat,
+          carbs: entry.carbs,
+        },
+        estimated: entry.estimated,
+        createdAt: entry.createdAt.toISOString(),
       }),
     );
 

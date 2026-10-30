@@ -104,6 +104,22 @@ describe('deleting an account', () => {
     });
 
     await t.prisma.weightEntry.create({ data: { profileId: first.id, kg: 80 } });
+    // An entry of the diary of the account's own recipe.
+    await t.prisma.diaryEntry.create({
+      data: {
+        profileId: first.id,
+        date: new Date('2026-01-05'),
+        mealType: 'lunch',
+        kind: 'recipe',
+        recipeId: variant.id,
+        name: 'My variant',
+        servings: 1,
+        calories: 400,
+        protein: 20,
+        fat: 10,
+        carbs: 50,
+      },
+    });
     await t.prisma.notification.create({
       data: { profileId: second.id, type: 'weight_reminder', payload: { profileId: second.id } },
     });
@@ -285,6 +301,8 @@ describe('deleting an account', () => {
       'RefreshToken.userId',
       'Notification.payload',
       'WeightEntry.profileId',
+      'DiaryEntry.profileId',
+      'DiaryEntry.recipeId',
       'SecondFactor.userId',
       'RecoveryCode.secondFactorId',
       'SignInChallenge.userId',

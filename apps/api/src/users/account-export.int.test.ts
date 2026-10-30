@@ -18,6 +18,7 @@ interface Exported {
   aiProviders: Record<string, unknown>[];
   profiles: (Record<string, unknown> & { id: string; preferences: Record<string, unknown> })[];
   weights: { profileId: string; kg: number }[];
+  diary: Record<string, unknown>[];
   pantry: Record<string, unknown>[];
   markedRecipes: Record<string, unknown>[];
   favoriteSets: Record<string, unknown>[];
@@ -104,6 +105,19 @@ describe('everything an account holds, as one file', () => {
     const shared = await t.prisma.recipe.findFirstOrThrow({ where: { slug: 'tofu-rice-bowl' } });
     await aPrivateRecipe(t, of, { title: 'My variant' });
     await t.prisma.weightEntry.create({ data: { profileId: profile.id, kg: 79.5 } });
+    await t
+      .http()
+      .post('/api/diary/entries')
+      .set(as(of))
+      .send({
+        profileId: profile.id,
+        date: plan.days[0]!.date,
+        mealType: 'snack',
+        kind: 'ingredient',
+        ingredientId: rice.id,
+        amount: { quantity: 50, unit: 'g' },
+      })
+      .expect(201);
     await t.prisma.notification.create({
       data: { profileId: profile.id, type: 'weight_reminder', payload: { profileId: profile.id } },
     });
@@ -168,6 +182,7 @@ describe('everything an account holds, as one file', () => {
       'aiProviders',
       'profiles',
       'weights',
+      'diary',
       'pantry',
       'markedRecipes',
       'favoriteSets',
@@ -182,7 +197,7 @@ describe('everything an account holds, as one file', () => {
     expect((answered.body as string).endsWith('"complete":true}')).toBe(true);
   });
 
-  it('holds what the account holds: its profiles and what was logged, kept, marked, planned and listed for them', async () => {
+  it('holds what the account holds: its profiles and what was logged, eaten, kept, marked, planned and listed for them', async () => {
     const { profile, plan } = await filled();
 
     const { file } = await fileOf();
@@ -202,6 +217,23 @@ describe('everything an account holds, as one file', () => {
       maxTimesPerWeekSameMeal: 3,
     });
     expect(file.weights).toEqual([expect.objectContaining({ profileId: profile.id, kg: 79.5 })]);
+    expect(file.diary).toEqual([
+      {
+        profileId: profile.id,
+        date: plan.days[0]!.date,
+        mealType: 'snack',
+        kind: 'ingredient',
+        name: expect.any(String),
+        recipeId: null,
+        ingredientId: expect.any(String),
+        servings: null,
+        quantity: 50,
+        unit: 'g',
+        nutrition: { calories: 180, protein: 3.5, fat: 0.3, carbs: 39.5 },
+        estimated: false,
+        createdAt: expect.any(String),
+      },
+    ]);
     expect(file.pantry).toEqual([
       expect.objectContaining({ ingredientSlug: 'white-rice', quantity: 500, unit: 'g' }),
     ]);
