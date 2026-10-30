@@ -293,32 +293,31 @@ function DiaryContent() {
               </div>
             )}
 
-            {meals.length === 0 ? (
+            {meals.length === 0 && !ahead && !tooOld && (
               <EmptyState icon={NotebookPen} title={t('emptyTitle')} description={t('emptyText')} />
-            ) : (
-              meals.map((slot) => (
-                <MealSection
-                  key={slot}
-                  slot={slot}
-                  day={shown}
-                  canAdd={!ahead && !tooOld && !full}
-                  busy={busy}
-                  onAdd={() => {
-                    setDialogError(null);
-                    setAdding(slot);
-                  }}
-                  onEat={(meal) => eat.mutate({ planId: shown.plan!.id, meal })}
-                  onEdit={(entry) => {
-                    setDialogError(null);
-                    setEditing(entry);
-                  }}
-                  onRemove={(entry) => {
-                    setError(null);
-                    remove.mutate(entry.id);
-                  }}
-                />
-              ))
             )}
+            {meals.map((slot) => (
+              <MealSection
+                key={slot}
+                slot={slot}
+                day={shown}
+                canAdd={!ahead && !tooOld && !full}
+                busy={busy}
+                onAdd={() => {
+                  setDialogError(null);
+                  setAdding(slot);
+                }}
+                onEat={(meal) => eat.mutate({ planId: shown.plan!.id, meal })}
+                onEdit={(entry) => {
+                  setDialogError(null);
+                  setEditing(entry);
+                }}
+                onRemove={(entry) => {
+                  setError(null);
+                  remove.mutate(entry.id);
+                }}
+              />
+            ))}
 
             {!ahead && !tooOld && (
               <CopyDay

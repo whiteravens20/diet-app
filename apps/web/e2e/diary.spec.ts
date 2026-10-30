@@ -64,6 +64,7 @@ test.describe('the diary of a day', () => {
     await settled(page);
 
     await expect(page.getByText(diary.tooOldNote!)).toBeVisible();
+    await expect(page.getByText(diary.emptyText!)).toHaveCount(0);
     await expect(page.getByRole('button', { name: diary.addTitle!, exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: diary.copyTitle! })).toHaveCount(0);
     expect(await barriers(page), 'a day too far back').toEqual([]);

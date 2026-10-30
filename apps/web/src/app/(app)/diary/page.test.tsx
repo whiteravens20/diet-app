@@ -187,6 +187,33 @@ describe('the diary', () => {
     expect(screen.queryByText(texts.tooOldNote)).not.toBeInTheDocument();
   });
 
+  const nothingWritten = {
+    plan: null,
+    entries: [],
+    eaten: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+    estimated: false,
+  };
+
+  it('asks for something to be added on an empty day that takes entries', async () => {
+    await renderPage(aDay(nothingWritten));
+
+    expect(screen.getByText(texts.emptyTitle)).toBeInTheDocument();
+    expect(screen.getByText(texts.emptyText)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['a day still to come', 1, texts.aheadNote],
+    ['a day more than a year back', -DIARY_DAYS_BACK - 1, texts.tooOldNote],
+  ])('says why %s holds nothing, and asks for nothing to be added', async (_, offset, note) => {
+    const date = dayAfter(TODAY, offset);
+    address.search = `date=${date}`;
+    await renderPage(aDay({ ...nothingWritten, date }));
+
+    expect(screen.getByText(note)).toBeInTheDocument();
+    expect(screen.queryByText(texts.emptyText)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: texts.addTitle })).not.toBeInTheDocument();
+  });
+
   it("adds a meal of one's own known by its energy alone, and leaves the macronutrients to the API", async () => {
     await renderPage();
     const posted = vi.spyOn(api, 'post').mockResolvedValue(anEntry() as never);
