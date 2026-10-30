@@ -34,7 +34,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `CUSTOM_SPLIT_MISSING` | 400 | The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first. | Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu. |
 | `DAY_IN_THE_PAST` | 409 | This day is over: its settings stay as they were. | Ten dzień już minął: jego ustawienia zostają bez zmian. |
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
-| `DIARY_DAY_AHEAD` | 409 | The diary takes today and the days before it, not a day still to come. | Dziennik przyjmuje dzisiejszy dzień i dni wcześniejsze, nie dzień, który dopiero nadejdzie. |
+| `DIARY_DAY_AHEAD` | 409 | The diary takes today and the year before it, not a day still to come. | Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie. |
 | `DIARY_DAY_FULL` | 409 | The diary holds no more entries for this day: remove some to add others. | Dziennik nie zmieści więcej wpisów na ten dzień: usuń któreś, aby dodać inne. |
 | `DIARY_DAY_TOO_OLD` | 409 | The diary takes new entries at most a year back. | Dziennik przyjmuje nowe wpisy najwyżej rok wstecz. |
 | `DIARY_ENTRY_NOT_FOUND` | 404 | Diary entry not found. | Nie znaleziono wpisu w dzienniku. |

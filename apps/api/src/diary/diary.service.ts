@@ -473,7 +473,7 @@ export class DiaryService {
     if (date > now) {
       throw new ConflictException({
         error: 'DIARY_DAY_AHEAD',
-        message: 'The diary takes today and the days before it, not a day still to come.',
+        message: 'The diary takes today and the year before it, not a day still to come.',
       });
     }
     if (date < dayAfter(now, -DIARY_DAYS_BACK)) {

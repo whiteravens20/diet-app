@@ -238,8 +238,8 @@
       409
     ],
     "messages": {
-      "en": "The diary takes today and the days before it, not a day still to come.",
-      "pl": "Dziennik przyjmuje dzisiejszy dzień i dni wcześniejsze, nie dzień, który dopiero nadejdzie."
+      "en": "The diary takes today and the year before it, not a day still to come.",
+      "pl": "Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie."
     }
   },
   "DIARY_DAY_FULL": {
