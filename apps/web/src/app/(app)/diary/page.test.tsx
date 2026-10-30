@@ -504,6 +504,44 @@ describe('the diary', () => {
     expect(window.getByRole('spinbutton', { name: `${texts.quantity} (slices)` })).toHaveValue(2.5);
   });
 
+  it('says nothing of what a number that cannot be written would add', async () => {
+    await renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: texts.addTitle }));
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    await user.click(window.getByRole('radio', { name: texts.kindMeal }));
+    await user.type(window.getByRole('spinbutton', { name: texts.calories }), '350');
+    const servings = window.getByRole('spinbutton', { name: texts.servings });
+    expect(window.getByText('Adds 350 kcal to the day.')).toBeInTheDocument();
+
+    await user.clear(servings);
+    await user.type(servings, '-1');
+    expect(window.queryByText(/kcal to the day/)).not.toBeInTheDocument();
+    await user.clear(servings);
+    await user.type(servings, '0');
+    expect(window.queryByText(/kcal to the day/)).not.toBeInTheDocument();
+  });
+
+  it('says when a search got no answer, which is not that nothing was found', async () => {
+    await renderPage();
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path.startsWith('/recipes?') ? Promise.reject(new Error('down')) : answers(path),
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: texts.addTitle }));
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    await user.type(
+      window.getByRole('searchbox', { name: `${texts.searchRecipe} ${texts.searchHint}` }),
+      'oat',
+    );
+
+    expect(await window.findByText(texts.searchFailed)).toBeInTheDocument();
+    expect(window.queryByText(texts.noResults)).not.toBeInTheDocument();
+  });
+
   it('copies another day into this one, and says how many entries came', async () => {
     await renderPage();
     const posted = vi.spyOn(api, 'post').mockResolvedValue({ copied: 2, day: aDay() } as never);

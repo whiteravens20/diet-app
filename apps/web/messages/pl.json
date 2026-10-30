@@ -506,6 +506,7 @@
     "searchIngredient": "Znajdź składnik",
     "searchHint": "Wpisz co najmniej dwie litery.",
     "noResults": "Nic nie znaleziono.",
+    "searchFailed": "Nie udało się wyszukać. Spróbuj ponownie.",
     "perServing": "{kcal, number} kcal w porcji",
     "per100": "{kcal, number} kcal w 100 {unit}",
     "changePick": "Wybierz inny",

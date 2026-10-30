@@ -506,6 +506,7 @@
     "searchIngredient": "Find an ingredient",
     "searchHint": "Type at least two letters.",
     "noResults": "Nothing found.",
+    "searchFailed": "The search failed. Try again.",
     "perServing": "{kcal, number} kcal a serving",
     "per100": "{kcal, number} kcal in 100 {unit}",
     "changePick": "Pick another",

@@ -87,7 +87,8 @@ export function AddEntryDialog({
   const [fat, setFat] = useState('');
   const [carbs, setCarbs] = useState('');
 
-  const searching = asked.length >= 2;
+  // Only the search in the field is said anything of: what an earlier one found is not an answer to this one.
+  const searching = asked.length >= 2 && asked === search.trim();
   const recipes = useQuery({
     queryKey: ['diary-recipes', asked],
     queryFn: () =>
@@ -102,12 +103,16 @@ export function AddEntryDialog({
 
   const number = (typed: string): number => (typed.trim() === '' ? Number.NaN : Number(typed));
   const typedServings = number(servings);
-  // What the entry adds to the day, rounded as the API rounds it; an ingredient's figures go through the API's units.
+  const typedCalories = number(calories);
+  const servingsFit =
+    typedServings >= OWN_MEAL_LIMITS.servings.min && typedServings <= OWN_MEAL_LIMITS.servings.max;
+  const caloriesFit = typedCalories >= 0 && typedCalories <= OWN_MEAL_LIMITS.perServing.calories;
+  // What the entry adds to the day, rounded as the API rounds it, where what was typed can be written; an ingredient's figures go through the API's units.
   const adds =
-    kind === 'recipe' && recipe && Number.isFinite(typedServings)
+    kind === 'recipe' && recipe && servingsFit
       ? Math.round(recipe.nutritionPerServing.calories * typedServings)
-      : kind === 'meal' && Number.isFinite(number(calories)) && Number.isFinite(typedServings)
-        ? Math.round(number(calories) * typedServings)
+      : kind === 'meal' && caloriesFit && servingsFit
+        ? Math.round(typedCalories * typedServings)
         : null;
   const missing =
     kind === 'recipe' && !recipe
@@ -233,7 +238,8 @@ export function AddEntryDialog({
               onChange={setSearch}
               searching={searching}
               loading={recipes.isFetching}
-              found={(recipes.data?.items ?? []).map((found) => ({
+              failed={recipes.isError}
+              found={(searching ? (recipes.data?.items ?? []) : []).map((found) => ({
                 id: found.id,
                 name: found.title,
                 about: t('perServing', { kcal: found.nutritionPerServing.calories }),
@@ -294,7 +300,8 @@ export function AddEntryDialog({
               onChange={setSearch}
               searching={searching}
               loading={ingredients.isFetching}
-              found={(ingredients.data ?? []).slice(0, OFFERED).map((found) => ({
+              failed={ingredients.isError}
+              found={(searching ? (ingredients.data ?? []) : []).slice(0, OFFERED).map((found) => ({
                 id: found.id,
                 name: found.name,
                 about: t('per100', {
@@ -435,6 +442,7 @@ function Search({
   onChange,
   searching,
   loading,
+  failed,
   found,
 }: {
   label: string;
@@ -442,6 +450,8 @@ function Search({
   onChange: (value: string) => void;
   searching: boolean;
   loading: boolean;
+  /** The search did not get an answer: that says nothing of what there is. */
+  failed: boolean;
   found: { id: string; name: string; about: string; pick: () => void }[];
 }) {
   const t = useTranslations('diary');
@@ -458,7 +468,12 @@ function Search({
         />
       </Field>
       <div id={`${id}-found`} aria-live="polite">
-        {searching && !loading && found.length === 0 && (
+        {searching && !loading && failed && (
+          <p role="alert" className="text-sm text-destructive">
+            {t('searchFailed')}
+          </p>
+        )}
+        {searching && !loading && !failed && found.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('noResults')}</p>
         )}
         {found.length > 0 && (
