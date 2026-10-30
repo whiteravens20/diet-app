@@ -407,6 +407,15 @@ function MealPlansContent() {
         setRebalanceToast(null);
       } else {
         showRebalance(v.planId, res);
+        // A press that changes nothing says so, or it looks as if it had not been heard.
+        if (res.rebalance?.changes.length === 0) {
+          const left = res.rebalance.unabsorbedKcal;
+          setNotice(
+            left === 0
+              ? t('resizeNothing')
+              : t(left > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', { kcal: Math.abs(left) }),
+          );
+        }
       }
     },
     onError: fail(t('errRebalance')),
@@ -936,10 +945,12 @@ function MealPlansContent() {
               }}
               onSpread={(date) => {
                 setError(null);
+                setNotice(null);
                 rebalance.mutate({ planId: plan.id, scope: 'plan', date });
               }}
               onResizeDay={(date) => {
                 setError(null);
+                setNotice(null);
                 rebalance.mutate({ planId: plan.id, scope: 'day', date });
               }}
               onSwapped={(res) => showRebalance(plan.id, res)}

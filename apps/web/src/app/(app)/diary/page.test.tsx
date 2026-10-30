@@ -340,6 +340,51 @@ describe('the diary', () => {
     );
   });
 
+  it('says of a press that changes nothing that the portions cannot come any closer', async () => {
+    await renderPage(aDay({ plan: { ...aDay().plan!, calorieDelta: 450, offTarget: 'over' } }));
+    const figures = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+    vi.spyOn(api, 'post').mockResolvedValue({
+      plan: {},
+      rebalance: {
+        scope: 'day',
+        feasibility: 'best-effort',
+        changes: [],
+        unabsorbedKcal: 0,
+        macrosBefore: figures,
+        macrosAfter: figures,
+      },
+    } as never);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: texts.rebalance }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(messages.mealPlans.resizeNothing);
+  });
+
+  it('offers no resizing where no meal from a recipe is left to resize', async () => {
+    const plan = aDay().plan!;
+    await renderPage(
+      aDay({
+        plan: {
+          ...plan,
+          calorieDelta: 450,
+          offTarget: 'over',
+          meals: [
+            { ...plan.meals[0]!, eaten: true },
+            { ...plan.meals[1]!, recipeId: null, eaten: false },
+          ],
+        },
+      }),
+    );
+
+    expect(screen.queryByRole('button', { name: texts.rebalance })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "With what the diary holds counted as eaten, the plan's day is 450 kcal over its target.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("speaks of the plan's day alone where nothing is written for it", async () => {
     const nothing = { entries: [], estimated: false };
     await renderPage(aDay(nothing));

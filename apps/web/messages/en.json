@@ -476,8 +476,8 @@
     "planUnderPlain": "The plan's day is {kcal, number} kcal under its target.",
     "planOnTarget": "With what the diary holds counted as eaten, the plan's day stays within its target.",
     "planOnTargetPlain": "The plan's day stays within its target.",
-    "rebalance": "Resize the plan's meals",
-    "rebalanceNote": "The meals of the plan's day that are not eaten get other portions, so that the day comes back to its target. The entries and the eaten meals stay as they are.",
+    "rebalance": "Resize the day's meals",
+    "rebalanceNote": "The meals from recipes that are not eaten get other portions, so that the day comes as close to its target as it can. The entries, the eaten meals and the meals of your own stay as they are.",
     "openPlan": "Open the plan",
     "add": "Add",
     "addTo": "Add an entry to {meal}",
@@ -1539,7 +1539,8 @@
     "dayOverDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth over its target.",
     "dayUnderDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth under its target.",
     "resizeDay": "Resize the day's meals",
-    "resizeDayNote": "Counts the diary's entries as eaten and gives the meals that are not eaten other portions, so that the day comes back to its target."
+    "resizeDayNote": "Counts the diary's entries as eaten and gives the meals from recipes that are not eaten other portions, so that the day comes as close to its target as it can.",
+    "resizeNothing": "The portions are as close to the target as their limits allow."
   },
   "inventory": {
     "title": "Inventory",

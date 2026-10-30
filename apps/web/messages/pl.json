@@ -476,8 +476,8 @@
     "planUnderPlain": "Dzień planu ma {kcal, number} kcal mniej niż cel.",
     "planOnTarget": "Licząc wpisy dziennika jako zjedzone, dzień planu mieści się w celu.",
     "planOnTargetPlain": "Dzień planu mieści się w celu.",
-    "rebalance": "Dopasuj porcje planu",
-    "rebalanceNote": "Niezjedzone posiłki dnia planu dostaną inne porcje, żeby dzień wrócił do celu. Wpisy i zjedzone posiłki zostają bez zmian.",
+    "rebalance": "Dopasuj porcje dnia",
+    "rebalanceNote": "Niezjedzone posiłki z przepisów dostaną inne porcje, żeby dzień jak najbardziej zbliżył się do celu. Wpisy, zjedzone posiłki i własne posiłki zostają bez zmian.",
     "openPlan": "Otwórz plan",
     "add": "Dodaj",
     "addTo": "Dodaj wpis do posiłku: {meal}",
@@ -1539,7 +1539,8 @@
     "dayOverDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel.",
     "dayUnderDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel.",
     "resizeDay": "Dopasuj porcje dnia",
-    "resizeDayNote": "Liczy wpisy dziennika jako zjedzone i daje niezjedzonym posiłkom inne porcje, żeby dzień wrócił do celu."
+    "resizeDayNote": "Liczy wpisy dziennika jako zjedzone i daje niezjedzonym posiłkom z przepisów inne porcje, żeby dzień jak najbardziej zbliżył się do celu.",
+    "resizeNothing": "Porcje są już tak blisko celu, jak pozwalają ich granice."
   },
   "inventory": {
     "title": "Spiżarnia",

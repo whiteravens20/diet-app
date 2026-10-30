@@ -1463,6 +1463,49 @@ describe('the plan page, on how a day stands against its target', () => {
     });
   });
 
+  it('offers no resizing of a day that has no meal from a recipe left to resize', async () => {
+    const today = localDate();
+    const day = aPlan().days[0]!;
+    await opened(
+      aDay({
+        date: today,
+        offTarget: 'over',
+        diary: { entries: 1, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+        meals: day.meals.map((meal) => ({ ...meal, eatenAt: `${today}T08:00:00.000Z` })),
+      }),
+    );
+
+    expect(screen.getByText(messages.mealPlans.dayOverDiaryHint)).toBeVisible();
+    expect(screen.queryByRole('button', { name: messages.mealPlans.resizeDay })).toBeNull();
+  });
+
+  it('says of a press that changes nothing that the portions cannot come any closer', async () => {
+    const today = localDate();
+    const figures = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+    vi.spyOn(api, 'post').mockResolvedValue({
+      plan: aPlan(),
+      rebalance: {
+        scope: 'day',
+        feasibility: 'best-effort',
+        changes: [],
+        unabsorbedKcal: 0,
+        macrosBefore: figures,
+        macrosAfter: figures,
+      },
+    } as never);
+    await opened(
+      aDay({
+        date: today,
+        offTarget: 'over',
+        diary: { entries: 2, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+      }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.resizeDay }));
+
+    expect(await screen.findByText(messages.mealPlans.resizeNothing)).toBeVisible();
+  });
+
   it('says nothing of the kind of a day inside its window, nor of a day that is skipped', async () => {
     await opened(aDay({ offTarget: null }));
     expect(screen.queryByText(messages.mealPlans.dayOver)).toBeNull();

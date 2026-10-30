@@ -79,6 +79,7 @@ export default function DiaryPage() {
 
 function DiaryContent() {
   const t = useTranslations('diary');
+  const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
   const params = useSearchParams();
@@ -170,6 +171,17 @@ function DiaryContent() {
           ? { planId, rebalance: result.rebalance }
           : null,
       );
+      // A press that changes nothing says so, or it looks as if it had not been heard.
+      if (!body.restore && result.rebalance?.changes.length === 0) {
+        const left = result.rebalance.unabsorbedKcal;
+        setNotice(
+          left === 0
+            ? tPlans('resizeNothing')
+            : tPlans(left > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', {
+                kcal: Math.abs(left),
+              }),
+        );
+      }
       await refresh();
     },
     onError: (e) => setError(errorText(e, t('errRebalance'))),
@@ -580,22 +592,24 @@ function DaySummary({
                 {past ? (
                   <p className="text-xs text-muted-foreground">{t('planPastNote')}</p>
                 ) : (
-                  // What resizing does is said beside the button, before it is pressed.
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      aria-describedby={`${id}-rebalance`}
-                      onClick={() => onRebalance(plan.id)}
-                    >
-                      {t('rebalance')}
-                    </Button>
-                    <span id={`${id}-rebalance`} className="text-xs text-muted-foreground">
-                      {t('rebalanceNote')}
-                    </span>
-                  </div>
+                  resizable && (
+                    // What resizing does is said beside the button, before it is pressed.
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        aria-describedby={`${id}-rebalance`}
+                        onClick={() => onRebalance(plan.id)}
+                      >
+                        {t('rebalance')}
+                      </Button>
+                      <span id={`${id}-rebalance`} className="text-xs text-muted-foreground">
+                        {t('rebalanceNote')}
+                      </span>
+                    </div>
+                  )
                 )}
               </>
             ) : (
