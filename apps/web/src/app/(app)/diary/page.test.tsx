@@ -421,6 +421,16 @@ describe('the diary', () => {
     expect(screen.queryByText(texts.planOnTarget)).not.toBeInTheDocument();
   });
 
+  it('takes no meal of a day still to come as eaten', async () => {
+    const tomorrow = dayAfter(TODAY, 1);
+    address.search = `date=${tomorrow}`;
+    await renderPage(aDay({ date: tomorrow }));
+
+    for (const toggle of screen.getAllByRole('checkbox', { name: texts.eatenToggle })) {
+      expect(toggle).toBeDisabled();
+    }
+  });
+
   it('goes to today when the address names a day no request may name', async () => {
     address.search = 'date=1999-12-31';
     await renderPage();

@@ -319,6 +319,7 @@ function DiaryContent() {
                 slot={slot}
                 day={shown}
                 canAdd={!ahead && !tooOld && !full}
+                canEat={!ahead}
                 busy={busy}
                 onAdd={() => {
                   setDialogError(null);
@@ -635,6 +636,7 @@ function MealSection({
   slot,
   day,
   canAdd,
+  canEat,
   busy,
   onAdd,
   onEat,
@@ -644,6 +646,8 @@ function MealSection({
   slot: MealType;
   day: DiaryDay;
   canAdd: boolean;
+  /** The day has come: what is still to come cannot have been eaten. */
+  canEat: boolean;
   busy: boolean;
   onAdd: () => void;
   onEat: (meal: DiaryPlanMeal) => void;
@@ -699,7 +703,7 @@ function MealSection({
                   type="checkbox"
                   className="h-4 w-4"
                   checked={meal.eaten}
-                  disabled={busy}
+                  disabled={busy || !canEat}
                   aria-describedby={`${id}-${meal.id}`}
                   onChange={() => onEat(meal)}
                 />
