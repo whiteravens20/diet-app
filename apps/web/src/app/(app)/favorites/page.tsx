@@ -144,7 +144,7 @@ export default function FavoritesPage() {
   const list = marks.data ?? [];
   return (
     <div className="space-y-8">
-      <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')} />
+      <PageBanner image={IMAGERY.favorites} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (
         <div className="flex flex-wrap gap-2">

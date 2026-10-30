@@ -19,6 +19,7 @@ share-alike term, so these adaptations impose no additional license obligations.
 | `shopping.webp`   | Farmer's Market Produce                              | Julian Hanslmaier | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Farmer%27s_Market_Produce_(Unsplash).jpg>)                                                               | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `inventory.webp`  | Container storage at a kitchen pantry                | Shixart1985       | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Container_storage_at_a_kitchen_pantry_with_different_types_of_food_items_in_jars_and_bottles_at_home.jpg) | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
 | `diary.webp`      | Bagel Heaven                                         | Toa Heftiba       | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Bagel_Heaven_(Unsplash).jpg>)                                                                            | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `favorites.webp`  | A well garnished pizza                               | David Nuescheler  | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:A_well_garnished_pizza_(Unsplash).jpg>)                                                                  | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 ## Empty states
 
