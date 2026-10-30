@@ -10,11 +10,11 @@ This instance of Diet App, a meal-planning application, is run by [the operator:
 
 ## 2. Accounts
 
-Creating an account requires an email address and a password that you keep secret, and you are responsible for keeping them safe. [Who may sign up: anyone, or only people the operator invites.] Deleting your account is permanent: every record tied to it (profiles, meal plans, favourites, the pantry, the record of AI use) is deleted and cannot be recovered.
+Creating an account requires an email address and a password that you keep secret, and you are responsible for keeping them safe. [Who may sign up: anyone, or only people the operator invites.] Deleting your account is permanent: every record tied to it (profiles, meal plans, the diary, favourites, the pantry, the record of AI use) is deleted and cannot be recovered.
 
 ## 3. Your own AI keys and the instance's AI
 
-When you add a key of an AI provider in Settings, the instance stores it encrypted, but the provider's own terms and prices still apply to you. When you use the instance's AI, the operator pays for your requests within the monthly limits the application shows. The operator decides which accounts may use it, and may take that back, for example after misuse. [If the instance's AI is on: through which service it is reached, and where.] A request carries what it needs, such as the ingredients of a recipe, the meals of a plan or a profile's diet and preferences. It never carries your email address or your password. With a key of your own, the request goes to the provider of that key instead.
+When you add a key of an AI provider in Settings, the instance stores it encrypted, but the provider's own terms and prices still apply to you. When you use the instance's AI, the operator pays for your requests within the monthly limits the application shows. The operator decides which accounts may use it, and may take that back, for example after misuse. [If the instance's AI is on: through which service it is reached, and where.] A request carries what it needs, such as the ingredients of a recipe, the meals of a plan, a profile's diet and preferences or the calories a day's diary holds. It never carries your email address or your password. With a key of your own, the request goes to the provider of that key instead.
 
 ## 4. Not medical advice
 
@@ -41,7 +41,7 @@ A recipe you submit to the shared library is contributed, by the act of submitti
 
 ## 7. Your data
 
-Your account holds your email address, which the instance keeps encrypted, and your password, kept only in a form it cannot be read back from. It also holds what you enter: your profiles (such as age, sex, height, weight, goals and food preferences), the weights you log, your meal plans and shopping lists, your pantry, the recipes you mark and your own recipes, your signed-in sessions, the keys of AI providers you add (encrypted) and the record of your AI use. It is kept in the database of this instance, on [where the server is]. [How often the operator backs it up, how long the copies are kept and who can read them.] [If the instance sends email: which service sends it.] You can download everything your account holds as one file from Settings at any time. Deleting your account removes it from the database at once; copies made before stay until they are replaced.
+Your account holds your email address, which the instance keeps encrypted, and your password, kept only in a form it cannot be read back from. It also holds what you enter: your profiles (such as age, sex, height, weight, goals and food preferences), the weights you log, what you write in your diary, your meal plans and shopping lists, your pantry, the recipes you mark and your own recipes, your signed-in sessions, the keys of AI providers you add (encrypted) and the record of your AI use. It is kept in the database of this instance, on [where the server is]. [How often the operator backs it up, how long the copies are kept and who can read them.] [If the instance sends email: which service sends it.] You can download everything your account holds as one file from Settings at any time. Deleting your account removes it from the database at once; copies made before stay until they are replaced.
 
 ## 8. Bot protection
 

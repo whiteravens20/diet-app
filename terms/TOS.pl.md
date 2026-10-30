@@ -10,11 +10,11 @@ Tę instancję Diet App, aplikacji do planowania posiłków, prowadzi [operator:
 
 ## 2. Konta
 
-Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za ich bezpieczeństwo odpowiadasz Ty. [Kto może założyć konto: każdy albo tylko osoby zaproszone przez operatora.] Usunięcie konta jest trwałe: znika każdy związany z nim zapis (profile, plany posiłków, ulubione, spiżarnia, zapis użycia AI) bez możliwości odzyskania.
+Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za ich bezpieczeństwo odpowiadasz Ty. [Kto może założyć konto: każdy albo tylko osoby zaproszone przez operatora.] Usunięcie konta jest trwałe: znika każdy związany z nim zapis (profile, plany posiłków, dziennik, ulubione, spiżarnia, zapis użycia AI) bez możliwości odzyskania.
 
 ## 3. Własne klucze AI i AI instancji
 
-Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowany, ale nadal obowiązują Cię regulamin i cennik tego dostawcy. Gdy korzystasz z AI instancji, operator płaci za Twoje zapytania w miesięcznych limitach, które pokazuje aplikacja. Operator decyduje o tym, które konta mogą z niego korzystać. Może też ten dostęp odebrać, na przykład po nadużyciu. [Jeśli AI instancji jest włączone: przez jaką usługę działa i gdzie.] Zapytanie zawiera to, czego potrzebuje, na przykład składniki przepisu, posiłki planu albo dietę i preferencje profilu. Nigdy nie zawiera Twojego adresu e-mail ani hasła. Z własnym kluczem zapytanie trafia zamiast tego do dostawcy tego klucza.
+Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowany, ale nadal obowiązują Cię regulamin i cennik tego dostawcy. Gdy korzystasz z AI instancji, operator płaci za Twoje zapytania w miesięcznych limitach, które pokazuje aplikacja. Operator decyduje o tym, które konta mogą z niego korzystać. Może też ten dostęp odebrać, na przykład po nadużyciu. [Jeśli AI instancji jest włączone: przez jaką usługę działa i gdzie.] Zapytanie zawiera to, czego potrzebuje, na przykład składniki przepisu, posiłki planu, dietę i preferencje profilu albo kalorie zapisane w dzienniku danego dnia. Nigdy nie zawiera Twojego adresu e-mail ani hasła. Z własnym kluczem zapytanie trafia zamiast tego do dostawcy tego klucza.
 
 ## 4. To nie porada medyczna
 
@@ -41,7 +41,7 @@ Przepis zgłoszony do wspólnej biblioteki jest przez samo zgłoszenie udostępn
 
 ## 7. Twoje dane
 
-Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, oraz hasło, zapisane tylko w postaci, z której nie da się go odczytać. Zawiera też to, co wpisujesz: profile (na przykład wiek, płeć, wzrost, wagę, cele i upodobania kulinarne), wpisy wagi, plany posiłków i listy zakupów, spiżarnię, oznaczone przepisy i własne przepisy, sesje logowania, dodane klucze dostawców AI (zaszyfrowane) oraz zapis użycia AI. Dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik. Usunięcie konta od razu usuwa je z bazy; kopie zrobione wcześniej zostają, dopóki nie zostaną zastąpione.
+Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, oraz hasło, zapisane tylko w postaci, z której nie da się go odczytać. Zawiera też to, co wpisujesz: profile (na przykład wiek, płeć, wzrost, wagę, cele i upodobania kulinarne), wpisy wagi, wpisy dziennika, plany posiłków i listy zakupów, spiżarnię, oznaczone przepisy i własne przepisy, sesje logowania, dodane klucze dostawców AI (zaszyfrowane) oraz zapis użycia AI. Dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik. Usunięcie konta od razu usuwa je z bazy; kopie zrobione wcześniej zostają, dopóki nie zostaną zastąpione.
 
 ## 8. Ochrona przed botami
 
