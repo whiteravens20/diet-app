@@ -340,6 +340,27 @@ describe('the diary', () => {
     );
   });
 
+  it("speaks of the plan's day alone where nothing is written for it", async () => {
+    const nothing = { entries: [], estimated: false };
+    await renderPage(aDay(nothing));
+
+    expect(screen.getByText(texts.planOnTargetPlain)).toBeInTheDocument();
+    expect(screen.queryByText(texts.planOnTarget)).not.toBeInTheDocument();
+  });
+
+  it("says of a plan's day off its target with nothing written only what its meals do", async () => {
+    await renderPage(
+      aDay({
+        entries: [],
+        estimated: false,
+        plan: { ...aDay().plan!, calorieDelta: -300, offTarget: 'under' },
+      }),
+    );
+
+    expect(screen.getByText("The plan's day is 300 kcal under its target.")).toBeInTheDocument();
+    expect(screen.queryByText(/counted as eaten/)).not.toBeInTheDocument();
+  });
+
   it("aims a day its plan skips at the profile's own target, and says so", async () => {
     const plan = aDay().plan!;
     await renderPage(

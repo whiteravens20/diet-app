@@ -472,7 +472,10 @@
     "planUnder": "Under target",
     "planOverNote": "With what the diary holds counted as eaten, the plan's day is {kcal, number} kcal over its target.",
     "planUnderNote": "With what the diary holds counted as eaten, the plan's day is {kcal, number} kcal under its target.",
+    "planOverPlain": "The plan's day is {kcal, number} kcal over its target.",
+    "planUnderPlain": "The plan's day is {kcal, number} kcal under its target.",
     "planOnTarget": "With what the diary holds counted as eaten, the plan's day stays within its target.",
+    "planOnTargetPlain": "The plan's day stays within its target.",
     "rebalance": "Resize the plan's meals",
     "rebalanceNote": "The meals of the plan's day that are not eaten get other portions, so that the day comes back to its target. The entries and the eaten meals stay as they are.",
     "openPlan": "Open the plan",
@@ -533,7 +536,7 @@
     "pickRecipeFirst": "Find and pick a recipe first.",
     "pickIngredientFirst": "Find and pick an ingredient first.",
     "copySameDay": "Pick a day other than this one.",
-    "planPastNote": "This day is over: what it is off by can be spread over the plan's days from today on, on the plan's page."
+    "planPastNote": "This day is over. If the plan still has days from today on, what it is off by can be spread over them on the plan's page."
   },
   "favoriteSets": {
     "title": "Favourite sets",

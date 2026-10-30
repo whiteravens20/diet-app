@@ -517,6 +517,10 @@ function DaySummary({
   const id = useId();
   const share = day.target.calories > 0 ? Math.min(1, day.eaten.calories / day.target.calories) : 0;
   const plan = day.plan;
+  // Where nothing is written, the plan's day stands as its own meals put it.
+  const written = day.entries.length > 0;
+  // A meal from a recipe that is not eaten yet is all a rebalance moves.
+  const resizable = plan?.meals.some((meal) => !meal.eaten && meal.recipeId !== null) ?? false;
   return (
     <Card>
       <CardHeader>
@@ -561,9 +565,16 @@ function DaySummary({
                     {t(plan.offTarget === 'over' ? 'planOver' : 'planUnder')}
                   </span>
                   <span>
-                    {t(plan.offTarget === 'over' ? 'planOverNote' : 'planUnderNote', {
-                      kcal: Math.abs(plan.calorieDelta),
-                    })}
+                    {t(
+                      plan.offTarget === 'over'
+                        ? written
+                          ? 'planOverNote'
+                          : 'planOverPlain'
+                        : written
+                          ? 'planUnderNote'
+                          : 'planUnderPlain',
+                      { kcal: Math.abs(plan.calorieDelta) },
+                    )}
                   </span>
                 </p>
                 {past ? (
@@ -588,7 +599,9 @@ function DaySummary({
                 )}
               </>
             ) : (
-              <p className="text-muted-foreground">{t('planOnTarget')}</p>
+              <p className="text-muted-foreground">
+                {t(written ? 'planOnTarget' : 'planOnTargetPlain')}
+              </p>
             )}
             <Link
               href={`/meal-plans?profile=${day.profileId}&plan=${plan.id}&day=${day.date}`}
