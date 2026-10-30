@@ -343,6 +343,36 @@ describe('the diary of a profile', () => {
       expect((await dayOf(day(-DIARY_DAYS_BACK - 30))).entries).toEqual([]);
     });
 
+    it('shows the amount as it was written, however it would be rounded on a shopping list', async () => {
+      const rice = await ingredient('white-rice');
+      const egg = await ingredient('large-egg');
+      const bread = await ingredient('wholegrain-bread');
+      const shown = async (amount: { quantity: number; unit: string }, ingredientId: string) =>
+        (await written({ kind: 'ingredient', ingredientId, amount })).amount!.shown;
+
+      expect(await shown({ quantity: 13, unit: 'g' }, rice.id)).toEqual({
+        quantity: 13,
+        unit: 'g',
+      });
+      expect(await shown({ quantity: 123, unit: 'g' }, rice.id)).toEqual({
+        quantity: 123,
+        unit: 'g',
+      });
+      expect(await shown({ quantity: 100, unit: 'g' }, egg.id)).toEqual({
+        quantity: 100,
+        unit: 'g',
+      });
+      expect(await shown({ quantity: 1.3, unit: 'piece' }, egg.id)).toEqual({
+        quantity: 1.3,
+        unit: 'piece',
+      });
+      // A piece goes by what the ingredient calls it.
+      expect(await shown({ quantity: 3, unit: 'piece' }, bread.id)).toEqual({
+        quantity: 3,
+        unit: 'slice',
+      });
+    });
+
     it('is one of at most forty a day, however many requests come together', async () => {
       await t.prisma.diaryEntry.createMany({
         data: Array.from({ length: MAX_DIARY_ENTRIES_A_DAY - 5 }, () => ({

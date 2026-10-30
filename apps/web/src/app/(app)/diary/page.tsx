@@ -14,6 +14,7 @@ import type {
   DiaryDay,
   DiaryEntry,
   DiaryPlanMeal,
+  DisplayAmount,
   MealType,
   Profile,
   RebalanceRequest,
@@ -28,7 +29,7 @@ import {
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
-import { useAmount } from '@/lib/ingredient-format';
+import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { dayAfter } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -604,7 +605,14 @@ function MealSection({
   const t = useTranslations('diary');
   const tMeal = useTranslations('enums.mealType');
   const amount = useAmount();
+  const unitName = useUnitName();
+  const fmt = useFormat();
   const id = useId();
+  // Weights and volumes as they were written, a part of a gram in the reader's own numbers; what is counted has its plurals.
+  const written = ({ quantity, unit }: DisplayAmount): string =>
+    unit === 'g' || unit === 'ml'
+      ? `${fmt.number(quantity, 2)} ${unitName(unit)}`
+      : amount(quantity, unit);
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
   const entries = day.entries.filter((entry) => entry.mealType === slot);
   return (

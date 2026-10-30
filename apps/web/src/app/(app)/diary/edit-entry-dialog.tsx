@@ -81,7 +81,7 @@ export function EditEntryDialog({
         </Field>
         {entry.amount ? (
           // The amount as it was given, in the unit it was given in.
-          <Field label={`${t('quantity')} (${unitName(entry.amount.unit)})`}>
+          <Field label={`${t('quantity')} (${unitName(entry.amount.shown.unit)})`}>
             <Input
               type="number"
               inputMode="decimal"

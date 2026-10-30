@@ -116,8 +116,9 @@ export const DiaryEntry = z.object({
   /** Servings of a recipe or of a meal of one's own; null for an ingredient. */
   servings: z.number().nullable(),
   /**
-   * The amount of an ingredient as it was given, and as a person reads it;
-   * null for the other kinds.
+   * The amount of an ingredient as it was given, and the same amount in the
+   * words a person reads it in, a piece by what the ingredient calls it; null
+   * for the other kinds.
    */
   amount: z.object({ quantity: z.number(), unit: Unit, shown: DisplayAmount }).nullable(),
   /** What it comes to, as it was worked out when it was written. */

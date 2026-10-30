@@ -28,7 +28,6 @@ import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
   calculateCalories,
-  displayAmount,
   estimatedMacros,
   macroSplitOf,
   macrosForCalories,
@@ -94,11 +93,7 @@ const entryWith = (locale: Locale) =>
     ingredient: {
       select: {
         name: true,
-        canonicalUnit: true,
-        gramsPerPiece: true,
-        density: true,
         displayUnit: true,
-        perTeaspoon: true,
         translations: {
           where: { locale: { in: languages(locale) } },
           select: { locale: true, name: true },
@@ -667,17 +662,11 @@ export class DiaryService {
           ? {
               quantity: row.quantity,
               unit: row.unit,
-              // An ingredient that is gone is shown in the unit it was given in.
-              shown: displayAmount(
-                row.quantity,
-                row.unit,
-                row.ingredient ?? {
-                  canonicalUnit: row.unit,
-                  gramsPerPiece: null,
-                  density: null,
-                  displayUnit: null,
-                },
-              ),
+              // What was written is what was eaten: nothing rounds it, and a piece goes by the ingredient's word for it.
+              shown: {
+                quantity: row.quantity,
+                unit: row.unit === 'piece' ? (row.ingredient?.displayUnit ?? 'piece') : row.unit,
+              },
             }
           : null,
       nutrition: wholeFigures(row),

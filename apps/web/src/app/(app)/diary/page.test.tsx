@@ -340,6 +340,39 @@ describe('the diary', () => {
     );
   });
 
+  it('shows an amount of an ingredient as it was written, and asks for a change in the same words', async () => {
+    await renderPage(
+      aDay({
+        entries: [
+          anEntry({
+            kind: 'ingredient',
+            name: 'Bread',
+            servings: null,
+            amount: { quantity: 2.5, unit: 'piece', shown: { quantity: 2.5, unit: 'slice' } },
+            estimated: false,
+          }),
+          anEntry({
+            id: '55555555-5555-4555-8555-555555555552',
+            kind: 'ingredient',
+            name: 'Rice',
+            servings: null,
+            amount: { quantity: 12.5, unit: 'g', shown: { quantity: 12.5, unit: 'g' } },
+            estimated: false,
+          }),
+        ],
+        estimated: false,
+      }),
+    );
+    const user = userEvent.setup();
+
+    expect(screen.getByText(/2\.5 slices/)).toBeInTheDocument();
+    expect(screen.getByText(/12\.5 g/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Change Bread' }));
+
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    expect(window.getByRole('spinbutton', { name: `${texts.quantity} (slices)` })).toHaveValue(2.5);
+  });
+
   it('copies another day into this one, and says how many entries came', async () => {
     await renderPage();
     const posted = vi.spyOn(api, 'post').mockResolvedValue({ copied: 2, day: aDay() } as never);
