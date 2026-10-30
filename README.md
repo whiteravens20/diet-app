@@ -33,6 +33,11 @@ The companion Android app lives in a separate repository:
   has a dish cooked once for two days. A day of a plan under way can be set apart (a
   training or rest day, skipped, another number of meals, a target of its own), with what
   that does to its meals said before it is saved.
+- **A diary of the day** — what was eaten, planned or not: a recipe in servings, an
+  ingredient in an amount, or a meal by its figures, by its calories alone if need be, the
+  rest then estimated and marked as an estimate. An entry keeps the figures it was written
+  with, a day shows what was eaten against its target, and a plan's days count the entries
+  as eaten whenever they are resized or filled again.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. A user can also
   write recipes of their own by hand from the catalogue's ingredients, and the engine works

@@ -212,14 +212,16 @@ end. The limits are part of the application, not settings.
 | Recipes a profile has marked             | 500                   |
 | Favorite sets of a profile               | 50                    |
 | Rows in the pantry of a profile          | 1000                  |
+| Diary entries of a profile on one day    | 40                    |
 | Shopping lists of a plan                 | 10                    |
 | AI provider configurations of an account | One for each provider |
 
-A request that would go over one is answered `409` with a code that says which. Longer
-lists come a page at a time (recipes, plans, the drafts of the admin panel), and three
-show only their newest entries: the 1000 newest weights of a profile, the 50 newest unread
-notifications, and the 50 sessions of an account that were used last. Signing out
-everywhere ends the sessions the list does not show, too.
+A request that would go over one is answered `409` with a code that says which. The diary
+takes a new entry for today or a day at most a year back, so once that year is full it grows
+by at most 40 entries a day. Longer lists come a page at a time (recipes, plans, the drafts
+of the admin panel), and three show only their newest entries: the 1000 newest weights of a
+profile, the 50 newest unread notifications, and the 50 sessions of an account that were used
+last. Signing out everywhere ends the sessions the list does not show, too.
 
 ### What a page may load
 

@@ -83,9 +83,9 @@ Two rules apply to every variable:
 
 ## Accounts
 
-| Variable                   | Default | Purpose                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MAX_PROFILES_PER_ACCOUNT` | `2`     | How many profiles one account may hold, from 1 to 20: one for each member of a household, or to compare diets. Every profile has its own plans, shopping lists, pantry and favourites, so the number is also how much one account can store. Lowering it takes no profile away: an account that has more keeps them, and can add none. The web app reads the number from the API. |
+| Variable                   | Default | Purpose                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAX_PROFILES_PER_ACCOUNT` | `2`     | How many profiles one account may hold, from 1 to 20: one for each member of a household, or to compare diets. Every profile has its own plans, shopping lists, diary, pantry and favourites, so the number is also how much one account can store. Lowering it takes no profile away: an account that has more keeps them, and can add none. The web app reads the number from the API. |
 
 ## Plans
 

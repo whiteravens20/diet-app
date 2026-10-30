@@ -12,7 +12,7 @@ Diet App has no release yet and is not production ready. Until the first release
 
 ## Security checklist
 
-What the code guarantees today, and what it deliberately does not protect against. Diet App stores personal health-adjacent data (age, weight, dietary preferences, allergens) and the AI provider keys its users supply.
+What the code guarantees today, and what it deliberately does not protect against. Diet App stores personal health-adjacent data (age, weight, dietary preferences, allergens, what was eaten) and the AI provider keys its users supply.
 
 ### Authentication and Sessions
 
