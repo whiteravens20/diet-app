@@ -56,7 +56,7 @@ export function EditEntryDialog({
       <div className="flex items-center justify-between border-b border-border p-4">
         <div className="min-w-0">
           <h2 className="font-semibold">{t('editTitle')}</h2>
-          <p className="text-xs text-muted-foreground">{entry.name}</p>
+          <p className="break-words text-xs text-muted-foreground">{entry.name}</p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon('close')}

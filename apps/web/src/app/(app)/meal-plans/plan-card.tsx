@@ -604,7 +604,7 @@ export function PlanCard({
                   return (
                     <li key={m.id} className="space-y-1">
                       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-                        <span className="min-w-0 flex-1 basis-64">
+                        <span className="min-w-0 flex-1 basis-64 break-words">
                           <input
                             type="checkbox"
                             className="mr-2 h-4 w-4 align-middle"

@@ -704,7 +704,7 @@ function MealSection({
           {planned.map((meal) => (
             <li key={meal.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-48">
-                <p id={`${id}-${meal.id}`} className="text-sm font-medium">
+                <p id={`${id}-${meal.id}`} className="break-words text-sm font-medium">
                   {meal.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -727,7 +727,7 @@ function MealSection({
           {entries.map((entry) => (
             <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-48">
-                <p className="text-sm font-medium">{entry.name}</p>
+                <p className="break-words text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {entry.amount
                     ? written(entry.amount.shown)
@@ -739,7 +739,9 @@ function MealSection({
                   {entry.estimated && (
                     <>
                       {' · '}
-                      <span className="font-medium text-foreground">≈ {t('estimated')}</span>
+                      <span className="whitespace-nowrap font-medium text-foreground">
+                        ≈ {t('estimated')}
+                      </span>
                     </>
                   )}
                 </p>

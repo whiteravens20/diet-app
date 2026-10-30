@@ -425,7 +425,7 @@ function Picked({ name, about, onAgain }: { name: string; about: string; onAgain
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
       <div className="min-w-0">
-        <p className="text-sm font-medium">{name}</p>
+        <p className="break-words text-sm font-medium">{name}</p>
         <p className="text-xs text-muted-foreground">{about}</p>
       </div>
       <Button type="button" variant="ghost" size="sm" onClick={onAgain}>
@@ -485,7 +485,7 @@ function Search({
                   className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                   onClick={item.pick}
                 >
-                  <span className="text-sm font-medium">{item.name}</span>
+                  <span className="max-w-full break-words text-sm font-medium">{item.name}</span>
                   <span className="text-xs text-muted-foreground">{item.about}</span>
                 </button>
               </li>
