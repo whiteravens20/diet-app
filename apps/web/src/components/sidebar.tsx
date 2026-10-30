@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  NotebookPen,
   Package,
   Settings,
   ShoppingBasket,
@@ -31,6 +32,7 @@ import { NotificationsBell } from '@/components/notifications-bell';
 
 const NAV = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
+  { href: '/diary', labelKey: 'diary', icon: NotebookPen },
   { href: '/profile', labelKey: 'profiles', icon: UserRound },
   { href: '/calculator', labelKey: 'calculator', icon: Calculator },
   { href: '/meal-plans', labelKey: 'mealPlans', icon: CalendarRange },

@@ -11,6 +11,13 @@ export function planDates(startDate: string, durationDays: number): string[] {
   });
 }
 
+/** The calendar day `days` days after `day`, or before it when `days` is negative. */
+export function dayAfter(day: string, days: number): string {
+  const moved = new Date(`${day}T00:00:00Z`);
+  moved.setUTCDate(moved.getUTCDate() + days);
+  return moved.toISOString().slice(0, 10);
+}
+
 /** The first day of the month a calendar day lies in. */
 export function monthOf(day: string): string {
   return `${day.slice(0, 7)}-01`;

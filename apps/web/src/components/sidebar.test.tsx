@@ -90,6 +90,7 @@ describe('the navigation of a signed-in account', () => {
     const links = beside.getAllByRole('link');
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/dashboard',
+      '/diary',
       '/profile',
       '/calculator',
       '/meal-plans',
@@ -124,7 +125,7 @@ describe('the navigation of a signed-in account', () => {
     await userEvent.click(menuButton());
 
     expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
-    expect(within(drawer()!).getAllByRole('link')).toHaveLength(9);
+    expect(within(drawer()!).getAllByRole('link')).toHaveLength(10);
     expect(within(drawer()!).getByRole('link', { name: messages.nav.mealPlans })).toHaveAttribute(
       'aria-current',
       'page',

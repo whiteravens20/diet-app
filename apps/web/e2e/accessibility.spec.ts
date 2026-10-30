@@ -25,6 +25,7 @@ test.describe('a page anybody can open has nothing that keeps somebody from usin
 test.describe('a page of a signed-in account has nothing that keeps somebody from using it', () => {
   for (const path of [
     '/dashboard',
+    '/diary',
     '/profile',
     '/calculator',
     '/recipes',

@@ -7,6 +7,7 @@
  */
 export const ACCOUNT_PAGES = [
   '/dashboard',
+  '/diary',
   '/profile',
   '/calculator',
   '/recipes',

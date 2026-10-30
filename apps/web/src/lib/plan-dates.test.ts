@@ -2,7 +2,7 @@
 
 import { MAX_CALENDAR_DAYS } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
-import { monthAfter, monthOf, planDates, weeksOf } from './plan-dates';
+import { dayAfter, monthAfter, monthOf, planDates, weeksOf } from './plan-dates';
 
 describe('the days of a plan', () => {
   it('are as many as the plan is long, from its first day on, over the end of a month', () => {
@@ -14,6 +14,16 @@ describe('the days of a plan', () => {
     ]);
     expect(planDates('not a day', 3)).toEqual([]);
     expect(planDates('2026-01-30', 0)).toEqual([]);
+  });
+});
+
+describe('the day before and after another', () => {
+  it('is found over the end of a month, of a February and of a year, and over a change of the clocks', () => {
+    expect(dayAfter('2026-01-31', 1)).toBe('2026-02-01');
+    expect(dayAfter('2028-03-01', -1)).toBe('2028-02-29');
+    expect(dayAfter('2026-12-31', 1)).toBe('2027-01-01');
+    expect(dayAfter('2026-03-29', 1)).toBe('2026-03-30');
+    expect(dayAfter('2026-10-30', -7)).toBe('2026-10-23');
   });
 });
 
