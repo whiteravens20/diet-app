@@ -6,6 +6,8 @@ import {
   COOKING_METHODS,
   CUISINES,
   DIET_TYPES,
+  FIRST_DAY,
+  LAST_DAY,
   MEAL_TYPES,
   RECIPE_DIET_TAGS,
 } from './constants.js';
@@ -50,10 +52,6 @@ export type WeeklyLossTarget = z.infer<typeof WeeklyLossTarget>;
 /** Meal slot within a day. The active set depends on the profile meal count (2-5). */
 export const MealType = z.enum(MEAL_TYPES);
 export type MealType = z.infer<typeof MealType>;
-
-/** The first and the last day a request may name. */
-export const FIRST_DAY = '2000-01-01';
-export const LAST_DAY = '2100-12-31';
 
 /**
  * A calendar day a client names, as `2026-03-01`: a day there is, in the

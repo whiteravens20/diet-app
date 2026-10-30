@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -353,6 +353,29 @@ describe('the diary', () => {
     expect(screen.queryByText(texts.targetFromProfile)).not.toBeInTheDocument();
     expect(screen.queryByText(texts.targetFromPlan)).not.toBeInTheDocument();
     expect(screen.queryByText(texts.planOnTarget)).not.toBeInTheDocument();
+  });
+
+  it('goes to today when the address names a day no request may name', async () => {
+    address.search = 'date=1999-12-31';
+    await renderPage();
+
+    expect(askedDays).toEqual([TODAY]);
+  });
+
+  it('asks for no day while a year is being typed, and for the day once it is whole', async () => {
+    await renderPage();
+    const day = screen.getByLabelText(texts.dayLabel);
+    const typed = dayAfter(TODAY, -2);
+
+    // A date field names a day at every step of a year being typed.
+    fireEvent.change(day, { target: { value: `0002${typed.slice(4)}` } });
+    fireEvent.change(day, { target: { value: `0202${typed.slice(4)}` } });
+    expect(askedDays).toEqual([TODAY]);
+    expect(day).toHaveValue(`0202${typed.slice(4)}`);
+
+    fireEvent.change(day, { target: { value: typed } });
+    await screen.findByDisplayValue(typed);
+    expect(askedDays).toEqual([TODAY, typed]);
   });
 
   it('shows a meal copied from a plan in round servings, and leaves them alone when only its meal changes', async () => {

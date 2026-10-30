@@ -130,6 +130,10 @@ export const OWN_MEAL_LIMITS = {
   perServing: { calories: 5000, protein: 500, fat: 500, carbs: 1000 },
 } as const;
 
+/** The first and the last day a request may name. */
+export const FIRST_DAY = '2000-01-01';
+export const LAST_DAY = '2100-12-31';
+
 /** The most entries a day of a profile's diary holds. */
 export const MAX_DIARY_ENTRIES_A_DAY = 40;
 

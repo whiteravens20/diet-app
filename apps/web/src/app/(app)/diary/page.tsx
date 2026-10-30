@@ -23,6 +23,8 @@ import type {
 } from '@diet-app/shared';
 import {
   DIARY_DAYS_BACK,
+  FIRST_DAY,
+  LAST_DAY,
   MAX_DIARY_ENTRIES_A_DAY,
   MEAL_SLOTS_BY_COUNT,
 } from '@diet-app/shared/constants';
@@ -49,13 +51,15 @@ const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
-/** A calendar day as an address writes it, and one there is. */
+/** A calendar day as an address writes it, one there is, in the years a request may name. */
 function isDay(text: string | null): text is string {
   return (
     text !== null &&
     /^\d{4}-\d{2}-\d{2}$/.test(text) &&
     !Number.isNaN(Date.parse(`${text}T00:00:00Z`)) &&
-    new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) === text
+    new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) === text &&
+    text >= FIRST_DAY &&
+    text <= LAST_DAY
   );
 }
 
@@ -435,6 +439,13 @@ function DayPicker({
   const t = useTranslations('diary');
   const fmt = useFormat();
   const id = useId();
+  // What the field holds while a day is typed into it: every step of typing a year names a day, and only one a request may name is gone to.
+  const [typed, setTyped] = useState(date);
+  const [typedFor, setTypedFor] = useState(date);
+  if (typedFor !== date) {
+    setTypedFor(date);
+    setTyped(date);
+  }
   return (
     <div className="flex flex-wrap items-end gap-2">
       <Button
@@ -442,6 +453,7 @@ function DayPicker({
         variant="outline"
         size="sm"
         aria-label={t('previousDay')}
+        disabled={date <= FIRST_DAY}
         onClick={() => onPick(dayAfter(date, -1))}
       >
         <ChevronLeft className="h-4 w-4" />
@@ -453,10 +465,14 @@ function DayPicker({
         <Input
           id={id}
           type="date"
-          value={date}
+          value={typed}
+          min={FIRST_DAY}
+          max={LAST_DAY}
           onChange={(e) => {
+            setTyped(e.target.value);
             if (isDay(e.target.value)) onPick(e.target.value);
           }}
+          onBlur={() => setTyped(date)}
           className="w-44"
         />
       </div>
@@ -465,6 +481,7 @@ function DayPicker({
         variant="outline"
         size="sm"
         aria-label={t('nextDay')}
+        disabled={date >= LAST_DAY}
         onClick={() => onPick(dayAfter(date, 1))}
       >
         <ChevronRight className="h-4 w-4" />
@@ -756,6 +773,7 @@ function CopyDay({
               id={id}
               type="date"
               value={from}
+              min={FIRST_DAY}
               max={today}
               onChange={(e) => setFrom(e.target.value)}
               className="w-44"

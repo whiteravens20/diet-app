@@ -2,16 +2,8 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
-import { OWN_MEAL_LIMITS } from './constants.js';
-import {
-  CalendarDay,
-  dayAfter,
-  DietType,
-  DisplayAmount,
-  LAST_DAY,
-  MealType,
-  Unit,
-} from './enums.js';
+import { LAST_DAY, OWN_MEAL_LIMITS } from './constants.js';
+import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import {
   EnteredNutrition,
