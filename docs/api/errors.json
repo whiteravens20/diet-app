@@ -251,6 +251,15 @@
       "pl": "Dziennik nie zmieści więcej wpisów na ten dzień: usuń któreś, aby dodać inne."
     }
   },
+  "DIARY_DAY_TOO_OLD": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The diary takes new entries at most a year back.",
+      "pl": "Dziennik przyjmuje nowe wpisy najwyżej rok wstecz."
+    }
+  },
   "DIARY_ENTRY_NOT_FOUND": {
     "statuses": [
       404

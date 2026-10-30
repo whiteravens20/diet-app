@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 154 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 155 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -36,6 +36,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
 | `DIARY_DAY_AHEAD` | 409 | The diary takes today and the days before it, not a day still to come. | Dziennik przyjmuje dzisiejszy dzień i dni wcześniejsze, nie dzień, który dopiero nadejdzie. |
 | `DIARY_DAY_FULL` | 409 | The diary holds no more entries for this day: remove some to add others. | Dziennik nie zmieści więcej wpisów na ten dzień: usuń któreś, aby dodać inne. |
+| `DIARY_DAY_TOO_OLD` | 409 | The diary takes new entries at most a year back. | Dziennik przyjmuje nowe wpisy najwyżej rok wstecz. |
 | `DIARY_ENTRY_NOT_FOUND` | 404 | Diary entry not found. | Nie znaleziono wpisu w dzienniku. |
 | `DIARY_MACROS_OVER_ENERGY` | 400 | The protein, fat and carbohydrate you gave hold more energy than the calories you gave. Check the figures. | Podane białko, tłuszcz i węglowodany mają więcej energii niż podane kalorie. Sprawdź wartości. |
 | `DIARY_UNIT_NOT_CONVERTIBLE` | 400 | This ingredient can't be given in that unit. Choose one of the units offered for it. | Tego składnika nie można podać w tej jednostce. Wybierz jedną z jednostek, które są dla niego dostępne. |

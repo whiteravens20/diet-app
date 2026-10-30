@@ -134,6 +134,13 @@ export const OWN_MEAL_LIMITS = {
 export const MAX_DIARY_ENTRIES_A_DAY = 40;
 
 /**
+ * How many days back a day of the diary still takes a new entry: a year, of a
+ * leap year too. With the most a day holds, this bounds what a profile's diary
+ * can pile up at once, however fast its requests come.
+ */
+export const DIARY_DAYS_BACK = 366;
+
+/**
  * The most of one ingredient a diary entry may hold, in the unit it is given
  * in: more than anybody eats of one food in a day, and a bound on a slip of
  * the keyboard.

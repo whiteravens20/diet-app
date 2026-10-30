@@ -412,6 +412,7 @@
     "WEIGHT_ENTRY_NOT_FOUND": "Weight entry not found.",
     "DIARY_ENTRY_NOT_FOUND": "Diary entry not found.",
     "DIARY_DAY_AHEAD": "The diary takes today and the days before it, not a day still to come.",
+    "DIARY_DAY_TOO_OLD": "The diary takes new entries at most a year back.",
     "DIARY_DAY_FULL": "The diary holds no more entries for this day: remove some to add others.",
     "DIARY_MACROS_OVER_ENERGY": "The protein, fat and carbohydrate you gave hold more energy than the calories you gave. Check the figures.",
     "DIARY_UNIT_NOT_CONVERTIBLE": "This ingredient can't be given in that unit. Choose one of the units offered for it.",

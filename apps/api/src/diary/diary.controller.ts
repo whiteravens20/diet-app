@@ -54,12 +54,12 @@ export class DiaryController {
   }
 
   /**
-   * Write an entry for a day of today or before it, by the client's day
-   * (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a
-   * meal of one's own by its figures, those of its macronutrients left out
-   * estimated from its energy. Its figures are worked out now and kept. Sent
-   * again with the same `Idempotency-Key` within a week, it is answered with
-   * the entry the first request wrote and writes nothing.
+   * Write an entry for a day of today or at most a year before it, by the
+   * client's day (`X-Client-Date`): a recipe in servings, an ingredient in an
+   * amount, or a meal of one's own by its figures, those of its macronutrients
+   * left out estimated from its energy. Its figures are worked out now and
+   * kept. Sent again with the same `Idempotency-Key` within a week, it is
+   * answered with the entry the first request wrote and writes nothing.
    */
   @Post('entries')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
@@ -96,11 +96,11 @@ export class DiaryController {
   }
 
   /**
-   * Copy what was eaten on one day into another of today or before it: the
-   * entries of the day, and the meals its plan marked as eaten, which come in
-   * as entries. Nothing is copied where the day would then hold more than the
-   * most. Sent again with the same `Idempotency-Key` within a week, it is
-   * answered with the day as it is now and copies nothing.
+   * Copy what was eaten on one day into another of today or at most a year
+   * before it: the entries of the day, and the meals its plan marked as eaten,
+   * which come in as entries. Nothing is copied where the day would then hold
+   * more than the most. Sent again with the same `Idempotency-Key` within a
+   * week, it is answered with the day as it is now and copies nothing.
    */
   @Post('copy')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })

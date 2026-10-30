@@ -11,7 +11,7 @@ import type {
   Profile,
   RebalanceResult,
 } from '@diet-app/shared';
-import { MAX_DIARY_ENTRIES_A_DAY } from '@diet-app/shared';
+import { DIARY_DAYS_BACK, MAX_DIARY_ENTRIES_A_DAY } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -282,6 +282,65 @@ describe('the diary of a profile', () => {
       }).expect(201);
 
       expect(ahead.body.error).toBe('DIARY_DAY_AHEAD');
+    });
+
+    it('is written at most a year back, and naming an older today gets no further', async () => {
+      const entry = (date: string) => ({
+        kind: 'meal',
+        name: 'Long ago',
+        nutrition: { calories: 100 },
+        date,
+      });
+      const oldest = day(-DIARY_DAYS_BACK);
+      const older = day(-DIARY_DAYS_BACK - 1);
+
+      await write(entry(oldest)).expect(201);
+      const refused = await write(entry(older)).expect(409);
+      // A client whose day is still yesterday reaches a day further, and that is all it can do.
+      await write(entry(older), { today: day(-1) }).expect(201);
+      const named = await write(entry(day(-DIARY_DAYS_BACK - 2)), { today: day(-1) }).expect(409);
+      await write(entry(older), { today: older }).expect(400);
+      // A client that names no day goes by the server's.
+      const unnamed = await t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(user))
+        .send({ profileId: profile.id, mealType: 'lunch', ...entry(older) })
+        .expect(409);
+
+      expect([refused.body.error, named.body.error, unnamed.body.error]).toEqual([
+        'DIARY_DAY_TOO_OLD',
+        'DIARY_DAY_TOO_OLD',
+        'DIARY_DAY_TOO_OLD',
+      ]);
+    });
+
+    it('can still be changed and removed once its day is more than a year back', async () => {
+      const row = await t.prisma.diaryEntry.create({
+        data: {
+          profileId: profile.id,
+          date: new Date(day(-DIARY_DAYS_BACK - 30)),
+          mealType: 'lunch',
+          kind: 'meal',
+          name: 'Long ago',
+          servings: 1,
+          calories: 100,
+          protein: 5,
+          fat: 2,
+          carbs: 15,
+        },
+      });
+
+      const changed = await t
+        .http()
+        .patch(`/api/diary/entries/${row.id}`)
+        .set(as(user))
+        .send({ servings: 2 })
+        .expect(200);
+      await t.http().delete(`/api/diary/entries/${row.id}`).set(as(user)).expect(204);
+
+      expect(changed.body.nutrition.calories).toBe(200);
+      expect((await dayOf(day(-DIARY_DAYS_BACK - 30))).entries).toEqual([]);
     });
 
     it('is one of at most forty a day, however many requests come together', async () => {
@@ -802,6 +861,31 @@ describe('the diary of a profile', () => {
 
       expect(ahead.body.error).toBe('DIARY_DAY_AHEAD');
       expect(itself.body.error).toBe('VALIDATION_FAILED');
+    });
+
+    it('goes into a day at most a year back, and may come from a day older than that', async () => {
+      const long = day(-DIARY_DAYS_BACK - 30);
+      await t.prisma.diaryEntry.create({
+        data: {
+          profileId: profile.id,
+          date: new Date(long),
+          mealType: 'lunch',
+          kind: 'meal',
+          name: 'Long ago',
+          servings: 1,
+          calories: 100,
+          protein: 5,
+          fat: 2,
+          carbs: 15,
+        },
+      });
+
+      const refused = await copy({ from: long, to: day(-DIARY_DAYS_BACK - 1) }).expect(409);
+      const copied = (await copy({ from: long, to: day(-DIARY_DAYS_BACK) }).expect(201))
+        .body as DiaryCopyResult;
+
+      expect(refused.body.error).toBe('DIARY_DAY_TOO_OLD');
+      expect(copied.copied).toBe(1);
     });
   });
 

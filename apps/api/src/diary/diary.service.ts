@@ -8,8 +8,10 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
+  DIARY_DAYS_BACK,
   DIARY_QUANTITY_LIMITS,
   MAX_DIARY_ENTRIES_A_DAY,
+  dayAfter,
   type CopyDiaryDayRequest,
   type CreateDiaryEntryRequest,
   type DiaryCopyResult,
@@ -220,10 +222,11 @@ export class DiaryService {
   }
 
   /**
-   * Write an entry for a day of today or before it (`today` is the client's
-   * day). A day holds at most `MAX_DIARY_ENTRIES_A_DAY`, counted while the
-   * profile is held. Sent again with its key, the request is answered with
-   * the entry the first one wrote, and writes nothing.
+   * Write an entry for a day of today or at most `DIARY_DAYS_BACK` days before
+   * it (`today` is the client's day). A day holds at most
+   * `MAX_DIARY_ENTRIES_A_DAY`, counted while the profile is held. Sent again
+   * with its key, the request is answered with the entry the first one wrote,
+   * and writes nothing.
    */
   create(
     userId: string,
@@ -232,7 +235,7 @@ export class DiaryService {
     key: string | null,
     today: string | null,
   ): Promise<DiaryEntry> {
-    this.refuseDayAhead(req.date, today);
+    this.refuseDayOutside(req.date, today);
     return writeOnce(this.prisma, {
       userId,
       key,
@@ -309,11 +312,12 @@ export class DiaryService {
   }
 
   /**
-   * Copy what was eaten on one day into another of today or before it: the
-   * entries of `from`, and the meals its plan marked as eaten, which come in
-   * as entries with their figures as they are now. Nothing is copied when the
-   * day it goes to would hold more than the most. Sent again with its key,
-   * the request is answered with the day as it is now, and copies nothing.
+   * Copy what was eaten on one day into another of today or at most
+   * `DIARY_DAYS_BACK` days before it: the entries of `from`, and the meals its
+   * plan marked as eaten, which come in as entries with their figures as they
+   * are now. Nothing is copied when the day it goes to would hold more than
+   * the most. Sent again with its key, the request is answered with the day as
+   * it is now, and copies nothing.
    */
   copy(
     userId: string,
@@ -322,7 +326,7 @@ export class DiaryService {
     key: string | null,
     today: string | null,
   ): Promise<DiaryCopyResult> {
-    this.refuseDayAhead(req.to, today);
+    this.refuseDayOutside(req.to, today);
     const { profileId, from, to } = req;
     return writeOnce(this.prisma, {
       userId,
@@ -459,13 +463,23 @@ export class DiaryService {
     return this.toDto(row, locale);
   }
 
-  /** A day of the diary takes no entry before it has come. */
-  private refuseDayAhead(date: string, today: string | null): void {
+  /**
+   * A day of the diary takes no entry before it has come, nor once it is more
+   * than `DIARY_DAYS_BACK` days back: what it holds by then can still be changed.
+   */
+  private refuseDayOutside(date: string, today: string | null): void {
+    const now = today ?? isoDate(new Date());
     // Dates in this form compare as text.
-    if (date > (today ?? isoDate(new Date()))) {
+    if (date > now) {
       throw new ConflictException({
         error: 'DIARY_DAY_AHEAD',
         message: 'The diary takes today and the days before it, not a day still to come.',
+      });
+    }
+    if (date < dayAfter(now, -DIARY_DAYS_BACK)) {
+      throw new ConflictException({
+        error: 'DIARY_DAY_TOO_OLD',
+        message: 'The diary takes a new entry at most a year back.',
       });
     }
   }
