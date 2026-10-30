@@ -20,7 +20,11 @@ import type {
   RebalanceResult,
   UpdateDiaryEntryRequest,
 } from '@diet-app/shared';
-import { MAX_DIARY_ENTRIES_A_DAY, MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
+import {
+  DIARY_DAYS_BACK,
+  MAX_DIARY_ENTRIES_A_DAY,
+  MEAL_SLOTS_BY_COUNT,
+} from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
@@ -57,8 +61,8 @@ function isDay(text: string | null): text is string {
 /**
  * The diary: what a profile ate on a day, the meals its plan marks as eaten
  * and the entries written for the day, against the day's target. A day of
- * today or before it takes entries; a link from a plan names the day
- * (`?profile=&date=`).
+ * today or of the year before it takes entries; a link from a plan names the
+ * day (`?profile=&date=`).
  */
 export default function DiaryPage() {
   return (
@@ -200,6 +204,7 @@ function DiaryContent() {
 
   const shown = day.data;
   const ahead = date > today;
+  const tooOld = date < dayAfter(today, -DIARY_DAYS_BACK);
   const full = (shown?.entries.length ?? 0) >= MAX_DIARY_ENTRIES_A_DAY;
   // The meals the day has: those of its plan and those something was written for, in the order they are eaten.
   const meals = shown
@@ -267,6 +272,8 @@ function DiaryContent() {
 
             {ahead ? (
               <p className="text-sm text-muted-foreground">{t('aheadNote')}</p>
+            ) : tooOld ? (
+              <p className="text-sm text-muted-foreground">{t('tooOldNote')}</p>
             ) : full ? (
               <p className="text-sm text-muted-foreground">
                 {t('fullNote', { count: MAX_DIARY_ENTRIES_A_DAY })}
@@ -294,7 +301,7 @@ function DiaryContent() {
                   key={slot}
                   slot={slot}
                   day={shown}
-                  canAdd={!ahead && !full}
+                  canAdd={!ahead && !tooOld && !full}
                   busy={busy}
                   onAdd={() => {
                     setDialogError(null);
@@ -313,7 +320,7 @@ function DiaryContent() {
               ))
             )}
 
-            {!ahead && (
+            {!ahead && !tooOld && (
               <CopyDay
                 key={date}
                 date={date}

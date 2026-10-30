@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DiaryDay, DiaryEntry } from '@diet-app/shared';
+import { DIARY_DAYS_BACK } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
@@ -160,6 +161,30 @@ describe('the diary', () => {
     expect(screen.getByText(texts.aheadNote)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: texts.addTitle })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: texts.copyTitle })).not.toBeInTheDocument();
+  });
+
+  it('takes no new entry for a day more than a year back, and says so, and what the day holds can still be changed', async () => {
+    const long = dayAfter(TODAY, -DIARY_DAYS_BACK - 1);
+    address.search = `date=${long}`;
+    await renderPage(aDay({ date: long }));
+
+    expect(screen.getByText(texts.tooOldNote)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: texts.addTitle })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: texts.copyTitle })).not.toBeInTheDocument();
+    const lunch = within(screen.getByRole('region', { name: 'Lunch' }));
+    expect(lunch.queryByRole('button', { name: 'Add an entry to Lunch' })).not.toBeInTheDocument();
+    expect(lunch.getByRole('button', { name: 'Change Soup from the canteen' })).toBeInTheDocument();
+    expect(lunch.getByRole('button', { name: 'Remove Soup from the canteen' })).toBeInTheDocument();
+  });
+
+  it('still takes an entry for the day a year back', async () => {
+    const oldest = dayAfter(TODAY, -DIARY_DAYS_BACK);
+    address.search = `date=${oldest}`;
+    await renderPage(aDay({ date: oldest }));
+
+    expect(screen.getByRole('button', { name: texts.addTitle })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: texts.copyTitle })).toBeInTheDocument();
+    expect(screen.queryByText(texts.tooOldNote)).not.toBeInTheDocument();
   });
 
   it("adds a meal of one's own known by its energy alone, and leaves the macronutrients to the API", async () => {

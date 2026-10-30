@@ -491,6 +491,7 @@
     "emptyTitle": "Nothing written for this day yet",
     "emptyText": "Add what was eaten: a recipe, an ingredient or a meal of your own, by its figures.",
     "aheadNote": "This day is still to come: the diary takes today and the days before it.",
+    "tooOldNote": "This day was more than a year ago: the diary takes new entries at most a year back. What is here already can be changed or removed.",
     "fullNote": "This day holds the most entries a day may: {count, number}.",
     "addTitle": "Add to the diary",
     "kindLegend": "What to add",

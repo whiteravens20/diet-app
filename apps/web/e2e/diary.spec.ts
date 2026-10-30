@@ -51,4 +51,21 @@ test.describe('the diary of a day', () => {
     expect((await removed).status()).toBe(204);
     await expect(page.getByText(name)).toHaveCount(0);
   });
+
+  test('takes no new entry for a day more than a year back, and says so', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const diary = messages.diary as Texts;
+    const long = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
+
+    await page.goto(`/diary?date=${long}`);
+    await settled(page);
+
+    await expect(page.getByText(diary.tooOldNote!)).toBeVisible();
+    await expect(page.getByRole('button', { name: diary.addTitle!, exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: diary.copyTitle! })).toHaveCount(0);
+    expect(await barriers(page), 'a day too far back').toEqual([]);
+  });
 });

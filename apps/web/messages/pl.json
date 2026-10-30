@@ -491,6 +491,7 @@
     "emptyTitle": "Na ten dzień nic jeszcze nie wpisano",
     "emptyText": "Dodaj, co zostało zjedzone: przepis, składnik albo własny posiłek po jego wartościach.",
     "aheadNote": "Ten dzień jeszcze nie nadszedł: dziennik przyjmuje dzisiejszy dzień i wcześniejsze.",
+    "tooOldNote": "Ten dzień minął ponad rok temu: dziennik przyjmuje nowe wpisy najwyżej rok wstecz. To, co już tu jest, można zmienić albo usunąć.",
     "fullNote": "Ten dzień ma już najwięcej wpisów, ile może mieć: {count, number}.",
     "addTitle": "Dodaj do dziennika",
     "kindLegend": "Co dodać",
