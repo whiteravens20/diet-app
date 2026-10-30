@@ -213,7 +213,7 @@ function DiaryContent() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <PageBanner image={IMAGERY.emptyMealPlans} title={t('title')} subtitle={t('subhead')} />
+      <PageBanner image={IMAGERY.diary} title={t('title')} subtitle={t('subhead')} />
 
       {list.length > 1 && (
         <ProfilePicker

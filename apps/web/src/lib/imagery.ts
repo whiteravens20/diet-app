@@ -9,6 +9,7 @@
  */
 export const IMAGERY = {
   dashboard: '/imagery/dashboard.webp',
+  diary: '/imagery/diary.webp',
   mealPlans: '/imagery/meal-plans.webp',
   recipes: '/imagery/recipes.webp',
   shopping: '/imagery/shopping.webp',
