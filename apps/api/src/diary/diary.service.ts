@@ -198,7 +198,7 @@ export class DiaryService {
     return {
       profileId,
       date,
-      target: this.aimOf(profile, planDay).target,
+      target: this.aimOf(profile, skipped ? null : planDay).target,
       plan: planDay
         ? {
             id: planDay.planId,
@@ -498,7 +498,8 @@ export class DiaryService {
 
   /**
    * What the day's target is, and the split an estimate goes by: those of
-   * the plan's day where a plan holds the day, the profile's own otherwise.
+   * the plan's day where a plan holds the day and does not skip it, the
+   * profile's own otherwise.
    */
   private aimOf(
     profile: DiaryProfile,
@@ -619,9 +620,14 @@ export class DiaryService {
     const planDay = await this.prisma.mealPlanDay.findFirst({
       where: { date: new Date(req.date), plan: { profileId: profile.id } },
       orderBy: [...MADE_LAST],
-      select: { calorieTarget: true, plan: { select: { dietType: true, macroSplit: true } } },
+      select: {
+        calorieTarget: true,
+        overrides: true,
+        plan: { select: { dietType: true, macroSplit: true } },
+      },
     });
-    const macros = estimatedMacros(calories, known, this.aimOf(profile, planDay).split);
+    const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+    const macros = estimatedMacros(calories, known, aim.split);
     if (!macros) {
       throw new BadRequestException({
         error: 'DIARY_MACROS_OVER_ENERGY',

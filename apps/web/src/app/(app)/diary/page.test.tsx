@@ -340,6 +340,21 @@ describe('the diary', () => {
     );
   });
 
+  it("aims a day its plan skips at the profile's own target, and says so", async () => {
+    const plan = aDay().plan!;
+    await renderPage(
+      aDay({
+        target: { calories: 2000, protein: 125, fat: 67, carbs: 225, from: 'profile' },
+        plan: { ...plan, skipped: true, calorieDelta: 0, offTarget: null },
+      }),
+    );
+
+    expect(screen.getByText(texts.targetFromSkipped)).toBeInTheDocument();
+    expect(screen.queryByText(texts.targetFromProfile)).not.toBeInTheDocument();
+    expect(screen.queryByText(texts.targetFromPlan)).not.toBeInTheDocument();
+    expect(screen.queryByText(texts.planOnTarget)).not.toBeInTheDocument();
+  });
+
   it('shows an amount of an ingredient as it was written, and asks for a change in the same words', async () => {
     await renderPage(
       aDay({

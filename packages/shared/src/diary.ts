@@ -151,8 +151,8 @@ export const DiaryDay = z.object({
   profileId: z.string().uuid(),
   date: z.string().date(),
   /**
-   * What the day aims at: the target of the plan's day where a plan holds it,
-   * otherwise the profile's own.
+   * What the day aims at: the target of the plan's day where a plan holds it
+   * and does not skip it, otherwise the profile's own.
    */
   target: Nutrition.extend({ from: z.enum(['plan', 'profile']) }),
   /**

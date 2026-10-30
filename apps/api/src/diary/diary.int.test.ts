@@ -607,6 +607,59 @@ describe('the diary of a profile', () => {
       expect(shown.eaten.calories).toBe(eatenMeal.nutrition.calories + entry.nutrition.calories);
     });
 
+    it("aims at the profile's own target on a day its plan skips, and estimates by the profile's split", async () => {
+      const high = await aPlan(t, user, profile, {
+        startDate: day(0),
+        durationDays: 1,
+        dietType: 'high_protein',
+      });
+      const own = (
+        await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)
+      ).body;
+      const cake = { kind: 'meal', name: 'Cake', nutrition: { calories: 400 } };
+      const beforeSkip = await written({ ...cake, date: day(0) });
+      expect((await dayOf(day(0))).target.from).toBe('plan');
+
+      const today = planDay(high, day(0));
+      const settings = {
+        dayType: 'normal',
+        skip: true,
+        mealCount: today.meals.length,
+        calorieTarget: null,
+        cookTimeBudgetMinutes: null,
+        useUpBy: false,
+      };
+      const { revision } = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${high.id}/days/${today.id}/settings/preview`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send(settings)
+          .expect(200)
+      ).body;
+      await t
+        .http()
+        .put(`/api/meal-plans/${high.id}/days/${today.id}/settings`)
+        .set(as(user))
+        .set('X-Client-Date', day(0))
+        .send({ ...settings, revision })
+        .expect(200);
+
+      const shown = await dayOf(day(0));
+      const onSkipped = await written({ ...cake, date: day(0) });
+      const onNoPlan = await written({ ...cake, date: day(-30) });
+
+      expect(shown.plan).toMatchObject({ id: high.id, skipped: true, offTarget: null });
+      expect(shown.target).toEqual({
+        calories: own.dailyTarget,
+        ...own.targetMacros,
+        from: 'profile',
+      });
+      expect(onSkipped.nutrition).toEqual(onNoPlan.nutrition);
+      expect(beforeSkip.nutrition).not.toEqual(onSkipped.nutrition);
+    });
+
     it('goes by the plan made last where several hold the day', async () => {
       const later = await aPlan(t, user, profile, { startDate: day(0), durationDays: 1 });
 

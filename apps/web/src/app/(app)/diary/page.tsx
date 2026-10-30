@@ -525,15 +525,19 @@ function DaySummary({
           })}
         </p>
         <p className="text-xs text-muted-foreground">
-          {t(day.target.from === 'plan' ? 'targetFromPlan' : 'targetFromProfile')}
+          {t(
+            plan?.skipped
+              ? 'targetFromSkipped'
+              : day.target.from === 'plan'
+                ? 'targetFromPlan'
+                : 'targetFromProfile',
+          )}
         </p>
         {day.estimated && <p className="text-xs text-muted-foreground">{t('estimatedNote')}</p>}
 
         {plan && (
           <div className="space-y-2 border-t border-border pt-3 text-sm">
-            {plan.skipped ? (
-              <p className="text-muted-foreground">{t('planSkipped')}</p>
-            ) : plan.offTarget ? (
+            {plan.skipped ? null : plan.offTarget ? (
               <>
                 <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
                   <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
