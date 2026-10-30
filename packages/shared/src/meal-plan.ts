@@ -432,8 +432,8 @@ export const MealPlanDay = z.object({
   /**
    * What the profile's diary holds for the day besides its meals: how many
    * entries, and what they come to. They count in `dayNutrition` and in where
-   * the day stands, as eaten, and a rebalance leaves room for them. Null when
-   * the diary holds none for the day.
+   * the day stands, as eaten, and a rebalance, or filling the day again, leaves
+   * room for them. Null when the diary holds none for the day.
    */
   diary: z.object({ entries: z.number().int().min(1), nutrition: Nutrition }).nullable(),
   calorieTarget: z.number(),
@@ -930,6 +930,12 @@ export type DayVariation = z.infer<typeof DayVariation>;
 export const DayVariations = z.object({
   date: z.string().date(),
   calorieTarget: z.number(),
+  /**
+   * What the profile's diary holds for the day, which is eaten: every way
+   * fills what is left of the target, and every `dayNutrition` here counts it.
+   * Null when it holds nothing.
+   */
+  diary: Nutrition.nullable(),
   /** The day as it is, to hold the others against. */
   current: z.object({ dayNutrition: Nutrition, packs: PackTally }),
   /**

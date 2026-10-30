@@ -47,6 +47,7 @@ import {
   type OptimizerResult,
 } from '../engine/index.js';
 import type { Env } from '../config/env.js';
+import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedKindLimits } from '../common/stored-kind-limits.js';
@@ -110,9 +111,12 @@ export class PlanGenerationService {
       dayOverrides: req.dayOverrides,
     });
 
+    // What the diary holds already for a day of the plan is eaten: the plan fills what is left of its target.
+    const diary = await diaryOfDays(this.prisma, profile.id, resolvedDays);
+
     const seed = this.nextSeed();
     const result = await this.optimiseFor(userId, profile, {
-      days: resolvedDays,
+      days: resolvedDays.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
       dietType,
       macroSplit,
       mealPrepFriendly: req.mealPrepFriendly,
@@ -264,7 +268,8 @@ export class PlanGenerationService {
    * for them needs: all of the plan's days, or those from `range.from` to
    * `range.to`. Days before today, meals marked as eaten and the user's own
    * meals stay unless the options say otherwise, and whatever stays counts for
-   * the limits of the plan and for what its day has left. A day the user skips
+   * the limits of the plan and for what its day has left, as what the profile's
+   * diary holds for the day counts for the latter. A day the user skips
    * gets nothing, and keeps what was eaten of it and the user's own meals
    * whatever the options say. Read once, for as many draws as are made of it;
    * nothing is written.
@@ -328,6 +333,7 @@ export class PlanGenerationService {
     }
 
     const profile = await this.plans.loadProfile(userId, plan.profileId);
+    const diary = await diaryOfDays(this.prisma, plan.profileId, plan.days);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
@@ -389,7 +395,7 @@ export class PlanGenerationService {
         useUpBy: o?.useUpBy ?? false,
         skip: o?.skip ?? false,
         overrides: o,
-        kept: reading.staying.map(kept),
+        kept: [...reading.staying.map(kept), ...keptOfDiary(diary.get(iso))],
       };
     });
 
@@ -407,6 +413,7 @@ export class PlanGenerationService {
       whole,
       days,
       filled,
+      diary,
       allowRelaxations,
       base,
       dietType,
@@ -1171,6 +1178,13 @@ function resolvePlanDays(input: {
       overrides: buildOverridesJson(o),
     };
   });
+}
+
+/** What the diary holds for a day, as what the day keeps: eaten, and of no recipe. */
+function keptOfDiary(diary: DiaryOnDay | undefined): KeptMeal[] {
+  if (!diary) return [];
+  const { calories, ...macros } = diary.nutrition;
+  return [{ calories, macros }];
 }
 
 /** Nested `days.create` payload from resolved days + optimiser assignments. */

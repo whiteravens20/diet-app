@@ -10812,6 +10812,16 @@
           "calorieTarget": {
             "type": "number"
           },
+          "diary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Nutrition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "current": {
             "type": "object",
             "properties": {
@@ -10849,6 +10859,7 @@
         "required": [
           "date",
           "calorieTarget",
+          "diary",
           "current",
           "variations",
           "aiMeta"

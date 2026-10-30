@@ -59,3 +59,13 @@ export async function diaryDays(
     ]),
   );
 }
+
+/** The same for the days of a plan, in the order of their dates; nothing is asked for a plan without days. */
+export function diaryOfDays(
+  db: Pick<Prisma.TransactionClient, 'diaryEntry'>,
+  profileId: string,
+  days: readonly { date: Date }[],
+): Promise<Map<string, DiaryOnDay>> {
+  if (days.length === 0) return Promise.resolve(new Map());
+  return diaryDays(db, profileId, days[0]!.date, days.at(-1)!.date);
+}

@@ -47,7 +47,7 @@ import {
   type MealAmount,
 } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
-import { diaryDays, type DiaryOnDay } from '../diary/diary-days.js';
+import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { writePlan } from './plan-write.js';
 import {
   dislikedIn,
@@ -198,15 +198,9 @@ export class MealPlansService {
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const [restrictions, diary] = await Promise.all([
       restrictionsFor(this.prisma, plan),
-      this.diaryOf(plan.profileId, plan.days),
+      diaryOfDays(this.prisma, plan.profileId, plan.days),
     ]);
     return this.toDto(plan, locale, restrictions, diary);
-  }
-
-  /** What the profile's diary holds for the days of a plan, by date: one statement, and none for a plan without days. */
-  private diaryOf(profileId: string, days: { date: Date }[]): Promise<Map<string, DiaryOnDay>> {
-    if (days.length === 0) return Promise.resolve(new Map());
-    return diaryDays(this.prisma, profileId, days[0]!.date, days.at(-1)!.date);
   }
 
   /**
@@ -507,10 +501,7 @@ export class MealPlansService {
     if (!plan) return null;
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
-    const diary =
-      days.length === 0
-        ? new Map<string, DiaryOnDay>()
-        : await diaryDays(tx, plan.profileId, days[0]!.date, days.at(-1)!.date);
+    const diary = await diaryOfDays(tx, plan.profileId, days);
     const dayRows = days.map((d) => ({
       target: d.calorieTarget,
       past: isoDate(d.date) < today,

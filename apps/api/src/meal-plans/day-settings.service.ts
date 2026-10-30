@@ -188,7 +188,7 @@ export class DaySettingsService {
     const spec = prepared.days[dayIndex]!;
     const fateOf = new Map(change.fates.map((fate) => [fate.mealId, fate]));
     // The dishes that stay, and what each is to hold: where the day's target or number of meals changes, the
-    // share of the day its meal has, of what is left after the meals that are pinned; otherwise what it holds now.
+    // share of the day its meal has, of what is left after the meals that are pinned and the diary; otherwise what it holds now.
     const dishes = context.day.meals.filter(
       (meal) =>
         meal.recipe &&
@@ -200,7 +200,9 @@ export class DaySettingsService {
     );
     const room = Math.max(
       0,
-      change.target - pinned.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0),
+      change.target -
+        pinned.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) -
+        (prepared.diary.get(context.date)?.nutrition.calories ?? 0),
     );
     const budgets = slotBudgets(
       [...dishes.map((meal) => meal.mealType as MealType), ...change.drawn],

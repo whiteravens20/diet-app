@@ -105,6 +105,10 @@ export class DayVariationsService {
     const { dayIndex, staying } = prepared.filled[0]!;
     const day = plan.days[dayIndex]!;
     const stays = new Set(staying);
+    // What the diary holds for the day is eaten: every way fills what is left, and every sum counts it.
+    const entered = prepared.diary.get(date)?.nutrition ?? null;
+    const withDiary = (meals: readonly Nutrition[]): Nutrition =>
+      sumNutrition([...meals, ...(entered ? [entered] : [])]);
 
     // A way is another way when the meals it places are not those the day has, nor those of a way found before it.
     const signature = (placed: readonly { slot: string; recipeId: string }[]): string =>
@@ -245,7 +249,7 @@ export class DayVariationsService {
         const meals = inOrder([...stayingMeals, ...placed]);
         return {
           meals,
-          dayNutrition: sumNutrition(meals.map((meal) => meal.nutrition)),
+          dayNutrition: withDiary(meals.map((meal) => meal.nutrition)),
           packs: tally([
             ...rest,
             ...way.placed.map((meal) => ({
@@ -260,7 +264,7 @@ export class DayVariationsService {
     );
 
     const current = {
-      dayNutrition: sumNutrition(day.meals.map(mealNutrition)) as Nutrition,
+      dayNutrition: withDiary(day.meals.map(mealNutrition)),
       packs: tally(menu.flatMap(packed)),
     };
     let aiMeta: DayVariations['aiMeta'] = null;
@@ -276,7 +280,10 @@ export class DayVariationsService {
         choice:
           `Ways to fill ${date} of a ${plan.dietType.replace('_', ' ')} meal plan. The day aims at ${Math.round(day.calorieTarget)} kcal, ` +
           `${aims.protein} g of protein, ${aims.fat} g of fat and ${aims.carbs} g of carbohydrate. ` +
-          `As it is now the day holds ${current.dayNutrition.calories} kcal, and the plan leaves ${current.packs.wasted} opened packs of food that does not keep more than a fifth full.`,
+          `As it is now the day holds ${current.dayNutrition.calories} kcal, and the plan leaves ${current.packs.wasted} opened packs of food that does not keep more than a fifth full.` +
+          (entered
+            ? ` Every figure of the day counts ${entered.calories} kcal the user wrote down as eaten besides its meals.`
+            : ''),
         matters: [
           'How near the day comes to what it aims at, energy first, then protein.',
           'How few opened packs the plan would leave more than a fifth full.',
@@ -303,6 +310,7 @@ export class DayVariationsService {
     return {
       date,
       calorieTarget: day.calorieTarget,
+      diary: entered,
       current,
       variations: variations.map(({ way, ...variation }, index) => ({
         ...variation,

@@ -14,7 +14,8 @@ import { EnteredNutrition, Nutrition } from './nutrition.js';
  * meal of one's own by its figures. An entry keeps the figures worked out
  * when it was written, so that a later change of the catalogue does not
  * rewrite what was eaten. An entry changes nothing in a plan; a rebalance of
- * the plan's day counts the day's entries as eaten.
+ * the plan's day, and whatever fills it again, counts the day's entries as
+ * eaten.
  */
 
 /** What an entry is of. */

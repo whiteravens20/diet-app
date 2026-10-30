@@ -2,6 +2,7 @@
 
 import type {
   DaySettingsPreview,
+  DayVariations,
   DiaryCopyResult,
   DiaryDay,
   DiaryEntry,
@@ -469,6 +470,8 @@ describe('the diary of a profile', () => {
     });
 
     const planDay = (of: MealPlan, date: string) => of.days.find((d) => d.date === date)!;
+    const mealsKcal = (of: MealPlan['days'][number]) =>
+      of.meals.reduce((sum, meal) => sum + meal.nutrition.calories, 0);
     const eat = async (mealId: string): Promise<RebalanceResult> =>
       (
         await t
@@ -581,6 +584,108 @@ describe('the diary of a profile', () => {
       expect(kcal(spread.plan, day(-1))).toBe(kcal(before, day(-1)));
       expect(kcal(spread.plan, day(0))).toBeLessThan(kcal(before, day(0)));
       expect(kcal(spread.plan, day(1))).toBeLessThan(kcal(before, day(1)));
+    });
+
+    it('makes the day again around its entries: the meals fill what is left of its target', async () => {
+      await aMeal(900);
+      const today = planDay(plan, day(0));
+
+      const again = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${today.id}/regenerate`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send({})
+          .expect(201)
+      ).body as MealPlan;
+
+      const made = planDay(again, day(0));
+      expect(made.diary!.nutrition.calories).toBe(900);
+      expect(made.offTarget).toBeNull();
+      expect(made.dayNutrition.calories).toBe(mealsKcal(made) + 900);
+      // A day of the plan without entries fills its whole target.
+      expect(mealsKcal(made)).toBeLessThan(mealsKcal(planDay(again, day(1))) - 450);
+      // Inside its window, the day has nothing left for a rebalance to do.
+      expect((await rebalance({ scope: 'day', date: day(0) })).rebalance!.changes).toEqual([]);
+    });
+
+    it('fills every other way of the day around its entries, and counts them in its figures', async () => {
+      await aMeal(900);
+      const today = planDay(plan, day(0));
+
+      const offered = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${today.id}/variations`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send({})
+          .expect(200)
+      ).body as DayVariations;
+
+      expect(offered.diary).toEqual({ calories: 900, protein: 0, fat: 0, carbs: 225 });
+      expect(offered.current.dayNutrition).toEqual(
+        planDay(await planOf(plan.id), day(0)).dayNutrition,
+      );
+      expect(offered.variations.length).toBeGreaterThan(0);
+      for (const way of offered.variations) {
+        const meals = way.meals.reduce((sum, meal) => sum + meal.nutrition.calories, 0);
+        expect(way.dayNutrition.calories).toBe(meals + 900);
+        expect(Math.abs(way.dayNutrition.calories - today.calorieTarget)).toBeLessThanOrEqual(
+          today.calorieTarget * 0.1,
+        );
+      }
+      const taken = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${today.id}/variations/take`)
+          .set(as(user))
+          .send({ offer: offered.variations[0]!.offer })
+          .expect(200)
+      ).body as MealPlan;
+      expect(planDay(taken, day(0)).offTarget).toBeNull();
+    });
+
+    it('draws what a new number of meals brings around its entries', async () => {
+      await aMeal(900);
+      const today = planDay(await planOf(plan.id), day(0));
+      const revision = (await planOf(plan.id)).revision;
+
+      const changed = (
+        await t
+          .http()
+          .put(`/api/meal-plans/${plan.id}/days/${today.id}/settings`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send({
+            dayType: 'normal',
+            skip: false,
+            mealCount: 4,
+            calorieTarget: null,
+            cookTimeBudgetMinutes: null,
+            useUpBy: false,
+            revision,
+          })
+          .expect(200)
+      ).body as MealPlan;
+
+      const made = planDay(changed, day(0));
+      expect(made.meals).toHaveLength(4);
+      expect(made.offTarget).toBeNull();
+    });
+
+    it('is filled around its entries by a new plan as well, and a day without any fills its whole target', async () => {
+      await aMeal(900);
+
+      const fresh = await aPlan(t, user, profile, { startDate: day(0), durationDays: 2 });
+
+      const [first, second] = fresh.days;
+      expect(first!.diary!.nutrition.calories).toBe(900);
+      expect(first!.offTarget).toBeNull();
+      expect(second!.diary).toBeNull();
+      expect(second!.offTarget).toBeNull();
+      expect(mealsKcal(first!)).toBeLessThan(mealsKcal(second!) - 450);
     });
 
     it('says that a new target of the day does not fit where its entries leave its meals too little room', async () => {
