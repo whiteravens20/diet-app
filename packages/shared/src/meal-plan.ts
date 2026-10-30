@@ -2,6 +2,7 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
+import { OWN_MEAL_LIMITS } from './constants.js';
 import {
   CalendarDay,
   dayAfter,
@@ -1126,11 +1127,15 @@ export type SwapPreview = z.infer<typeof SwapPreview>;
  */
 export const AddCustomMealRequest = z.object({
   /** Free-text name for the meal (e.g. "Mum's lasagne"). */
-  name: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name),
   mealType: MealType,
   /** User-entered macros for one serving. Engine never recomputes these. */
   nutrition: EnteredNutrition,
-  servings: z.number().min(0.25).max(20).default(1),
+  servings: z
+    .number()
+    .min(OWN_MEAL_LIMITS.servings.min)
+    .max(OWN_MEAL_LIMITS.servings.max)
+    .default(1),
   /**
    * A meal of the same day that this one is eaten in the place of: it leaves
    * the day. Left out, this one comes beside the meals the day has. 404

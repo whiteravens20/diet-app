@@ -118,6 +118,18 @@ export const INGREDIENT_NAME_LIMITS = { name: 120, storageHint: 300 } as const;
 /** The most ingredients a search of the library may name at once. */
 export const MAX_SEARCHED_INGREDIENTS = 10;
 
+/**
+ * What a meal written by hand may hold, in a plan or in the diary: its name in
+ * characters, its servings, and of one serving its energy in kcal and each
+ * macronutrient in grams. More than this in one serving is a slip of the
+ * keyboard, not a meal.
+ */
+export const OWN_MEAL_LIMITS = {
+  name: 120,
+  servings: { min: 0.25, max: 20 },
+  perServing: { calories: 5000, protein: 500, fat: 500, carbs: 1000 },
+} as const;
+
 /** The most recipes one import looks at: the first of its document. */
 export const MOST_RECIPES_PER_IMPORT = 100;
 

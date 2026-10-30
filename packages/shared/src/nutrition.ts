@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { OWN_MEAL_LIMITS } from './constants.js';
 
 /** Macronutrient triple, grams. Used for targets and totals alike. */
 export const Macros = z.object({
@@ -55,15 +56,12 @@ export const Nutrition = Macros.extend({
 });
 export type Nutrition = z.infer<typeof Nutrition>;
 
-/**
- * The nutrition of one serving as somebody types it for a meal of their own.
- * More than this in one serving is a slip of the keyboard, not a meal.
- */
+/** The nutrition of one serving as somebody types it for a meal of their own, at most `OWN_MEAL_LIMITS.perServing`. */
 export const EnteredNutrition = z.object({
-  calories: z.number().min(0).max(5000),
-  protein: z.number().min(0).max(500),
-  fat: z.number().min(0).max(500),
-  carbs: z.number().min(0).max(1000),
+  calories: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.calories),
+  protein: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.protein),
+  fat: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.fat),
+  carbs: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.carbs),
 });
 export type EnteredNutrition = z.infer<typeof EnteredNutrition>;
 
