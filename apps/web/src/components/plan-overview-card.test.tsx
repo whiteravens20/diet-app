@@ -109,7 +109,7 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     expect(
       rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent)),
     ).toEqual([
-      ['Day', 'Planned', 'Target'],
+      ['Day', "Day's total", 'Target'],
       ['Mon, Jan 5', '1,868 kcal', '1,900 kcal'],
       ['Tue, Jan 6', 'Skipped', ''],
       ['Wed, Jan 7', '1,911 kcal', '1,900 kcal'],

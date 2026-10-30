@@ -2170,7 +2170,7 @@
     "macroValue": "{planned, number} of {target, number} g",
     "days": "Day by day",
     "day": "Day",
-    "seriesPlanned": "Planned",
+    "seriesPlanned": "Day's total",
     "seriesTarget": "Target",
     "kcal": "{kcal, number} kcal",
     "daySkipped": "Skipped"
