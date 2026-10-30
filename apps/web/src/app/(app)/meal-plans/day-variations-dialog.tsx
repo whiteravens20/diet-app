@@ -108,6 +108,11 @@ export function DayVariationsDialog({
                 wasted: shown.current.packs.wasted,
               })}
             </p>
+            {shown.diary && (
+              <p className="text-xs text-muted-foreground">
+                {t('diaryCounted', { kcal: shown.diary.calories })}
+              </p>
+            )}
             {shown.variations.length === 0 ? (
               <p className="text-sm">{t('none')}</p>
             ) : (

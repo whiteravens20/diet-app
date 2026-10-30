@@ -1262,7 +1262,8 @@
       "nothingPast": "The days chosen have passed, and days that have passed are left as they are. Tick them above to make them again as well.",
       "nothingKept": "Nothing would change on the days chosen.",
       "errPreview": "Could not work out what would change.",
-      "confirm": "Make again"
+      "confirm": "Make again",
+      "diaryCounts": "What the diary holds for these days counts as eaten: the meals fill what is left of each day's target."
     },
     "limitsInTheWay": "This plan cannot be filled inside its limits. {count, plural, one {One meal} other {# meals}} would go outside: {limits}.",
     "limitsInTheWayMore": "{count, plural, one {and one more meal} other {and # more meals}}",
@@ -1452,7 +1453,8 @@
       "packsLine": "With it the plan would leave {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than a fifth full.",
       "none": "The catalogue leaves no other way to fill this day inside the limits of the plan.",
       "errLoad": "Could not work out other ways for this day.",
-      "errTake": "Could not change the day."
+      "errTake": "Could not change the day.",
+      "diaryCounted": "These figures count {kcal, number} kcal from the diary as eaten: each way fills what is left of the target."
     },
     "daySettingsButton": "Day settings…",
     "goToToday": "Go to today",

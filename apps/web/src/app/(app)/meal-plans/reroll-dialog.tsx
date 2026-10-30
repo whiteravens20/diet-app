@@ -177,6 +177,19 @@ function RerollForm({
   // What the days chosen hold that may go as well: a tick is offered, and sent, only where it lets something go.
   const couldGo = shown?.couldGo ?? { past: false, eaten: false, custom: false };
   const mayGiveWay = plan.options.allowRelaxations;
+  // What the diary holds for a day that would be filled again is eaten, and the day says so before it is filled.
+  const diaryCounts = days.some(
+    (d) =>
+      d.diary !== null &&
+      (d.date >= today || includePast) &&
+      (scope === 'day'
+        ? d.date === day
+        : scope === 'range'
+          ? d.date >= from && d.date <= to
+          : scope === 'from_today'
+            ? d.date >= today
+            : true),
+  );
 
   const scopes: { scope: RerollScope; label: string; hint: string; off?: boolean }[] = [
     { scope: 'whole', label: t('whole'), hint: t('wholeHint') },
@@ -385,6 +398,7 @@ function RerollForm({
             ) : (
               <p>{t('keptNothing')}</p>
             )}
+            {diaryCounts && <p>{t('diaryCounts')}</p>}
           </div>
         )}
       </div>

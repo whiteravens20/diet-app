@@ -1262,7 +1262,8 @@
       "nothingPast": "Wybrane dni już minęły, a dni, które minęły, zostają bez zmian. Zaznacz powyżej „Dni, które już minęły”, żeby ułożyć ponownie również je.",
       "nothingKept": "W wybranych dniach nic by się nie zmieniło.",
       "errPreview": "Nie udało się sprawdzić, co się zmieni.",
-      "confirm": "Ułóż ponownie"
+      "confirm": "Ułóż ponownie",
+      "diaryCounts": "To, co dziennik ma na te dni, liczy się jako zjedzone: posiłki wypełnią to, co zostanie z celu każdego dnia."
     },
     "limitsInTheWay": "Tego planu nie da się ułożyć w jego limitach. {count, plural, one {Jeden posiłek wyszedłby} few {# posiłki wyszłyby} many {# posiłków wyszłoby} other {# posiłku wyszłoby}} poza limit: {limits}.",
     "limitsInTheWayMore": "{count, plural, one {i jeszcze jeden posiłek} few {i jeszcze # posiłki} many {i jeszcze # posiłków} other {i jeszcze # posiłku}}",
@@ -1452,7 +1453,8 @@
       "packsLine": "{wasted, plural, =0 {Z nim plan nie zostawiłby żadnego otwartego opakowania, z którego zostaje ponad jedna piąta.} one {Z nim plan zostawiłby # otwarte opakowanie, z którego zostaje ponad jedna piąta.} few {Z nim plan zostawiłby # otwarte opakowania, z których zostaje ponad jedna piąta.} many {Z nim plan zostawiłby # otwartych opakowań, z których zostaje ponad jedna piąta.} other {Z nim plan zostawiłby # otwartego opakowania, z którego zostaje ponad jedna piąta.}}",
       "none": "W limitach planu katalog nie daje innego wariantu tego dnia.",
       "errLoad": "Nie udało się ułożyć innych wariantów tego dnia.",
-      "errTake": "Nie udało się zmienić dnia."
+      "errTake": "Nie udało się zmienić dnia.",
+      "diaryCounted": "Te liczby obejmują {kcal, number} kcal z dziennika jako zjedzone: każdy wariant wypełnia to, co zostaje z celu."
     },
     "daySettingsButton": "Ustawienia dnia…",
     "goToToday": "Przejdź do dzisiaj",

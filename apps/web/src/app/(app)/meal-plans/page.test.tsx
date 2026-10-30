@@ -667,6 +667,28 @@ describe('the plan page, when a plan is made again', () => {
     ]);
   });
 
+  it('says that what the diary holds for the days chosen counts as eaten, and only for a day that would be filled again', async () => {
+    const plan = threeDays();
+    plan.days[1] = {
+      ...plan.days[1]!,
+      diary: { entries: 1, nutrition: { calories: 400, protein: 10, fat: 10, carbs: 60 } },
+    };
+    answering(() => aPreview());
+    const asked = await forThePlan(plan);
+
+    // The whole plan holds that day.
+    expect(asked.getByText(texts.diaryCounts)).toBeVisible();
+
+    // One day, which holds nothing in the diary.
+    await userEvent.click(asked.getByLabelText(texts.day));
+    await userEvent.selectOptions(asked.getByLabelText(texts.dayWhich), '2026-01-07');
+    expect(asked.queryByText(texts.diaryCounts)).toBeNull();
+
+    // The day that holds it.
+    await userEvent.selectOptions(asked.getByLabelText(texts.dayWhich), '2026-01-06');
+    expect(asked.getByText(texts.diaryCounts)).toBeVisible();
+  });
+
   it('says when the API could not say what would change, asks again on request, and makes nothing again meanwhile', async () => {
     let fails = true;
     answering(() => {
@@ -1897,6 +1919,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({
       date: '2026-01-05',
       calorieTarget: 2000,
+      diary: null,
       current: {
         dayNutrition: plan.days[0]!.dayNutrition,
         packs: { bought: 0, used: 0, wasted: 0 },

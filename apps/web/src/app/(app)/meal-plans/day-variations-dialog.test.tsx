@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -109,6 +109,23 @@ const ways = (dialog: Awaited<ReturnType<typeof opened>>['dialog']) =>
 describe('the window that offers other ways to fill a day', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('says that its figures count what the diary holds for the day, and says nothing of it where it holds nothing', async () => {
+    const { dialog } = await opened(theWays([aWay('one', 'Soup')]));
+    expect(dialog.queryByText(/from the diary/)).toBeNull();
+    cleanup();
+
+    const withEntries = await opened({
+      ...theWays([aWay('one', 'Soup')]),
+      diary: { calories: 700, protein: 20, fat: 30, carbs: 80 },
+    });
+
+    expect(
+      await withEntries.dialog.findByText(
+        'These figures count 700 kcal from the diary as eaten: each way fills what is left of the target.',
+      ),
+    ).toBeVisible();
   });
 
   it('shows each way with its meals, what the day would hold, and what the plan would leave of its packs', async () => {
