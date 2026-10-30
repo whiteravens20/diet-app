@@ -1526,7 +1526,13 @@
       "lineUseUp": "Najpierw przepisy zużywające żywność z krótką datą."
     },
     "rebalanceTitlePlan": "Rozłożono na resztę planu",
-    "rebalanceSummaryPlan": "Przeliczono posiłki pozostałych dni planu: {count, number}."
+    "rebalanceSummaryPlan": "Przeliczono posiłki pozostałych dni planu: {count, number}.",
+    "diaryLine": "Dziennik dodaje do tego dnia {kcal, number} kcal ({count, plural, one {# wpis} few {# wpisy} many {# wpisów} other {# wpisu}}).",
+    "openDiary": "Dziennik dnia",
+    "dayOverDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel.",
+    "dayUnderDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel.",
+    "resizeDay": "Dopasuj porcje dnia",
+    "resizeDayNote": "Liczy wpisy dziennika jako zjedzone i daje niezjedzonym posiłkom inne porcje, żeby dzień wrócił do celu."
   },
   "inventory": {
     "title": "Spiżarnia",

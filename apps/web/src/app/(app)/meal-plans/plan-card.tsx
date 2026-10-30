@@ -4,6 +4,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import {
@@ -114,6 +115,7 @@ export function PlanCard({
   onAddCustomMeal,
   onRemoveMeal,
   onSpread,
+  onResizeDay,
   onSwapped,
   onChanged,
 }: {
@@ -150,6 +152,8 @@ export function PlanCard({
   onRemoveMeal: (mealId: string) => void;
   /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
   onSpread: (date: string) => void;
+  /** Bring the day of `date` back to its target with its own meals, the diary's entries counted as eaten. */
+  onResizeDay: (date: string) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
   onSwapped: (result: RebalanceResult) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
@@ -460,6 +464,27 @@ export function PlanCard({
                 </div>
               </div>
               <DaySettingsLine day={day} />
+              {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
+              {(day.diary || day.date <= today) && (
+                <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                  {day.diary && (
+                    <span>
+                      {t('diaryLine', {
+                        kcal: day.diary.nutrition.calories,
+                        count: day.diary.entries,
+                      })}
+                    </span>
+                  )}
+                  {day.date <= today && (
+                    <Link
+                      href={`/diary?profile=${plan.profileId}&date=${day.date}`}
+                      className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
+                    >
+                      {t('openDiary')}
+                    </Link>
+                  )}
+                </p>
+              )}
               {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
               {!day.skipped && day.offTarget && (
                 <div className="space-y-1 text-xs">
@@ -467,8 +492,37 @@ export function PlanCard({
                     <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
                       {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
                     </span>
-                    <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
+                    {/* A day the diary put off its target has not been resized with it: nothing says that resizing could not close the gap. */}
+                    <span>
+                      {t(
+                        day.diary
+                          ? day.offTarget === 'over'
+                            ? 'dayOverDiaryHint'
+                            : 'dayUnderDiaryHint'
+                          : day.offTarget === 'over'
+                            ? 'dayOverHint'
+                            : 'dayUnderHint',
+                      )}
+                    </span>
                   </p>
+                  {/* A day of today or after it, which the diary put off its target, is resized with its own meals first. */}
+                  {day.diary && day.date >= today && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onResizeDay(day.date)}
+                        disabled={busy}
+                        aria-describedby={`${day.id}-resize`}
+                      >
+                        {t('resizeDay')}
+                      </Button>
+                      <span id={`${day.id}-resize`} className="text-muted-foreground">
+                        {t('resizeDayNote')}
+                      </span>
+                    </div>
+                  )}
                   {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
                   {plan.days.some(
                     (other) => other.id !== day.id && other.date >= today && !other.skipped,

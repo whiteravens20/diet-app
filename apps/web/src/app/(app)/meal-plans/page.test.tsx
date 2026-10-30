@@ -18,7 +18,7 @@ import type {
   UnfilledMeal,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { ApiClientError } from '@/lib/http';
+import { ApiClientError, localDate } from '@/lib/http';
 import * as files from '@/lib/save-file';
 import { aPublicConfig, aSupply } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
@@ -1407,6 +1407,39 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.getByText(hint)).toBeVisible();
     },
   );
+
+  it('says of a day the diary put off its target what its entries do to it, and offers to resize its meals with them counted', async () => {
+    const today = localDate();
+    const posted = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ plan: aPlan(), rebalance: null } as never);
+    await opened(
+      aDay({
+        date: today,
+        offTarget: 'over',
+        diary: { entries: 2, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+      }),
+    );
+
+    expect(screen.getByText(messages.mealPlans.dayOverDiaryHint)).toBeVisible();
+    // Nothing says that resizing the day could not close the gap: it was not resized with the entries.
+    expect(screen.queryByText(messages.mealPlans.dayOverHint)).toBeNull();
+    expect(
+      screen.getByText('The diary adds 700 kcal to this day (2 entries).', { exact: false }),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: messages.mealPlans.openDiary })).toHaveAttribute(
+      'href',
+      `/diary?profile=${aPlan().profileId}&date=${today}`,
+    );
+    const resize = screen.getByRole('button', { name: messages.mealPlans.resizeDay });
+    expect(resize).toHaveAccessibleDescription(messages.mealPlans.resizeDayNote);
+    await userEvent.click(resize);
+
+    expect(posted).toHaveBeenCalledWith(`/meal-plans/${aPlan().id}/rebalance`, {
+      scope: 'day',
+      date: today,
+    });
+  });
 
   it('says nothing of the kind of a day inside its window, nor of a day that is skipped', async () => {
     await opened(aDay({ offTarget: null }));

@@ -938,6 +938,10 @@ function MealPlansContent() {
                 setError(null);
                 rebalance.mutate({ planId: plan.id, scope: 'plan', date });
               }}
+              onResizeDay={(date) => {
+                setError(null);
+                rebalance.mutate({ planId: plan.id, scope: 'day', date });
+              }}
               onSwapped={(res) => showRebalance(plan.id, res)}
               onChanged={() => void invalidate()}
               favorites={liked}

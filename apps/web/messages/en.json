@@ -1526,7 +1526,13 @@
       "lineUseUp": "Recipes that use up what is about to expire come first."
     },
     "rebalanceTitlePlan": "Spread over the rest of the plan",
-    "rebalanceSummaryPlan": "Meals rescaled on the plan's remaining days: {count, number}."
+    "rebalanceSummaryPlan": "Meals rescaled on the plan's remaining days: {count, number}.",
+    "diaryLine": "The diary adds {kcal, number} kcal to this day ({count, plural, one {# entry} other {# entries}}).",
+    "openDiary": "Diary of the day",
+    "dayOverDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth over its target.",
+    "dayUnderDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth under its target.",
+    "resizeDay": "Resize the day's meals",
+    "resizeDayNote": "Counts the diary's entries as eaten and gives the meals that are not eaten other portions, so that the day comes back to its target."
   },
   "inventory": {
     "title": "Inventory",
