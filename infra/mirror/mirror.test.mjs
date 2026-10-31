@@ -256,6 +256,45 @@ test('tells nothing of the repository in its report', () => {
   assert.equal(told.includes('kitchen'), false);
 });
 
+for (const [what, manifest] of [
+  ['no manifest', null],
+  [
+    'nothing in its manifest',
+    '{\n  "app": "diet-app",\n  "version": "0.150.0",\n  "recipes": 0,\n  "names": 0\n}\n',
+  ],
+]) {
+  test(`leaves the repository alone when the instance has ${what}, as after an emptied volume`, () => {
+    const instance = anInstance();
+    aRound(instance);
+    const { pushedAt } = theReport(instance);
+    rmSync(instance.files, { recursive: true });
+    mkdirSync(instance.files);
+    if (manifest) writeFileSync(join(instance.files, 'manifest.json'), manifest);
+
+    const said = aRound(instance);
+
+    assert.match(said, /the repository stays as it is/);
+    const look = theRepository(instance);
+    assert.equal(existsSync(join(look, 'recipes', 'library.json')), true);
+    assert.equal(git(instance.remote, 'rev-list', '--count', 'main'), '1');
+    assert.equal(theReport(instance).result, 'empty');
+    assert.equal(theReport(instance).pushedAt, pushedAt);
+  });
+}
+
+test('goes on copying an instance that holds names and no recipes', () => {
+  const instance = anInstance();
+  writeFileSync(
+    join(instance.files, 'manifest.json'),
+    '{\n  "app": "diet-app",\n  "version": "0.150.0",\n  "recipes": 0,\n  "names": 12\n}\n',
+  );
+
+  aRound(instance);
+
+  assert.equal(theReport(instance).result, 'ok');
+  assert.equal(git(instance.remote, 'rev-list', '--count', 'main'), '1');
+});
+
 test('reports a repository it cannot clone, with no time of a push', () => {
   const instance = anInstance();
   instance.remote = join(instance.report, '..', 'no-such-repository.git');

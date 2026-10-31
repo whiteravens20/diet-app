@@ -14,7 +14,9 @@
 # held to after it, and a report of each round for the admin panel, without the
 # repository's address or anything the git server said. A repository that holds
 # files of something else is refused: a wrong address would otherwise have them
-# deleted by the copy.
+# deleted by the copy. An instance that holds no recipes and no names of its own
+# leaves the repository alone: an emptied volume or database would otherwise
+# empty the copy too.
 set -u
 
 : "${MIRROR_REPO:?set MIRROR_REPO in .env: the SSH address of the repository the copy goes to}"
@@ -57,6 +59,11 @@ report() {
     mv "$REPORT/status.writing" "$REPORT/status.json"
 }
 
+# Whether the instance holds anything of its own, as its manifest says.
+holds_something() {
+  grep -Eq '"(recipes|names)": *[1-9]' "$FILES/manifest.json" 2>/dev/null
+}
+
 # The clone, made in the first round. An empty repository is taken, and so is
 # one with nothing but a README, or one this copy has written to before.
 clone() {
@@ -96,8 +103,9 @@ files, copied here by its \`mirror\` service so that they outlive the server.
 The instance writes these files from its database after every ship into it,
 every restore and every update of the catalogue. Once an hour the service copies
 them here, and commits as \`$WHO\` only when something changed. A file
-removed from the instance is removed here too. This README is the one file the
-copy leaves alone.
+removed from the instance is removed here too, unless the instance holds no
+recipes and no names at all: then the copy leaves this repository as it is. This
+README is the one file the copy leaves alone.
 
 ## Restoring
 
@@ -129,6 +137,11 @@ catch_up() {
 
 round() {
   STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  if ! holds_something; then
+    say "the instance holds no recipes and no names of its own: the repository stays as it is"
+    report empty
+    return 0
+  fi
   clone || return 1
   catch_up || return 1
   find "$TREE" -mindepth 1 -maxdepth 1 ! -name .git ! -name README.md -exec rm -rf {} +
