@@ -689,85 +689,6 @@ function MealPlansContent() {
         </CardContent>
       </Card>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {refused && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
-            setError(null);
-            (refused.reroll.dayId ? regenerateDay : regenerate).mutate({
-              ...refused.reroll,
-              [refused.allow]: true,
-            });
-          }}
-        >
-          {t(refused.allow === 'includePast' ? 'includePastAndRetry' : 'dropLockAndRetry')}
-        </Button>
-      )}
-      {inTheWay && (
-        <div
-          className="space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
-          role="alert"
-        >
-          <p>
-            {t('limitsInTheWay', {
-              count: inTheWay.needed.meals.length,
-              limits: limitNames(inTheWay.needed.needs),
-            })}
-          </p>
-          <ul className="list-disc pl-5 text-xs">
-            {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
-              <li key={`${meal.date} ${meal.slot}`}>
-                {fmt.day(meal.date)} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
-              </li>
-            ))}
-            {inTheWay.needed.meals.length > MEALS_NAMED && (
-              <li>
-                {t('limitsInTheWayMore', { count: inTheWay.needed.meals.length - MEALS_NAMED })}
-              </li>
-            )}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy || generate.isPending}
-              onClick={() => {
-                const allowRelaxations = withMore(inTheWay.allowed, inTheWay.needed.needs);
-                setError(null);
-                if ('generate' in inTheWay) {
-                  // The form says from here on what the plan was let do.
-                  setAdvanced((value) => ({ ...value, mayGiveWay: allowRelaxations }));
-                  generate.mutate({ ...inTheWay.generate, allowRelaxations });
-                } else {
-                  (inTheWay.reroll.dayId ? regenerateDay : regenerate).mutate({
-                    ...inTheWay.reroll,
-                    allowRelaxations,
-                  });
-                }
-              }}
-            >
-              {t('letGiveWay', { count: inTheWay.needed.needs.length })}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setInTheWay(null)}>
-              {tCommon('cancel')}
-            </Button>
-          </div>
-        </div>
-      )}
-      {notice && (
-        <p
-          className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
-          role="status"
-        >
-          {notice}
-        </p>
-      )}
-
       <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
 
       {activeId && (
@@ -1006,6 +927,109 @@ function MealPlansContent() {
           </nav>
         )}
       </section>
+
+      {(error || refused || inTheWay || notice) && (
+        // Over the foot of the screen: what an action came to is seen from wherever it was pressed, and nothing has to move to make room for it.
+        <div className="fixed inset-x-4 bottom-4 z-40 mx-auto max-h-[50dvh] max-w-xl space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-lg print:hidden">
+          {error && (
+            <div className="flex items-start justify-between gap-2">
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setError(null);
+                  setRefused(null);
+                }}
+              >
+                {tCommon('close')}
+              </Button>
+            </div>
+          )}
+          {refused && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                (refused.reroll.dayId ? regenerateDay : regenerate).mutate({
+                  ...refused.reroll,
+                  [refused.allow]: true,
+                });
+              }}
+            >
+              {t(refused.allow === 'includePast' ? 'includePastAndRetry' : 'dropLockAndRetry')}
+            </Button>
+          )}
+          {inTheWay && (
+            <div
+              className="space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+              role="alert"
+            >
+              <p>
+                {t('limitsInTheWay', {
+                  count: inTheWay.needed.meals.length,
+                  limits: limitNames(inTheWay.needed.needs),
+                })}
+              </p>
+              <ul className="list-disc pl-5 text-xs">
+                {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
+                  <li key={`${meal.date} ${meal.slot}`}>
+                    {fmt.day(meal.date)} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
+                  </li>
+                ))}
+                {inTheWay.needed.meals.length > MEALS_NAMED && (
+                  <li>
+                    {t('limitsInTheWayMore', { count: inTheWay.needed.meals.length - MEALS_NAMED })}
+                  </li>
+                )}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || generate.isPending}
+                  onClick={() => {
+                    const allowRelaxations = withMore(inTheWay.allowed, inTheWay.needed.needs);
+                    setError(null);
+                    if ('generate' in inTheWay) {
+                      // The form says from here on what the plan was let do.
+                      setAdvanced((value) => ({ ...value, mayGiveWay: allowRelaxations }));
+                      generate.mutate({ ...inTheWay.generate, allowRelaxations });
+                    } else {
+                      (inTheWay.reroll.dayId ? regenerateDay : regenerate).mutate({
+                        ...inTheWay.reroll,
+                        allowRelaxations,
+                      });
+                    }
+                  }}
+                >
+                  {t('letGiveWay', { count: inTheWay.needed.needs.length })}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setInTheWay(null)}>
+                  {tCommon('cancel')}
+                </Button>
+              </div>
+            </div>
+          )}
+          {notice && (
+            <div className="flex items-start justify-between gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2">
+              <p className="text-sm text-warning" role="status">
+                {notice}
+              </p>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setNotice(null)}>
+                {tCommon('close')}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {rebalanceToast && (
         <RebalanceToast

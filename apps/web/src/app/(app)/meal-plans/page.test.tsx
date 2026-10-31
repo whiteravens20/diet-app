@@ -491,7 +491,7 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
     await userEvent.click(generate);
 
     expect(await screen.findByText(messages.errors.PLAN_NEEDS_RELAXATION)).toBeInTheDocument();
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: messages.common.cancel })).toBeNull();
   });
 });
 
@@ -2483,6 +2483,25 @@ describe('the plan page, on how a plan reads', () => {
       await userEvent.click(generate);
 
       await vi.waitFor(() => expect(head()).toHaveAttribute('aria-expanded', 'false'));
+    });
+  });
+
+  describe('of what an action came to', () => {
+    it('says it where it is seen, and lets it be closed', async () => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      vi.spyOn(api, 'post').mockRejectedValue(new ApiClientError(500, 'INTERNAL', 'x'));
+
+      await unfoldMeal();
+      await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+
+      const said = await screen.findByRole('alert');
+      expect(said.closest('.fixed')).not.toBeNull();
+
+      await userEvent.click(screen.getByRole('button', { name: messages.common.close }));
+
+      expect(screen.queryByRole('alert')).toBeNull();
     });
   });
 });
