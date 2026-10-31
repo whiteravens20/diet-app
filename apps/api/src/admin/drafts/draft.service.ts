@@ -36,6 +36,7 @@ import {
 } from '@nestjs/common';
 import type { DraftStatus, Prisma } from '@prisma/client';
 import type {
+  AdminOverview,
   IngredientNameDraftListQuery,
   IngredientNameReviewPatchBody,
   IngredientNameSuggestion,
@@ -59,6 +60,7 @@ import {
 } from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
+import { readNameQueue } from './ingredient-name-queue.js';
 import {
   currentReviews,
   localeMap,
@@ -91,6 +93,9 @@ export interface Page<T> {
 
 const WITH_REVIEWS = { localeReviews: true } as const;
 
+/** A draft of a name that counts for its ingredient: one that waits, is approved or has shipped. */
+const LIVE_NAME = ['PENDING', 'APPROVED', 'SHIPPED'] as const;
+
 /** One ingredient line of a draft, as the engine reads it. */
 type RecipeLine = { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' };
 
@@ -105,6 +110,27 @@ export function invalid(problems: RecipeProblem[]): BadRequestException {
     message: `The draft would break ${problems.length === 1 ? 'a rule' : `${problems.length} rules`}: ${problems.map((problem) => problem.message).join('; ')}.`,
     details: { problems },
   });
+}
+
+/**
+ * Refuse to take up a rejected draft whose ingredient has another proposal or
+ * a shipped name now: that would be two proposals for one ingredient.
+ */
+async function assertNotReplaced(
+  tx: Tx,
+  draft: { id: string; status: DraftStatus; ingredientSlug: string },
+): Promise<void> {
+  if (draft.status !== 'REJECTED') return;
+  const other = await tx.ingredientNameDraft.findFirst({
+    where: { ingredientSlug: draft.ingredientSlug, status: { in: [...LIVE_NAME] } },
+    select: { id: true },
+  });
+  if (other) {
+    throw new ConflictException({
+      error: 'DRAFT_REPLACED',
+      message: 'This ingredient has a newer proposal or a shipped name.',
+    });
+  }
 }
 
 /** Refuse what `by` may not touch in a draft of this status. */
@@ -309,6 +335,7 @@ export class DraftService {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockIngredientName(tx, id);
       assertOpen(draft.status, by, 'reviewed');
+      await assertNotReplaced(tx, draft);
       assertLocale(draft.locales, review.locale);
 
       const at = new Date();
@@ -374,6 +401,98 @@ export class DraftService {
       const locale = (draft?.locales[0] ?? 'en') as Locale;
       return this.reviewIngredientName(id, { locale, action: 'REJECT', reason }, by);
     });
+  }
+
+  /**
+   * Of these rows, the rejected ones whose ingredient has another proposal or a
+   * shipped name now. They stay as history, and are not taken up again.
+   */
+  async replacedAmong(rows: readonly IngredientNameDraftRow[]): Promise<Set<string>> {
+    const rejected = rows.filter((row) => row.status === 'REJECTED');
+    if (rejected.length === 0) return new Set();
+    const live = await this.prisma.ingredientNameDraft.findMany({
+      where: {
+        ingredientSlug: { in: rejected.map((row) => row.ingredientSlug) },
+        status: { in: [...LIVE_NAME] },
+      },
+      select: { ingredientSlug: true },
+      distinct: ['ingredientSlug'],
+    });
+    const slugs = new Set(live.map((row) => row.ingredientSlug));
+    return new Set(rejected.filter((row) => slugs.has(row.ingredientSlug)).map((row) => row.id));
+  }
+
+  /**
+   * A proposal for an ingredient that has none waiting. Null when it has one by
+   * now, because somebody took up a rejected draft during the run: nothing is written.
+   */
+  async addIngredientName(
+    data: Prisma.IngredientNameDraftUncheckedCreateInput,
+  ): Promise<IngredientNameDraftRow | null> {
+    const open = await this.prisma.ingredientNameDraft.findFirst({
+      where: { ingredientSlug: data.ingredientSlug, status: { in: ['PENDING', 'APPROVED'] } },
+      select: { id: true },
+    });
+    if (open) return null;
+    return this.prisma.ingredientNameDraft.create({ data, include: WITH_REVIEWS });
+  }
+
+  /**
+   * A new proposal in place of a draft that waits. The old one stays as history,
+   * rejected in each of its languages under the name given. Null when it no
+   * longer stands as it did when the run took it on, because a person changed
+   * or decided on it since: it stays, and nothing is written.
+   */
+  replaceIngredientName(
+    id: string,
+    seenAt: Date,
+    data: Prisma.IngredientNameDraftUncheckedCreateInput,
+    reason: string | undefined,
+    by: Actor,
+  ): Promise<IngredientNameDraftRow | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await lockIngredientNameDraft(tx, id);
+      const old = await tx.ingredientNameDraft.findUnique({ where: { id } });
+      if (!old || old.status !== 'PENDING' || old.updatedAt.getTime() !== seenAt.getTime()) {
+        return null;
+      }
+      const at = new Date();
+      await tx.ingredientNameDraftLocaleReview.updateMany({
+        where: { draftId: id, supersededAt: null },
+        data: { supersededAt: at },
+      });
+      await tx.ingredientNameDraftLocaleReview.createMany({
+        data: old.locales.map((locale) => ({
+          draftId: id,
+          locale,
+          action: 'REJECT' as const,
+          byRole: by.role,
+          reviewedByLabel: by.label,
+          reason: reason ?? null,
+          reviewedAt: at,
+        })),
+      });
+      await tx.ingredientNameDraft.update({ where: { id }, data: { status: 'REJECTED' } });
+      return tx.ingredientNameDraft.create({ data, include: WITH_REVIEWS });
+    });
+  }
+
+  /** What the administrator has waiting in the two queues. */
+  async queues(): Promise<Omit<AdminOverview, 'mirror'>> {
+    const { missing, rejected, unapproved, pending, approved } = await readNameQueue(this.prisma);
+    // One after another, on one connection, as the panel's other figures are read.
+    const recipesPending = await this.prisma.recipeDraft.count({ where: { status: 'PENDING' } });
+    const recipesApproved = await this.prisma.recipeDraft.count({ where: { status: 'APPROVED' } });
+    return {
+      names: {
+        missing: missing.length,
+        rejected: rejected.length,
+        unapproved: unapproved.length,
+        pending,
+        approved,
+      },
+      recipes: { pending: recipesPending, approved: recipesApproved },
+    };
   }
 
   /** Reject each draft of `ids` on its own, leaving out and naming one the rejection was refused for. */
@@ -624,6 +743,7 @@ export class DraftService {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockIngredientName(tx, id);
       assertOpen(draft.status, by, 'edited');
+      await assertNotReplaced(tx, draft);
 
       const checked = checkIngredientName(suggestions, draft.locales);
       if (!checked.ok) throw invalid(checked.problems);
@@ -634,7 +754,7 @@ export class DraftService {
       });
       return tx.ingredientNameDraft.update({
         where: { id },
-        data: { suggestions: checked.suggestion, status: 'PENDING' },
+        data: { suggestions: checked.suggestion, status: 'PENDING', editedAt: new Date() },
         include: WITH_REVIEWS,
       });
     });
@@ -650,6 +770,7 @@ export class DraftService {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockIngredientName(tx, id);
       assertOpen(draft.status, by, 'edited');
+      await assertNotReplaced(tx, draft);
       assertLocale(draft.locales, locale);
 
       const stored = (draft.suggestions ?? {}) as {
@@ -679,6 +800,7 @@ export class DraftService {
         data: {
           suggestions: { name, ...(Object.keys(storageHint).length > 0 ? { storageHint } : {}) },
           status: 'PENDING',
+          editedAt: new Date(),
         },
         include: WITH_REVIEWS,
       });

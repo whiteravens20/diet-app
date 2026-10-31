@@ -143,6 +143,10 @@ export const IngredientNameDraft = z.object({
   shippedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Whether a person changed what the model wrote: a run for every unapproved name leaves such a draft alone. */
+  edited: z.boolean(),
+  /** A rejected draft whose ingredient has another proposal or a shipped name now: it stays as history, and cannot be reopened. */
+  replaced: z.boolean(),
   localeReviews: z.array(LocaleReview),
   pastReviews: z.array(PastReview),
 });
@@ -150,7 +154,10 @@ export type IngredientNameDraft = z.infer<typeof IngredientNameDraft>;
 
 /**
  * Spec passed to `POST /api/admin/drafts/ingredient-names/generate`. `scope`
- * picks the parent set; `targetLocales` controls which locale keys the AI
+ * picks the parent set: `all-usda-missing` the imported ingredients that never
+ * had a draft, `rejected` those whose last proposal was rejected, and
+ * `specific-slugs` the ones named. None of them gets a second proposal beside
+ * one that waits. `targetLocales` controls which locale keys the AI
  * must return — defaults to every non-canonical locale (`pl` today) so that
  * extending the `Locale` enum auto-extends draft coverage. English is not
  * among them: the source's own name is the English one, and a draft made for
@@ -158,7 +165,7 @@ export type IngredientNameDraft = z.infer<typeof IngredientNameDraft>;
  */
 export const IngredientNameGenerateSpec = z
   .object({
-    scope: z.enum(['all-usda-missing', 'specific-slugs']),
+    scope: z.enum(['all-usda-missing', 'rejected', 'specific-slugs']),
     slugs: z.array(z.string().min(1).max(200)).max(1000).optional(),
     targetLocales: z.array(TargetLocale).min(1).max(TargetLocale.options.length).optional(),
   })
@@ -198,6 +205,23 @@ export const DraftBulkRejectBody = DraftReviewBody.extend({
   ids: z.array(z.string().uuid()).min(1).max(100),
 });
 export type DraftBulkRejectBody = z.infer<typeof DraftBulkRejectBody>;
+
+/**
+ * What `POST /api/admin/drafts/ingredient-names/regenerate` is asked for: new
+ * proposals in place of drafts that wait. `named` takes the drafts of `ids`,
+ * changed by hand or not; `unapproved` takes every one that waits and that no
+ * person changed or approved in a language. Each old proposal is rejected under
+ * this name and with this reason once the new one is written, so a name the
+ * model cannot give anew leaves the old one waiting.
+ */
+export const IngredientNameRegenerateBody = DraftReviewBody.extend({
+  scope: z.enum(['named', 'unapproved']),
+  ids: z.array(z.string().uuid()).min(1).max(100).optional(),
+}).refine((body) => body.scope !== 'named' || (body.ids?.length ?? 0) > 0, {
+  path: ['ids'],
+  message: 'Name the drafts to write again.',
+});
+export type IngredientNameRegenerateBody = z.infer<typeof IngredientNameRegenerateBody>;
 
 /** Which queue a shipment is taken from. */
 export const ShipKind = z.enum(['recipe', 'ingredient-name']);
@@ -247,6 +271,9 @@ export type DraftRunnerStatus = z.infer<typeof DraftRunnerStatus>;
  *  - `not-imported`: none of the ingredients named is an imported one, and
  *    only those get their names from a run;
  *  - `all-have-drafts`: every imported ingredient already has a draft;
+ *  - `nothing-to-write-again`: no draft is left of those the run was to write again;
+ *  - `left-as-they-are`: a person changed or decided on some of the drafts it
+ *    was to replace, before or while it ran, and those stayed;
  *  - `coverage-reached`: every diet has enough recipes for every meal;
  *  - `nothing-to-translate`: nothing lacks the language that was asked for.
  */
@@ -254,6 +281,8 @@ export const DraftRunNote = z.enum([
   'nothing-imported',
   'not-imported',
   'all-have-drafts',
+  'nothing-to-write-again',
+  'left-as-they-are',
   'coverage-reached',
   'nothing-to-translate',
 ]);
@@ -718,6 +747,28 @@ export const InstanceMirror = z.object({
     .nullable(),
 });
 export type InstanceMirror = z.infer<typeof InstanceMirror>;
+
+/** What the administrator has waiting: the two queues, and how the copy of the instance's files stands. */
+export const AdminOverview = z.object({
+  names: z.object({
+    /** Imported ingredients that never had a proposal. */
+    missing: z.number().int().min(0),
+    /** Imported ingredients whose last proposal was rejected, with none in its place. */
+    rejected: z.number().int().min(0),
+    /** Drafts that wait for a decision. */
+    pending: z.number().int().min(0),
+    /** Those of them a run for every unapproved name takes: no person changed them or approved them in a language. */
+    unapproved: z.number().int().min(0),
+    /** Approved, and not shipped yet. */
+    approved: z.number().int().min(0),
+  }),
+  recipes: z.object({
+    pending: z.number().int().min(0),
+    approved: z.number().int().min(0),
+  }),
+  mirror: InstanceMirror,
+});
+export type AdminOverview = z.infer<typeof AdminOverview>;
 
 /** The ways approved drafts can be shipped on this instance, and how many wait. */
 export const ShipConfig = z.object({

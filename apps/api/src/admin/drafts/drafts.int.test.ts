@@ -12,7 +12,8 @@ import {
   race,
 } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
-import { IngredientNamerRunner } from './ingredient-namer.runner.js';
+import { DraftService } from './draft.service.js';
+import { IngredientNamerRunner, type IngredientNamerStartSpec } from './ingredient-namer.runner.js';
 
 describe('the curation queue', () => {
   let t: TestApp;
@@ -981,6 +982,320 @@ describe('the curation queue', () => {
           ),
         ).toEqual(['banana']);
         expect(t.model.requests).toHaveLength(3);
+      });
+    });
+
+    describe('that writes names again', () => {
+      const regenerate = (body: Record<string, unknown>) =>
+        t
+          .http()
+          .post('/api/admin/drafts/ingredient-names/regenerate')
+          .set(asAdmin)
+          .send({ reviewedByLabel: 'Pavlo', ...body });
+      /** Started on the runner itself: the routes let five runs a minute be asked for. */
+      const begin = async (spec: IngredientNamerStartSpec) => {
+        expect(
+          await t.app.get(IngredientNamerRunner).start({ targetLocales: ['pl'], ...spec }),
+        ).toBe(true);
+      };
+      const replacing = (spec: { ids?: string[]; reason?: string } = {}) =>
+        begin({ scope: 'replacing', by: { role: 'ADMIN', label: 'Pavlo' }, ...spec });
+      const overview = async () =>
+        (await t.http().get('/api/admin/drafts/overview').set(asAdmin).expect(200)).body;
+      /** A draft that stands as written: created now, by the run that named it. */
+      const named = (slug: string, name: string, overrides: Record<string, unknown> = {}) =>
+        anIngredientNameDraft(t, {
+          ingredientSlug: slug,
+          suggestions: { name: { pl: name } },
+          generatorPrompt: 'ingredient-namer.v1',
+          ...overrides,
+        });
+      const draftsOf = (slug: string) =>
+        t.prisma.ingredientNameDraft.findMany({
+          where: { ingredientSlug: slug },
+          orderBy: { createdAt: 'asc' },
+          include: { localeReviews: true },
+        });
+      const lastPrompt = () => t.model.requests.at(-1)!.prompt;
+
+      beforeEach(async () => {
+        t.model.reset();
+        await imported('banana', ['usda-imported']);
+        await imported('salmon', ['usda-imported']);
+      });
+
+      afterEach(async () => {
+        await imported('banana', []);
+        await imported('salmon', []);
+      });
+
+      it('counts what each way of writing takes on, and each ingredient under one of them', async () => {
+        await anIngredientNameDraft(t, { ingredientSlug: 'kale', status: 'PENDING' });
+
+        expect((await overview()).names).toEqual({
+          missing: 2,
+          rejected: 0,
+          pending: 1,
+          // A draft of an ingredient that is no imported one: no run can name it.
+          unapproved: 0,
+          approved: 0,
+        });
+
+        const rejected = await named('banana', 'Owoc');
+        await admin.review('ingredient-names', rejected.id, 'reject', 'pl').expect(201);
+        await named('salmon', 'Łosoś');
+
+        expect((await overview()).names).toEqual({
+          missing: 0,
+          rejected: 1,
+          pending: 2,
+          unapproved: 1,
+          approved: 0,
+        });
+      });
+
+      it('leaves a rejected name to its own way of writing: the missing ones do not take it', async () => {
+        const old = await named('banana', 'Owoc');
+        await admin.review('ingredient-names', old.id, 'reject', 'pl').expect(201);
+        t.model.reply({ text: JSON.stringify({ salmon: { name: { pl: 'Łosoś' } } }) });
+
+        await begin({ scope: 'all-usda-missing' });
+
+        expect(await ended()).toMatchObject({ status: 'done', total: 1, written: 1, skipped: 1 });
+        expect(await draftsOf('banana')).toHaveLength(1);
+      });
+
+      it('tells the model the name refused and why, refuses it given again, and keeps the old one as history', async () => {
+        const old = await named('banana', 'Owoc');
+        await admin.review('ingredient-names', old.id, 'reject', 'pl', 'Zbyt ogólna').expect(201);
+        // The first answer gives the refused name once more, in other letters.
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'OWOC ' } } }) });
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }) });
+
+        await begin({ scope: 'rejected' });
+
+        expect(await ended()).toMatchObject({ status: 'done', total: 1, written: 1, failed: 0 });
+        expect(t.model.requests).toHaveLength(2);
+        expect(t.model.requests[0]!.prompt).toContain(
+          '{"banana":[{"name":{"pl":"Owoc"},"reason":"Zbyt ogólna"}]}',
+        );
+        expect(lastPrompt()).toContain('repeats-refused at "banana.name.pl"');
+        const [first, second] = await draftsOf('banana');
+        expect(first!.status).toBe('REJECTED');
+        expect(second).toMatchObject({ status: 'PENDING', suggestions: { name: { pl: 'Banan' } } });
+      });
+
+      it('shows a rejected draft with a newer proposal as replaced, and does not let it be taken up again', async () => {
+        const old = await named('banana', 'Owoc');
+        await admin.review('ingredient-names', old.id, 'reject', 'pl').expect(201);
+        const open = await admin.name(old.id).expect(200);
+        expect(open.body.replaced).toBe(false);
+
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }) });
+        await begin({ scope: 'rejected' });
+        await ended();
+
+        const list = await t
+          .http()
+          .get('/api/admin/drafts/ingredient-names?status=REJECTED')
+          .set(asAdmin)
+          .expect(200);
+        expect(list.body.items).toMatchObject([{ id: old.id, replaced: true }]);
+        expect((await admin.name(old.id).expect(200)).body.replaced).toBe(true);
+        expect(
+          (await admin.review('ingredient-names', old.id, 'approve', 'pl').expect(409)).body.error,
+        ).toBe('DRAFT_REPLACED');
+        expect(
+          (await admin.editName(old.id, { name: { pl: 'Bananowiec' } }).expect(409)).body.error,
+        ).toBe('DRAFT_REPLACED');
+        expect((await overview()).names).toMatchObject({ rejected: 0, pending: 1 });
+      });
+
+      it('lets a rejected draft nothing replaced be taken up again, as before', async () => {
+        const old = await named('banana', 'Owoc');
+        await admin.review('ingredient-names', old.id, 'reject', 'pl').expect(201);
+
+        await admin.review('ingredient-names', old.id, 'approve', 'pl').expect(201);
+
+        expect((await admin.name(old.id).expect(200)).body.status).toBe('APPROVED');
+      });
+
+      it('writes every unapproved name anew, under the name given, and leaves what a person touched', async () => {
+        const plain = await named('banana', 'Owoc');
+        const edited = await named('salmon', 'Ryba');
+        await admin.editName(edited.id, { name: { pl: 'Łosoś atlantycki' } }).expect(200);
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }) });
+
+        const started = await regenerate({ scope: 'unapproved', reason: 'Lepiej po polsku' });
+
+        expect(started.status).toBe(202);
+        expect(await ended()).toMatchObject({ status: 'done', total: 1, written: 1, note: null });
+        expect(t.model.requests[0]!.prompt).toContain(
+          '{"banana":[{"name":{"pl":"Owoc"},"reason":"Lepiej po polsku"}]}',
+        );
+        const [old, fresh] = await draftsOf('banana');
+        expect(old).toMatchObject({ id: plain.id, status: 'REJECTED' });
+        expect(old!.localeReviews).toMatchObject([
+          {
+            locale: 'pl',
+            action: 'REJECT',
+            byRole: 'ADMIN',
+            reviewedByLabel: 'Pavlo',
+            reason: 'Lepiej po polsku',
+          },
+        ]);
+        expect(fresh).toMatchObject({
+          status: 'PENDING',
+          editedAt: null,
+          suggestions: { name: { pl: 'Banan' } },
+        });
+        const salmon = await draftsOf('salmon');
+        expect(salmon).toHaveLength(1);
+        expect(salmon[0]).toMatchObject({
+          status: 'PENDING',
+          suggestions: { name: { pl: 'Łosoś atlantycki' } },
+        });
+      });
+
+      it('counts an edit by the administrator and by a reviewer as a change by hand', async () => {
+        const byAdmin = await named('banana', 'Owoc');
+        const byReviewer = await named('salmon', 'Ryba');
+        await admin.editName(byAdmin.id, { name: { pl: 'Banan' } }).expect(200);
+        await asReviewer.editName(byReviewer.id, { name: 'Łosoś' }).expect(200);
+
+        expect((await admin.name(byAdmin.id).expect(200)).body.edited).toBe(true);
+        expect((await admin.name(byReviewer.id).expect(200)).body.edited).toBe(true);
+        expect((await overview()).names).toMatchObject({ pending: 2, unapproved: 0 });
+      });
+
+      it('writes a draft changed by hand anew when it is named, and says of one that no longer waits', async () => {
+        const edited = await named('banana', 'Owoc');
+        await admin.editName(edited.id, { name: { pl: 'Owoc żółty' } }).expect(200);
+        const approved = await named('salmon', 'Łosoś');
+        await admin.review('ingredient-names', approved.id, 'approve', 'pl').expect(201);
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }) });
+
+        await replacing({ ids: [edited.id, approved.id] });
+
+        expect(await ended()).toMatchObject({
+          total: 1,
+          written: 1,
+          skipped: 1,
+          note: 'left-as-they-are',
+        });
+        expect(t.model.requests[0]!.prompt).not.toContain('salmon');
+        expect((await draftsOf('banana')).map((draft) => draft.status)).toEqual([
+          'REJECTED',
+          'PENDING',
+        ]);
+        expect((await draftsOf('salmon')).map((draft) => draft.status)).toEqual(['APPROVED']);
+      });
+
+      it('leaves the old proposal waiting when the model cannot give a new name', async () => {
+        const old = await named('banana', 'Owoc');
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Owoc' } } }), times: 3 });
+
+        await replacing();
+
+        expect(await ended()).toMatchObject({ status: 'done', written: 0, failed: 1 });
+        const drafts = await draftsOf('banana');
+        expect(drafts).toHaveLength(1);
+        expect(drafts[0]).toMatchObject({ id: old.id, status: 'PENDING' });
+        expect(drafts[0]!.localeReviews).toEqual([]);
+      });
+
+      it('leaves a draft a person changed after the run took it on', async () => {
+        const old = await named('banana', 'Owoc');
+        const service = t.app.get(DraftService);
+        await admin.editName(old.id, { name: { pl: 'Banan' } }).expect(200);
+
+        const written = await service.replaceIngredientName(
+          old.id,
+          // As it stood when the run read it, before the edit.
+          old.updatedAt,
+          {
+            ingredientSlug: 'banana',
+            rawDescription: 'Bananas, raw',
+            suggestions: { name: { pl: 'Inny' } },
+            locales: ['pl'],
+            batchId: 'run',
+          },
+          undefined,
+          { role: 'ADMIN', label: 'Pavlo' },
+        );
+
+        expect(written).toBeNull();
+        expect(await draftsOf('banana')).toMatchObject([
+          { id: old.id, status: 'PENDING', suggestions: { name: { pl: 'Banan' } } },
+        ]);
+      });
+
+      it('gets no second proposal beside one that waits, also when it is named', async () => {
+        await named('banana', 'Banan');
+
+        await begin({ scope: 'specific-slugs', slugs: ['banana'] });
+
+        expect(await ended()).toMatchObject({
+          status: 'done',
+          total: 0,
+          skipped: 1,
+          note: 'all-have-drafts',
+        });
+        expect(t.model.requests).toEqual([]);
+      });
+
+      it('takes a shipped name when it is named: that is how one gets a better one', async () => {
+        await named('banana', 'Owoc', { status: 'SHIPPED' });
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }) });
+
+        await begin({ scope: 'specific-slugs', slugs: ['banana'] });
+
+        expect(await ended()).toMatchObject({ status: 'done', written: 1 });
+      });
+
+      it('says there is nothing to write again', async () => {
+        await replacing();
+        expect(await ended()).toMatchObject({ total: 0, note: 'nothing-to-write-again' });
+
+        await begin({ scope: 'rejected' });
+        expect(await ended()).toMatchObject({ total: 0, note: 'nothing-to-write-again' });
+        expect(t.model.requests).toEqual([]);
+      });
+
+      it('is not started beside a run that is going, and changes nothing', async () => {
+        const old = await named('banana', 'Owoc');
+        t.model.reply({
+          text: JSON.stringify({ banana: { name: { pl: 'Banan' } } }),
+          delayMs: 200,
+        });
+        await regenerate({ scope: 'unapproved' }).expect(202);
+
+        const second = await regenerate({ scope: 'named', ids: [old.id] }).expect(409);
+
+        expect(second.body.error).toBe('NAMER_IN_PROGRESS');
+        await ended();
+      });
+
+      it('wants the drafts named when it is asked for named ones', async () => {
+        expect((await regenerate({ scope: 'named' }).expect(400)).body.error).toBe(
+          'VALIDATION_FAILED',
+        );
+      });
+
+      it("is the administrator's alone: a reviewer starts no run", async () => {
+        await t
+          .http()
+          .post('/api/admin/drafts/ingredient-names/regenerate')
+          .set(reviewer)
+          .send({ reviewedByLabel: 'Anna', scope: 'unapproved' })
+          .expect(401);
+        await t
+          .http()
+          .post('/api/admin/drafts/ingredient-names/generate')
+          .set(reviewer)
+          .send({ scope: 'rejected' })
+          .expect(401);
+        expect(t.model.requests).toEqual([]);
       });
     });
 

@@ -27,6 +27,7 @@ import {
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
+  AdminOverview,
   DraftBulkRejectBody,
   DraftLocaleQuery,
   DraftReviewBody,
@@ -37,6 +38,7 @@ import {
   IngredientNameDraftPage,
   IngredientNameDraftPatchBody,
   IngredientNameGenerateSpec,
+  IngredientNameRegenerateBody,
   MarkShippedRequest,
   RecipeDraft,
   RecipeDraftListQuery,
@@ -115,12 +117,42 @@ export class DraftsController {
   async startNamerRun(
     @Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec,
   ): Promise<DraftRunnerState> {
-    const spec: IngredientNamerStartSpec = {
-      scope: body.scope,
-      slugs: body.slugs,
-      targetLocales: body.targetLocales,
-    };
+    const spec: IngredientNamerStartSpec =
+      body.scope === 'specific-slugs'
+        ? { scope: body.scope, slugs: body.slugs ?? [], targetLocales: body.targetLocales }
+        : { scope: body.scope, targetLocales: body.targetLocales };
     const started = await this.namer.start(spec);
+    if (!started) {
+      throw new ConflictException({
+        error: 'NAMER_IN_PROGRESS',
+        message: 'An ingredient-namer run is already in progress.',
+      });
+    }
+    return this.namerRunnerState();
+  }
+
+  /**
+   * Start a run that writes new proposals in place of drafts that wait: those
+   * named, or every unapproved one nobody changed by hand. The model is told
+   * the old name and the reason. Each old proposal is rejected once its new one
+   * is written, so one the model could not name anew still waits, and one a
+   * person decided on during the run stays. 409 while a run of names is going.
+   */
+  // The same cap as the run above: this one costs the same.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('ingredient-names/regenerate')
+  @HttpCode(202)
+  @Answers(DraftRunnerState)
+  async regenerateIngredientNames(
+    @Body(new ZodValidationPipe(IngredientNameRegenerateBody))
+    { scope, ids, reviewedByLabel, reason }: IngredientNameRegenerateBody,
+  ): Promise<DraftRunnerState> {
+    const started = await this.namer.start({
+      scope: 'replacing',
+      ...(scope === 'named' ? { ids } : {}),
+      by: { ...ADMIN, label: reviewedByLabel },
+      reason,
+    });
     if (!started) {
       throw new ConflictException({
         error: 'NAMER_IN_PROGRESS',
@@ -146,6 +178,17 @@ export class DraftsController {
     return this.namerRunnerState();
   }
 
+  /**
+   * What the administrator has waiting: how many names each way of writing them
+   * takes on, how many names and recipes wait for a decision or to ship, and how
+   * the copy of the instance's files in a git repository stands.
+   */
+  @Get('overview')
+  @Answers(AdminOverview)
+  async overview(): Promise<AdminOverview> {
+    return { ...(await this.drafts.queues()), mirror: this.files.mirror() };
+  }
+
   // ── List + read ─────────────────────────────────────────────────────────────
 
   /** The drafts of names for ingredients, a page at a time, narrowed as asked. */
@@ -155,7 +198,11 @@ export class DraftsController {
     @Query(new ZodValidationPipe(IngredientNameDraftListQuery)) query: IngredientNameDraftListQuery,
   ): Promise<IngredientNameDraftPage> {
     const found = await this.drafts.listIngredientNames(query);
-    return { ...found, items: found.items.map(toIngredientNameDraftDto) };
+    const replaced = await this.drafts.replacedAmong(found.items);
+    return {
+      ...found,
+      items: found.items.map((row) => toIngredientNameDraftDto(row, replaced.has(row.id))),
+    };
   }
 
   /**
@@ -180,7 +227,9 @@ export class DraftsController {
   async getIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
   ): Promise<IngredientNameDraft> {
-    return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
+    const row = await this.drafts.ingredientName(id);
+    const replaced = await this.drafts.replacedAmong([row]);
+    return toIngredientNameDraftDto(row, replaced.has(row.id));
   }
 
   // ── Edit / approve / reject / delete (ingredient names) ────────────────────

@@ -19,6 +19,7 @@
 import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import type { IngredientNameSuggestion } from '@diet-app/shared';
 import { checkIngredientName, type RecipeRule } from '../../recipes/recipe-rules.js';
+import type { RefusedName } from './ingredient-namer.prompt.js';
 
 export type IngredientNamerValidationReason =
   | RecipeRule
@@ -31,7 +32,8 @@ export type IngredientNamerValidationReason =
   | 'raw-passthrough'
   | 'invented-digits'
   | 'length-blowup'
-  | 'llm-yap';
+  | 'llm-yap'
+  | 'repeats-refused';
 
 /** Why one name of an answer is not written, and the slug or the field it is about. */
 interface NameRefusal {
@@ -81,12 +83,18 @@ export interface ValidateIngredientNamerOptions {
   targetLocales: string[];
   /** Raw model output (may be wrapped in a markdown fence). */
   rawOutput: string;
+  /** The names people refused, keyed by slug: giving one of them again is no new proposal. */
+  refused?: Record<string, RefusedName[]>;
 }
+
+/** Two names are one name whatever their case and the spaces around them. */
+const sameName = (a: string, b: string): boolean =>
+  a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export function validateIngredientNamer(
   opts: ValidateIngredientNamerOptions,
 ): IngredientNamerValidationResult {
-  const { source, targetLocales, rawOutput } = opts;
+  const { source, targetLocales, rawOutput, refused: refusedBefore = {} } = opts;
   const sourceKeys = Object.keys(source);
 
   const reply = readModelObject(rawOutput, MAX_BATCH_REPLY_CHARS);
@@ -123,6 +131,11 @@ export function validateIngredientNamer(
         translated: trimmed,
       });
       if (!rowCheck.ok) return rowCheck;
+      const given = refusedBefore[slug]?.some((one) => {
+        const name = one.name[locale];
+        return name !== undefined && sameName(name, trimmed);
+      });
+      if (given) return { ok: false, reason: 'repeats-refused', key: `${slug}.name.${locale}` };
       cleanName[locale] = trimmed;
     }
 

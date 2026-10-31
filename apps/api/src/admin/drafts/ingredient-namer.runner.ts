@@ -3,10 +3,12 @@
 /**
  * Ingredient-namer draft runner.
  *
- * Single-flight job that walks USDA-imported ingredients lacking a current
- * draft and asks the admin-default AI provider to propose friendly culinary
- * names per `targetLocales`. Drafts land in `IngredientNameDraft` as PENDING;
- * the live `Ingredient` table is never touched.
+ * Single-flight job that walks USDA-imported ingredients and asks the
+ * admin-default AI provider to propose friendly culinary names per
+ * `targetLocales`. Drafts land in `IngredientNameDraft` as PENDING; the live
+ * `Ingredient` table is never touched. The model is told the names people
+ * refused for an ingredient, and giving one again is refused. An ingredient
+ * has one proposal waiting at a time: a new one rejects the one it replaces.
  *
  * Single-flight + cancel + state shape so the admin panel can poll one
  * consistent payload.
@@ -25,16 +27,24 @@ import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
 import { ingredientNames, namesPerCall } from '../../ai/operations.js';
+import { DraftService, type Actor } from './draft.service.js';
+import {
+  importedIngredients,
+  readNameQueue,
+  refusedNames,
+  waitingNames,
+  type NameTarget,
+  type WaitingName,
+} from './ingredient-name-queue.js';
 import {
   INGREDIENT_NAMER_PROMPT_VERSION,
   buildIngredientNamerPrompt,
+  type RefusedName,
 } from './ingredient-namer.prompt.js';
 import {
   validateIngredientNamer,
   type IngredientNamerValidationReason,
 } from './ingredient-namer.validate.js';
-
-type IngredientNamerScope = 'all-usda-missing' | 'specific-slugs';
 
 export type DraftRunnerStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -57,11 +67,15 @@ export interface IngredientNamerRunnerState {
   note: DraftRunNote | null;
 }
 
-export interface IngredientNamerStartSpec {
-  scope: IngredientNamerScope;
-  slugs?: string[];
-  targetLocales?: Locale[];
-}
+export type IngredientNamerStartSpec = { targetLocales?: Locale[] } & (
+  | { scope: 'all-usda-missing' | 'rejected' }
+  | { scope: 'specific-slugs'; slugs: string[] }
+  /** Proposals in place of drafts that wait: those of `ids`, or every unapproved one. */
+  | { scope: 'replacing'; ids?: string[]; by: Actor; reason?: string }
+);
+
+/** An ingredient a run names, and the draft whose place its new name takes. */
+type Target = NameTarget & { replaces?: WaitingName };
 
 @Injectable()
 export class IngredientNamerRunner {
@@ -89,6 +103,7 @@ export class IngredientNamerRunner {
     private readonly anthropic: AnthropicProvider,
     private readonly openrouter: OpenRouterProvider,
     private readonly ollama: OllamaProvider,
+    private readonly drafts: DraftService,
   ) {
     this.job = new JobState(prisma, 'ingredient names', IngredientNamerRunner.idle);
   }
@@ -158,6 +173,13 @@ export class IngredientNamerRunner {
         return;
       }
 
+      const replaces = targets.flatMap((target) => target.replaces?.draftId ?? []);
+      const refused = await refusedNames(
+        this.prisma,
+        targets.map((target) => target.slug),
+        { ids: replaces, reason: spec.scope === 'replacing' ? spec.reason : undefined },
+      );
+
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
       // No more names per call than fit one answer.
@@ -166,7 +188,15 @@ export class IngredientNamerRunner {
       for (let i = 0; i < targets.length; i += batchSize) {
         if (this.cancelRequested) break;
         const batch = targets.slice(i, i + batchSize);
-        await this.processBatch(batch, targetLocales, adapter, tuning.temperature, batchId);
+        await this.processBatch(
+          batch,
+          targetLocales,
+          adapter,
+          tuning.temperature,
+          batchId,
+          refused,
+          spec,
+        );
         if (
           tuning.interBatchDelayMs > 0 &&
           i + batchSize < targets.length &&
@@ -189,69 +219,86 @@ export class IngredientNamerRunner {
   }
 
   /**
-   * The ingredients a run names: imported ones, which arrive with the names
-   * of their source. With `specific-slugs` those among the slugs named, even
-   * when they have a draft already: the operator asked for them again.
-   * Otherwise every imported ingredient that has no draft of this prompt's
-   * version. A run that is left with nothing says which of these it was.
+   * The ingredients a run names: imported ones, which arrive with the names of
+   * their source. `all-usda-missing` takes those that never had a proposal,
+   * `rejected` those whose last one was rejected, `specific-slugs` those named,
+   * and `replacing` the drafts that wait, for their ingredients. An ingredient
+   * with a proposal waiting gets no second one beside it. A run that is left
+   * with nothing says why.
    */
   private async collectTargets(spec: IngredientNamerStartSpec): Promise<{
-    targets: { id: string; slug: string; rawDescription: string }[];
+    targets: Target[];
     skipped: number;
     note: DraftRunNote | null;
   }> {
-    const ingredients = await this.prisma.ingredient.findMany({
-      where: {
-        tags: { has: 'usda-imported' },
-        slug: { not: null },
-        retiredAt: null,
-        ...(spec.scope === 'specific-slugs' && spec.slugs && spec.slugs.length > 0
-          ? { slug: { in: spec.slugs } }
-          : {}),
-      },
-      select: { id: true, slug: true, name: true },
-    });
-
-    const imported = ingredients
-      .filter((i): i is { id: string; slug: string; name: string } => i.slug !== null)
-      .map((i) => ({ id: i.id, slug: i.slug, rawDescription: i.name }));
-    if (spec.scope === 'specific-slugs') {
-      const asked = new Set(spec.slugs ?? []).size;
-      const skipped = asked - imported.length;
-      return { targets: imported, skipped, note: imported.length === 0 ? 'not-imported' : null };
+    if (spec.scope === 'replacing') {
+      const waiting = spec.ids
+        ? await waitingNames(this.prisma, spec.ids)
+        : (await readNameQueue(this.prisma)).unapproved;
+      const skipped = spec.ids ? new Set(spec.ids).size - waiting.length : 0;
+      return {
+        targets: waiting.map((replaces) => ({ ...replaces, replaces })),
+        skipped,
+        note:
+          waiting.length === 0 ? 'nothing-to-write-again' : skipped > 0 ? 'left-as-they-are' : null,
+      };
     }
-    if (imported.length === 0) return { targets: [], skipped: 0, note: 'nothing-imported' };
 
-    // Skip slugs that already have a PENDING/APPROVED/SHIPPED draft from the
-    // current prompt version. REJECTED rows are retried on the next run —
-    // the operator may have improved the prompt since.
-    const existing = await this.prisma.ingredientNameDraft.findMany({
-      where: {
-        generatorPrompt: INGREDIENT_NAMER_PROMPT_VERSION,
-        status: { in: ['PENDING', 'APPROVED', 'SHIPPED'] },
-      },
-      select: { ingredientSlug: true },
-    });
-    const skip = new Set(existing.map((d) => d.ingredientSlug));
-    const targets = imported.filter((i) => !skip.has(i.slug));
+    if (spec.scope === 'specific-slugs') {
+      const asked = new Set(spec.slugs);
+      const named = (await importedIngredients(this.prisma)).filter((i) => asked.has(i.slug));
+      if (named.length === 0) return { targets: [], skipped: asked.size, note: 'not-imported' };
+      const waiting = await this.prisma.ingredientNameDraft.findMany({
+        where: {
+          ingredientSlug: { in: named.map((i) => i.slug) },
+          status: { in: ['PENDING', 'APPROVED'] },
+        },
+        select: { ingredientSlug: true },
+      });
+      const taken = new Set(waiting.map((draft) => draft.ingredientSlug));
+      const targets = named.filter((i) => !taken.has(i.slug));
+      return {
+        targets,
+        skipped: asked.size - targets.length,
+        note: targets.length === 0 ? 'all-have-drafts' : null,
+      };
+    }
+
+    const imported = await importedIngredients(this.prisma);
+    if (imported.length === 0) return { targets: [], skipped: 0, note: 'nothing-imported' };
+    const queue = await readNameQueue(this.prisma);
+    const targets = spec.scope === 'rejected' ? queue.rejected : queue.missing;
     return {
       targets,
       skipped: imported.length - targets.length,
-      note: targets.length === 0 ? 'all-have-drafts' : null,
+      note:
+        targets.length > 0
+          ? null
+          : spec.scope === 'rejected'
+            ? 'nothing-to-write-again'
+            : 'all-have-drafts',
     };
   }
 
   private async processBatch(
-    batch: { id: string; slug: string; rawDescription: string }[],
+    batch: Target[],
     targetLocales: Locale[],
     adapter: AiProviderAdapter,
     temperature: number,
     batchId: string,
+    refused: Record<string, RefusedName[]>,
+    spec: IngredientNamerStartSpec,
   ): Promise<void> {
     const source: Record<string, string> = {};
     for (const row of batch) source[row.slug] = row.rawDescription;
 
-    const suggestions = await this.askWithRetry(adapter, source, targetLocales, temperature);
+    const suggestions = await this.askWithRetry(
+      adapter,
+      source,
+      targetLocales,
+      temperature,
+      refused,
+    );
     if (!suggestions) {
       // Whole batch rejected — count every row as failed; the operator can
       // retry with a tighter spec or a different model.
@@ -266,19 +313,28 @@ export class IngredientNamerRunner {
         continue;
       }
       try {
-        await this.prisma.ingredientNameDraft.create({
-          data: {
-            ingredientId: row.id,
-            ingredientSlug: row.slug,
-            rawDescription: row.rawDescription,
-            suggestions: suggestion,
-            locales: targetLocales,
-            batchId,
-            modelUsed: this.config.get('AI_DEFAULT_MODEL', { infer: true }) ?? null,
-            generatorPrompt: INGREDIENT_NAMER_PROMPT_VERSION,
-          },
-        });
-        this.markWritten();
+        const data = {
+          ingredientId: row.id,
+          ingredientSlug: row.slug,
+          rawDescription: row.rawDescription,
+          suggestions: suggestion,
+          locales: targetLocales,
+          batchId,
+          modelUsed: this.config.get('AI_DEFAULT_MODEL', { infer: true }) ?? null,
+          generatorPrompt: INGREDIENT_NAMER_PROMPT_VERSION,
+        };
+        const written =
+          row.replaces && spec.scope === 'replacing'
+            ? await this.drafts.replaceIngredientName(
+                row.replaces.draftId,
+                row.replaces.updatedAt,
+                data,
+                spec.reason,
+                spec.by,
+              )
+            : await this.drafts.addIngredientName(data);
+        if (written) this.markWritten();
+        else this.markLeft();
       } catch (err) {
         this.logger.warn(`Failed to persist draft for ${row.slug}: ${describe(err)}`);
         this.markFailed();
@@ -297,6 +353,7 @@ export class IngredientNamerRunner {
     source: Record<string, string>,
     targetLocales: Locale[],
     temperature: number,
+    refusedBefore: Record<string, RefusedName[]>,
   ): Promise<Record<string, import('@diet-app/shared').IngredientNameSuggestion> | null> {
     const failures: { key: string; reason: IngredientNamerValidationReason | 'answer-cut-off' }[] =
       [];
@@ -317,7 +374,12 @@ export class IngredientNamerRunner {
           attempt === 0
             ? ''
             : `\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes.${refused}`;
-        const prompt = buildIngredientNamerPrompt({ targetLocales, source: missing }) + reminder;
+        const prompt =
+          buildIngredientNamerPrompt({
+            targetLocales,
+            source: missing,
+            refused: refusedBefore,
+          }) + reminder;
         const result = await adapter.chat([{ role: 'user', content: prompt }], {
           model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
           apiKey: this.adapterKey(adapter),
@@ -337,6 +399,7 @@ export class IngredientNamerRunner {
           source: missing,
           targetLocales,
           rawOutput: result.text,
+          refused: refusedBefore,
         });
         const refusals = v.ok ? v.refused : [{ key: v.key ?? '?', reason: v.reason }];
         if (v.ok) Object.assign(kept, v.suggestions);
@@ -388,6 +451,16 @@ export class IngredientNamerRunner {
       ...this.state,
       processed: this.state.processed + 1,
       failed: this.state.failed + 1,
+    };
+  }
+
+  /** A draft a person changed or decided on while the run wrote its new name: it stays as it is. */
+  private markLeft(): void {
+    this.state = {
+      ...this.state,
+      processed: this.state.processed + 1,
+      skipped: this.state.skipped + 1,
+      note: 'left-as-they-are',
     };
   }
 

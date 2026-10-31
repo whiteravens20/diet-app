@@ -15,6 +15,54 @@ function happy(out: Record<string, unknown>): string {
 }
 
 describe('validateIngredientNamer', () => {
+  describe('with the names people refused', () => {
+    const refused = { 'pears-bartlett': [{ name: { pl: 'Gruszka' }, reason: 'Zbyt ogólna' }] };
+
+    it.each(['Gruszka', '  gruszka ', 'GRUSZKA'])('refuses %j, which was refused', (given) => {
+      const result = validateIngredientNamer({
+        source: { 'pears-bartlett': source['pears-bartlett'] },
+        targetLocales,
+        refused,
+        rawOutput: happy({ 'pears-bartlett': { name: { pl: given } } }),
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        reason: 'repeats-refused',
+        key: 'pears-bartlett.name.pl',
+      });
+    });
+
+    it('keeps the other names of the answer, and takes the same name for another ingredient', () => {
+      const result = validateIngredientNamer({
+        source,
+        targetLocales,
+        refused,
+        rawOutput: happy({
+          'beef-tenderloin': { name: { pl: 'Gruszka' } },
+          'pears-bartlett': { name: { pl: 'Gruszka' } },
+        }),
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        suggestions: { 'beef-tenderloin': { name: { pl: 'Gruszka' } } },
+        refused: [{ reason: 'repeats-refused', key: 'pears-bartlett.name.pl' }],
+      });
+    });
+
+    it('holds a name to what was refused in its own language only', () => {
+      const result = validateIngredientNamer({
+        source: { 'pears-bartlett': source['pears-bartlett'] },
+        targetLocales: ['pl', 'de'],
+        refused,
+        rawOutput: happy({ 'pears-bartlett': { name: { pl: 'Gruszka bartlett', de: 'Gruszka' } } }),
+      });
+
+      expect(result.ok).toBe(true);
+    });
+  });
+
   it('accepts a clean response', () => {
     const result = validateIngredientNamer({
       source,

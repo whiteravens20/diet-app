@@ -1145,6 +1145,8 @@ model IngredientNameDraft {
   // Prompt version tag, e.g. "ingredient-namer.v1".
   generatorPrompt String?
   shippedAt       DateTime?
+  // When a person last changed what the model wrote; null when nobody has.
+  editedAt        DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

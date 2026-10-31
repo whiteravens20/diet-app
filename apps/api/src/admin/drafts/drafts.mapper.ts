@@ -92,7 +92,10 @@ export function toRecipeDraftDto(row: RecipeDraftRow): RecipeDraft {
   };
 }
 
-export function toIngredientNameDraftDto(row: IngredientNameDraftRow): IngredientNameDraft {
+export function toIngredientNameDraftDto(
+  row: IngredientNameDraftRow,
+  replaced = false,
+): IngredientNameDraft {
   return {
     id: row.id,
     ingredientId: row.ingredientId,
@@ -108,6 +111,8 @@ export function toIngredientNameDraftDto(row: IngredientNameDraftRow): Ingredien
     shippedAt: row.shippedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    edited: row.editedAt !== null,
+    replaced,
     ...reviewsOf(row.localeReviews, row.locales),
   };
 }

@@ -251,6 +251,20 @@ describe('a request that says something wrongly', () => {
         'slugs',
       ],
       [
+        'names to write again that are no drafts',
+        'post',
+        (): string => '/api/admin/drafts/ingredient-names/regenerate',
+        { scope: 'named', ids: [], reviewedByLabel: 'Pavlo' },
+        'ids',
+      ],
+      [
+        'names to write again under no name',
+        'post',
+        (): string => '/api/admin/drafts/ingredient-names/regenerate',
+        { scope: 'unapproved', reviewedByLabel: '' },
+        'reviewedByLabel',
+      ],
+      [
         'a run of a thousand recipes',
         'post',
         (): string => '/api/admin/drafts/recipes/generate',
