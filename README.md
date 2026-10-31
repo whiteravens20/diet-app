@@ -188,7 +188,7 @@ to the current schema. Loading the curated data (the ingredients and recipes of
 is something an administrator does, in the panel:
 
 1. Set `ADMIN_PASSWORD` in `.env` (and optionally `ADMIN_USER`, defaults to `admin`).
-2. Open <http://localhost:3000/admin> and sign in.
+2. Open <http://localhost:3000/admin>, sign in and open the **Catalogue** tab.
 3. (Optional) Add public-domain whole foods with the panel's **USDA importer**:
    choose the data sets and click **Run import**. **Foundation** brings about 330
    clean generic foods, some 270 of which the catalogue does not hold already.

@@ -1,6 +1,6 @@
 # Curation queue: shipping, backup and moving
 
-How approved drafts leave the curation queue (`/admin`, the curation card) and
+How approved drafts leave the curation queue (`/admin`, the Queue tab) and
 where they end up. A mode is picked per ship; an instance may use one today and
 another next month. What is written has the same shape in every mode: the shape
 of the catalogue's data files.
@@ -46,7 +46,7 @@ sending it back to review; a title is text and goes through review again.
 
 ## Recipes from elsewhere
 
-"Recipes from elsewhere" in the curation card takes recipes in from a document
+"Recipes from elsewhere" on the Queue tab takes recipes in from a document
 you have: one recipe or several written as schema.org `Recipe`, which is the
 JSON a recipe page carries and the shape many tools save. The instance fetches
 nothing and asks no model; it reads what you paste or load from a file.
@@ -88,7 +88,7 @@ what it is made of, is refused like any other draft would be at shipping.
 
 ## A language a recipe lacks
 
-"Fill a missing language" in the curation card asks the instance's model for
+"Fill a missing language" on the Queue tab asks the instance's model for
 the text of recipes in a language they do not have, and puts the answers into
 the queue. It changes nothing a user sees: the text is approved like any other,
 and ships like any other.
@@ -110,7 +110,7 @@ and ships like any other.
   approved like any English. The recipes of the library have English already
   and are left as they are.
 - The names of ingredients are not part of this run. An imported ingredient
-  gets its name in each language from "Generate names".
+  gets its name in each language from the names' own runs, described below.
 
 ### `local`
 
@@ -139,6 +139,30 @@ and ships like any other.
 - The recipes are not in this instance until the repository you committed the
   file to is the one this instance is built from, and its database is updated.
 
+## Writing names of ingredients
+
+The model proposes a name for each imported ingredient, and people decide. One ingredient
+has one proposal waiting at a time. Three runs write names, each saying how many it takes on
+and asking first:
+
+- **The missing** take the ingredients that never had a proposal.
+- **The rejected again** take the ingredients whose last proposal was rejected, with none in
+  its place.
+- **The unapproved again** take the proposals that wait, under the administrator's signature
+  and with one reason for all of them. A name a person changed by hand or approved in one of
+  its languages stays as it is.
+
+A row can be written anew by itself too: one that waits and was changed by hand is written
+anew only after a question. An approved or shipped name has no such button.
+
+The model is told the names people refused for an ingredient and why, up to the last five,
+and a name it gives again is refused and asked for once more. A proposal that is replaced
+stays in the history as rejected, once the new one is written: a name the model cannot give
+anew leaves the old proposal waiting, and one that a person changed or decided on during the
+run stays. A rejected proposal that has been replaced cannot be taken up again. Only a
+signed-in administrator starts these runs; a reviewer rejects, and the reason goes to the
+model with the next run.
+
 ## Backing up what the instance added
 
 Two places hold what the instance added to its catalogue: the database, and
@@ -160,7 +184,8 @@ the instance's data directory. Back up both.
 - The Compose service `mirror` keeps the directory in a private git repository
   of yours, with a commit when something changed (see
   [deployment](deployment.md#a-copy-of-the-instances-own-files)). Every file is
-  written whole and in a fixed order, so a commit shows what changed.
+  written whole and in a fixed order, so a commit shows what changed. The panel's
+  Catalogue tab says how the copy stands.
 
 ## Moving to a new server
 
@@ -172,9 +197,9 @@ database:
 
 1. Copy the instance's data directory to the new server (for Compose: into the
    `instance-data` volume).
-2. Start the stack and run **Update database** in the panel. That loads the
+2. Start the stack and run **Update database** on the panel's Catalogue tab. That loads the
    catalogue's own data, which the instance's recipes are made of.
-3. In the curation card, under "This instance's own files", choose **Restore
+3. On the panel's Catalogue tab, under "This instance's own files", choose **Restore
    from these files**.
 
 The restore reads the files of `recipes/` in the order of their names,
@@ -210,7 +235,7 @@ from what a model may choose, and what uses it keeps working with its figures.
   with every amount kept, works the figures of the recipes out again and deletes the
   food. An amount in a unit the curated ingredient has no weight for is put in grams;
   where even that cannot be done, the food stays retired and the update's log says why.
-- **Any other retired ingredient** is listed in the panel under **Retired ingredients
+- **Any other retired ingredient** is listed on the panel's Catalogue tab under **Retired ingredients
   still in use**, with what uses it and the titles of the recipes and drafts whose text
   may name it. **Replace…** moves all of that to an ingredient of the catalogue you
   choose, in the same way, and the retired one goes. The text of recipes and drafts stays

@@ -27,7 +27,7 @@ provider/model that clears the demand bar for the surface you actually use.
 | **Swap rewrite**                       | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it                                                                                                                                             | ~500 tok (sentences only)                                                                       | ~500 tok                                            | strict (two keys)                                  | no: one call, in the user's language |
 | **Weighing what the planner proposes** | `POST /api/meal-plans/:id/days/:dayId/variations`, `POST /api/meal-plans/:id/use-up` and `POST /api/shopping-lists/:id/proposals`, each with `weigh: true`, only when the user asks ([weigh.service.ts](../../apps/api/src/ai/weigh.service.ts)) | ~300–700 tok (up to eight options, a line each)                                                 | ~200 tok (an order, and a sentence for each option) | lenient                                            | no: one call, in the user's language |
 | **Admin missing language**             | `POST /api/admin/drafts/translations/generate` ([translation.runner.ts](../../apps/api/src/admin/drafts/translation.runner.ts))                                                                                                                  | one recipe a call, ~600 tok (the title, the description and the steps, with two examples)       | ~300 tok                                            | strict (three keys, as many steps as it was given) | no: one call, one language           |
-| **Admin ingredient-name draft**        | `POST /api/admin/drafts/ingredient-names/generate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts))                                                                                                    | per-row, ~150 tok                                                                               | ~80 tok                                             | strict                                             | yes                                  |
+| **Admin ingredient-name draft**        | `POST /api/admin/drafts/ingredient-names/generate` and `.../regenerate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts))                                                                               | per-row, ~150 tok                                                                               | ~80 tok                                             | strict                                             | yes                                  |
 
 "Strict JSON" means: locale-keyed nested shape, every required key present,
 every required locale populated, no markdown fences, no prose preamble. Small
@@ -56,6 +56,10 @@ runs on a provider's defaults.
 | Admin ingredient names                 | 180 s per call | about 80 tokens per name in one language                                     | 0.2         |
 | Admin missing language                 | 180 s per call | 300 tokens and 120 more for each step of the recipe                          | 0.2         |
 
+- **Names written again cost a little more going in.** The model is told the names people
+  refused for an ingredient, up to the last five, each with up to 200 characters of its reason,
+  so a prompt grows with what was refused and an ingredient nobody refused a name of adds
+  nothing to it.
 - **The wait covers the whole failover chain.** With one provider it gets the
   full wait. With several, each provider still to be tried gets an equal share
   of what is left: a chain of a local model and a cloud model gives the local

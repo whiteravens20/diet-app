@@ -65,7 +65,8 @@ and `worker` start, then exits. **The curated ingredients and recipes are not
 loaded by themselves**: a start only brings the database to the current schema.
 Load them on the first run, in the admin panel:
 
-1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD`.
+1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD` and
+   open the **Catalogue** tab.
 2. (Optional) Fetch USDA whole foods with **Run import** on the panel's USDA
    importer (defaults to **Foundation**, ~330 generic foods). It writes
    `data/ingredients.generated.json` — without it only the hand-curated baseline
@@ -273,9 +274,9 @@ fill the log through it; what comes beyond is counted or dropped.
 
 ## Two-step sign-in
 
-An account can add a second step to signing in, under **Settings**: a six-digit code
+An account can add a second step to signing in, under **Settings**, on the **Security** tab: a six-digit code
 from an authenticator app (any app that follows RFC 6238: SHA-1, six digits, thirty
-seconds). The administrator can do the same for the panel, on the admin page. Nothing
+seconds). The administrator can do the same for the panel, on its **Security** tab. Nothing
 has to be configured for it.
 
 - **The clock of the server has to be right.** A code is good for about a minute around
@@ -320,8 +321,8 @@ An instance can lend its own AI provider to its users: set `AI_DEFAULT_PROVIDER`
 user then picks "Use the instance default" in Settings, and every request is counted
 against the limits below. Who may pick it is `AI_ADMIN_ACCESS`:
 
-- `approved`, the default: the accounts you approve. In the admin panel, under "AI of the
-  instance", enter the address of the account and approve it; take an approval back the
+- `approved`, the default: the accounts you approve. In the admin panel, on the **Accounts and
+  access** tab, under "AI of the instance", enter the address of the account and approve it; take an approval back the
   same way. An account that is not approved sees the option switched off, with the address
   of `OPERATOR_CONTACT` to ask you at.
 - `confirmed`: the accounts that confirmed their address by mail. Without mail every
@@ -478,7 +479,8 @@ To turn it on:
 3. In `.env`, set `MIRROR_REPO` (the SSH address, `git@github.com:you/your-instance-files.git`),
    `MIRROR_NAME` and `COMPOSE_PROFILES=mirror`.
 4. `docker compose up -d`. The service starts once the API is healthy, and
-   `docker compose logs mirror` says what each round did.
+   `docker compose logs mirror` says what each round did. The admin panel shows how the
+   copy stands, on its Catalogue tab.
 
 The first connection takes the git server's host key and keeps it, and a server that
 answers with another key later is refused. To check it against the one the host publishes
@@ -489,9 +491,39 @@ the settings of `.env` but its two, and a network of its own, from which the res
 stack cannot be reached. Its root file system is read-only, and it has no capability but
 the one that lets it read the key, which is the operator's file on the host.
 
+What the panel shows comes from a small volume of its own, `mirror-report`: after each
+round the service writes there when the round ran, how it ended (a fixed word, never what
+the git server said), when a commit last reached the repository, and the repository's
+manifest. The API mounts that volume read-only and sees nothing else of the service: not
+the key, not the clone, not the repository's address, which stays in `.env`. The panel
+counts the service as gone after three rounds without a report.
+
+An instance that holds no recipes and no names of its own, as its manifest says, leaves the
+repository as it is: an emptied `instance-data` volume or a new database does not empty the
+copy. Files the instance removed while it still holds something are removed from the copy.
+
 The repository gets a README that says what the files are and how to restore from them;
 the copy writes it once and leaves it alone after that. To restore, see
 [Moving to a new server](curation-shipping.md#moving-to-a-new-server).
+
+## What the panel says of the instance
+
+The Overview tab of the admin panel says how the instance stands, and reads it anew each
+time it is opened:
+
+- the copy of the instance's files in a repository, as the `mirror` service last reported it;
+- the database: whether it answers, how fast, and how much it holds;
+- the scheduled tasks: when the [worker](#the-worker) last made its pass and how many jobs
+  failed in it, with a warning after three hours without one;
+- the API: its version, when it started and how much memory it takes;
+- response times: the median and the 95th percentile of the latest thousand requests, health
+  checks left out, and how many of them the server failed;
+- how many calls of the instance's AI provider the rolling 30 days hold, against its limit;
+- whether mail is set up.
+
+With [more than one API process](#more-than-one-api-process), the memory and the response times
+are those of the process that answered, and they start anew when it restarts. They hold two
+numbers a request in arrays of a fixed size: no address, no path and no account.
 
 ## The worker
 
@@ -527,7 +559,7 @@ catalogue update, the food import, the two generators of drafts). Whichever proc
 asked about a job answers the same, and one of them runs it. A job whose process died is
 shown as failed three quarters of a minute later and can be started again.
 
-Three things are kept in the memory of each process, and so count once for each:
+These are kept in the memory of each process, and so count once for each:
 
 | What                                                                                            | With N processes                                                                       |
 | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -535,6 +567,7 @@ Three things are kept in the memory of each process, and so count once for each:
 | The 10 mails a day one address is sent                                                          | Up to N times as many                                                                  |
 | The 3 accounts a day one client address may open                                                | Up to N times as many                                                                  |
 | The 64 password checks that may wait at once                                                    | 64 for each process                                                                    |
+| The response times on the panel's overview                                                      | Those of the process that answered                                                     |
 
 A process that restarts begins its counts anew.
 
