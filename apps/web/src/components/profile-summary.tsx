@@ -49,7 +49,7 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold tracking-tight">{profile.name}</h2>
         <Link
-          href={`/meal-plans?profile=${profile.id}`}
+          href={`/meal-plans?profile=${profile.id}&new=1`}
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           {t('generatePlan')}

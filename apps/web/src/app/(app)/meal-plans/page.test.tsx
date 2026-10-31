@@ -2459,6 +2459,14 @@ describe('the plan page, on how a plan reads', () => {
       expect(screen.getByLabelText(messages.mealPlans.calorieTarget)).toHaveValue(1800);
     });
 
+    it('is open where a link asks for a new plan, plans or none', async () => {
+      address.search = 'new=1';
+      await renderPage(aSupply(), [aPlan()]);
+
+      expect(head()).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: messages.mealPlans.generateButton })).toBeVisible();
+    });
+
     it('stays folded where only a filter leaves the list without a plan', async () => {
       await renderPage(aSupply(), [aPlan()]);
       const get = vi.mocked(api.get);

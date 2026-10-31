@@ -122,8 +122,10 @@ function MealPlansContent() {
   const [openPlan, setOpenPlan] = useState<string | null>(linked?.planId ?? null);
   // The day of a plan that a link or the calendar leads to, until its card has gone there: the plan may still be on its way, and the list still being narrowed to it.
   const [sought, setSought] = useState(linked);
-  // Whether the form for a new plan was opened or closed by hand: until then it is open only where the profile has no plan to read.
-  const [formAsked, setFormAsked] = useState<boolean | null>(null);
+  // Whether the form for a new plan was opened or closed by hand, or a link asked for it (`?new=1`): until then it is open only where the profile has no plan to read.
+  const [formAsked, setFormAsked] = useState<boolean | null>(() =>
+    params.get('new') === '1' ? true : null,
+  );
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
