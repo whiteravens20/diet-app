@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { adminApi } from '@/lib/admin-api';
 import { useDraftErrorText, useProblemLine } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
+import { ToolSection } from './curation/tool-section';
 
 /**
  * Why a recipe was not taken, in the reader's language: the rule in words,
@@ -81,7 +82,6 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
   const tMeal = useTranslations('enums.mealType');
   const fmt = useFormat();
   const errorText = useDraftErrorText();
-  const titleId = useId();
   const documentId = useId();
   const sourceId = useId();
   const licenceId = useId();
@@ -154,10 +154,7 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
   };
 
   return (
-    <section aria-labelledby={titleId} className="space-y-3 rounded-md border border-border p-3">
-      <h3 id={titleId} className="text-sm font-medium">
-        {t('title')}
-      </h3>
+    <ToolSection title={t('title')}>
       <p className="text-xs text-muted-foreground">
         {t('hint', { most: MOST_RECIPES_PER_IMPORT })}
       </p>
@@ -308,6 +305,6 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
           </div>
         </details>
       )}
-    </section>
+    </ToolSection>
   );
 }

@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { adminApi } from '@/lib/admin-api';
 import { useErrorText } from '@/lib/use-error-text';
+import { Explain } from './explain';
 
 type Step =
   | { at: 'rest' }
@@ -122,7 +123,9 @@ export function AdminSecondFactorCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{t('secondFactorBody')}</p>
+        <Explain>
+          <p>{t('secondFactorBody')}</p>
+        </Explain>
 
         {step.at === 'rest' && (
           <>

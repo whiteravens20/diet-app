@@ -5,7 +5,6 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminApi, type InstanceDataState, type ShipConfigDto } from '@/lib/admin-api';
-import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
 import { ShipBar } from './ship-bar';
 
@@ -62,25 +61,24 @@ describe('the count of what waits to be shipped', () => {
   });
 });
 
-describe("the instance's own files, in the panel", () => {
-  it('say which version of the application wrote them', async () => {
-    shown({ version: '0.78.0' });
+describe('the bar, one row until more is asked for', () => {
+  it('shows the ship into this instance, and has the file for a repository a press further', async () => {
+    shown();
 
     expect(
-      await screen.findByText('Written by version 0.78.0 of the application.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/earlier layout/)).toBeNull();
+      await screen.findByRole('button', { name: new RegExp(text.shipModeLocal) }),
+    ).toBeEnabled();
+    expect(screen.queryByRole('button', { name: new RegExp(text.shipModeBundle) })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: text.shipMore, expanded: false }));
+
+    expect(screen.getByRole('button', { name: text.shipMore, expanded: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: new RegExp(text.shipModeBundle) })).toBeEnabled();
+    expect(screen.getByText(text.shipExplain)).toBeVisible();
   });
+});
 
-  it('say that files of the earlier layout are to be restored before anything is written', async () => {
-    shown({ notRestored: 2 });
-
-    expect(
-      await screen.findByText(/^2 files of the earlier layout hold recipes/),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Written by version/)).toBeNull();
-  });
-
+describe("what a ship did with the instance's own files", () => {
   it('say so when a ship went through but the files were not written for that reason', async () => {
     shown();
     vi.spyOn(adminApi, 'ship').mockResolvedValue({
@@ -118,17 +116,5 @@ describe("the instance's own files, in the panel", () => {
         "Written to the instance's data directory: recipes/library.json, ingredient-overrides.json, manifest.json",
       ),
     ).toBeInTheDocument();
-  });
-
-  it('refuse in words a restore of files a newer version wrote', async () => {
-    shown({ version: '9.0.0' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.spyOn(adminApi, 'restoreInstanceData').mockRejectedValue(
-      new ApiClientError(409, 'INSTANCE_DATA_NEWER', 'Newer.'),
-    );
-
-    await userEvent.click(await screen.findByRole('button', { name: text.restoreButton }));
-
-    expect(await screen.findByText(messages.errors.INSTANCE_DATA_NEWER)).toBeInTheDocument();
   });
 });

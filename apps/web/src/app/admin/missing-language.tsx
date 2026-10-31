@@ -9,6 +9,7 @@ import { MOST_TRANSLATIONS_PER_RUN, NON_CANONICAL_LOCALES } from '@diet-app/shar
 import { Button } from '@/components/ui/button';
 import { adminApi, type DraftRunnerState } from '@/lib/admin-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';
+import { ToolSection } from './curation/tool-section';
 
 const POLL_INTERVAL_MS = 1500;
 
@@ -26,7 +27,6 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
   const tCuration = useTranslations('admin.curation');
   const tLanguage = useTranslations('review.locales');
   const errorText = useDraftErrorText();
-  const titleId = useId();
   const languageId = useId();
   const limitId = useId();
   const [runner, setRunner] = useState<DraftRunnerState | null>(null);
@@ -96,10 +96,7 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
   const ended = runner && !running && (runner.status === 'done' || runner.status === 'error');
 
   return (
-    <section aria-labelledby={titleId} className="space-y-2 rounded-md border border-border p-3">
-      <h3 id={titleId} className="text-sm font-medium">
-        {t('title')}
-      </h3>
+    <ToolSection title={t('title')} working={running}>
       <p className="text-xs text-muted-foreground">{t('hint')}</p>
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor={languageId} className="text-xs text-muted-foreground">
@@ -179,6 +176,6 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
         )}
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
-    </section>
+    </ToolSection>
   );
 }

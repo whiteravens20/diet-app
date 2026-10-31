@@ -87,6 +87,7 @@ test.describe('entering and leaving an account', () => {
     );
     const other = accountOf(elsewhere!.name);
     const address = page.locator('p.font-mono');
+    const settingsTabs = (messages.settings as unknown as { tabs: Record<string, string> }).tabs;
 
     // Asked for without a session, the settings come up after the sign-in.
     await page.goto('/settings');
@@ -94,6 +95,7 @@ test.describe('entering and leaving an account', () => {
     await page.evaluate(() => Object.assign(window, { keptFromBefore: true }));
     await signInHere(page, account, messages);
     await page.waitForURL('**/settings');
+    await page.getByRole('tab', { name: settingsTabs.account!, exact: true }).click();
     await expect(address.first()).toHaveText(account.email);
     // The account was entered as a page loaded anew.
     expect(await page.evaluate(() => 'keptFromBefore' in window)).toBe(false);
@@ -117,6 +119,7 @@ test.describe('entering and leaving an account', () => {
       .getByRole('link', { name: texts(messages, 'nav').settings! })
       .click();
     await page.waitForURL('**/settings');
+    await page.getByRole('tab', { name: settingsTabs.account!, exact: true }).click();
     await expect(address.first()).toHaveText(other.email);
     await expect(page.getByText(account.email)).toHaveCount(0);
   });
@@ -142,6 +145,50 @@ test.describe('entering and leaving an account', () => {
     await settled(page);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.unroute('http://elsewhere.example/');
+  });
+});
+
+test.describe('the settings of an account', () => {
+  test('open on the part the address names, keep the part chosen in the address, and a link leads to its part', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const settings = messages.settings as unknown as {
+      tabs: Record<string, string>;
+      dataExportButton: string;
+      language: string;
+    };
+    const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+
+    await page.goto('/settings');
+    await settled(page);
+    await expect(tab(settings.tabs.general!)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: settings.dataExportButton })).toHaveCount(0);
+
+    await tab(settings.tabs.account!).click();
+    await expect(page).toHaveURL(/\/settings\?tab=account$/);
+    await expect(tab(settings.tabs.account!)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: settings.dataExportButton })).toBeVisible();
+
+    await page.reload();
+    await expect(tab(settings.tabs.account!)).toHaveAttribute('aria-selected', 'true');
+
+    await tab(settings.tabs.general!).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.getByRole('heading', { name: settings.language })).toBeVisible();
+    await expect(page.getByRole('button', { name: settings.dataExportButton })).toBeHidden();
+
+    // The navigation leads to the first part, also from another.
+    await page.goto('/settings?tab=security');
+    await settled(page);
+    await (
+      await navigation(page, messages)
+    )
+      .getByRole('link', { name: texts(messages, 'nav').settings! })
+      .click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(tab(settings.tabs.general!)).toHaveAttribute('aria-selected', 'true');
   });
 });
 
@@ -277,7 +324,16 @@ test.describe('on the narrowest screens the application is used on', () => {
       try {
         for (const [page, paths] of [
           [anonymous, ['/', '/login', '/register', '/forgot-password', '/from-the-app', '/terms']],
-          [session.page, [...ACCOUNT_PAGES, `/recipes/${account.recipeId}`]],
+          [
+            session.page,
+            [
+              ...ACCOUNT_PAGES,
+              `/recipes/${account.recipeId}`,
+              '/settings?tab=ai',
+              '/settings?tab=security',
+              '/settings?tab=account',
+            ],
+          ],
         ] as const) {
           await page.setViewportSize({ width, height: size.height });
           for (const path of paths) {
@@ -312,13 +368,21 @@ test.describe('on the narrowest screens the application is used on', () => {
       await anonymous.getByLabel(admin.adminUser!).fill(user!);
       await anonymous.getByLabel(admin.adminPassword!).fill(password!);
       await anonymous.getByRole('button', { name: admin.signIn!, exact: true }).click();
-      // Its tables are in by the time the statistics are.
-      await expect(anonymous.getByRole('table').first()).toBeVisible();
-      await settled(anonymous);
+      const tabs = anonymous.getByRole('tab');
+      await expect(tabs.first()).toBeVisible();
       for (const width of [360, 375]) {
         await anonymous.setViewportSize({ width, height: size.height });
-        if ((await sideways(anonymous)) > 0)
-          wide[`the panel at ${width}`] = await stickingOut(anonymous);
+        for (let tab = 0; tab < (await tabs.count()); tab += 1) {
+          await tabs.nth(tab).click();
+          await settled(anonymous);
+          // Every explanation and tool open: what is in them has to fit too.
+          const closed = anonymous.locator(
+            '[role="tabpanel"]:visible details:not([open]) > summary',
+          );
+          while ((await closed.count()) > 0) await closed.first().click();
+          if ((await sideways(anonymous)) > 0)
+            wide[`tab ${tab} of the panel at ${width}`] = await stickingOut(anonymous);
+        }
       }
     } finally {
       await anonymous.setViewportSize(size);

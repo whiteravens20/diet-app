@@ -54,14 +54,14 @@
   },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} w tym miesiącu",
-    "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym miesiącu (okno 30 dni). Zarządzaj w Ustawieniach.",
+    "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym miesiącu (okno 30 dni). Zarządzaj w Ustawieniach, w zakładce AI.",
     "byokLabel": "BYOK",
     "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
     "exhaustedLabel": "0/{limit, number}",
     "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}.",
     "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne zapytanie odblokuje się {date}.",
     "newAccountsExhaustedTooltip": "Nowe konta wykorzystały swoją część zapytań AI instancji. Kolejne zapytanie odblokuje się {date}.",
-    "noAccessTooltip": "AI instancji nie jest dostępne dla tego konta. Szczegóły w Ustawieniach."
+    "noAccessTooltip": "AI instancji nie jest dostępne dla tego konta. Szczegóły w Ustawieniach, w zakładce AI."
   },
   "confirmEmail": {
     "notice": "Potwierdź adres e-mail {email}: kliknij link z wiadomości otrzymanej na podany adres. Link jest ważny godzinę.",
@@ -81,7 +81,7 @@
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
     "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
     "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika.",
-    "key_unreadable": "Zapisanego klucza AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach. Tym razem korzystam z wbudowanego silnika.",
+    "key_unreadable": "Zapisanego klucza AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI. Tym razem korzystam z wbudowanego silnika.",
     "invalid_output": "Odpowiedzi AI nie dało się użyć — wyboru dokonał wbudowany silnik."
   },
   "weigh": {
@@ -200,7 +200,7 @@
     "verifySuccess": "Adres e-mail potwierdzony",
     "verifySuccessBody": "Twój adres e-mail został potwierdzony. Możesz dalej korzystać z Diet App.",
     "verifyFailed": "Potwierdzenie nie powiodło się",
-    "verifyFailedBody": "Ten link potwierdzający jest nieprawidłowy lub wygasł. Możesz poprosić o nowy w ustawieniach.",
+    "verifyFailedBody": "Ten link potwierdzający jest nieprawidłowy lub wygasł. Możesz poprosić o nowy w ustawieniach, w zakładce Konto i dane.",
     "verifyMissingToken": "W adresie tej strony brakuje kodu potwierdzającego. Otwórz jeszcze raz link z wiadomości e-mail.",
     "changeEmailTitle": "Potwierdzanie nowego adresu e-mail…",
     "changeEmailSuccess": "Adres e-mail zaktualizowany",
@@ -363,6 +363,7 @@
     "DRAFT_SHIPPED": "Ten szkic został już wysłany i nie można go zmieniać.",
     "DRAFT_INVALID": "Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane.",
     "DRAFT_REJECTED": "Ten szkic został odrzucony. Ponownie otworzyć może go tylko administrator.",
+    "DRAFT_REPLACED": "Ten składnik ma nowszą propozycję albo wysłaną nazwę, więc ten szkic zostaje w historii.",
     "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "W przepisach użytkowników można zmieniać tylko tłumaczenia — żeby zmienić resztę, najpierw przenieś przepis do biblioteki.",
     "DRAFT_NOT_PROMOTABLE": "Do biblioteki można przenieść tylko przepisy napisane dla użytkownika przez AI (AI_USER).",
     "DRAFT_NOT_APPROVED": "Szkic musi być zatwierdzony w każdym języku, zanim trafi do biblioteki.",
@@ -374,8 +375,8 @@
     "UNKNOWN_SLUG": "Składnik nie istnieje w katalogu — podaj inny slug.",
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
     "AI_UNAVAILABLE": "Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę.",
-    "AI_NOT_CONFIGURED": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach.",
-    "AI_KEY_UNREADABLE": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach.",
+    "AI_NOT_CONFIGURED": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach, w zakładce AI.",
+    "AI_KEY_UNREADABLE": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI.",
     "AI_INSTANCE_LIMIT_REACHED": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana.",
     "AI_NEW_ACCOUNTS_LIMIT_REACHED": "Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit.",
     "AI_NOT_PERMITTED": "AI instancji nie jest dostępne dla Twojego konta.",
@@ -688,9 +689,8 @@
     "curation": {
       "title": "Kolejka kuratorska",
       "explain": "AI proponuje przyjazne nazwy dla składników USDA; Ty akceptujesz, edytujesz lub odrzucasz. Zatwierdzone trafiają do tej instancji albo do pliku.",
-      "generate": "Wygeneruj propozycje",
       "running": "Generuję… {processed, number}/{total, number}",
-      "lastRun": "Ostatni przebieg: zapisano {written}, pominięto {failed}",
+      "lastRun": "Ostatni przebieg: zapisano {written}, nie udało się {failed}",
       "progress": "{processed, number} / {total, number} · {failed, number} pominiętych",
       "stop": "Zatrzymaj",
       "notConfigured": "Ustaw AI_DEFAULT_PROVIDER i AI_DEFAULT_MODEL w .env, aby włączyć generowanie propozycji.",
@@ -709,7 +709,7 @@
       "statusApproved": "Zatwierdzone",
       "statusRejected": "Odrzucone",
       "statusShipped": "Wysłane",
-      "empty": "Brak propozycji — kliknij Wygeneruj.",
+      "empty": "Brak propozycji w tym widoku.",
       "rawDescription": "Opis z FDC",
       "suggested": "Sugestia",
       "save": "Zapisz",
@@ -729,8 +729,6 @@
       "slugPrompt": "Slug to nazwa przepisu w plikach danych: małe litery i cyfry łączone myślnikami. Jego zmiana nie odsyła szkicu do ponownej recenzji.",
       "promoteButton": "Przenieś do biblioteki",
       "promoteConfirm": "Przenieść ten przepis użytkownika do biblioteki?",
-      "reviewLabelPrompt": "Twój podpis recenzenta (zapisywany przy recenzji):",
-      "rejectReasonPrompt": "Powód odrzucenia (opcjonalny):",
       "showing": "Pokazano {from, number}-{to, number} z {total, number}",
       "prev": "Poprzednia",
       "next": "Następna",
@@ -779,6 +777,8 @@
         "nothing-imported": "Nie ma czego nazywać: katalog nie zawiera zaimportowanych składników.",
         "not-imported": "{skipped, plural, one {Nie ma czego nazywać: podany składnik nie jest zaimportowany.} few {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} many {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} other {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.}} Tylko zaimportowane składniki dostają nazwy z uruchomienia.",
         "all-have-drafts": "{skipped, plural, one {Nie ma czego nazywać: jedyny zaimportowany składnik ma już szkic.} few {Nie ma czego nazywać: wszystkie # zaimportowane składniki mają już szkic.} many {Nie ma czego nazywać: wszystkie # zaimportowanych składników ma już szkic.} other {Nie ma czego nazywać: wszystkie # zaimportowanego składnika mają już szkic.}}",
+        "nothing-to-write-again": "Nie ma czego generować ponownie: nie został żaden z tych szkiców.",
+        "left-as-they-are": "{skipped, plural, one {# propozycja została bez zmian: ktoś w międzyczasie ją zmienił albo podjął decyzję.} few {# propozycje zostały bez zmian: ktoś w międzyczasie je zmienił albo podjął decyzję.} many {# propozycji zostało bez zmian: ktoś w międzyczasie je zmienił albo podjął decyzję.} other {# propozycji zostało bez zmian: ktoś w międzyczasie je zmienił albo podjął decyzję.}}",
         "coverage-reached": "Nie ma czego pisać: każda dieta ma dość przepisów na każdy posiłek, licząc szkice w kolejce.",
         "nothing-to-translate": "Nie ma czego tłumaczyć: żadnemu czekającemu szkicowi ani przepisowi wysłanemu przez tę instancję nie brakuje tego języka."
       },
@@ -839,7 +839,6 @@
       "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów.",
       "shipHeader": "Wyślij zatwierdzone",
       "shipExplain": "„Wyślij do tej instancji” zapisuje wiersze w bazie tej instancji (domyślnie). „Pobierz pakiet” daje plik JSON, który sam dodasz do repozytorium.",
-      "shipCurrentHeader": "Bieżący plik nadpisań",
       "shipCurrentDownload": "Pobierz bieżące nadpisania",
       "shipCurrentExplain": "Eksportuje pełny plik ingredient-overrides.json w obecnym stanie (wszystkie wysłane nadpisania, odtworzone z bazy danych) — niezależnie od zatwierdzonych szkiców, więc działa nawet po wysyłce.",
       "namesSkipped": "{count, plural, one {Pominięto # nieznany slug, dla którego ta instancja nie ma składnika} few {Pominięto # nieznane slugi, dla których ta instancja nie ma składnika} many {Pominięto # nieznanych slugów, dla których ta instancja nie ma składnika} other {Pominięto # nieznanego sluga, dla którego ta instancja nie ma składnika}}: {slugs}…",
@@ -897,7 +896,27 @@
       "runAnyCuisine": "Dowolna",
       "runCookingMethod": "Sposób przygotowania",
       "runAnyCookingMethod": "Dowolny",
-      "runChoiceHint": "Bez wybranej diety ani posiłku wybiera model. Wybór którejś wyłącza uzupełnianie braków katalogu, które samo wybiera parę."
+      "runChoiceHint": "Bez wybranej diety ani posiłku wybiera model. Wybór którejś wyłącza uzupełnianie braków katalogu, które samo wybiera parę.",
+      "signatureLabel": "Twój podpis pod decyzjami",
+      "signatureHint": "Zapamiętany w tej przeglądarce.",
+      "signatureNeeded": "Wpisz podpis, żeby podjąć decyzję.",
+      "generateMissing": "Wygeneruj brakujące · {count}",
+      "generateRejected": "Wygeneruj ponownie odrzucone · {count}",
+      "generateUnapproved": "Wygeneruj ponownie niezatwierdzone · {count}",
+      "confirmMissing": "{count, plural, one {Poprosić model o nazwę dla # składnika?} few {Poprosić model o nazwy dla # składników?} many {Poprosić model o nazwy dla # składników?} other {Poprosić model o nazwy dla # składnika?}} To korzysta z dostawcy AI tej instancji.",
+      "confirmRejected": "{count, plural, one {Poprosić model o nową nazwę w miejsce # odrzuconej?} few {Poprosić model o nowe nazwy w miejsce # odrzuconych?} many {Poprosić model o nowe nazwy w miejsce # odrzuconych?} other {Poprosić model o nowe nazwy w miejsce # odrzuconej?}} Model dostaje odrzucone nazwy i powody. To korzysta z dostawcy AI tej instancji.",
+      "confirmUnapproved": "{count, plural, one {Poprosić model o nową nazwę w miejsce # czekającej?} few {Poprosić model o nowe nazwy w miejsce # czekających?} many {Poprosić model o nowe nazwy w miejsce # czekających?} other {Poprosić model o nowe nazwy w miejsce # czekającej?}} Stare propozycje zostaną w historii jako odrzucone, a nazwy poprawione ręcznie zostają bez zmian. To korzysta z dostawcy AI tej instancji.",
+      "bulkReason": "Powód dla całej grupy (opcjonalny)",
+      "decisionReason": "Powód (opcjonalny)",
+      "decisionReasonHint": "Dostanie go też model",
+      "rejectReason": "Powód odrzucenia (opcjonalny)",
+      "regenerate": "Wygeneruj ponownie",
+      "regenerateTouchedConfirm": "Ktoś poprawił tę nazwę ręcznie albo zatwierdził ją w jednym z języków. Poprosić model o nową w jej miejsce?",
+      "editedMark": "Poprawiona ręcznie",
+      "replacedMark": "Zastąpiona nowszą propozycją",
+      "shipMore": "Więcej opcji",
+      "runTitle": "Generowanie przepisów",
+      "waitingCount": "{count, plural, one {# czeka} few {# czekają} many {# czeka} other {# czeka}}"
     },
     "operatorAi": {
       "title": "AI instancji",
@@ -958,6 +977,102 @@
       "savePassword": "Zapisz hasło",
       "saving": "Zapisywanie…",
       "clearPassword": "Wyczyść hasło"
+    },
+    "tabs": {
+      "label": "Części panelu",
+      "overview": "Przegląd",
+      "queue": "Kolejka",
+      "catalogue": "Katalog",
+      "access": "Konta i dostęp",
+      "security": "Bezpieczeństwo",
+      "waiting": "{count, plural, one {# czeka} few {# czekają} many {# czeka} other {# czeka}}",
+      "attention": "wymaga uwagi"
+    },
+    "explainMore": "Więcej o tym",
+    "seedDetails": "Pliki i sumy kontrolne",
+    "sessionsTitle": "Sesje panelu",
+    "overview": {
+      "title": "Czeka na Ciebie",
+      "nothing": "Nic nie czeka na Ciebie.",
+      "namesPending": "{count, plural, one {# nazwa do oceny} few {# nazwy do oceny} many {# nazw do oceny} other {# nazwy do oceny}}",
+      "namesRejected": "{count, plural, one {# odrzucona nazwa czeka na nową propozycję} few {# odrzucone nazwy czekają na nową propozycję} many {# odrzuconych nazw czeka na nową propozycję} other {# odrzuconej nazwy czeka na nową propozycję}}",
+      "namesMissing": "{count, plural, one {# składnik bez propozycji nazwy} few {# składniki bez propozycji nazwy} many {# składników bez propozycji nazwy} other {# składnika bez propozycji nazwy}}",
+      "namesApproved": "{count, plural, one {# zatwierdzona nazwa do wysłania} few {# zatwierdzone nazwy do wysłania} many {# zatwierdzonych nazw do wysłania} other {# zatwierdzonej nazwy do wysłania}}",
+      "recipesPending": "{count, plural, one {# przepis do oceny} few {# przepisy do oceny} many {# przepisów do oceny} other {# przepisu do oceny}}",
+      "recipesApproved": "{count, plural, one {# zatwierdzony przepis do wysłania} few {# zatwierdzone przepisy do wysłania} many {# zatwierdzonych przepisów do wysłania} other {# zatwierdzonego przepisu do wysłania}}",
+      "updateAvailable": "Dostępna aktualizacja bazy katalogu",
+      "retired": "{count, plural, one {# wycofany składnik nadal w użyciu} few {# wycofane składniki nadal w użyciu} many {# wycofanych składników nadal w użyciu} other {# wycofanego składnika nadal w użyciu}}",
+      "mirrorProblem": "Kopia w repozytorium nie działa"
+    },
+    "mirror": {
+      "title": "Kopia w repozytorium",
+      "state": {
+        "off": "Nieuruchomiona",
+        "current": "Aktualna",
+        "behind": "Czeka na następny przebieg",
+        "empty": "Czeka na pliki instancji",
+        "failed": "Błąd",
+        "silent": "Nie zgłasza się",
+        "unreadable": "Stan nieczytelny"
+      },
+      "explain": {
+        "off": "Usługa mirror nie zgłosiła jeszcze żadnego przebiegu. Jest opcjonalna: bez niej to, co dodała ta instancja, nie ma kopii w repozytorium Git. Jak ją włączyć, opisuje docs/ops/deployment.md.",
+        "current": "Repozytorium ma to, co pliki tej instancji.",
+        "behind": "Pliki zapisano po ostatnim przebiegu. Następny przebieg je skopiuje.",
+        "empty": "Ta instancja nie ma własnych przepisów ani nazw, więc usługa nie rusza repozytorium.",
+        "silent": "Usługa nie zgłosiła się przez ponad trzy przebiegi: jest zatrzymana albo nie może działać.",
+        "unreadable": "Usługa zostawiła raport, którego nie da się odczytać."
+      },
+      "failure": {
+        "clone": "Nie może sklonować repozytorium: sprawdź MIRROR_REPO i klucz wdrożeniowy.",
+        "foreign": "W repozytorium są pliki czegoś innego. Kopia potrzebuje pustego repozytorium tylko dla siebie.",
+        "unreachable": "Nie może połączyć się z repozytorium.",
+        "push": "Repozytorium odmówiło zapisu: sprawdź, czy klucz wdrożeniowy może pisać."
+      },
+      "logs": "Więcej mówią logi usługi: docker compose logs mirror",
+      "checkedAt": "Ostatni przebieg",
+      "pushedAt": "Ostatnia wysyłka",
+      "contents": "W kopii",
+      "none": "Jeszcze nie było",
+      "held": "Przepisy: {recipes} · nazwy: {names} · wersja {version}"
+    },
+    "health": {
+      "title": "Stan instancji",
+      "refresh": "Odśwież",
+      "checked": "Stan z {when}",
+      "failed": "Nie udało się odczytać stanu instancji.",
+      "mirror": "Kopia w repozytorium",
+      "mirrorPushed": "Ostatnia wysyłka: {when}",
+      "database": "Baza danych",
+      "databaseUp": "Działa",
+      "databaseDown": "Nie odpowiada",
+      "databaseDetail": "Odpowiedź w {ms} ms · rozmiar {size}",
+      "worker": "Zadania w tle",
+      "workerOk": "Działają",
+      "workerFailing": "Część się nie udała",
+      "workerSilent": "Nie zgłaszają się",
+      "workerNone": "Jeszcze się nie zgłosiły",
+      "workerLast": "Ostatni przebieg: {when}",
+      "workerFailed": "{count, plural, one {W tym przebiegu nie udało się # zadanie.} few {W tym przebiegu nie udały się # zadania.} many {W tym przebiegu nie udało się # zadań.} other {W tym przebiegu nie udało się # zadania.}}",
+      "workerSilentHint": "Działają co godzinę, a od ponad trzech godzin nie było przebiegu.",
+      "workerLogs": "Więcej mówią logi usługi: docker compose logs worker",
+      "api": "API",
+      "apiUp": "Działa",
+      "apiDetail": "Wersja {version} · działa od {since} · pamięć {memory}",
+      "requests": "Czasy odpowiedzi",
+      "requestsGood": "Dobre",
+      "requestsSlow": "Wolne",
+      "requestsErrors": "Błędy serwera",
+      "requestsNone": "Jeszcze brak danych",
+      "requestsDetail": "Połowa do {median} ms, 95% do {p95} ms · błędy serwera: {errors} z ostatnich {counted}",
+      "requestsNote": "Dotyczy procesu API, który odpowiedział.",
+      "ai": "AI instancji",
+      "aiOff": "Nieskonfigurowane",
+      "aiUsed": "{used} z {limit} w 30 dni",
+      "aiReached": "Limit wyczerpany: {used} z {limit} w 30 dni",
+      "mail": "Poczta",
+      "mailOn": "Włączona",
+      "mailOff": "Wyłączona"
     }
   },
   "review": {
@@ -1021,7 +1136,9 @@
     "locales": {
       "en": "Angielski",
       "pl": "Polski"
-    }
+    },
+    "rejectReasonModel": "Opcjonalny powód: model dostanie go przy nowej propozycji",
+    "waiting": "{count, plural, one {# czeka} few {# czekają} many {# czeka} other {# czeka}}"
   },
   "draftProblems": {
     "intro": "Nie zapisano.",
@@ -1063,7 +1180,7 @@
   },
   "shoppingLists": {
     "title": "Listy zakupów",
-    "subhead": "Lista zakupów z planu posiłków, pogrupowana według działów sklepu. Odhaczaj pozycje podczas zakupów: to, co jest w spiżarni, liczy się jako „w domu” (możesz to poprawić w każdym wierszu), a pozycja odhacza się sama, gdy masz już całą potrzebną ilość.",
+    "subhead": "Lista zakupów z planu, pogrupowana według działów sklepu. To, co jest w spiżarni, liczy się jako „w domu”, a pozycja odhacza się sama, gdy masz już całą ilość.",
     "noProfile": "Brak profilu",
     "noProfileBody": "Najpierw utwórz profil i wygeneruj plan posiłków — lista zakupów powstaje z planu.",
     "noProfileCta": "Utwórz profil",
@@ -1700,7 +1817,14 @@
     "dataExportButton": "Pobierz moje dane",
     "dataExportPreparing": "Przygotowywanie pliku…",
     "dataExportSaved": "Plik został przekazany przeglądarce.",
-    "dataExportFailed": "Nie udało się przygotować pliku. Spróbuj ponownie."
+    "dataExportFailed": "Nie udało się przygotować pliku. Spróbuj ponownie.",
+    "tabs": {
+      "label": "Części ustawień",
+      "general": "Ogólne",
+      "ai": "AI",
+      "security": "Bezpieczeństwo",
+      "account": "Konto i dane"
+    }
   },
   "recipes": {
     "title": "Przepisy",
@@ -1920,7 +2044,8 @@
   },
   "profile": {
     "title": "Profile",
-    "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny. Konto w tej instancji może mieć {max, plural, one {jeden profil} few {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} many {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} other {do # profilu}}. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",
+    "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny.",
+    "subheadMore": "Konto w tej instancji może mieć {max, plural, one {jeden profil} few {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} many {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} other {do # profilu}}. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",
     "atLimit": "Osiągnięto limit, na który ta instancja pozwala jednemu kontu: {max, plural, one {jeden profil} few {# profile} many {# profili} other {# profilu}}. Edytuj jeden z istniejących lub usuń jeden, aby utworzyć nowy.",
     "newProfile": "Nowy profil",
     "addProfile": "Dodaj profil",

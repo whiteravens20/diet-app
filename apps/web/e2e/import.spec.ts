@@ -49,6 +49,7 @@ test.describe("taking recipes in from elsewhere, in the administrator's panel", 
     const password = process.env.E2E_ADMIN_PASSWORD;
     test.skip(!user || !password, 'needs a run that was given the administrator');
     const admin = texts(messages, 'admin');
+    const tabs = texts(messages, 'admin', 'tabs');
     const curation = texts(messages, 'admin', 'curation');
     const text = texts(messages, 'admin', 'curation', 'import');
     const reasons = texts(messages, 'admin', 'curation', 'import', 'reasons');
@@ -62,11 +63,11 @@ test.describe("taking recipes in from elsewhere, in the administrator's panel", 
     await page.getByLabel(admin.adminUser!).fill(user!);
     await page.getByLabel(admin.adminPassword!).fill(password!);
     await page.getByRole('button', { name: admin.signIn!, exact: true }).click();
-    const recipes = page.getByRole('button', { name: curation.kindRecipes!, exact: true });
-    await recipes.scrollIntoViewIfNeeded();
-    await recipes.click();
+    await page.getByRole('tab', { name: new RegExp(`^${tabs.queue}`) }).click();
+    await page.getByRole('button', { name: new RegExp(`^${curation.kindRecipes}`) }).click();
     const section = page.getByRole('region', { name: text.title!, exact: true });
-    await expect(section).toBeVisible();
+    await section.getByRole('heading', { name: text.title!, exact: true }).click();
+    await expect(section.getByLabel(text.document!, { exact: true })).toBeVisible();
     const drafts = async (): Promise<number> =>
       (await (await page.request.get('/api/admin/drafts/recipes?pageSize=1')).json())
         .total as number;

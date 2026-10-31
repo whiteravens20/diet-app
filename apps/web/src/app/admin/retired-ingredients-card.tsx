@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { adminApi } from '@/lib/admin-api';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { Explain } from './explain';
 
 /**
  * The retired ingredients something of the instance still uses. A database
@@ -18,7 +19,12 @@ import { useFormat } from '@/lib/use-format';
  * where the data names one; for the rest the administrator chooses an
  * ingredient of the catalogue here. The card is not shown while there are none.
  */
-export function RetiredIngredientsCard() {
+export function RetiredIngredientsCard({
+  onChanged,
+}: {
+  /** One is replaced: how many are left has changed. */
+  onChanged?: () => void | Promise<void>;
+} = {}) {
   const t = useTranslations('admin.retired');
   const errorText = useErrorText();
   const [retired, setRetired] = useState<RetiredIngredient[] | null>(null);
@@ -46,7 +52,9 @@ export function RetiredIngredientsCard() {
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">{t('explain')}</p>
+        <Explain>
+          <p>{t('explain')}</p>
+        </Explain>
         {error && (
           <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
             {error}
@@ -62,6 +70,7 @@ export function RetiredIngredientsCard() {
                 setError(null);
                 setDone(summary);
                 void load();
+                void onChanged?.();
               }}
               onRefused={(message) => {
                 setDone(null);

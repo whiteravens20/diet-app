@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { adminApi } from '@/lib/admin-api';
 import { useErrorText } from '@/lib/use-error-text';
+import { Explain } from './explain';
 
 /**
  * For the holder of an account who lost the authenticator app and the
@@ -53,7 +54,9 @@ export function AccountSecondFactorCard() {
         <CardTitle>{t('accountFactorTitle')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{t('accountFactorBody')}</p>
+        <Explain>
+          <p>{t('accountFactorBody')}</p>
+        </Explain>
         {confirming ? (
           <div className="space-y-3">
             <p className="text-sm font-medium">

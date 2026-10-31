@@ -12,6 +12,7 @@ import { adminApi, type InstanceSettingsDto } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { copyText } from '@/lib/clipboard';
+import { Explain } from './explain';
 
 /**
  * Admin card that manages the reviewer interface — toggle, password,
@@ -108,7 +109,9 @@ export function ReviewerConfigCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        <p className="text-sm text-muted-foreground">{t('explain')}</p>
+        <Explain>
+          <p>{t('explain')}</p>
+        </Explain>
 
         {loading ? (
           <p className="text-sm text-muted-foreground">{t('loading')}</p>

@@ -4,7 +4,7 @@ import { useFormatter } from 'next-intl';
 import { useMemo } from 'react';
 
 /** The units a number is shown with, as `Intl` names them. */
-type Unit = 'gram' | 'kilogram' | 'pound' | 'milliliter' | 'minute' | 'kilobyte';
+type Unit = 'gram' | 'kilogram' | 'pound' | 'milliliter' | 'minute' | 'kilobyte' | 'megabyte';
 
 export interface Format {
   /** A calendar day with its weekday and without its year: "Mon, Jan 5", "pon., 5 sty". */

@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminApi, type AdminConnection } from '@/lib/admin-api';
 import { useErrorText } from '@/lib/use-error-text';
+import { Explain } from './explain';
 
 /**
  * What the API sees of the administrator's own connection: the address it
@@ -48,7 +49,9 @@ export function ConnectionCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <p className="text-muted-foreground">{t('intro')}</p>
+        <Explain>
+          <p>{t('intro')}</p>
+        </Explain>
         {error && <p className="text-destructive">{error}</p>}
         {connection && (
           <>

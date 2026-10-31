@@ -54,14 +54,14 @@
   },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} this month",
-    "adminTooltip": "Instance AI requests left this month (rolling 30-day window). Manage in Settings.",
+    "adminTooltip": "Instance AI requests left this month (rolling 30-day window). Manage in Settings, on the AI tab.",
     "byokLabel": "BYOK",
     "byokTooltip": "Using your own AI provider key. No quota.",
     "exhaustedLabel": "0/{limit, number}",
     "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}.",
     "instanceExhaustedTooltip": "This instance's shared AI requests for the month are used up. Next slot frees up {date}.",
     "newAccountsExhaustedTooltip": "New accounts have used their part of the instance's AI requests. Next slot frees up {date}.",
-    "noAccessTooltip": "The instance's AI is not open to this account. See Settings."
+    "noAccessTooltip": "The instance's AI is not open to this account. See Settings, on the AI tab."
   },
   "confirmEmail": {
     "notice": "Confirm your email address {email}: follow the link in the message received at that address. A link lasts an hour.",
@@ -81,7 +81,7 @@
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine.",
     "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine.",
-    "key_unreadable": "Your saved AI key can no longer be read — enter it again in Settings. Falling back to the rule-based engine.",
+    "key_unreadable": "Your saved AI key can no longer be read — enter it again in Settings, on the AI tab. Falling back to the rule-based engine.",
     "invalid_output": "The AI's answer could not be used — the rule-based engine picked instead."
   },
   "weigh": {
@@ -200,7 +200,7 @@
     "verifySuccess": "Email confirmed",
     "verifySuccessBody": "Your email address is verified. You can keep using Diet App.",
     "verifyFailed": "Confirmation failed",
-    "verifyFailedBody": "This confirmation link is invalid or has expired. You can request a new one from your settings.",
+    "verifyFailedBody": "This confirmation link is invalid or has expired. You can request a new one in your settings, on the Account and data tab.",
     "verifyMissingToken": "This page expects a confirmation token in the URL.",
     "changeEmailTitle": "Confirming your new email…",
     "changeEmailSuccess": "Email updated",
@@ -363,6 +363,7 @@
     "DRAFT_SHIPPED": "This draft has already shipped and can't be changed.",
     "DRAFT_INVALID": "The draft would break the rules for recipe text and quantities. Nothing was saved.",
     "DRAFT_REJECTED": "This draft was rejected. Only the administrator can reopen it.",
+    "DRAFT_REPLACED": "This ingredient has a newer proposal or a shipped name, so this draft stays as history.",
     "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "User-drafted recipes accept translation edits only — promote first to restructure.",
     "DRAFT_NOT_PROMOTABLE": "Only user-drafted (AI_USER) recipes can be promoted to curated.",
     "DRAFT_NOT_APPROVED": "Draft must be approved in every locale before it can be promoted.",
@@ -374,8 +375,8 @@
     "UNKNOWN_SLUG": "Ingredient slug not found in the curated catalogue.",
     "UNIT_CONVERSION_FAILED": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
     "AI_UNAVAILABLE": "The AI provider didn't respond — try again in a moment.",
-    "AI_NOT_CONFIGURED": "No AI provider is set up for your account — choose one in Settings.",
-    "AI_KEY_UNREADABLE": "A saved AI provider key can no longer be read — enter it again in Settings.",
+    "AI_NOT_CONFIGURED": "No AI provider is set up for your account — choose one in Settings, on the AI tab.",
+    "AI_KEY_UNREADABLE": "A saved AI provider key can no longer be read — enter it again in Settings, on the AI tab.",
     "AI_INSTANCE_LIMIT_REACHED": "This instance's shared AI requests for the month are used up.",
     "AI_NEW_ACCOUNTS_LIMIT_REACHED": "New accounts have used their part of this instance's AI requests for now. Once your account is no longer new, it has its full limit.",
     "AI_NOT_PERMITTED": "The instance's AI is not open to your account.",
@@ -688,9 +689,8 @@
     "curation": {
       "title": "Curation queue",
       "explain": "AI proposes friendly names for USDA ingredients; you approve, edit, or reject. What is approved ships into this instance or as a file.",
-      "generate": "Generate drafts",
       "running": "Generating… {processed, number}/{total, number}",
-      "lastRun": "Last run: wrote {written}, skipped {failed}",
+      "lastRun": "Last run: {written} written, {failed} failed",
       "progress": "{processed, number} / {total, number} · {failed, number} failed",
       "stop": "Stop",
       "notConfigured": "Set AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL in .env to enable draft generation.",
@@ -709,7 +709,7 @@
       "statusApproved": "Approved",
       "statusRejected": "Rejected",
       "statusShipped": "Shipped",
-      "empty": "No drafts yet — click Generate.",
+      "empty": "No proposals here.",
       "rawDescription": "Raw FDC",
       "suggested": "Suggested",
       "save": "Save",
@@ -729,8 +729,6 @@
       "slugPrompt": "The slug names the recipe in the data files: lower-case words and numbers joined by hyphens. Changing it does not send the draft back to review.",
       "promoteButton": "Promote to curated",
       "promoteConfirm": "Promote this user-drafted recipe into the curated library?",
-      "reviewLabelPrompt": "Your reviewer label (saved to audit):",
-      "rejectReasonPrompt": "Optional reason for rejecting:",
       "showing": "Showing {from, number}-{to, number} of {total, number}",
       "prev": "Prev",
       "next": "Next",
@@ -779,6 +777,8 @@
         "nothing-imported": "Nothing to name: the catalogue has no imported ingredients.",
         "not-imported": "{skipped, plural, one {Nothing to name: the ingredient given is not an imported one.} other {Nothing to name: none of the # ingredients given is an imported one.}} Only imported ingredients get their names from a run.",
         "all-have-drafts": "{skipped, plural, one {Nothing to name: the one imported ingredient already has a draft.} other {Nothing to name: all # imported ingredients already have a draft.}}",
+        "nothing-to-write-again": "Nothing to write again: no draft is left of those asked for.",
+        "left-as-they-are": "{skipped, plural, one {# proposal stayed as it was: somebody changed or decided on it in the meantime.} other {# proposals stayed as they were: somebody changed or decided on them in the meantime.}}",
         "coverage-reached": "Nothing to write: every diet has enough recipes for every meal, counting the drafts in the queue.",
         "nothing-to-translate": "Nothing to translate: no recipe draft that waits and no recipe this instance shipped lacks that language."
       },
@@ -839,7 +839,6 @@
       "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch.",
       "shipHeader": "Ship approved",
       "shipExplain": "Local lands rows in this instance's DB (default). Bundle downloads a JSON file you commit yourself.",
-      "shipCurrentHeader": "Current override file",
       "shipCurrentDownload": "Download current overrides",
       "shipCurrentExplain": "Exports the full ingredient-overrides.json as it stands now (every shipped override, rebuilt from the database) — independent of approved drafts, so it works even after you've shipped.",
       "namesSkipped": "{count, plural, one {Skipped # unknown slug this instance has no ingredient for} other {Skipped # unknown slugs this instance has no ingredient for}}: {slugs}…",
@@ -897,7 +896,27 @@
       "runAnyCuisine": "Any",
       "runCookingMethod": "Cooking method",
       "runAnyCookingMethod": "Any",
-      "runChoiceHint": "With no diet or meal chosen, the model chooses. Choosing one turns off filling what the catalogue lacks, which chooses the pair itself."
+      "runChoiceHint": "With no diet or meal chosen, the model chooses. Choosing one turns off filling what the catalogue lacks, which chooses the pair itself.",
+      "signatureLabel": "Your signature under decisions",
+      "signatureHint": "Kept in this browser.",
+      "signatureNeeded": "Write your signature to take a decision.",
+      "generateMissing": "Generate the missing · {count}",
+      "generateRejected": "Generate the rejected again · {count}",
+      "generateUnapproved": "Generate the unapproved again · {count}",
+      "confirmMissing": "{count, plural, one {Ask the model for a name for # ingredient?} other {Ask the model for names for # ingredients?}} This uses the instance's AI provider.",
+      "confirmRejected": "{count, plural, one {Ask the model for a new name in place of # rejected one?} other {Ask the model for new names in place of # rejected ones?}} It is told the refused names and the reasons. This uses the instance's AI provider.",
+      "confirmUnapproved": "{count, plural, one {Ask the model for a new name in place of # that waits?} other {Ask the model for new names in place of # that wait?}} The old proposals stay in the history as rejected, and names changed by hand stay as they are. This uses the instance's AI provider.",
+      "bulkReason": "Reason for the whole group (optional)",
+      "decisionReason": "Reason (optional)",
+      "decisionReasonHint": "The model is told it too",
+      "rejectReason": "Reason for rejecting (optional)",
+      "regenerate": "Generate again",
+      "regenerateTouchedConfirm": "Somebody changed this name by hand or approved it in a language. Ask the model for a new one in its place?",
+      "editedMark": "Changed by hand",
+      "replacedMark": "Replaced by a newer proposal",
+      "shipMore": "More options",
+      "runTitle": "Generating recipes",
+      "waitingCount": "{count, plural, one {# waits} other {# wait}}"
     },
     "operatorAi": {
       "title": "AI of the instance",
@@ -958,6 +977,102 @@
       "savePassword": "Save password",
       "saving": "Saving…",
       "clearPassword": "Clear password"
+    },
+    "tabs": {
+      "label": "Parts of the panel",
+      "overview": "Overview",
+      "queue": "Queue",
+      "catalogue": "Catalogue",
+      "access": "Accounts and access",
+      "security": "Security",
+      "waiting": "{count, plural, one {# waits} other {# wait}}",
+      "attention": "needs attention"
+    },
+    "explainMore": "More about this",
+    "seedDetails": "Files and checksums",
+    "sessionsTitle": "Panel sessions",
+    "overview": {
+      "title": "Waiting for you",
+      "nothing": "Nothing waits for you.",
+      "namesPending": "{count, plural, one {# name to judge} other {# names to judge}}",
+      "namesRejected": "{count, plural, one {# rejected name waits for a new proposal} other {# rejected names wait for a new proposal}}",
+      "namesMissing": "{count, plural, one {# ingredient without a proposed name} other {# ingredients without a proposed name}}",
+      "namesApproved": "{count, plural, one {# approved name to ship} other {# approved names to ship}}",
+      "recipesPending": "{count, plural, one {# recipe to judge} other {# recipes to judge}}",
+      "recipesApproved": "{count, plural, one {# approved recipe to ship} other {# approved recipes to ship}}",
+      "updateAvailable": "A catalogue update is available",
+      "retired": "{count, plural, one {# retired ingredient still in use} other {# retired ingredients still in use}}",
+      "mirrorProblem": "The copy in the repository does not work"
+    },
+    "mirror": {
+      "title": "Copy in a repository",
+      "state": {
+        "off": "Not running",
+        "current": "Up to date",
+        "behind": "Waits for the next round",
+        "empty": "Waits for the instance's files",
+        "failed": "Failed",
+        "silent": "Not reporting",
+        "unreadable": "Cannot be read"
+      },
+      "explain": {
+        "off": "The mirror service has reported no round. It is optional: without it, what this instance added has no copy in a git repository. docs/ops/deployment.md says how to turn it on.",
+        "current": "The repository holds what this instance's files hold.",
+        "behind": "The files were written after the last round. The next round copies them.",
+        "empty": "This instance holds no recipes and no names of its own, so the service leaves the repository as it is.",
+        "silent": "The service has not reported for over three of its rounds: it is stopped, or cannot run.",
+        "unreadable": "The service left a report that cannot be read."
+      },
+      "failure": {
+        "clone": "It cannot clone the repository: check MIRROR_REPO and the deploy key.",
+        "foreign": "The repository holds files of something else. The copy needs an empty repository of its own.",
+        "unreachable": "It cannot reach the repository.",
+        "push": "The repository refused the push: check that the deploy key may write."
+      },
+      "logs": "The service's logs say more: docker compose logs mirror",
+      "checkedAt": "Last round",
+      "pushedAt": "Last pushed",
+      "contents": "In the copy",
+      "none": "Not yet",
+      "held": "Recipes: {recipes} · names: {names} · version {version}"
+    },
+    "health": {
+      "title": "State of the instance",
+      "refresh": "Refresh",
+      "checked": "As of {when}",
+      "failed": "The state of the instance could not be read.",
+      "mirror": "Copy in a repository",
+      "mirrorPushed": "Last pushed {when}",
+      "database": "Database",
+      "databaseUp": "Running",
+      "databaseDown": "Not answering",
+      "databaseDetail": "Answers in {ms} ms · size {size}",
+      "worker": "Scheduled tasks",
+      "workerOk": "Running",
+      "workerFailing": "Some failed",
+      "workerSilent": "Not reporting",
+      "workerNone": "Not reported yet",
+      "workerLast": "Last pass {when}",
+      "workerFailed": "{count, plural, one {# job failed in that pass.} other {# jobs failed in that pass.}}",
+      "workerSilentHint": "They run every hour, and there has been no pass for over three.",
+      "workerLogs": "The service's logs say more: docker compose logs worker",
+      "api": "API",
+      "apiUp": "Running",
+      "apiDetail": "Version {version} · running since {since} · memory {memory}",
+      "requests": "Response times",
+      "requestsGood": "Good",
+      "requestsSlow": "Slow",
+      "requestsErrors": "Server errors",
+      "requestsNone": "No data yet",
+      "requestsDetail": "Half within {median} ms, 95% within {p95} ms · server errors: {errors} of the last {counted}",
+      "requestsNote": "Of the API process that answered.",
+      "ai": "AI of the instance",
+      "aiOff": "Not set up",
+      "aiUsed": "{used} of {limit} in 30 days",
+      "aiReached": "Limit reached: {used} of {limit} in 30 days",
+      "mail": "Mail",
+      "mailOn": "Set up",
+      "mailOff": "Not set up"
     }
   },
   "review": {
@@ -1021,7 +1136,9 @@
     "locales": {
       "en": "English",
       "pl": "Polish"
-    }
+    },
+    "rejectReasonModel": "Optional reason: the model is told it with the new proposal",
+    "waiting": "{count, plural, one {# waits} other {# wait}}"
   },
   "draftProblems": {
     "intro": "Not saved.",
@@ -1063,7 +1180,7 @@
   },
   "shoppingLists": {
     "title": "Shopping lists",
-    "subhead": "Consolidated, aisle-grouped lists generated from a meal plan. Tick items off as you shop: what the pantry holds is counted as at home, which you can correct on each row, and a row ticks itself when its quantity is met.",
+    "subhead": "A list from a meal plan, grouped by aisle. What the pantry holds counts as at home, and a row ticks itself once you have all of it.",
     "noProfile": "No profile yet",
     "noProfileBody": "Create a profile and generate a meal plan first — a shopping list is built from a plan.",
     "noProfileCta": "Create profile",
@@ -1700,7 +1817,14 @@
     "dataExportButton": "Download my data",
     "dataExportPreparing": "Preparing the file…",
     "dataExportSaved": "The file was handed to your browser.",
-    "dataExportFailed": "The file could not be prepared. Try again."
+    "dataExportFailed": "The file could not be prepared. Try again.",
+    "tabs": {
+      "label": "Parts of the settings",
+      "general": "General",
+      "ai": "AI",
+      "security": "Security",
+      "account": "Account and data"
+    }
   },
   "recipes": {
     "title": "Recipes",
@@ -1920,7 +2044,8 @@
   },
   "profile": {
     "title": "Profiles",
-    "subhead": "A profile holds the figures your calorie target is worked out from. An account on this instance can have {max, plural, one {one profile} other {up to # profiles: one for each member of a household, or to compare diet scenarios}}. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
+    "subhead": "A profile holds the figures your calorie target is worked out from.",
+    "subheadMore": "An account on this instance can have {max, plural, one {one profile} other {up to # profiles: one for each member of a household, or to compare diet scenarios}}. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
     "atLimit": "You have reached the limit of {max, plural, one {one profile} other {# profiles}} that this instance allows an account. Edit one above, or delete a profile to create a new one.",
     "newProfile": "New profile",
     "addProfile": "Add profile",

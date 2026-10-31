@@ -35,6 +35,9 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     '/shopping-lists',
     '/inventory',
     '/settings',
+    '/settings?tab=ai',
+    '/settings?tab=security',
+    '/settings?tab=account',
   ]) {
     test(path, async ({ session }) => {
       await session.page.goto(path);
@@ -106,6 +109,7 @@ test.describe("the administrator's panel has nothing that keeps somebody from us
   test.skip(!user || !password, 'needs E2E_ADMIN_USER and E2E_ADMIN_PASSWORD');
 
   test('once signed in', async ({ anonymous }) => {
+    test.setTimeout(180_000);
     await anonymous.goto('/admin');
     await anonymous.locator('input[name="user"]').fill(user!);
     await anonymous.locator('input[name="password"]').fill(password!);
@@ -113,6 +117,18 @@ test.describe("the administrator's panel has nothing that keeps somebody from us
     await expect(anonymous.locator('input[name="password"]')).toHaveCount(0);
     await settled(anonymous);
 
-    expect(await barriers(anonymous)).toEqual([]);
+    const found: Record<string, unknown> = {};
+    const tabs = anonymous.getByRole('tab');
+    for (let tab = 0; tab < (await tabs.count()); tab += 1) {
+      await tabs.nth(tab).click();
+      await settled(anonymous);
+      // Every explanation and tool open: a closed one is out of axe's sight.
+      const closed = anonymous.locator('[role="tabpanel"]:visible details:not([open]) > summary');
+      while ((await closed.count()) > 0) await closed.first().click();
+      const panel = await barriers(anonymous);
+      if (panel.length > 0) found[`tab ${tab}`] = panel;
+    }
+
+    expect(found).toEqual({});
   });
 });

@@ -3,53 +3,40 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { CircleCheck, Database, RefreshCw, TriangleAlert } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { AccountSecondFactorCard } from './account-second-factor-card';
 import { AdminSecondFactorCard } from './admin-second-factor-card';
+import { CatalogueDbCard } from './catalogue-db-card';
 import { ConnectionCard } from './connection-card';
 import { CoverageCard } from './coverage-card';
 import { CurationCard } from './curation-card';
+import type { Kind } from './curation/shared';
+import { InstanceFilesCard, mirrorNeedsAttention } from './instance-files-card';
 import { OperatorAiCard } from './operator-ai-card';
+import { OverviewTab } from './overview-tab';
 import { RetiredIngredientsCard } from './retired-ingredients-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import { UsdaImportCard } from './usda-import-card';
-import { adminApi, type AdminStats, type DbUpdateState } from '@/lib/admin-api';
-import { useFormat } from '@/lib/use-format';
+import { adminApi, type AdminHealth, type AdminOverview, type AdminStats } from '@/lib/admin-api';
 
 type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
-
-/** Maps a server stage string to its translation key under admin.stages. */
-const STAGE_KEY: Record<string, string> = {
-  starting: 'starting',
-  ingredients: 'ingredientsStage',
-  recipes: 'recipesStage',
-  substitutions: 'substitutionsStage',
-  retire: 'retire',
-  recompute: 'recompute',
-  done: 'done',
-};
 
 export function AdminPanel() {
   const t = useTranslations('admin');
   const errorText = useErrorText();
-  const fmt = useFormat();
-  const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   // Whether signing in takes a code from an authenticator app as well.
   const [needsCode, setNeedsCode] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
   const [unreachableDetail, setUnreachableDetail] = useState<string | null>(null);
-  const [progress, setProgress] = useState<DbUpdateState | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /** Load the first numbers. Resolves to null when that worked, else to what went wrong. */
   const loadStats = useCallback(async (): Promise<unknown> => {
@@ -63,58 +50,11 @@ export function AdminPanel() {
         setView('login');
         return err;
       }
-      setUpdateError(errorText(err, t('loadStatsFailed')));
+      setLoginError(errorText(err, t('loadStatsFailed')));
       setView('login');
       return err;
     }
   }, [t, errorText]);
-
-  const stopPolling = useCallback((): void => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  const handleProgress = useCallback(
-    async (state: DbUpdateState): Promise<void> => {
-      setProgress(state);
-      if (state.status === 'running') return;
-      stopPolling();
-      if (state.status === 'done' && state.result) {
-        const r = state.result;
-        setLastUpdate(
-          t('updatedSummary', {
-            when: fmt.moment(r.seededAt),
-            recipes: r.deletedRecipes,
-            ingredients: r.deletedIngredients,
-            retiredRecipes: r.retiredRecipes,
-            retiredIngredients: r.retiredIngredients,
-            moved: r.movedToSuccessors,
-            newIngredients: r.counts.ingredients,
-            newRecipes: r.counts.recipes,
-          }),
-        );
-        await loadStats();
-      } else if (state.status === 'error') {
-        setUpdateError(state.error ?? t('updateFailed'));
-      }
-    },
-    [loadStats, stopPolling, t, fmt],
-  );
-
-  const startPolling = useCallback((): void => {
-    stopPolling();
-    pollRef.current = setInterval(() => {
-      void adminApi
-        .dbUpdateStatus()
-        .then(handleProgress)
-        .catch((err: unknown) => {
-          stopPolling();
-          setUpdateError(errorText(err, t('lostConnection')));
-        });
-    }, 1000);
-  }, [handleProgress, stopPolling, t, errorText]);
 
   // Probe `/admin/status`, then either show the disabled banner, the login
   // form, or fetch stats. Wrapped in try/catch so a proxy / network error
@@ -151,20 +91,6 @@ export function AdminPanel() {
     setUnreachableDetail(null);
     void probe();
   };
-
-  // Stale-job recovery: if the API was already running an update when this
-  // tab opened (e.g. another browser triggered it), resume the progress
-  // display instead of letting the user kick off a second one.
-  useEffect(() => {
-    if (view !== 'ready') return;
-    void adminApi.dbUpdateStatus().then((state) => {
-      if (state.status === 'running') {
-        setProgress(state);
-        startPolling();
-      }
-    });
-    return stopPolling;
-  }, [view, startPolling, stopPolling]);
 
   async function onLogin(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -204,26 +130,6 @@ export function AdminPanel() {
       (session) => setNeedsCode(session.secondFactor),
       () => undefined,
     );
-  }
-
-  async function onUpdate(): Promise<void> {
-    setUpdateError(null);
-    setLastUpdate(null);
-    try {
-      const state = await adminApi.startDbUpdate();
-      setProgress(state);
-      startPolling();
-    } catch (err) {
-      setUpdateError(errorText(err, t('updateFailed')));
-    }
-  }
-
-  const updating = progress?.status === 'running';
-
-  function stageLabel(stage: string | null): string {
-    if (!stage) return tStages('working');
-    const key = STAGE_KEY[stage];
-    return key ? tStages(key) : stage;
   }
 
   if (view === 'loading') {
@@ -308,192 +214,223 @@ export function AdminPanel() {
 
   // view === 'ready'
   if (!stats) return null;
-  const { counts, seed } = stats;
-  const generatedFile = seed.files.find((f) => f.name === 'ingredients.generated.json');
+  return (
+    <ReadyPanel
+      stats={stats}
+      onReload={loadStats}
+      needsCode={needsCode}
+      onSecondFactor={setNeedsCode}
+      onLeave={(end) => void leave(end)}
+    />
+  );
+}
+
+const TAB_IDS = ['overview', 'queue', 'catalogue', 'access', 'security'] as const;
+type TabId = (typeof TAB_IDS)[number];
+
+/** The part of the panel the address names, and the kind of drafts: the first of each when it names none. */
+function fromAddress(): { tab: TabId; kind: Kind } {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab') as TabId;
+  return {
+    tab: TAB_IDS.includes(tab) ? tab : 'overview',
+    kind: params.get('kind') === 'recipes' ? 'recipes' : 'ingredient-names',
+  };
+}
+
+function toAddress(tab: TabId, kind: Kind): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('tab');
+  url.searchParams.delete('kind');
+  if (tab !== 'overview') url.searchParams.set('tab', tab);
+  if (tab === 'queue' && kind === 'recipes') url.searchParams.set('kind', kind);
+  window.history.replaceState(null, '', url);
+}
+
+/**
+ * The panel of a signed-in administrator, in parts. It is rendered once the
+ * panel has asked for its session and never on the server, so it reads the
+ * address at once.
+ */
+function ReadyPanel({
+  stats,
+  onReload,
+  needsCode,
+  onSecondFactor,
+  onLeave,
+}: {
+  stats: AdminStats;
+  onReload: () => Promise<unknown>;
+  needsCode: boolean;
+  onSecondFactor: (on: boolean) => void;
+  onLeave: (end: () => Promise<void>) => void;
+}) {
+  const t = useTranslations('admin');
+  const [{ tab, kind }, setPlace] = useState(fromAddress);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [retired, setRetired] = useState(0);
+  const [health, setHealth] = useState<AdminHealth | null>(null);
+  const [healthFailed, setHealthFailed] = useState(false);
+
+  const go = (next: { tab: TabId; kind?: Kind }): void => {
+    const place = { tab: next.tab, kind: next.kind ?? kind };
+    setPlace(place);
+    toAddress(place.tab, place.kind);
+  };
+
+  // What the tabs and the overview count. Should it fail, a part that is opened says so itself.
+  const loadOverview = useCallback(async (): Promise<void> => {
+    await adminApi.overview().then(setOverview, () => undefined);
+    await adminApi.retiredIngredients().then(
+      (ingredients) => setRetired(ingredients.length),
+      () => undefined,
+    );
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      await loadOverview();
+    })();
+  }, [loadOverview]);
+
+  const loadHealth = useCallback(async (): Promise<void> => {
+    await adminApi.health().then(
+      (read) => {
+        setHealth(read);
+        setHealthFailed(false);
+      },
+      () => setHealthFailed(true),
+    );
+  }, []);
+
+  // Read each time the overview is opened: it says how the instance stands now.
+  useEffect(() => {
+    if (tab !== 'overview') return;
+    void (async () => {
+      await loadHealth();
+    })();
+  }, [tab, loadHealth]);
+
+  const reload = useCallback(async (): Promise<void> => {
+    await onReload();
+    await loadOverview();
+  }, [onReload, loadOverview]);
+
+  const waiting = overview
+    ? overview.names.pending +
+      overview.names.rejected +
+      overview.names.approved +
+      overview.recipes.pending +
+      overview.recipes.approved
+    : 0;
+  const catalogueAttention =
+    stats.seed.updateAvailable || retired > 0 || mirrorNeedsAttention(overview?.mirror);
+
+  const tabs: TabItem<TabId>[] = [
+    {
+      id: 'overview',
+      title: t('tabs.overview'),
+      content: () => (
+        <OverviewTab
+          stats={stats}
+          overview={overview}
+          retired={retired}
+          health={health}
+          healthFailed={healthFailed}
+          onRefresh={() => {
+            void loadHealth();
+            void loadOverview();
+          }}
+          onGo={go}
+        />
+      ),
+    },
+    {
+      id: 'queue',
+      title: t('tabs.queue'),
+      mark:
+        waiting > 0
+          ? { shown: String(waiting), said: t('tabs.waiting', { count: waiting }) }
+          : undefined,
+      content: () => (
+        <CurationCard
+          kind={kind}
+          onKindChange={(next) => go({ tab: 'queue', kind: next })}
+          overview={overview}
+          onQueueChanged={loadOverview}
+        />
+      ),
+    },
+    {
+      id: 'catalogue',
+      title: t('tabs.catalogue'),
+      mark: catalogueAttention ? { shown: '!', said: t('tabs.attention') } : undefined,
+      content: () => (
+        <>
+          <CatalogueDbCard seed={stats.seed} onUpdated={reload} />
+          <InstanceFilesCard
+            mirror={overview?.mirror ?? null}
+            readAgain={overview}
+            onRestored={reload}
+          />
+          <UsdaImportCard onFinished={onReload} />
+          <RetiredIngredientsCard onChanged={loadOverview} />
+          <CoverageCard
+            coverage={stats.coverage}
+            waiting={stats.coverageWaiting}
+            target={stats.coverageTarget}
+            macros={stats.macros}
+          />
+        </>
+      ),
+    },
+    {
+      id: 'access',
+      title: t('tabs.access'),
+      content: () => (
+        <>
+          <ReviewerConfigCard />
+          <OperatorAiCard />
+          <AccountSecondFactorCard />
+        </>
+      ),
+    },
+    {
+      id: 'security',
+      title: t('tabs.security'),
+      content: () => (
+        <>
+          <AdminSecondFactorCard on={needsCode} onChanged={onSecondFactor} />
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('sessionsTitle')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t('endAllSessionsHint')}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onLeave(adminApi.endAllSessions)}
+              >
+                {t('endAllSessions')}
+              </Button>
+            </CardContent>
+          </Card>
+          <ConnectionCard />
+        </>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-        <p className="mr-auto text-xs text-muted-foreground">{t('endAllSessionsHint')}</p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void leave(adminApi.endAllSessions)}
-        >
-          {t('endAllSessions')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void leave(adminApi.signOut)}
-        >
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={() => onLeave(adminApi.signOut)}>
           {t('signOut')}
         </Button>
       </div>
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label={t('ingredients')} value={counts.ingredients} />
-        <StatCard label={t('recipes')} value={counts.recipes} />
-        <StatCard label={t('substitutions')} value={counts.substitutions} />
-      </section>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" /> {t('curatedDb')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-            <Row label={t('lastSeeded')}>
-              {seed.lastSeededAt ? fmt.moment(seed.lastSeededAt) : t('never')}
-            </Row>
-            <Row label={t('onDiskHash')}>
-              <code className="text-xs">{seed.currentHash.slice(0, 16)}…</code>
-            </Row>
-            <Row label={t('storedHash')}>
-              {seed.storedHash ? (
-                <code className="text-xs">{seed.storedHash.slice(0, 16)}…</code>
-              ) : (
-                '—'
-              )}
-            </Row>
-            <Row label={t('status')}>
-              {seed.updateAvailable ? (
-                <span className="inline-flex items-center gap-1 text-warning">
-                  <TriangleAlert className="h-4 w-4" /> {t('updateAvailable')}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-success">
-                  <CircleCheck className="h-4 w-4" /> {t('upToDate')}
-                </span>
-              )}
-            </Row>
-          </div>
-
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('seedFiles')}
-            </p>
-            <ul className="text-sm">
-              {seed.files.map((f) => (
-                <li
-                  key={f.name}
-                  className="flex items-center justify-between border-t border-border py-1.5 first:border-t-0"
-                >
-                  <code className="text-xs">{f.name}</code>
-                  <span className="text-xs text-muted-foreground">
-                    {f.present ? fmt.unit(f.bytes / 1024, 'kilobyte', 1) : t('notPresent')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {generatedFile && !generatedFile.present && (
-              <p
-                className="mt-2 text-xs text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: t('generatedMissing') }}
-              />
-            )}
-          </div>
-
-          <div className="space-y-2 border-t border-border pt-4">
-            <Button onClick={onUpdate} disabled={updating}>
-              <RefreshCw className={`h-4 w-4 ${updating ? 'animate-spin' : ''}`} />
-              {updating ? t('updating') : t('updateDb')}
-            </Button>
-            <p
-              className="text-xs text-muted-foreground"
-              dangerouslySetInnerHTML={{ __html: t('updateExplain') }}
-            />
-            {updating && progress && <ProgressBar state={progress} stageLabel={stageLabel} />}
-            {lastUpdate && <p className="text-xs text-success">{lastUpdate}</p>}
-            {updateError && <p className="text-xs text-destructive">{updateError}</p>}
-          </div>
-        </CardContent>
-      </Card>
-
-      <RetiredIngredientsCard />
-
-      <CoverageCard
-        coverage={stats.coverage}
-        waiting={stats.coverageWaiting}
-        target={stats.coverageTarget}
-        macros={stats.macros}
-      />
-
-      <UsdaImportCard onFinished={loadStats} />
-
-      <CurationCard />
-
-      <ReviewerConfigCard />
-
-      <AdminSecondFactorCard on={needsCode} onChanged={setNeedsCode} />
-
-      <OperatorAiCard />
-
-      <AccountSecondFactorCard />
-
-      <ConnectionCard />
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  const fmt = useFormat();
-  return (
-    <Card>
-      <CardContent className="pt-5">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{fmt.number(value)}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProgressBar({
-  state,
-  stageLabel,
-}: {
-  state: DbUpdateState;
-  stageLabel: (stage: string | null) => string;
-}) {
-  const fmt = useFormat();
-  const hasTotal = state.total != null && state.total > 0;
-  const pct = hasTotal
-    ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100))
-    : null;
-  const label = stageLabel(state.stage);
-  return (
-    <div className="mt-2 space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <span>{label}</span>
-        {hasTotal && (
-          <span className="tabular-nums text-muted-foreground">
-            {fmt.number(state.current ?? 0)} / {fmt.number(state.total ?? 0)} (
-            {fmt.percent((pct ?? 0) / 100)})
-          </span>
-        )}
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        {hasTotal ? (
-          <div
-            className="h-full bg-primary transition-[width] duration-500"
-            style={{ width: `${pct ?? 0}%` }}
-          />
-        ) : (
-          <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-0.5">{children}</p>
+      <Tabs label={t('tabs.label')} tabs={tabs} active={tab} onSelect={(id) => go({ tab: id })} />
     </div>
   );
 }

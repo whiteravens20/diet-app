@@ -7,6 +7,7 @@ import { DIET_TYPES, MEAL_SLOTS_BY_COUNT, VARIETY_DEPTH } from '@diet-app/shared
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AdminStats, MacroShares } from '@/lib/admin-api';
 import { cn } from '@/lib/utils';
+import { Explain } from './explain';
 
 /** The meals in the order of a day. */
 const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
@@ -59,7 +60,9 @@ export function CoverageCard({
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{t('explain', { enough: VARIETY_DEPTH })}</p>
+        <Explain>
+          <p>{t('explain', { enough: VARIETY_DEPTH })}</p>
+        </Explain>
         <div
           className={SCROLLS}
           tabIndex={0}
@@ -127,10 +130,10 @@ export function CoverageCard({
         )}
 
         <h3 className="pt-2 text-sm font-medium">{t('macrosTitle')}</h3>
-        <p className="text-sm text-muted-foreground">
-          {t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}
-        </p>
-        <p className="text-sm text-muted-foreground">{t('packsExplain')}</p>
+        <Explain>
+          <p>{t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}</p>
+          <p>{t('packsExplain')}</p>
+        </Explain>
         <div
           className={SCROLLS}
           tabIndex={0}

@@ -2,10 +2,10 @@
 
 'use client';
 
-/** Shipping what was approved: into this instance or as a file for a repository, with what the instance keeps in its own files. */
+/** Shipping what was approved: one row, into this instance, with a file for a repository a press further. */
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
-import { Download, LoaderCircle, RotateCcwClock, Send, ServerCog } from 'lucide-react';
+import { useCallback, useEffect, useId, useState } from 'react';
+import { ChevronDown, Download, LoaderCircle, Send, ServerCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ApiClientError } from '@/lib/http';
 import {
@@ -14,8 +14,6 @@ import {
   type ShipConfigDto,
   type ShipKind,
   type ShipMode,
-  type InstanceDataState,
-  type RestoreResponse,
   type ShipResponse,
   type ShipSkipped,
 } from '@/lib/admin-api';
@@ -43,6 +41,8 @@ export function ShipBar({
   const [success, setSuccess] = useState<ShipResponse | null>(null);
   const [heldBack, setHeldBack] = useState<ShipSkipped[]>([]);
   const [currentBusy, setCurrentBusy] = useState<'download' | null>(null);
+  const [more, setMore] = useState(false);
+  const moreId = useId();
 
   const refresh = useCallback(async () => {
     try {
@@ -137,28 +137,37 @@ export function ShipBar({
         </Button>
         <Button
           size="sm"
-          variant="outline"
-          disabled={disabled}
-          onClick={() => run('bundle')}
-          className="gap-2"
+          variant="ghost"
+          aria-expanded={more}
+          aria-controls={moreId}
+          onClick={() => setMore((open) => !open)}
+          className="gap-1"
         >
-          {busyMode === 'bundle' ? (
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          {t('shipModeBundle')}
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${more ? 'rotate-180' : ''}`} />
+          {t('shipMore')}
         </Button>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{t('shipExplain')}</p>
 
-      {kind === 'ingredient-name' && (
-        <div className="mt-3 border-t border-border pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('shipCurrentHeader')}
-            </span>
-            <span className="flex-1" />
+      <div id={moreId} hidden={!more} className="mt-3 space-y-3 border-t border-border pt-3">
+        <div className="space-y-1">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => run('bundle')}
+            className="gap-2"
+          >
+            {busyMode === 'bundle' ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            {t('shipModeBundle')}
+          </Button>
+          <p className="text-xs text-muted-foreground">{t('shipExplain')}</p>
+        </div>
+        {kind === 'ingredient-name' && (
+          <div className="space-y-1">
             <Button
               size="sm"
               variant="outline"
@@ -173,19 +182,10 @@ export function ShipBar({
               )}
               {t('shipCurrentDownload')}
             </Button>
+            <p className="text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
-        </div>
-      )}
-
-      <InstanceData
-        state={config.instanceData}
-        disabled={currentDisabled}
-        onRestored={async () => {
-          await refresh();
-          await onShipped();
-        }}
-      />
+        )}
+      </div>
 
       {error && (
         <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
@@ -203,154 +203,6 @@ export function ShipBar({
           onMarkShipped={onMarkShipped}
           onDismiss={() => setSuccess(null)}
         />
-      )}
-    </div>
-  );
-}
-
-/**
- * The instance's own data directory: what the database wrote there and which
- * version wrote it, a warning when the API cannot write to it or when files
- * of the earlier layout wait to be restored, and the restore that reads the
- * files back.
- */
-function InstanceData({
-  state,
-  disabled,
-  onRestored,
-}: {
-  state: InstanceDataState;
-  disabled: boolean;
-  onRestored: () => void | Promise<void>;
-}) {
-  const t = useTranslations('admin.curation');
-  const errorText = useDraftErrorText();
-  const reasonText = useSkipReasonText();
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<RestoreResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const restore = async () => {
-    if (!window.confirm(t('restoreConfirm'))) return;
-    setBusy(true);
-    setError(null);
-    setResult(null);
-    try {
-      setResult(await adminApi.restoreInstanceData());
-      await onRestored();
-    } catch (err) {
-      setError(errorText(err, String(err)));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const nothingToRestore = state.recipes === 0 && state.names === 0;
-  return (
-    <div className="mt-3 border-t border-border pt-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('instanceDataHeader')}
-        </span>
-        <span className="text-xs">
-          {t('instanceDataState', {
-            recipes: state.recipes,
-            files: state.recipeFiles,
-            names: state.names,
-          })}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={disabled || busy || nothingToRestore}
-          onClick={restore}
-          className="gap-2"
-        >
-          {busy ? (
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RotateCcwClock className="h-3.5 w-3.5" />
-          )}
-          {t('restoreButton')}
-        </Button>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">{t('instanceDataExplain')}</p>
-      {state.version && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t('instanceDataVersion', { version: state.version })}
-        </p>
-      )}
-      {state.notRestored > 0 && (
-        <p className="mt-1 text-xs text-warning">
-          {t('instanceDataNotRestored', { count: state.notRestored })}
-        </p>
-      )}
-      {!state.writable && (
-        <p className="mt-1 text-xs text-warning">{t('instanceDataNotWritable')}</p>
-      )}
-      {error && (
-        <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
-          {error}
-        </p>
-      )}
-      {result && (
-        <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
-          <p>
-            {t('restoreDone', {
-              added: result.recipes.added,
-              rewritten: result.recipes.rewritten,
-              names: result.names.applied,
-            })}
-          </p>
-          {result.recipes.skipped.length > 0 && (
-            <div className="mt-1 text-warning">
-              <p>{t('restoreSkipped', { count: result.recipes.skipped.length })}</p>
-              <ul className="list-disc pl-4">
-                {result.recipes.skipped.map((entry, index) => (
-                  <li key={`${entry.file}:${index}`}>
-                    <span className="font-mono">{entry.slug}</span> ({entry.file}) —{' '}
-                    {reasonText(entry.reason)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.names.skippedSlugs.length > 0 && (
-            <p className="mt-1 text-warning">
-              {t('namesSkipped', {
-                count: result.names.skippedSlugs.length,
-                slugs: result.names.skippedSlugs.slice(0, 8).join(', '),
-              })}
-            </p>
-          )}
-          {result.names.refused.length > 0 && (
-            <div className="mt-1 text-warning">
-              <p>{t('namesRefused', { count: result.names.refused.length })}</p>
-              <ul className="list-disc pl-4">
-                {result.names.refused.slice(0, 8).map((entry) => (
-                  <li key={entry.slug}>
-                    <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.unreadable.length > 0 && (
-            <div className="mt-1 text-warning">
-              <p>{t('restoreUnreadable', { count: result.unreadable.length })}</p>
-              <ul className="list-disc pl-4">
-                {result.unreadable.map((entry) => (
-                  <li key={entry.file}>
-                    <span className="font-mono">{entry.file}</span> —{' '}
-                    {t.has(`restoreUnreadableReasons.${entry.reason}`)
-                      ? t(`restoreUnreadableReasons.${entry.reason}`)
-                      : entry.reason}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );
