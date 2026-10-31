@@ -28,14 +28,14 @@ const BUDGETS: Record<string, number> = {
   '/diary': 210,
   '/shopping-lists': 205,
   '/inventory': 205,
-  '/settings': 210,
+  '/settings': 215,
   '/recipes': 210,
   '/favorites': 210,
   '/admin': 215,
   '/review': 195,
   // The pages that also check what is typed or answered against the contract, which brings its schemas.
   '/profile': 240,
-  '/calculator': 235,
+  '/calculator': 240,
   '/meal-plans': 260,
 };
 

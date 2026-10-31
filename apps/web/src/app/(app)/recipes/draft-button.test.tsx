@@ -37,7 +37,7 @@ describe('the button that drafts a recipe with a model', () => {
     expect(button).toHaveAccessibleDescription(note.textContent!);
     expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute(
       'href',
-      '/settings',
+      '/settings?tab=ai',
     );
 
     await userEvent.click(button);

@@ -209,7 +209,7 @@ test.describe('everything an account holds', () => {
   }) => {
     const page = session.page;
     const settings = messages.settings as Texts;
-    await page.goto('/settings');
+    await page.goto('/settings?tab=account');
     await settled(page);
 
     const saved = page.waitForEvent('download');

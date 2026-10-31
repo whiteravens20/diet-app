@@ -38,13 +38,15 @@ test.describe('a browser opened from the application', () => {
     const texts = messages.fromTheApp as Texts;
     const { email, code } = await aCode(request, appLocale);
 
-    await page.goto(`/from-the-app#code=${code}&next=${encodeURIComponent('/settings')}`);
+    await page.goto(
+      `/from-the-app#code=${code}&next=${encodeURIComponent('/settings?tab=account')}`,
+    );
 
     await expect(page.getByText(email)).toBeVisible();
     // The code has left the address before anybody did anything.
     expect(page.url()).not.toContain(code);
     await page.getByRole('button', { name: texts.signIn!, exact: true }).click();
-    await page.waitForURL('**/settings');
+    await page.waitForURL('**/settings?tab=account');
     await expect(
       page.getByRole('heading', { level: 1, name: (messages.settings as Texts).title! }),
     ).toBeVisible();

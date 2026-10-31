@@ -192,7 +192,7 @@ test.describe('a meal of a plan', () => {
       has: page.getByRole('link', { name: toSettings, exact: true }),
     });
     await expect(note).toBeVisible();
-    await expect(note.getByRole('link')).toHaveAttribute('href', '/settings');
+    await expect(note.getByRole('link')).toHaveAttribute('href', '/settings?tab=ai');
 
     const ways = await waysToChangeAMeal(page, messages);
     const byModel = ways.getByRole('button', { name: ofAMeal(plans.aiSwap!) });

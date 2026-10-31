@@ -88,7 +88,7 @@ function ChipLink({
 }) {
   return (
     <Link
-      href="/settings"
+      href="/settings?tab=ai"
       title={title}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',

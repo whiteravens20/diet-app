@@ -20,7 +20,7 @@ export function AiOffNote({ id, className }: { id: string; className?: string })
       {t.rich('note', {
         settings: (chunks) => (
           <Link
-            href="/settings"
+            href="/settings?tab=ai"
             className="font-medium text-primary underline-offset-2 hover:underline"
           >
             {chunks}

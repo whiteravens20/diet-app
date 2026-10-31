@@ -1158,7 +1158,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
     expect(swap).toHaveAccessibleDescription(notes[0]!.textContent!);
     expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute(
       'href',
-      '/settings',
+      '/settings?tab=ai',
     );
   });
 
