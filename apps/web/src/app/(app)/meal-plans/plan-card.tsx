@@ -5,7 +5,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import {
   fitsDiet,
@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs } from '@/components/ui/tabs';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
@@ -88,11 +89,16 @@ const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' |
 /** The name a day of a plan has on the page, for whatever leads to it. */
 export const dayAnchor = (planId: string, date: string): string => `plan-${planId}-${date}`;
 
+/** A plan longer than this is shown a week at a time. */
+const DAYS_A_WEEK = 7;
+
 /** One plan: its summary, and when open its days with every change a meal can be given. */
 export function PlanCard({
   summary,
   plan,
   open,
+  sought,
+  onFound,
   busy,
   dietLabel,
   favorites,
@@ -124,6 +130,10 @@ export function PlanCard({
   /** The whole plan, once the open card has read it. */
   plan: MealPlan | undefined;
   open: boolean;
+  /** The day of this plan that a link or the calendar leads to, until the card has gone there. */
+  sought: { date: string } | null;
+  onFound: () => void;
+
   busy: boolean;
   dietLabel: string;
   favorites: FavoriteOption[];
@@ -189,8 +199,40 @@ export function PlanCard({
   const [settingsFor, setSettingsFor] = useState<MealPlanDay | null>(null);
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
+  // The days folded or unfolded by hand, by date: any other day follows `firstOpen` below.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  // The week of a long plan that was chosen, if any: the one that holds `firstOpen` until then.
+  const [chosenWeek, setChosenWeek] = useState<number | null>(null);
+  // The day last gone to: a new one for every time, as a press may ask for the same day again.
+  const [goingTo, setGoingTo] = useState<{ date: string } | null>(null);
+  // What was last led to from outside: each is gone to once, as soon as the plan is there.
+  const [ledTo, setLedTo] = useState<{ date: string } | null>(null);
+
   // Today by the reader's clock: a day before it is history.
   const today = localDate();
+  const days = plan?.days ?? [];
+  // The day that is open by itself: today, or the first of a plan that does not hold today.
+  const firstOpen = days.some((day) => day.date === today) ? today : days[0]?.date;
+  const weekOf = (date: string | undefined): number =>
+    Math.max(0, Math.floor(days.findIndex((day) => day.date === date) / DAYS_A_WEEK));
+  const goToDay = (date: string): void => {
+    setGoingTo({ date });
+    setChosenWeek(weekOf(date));
+    setToggled((all) => ({ ...all, [date]: true }));
+  };
+  if (sought && plan && sought !== ledTo) {
+    setLedTo(sought);
+    if (days.some((day) => day.date === sought.date)) goToDay(sought.date);
+  }
+  useEffect(() => {
+    if (sought && sought === ledTo) onFound();
+  });
+  // Drawn by now: the week and the day open in the same turn as this.
+  useEffect(() => {
+    const day = goingTo && document.getElementById(dayAnchor(summary.id, goingTo.date));
+    day?.scrollIntoView({ block: 'start' });
+    day?.focus({ preventScroll: true });
+  }, [goingTo, summary.id]);
   // An account has a model to ask where the page was given the way to ask one.
   const aiEnabled = onAiSwapMeal !== undefined;
   const mealName = (type: string): string =>
@@ -227,6 +269,663 @@ export function PlanCard({
     ) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
+  // One day of the open plan: what it is and what it comes to stand in its head, which unfolds the rest.
+  const dayCard = (plan: MealPlan, day: MealPlanDay) => {
+    const dayOpen = toggled[day.date] ?? day.date === firstOpen;
+    return (
+      // A day can be gone to from the calendar: it is named, and can take the focus.
+      <div
+        key={day.id}
+        id={dayAnchor(plan.id, day.date)}
+        tabIndex={-1}
+        aria-current={day.date === today ? 'date' : undefined}
+        className="scroll-mt-20 rounded-lg border border-border bg-background focus:outline-none"
+      >
+        <button
+          type="button"
+          aria-expanded={dayOpen}
+          onClick={() => setToggled((all) => ({ ...all, [day.date]: !dayOpen }))}
+          className="flex w-full items-start gap-2 rounded-lg p-3 text-left"
+        >
+          <ChevronRight
+            size={16}
+            aria-hidden
+            className={cn('mt-0.5 shrink-0 text-muted-foreground', dayOpen && 'rotate-90')}
+          />
+          <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-medium">
+              {fmt.day(day.date)}
+              {day.date === today && (
+                <span className="whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
+                  {t('today')}
+                </span>
+              )}
+              {(day.overrides?.dayType === 'training' || day.overrides?.dayType === 'rest') && (
+                <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">
+                  {t(`dayKindChip.${day.overrides.dayType}`)}
+                </span>
+              )}
+              {/* What the profile has ruled out is not to stay behind a fold. */}
+              {day.meals.some((meal) => meal.restrictionConflicts.length > 0) && (
+                <span className="whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive">
+                  {t('dayToCheck')}
+                </span>
+              )}
+            </span>
+            {day.skipped ? (
+              // A day the user skips is no shortfall, and there is nothing in it to fill.
+              <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
+            ) : (
+              <span
+                className={
+                  Math.abs(day.calorieDelta) <= 50
+                    ? 'text-sm text-muted-foreground'
+                    : 'text-sm text-destructive'
+                }
+              >
+                {t('calorieLine', {
+                  kcal: day.dayNutrition.calories,
+                  target: day.calorieTarget,
+                  delta: fmt.signed(day.calorieDelta),
+                })}
+              </span>
+            )}
+          </span>
+        </button>
+        {dayOpen && (
+          <div className="space-y-2 border-t border-border p-3">
+            <div className="flex flex-wrap items-center gap-x-3">
+              {!day.skipped && (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWaysFor({ id: day.id, date: day.date })}
+                    disabled={busy}
+                  >
+                    {t('otherWays')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReroll({ scope: 'day', day: day.date })}
+                    disabled={busy}
+                  >
+                    {t('changeDay')}
+                  </Button>
+                </>
+              )}
+              {/* A day before today is history: its settings stay as they were. */}
+              {day.date >= today && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSettingsFor(day)}
+                  disabled={busy}
+                >
+                  {t('daySettingsButton')}
+                </Button>
+              )}
+            </div>
+            <DaySettingsLine day={day} />
+            {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
+            {(day.diary || day.date <= today) && (
+              <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                {day.diary && (
+                  <span>
+                    {t('diaryLine', {
+                      kcal: day.diary.nutrition.calories,
+                      count: day.diary.entries,
+                    })}
+                  </span>
+                )}
+                {day.date <= today && (
+                  <Link
+                    href={`/diary?profile=${plan.profileId}&date=${day.date}`}
+                    className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
+                  >
+                    {t('openDiary')}
+                  </Link>
+                )}
+              </p>
+            )}
+            {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
+            {!day.skipped && day.offTarget && (
+              <div className="space-y-1 text-xs">
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
+                  <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
+                    {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
+                  </span>
+                  {/* A day the diary put off its target has not been resized with it: nothing says that resizing could not close the gap. */}
+                  <span>
+                    {t(
+                      day.diary
+                        ? day.offTarget === 'over'
+                          ? 'dayOverDiaryHint'
+                          : 'dayUnderDiaryHint'
+                        : day.offTarget === 'over'
+                          ? 'dayOverHint'
+                          : 'dayUnderHint',
+                    )}
+                  </span>
+                </p>
+                {/* A day of today or after it, which the diary put off its target, is resized with its own meals first: those from a recipe, not eaten yet. */}
+                {day.diary &&
+                  day.date >= today &&
+                  day.meals.some(
+                    (m) => m.eatenAt === null && m.source !== 'USER_CUSTOM' && m.recipe !== null,
+                  ) && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onResizeDay(day.date)}
+                        disabled={busy}
+                        aria-describedby={`${day.id}-resize`}
+                      >
+                        {t('resizeDay')}
+                      </Button>
+                      <span id={`${day.id}-resize`} className="text-muted-foreground">
+                        {t('resizeDayNote')}
+                      </span>
+                    </div>
+                  )}
+                {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
+                {plan.days.some(
+                  (other) => other.id !== day.id && other.date >= today && !other.skipped,
+                ) && (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      // The remaining days of the plan take it: from today, or from the day itself where it is over already.
+                      onClick={() => onSpread(day.date < today ? day.date : today)}
+                      disabled={busy}
+                      aria-describedby={`${day.id}-spread`}
+                    >
+                      {t('spread')}
+                    </Button>
+                    <span id={`${day.id}-spread`} className="text-muted-foreground">
+                      {t(day.offTarget === 'over' ? 'spreadNoteOver' : 'spreadNoteUnder')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {!day.skipped && (
+              <p className="text-xs text-muted-foreground">
+                {t('dayMacros', {
+                  protein: day.dayNutrition.protein,
+                  proteinTarget: day.targetMacros.protein,
+                  fat: day.dayNutrition.fat,
+                  fatTarget: day.targetMacros.fat,
+                  carbs: day.dayNutrition.carbs,
+                  carbsTarget: day.targetMacros.carbs,
+                })}
+              </p>
+            )}
+            {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
+            <ul className="divide-y divide-border text-sm">
+              {day.meals.map((m) => {
+                const eaten = m.eatenAt !== null;
+                const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
+                const title = isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title;
+                // A control of this meal by a name of its own: among the buttons of a plan, "Swap" alone is every meal's.
+                const named = (action: string): string => t('actionFor', { action, title });
+                const favOpen = openFav === m.id;
+                const actionsOpen = openActions === m.id;
+                const mealLabel = tMeal.has(m.mealType)
+                  ? tMeal(m.mealType)
+                  : m.mealType.replace('_', ' ');
+                // What the generation said of this meal: the report speaks of the recipes it placed.
+                const said = <T extends { date: string; slot: string }>(
+                  entries: T[] | undefined,
+                ): T | undefined =>
+                  isCustom
+                    ? undefined
+                    : entries?.find(
+                        (entry) => entry.date === day.date && entry.slot === m.mealType,
+                      );
+                const outside = said(plan.report?.relaxations);
+                const onlyRecipe = said(plan.report?.singleCandidate);
+                const byModel = partInMeal(m);
+                // What the meal holds that the profile would rather not eat, by name.
+                const disliked = m.ingredients
+                  .filter((line) => m.dislikedIngredientIds.includes(line.ingredientId))
+                  .map((line) => line.name);
+                // The picker shows diet-matching, slot-matching favourites
+                // by default; "show all my favourites" drops BOTH the diet and the
+                // meal-time filter (allergens stay enforced server-side), so a
+                // dinner favourite can be dropped onto breakfast.
+                const slotFavorites = favorites.filter(
+                  (f) =>
+                    showAllFav ||
+                    (f.recipe.mealTypes.includes(m.mealType) &&
+                      fitsDiet(f.recipe.dietTags, plan.dietType)),
+                );
+                return (
+                  <li key={m.id} className="space-y-1 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                      <span className="flex min-w-0 flex-1 basis-64 items-start gap-2 break-words">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 shrink-0"
+
+                          checked={eaten}
+                          disabled={busy}
+                          aria-label={named(t('markEaten'))}
+                          title={t('markEaten')}
+                          onChange={() => onToggleEaten(m.id, !m.eatenAt)}
+                        />
+                        <span className="min-w-0">
+                          <span className="text-muted-foreground">{mealLabel}</span>{' '}
+                          <span aria-hidden className="hidden sm:inline">
+                            ·{' '}
+                          </span>
+                          {isCustom ? (
+                            <span className="font-medium">{title}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenRecipe({
+                                  id: m.recipe!.id,
+                                  amounts: m.ingredients,
+                                  picked: m.modelPick,
+                                })
+                              }
+                              className="text-left font-medium text-primary hover:underline"
+                            >
+                              {title}
+                            </button>
+                          )}
+                          {isCustom && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
+                              {t('customChip')}
+                            </span>
+                          )}
+                          {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
+                          {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
+                          {m.dietOverride && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                              {t('dietOverrideChip')}
+                            </span>
+                          )}
+                          {m.restrictionConflicts.map((conflict) => (
+                            <span
+                              key={conflict}
+                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive"
+                            >
+                              {t(`conflictChip.${conflict}`)}
+                            </span>
+                          ))}
+                          {disliked.length > 0 && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                              {t('dislikedChip')}
+                            </span>
+                          )}
+                          {outside && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                              {t('outsideLimitChip')}
+                            </span>
+                          )}
+                          {onlyRecipe && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                              {t('onlyRecipeChip')}
+                            </span>
+                          )}
+                          {m.quantityScale !== 1 && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                              {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
+                            </span>
+                          )}
+                          {m.cookAhead && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                              {t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+
+                      <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
+                        {(eaten || isCustom) && (
+                          <>
+                            {eaten && (
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {t('eatenBadge')}
+                              </span>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('remove'))}
+                              aria-expanded={removing === m.id}
+                              onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                              disabled={busy}
+                            >
+                              {t('remove')}
+                            </Button>
+                          </>
+                        )}
+                        {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
+                        {eaten || isCustom ? null : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={named(t('changeMeal'))}
+                            aria-expanded={actionsOpen}
+                            aria-controls={`${m.id}-actions`}
+                            onClick={() => setOpenActions(actionsOpen ? null : m.id)}
+                          >
+                            {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
+                          </Button>
+                        )}
+                      </span>
+                    </div>
+                    {!eaten && !isCustom && (
+                      <div
+                        id={`${m.id}-actions`}
+                        role="group"
+                        aria-label={t('mealActions', { title })}
+                        hidden={!actionsOpen}
+                        className="ml-3 flex flex-wrap items-center gap-x-1"
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={named(t('swap'))}
+                          onClick={() => onSwapMeal(m.id)}
+                          disabled={busy}
+                        >
+                          {t('swap')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          title={t('tooltipSwapToFav')}
+                          aria-label={named(t('swapToFav'))}
+                          aria-expanded={favOpen}
+                          onClick={() => {
+                            setShowAllFav(false);
+                            setOpenFav(favOpen ? null : m.id);
+                          }}
+                          disabled={busy}
+                        >
+                          {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                          aria-label={named(t('aiSwap'))}
+                          onClick={() => onAiSwapMeal?.(m.id)}
+                          disabled={busy || !onAiSwapMeal}
+                          aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
+                          className="text-primary"
+                        >
+                          <Sparkles size={14} aria-hidden />
+                          <span className="ml-1">{t('aiSwap')}</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          title={t('tooltipSwapByFav')}
+                          aria-label={named(t('swapFavIngr'))}
+                          onClick={() => onSwapByFavorites(m.id)}
+                          disabled={busy}
+                        >
+                          {t('swapFavIngr')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          title={t('tooltipSubstitute')}
+                          aria-label={named(t('substituteIngr'))}
+                          onClick={() => {
+                            if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
+                          }}
+                          disabled={busy}
+                        >
+                          {t('substituteIngr')} ⇄
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={named(t('remove'))}
+                          aria-expanded={removing === m.id}
+                          onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                          disabled={busy}
+                        >
+                          {t('remove')}
+                        </Button>
+                      </div>
+                    )}
+                    {removing === m.id && (
+                      <div
+                        className="ml-6 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
+                        role="group"
+                        aria-label={t('removeTitle', { title })}
+                      >
+                        <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setRemoving(null);
+                              onRemoveMeal(m.id);
+                            }}
+                            disabled={busy}
+                          >
+                            {t('removeConfirm')}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRemoving(null)}
+                          >
+                            {tCommon('cancel')}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {offer?.asked.plannedMealId === m.id && (
+                      <div
+                        className="ml-6 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
+                        role="group"
+                        aria-label={t('offerTitle')}
+                      >
+                        {/* A model's own pick says so, with its reason, before it is taken. */}
+                        {offer.preview.pick && (
+                          <AiMark
+                            part={{
+                              kind: 'picked',
+                              reason: offer.preview.aiMeta?.reason ?? null,
+                            }}
+                            spelledOut
+                          />
+                        )}
+                        <p>
+                          {t.rich('offerLine', {
+                            title: offer.preview.recipe.title,
+                            servings: offer.preview.servings,
+                            after: offer.preview.after.calories,
+                            before: offer.preview.before.calories,
+                            strong: (chunks) => <span className="font-medium">{chunks}</span>,
+                          })}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {t('offerMacros', {
+                            protein: offer.preview.after.protein,
+                            fat: offer.preview.after.fat,
+                            carbs: offer.preview.after.carbs,
+                          })}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {t('offerDay', {
+                            kcal: offer.preview.dayAfter.calories,
+                            target: offer.preview.calorieTarget,
+                          })}
+                        </p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setOpenActions(null);
+                              onTakeOffer();
+                            }}
+                            disabled={busy}
+                          >
+                            {t('offerTake')}
+                          </Button>
+                          {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
+                          {offer.asked.strategy !== 'favorite' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={onAnotherOffer}
+                              disabled={busy}
+                            >
+                              {t('offerAnother')}
+                            </Button>
+                          )}
+                          <Button type="button" size="sm" variant="ghost" onClick={onCancelOffer}>
+                            {tCommon('cancel')}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Per-meal macros sit below the title as plain text — the
+                          modal opened from the recipe title carries the full
+                          ingredient list scaled for this meal. */}
+                    <MacrosLine nutrition={m.nutrition} />
+                    {/* What the profile has ruled out since the meal was planned comes first: the plan is not rewritten, it says so. */}
+                    {m.restrictionConflicts.map((conflict) => (
+                      <p key={conflict} className="ml-6 text-xs text-destructive">
+                        {t(`conflictHint.${conflict}`)}
+                      </p>
+                    ))}
+                    {m.dietOverride && (
+                      <p className="ml-6 text-xs text-warning">
+                        {t('dietOverrideHint', { diet: dietLabel })}
+                      </p>
+                    )}
+                    {disliked.length > 0 && (
+                      <p className="ml-6 text-xs text-muted-foreground">
+                        {t('dislikedHint', { foods: fmt.list(disliked) })}
+                      </p>
+                    )}
+                    {outside && (
+                      <p className="ml-6 text-xs text-muted-foreground">
+                        {t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
+                      </p>
+                    )}
+                    {onlyRecipe && (
+                      <p className="ml-6 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
+                    )}
+                    {m.cookAhead && (
+                      <p className="ml-6 text-xs text-muted-foreground">
+                        {t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}
+                      </p>
+                    )}
+                    {isCustom && (
+                      <p className="ml-6 text-xs italic text-muted-foreground">
+                        {t('customMacrosNote')}
+                      </p>
+                    )}
+                    {favOpen && !isCustom && (
+                      <div className="ml-6 rounded-md border border-border bg-muted/40 p-2">
+                        <label className="mb-2 flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5"
+                            checked={showAllFav}
+                            onChange={(e) => setShowAllFav(e.target.checked)}
+                          />
+                          {t('showAllFavorites')}
+                        </label>
+                        {slotFavorites.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            {showAllFav
+                              ? t('noFavorites')
+                              : t('noFavoritesForSlot', { mealType: mealLabel })}
+                          </p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {slotFavorites.map((f) => {
+                              const off = !fitsDiet(f.recipe.dietTags, plan.dietType);
+                              const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
+                              return (
+                                <li key={f.recipe.id}>
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setOpenFav(null);
+                                      onSwapToFavorite(m.id, f.recipe.id, showAllFav);
+                                    }}
+                                  >
+                                    <span>{f.recipe.title}</span>
+                                    <span className="flex shrink-0 items-center gap-1">
+                                      {crossSlot && (
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                                          {f.recipe.mealTypes
+                                            .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
+                                            .join(' · ')}
+                                        </span>
+                                      )}
+                                      {off && (
+                                        <span className="rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                                          {t('offDietTag')}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-1"
+              onClick={() => setCustomDay(day.date)}
+              disabled={busy}
+            >
+              {t('addCustomMeal')}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card className="relative w-full">
       {/* What the plan is opens it: one control, with the triangle of a list that unfolds beside what it names. On a narrow screen what can be done with the plan goes under it. */}
@@ -289,20 +988,11 @@ export function PlanCard({
         </CardContent>
       )}
       {open && plan && (
-        <CardContent className="space-y-4 border-t border-border pt-4">
+        <CardContent className="space-y-4 border-t border-border p-3 pt-4 sm:p-5 sm:pt-4">
           <div className="flex flex-wrap items-center gap-2">
             {/* A long plan is a long way down to the day it is now: one press takes the reader there. */}
             {plan.days.some((day) => day.date === today) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const day = document.getElementById(dayAnchor(plan.id, today));
-                  day?.scrollIntoView({ block: 'start' });
-                  day?.focus({ preventScroll: true });
-                }}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => goToDay(today)}>
                 {t('goToToday')}
               </Button>
             )}
@@ -387,627 +1077,29 @@ export function PlanCard({
               {t('conflictsNotice', { count: conflicts })}
             </p>
           )}
-          {plan.days.map((day) => (
-            // A day can be gone to from the calendar: it is named, and can take the focus.
-            <div
-              key={day.id}
-              id={dayAnchor(plan.id, day.date)}
-              tabIndex={-1}
-              aria-current={day.date === today ? 'date' : undefined}
-              className="scroll-mt-20 focus:outline-none"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {fmt.day(day.date)}
-                  {day.date === today && (
-                    <span className="whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
-                      {t('today')}
-                    </span>
-                  )}
-                  {(day.overrides?.dayType === 'training' || day.overrides?.dayType === 'rest') && (
-                    <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">
-                      {t(`dayKindChip.${day.overrides.dayType}`)}
-                    </span>
-                  )}
-                </span>
-                <div className="flex flex-wrap items-center gap-x-3">
-                  {day.skipped ? (
-                    // A day the user skips is no shortfall, and there is nothing in it to fill.
-                    <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
-                  ) : (
-                    <>
-                      <span
-                        className={
-                          Math.abs(day.calorieDelta) <= 50
-                            ? 'text-sm text-muted-foreground'
-                            : 'text-sm text-destructive'
-                        }
-                      >
-                        {t('calorieLine', {
-                          kcal: day.dayNutrition.calories,
-                          target: day.calorieTarget,
-                          delta: fmt.signed(day.calorieDelta),
-                        })}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setWaysFor({ id: day.id, date: day.date })}
-                        disabled={busy}
-                      >
-                        {t('otherWays')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setReroll({ scope: 'day', day: day.date })}
-                        disabled={busy}
-                      >
-                        {t('changeDay')}
-                      </Button>
-                    </>
-                  )}
-                  {/* A day before today is history: its settings stay as they were. */}
-                  {day.date >= today && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSettingsFor(day)}
-                      disabled={busy}
-                    >
-                      {t('daySettingsButton')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <DaySettingsLine day={day} />
-              {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
-              {(day.diary || day.date <= today) && (
-                <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                  {day.diary && (
-                    <span>
-                      {t('diaryLine', {
-                        kcal: day.diary.nutrition.calories,
-                        count: day.diary.entries,
-                      })}
-                    </span>
-                  )}
-                  {day.date <= today && (
-                    <Link
-                      href={`/diary?profile=${plan.profileId}&date=${day.date}`}
-                      className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
-                    >
-                      {t('openDiary')}
-                    </Link>
-                  )}
-                </p>
-              )}
-              {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
-              {!day.skipped && day.offTarget && (
-                <div className="space-y-1 text-xs">
-                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
-                    <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
-                      {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
-                    </span>
-                    {/* A day the diary put off its target has not been resized with it: nothing says that resizing could not close the gap. */}
-                    <span>
-                      {t(
-                        day.diary
-                          ? day.offTarget === 'over'
-                            ? 'dayOverDiaryHint'
-                            : 'dayUnderDiaryHint'
-                          : day.offTarget === 'over'
-                            ? 'dayOverHint'
-                            : 'dayUnderHint',
-                      )}
-                    </span>
-                  </p>
-                  {/* A day of today or after it, which the diary put off its target, is resized with its own meals first: those from a recipe, not eaten yet. */}
-                  {day.diary &&
-                    day.date >= today &&
-                    day.meals.some(
-                      (m) => m.eatenAt === null && m.source !== 'USER_CUSTOM' && m.recipe !== null,
-                    ) && (
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onResizeDay(day.date)}
-                          disabled={busy}
-                          aria-describedby={`${day.id}-resize`}
-                        >
-                          {t('resizeDay')}
-                        </Button>
-                        <span id={`${day.id}-resize`} className="text-muted-foreground">
-                          {t('resizeDayNote')}
-                        </span>
-                      </div>
-                    )}
-                  {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
-                  {plan.days.some(
-                    (other) => other.id !== day.id && other.date >= today && !other.skipped,
-                  ) && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        // The remaining days of the plan take it: from today, or from the day itself where it is over already.
-                        onClick={() => onSpread(day.date < today ? day.date : today)}
-                        disabled={busy}
-                        aria-describedby={`${day.id}-spread`}
-                      >
-                        {t('spread')}
-                      </Button>
-                      <span id={`${day.id}-spread`} className="text-muted-foreground">
-                        {t(day.offTarget === 'over' ? 'spreadNoteOver' : 'spreadNoteUnder')}
-                      </span>
+          {plan.days.length > DAYS_A_WEEK ? (
+            <Tabs
+              label={t('planWeeks')}
+              tabs={Array.from(
+                { length: Math.ceil(plan.days.length / DAYS_A_WEEK) },
+                (_, index) => ({
+                  id: String(index),
+                  title: t('planWeek', { week: index + 1 }),
+                  content: () => (
+                    <div className="space-y-3">
+                      {plan.days
+                        .slice(index * DAYS_A_WEEK, (index + 1) * DAYS_A_WEEK)
+                        .map((day) => dayCard(plan, day))}
                     </div>
-                  )}
-                </div>
+                  ),
+                }),
               )}
-              {!day.skipped && (
-                <p className="text-xs text-muted-foreground">
-                  {t('dayMacros', {
-                    protein: day.dayNutrition.protein,
-                    proteinTarget: day.targetMacros.protein,
-                    fat: day.dayNutrition.fat,
-                    fatTarget: day.targetMacros.fat,
-                    carbs: day.dayNutrition.carbs,
-                    carbsTarget: day.targetMacros.carbs,
-                  })}
-                </p>
-              )}
-              {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
-              <ul className="mt-1 space-y-1 text-sm">
-                {day.meals.map((m) => {
-                  const eaten = m.eatenAt !== null;
-                  const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
-                  const title = isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title;
-                  // A control of this meal by a name of its own: among the buttons of a plan, "Swap" alone is every meal's.
-                  const named = (action: string): string => t('actionFor', { action, title });
-                  const favOpen = openFav === m.id;
-                  const actionsOpen = openActions === m.id;
-                  const mealLabel = tMeal.has(m.mealType)
-                    ? tMeal(m.mealType)
-                    : m.mealType.replace('_', ' ');
-                  // What the generation said of this meal: the report speaks of the recipes it placed.
-                  const said = <T extends { date: string; slot: string }>(
-                    entries: T[] | undefined,
-                  ): T | undefined =>
-                    isCustom
-                      ? undefined
-                      : entries?.find(
-                          (entry) => entry.date === day.date && entry.slot === m.mealType,
-                        );
-                  const outside = said(plan.report?.relaxations);
-                  const onlyRecipe = said(plan.report?.singleCandidate);
-                  const byModel = partInMeal(m);
-                  // What the meal holds that the profile would rather not eat, by name.
-                  const disliked = m.ingredients
-                    .filter((line) => m.dislikedIngredientIds.includes(line.ingredientId))
-                    .map((line) => line.name);
-                  // The picker shows diet-matching, slot-matching favourites
-                  // by default; "show all my favourites" drops BOTH the diet and the
-                  // meal-time filter (allergens stay enforced server-side), so a
-                  // dinner favourite can be dropped onto breakfast.
-                  const slotFavorites = favorites.filter(
-                    (f) =>
-                      showAllFav ||
-                      (f.recipe.mealTypes.includes(m.mealType) &&
-                        fitsDiet(f.recipe.dietTags, plan.dietType)),
-                  );
-                  return (
-                    <li key={m.id} className="space-y-1">
-                      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-                        <span className="min-w-0 flex-1 basis-64 break-words">
-                          <input
-                            type="checkbox"
-                            className="mr-2 h-4 w-4 align-middle"
-                            checked={eaten}
-                            disabled={busy}
-                            aria-label={named(t('markEaten'))}
-                            title={t('markEaten')}
-                            onChange={() => onToggleEaten(m.id, !m.eatenAt)}
-                          />
-                          <span className="text-muted-foreground">{mealLabel}</span> ·{' '}
-                          {isCustom ? (
-                            <span className="font-medium">{title}</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenRecipe({
-                                  id: m.recipe!.id,
-                                  amounts: m.ingredients,
-                                  picked: m.modelPick,
-                                })
-                              }
-                              className="font-medium text-primary hover:underline"
-                            >
-                              {title}
-                            </button>
-                          )}
-                          {isCustom && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
-                              {t('customChip')}
-                            </span>
-                          )}
-                          {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
-                          {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
-                          {m.dietOverride && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                              {t('dietOverrideChip')}
-                            </span>
-                          )}
-                          {m.restrictionConflicts.map((conflict) => (
-                            <span
-                              key={conflict}
-                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive"
-                            >
-                              {t(`conflictChip.${conflict}`)}
-                            </span>
-                          ))}
-                          {disliked.length > 0 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                              {t('dislikedChip')}
-                            </span>
-                          )}
-                          {outside && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                              {t('outsideLimitChip')}
-                            </span>
-                          )}
-                          {onlyRecipe && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                              {t('onlyRecipeChip')}
-                            </span>
-                          )}
-                          {m.quantityScale !== 1 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                              {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
-                            </span>
-                          )}
-                          {m.cookAhead && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                              {t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}
-                            </span>
-                          )}
-                        </span>
-                        <span className="flex flex-wrap items-center gap-x-4">
-                          {(eaten || isCustom) && (
-                            <>
-                              {eaten && (
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {t('eatenBadge')}
-                                </span>
-                              )}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                aria-label={named(t('remove'))}
-                                aria-expanded={removing === m.id}
-                                onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                                disabled={busy}
-                              >
-                                {t('remove')}
-                              </Button>
-                            </>
-                          )}
-                          {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
-                          {eaten || isCustom ? null : (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label={named(t('changeMeal'))}
-                              aria-expanded={actionsOpen}
-                              aria-controls={`${m.id}-actions`}
-                              onClick={() => setOpenActions(actionsOpen ? null : m.id)}
-                            >
-                              {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
-                            </Button>
-                          )}
-                        </span>
-                      </div>
-                      {!eaten && !isCustom && (
-                        <div
-                          id={`${m.id}-actions`}
-                          role="group"
-                          aria-label={t('mealActions', { title })}
-                          hidden={!actionsOpen}
-                          className="ml-4 flex flex-wrap items-center gap-x-4"
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={named(t('swap'))}
-                            onClick={() => onSwapMeal(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swap')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapToFav')}
-                            aria-label={named(t('swapToFav'))}
-                            aria-expanded={favOpen}
-                            onClick={() => {
-                              setShowAllFav(false);
-                              setOpenFav(favOpen ? null : m.id);
-                            }}
-                            disabled={busy}
-                          >
-                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
-                            aria-label={named(t('aiSwap'))}
-                            onClick={() => onAiSwapMeal?.(m.id)}
-                            disabled={busy || !onAiSwapMeal}
-                            aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
-                            className="text-primary"
-                          >
-                            <Sparkles size={14} aria-hidden />
-                            <span className="ml-1">{t('aiSwap')}</span>
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapByFav')}
-                            aria-label={named(t('swapFavIngr'))}
-                            onClick={() => onSwapByFavorites(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swapFavIngr')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSubstitute')}
-                            aria-label={named(t('substituteIngr'))}
-                            onClick={() => {
-                              if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
-                            }}
-                            disabled={busy}
-                          >
-                            {t('substituteIngr')} ⇄
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={named(t('remove'))}
-                            aria-expanded={removing === m.id}
-                            onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                            disabled={busy}
-                          >
-                            {t('remove')}
-                          </Button>
-                        </div>
-                      )}
-                      {removing === m.id && (
-                        <div
-                          className="ml-4 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
-                          role="group"
-                          aria-label={t('removeTitle', { title })}
-                        >
-                          <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setRemoving(null);
-                                onRemoveMeal(m.id);
-                              }}
-                              disabled={busy}
-                            >
-                              {t('removeConfirm')}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setRemoving(null)}
-                            >
-                              {tCommon('cancel')}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {offer?.asked.plannedMealId === m.id && (
-                        <div
-                          className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
-                          role="group"
-                          aria-label={t('offerTitle')}
-                        >
-                          {/* A model's own pick says so, with its reason, before it is taken. */}
-                          {offer.preview.pick && (
-                            <AiMark
-                              part={{
-                                kind: 'picked',
-                                reason: offer.preview.aiMeta?.reason ?? null,
-                              }}
-                              spelledOut
-                            />
-                          )}
-                          <p>
-                            {t.rich('offerLine', {
-                              title: offer.preview.recipe.title,
-                              servings: offer.preview.servings,
-                              after: offer.preview.after.calories,
-                              before: offer.preview.before.calories,
-                              strong: (chunks) => <span className="font-medium">{chunks}</span>,
-                            })}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {t('offerMacros', {
-                              protein: offer.preview.after.protein,
-                              fat: offer.preview.after.fat,
-                              carbs: offer.preview.after.carbs,
-                            })}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {t('offerDay', {
-                              kcal: offer.preview.dayAfter.calories,
-                              target: offer.preview.calorieTarget,
-                            })}
-                          </p>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => {
-                                setOpenActions(null);
-                                onTakeOffer();
-                              }}
-                              disabled={busy}
-                            >
-                              {t('offerTake')}
-                            </Button>
-                            {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
-                            {offer.asked.strategy !== 'favorite' && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={onAnotherOffer}
-                                disabled={busy}
-                              >
-                                {t('offerAnother')}
-                              </Button>
-                            )}
-                            <Button type="button" size="sm" variant="ghost" onClick={onCancelOffer}>
-                              {tCommon('cancel')}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {/* Per-meal macros sit below the title as plain text — the
-                          modal opened from the recipe title carries the full
-                          ingredient list scaled for this meal. */}
-                      <MacrosLine nutrition={m.nutrition} />
-                      {/* What the profile has ruled out since the meal was planned comes first: the plan is not rewritten, it says so. */}
-                      {m.restrictionConflicts.map((conflict) => (
-                        <p key={conflict} className="ml-4 text-xs text-destructive">
-                          {t(`conflictHint.${conflict}`)}
-                        </p>
-                      ))}
-                      {m.dietOverride && (
-                        <p className="ml-4 text-xs text-warning">
-                          {t('dietOverrideHint', { diet: dietLabel })}
-                        </p>
-                      )}
-                      {disliked.length > 0 && (
-                        <p className="ml-4 text-xs text-muted-foreground">
-                          {t('dislikedHint', { foods: fmt.list(disliked) })}
-                        </p>
-                      )}
-                      {outside && (
-                        <p className="ml-4 text-xs text-muted-foreground">
-                          {t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
-                        </p>
-                      )}
-                      {onlyRecipe && (
-                        <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
-                      )}
-                      {m.cookAhead && (
-                        <p className="ml-4 text-xs text-muted-foreground">
-                          {t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}
-                        </p>
-                      )}
-                      {isCustom && (
-                        <p className="ml-6 text-xs italic text-muted-foreground">
-                          {t('customMacrosNote')}
-                        </p>
-                      )}
-                      {favOpen && !isCustom && (
-                        <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
-                          <label className="mb-2 flex items-center gap-1 text-xs">
-                            <input
-                              type="checkbox"
-                              className="h-3.5 w-3.5"
-                              checked={showAllFav}
-                              onChange={(e) => setShowAllFav(e.target.checked)}
-                            />
-                            {t('showAllFavorites')}
-                          </label>
-                          {slotFavorites.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              {showAllFav
-                                ? t('noFavorites')
-                                : t('noFavoritesForSlot', { mealType: mealLabel })}
-                            </p>
-                          ) : (
-                            <ul className="space-y-1">
-                              {slotFavorites.map((f) => {
-                                const off = !fitsDiet(f.recipe.dietTags, plan.dietType);
-                                const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
-                                return (
-                                  <li key={f.recipe.id}>
-                                    <button
-                                      type="button"
-                                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
-                                      disabled={busy}
-                                      onClick={() => {
-                                        setOpenFav(null);
-                                        onSwapToFavorite(m.id, f.recipe.id, showAllFav);
-                                      }}
-                                    >
-                                      <span>{f.recipe.title}</span>
-                                      <span className="flex shrink-0 items-center gap-1">
-                                        {crossSlot && (
-                                          <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                                            {f.recipe.mealTypes
-                                              .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
-                                              .join(' · ')}
-                                          </span>
-                                        )}
-                                        {off && (
-                                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                                            {t('offDietTag')}
-                                          </span>
-                                        )}
-                                      </span>
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1"
-                onClick={() => setCustomDay(day.date)}
-                disabled={busy}
-              >
-                {t('addCustomMeal')}
-              </Button>
-            </div>
-          ))}
+              active={String(chosenWeek ?? weekOf(firstOpen))}
+              onSelect={(week) => setChosenWeek(Number(week))}
+            />
+          ) : (
+            <div className="space-y-3">{plan.days.map((day) => dayCard(plan, day))}</div>
+          )}
         </CardContent>
       )}
       {waysFor && (
@@ -1110,7 +1202,7 @@ function MacrosLine({
   const t = useTranslations('macrosLine');
   const fmt = useFormat();
   return (
-    <p className="ml-4 text-xs text-muted-foreground">
+    <p className="ml-6 text-xs text-muted-foreground">
       {t('protein')} {fmt.unit(nutrition.protein, 'gram')} · {t('fat')}{' '}
       {fmt.unit(nutrition.fat, 'gram')} · {t('carbs')} {fmt.unit(nutrition.carbs, 'gram')} ·{' '}
       {fmt.number(nutrition.calories)} {t('kcal')}

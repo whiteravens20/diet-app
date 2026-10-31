@@ -778,9 +778,9 @@ describe('the plan page, when a plan is made again', () => {
     );
     await open(plan);
 
-    await userEvent.click(
-      screen.getAllByRole('button', { name: messages.mealPlans.changeDay })[2]!,
-    );
+    const third = within(document.getElementById(dayAnchor(plan.id, '2026-01-07'))!);
+    await userEvent.click(third.getByRole('button', { expanded: false }));
+    await userEvent.click(third.getByRole('button', { name: messages.mealPlans.changeDay }));
     const asked = await rerollWindow();
 
     expect(asked.getByLabelText(texts.day)).toBeChecked();
@@ -2169,6 +2169,11 @@ describe('the plan page, on how a plan reads', () => {
     await userEvent.click(await screen.findByText(`${plan.durationDays}-day plan · Vegan`));
     await screen.findAllByRole('button', { name: messages.mealPlans.addCustomMeal });
   };
+  const dayOf = (plan: MealPlan, date: string): HTMLElement =>
+    document.getElementById(dayAnchor(plan.id, date))!;
+  const headOf = (plan: MealPlan, date: string): HTMLElement =>
+    within(dayOf(plan, date)).getByRole('button', { name: /kcal/ });
+  const weekTab = (week: number): HTMLElement => screen.getByRole('tab', { name: `Week ${week}` });
   /** What the API offers in the place of a meal. */
   const anOffer = {
     recipe: { id: 'a-recipe', title: 'Tofu scramble' },
@@ -2179,6 +2184,132 @@ describe('the plan page, on how a plan reads', () => {
     dayAfter: { calories: 240, protein: 18, fat: 12, carbs: 16 },
     calorieTarget: 2000,
   };
+
+  it("shows each day by its head, with today's alone unfolded, and any number of days may be", async () => {
+    onTheDay('2026-01-06');
+    const plan = daysLong(3);
+    await open(plan);
+
+    expect(headOf(plan, '2026-01-05')).toHaveAttribute('aria-expanded', 'false');
+    expect(headOf(plan, '2026-01-05')).toHaveTextContent('Mon, Jan 5');
+    expect(headOf(plan, '2026-01-05')).toHaveTextContent('230 / 2000 kcal');
+    expect(headOf(plan, '2026-01-06')).toHaveAttribute('aria-expanded', 'true');
+    expect(within(dayOf(plan, '2026-01-05')).queryByRole('list')).toBeNull();
+    expect(within(dayOf(plan, '2026-01-06')).getByRole('list')).toBeInTheDocument();
+
+    await userEvent.click(headOf(plan, '2026-01-05'));
+
+    expect(within(dayOf(plan, '2026-01-05')).getByRole('list')).toBeInTheDocument();
+    expect(within(dayOf(plan, '2026-01-06')).getByRole('list')).toBeInTheDocument();
+
+    await userEvent.click(headOf(plan, '2026-01-06'));
+
+    expect(headOf(plan, '2026-01-06')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(dayOf(plan, '2026-01-06')).queryByRole('list')).toBeNull();
+  });
+
+  it('unfolds the first day of a plan that does not hold today', async () => {
+    onTheDay('2026-03-01');
+    const plan = daysLong(3);
+    await open(plan);
+
+    expect(headOf(plan, '2026-01-05')).toHaveAttribute('aria-expanded', 'true');
+    expect(headOf(plan, '2026-01-06')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('says on the head of a folded day that it holds what the profile has ruled out', async () => {
+    onTheDay('2026-03-01');
+    const plan = daysLong(2);
+    const day = plan.days[1]!;
+    plan.days[1] = {
+      ...day,
+      meals: day.meals.map((meal) => ({ ...meal, restrictionConflicts: ['allergen'] })),
+    };
+    await open(plan);
+
+    expect(headOf(plan, '2026-01-06')).toHaveAttribute('aria-expanded', 'false');
+    expect(headOf(plan, '2026-01-06')).toHaveTextContent(messages.mealPlans.dayToCheck);
+    expect(headOf(plan, '2026-01-05')).not.toHaveTextContent(messages.mealPlans.dayToCheck);
+  });
+
+  it('shows a plan of a week whole', async () => {
+    onTheDay('2026-01-05');
+    const plan = daysLong(7);
+    await open(plan);
+
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(dayOf(plan, '2026-01-11')).toBeVisible();
+  });
+
+  it('shows a longer plan a week at a time, on the week that holds today', async () => {
+    onTheDay('2026-01-13');
+    const plan = daysLong(15);
+    await open(plan);
+
+    expect(screen.getByRole('tablist', { name: messages.mealPlans.planWeeks })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(weekTab(2)).toHaveAttribute('aria-selected', 'true');
+    expect(dayOf(plan, '2026-01-05')).toBeNull();
+    expect(headOf(plan, '2026-01-13')).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(weekTab(1));
+
+    expect(dayOf(plan, '2026-01-13')).not.toBeVisible();
+    expect(headOf(plan, '2026-01-05')).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(weekTab(3));
+
+    expect(
+      within(screen.getByRole('tabpanel', { name: 'Week 3' })).getByText('Mon, Jan 19'),
+    ).toBeVisible();
+  });
+
+  it('goes to today from another week, with the week and the day opened', async () => {
+    onTheDay('2026-01-13');
+    const plan = daysLong(14);
+    await open(plan);
+    await userEvent.click(headOf(plan, '2026-01-13'));
+    await userEvent.click(weekTab(1));
+    scrollIntoView.mockClear();
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.goToToday }));
+
+    expect(weekTab(2)).toHaveAttribute('aria-selected', 'true');
+    expect(headOf(plan, '2026-01-13')).toHaveAttribute('aria-expanded', 'true');
+    expect(dayOf(plan, '2026-01-13')).toBeVisible();
+    expect(dayOf(plan, '2026-01-13')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+    expect(scrollIntoView.mock.contexts[0]).toBe(dayOf(plan, '2026-01-13'));
+  });
+
+  it('opens the week and the day a link names, and goes there once', async () => {
+    onTheDay('2026-03-01');
+    const plan = daysLong(14);
+    address.search = `plan=${plan.id}&day=2026-01-15`;
+    await renderPage(aSupply(), [plan]);
+    await screen.findAllByRole('button', { name: messages.mealPlans.addCustomMeal });
+
+    expect(weekTab(2)).toHaveAttribute('aria-selected', 'true');
+    expect(headOf(plan, '2026-01-15')).toHaveAttribute('aria-expanded', 'true');
+    expect(dayOf(plan, '2026-01-15')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+
+    await userEvent.click(weekTab(1));
+
+    expect(weekTab(1)).toHaveAttribute('aria-selected', 'true');
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+  });
+
+  it('takes no notice of a link to a day the plan does not hold', async () => {
+    onTheDay('2026-03-01');
+    const plan = daysLong(3);
+    address.search = `plan=${plan.id}&day=2026-02-20`;
+    await renderPage(aSupply(), [plan]);
+    await screen.findAllByRole('button', { name: messages.mealPlans.addCustomMeal });
+
+    expect(headOf(plan, '2026-01-05')).toHaveAttribute('aria-expanded', 'true');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
 
   it('folds the ways to change a meal behind one button, and folds them again once the meal is changed', async () => {
     onTheDay('2026-01-05');

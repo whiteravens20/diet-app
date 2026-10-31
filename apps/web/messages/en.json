@@ -1465,6 +1465,7 @@
     "dayOver": "Over target",
     "dayOverHint": "This day holds more than a tenth over its target, and sizing its meals could not close the gap. Swap a meal, or take one out, to bring it back.",
     "dayUnder": "Under target",
+    "dayToCheck": "To check",
     "dayUnderHint": "This day holds more than a tenth under its target, and sizing its meals could not close the gap. Swap a meal, or add one, to bring it back.",
     "dayMacros": "Protein {protein, number, ::group-off} of {proteinTarget, number, ::group-off} g · fat {fat, number, ::group-off} of {fatTarget, number, ::group-off} g · carbs {carbs, number, ::group-off} of {carbsTarget, number, ::group-off} g",
     "planMacros": "A day of this plan holds on average: protein {protein, number, ::group-off} of {proteinTarget, number, ::group-off} g · fat {fat, number, ::group-off} of {fatTarget, number, ::group-off} g · carbs {carbs, number, ::group-off} of {carbsTarget, number, ::group-off} g.",
@@ -1582,6 +1583,8 @@
     },
     "daySettingsButton": "Day settings…",
     "goToToday": "Go to today",
+    "planWeeks": "The plan's weeks",
+    "planWeek": "Week {week}",
     "today": "Today",
     "dayKindChip": {
       "training": "Training",

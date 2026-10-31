@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { Suspense, useEffect, useId, useRef, useState } from 'react';
+import { Suspense, useId, useRef, useState } from 'react';
 import { CalendarRange, UserRound } from 'lucide-react';
 import {
   CalendarDay,
@@ -45,7 +45,7 @@ import { SupplyNote } from '@/components/supply-note';
 import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
-import { dayAnchor, PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
+import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
@@ -118,6 +118,8 @@ function MealPlansContent() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(linked?.planId ?? null);
+  // The day of a plan that a link or the calendar leads to, until its card has gone there: the plan may still be on its way, and the list still being narrowed to it.
+  const [sought, setSought] = useState(linked);
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
@@ -461,18 +463,6 @@ function MealPlansContent() {
     });
   }
 
-  // The day of a plan that the calendar led to. The page goes there once the day is drawn: its plan may still be on
-  // its way, and the list still being narrowed to it.
-  const sought = useRef<{ planId: string; date: string } | null>(linked);
-  useEffect(() => {
-    const day =
-      sought.current &&
-      document.getElementById(dayAnchor(sought.current.planId, sought.current.date));
-    if (!day) return;
-    sought.current = null;
-    day.scrollIntoView({ block: 'start' });
-    day.focus({ preventScroll: true });
-  });
   const startDateField = useRef<HTMLInputElement>(null);
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
@@ -772,7 +762,7 @@ function MealPlansContent() {
                 setTo(date);
                 setPage(1);
                 setOpenPlan(planId);
-                sought.current = { planId, date };
+                setSought({ planId, date });
               }}
               onStart={(date) => {
                 // A day without a plan is where the next one can begin: the form above takes it.
@@ -883,6 +873,8 @@ function MealPlansContent() {
               summary={plan}
               plan={openPlan === plan.id ? opened.data : undefined}
               open={openPlan === plan.id}
+              sought={sought?.planId === plan.id ? sought : null}
+              onFound={() => setSought(null)}
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}

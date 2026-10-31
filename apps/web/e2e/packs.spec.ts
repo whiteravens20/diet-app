@@ -73,7 +73,10 @@ test.describe('a plan made for cooking ahead', () => {
       marks.filter((mark) => mark === 'cook').length,
     );
 
-    // The new plan opens by itself, and says it of the meals.
+    // The new plan opens by itself, and with its days unfolded says it of the meals.
+    const folded = page.locator(`[id^="plan-${made.id}-"] > button[aria-expanded="false"]`);
+    await expect(folded).not.toHaveCount(0);
+    while ((await folded.count()) > 0) await folded.first().click();
     await expect(page.getByText(plans.cookOnceChip!, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(plans.cookedChip!, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(plans.cookOnceHint!, { exact: true }).first()).toBeVisible();

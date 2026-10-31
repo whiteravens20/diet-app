@@ -1465,6 +1465,7 @@
     "dayOver": "Ponad cel",
     "dayOverHint": "Ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel, a dopasowanie porcji nie wystarczyło, by to wyrównać. Zamień posiłek albo usuń jeden, żeby wrócić do celu.",
     "dayUnder": "Poniżej celu",
+    "dayToCheck": "Do sprawdzenia",
     "dayUnderHint": "Ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel, a dopasowanie porcji nie wystarczyło, by to wyrównać. Zamień posiłek albo dodaj jeden, żeby wrócić do celu.",
     "dayMacros": "Białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g · tłuszcz {fat, number, ::group-off} z {fatTarget, number, ::group-off} g · węglowodany {carbs, number, ::group-off} z {carbsTarget, number, ::group-off} g",
     "planMacros": "Dzień tego planu ma średnio: białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g · tłuszcz {fat, number, ::group-off} z {fatTarget, number, ::group-off} g · węglowodany {carbs, number, ::group-off} z {carbsTarget, number, ::group-off} g.",
@@ -1582,6 +1583,8 @@
     },
     "daySettingsButton": "Ustawienia dnia…",
     "goToToday": "Przejdź do dzisiaj",
+    "planWeeks": "Tygodnie planu",
+    "planWeek": "Tydzień {week}",
     "today": "Dzisiaj",
     "dayKindChip": {
       "training": "Trening",
