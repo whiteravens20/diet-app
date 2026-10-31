@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
@@ -180,6 +181,31 @@ describe('the texts of the application in its two languages', () => {
       expect(short).toEqual([]);
     },
   );
+
+  // A number on its own (`{kcal, number}`) and the `#` of a count would set
+  // thousands apart, each language in its own way.
+  it('write every number with nothing between its thousands', () => {
+    const apart = [...english, ...polish]
+      .filter(([, text]) => /,\s*number\s*(?!,\s*::group-off\s*})|#/.test(text))
+      .map(([key]) => key);
+
+    expect(apart).toEqual([]);
+  });
+
+  it.each([
+    ['en', '12150 kcal, 2200 days'],
+    ['pl', '12150 kcal, 2200 dni'],
+  ] as const)('show a number so written in %s as it stands', (locale, expected) => {
+    const t = createTranslator({
+      locale,
+      messages: {
+        written:
+          '{kcal, number, ::group-off} kcal, {count, plural, one {{count, number, ::group-off} x} few {{count, number, ::group-off} x} many {{count, number, ::group-off} dni} other {{count, number, ::group-off} days}}',
+      },
+    });
+
+    expect(t('written', { kcal: 12150, count: 2200 })).toBe(expected);
+  });
 
   it('are read as the message format reads them', () => {
     const read = needsOf(

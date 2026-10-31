@@ -66,7 +66,7 @@ describe('how the instance stands', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(t.requestsGood)).toBeInTheDocument();
     expect(
-      screen.getByText('Half within 12 ms, 95% within 80 ms · server errors: 0 of the last 1,000'),
+      screen.getByText('Half within 12 ms, 95% within 80 ms · server errors: 0 of the last 1000'),
     ).toBeInTheDocument();
     expect(screen.getByText('12 of 300 in 30 days')).toBeInTheDocument();
     expect(screen.getByText(t.mailOn)).toBeInTheDocument();

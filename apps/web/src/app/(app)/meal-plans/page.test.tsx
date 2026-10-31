@@ -967,7 +967,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     );
     expect(offered.textContent).toContain('Protein 14 g · fat 9 g · carbohydrate 26 g');
     expect(offered.textContent).toContain(
-      'The day would hold 240 of 2,000 kcal before its other meals are balanced around this one.',
+      'The day would hold 240 of 2000 kcal before its other meals are balanced around this one.',
     );
     expect(post.mock.calls[0]).toEqual([
       '/meal-plans/swap-meal/preview',
@@ -1661,7 +1661,7 @@ describe('the plan page, on what a plan is made for', () => {
     expect(screen.getByRole('option', { name: 'As in the profile (Vegan)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'As in the profile (4)' })).toBeInTheDocument();
     expect(
-      await screen.findByText(/Empty: the profile’s target, 2,209 kcal a day\./),
+      await screen.findByText(/Empty: the profile’s target, 2209 kcal a day\./),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(messages.mealPlans.calorieTarget)).toHaveAttribute(
       'placeholder',
@@ -1840,7 +1840,7 @@ describe('the calendar on the plan page', () => {
     await renderPage(aSupply(), [plan]);
 
     await userEvent.click(
-      await screen.findByRole('button', { name: /^Mon, Jan 5: 230 of 2,000 kcal/ }),
+      await screen.findByRole('button', { name: /^Mon, Jan 5: 230 of 2000 kcal/ }),
     );
 
     await vi.waitFor(() =>
@@ -1917,7 +1917,7 @@ describe('the plan page, on a plan taken out of the application', () => {
       /^Meal plan, Jan 5.*2026 · Vegan$/,
     );
     expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent(
-      'Mon, Jan 5230 of 2,000 kcal',
+      'Mon, Jan 5230 of 2000 kcal',
     );
     expect(
       within(sheet)

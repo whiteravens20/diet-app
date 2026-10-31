@@ -83,7 +83,7 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     shown(anOverview());
     await screen.findByRole('heading', { name: texts.title.active });
 
-    expect(figure(texts.energy)).toBe('1,880 kcalOn average, against a target of 1,900 kcal.');
+    expect(figure(texts.energy)).toBe('1880 kcalOn average, against a target of 1900 kcal.');
     expect(figure(texts.eaten)).toBe('50%3 of the 6 meals that were due by today.');
     expect(figure(texts.onDiet)).toBe('89%8 of 9 meals fit the diet of the plan (Vegan).');
     expect(figure(texts.favourites)).toBe(
@@ -110,9 +110,9 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
       rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent)),
     ).toEqual([
       ['Day', "Day's total", 'Target'],
-      ['Mon, Jan 5', '1,868 kcal', '1,900 kcal'],
+      ['Mon, Jan 5', '1868 kcal', '1900 kcal'],
       ['Tue, Jan 6', 'Skipped', ''],
-      ['Wed, Jan 7', '1,911 kcal', '1,900 kcal'],
+      ['Wed, Jan 7', '1911 kcal', '1900 kcal'],
     ]);
   });
 

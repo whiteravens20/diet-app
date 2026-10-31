@@ -138,7 +138,7 @@ describe('the window that offers other ways to fill a day', () => {
 
     expect(
       await dialog.findByText(
-        'As it is: 1,950 of 2,000 kcal. The plan leaves 2 opened packs more than a fifth full.',
+        'As it is: 1950 of 2000 kcal. The plan leaves 2 opened packs more than a fifth full.',
       ),
     ).toBeInTheDocument();
     const [first, second] = ways(dialog);
@@ -153,7 +153,7 @@ describe('the window that offers other ways to fill a day', () => {
       'dinner · Lentil soup · 700 kcal',
     ]);
     expect(
-      within(first!).getByText('1,400 of 2,000 kcal · protein 90 g · fat 60 g · carbs 180 g'),
+      within(first!).getByText('1400 of 2000 kcal · protein 90 g · fat 60 g · carbs 180 g'),
     ).toBeInTheDocument();
     expect(
       within(first!).getByText(

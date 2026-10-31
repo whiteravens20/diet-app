@@ -90,11 +90,11 @@ describe("the calendar of a profile's plans", () => {
     const monday = cell(/^Mon, Jan 12:/);
 
     expect(monday).toHaveAccessibleName(
-      'Mon, Jan 12: 2,190 of 2,200 kcal, 2 of 3 meals eaten. Choose it to open the plan.',
+      'Mon, Jan 12: 2190 of 2200 kcal, 2 of 3 meals eaten. Choose it to open the plan.',
     );
     // The button shows the date alone, which its name holds; what the day holds is drawn beside it.
     expect(monday).toHaveTextContent(/^12$/);
-    expect(monday.closest('td')).toHaveTextContent('122,1902/3');
+    expect(monday.closest('td')).toHaveTextContent('1221902/3');
     await userEvent.click(monday);
     expect(onOpen).toHaveBeenCalledWith(PLAN, '2026-01-12');
     expect(onStart).not.toHaveBeenCalled();
@@ -121,12 +121,12 @@ describe("the calendar of a profile's plans", () => {
     ]);
 
     expect(cell(/^Mon, Jan 12:/)).toHaveAccessibleName(
-      'Mon, Jan 12: 2,900 of 2,200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.',
+      'Mon, Jan 12: 2900 of 2200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.',
     );
     expect(cell(/^Tue, Jan 13:/)).toHaveAccessibleName(
-      'Tue, Jan 13: 1,500 of 2,200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
+      'Tue, Jan 13: 1500 of 2200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
     );
-    expect(cell(/^Tue, Jan 13:/).closest('td')).toHaveTextContent('131,500+2');
+    expect(cell(/^Tue, Jan 13:/).closest('td')).toHaveTextContent('131500+2');
     expect(cell(/^Wed, Jan 14:/)).toHaveAccessibleName(
       'Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.',
     );
@@ -178,7 +178,7 @@ describe("the calendar of a profile's plans", () => {
     fails = false;
     await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
 
-    expect(await screen.findByRole('button', { name: /^Mon, Jan 12: 2,190/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Mon, Jan 12: 2190/ })).toBeInTheDocument();
   });
 });
 

@@ -77,7 +77,7 @@ test.describe('a plan and what it is made for', () => {
       made.days.map(() => [2, 1900]),
     );
     // The new plan opens by itself, and each of its days says what it aims at.
-    await expect(page.getByText(/\/ 1[,\s\u00a0\u202f]?900 kcal/).first()).toBeVisible();
+    await expect(page.getByText(/\/ 1900 kcal/).first()).toBeVisible();
 
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had: a plan with a shopping list.
     page.once('dialog', (confirm) => void confirm.accept());
@@ -248,8 +248,8 @@ test.describe('a meal of a plan', () => {
       .getByRole('spinbutton', { name: new RegExp(`^${plans.customServings!}`) })
       .fill('2');
 
-    // Two servings of 900 kcal: the day gets 1,800, and the window says so before anything is sent.
-    await expect(dialog.getByText(/1[,\s  ]?800 kcal/)).toBeVisible();
+    // Two servings of 900 kcal: the day gets 1800, and the window says so before anything is sent.
+    await expect(dialog.getByText(/1800 kcal/)).toBeVisible();
     await expect(dialog.getByText(plans.customTotalPending!)).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

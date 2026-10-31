@@ -56,10 +56,10 @@ describe("the window a meal of the user's own is added in", () => {
 
     await fill({ calories: '900', protein: '30', fat: '20.4', carbs: '110' }, '2');
 
-    // Two servings of 900 kcal are 1,800 on the day, rounded as the API rounds them.
+    // Two servings of 900 kcal are 1800 on the day, rounded as the API rounds them.
     expect(
       screen.getByText(
-        'The meal adds to the day: 1,800 kcal · protein 60 g · fat 41 g · carbs 220 g.',
+        'The meal adds to the day: 1800 kcal · protein 60 g · fat 41 g · carbs 220 g.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(texts.customTotalPending)).toBeNull();

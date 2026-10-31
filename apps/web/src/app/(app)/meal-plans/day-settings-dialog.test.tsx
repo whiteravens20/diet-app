@@ -123,7 +123,7 @@ describe('the window in which the settings of a day are changed', () => {
         dayType: 'training',
       }),
     );
-    expect(await dialog.findByText("The day's target: 2,000 → 2,300 kcal.")).toBeInTheDocument();
+    expect(await dialog.findByText("The day's target: 2000 → 2300 kcal.")).toBeInTheDocument();
     expect(
       dialog.getByText('It aims at protein 144 g, fat 77 g, carbohydrate 259 g.'),
     ).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('the window in which the settings of a day are changed', () => {
       'lunch: the same dish in a new portion',
       'dinner: the same dish in a new portion',
     ]);
-    expect(dialog.getByText('The day will hold about 2,310 kcal.')).toBeInTheDocument();
+    expect(dialog.getByText('The day will hold about 2310 kcal.')).toBeInTheDocument();
     expect(dialog.getByText(texts.listOutOfDate)).toBeInTheDocument();
     expect(dialog.getByText(texts.otherDays)).toBeInTheDocument();
     expect(save(dialog)).toBeEnabled();
@@ -162,7 +162,7 @@ describe('the window in which the settings of a day are changed', () => {
       }),
     );
 
-    expect(await dialog.findByText("The day's target stays at 2,000 kcal.")).toBeInTheDocument();
+    expect(await dialog.findByText("The day's target stays at 2000 kcal.")).toBeInTheDocument();
     expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual([
       'breakfast: stays: it was eaten',
       'lunch: a new recipe: this one takes longer than the limit',

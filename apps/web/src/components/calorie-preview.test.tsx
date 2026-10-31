@@ -83,14 +83,14 @@ describe('what the figures of a form come to', () => {
 
     expect(post).toHaveBeenCalledTimes(1);
     expect(post).toHaveBeenCalledWith('/profiles/calories', figures({ weightKg: 80 }));
-    expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
-    expect(screen.getByText('2,759 kcal')).toBeInTheDocument();
-    expect(screen.getByText('1,780 kcal')).toBeInTheDocument();
+    expect(screen.getByText('2209 kcal')).toBeInTheDocument();
+    expect(screen.getByText('2759 kcal')).toBeInTheDocument();
+    expect(screen.getByText('1780 kcal')).toBeInTheDocument();
     expect(screen.getByText('550 kcal a day under your maintenance.')).toBeInTheDocument();
     expect(
       screen.getByText('Protein 138 g · fat 74 g · carbohydrate 249 g a day.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Daily target: 2,209 kcal.')).toBeInTheDocument();
+    expect(screen.getByText('Daily target: 2209 kcal.')).toBeInTheDocument();
   });
 
   it('says that the figures are on their way while there is something to work out and no answer yet', async () => {
@@ -109,7 +109,7 @@ describe('what the figures of a form come to', () => {
     await pass(0);
 
     expect(screen.queryByRole('status', { name: texts.waiting })).toBeNull();
-    expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
+    expect(screen.getByText('2209 kcal')).toBeInTheDocument();
   });
 
   it('is asked at once for the figures a form begins with', async () => {
@@ -118,7 +118,7 @@ describe('what the figures of a form come to', () => {
     await pass(0);
 
     expect(post).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
+    expect(screen.getByText('2209 kcal')).toBeInTheDocument();
   });
 
   it('says beside the figures that they are no medical advice, with the terms a new tab opens', async () => {
@@ -157,11 +157,11 @@ describe('what the figures of a form come to', () => {
     vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
     const { type } = show(figures());
     await pass(500);
-    expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
+    expect(screen.getByText('2209 kcal')).toBeInTheDocument();
 
     type(null);
 
-    expect(screen.queryByText('2,209 kcal')).toBeNull();
+    expect(screen.queryByText('2209 kcal')).toBeNull();
     expect(screen.getByText(texts.pending)).toBeInTheDocument();
   });
 
@@ -177,7 +177,7 @@ describe('what the figures of a form come to', () => {
     show(figures());
     await pass(500);
 
-    expect(screen.getByText(/The target was raised to 1,500 kcal/)).toBeInTheDocument();
+    expect(screen.getByText(/The target was raised to 1500 kcal/)).toBeInTheDocument();
     expect(screen.queryByText(messages.profileSummary.notices.underweight)).toBeNull();
   });
 

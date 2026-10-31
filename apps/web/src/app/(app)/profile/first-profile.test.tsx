@@ -164,7 +164,7 @@ describe('the figures beside the steps of a first profile', () => {
 
     await aBody();
 
-    expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
+    expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
     expect(asked()).toEqual({
       age: 30,
       sex: null,
@@ -183,16 +183,16 @@ describe('the figures beside the steps of a first profile', () => {
     open();
     await aBody();
     await next();
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     const paces = within(screen.getByRole('group', { name: texts.pace })).getAllByRole('radio');
 
     expect(paces.map((pace) => pace.closest('label')!.textContent)).toEqual([
-      'Keep my weight2,759 kcal a day',
-      'Lose 0.25 kg a week2,484 kcal a day',
-      'Lose 0.5 kg a week2,209 kcal a day',
-      'Lose 0.75 kg a week2,069 kcal a day · slowed',
-      'Lose 1 kg a week2,069 kcal a day · slowed',
+      'Keep my weight2759 kcal a day',
+      'Lose 0.25 kg a week2484 kcal a day',
+      'Lose 0.5 kg a week2209 kcal a day',
+      'Lose 0.75 kg a week2069 kcal a day · slowed',
+      'Lose 1 kg a week2069 kcal a day · slowed',
     ]);
     // Half a kilogram a week is where a new profile begins.
     expect(paces.map((pace) => (pace as HTMLInputElement).checked)).toEqual([
@@ -209,7 +209,7 @@ describe('the figures beside the steps of a first profile', () => {
     const { asked } = open({ unit: 'lb' });
     await aBody({ weight: '176.4', unit: 'lb' });
     await next();
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     expect(screen.getByRole('radio', { name: /Lose 1.1 lb a week/ })).toBeInTheDocument();
     expect(asked()).toMatchObject({ weightKg: 80.01 });
@@ -230,14 +230,14 @@ describe('the figures beside the steps of a first profile', () => {
         customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
       }),
     );
-    expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
+    expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
   });
 
   it('follow the pace that is chosen', async () => {
     const { asked } = open();
     await aBody();
     await next();
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
 

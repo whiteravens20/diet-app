@@ -108,7 +108,7 @@ describe('the calculator', () => {
     expect(screen.getByLabelText(new RegExp(`^${fields.activityLevel}`))).toHaveValue('light');
     expect(screen.getByLabelText(fields.dietType)).toHaveValue('vegan');
     expect(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ })).toBeChecked();
-    expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
+    expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
     expect(asked()).toMatchObject({
       age: 41,
       activityLevel: 'light',
@@ -134,7 +134,7 @@ describe('the calculator', () => {
 
   it('begins empty when the empty form is picked, and says what to type', async () => {
     await open([aProfile('Anna')]);
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     await userEvent.click(startFrom().getByRole('button', { name: texts.empty }));
 
@@ -153,7 +153,7 @@ describe('the calculator', () => {
 
   it("works out what is typed over a profile's figures, and keeps none of it", async () => {
     const { asked, kept, put } = await open([aProfile('Anna')]);
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     await userEvent.clear(screen.getByLabelText('Weight (kg)'));
     await userEvent.type(screen.getByLabelText('Weight (kg)'), '72.5');
@@ -184,7 +184,7 @@ describe('the calculator', () => {
 
   it('asks for the split of the custom diet, and works nothing out until it adds up', async () => {
     const { asked } = await open([aProfile('Anna')]);
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     await userEvent.selectOptions(screen.getByLabelText(fields.dietType), 'custom');
     await vi.waitFor(() =>
@@ -204,7 +204,7 @@ describe('the calculator', () => {
 
     expect(screen.getByText(fields.risk.minor)).toBeInTheDocument();
     expect(screen.getByText(fields.risk.heldHere)).toBeInTheDocument();
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
     expect(asked()).toMatchObject({ acknowledgeRisk: false });
 
     await userEvent.click(screen.getByRole('checkbox', { name: fields.risk.acknowledgeHere }));

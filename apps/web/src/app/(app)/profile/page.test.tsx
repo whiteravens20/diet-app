@@ -634,7 +634,7 @@ describe('the profile form, on what its figures come to', () => {
 
     await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
 
-    expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
+    expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(
       '/profiles/calories',
       expect.objectContaining({
@@ -655,7 +655,7 @@ describe('the profile form, on what its figures come to', () => {
       false,
     ]);
     // The fastest pace would take more than a quarter of maintenance.
-    expect(paces[4]!.closest('label')).toHaveTextContent('2,069 kcal a day · slowed');
+    expect(paces[4]!.closest('label')).toHaveTextContent('2069 kcal a day · slowed');
   });
 
   it('asks again for what was typed, and sends the pace that was chosen', async () => {
@@ -664,7 +664,7 @@ describe('the profile form, on what its figures come to', () => {
     const post = vi.mocked(api.post);
     const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
     await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
-    await screen.findByText('2,209 kcal');
+    await screen.findByText('2209 kcal');
 
     await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
     await vi.waitFor(() =>

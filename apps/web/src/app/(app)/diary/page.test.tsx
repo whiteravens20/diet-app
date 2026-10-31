@@ -112,7 +112,7 @@ async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay>
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  await screen.findByText('2,000', { exact: false });
+  await screen.findByText('2000', { exact: false });
 }
 
 describe('the diary', () => {
@@ -124,7 +124,7 @@ describe('the diary', () => {
   it("shows what was eaten against the day's target, and each meal with what its plan has and what was written for it", async () => {
     await renderPage();
 
-    expect(screen.getByText(/750 of 2,000 kcal/)).toBeInTheDocument();
+    expect(screen.getByText(/750 of 2000 kcal/)).toBeInTheDocument();
     expect(screen.getByText(texts.estimatedNote)).toBeInTheDocument();
     expect(screen.getByText(texts.targetFromPlan)).toBeInTheDocument();
     // The meals in the order they are eaten: those of the plan and the one something was written for.

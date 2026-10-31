@@ -27,7 +27,7 @@ describe("the ring of a day's macronutrients", () => {
   it("says the day's calories in its middle", () => {
     shown();
 
-    expect(screen.getByText('2,030')).toBeInTheDocument();
+    expect(screen.getByText('2030')).toBeInTheDocument();
   });
 
   it('is said in the language of the page', () => {

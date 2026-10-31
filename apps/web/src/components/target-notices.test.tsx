@@ -46,7 +46,7 @@ describe('what a user is told about their calorie target', () => {
     expect(
       told({ ...plain, requestedDeficit: 1100, dailyDeficit: 627, deficitCapped: true }),
     ).toEqual([
-      'The pace you chose asks for 1,100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
+      'The pace you chose asks for 1100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
     ]);
   });
 
@@ -60,7 +60,7 @@ describe('what a user is told about their calorie target', () => {
         safetyFloorApplied: true,
       }),
     ).toEqual([
-      'The target was raised to 1,200 kcal, the lowest a calculated plan goes. The deficit that leaves is 287 kcal a day.',
+      'The target was raised to 1200 kcal, the lowest a calculated plan goes. The deficit that leaves is 287 kcal a day.',
     ]);
   });
 
@@ -74,7 +74,7 @@ describe('what a user is told about their calorie target', () => {
         dailyDeficit: 0,
         maintenanceUnderFloor: true,
       })[0],
-    ).toMatch(/^Your maintenance is under 1,200 kcal/);
+    ).toMatch(/^Your maintenance is under 1200 kcal/);
   });
 
   it('is that the goal is on hold and why, for somebody under 18 who has not acknowledged the risk', () => {
@@ -139,7 +139,7 @@ describe('what a user is told about their calorie target', () => {
 
     expect(inAForm(held)).toEqual([]);
     expect(inAForm(floored)).toEqual([
-      expect.stringMatching(/^The target was raised to 1,500 kcal/),
+      expect.stringMatching(/^The target was raised to 1500 kcal/),
     ]);
   });
 });

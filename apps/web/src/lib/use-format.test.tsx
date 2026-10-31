@@ -68,10 +68,15 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.dayOf(moment))).toBe('Jan 5, 2026');
   });
 
-  it('writes a number the way the language does: its decimal sign, and how it groups thousands', () => {
-    expect(shown((f) => f.number(2150))).toBe('2,150');
+  it('writes a number with the decimal sign of the language, and nothing between its thousands', () => {
+    expect(shown((f) => f.number(2150))).toBe('2150');
     expect(shown((f) => f.number(2150), 'pl')).toBe('2150');
-    expect(shown((f) => f.number(12150), 'pl')).toBe('12 150');
+    expect(shown((f) => f.number(12150), 'pl')).toBe('12150');
+    expect(shown((f) => f.number(1234567.5, 1))).toBe('1234567.5');
+    expect(shown((f) => f.fixed(12150.5, 2), 'pl')).toBe('12150,50');
+    expect(shown((f) => f.signed(12150))).toBe('+12150');
+    expect(shown((f) => f.unit(12150, 'gram'), 'pl')).toBe('12150 g');
+    expect(shown((f) => f.percent(12.5))).toBe('1250%');
     expect(shown((f) => f.number(79.46, 1))).toBe('79.5');
     expect(shown((f) => f.number(79.46, 1), 'pl')).toBe('79,5');
     expect(shown((f) => f.number(80, 1), 'pl')).toBe('80');

@@ -23,11 +23,11 @@ export interface Format {
   moment(iso: string): string;
   /** The day a moment fell on, by the reader's clock: "Jan 5, 2026". */
   dayOf(iso: string): string;
-  /** A number with at most `digits` decimals: "2,150", "79.5"; "2150", "79,5". */
+  /** A number with at most `digits` decimals, its thousands not set apart: "2150", "79.5"; "79,5". */
   number(value: number, digits?: number): string;
   /** A number with exactly `digits` decimals: "1.20", "1,20". */
   fixed(value: number, digits: number): string;
-  /** A whole number that always says which way it goes: "+120", "-80", "+0". */
+  /** A whole number that always says which way it goes: "+120", "-80", "+0", "+2150". */
   signed(value: number): string;
   /** A number with its unit: "79.5 kg", "15 min"; "79,5 kg". */
   unit(value: number, unit: Unit, digits?: number): string;
@@ -86,18 +86,30 @@ export function useFormat(): Format {
         }),
       dayOf: (iso) =>
         format.dateTime(new Date(iso), { dateStyle: 'medium', timeZone: readersZone() }),
-      number: (value, digits = 0) => format.number(value, { maximumFractionDigits: digits }),
+      number: (value, digits = 0) =>
+        format.number(value, { useGrouping: false, maximumFractionDigits: digits }),
       fixed: (value, digits) =>
-        format.number(value, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
-      signed: (value) => format.number(value, { signDisplay: 'always', maximumFractionDigits: 0 }),
+        format.number(value, {
+          useGrouping: false,
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
+        }),
+      signed: (value) =>
+        format.number(value, {
+          useGrouping: false,
+          signDisplay: 'always',
+          maximumFractionDigits: 0,
+        }),
       unit: (value, unit, digits = 0) =>
         format.number(value, {
+          useGrouping: false,
           style: 'unit',
           unit,
           unitDisplay: 'short',
           maximumFractionDigits: digits,
         }),
-      percent: (share) => format.number(share, { style: 'percent', maximumFractionDigits: 0 }),
+      percent: (share) =>
+        format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),
       list: (items) => format.list([...items], { type: 'conjunction' }),
     }),
     [format],
