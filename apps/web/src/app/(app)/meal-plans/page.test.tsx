@@ -2475,6 +2475,26 @@ describe('the plan page, on how a plan reads', () => {
       expect(head()).toHaveAttribute('aria-expanded', 'false');
     });
 
+    it('opens by itself once the last plan is gone', async () => {
+      await renderPage(aSupply(), [aPlan()]);
+      await userEvent.click(head());
+      await userEvent.click(head());
+      expect(head()).toHaveAttribute('aria-expanded', 'false');
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+      const get = vi.mocked(api.get);
+      const answers = get.getMockImplementation()!;
+      get.mockImplementation((path: string) =>
+        path.startsWith('/meal-plans?')
+          ? Promise.resolve({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 } as never)
+          : answers(path),
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: messages.common.delete }));
+
+      await vi.waitFor(() => expect(head()).toHaveAttribute('aria-expanded', 'true'));
+    });
+
     it('folds itself once the plan is made, and opens that plan', async () => {
       const plan = aPlan();
       const generate = await renderPage();

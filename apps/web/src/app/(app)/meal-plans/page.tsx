@@ -169,7 +169,7 @@ function MealPlansContent() {
     },
     enabled: Boolean(activeId),
   });
-  const formOpen = formAsked ?? (plans.data?.items.length === 0 && !status && !from && !to);
+  const formOpen = formAsked ?? (plans.data?.total === 0 && !status && !from && !to);
   const opened = useQuery({
     queryKey: ['meal-plan', openPlan],
     queryFn: () => api.get<MealPlan>(`/meal-plans/${openPlan}`),
@@ -435,7 +435,10 @@ function MealPlansContent() {
 
   const remove = useMutation({
     mutationFn: (planId: string) => api.delete<void>(`/meal-plans/${planId}`),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setFormAsked(null);
+      return invalidate();
+    },
     onError: fail(t('errDelete')),
   });
 
