@@ -2340,6 +2340,98 @@ describe('the plan page, on how a plan reads', () => {
     expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
   });
 
+  describe('once a meal was changed', () => {
+    const rowOf = (plan: MealPlan): HTMLElement =>
+      document.getElementById(`meal-${plan.days[0]!.meals[0]!.id}`)!;
+    const placedAt = (top: number, bottom: number) =>
+      vi
+        .spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockReturnValue({ top, bottom } as DOMRect);
+    const markEaten = async (plan: MealPlan) => {
+      const patch = vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
+      await userEvent.click(
+        screen.getByRole('checkbox', { name: ofAMeal(messages.mealPlans.markEaten) }),
+      );
+      await vi.waitFor(() => expect(patch).toHaveBeenCalled());
+    };
+
+    it('leaves the view alone where the meal is still on the screen', async () => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      placedAt(100, 200);
+
+      await markEaten(plan);
+      await vi.waitFor(() => expect(rowOf(plan)).toBeInTheDocument());
+      await new Promise((settled) => setTimeout(settled, 50));
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['above', -300, -200],
+      ['below', 900, 1000],
+    ])('brings it back where it has gone %s the screen', async (_where, top, bottom) => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      placedAt(top, bottom);
+
+      await markEaten(plan);
+
+      await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce());
+      expect(scrollIntoView.mock.contexts[0]).toBe(rowOf(plan));
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    });
+
+    it('gives the focus to the meal where what was pressed went with the change', async () => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      placedAt(100, 200);
+      vi.spyOn(api, 'post')
+        .mockResolvedValueOnce(anOffer as never)
+        .mockResolvedValue({ plan, rebalance: null } as never);
+      await unfoldMeal();
+      await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: messages.mealPlans.offerTake }),
+      );
+
+      await vi.waitFor(() => expect(rowOf(plan)).toHaveFocus());
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('leaves the focus where it is otherwise', async () => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      placedAt(100, 200);
+
+      await markEaten(plan);
+      const change = screen.getByRole('checkbox', { name: ofAMeal(messages.mealPlans.markEaten) });
+      change.focus();
+      await new Promise((settled) => setTimeout(settled, 50));
+
+      expect(change).toHaveFocus();
+    });
+
+    it('does not move for an offer that was refused', async () => {
+      onTheDay('2026-01-05');
+      const plan = daysLong(1);
+      await open(plan);
+      placedAt(-300, -200);
+      vi.spyOn(api, 'post').mockRejectedValue(new ApiClientError(500, 'INTERNAL', 'x'));
+
+      await unfoldMeal();
+      await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+      await new Promise((settled) => setTimeout(settled, 50));
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+  });
+
   describe('of the form for a new plan', () => {
     const head = (): HTMLElement => screen.getByRole('button', { name: /^Generate a plan/ });
 

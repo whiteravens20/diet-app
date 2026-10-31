@@ -437,3 +437,141 @@ test.describe('the plans of a profile, by when they are and by how their days st
     expect((await gone).ok()).toBe(true);
   });
 });
+
+test.describe('a long plan', () => {
+  test('reads a week at a time with its days folded, and stays at what was changed, whichever way it is changed', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await page.goto('/meal-plans');
+    await settled(page);
+    await theFormForAPlan(page, messages);
+
+    // A plan made for this test and taken away after it: the account's own plan stays what the other tests find.
+    await page.getByLabel(plans.durationDays!, { exact: true }).fill('14');
+    const made = page.waitForResponse(
+      (res) => new URL(res.url()).pathname === '/api/meal-plans/generate',
+    );
+    await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+    const plan = (await (await made).json()) as { id: string; days: { date: string }[] };
+
+    // The form has folded, and the plan opened on its first week with its first day unfolded.
+    await expect(
+      page.getByRole('button', { name: plans.generateButton!, exact: true }),
+    ).toBeHidden();
+    const weekNamed = (week: number): string => plans.planWeek!.replace('{week}', String(week));
+    await expect(page.getByRole('tab', { selected: true })).toHaveText(weekNamed(1));
+    await expect(page.getByRole('tab')).toHaveCount(2);
+    const dayAt = (index: number): Locator =>
+      page.locator(`[id="plan-${plan.id}-${plan.days[index]!.date}"]`);
+    await expect(dayAt(0).getByRole('list')).toBeVisible();
+    await expect(dayAt(1).getByRole('list')).toBeHidden();
+    await expect(dayAt(7)).toHaveCount(0);
+
+    await page.getByRole('tab', { name: weekNamed(2) }).click();
+    const day = dayAt(7);
+    await day.getByRole('button', { expanded: false }).first().click();
+    const rows = day.locator('li[id^="meal-"]');
+    await expect(rows.first()).toBeVisible();
+    expect(await barriers(page), 'a long plan, a day of it unfolded').toEqual([]);
+
+    const readAgain = () =>
+      page.waitForResponse(
+        (res) =>
+          res.request().method() === 'GET' &&
+          new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`,
+      );
+    // With `part` in the middle of the screen, as a person has what they press: the change is to leave it on the screen, and the page where it was.
+    const stays = async (part: Locator, change: () => Promise<unknown>): Promise<void> => {
+      const dismiss = page.getByRole('button', { name: plans.rebalanceDismiss!, exact: true });
+      if (await dismiss.isVisible()) await dismiss.click();
+      await part.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      const scrolled = await page.evaluate(() => window.scrollY);
+      await change();
+      await settled(page);
+      await page.waitForTimeout(200);
+      const after = await part.evaluate((element) => {
+        const { top, bottom } = element.getBoundingClientRect();
+        return { top, bottom, screen: window.innerHeight, scrolled: window.scrollY };
+      });
+      expect(after.bottom).toBeGreaterThan(0);
+      expect(after.top).toBeLessThan(after.screen);
+      expect(Math.abs(after.scrolled - scrolled)).toBeLessThan(200);
+    };
+    const row = rows.first();
+    const eaten = row.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) });
+    const ways = async (): Promise<void> => {
+      await row.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
+    };
+
+    // Marked as eaten, and the mark taken back: a meal that is marked offers no other change.
+    for (let press = 0; press < 2; press += 1)
+      await stays(row, async () => {
+        const read = readAgain();
+        await eaten.click();
+        await read;
+      });
+
+    await stays(row, async () => {
+      await ways();
+      await row.getByRole('button', { name: ofAMeal(plans.swap!) }).click();
+      const read = readAgain();
+      await row.getByRole('button', { name: plans.offerTake!, exact: true }).click();
+      await read;
+    });
+
+    await stays(row, async () => {
+      await ways();
+      await row.getByRole('button', { name: ofAMeal(plans.substituteIngr!) }).click();
+      const window = page.locator('dialog[open]');
+      await expect(window).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(window).toBeHidden();
+      await ways();
+    });
+
+    const add = day.getByRole('button', { name: plans.addCustomMeal! });
+    await stays(add, async () => {
+      await add.click();
+      const dialog = page.getByRole('dialog', { name: plans.customModalTitle! });
+      await dialog.getByLabel(plans.customName!, { exact: true }).fill('A snack');
+      await dialog.getByLabel(plans.customCalories!, { exact: true }).fill('100');
+      await dialog.getByLabel(plans.customProtein!, { exact: true }).fill('5');
+      await dialog.getByLabel(plans.customFat!, { exact: true }).fill('5');
+      await dialog.getByLabel(plans.customCarbs!, { exact: true }).fill('10');
+      const read = readAgain();
+      await dialog.getByRole('button', { name: plans.customSubmit!, exact: true }).click();
+      await read;
+      await expect(dialog).toBeHidden();
+    });
+
+    await stays(day, async () => {
+      await ways();
+      await row.getByRole('button', { name: ofAMeal(plans.remove!) }).click();
+      const read = readAgain();
+      await row.getByRole('button', { name: plans.removeConfirm!, exact: true }).click();
+      await read;
+    });
+
+    // One press leads back to the week that holds today, and to the day.
+    await page.getByRole('button', { name: plans.goToToday!, exact: true }).click();
+    await expect(page.getByRole('tab', { selected: true })).toHaveText(weekNamed(1));
+    await expect(dayAt(0)).toBeFocused();
+    await expect(dayAt(0)).toBeInViewport();
+
+    page.once('dialog', (confirm) => void confirm.accept());
+    const gone = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'DELETE' &&
+        new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`,
+    );
+    await page
+      .getByRole('button', { name: plans.hidePlan! })
+      .locator('xpath=..')
+      .getByRole('button', { name: (messages.common as Texts).delete!, exact: true })
+      .click();
+    expect((await gone).status()).toBe(204);
+  });
+});

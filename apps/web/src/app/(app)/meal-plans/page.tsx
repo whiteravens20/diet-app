@@ -210,6 +210,10 @@ function MealPlansContent() {
       qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }),
       qc.invalidateQueries({ queryKey: ['meal-plan'] }),
     ]);
+  // The open plan as the last change left it, once it has been read again: its card then keeps in view what was changed.
+  const [edited, setEdited] = useState<MealPlan | null>(null);
+  const invalidateEdited = (planId: string) =>
+    invalidate().then(() => setEdited(qc.getQueryData<MealPlan>(['meal-plan', planId]) ?? null));
   const fail = (fallback: string) => (e: unknown) => {
     // Another request changed the plan first, so the one on screen is stale.
     if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') void invalidate();
@@ -277,10 +281,10 @@ function MealPlansContent() {
           : `/meal-plans/${v.planId}/regenerate`,
         rerollBody(v),
       ),
-    onSuccess: () => {
+    onSuccess: (_plan: MealPlan, v: Reroll) => {
       setRefused(null);
       setInTheWay(null);
-      invalidate();
+      void invalidateEdited(v.planId);
     },
     onError: (e: unknown, v: Reroll) => {
       const allow =
@@ -304,7 +308,7 @@ function MealPlansContent() {
     rebalance: NonNullable<RebalanceResult['rebalance']>;
   } | null>(null);
   const showRebalance = (planId: string, res: RebalanceResult) => {
-    invalidate();
+    void invalidateEdited(planId);
     if (res.rebalance && res.rebalance.changes.length > 0) {
       setRebalanceToast({ planId, rebalance: res.rebalance });
     }
@@ -898,6 +902,7 @@ function MealPlansContent() {
               open={openPlan === plan.id}
               sought={sought?.planId === plan.id ? sought : null}
               onFound={() => setSought(null)}
+              edited={edited}
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
@@ -969,7 +974,7 @@ function MealPlansContent() {
                 rebalance.mutate({ planId: plan.id, scope: 'day', date });
               }}
               onSwapped={(res) => showRebalance(plan.id, res)}
-              onChanged={() => void invalidate()}
+              onChanged={() => void invalidateEdited(plan.id)}
               favorites={liked}
               tMeal={tMeal}
             />

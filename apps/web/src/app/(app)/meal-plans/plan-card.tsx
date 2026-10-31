@@ -5,7 +5,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import {
   fitsDiet,
@@ -89,6 +89,9 @@ const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' |
 /** The name a day of a plan has on the page, for whatever leads to it. */
 export const dayAnchor = (planId: string, date: string): string => `plan-${planId}-${date}`;
 
+/** The name a meal of a plan has on the page. */
+const mealAnchor = (mealId: string): string => `meal-${mealId}`;
+
 /** A plan longer than this is shown a week at a time. */
 const DAYS_A_WEEK = 7;
 
@@ -99,6 +102,7 @@ export function PlanCard({
   open,
   sought,
   onFound,
+  edited,
   busy,
   dietLabel,
   favorites,
@@ -133,7 +137,8 @@ export function PlanCard({
   /** The day of this plan that a link or the calendar leads to, until the card has gone there. */
   sought: { date: string } | null;
   onFound: () => void;
-
+  /** The plan as the last change left it, once it has been read again. */
+  edited: MealPlan | null;
   busy: boolean;
   dietLabel: string;
   favorites: FavoriteOption[];
@@ -207,7 +212,8 @@ export function PlanCard({
   const [goingTo, setGoingTo] = useState<{ date: string } | null>(null);
   // What was last led to from outside: each is gone to once, as soon as the plan is there.
   const [ledTo, setLedTo] = useState<{ date: string } | null>(null);
-
+  // What the change under way was asked of: when the plan has come back from it, that stays in view.
+  const changing = useRef<string | null>(null);
   // Today by the reader's clock: a day before it is history.
   const today = localDate();
   const days = plan?.days ?? [];
@@ -233,6 +239,16 @@ export function PlanCard({
     day?.scrollIntoView({ block: 'start' });
     day?.focus({ preventScroll: true });
   }, [goingTo, summary.id]);
+  useEffect(() => {
+    if (!plan || plan !== edited || !changing.current) return;
+    const part = document.getElementById(changing.current);
+    changing.current = null;
+    if (!part) return;
+    const { top, bottom } = part.getBoundingClientRect();
+    if (bottom <= 0 || top >= window.innerHeight) part.scrollIntoView({ block: 'center' });
+    // What was pressed may be gone by now, and the focus with it: the reader goes on from here.
+    if (document.activeElement === document.body) part.focus({ preventScroll: true });
+  }, [plan, edited]);
   // An account has a model to ask where the page was given the way to ask one.
   const aiEnabled = onAiSwapMeal !== undefined;
   const mealName = (type: string): string =>
@@ -423,7 +439,10 @@ export function PlanCard({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => onResizeDay(day.date)}
+                        onClick={() => {
+                          changing.current = dayAnchor(plan.id, day.date);
+                          onResizeDay(day.date);
+                        }}
                         disabled={busy}
                         aria-describedby={`${day.id}-resize`}
                       >
@@ -444,7 +463,10 @@ export function PlanCard({
                       variant="outline"
                       size="sm"
                       // The remaining days of the plan take it: from today, or from the day itself where it is over already.
-                      onClick={() => onSpread(day.date < today ? day.date : today)}
+                      onClick={() => {
+                        changing.current = dayAnchor(plan.id, day.date);
+                        onSpread(day.date < today ? day.date : today);
+                      }}
                       disabled={busy}
                       aria-describedby={`${day.id}-spread`}
                     >
@@ -509,7 +531,12 @@ export function PlanCard({
                       fitsDiet(f.recipe.dietTags, plan.dietType)),
                 );
                 return (
-                  <li key={m.id} className="space-y-1 py-2">
+                  <li
+                    key={m.id}
+                    id={mealAnchor(m.id)}
+                    tabIndex={-1}
+                    className="space-y-1 py-2 focus:outline-none"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
                       <span className="flex min-w-0 flex-1 basis-64 items-start gap-2 break-words">
                         <input
@@ -520,7 +547,10 @@ export function PlanCard({
                           disabled={busy}
                           aria-label={named(t('markEaten'))}
                           title={t('markEaten')}
-                          onChange={() => onToggleEaten(m.id, !m.eatenAt)}
+                          onChange={() => {
+                            changing.current = mealAnchor(m.id);
+                            onToggleEaten(m.id, !m.eatenAt);
+                          }}
                         />
                         <span className="min-w-0">
                           <span className="text-muted-foreground">{mealLabel}</span>{' '}
@@ -727,6 +757,7 @@ export function PlanCard({
                             variant="destructive"
                             onClick={() => {
                               setRemoving(null);
+                              changing.current = dayAnchor(plan.id, day.date);
                               onRemoveMeal(m.id);
                             }}
                             disabled={busy}
@@ -788,6 +819,7 @@ export function PlanCard({
                             size="sm"
                             onClick={() => {
                               setOpenActions(null);
+                              changing.current = mealAnchor(m.id);
                               onTakeOffer();
                             }}
                             disabled={busy}
@@ -1043,8 +1075,14 @@ export function PlanCard({
                     aiOffNote={aiOffNote}
                     mealName={mealName}
                     busy={busy}
-                    onSwapped={onSwapped}
-                    onStale={onChanged}
+                    onSwapped={(result) => {
+                      changing.current = null;
+                      onSwapped(result);
+                    }}
+                    onStale={() => {
+                      changing.current = null;
+                      onChanged();
+                    }}
                   />
                 )}
               </PlanPacksLine>
@@ -1110,7 +1148,10 @@ export function PlanCard({
           aiOffNote={aiOffNote}
           mealName={mealName}
           onClose={() => setWaysFor(null)}
-          onChanged={onChanged}
+          onChanged={() => {
+            changing.current = dayAnchor(summary.id, waysFor.date);
+            onChanged();
+          }}
         />
       )}
       {settingsFor && (
@@ -1120,7 +1161,10 @@ export function PlanCard({
           mealName={mealName}
           limitNames={limitNames}
           onClose={() => setSettingsFor(null)}
-          onSaved={onChanged}
+          onSaved={() => {
+            changing.current = dayAnchor(summary.id, settingsFor.date);
+            onChanged();
+          }}
         />
       )}
       {reroll && (
@@ -1130,7 +1174,10 @@ export function PlanCard({
           start={reroll}
           limitNames={limitNames}
           onClose={() => setReroll(null)}
-          onSubmit={onReroll}
+          onSubmit={(asked) => {
+            changing.current = reroll.day ? dayAnchor(summary.id, reroll.day) : null;
+            onReroll(asked);
+          }}
         />
       )}
       {customDay && (
@@ -1143,6 +1190,7 @@ export function PlanCard({
           }))}
           onClose={() => setCustomDay(null)}
           onSubmit={(body) => {
+            changing.current = dayAnchor(summary.id, customDay);
             onAddCustomMeal(customDay, body);
             setCustomDay(null);
           }}
@@ -1155,6 +1203,7 @@ export function PlanCard({
           onClose={() => setOpenSub(null)}
           onApplied={(result) => {
             setOpenActions(null);
+            changing.current = mealAnchor(openSub.id);
             onIngredientSwapped(result);
           }}
         />
