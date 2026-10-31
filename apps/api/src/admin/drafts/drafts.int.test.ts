@@ -577,6 +577,27 @@ describe('the curation queue', () => {
     });
   });
 
+  describe('the name of an ingredient, as a reviewer reads it', () => {
+    it('has the description of the source for its English when the draft holds no English', async () => {
+      const draft = await anIngredientNameDraft(t);
+
+      const read = await asReviewer.name(draft.id).expect(200);
+
+      expect(read.body.nameSource).toBe('Chicken, broilers or fryers, breast, meat only, raw');
+    });
+
+    it('has the English the draft holds, where it holds some', async () => {
+      const draft = await anIngredientNameDraft(t, {
+        suggestions: { name: { en: 'Chicken breast', pl: 'Pierś z kurczaka' } },
+        locales: ['en', 'pl'],
+      });
+
+      const read = await asReviewer.name(draft.id).expect(200);
+
+      expect(read.body.nameSource).toBe('Chicken breast');
+    });
+  });
+
   describe('a draft the administrator rejected', () => {
     it("is out of a reviewer's reach: not read, edited or reviewed, and the rejection stands with its reason", async () => {
       const draft = await aRecipeDraft(t);

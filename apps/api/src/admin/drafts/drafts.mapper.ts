@@ -200,7 +200,8 @@ export function toIngredientNameReviewSlice(
     rawDescription: row.rawDescription,
     locale,
     name: suggestions.name?.[locale] ?? '',
-    nameSource: suggestions.name?.[CANONICAL_LOCALE] ?? '',
+    // The source's own name is the English one, and a draft holds none unless somebody wrote it.
+    nameSource: suggestions.name?.[CANONICAL_LOCALE] ?? row.rawDescription,
     storageHint: suggestions.storageHint?.[locale] ?? null,
     storageHintSource: suggestions.storageHint?.[CANONICAL_LOCALE] ?? null,
     batchId: row.batchId,
