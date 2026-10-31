@@ -132,6 +132,9 @@ catch_up() {
   branch=$(git -C "$TREE" symbolic-ref --short HEAD)
   if git -C "$TREE" rev-parse -q --verify "origin/$branch" >/dev/null; then
     git -C "$TREE" reset -q --hard "origin/$branch"
+  else
+    # Still empty: nothing has reached it, whatever this clone committed.
+    git -C "$TREE" update-ref -d HEAD 2>/dev/null
   fi
 }
 

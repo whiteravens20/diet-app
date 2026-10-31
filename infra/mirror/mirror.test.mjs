@@ -358,6 +358,33 @@ test('reports a push that was refused, and the last one that reached the reposit
   assert.equal(theReport(instance).pushedAt, pushedAt);
 });
 
+test('pushes in a later round what the first could not, once the repository takes it', () => {
+  const instance = anInstance();
+  const hook = join(instance.remote, 'hooks', 'pre-receive');
+  writeFileSync(hook, '#!/bin/sh\nexit 1\n');
+  chmodSync(hook, 0o755);
+
+  aRound(instance);
+
+  assert.equal(theReport(instance).result, 'push');
+  assert.equal(theReport(instance).pushedAt, null);
+
+  // The next round may find the repository as it was, and says so again.
+  aRound(instance);
+
+  assert.equal(theReport(instance).result, 'push');
+
+  // The operator gave the key write access.
+  rmSync(hook);
+  const said = aRound(instance);
+
+  assert.match(said, /pushed a commit/);
+  assert.equal(theReport(instance).result, 'ok');
+  assert.notEqual(theReport(instance).pushedAt, null);
+  assert.equal(git(instance.remote, 'rev-list', '--count', 'main'), '1');
+  assert.equal(existsSync(join(theRepository(instance), 'manifest.json')), true);
+});
+
 test("is the script the release's Compose file carries", () => {
   const compose = readFileSync(join(HERE, '..', 'docker-compose.prod.yml'), 'utf8').split('\n');
   const service = compose.indexOf('  mirror:');
