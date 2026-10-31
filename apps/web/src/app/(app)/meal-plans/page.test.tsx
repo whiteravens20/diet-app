@@ -226,7 +226,10 @@ async function renderPage(
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  return screen.findByRole('button', { name: messages.mealPlans.generateButton });
+  // A profile without a plan has the form open by itself once the list is read; with plans, the form is its head alone.
+  return screen.findByRole('button', {
+    name: plans.length > 0 ? /^Generate a plan/ : messages.mealPlans.generateButton,
+  });
 }
 
 /** The name of a control of a meal: what it does, then the meal it does it to. */
@@ -1872,10 +1875,12 @@ describe('the calendar on the plan page', () => {
     await renderPage(aSupply(), [aPlan()]);
     const startDate = screen.getByLabelText(texts.startDate);
     expect(startDate).toHaveValue('2026-01-05');
+    expect(startDate).not.toBeVisible();
 
     await userEvent.click(await screen.findByRole('button', { name: /^Fri, Jan 9: no plan/ }));
 
     expect(startDate).toHaveValue('2026-01-09');
+    expect(startDate).toBeVisible();
     expect(startDate).toHaveFocus();
     expect(listsAsked()).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
   });
@@ -2333,5 +2338,59 @@ describe('the plan page, on how a plan reads', () => {
 
     await vi.waitFor(() => expect(change).toHaveAttribute('aria-expanded', 'false'));
     expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
+  });
+
+  describe('of the form for a new plan', () => {
+    const head = (): HTMLElement => screen.getByRole('button', { name: /^Generate a plan/ });
+
+    it('is open where the profile has no plan', async () => {
+      await renderPage();
+
+      expect(head()).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: messages.mealPlans.generateButton })).toBeVisible();
+    });
+
+    it('is folded where it has one, and keeps what was typed when it is folded again', async () => {
+      await renderPage(aSupply(), [aPlan()]);
+
+      expect(head()).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByRole('button', { name: messages.mealPlans.generateButton })).toBeNull();
+
+      await userEvent.click(head());
+      await userEvent.type(screen.getByLabelText(messages.mealPlans.calorieTarget), '1800');
+      await userEvent.click(head());
+
+      expect(screen.queryByRole('button', { name: messages.mealPlans.generateButton })).toBeNull();
+
+      await userEvent.click(head());
+
+      expect(screen.getByLabelText(messages.mealPlans.calorieTarget)).toHaveValue(1800);
+    });
+
+    it('stays folded where only a filter leaves the list without a plan', async () => {
+      await renderPage(aSupply(), [aPlan()]);
+      const get = vi.mocked(api.get);
+      const answers = get.getMockImplementation()!;
+      get.mockImplementation((path: string) =>
+        path.startsWith('/meal-plans?')
+          ? Promise.resolve({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 } as never)
+          : answers(path),
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.statusPast }));
+      await screen.findByText(messages.mealPlans.noPlansTitle);
+
+      expect(head()).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('folds itself once the plan is made, and opens that plan', async () => {
+      const plan = aPlan();
+      const generate = await renderPage();
+      vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+
+      await userEvent.click(generate);
+
+      await vi.waitFor(() => expect(head()).toHaveAttribute('aria-expanded', 'false'));
+    });
   });
 });

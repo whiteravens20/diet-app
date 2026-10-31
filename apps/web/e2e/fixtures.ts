@@ -206,6 +206,13 @@ export async function settled(page: Page): Promise<void> {
   await expect(page.locator('.skeleton')).toHaveCount(0);
 }
 
+/** The form for a new plan, unfolded: a profile that has a plan has it folded. */
+export async function theFormForAPlan(page: Page, messages: Messages): Promise<void> {
+  const title = (messages.mealPlans as Record<string, string>).generateFor!.split('{')[0]!;
+  const head = page.locator('button[aria-expanded]').filter({ hasText: new RegExp(`^${title}`) });
+  if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
+}
+
 /** The rules a page is held to: WCAG 2.1 and 2.2, levels A and AA. */
 const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

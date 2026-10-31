@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page } from '@playwright/test';
-import { barriers, expect, settled, test, type Messages } from './fixtures';
+import { barriers, expect, settled, test, theFormForAPlan, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -53,6 +53,7 @@ test.describe('a plan made for cooking ahead', () => {
     const plans = messages.mealPlans as Texts;
     await page.goto('/meal-plans');
     await settled(page);
+    await theFormForAPlan(page, messages);
 
     await page.getByLabel(plans.mealPrepFriendly!, { exact: true }).check();
     const answered = page.waitForResponse(

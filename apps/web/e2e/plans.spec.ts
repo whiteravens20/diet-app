@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Locator, Page } from '@playwright/test';
-import { barriers, expect, settled, test, type Messages } from './fixtures';
+import { barriers, expect, settled, test, theFormForAPlan, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
@@ -45,6 +45,7 @@ test.describe('a plan and what it is made for', () => {
     const plans = plansOf(messages);
     await page.goto('/meal-plans');
     await settled(page);
+    await theFormForAPlan(page, messages);
 
     // A label that holds a list of choices reads with them: it is found by how it begins.
     await page.getByLabel(new RegExp(`^${plans.mealsPerDay!}`)).selectOption('2');
@@ -332,6 +333,7 @@ test.describe('the plans of a profile, by when they are and by how their days st
     try {
       await page.goto('/meal-plans');
       await settled(page);
+      await theFormForAPlan(page, messages);
       await page.getByText(advanced.toggle!, { exact: true }).click();
       // One choice of a set for each day of the plan: the first day gets this one.
       await page
@@ -391,6 +393,7 @@ test.describe('the plans of a profile, by when they are and by how their days st
     const common = messages.common as Texts;
     await page.goto('/meal-plans');
     await settled(page);
+    await theFormForAPlan(page, messages);
 
     // A plan made for this test and taken away after it: the account's own plan stays what the other tests find.
     const made = page.waitForResponse(

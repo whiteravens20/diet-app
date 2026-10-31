@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { barriers, expect, settled, test } from './fixtures';
+import { barriers, expect, settled, test, theFormForAPlan } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -20,6 +20,7 @@ test.describe('what the planner proposes for a plan', () => {
     const weigh = messages.weigh as Texts;
     await page.goto('/meal-plans');
     await settled(page);
+    await theFormForAPlan(page, messages);
 
     // A plan made for this test, so that the account's own plan and its shopping list stay what the other tests find.
     const made = page.waitForResponse(

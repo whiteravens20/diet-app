@@ -7,7 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Suspense, useId, useRef, useState } from 'react';
-import { CalendarRange, UserRound } from 'lucide-react';
+import { flushSync } from 'react-dom';
+import { CalendarRange, ChevronRight, UserRound } from 'lucide-react';
 import {
   CalendarDay,
   MAX_CALORIE_TARGET,
@@ -50,6 +51,7 @@ import { RebalanceToast } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
+import { cn } from '@/lib/utils';
 import { LoadFailed } from '@/components/load-failed';
 
 /** Fetched once the page is drawn: nobody waits for the calendar to read the page above it. */
@@ -120,6 +122,8 @@ function MealPlansContent() {
   const [openPlan, setOpenPlan] = useState<string | null>(linked?.planId ?? null);
   // The day of a plan that a link or the calendar leads to, until its card has gone there: the plan may still be on its way, and the list still being narrowed to it.
   const [sought, setSought] = useState(linked);
+  // Whether the form for a new plan was opened or closed by hand: until then it is open only where the profile has no plan to read.
+  const [formAsked, setFormAsked] = useState<boolean | null>(null);
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
@@ -165,6 +169,7 @@ function MealPlansContent() {
     },
     enabled: Boolean(activeId),
   });
+  const formOpen = formAsked ?? (plans.data?.items.length === 0 && !status && !from && !to);
   const opened = useQuery({
     queryKey: ['meal-plan', openPlan],
     queryFn: () => api.get<MealPlan>(`/meal-plans/${openPlan}`),
@@ -245,6 +250,7 @@ function MealPlansContent() {
     mutationFn: (body: GenerateBody) => api.post<MealPlan>('/meal-plans/generate', body),
     onSuccess: (plan) => {
       setInTheWay(null);
+      setFormAsked(false);
       invalidate();
       setOpenPlan(plan.id);
     },
@@ -504,6 +510,7 @@ function MealPlansContent() {
                 setPage(1);
                 setOpenPlan(null);
                 setError(null);
+                setFormAsked(null);
                 // Another profile has its own diet, meals and sets: what was chosen for this one does not carry over.
                 setDiet('');
                 setMealCount('');
@@ -518,10 +525,25 @@ function MealPlansContent() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>{active ? t('generateFor', { name: active.name }) : t('generate')}</CardTitle>
+        <CardHeader className="p-0">
+          <CardTitle>
+            <button
+              type="button"
+              aria-expanded={formOpen}
+              onClick={() => setFormAsked(!formOpen)}
+              className={cn('flex w-full items-center gap-2 p-5 text-left', formOpen && 'pb-3')}
+            >
+              <ChevronRight
+                size={16}
+                aria-hidden
+                className={cn('shrink-0 text-muted-foreground', formOpen && 'rotate-90')}
+              />
+              {active ? t('generateFor', { name: active.name }) : t('generate')}
+            </button>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        {/* Hidden, not taken away: what was typed is there when it is opened again. */}
+        <CardContent hidden={!formOpen}>
           <form onSubmit={onGenerate} className="max-w-2xl space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t('startDate')}>
@@ -767,6 +789,7 @@ function MealPlansContent() {
               onStart={(date) => {
                 // A day without a plan is where the next one can begin: the form above takes it.
                 setStartDate(date);
+                flushSync(() => setFormAsked(true));
                 startDateField.current?.scrollIntoView({ block: 'center' });
                 startDateField.current?.focus({ preventScroll: true });
               }}
