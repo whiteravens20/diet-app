@@ -85,8 +85,8 @@
       409
     ],
     "messages": {
-      "en": "A saved AI provider key can no longer be read — enter it again in Settings, on the AI tab.",
-      "pl": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI."
+      "en": "A saved AI provider key can no longer be read — enter it again in the AI settings.",
+      "pl": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w ustawieniach AI."
     }
   },
   "AI_MONTHLY_LIMIT_REACHED": {
@@ -112,8 +112,8 @@
       409
     ],
     "messages": {
-      "en": "No AI provider is set up for your account — choose one in Settings, on the AI tab.",
-      "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach, w zakładce AI."
+      "en": "No AI provider is set up for your account — choose one in the AI settings.",
+      "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w ustawieniach AI."
     }
   },
   "AI_NOT_PERMITTED": {

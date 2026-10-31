@@ -17,10 +17,10 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `AI_DRAFT_OFF_TARGET` | 400 | The AI's recipe came out far from the calories you asked for — try again. | Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_UNKNOWN_INGREDIENT` | 400 | AI proposed an ingredient it was not offered — try again. | AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie. |
 | `AI_INSTANCE_LIMIT_REACHED` | 403 | This instance's shared AI requests for the month are used up. | Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. |
-| `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in Settings, on the AI tab. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI. |
+| `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in the AI settings. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w ustawieniach AI. |
 | `AI_MONTHLY_LIMIT_REACHED` | 403 | You've used your AI requests for this month. | Skończył się Twój miesięczny limit zapytań AI. |
 | `AI_NEW_ACCOUNTS_LIMIT_REACHED` | 403 | New accounts have used their part of this instance's AI requests for now. Once your account is no longer new, it has its full limit. | Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit. |
-| `AI_NOT_CONFIGURED` | 409 | No AI provider is set up for your account — choose one in Settings, on the AI tab. | Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach, w zakładce AI. |
+| `AI_NOT_CONFIGURED` | 409 | No AI provider is set up for your account — choose one in the AI settings. | Nie masz skonfigurowanego dostawcy AI — wybierz go w ustawieniach AI. |
 | `AI_NOT_PERMITTED` | 403 | The instance's AI is not open to your account. | AI instancji nie jest dostępne dla Twojego konta. |
 | `AI_PROVIDER_TIMEOUT` | 503 | AI provider was too slow — try a smaller model or a cloud provider. | Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. |
 | `AI_UNAVAILABLE` | 503 | The AI provider didn't respond — try again in a moment. | Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę. |
