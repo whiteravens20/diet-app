@@ -29,7 +29,7 @@ const tab = (name: RegExp | string) => screen.getByRole('tab', { name });
 describe('Tabs', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    Element.prototype.scrollIntoView = () => undefined;
   });
 
   it('name themselves, say which is chosen, and tie each tab to its part', () => {
@@ -102,19 +102,45 @@ describe('Tabs', () => {
     expect(tab('First')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('bring the chosen tab into view, where the row scrolls', async () => {
+  it('move their row alone to show the chosen tab, and leave the page where it is', async () => {
     const intoView = vi.fn();
     Element.prototype.scrollIntoView = intoView;
+    const across = { First: 0, 'Second, 7 wait': 100, Third: 200 };
+    vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return across[this.textContent!.replace('7, 7 wait', ', 7 wait') as keyof typeof across] ?? 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100);
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(150);
     render(<Shown />);
-    intoView.mockClear();
+    const row = screen.getByRole('tablist');
 
     await userEvent.click(tab('Third'));
+    expect(row.scrollLeft).toBe(150);
 
-    expect(intoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest' });
+    await userEvent.click(tab(/^Second/));
+    expect(row.scrollLeft).toBe(100);
+
+    // Whole in the row already: the row stays.
+    row.scrollLeft = 60;
+    await userEvent.click(tab('First'));
+    expect(row.scrollLeft).toBe(0);
+    await userEvent.click(tab(/^Second/));
+    expect(row.scrollLeft).toBe(50);
+    row.scrollLeft = 90;
+    await userEvent.click(tab('Third'));
+    expect(row.scrollLeft).toBe(150);
+    row.scrollLeft = 100;
+    await userEvent.click(tab(/^Second/));
+    expect(row.scrollLeft).toBe(100);
+
+    expect(intoView).not.toHaveBeenCalled();
   });
 
   it('let go of a tab that is taken away, and stand with none chosen', () => {
-    const { rerender } = render(<Shown tabs={TABS} start="third" />);
+    const { rerender } = render(<Shown tabs={TABS.slice(0, 2)} start="third" />);
+    rerender(<Shown tabs={TABS} start="third" />);
 
     rerender(<Shown tabs={TABS.slice(0, 2)} start="third" />);
 

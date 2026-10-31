@@ -36,8 +36,15 @@ export function Tabs<Id extends string>({
   const [opened, setOpened] = useState<ReadonlySet<Id>>(() => new Set([active]));
   if (!opened.has(active)) setOpened(new Set([...opened, active]));
 
+  // The row alone moves to show the chosen tab: the page stays where it is, wherever on it the tabs stand.
   useEffect(() => {
-    buttons.current.get(active)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    const button = buttons.current.get(active);
+    if (!button) return;
+    const row = button.parentElement!;
+    const left = button.offsetLeft - row.offsetLeft;
+    const right = left + button.offsetWidth;
+    if (left < row.scrollLeft) row.scrollLeft = left;
+    else if (right > row.scrollLeft + row.clientWidth) row.scrollLeft = right - row.clientWidth;
   }, [active]);
 
   const onKeyDown = (event: KeyboardEvent, index: number): void => {
