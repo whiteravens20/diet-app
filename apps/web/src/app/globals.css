@@ -219,8 +219,11 @@
   --text-2xs: 0.625rem;
 }
 
-* {
-  border-color: var(--color-border);
+/* In the base layer: outside it this rule outweighs every utility, and no edge could have a colour of its own. */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
 }
 
 body {
