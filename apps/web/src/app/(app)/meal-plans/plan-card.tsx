@@ -166,7 +166,7 @@ export function PlanCard({
   const [openFav, setOpenFav] = useState<string | null>(null);
   // Show every favourite (drop the diet filter) in the open picker.
   const [showAllFav, setShowAllFav] = useState(false);
-  // Which meal's ways to be changed are unfolded on a narrow screen, where they fold behind one button.
+  // Which meal's ways to be changed are unfolded: they fold behind one button.
   const [openActions, setOpenActions] = useState<string | null>(null);
   // Which day's "add custom meal" modal is open, if any.
   const [customDay, setCustomDay] = useState<string | null>(null);
@@ -699,109 +699,106 @@ export function PlanCard({
                               </Button>
                             </>
                           )}
+                          {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
                           {eaten || isCustom ? null : (
-                            <>
-                              {/* On a narrow screen the ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="sm:hidden"
-                                aria-label={named(t('changeMeal'))}
-                                aria-expanded={actionsOpen}
-                                aria-controls={`${m.id}-actions`}
-                                onClick={() => setOpenActions(actionsOpen ? null : m.id)}
-                              >
-                                {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
-                              </Button>
-                              <span
-                                id={`${m.id}-actions`}
-                                role="group"
-                                aria-label={t('mealActions', { title })}
-                                className={cn(
-                                  actionsOpen ? 'flex' : 'hidden',
-                                  'basis-full flex-wrap items-center gap-x-4 sm:flex sm:basis-auto',
-                                )}
-                              >
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  aria-label={named(t('swap'))}
-                                  onClick={() => onSwapMeal(m.id)}
-                                  disabled={busy}
-                                >
-                                  {t('swap')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  title={t('tooltipSwapToFav')}
-                                  aria-label={named(t('swapToFav'))}
-                                  aria-expanded={favOpen}
-                                  onClick={() => {
-                                    setShowAllFav(false);
-                                    setOpenFav(favOpen ? null : m.id);
-                                  }}
-                                  disabled={busy}
-                                >
-                                  {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
-                                  aria-label={named(t('aiSwap'))}
-                                  onClick={() => onAiSwapMeal?.(m.id)}
-                                  disabled={busy || !onAiSwapMeal}
-                                  aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
-                                  className="text-primary"
-                                >
-                                  <Sparkles size={14} aria-hidden />
-                                  <span className="ml-1">{t('aiSwap')}</span>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  title={t('tooltipSwapByFav')}
-                                  aria-label={named(t('swapFavIngr'))}
-                                  onClick={() => onSwapByFavorites(m.id)}
-                                  disabled={busy}
-                                >
-                                  {t('swapFavIngr')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  title={t('tooltipSubstitute')}
-                                  aria-label={named(t('substituteIngr'))}
-                                  onClick={() => {
-                                    if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
-                                  }}
-                                  disabled={busy}
-                                >
-                                  {t('substituteIngr')} ⇄
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  aria-label={named(t('remove'))}
-                                  aria-expanded={removing === m.id}
-                                  onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                                  disabled={busy}
-                                >
-                                  {t('remove')}
-                                </Button>
-                              </span>
-                            </>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('changeMeal'))}
+                              aria-expanded={actionsOpen}
+                              aria-controls={`${m.id}-actions`}
+                              onClick={() => setOpenActions(actionsOpen ? null : m.id)}
+                            >
+                              {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
+                            </Button>
                           )}
                         </span>
                       </div>
+                      {!eaten && !isCustom && (
+                        <div
+                          id={`${m.id}-actions`}
+                          role="group"
+                          aria-label={t('mealActions', { title })}
+                          hidden={!actionsOpen}
+                          className="ml-4 flex flex-wrap items-center gap-x-4"
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={named(t('swap'))}
+                            onClick={() => onSwapMeal(m.id)}
+                            disabled={busy}
+                          >
+                            {t('swap')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSwapToFav')}
+                            aria-label={named(t('swapToFav'))}
+                            aria-expanded={favOpen}
+                            onClick={() => {
+                              setShowAllFav(false);
+                              setOpenFav(favOpen ? null : m.id);
+                            }}
+                            disabled={busy}
+                          >
+                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                            aria-label={named(t('aiSwap'))}
+                            onClick={() => onAiSwapMeal?.(m.id)}
+                            disabled={busy || !onAiSwapMeal}
+                            aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
+                            className="text-primary"
+                          >
+                            <Sparkles size={14} aria-hidden />
+                            <span className="ml-1">{t('aiSwap')}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSwapByFav')}
+                            aria-label={named(t('swapFavIngr'))}
+                            onClick={() => onSwapByFavorites(m.id)}
+                            disabled={busy}
+                          >
+                            {t('swapFavIngr')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSubstitute')}
+                            aria-label={named(t('substituteIngr'))}
+                            onClick={() => {
+                              if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
+                            }}
+                            disabled={busy}
+                          >
+                            {t('substituteIngr')} ⇄
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={named(t('remove'))}
+                            aria-expanded={removing === m.id}
+                            onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                            disabled={busy}
+                          >
+                            {t('remove')}
+                          </Button>
+                        </div>
+                      )}
                       {removing === m.id && (
                         <div
                           className="ml-4 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
@@ -872,7 +869,15 @@ export function PlanCard({
                             })}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
-                            <Button type="button" size="sm" onClick={onTakeOffer} disabled={busy}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                setOpenActions(null);
+                                onTakeOffer();
+                              }}
+                              disabled={busy}
+                            >
                               {t('offerTake')}
                             </Button>
                             {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
@@ -1056,7 +1061,10 @@ export function PlanCard({
           meal={openSub}
           planId={summary.id}
           onClose={() => setOpenSub(null)}
-          onApplied={onIngredientSwapped}
+          onApplied={(result) => {
+            setOpenActions(null);
+            onIngredientSwapped(result);
+          }}
         />
       )}
       <RecipeModal

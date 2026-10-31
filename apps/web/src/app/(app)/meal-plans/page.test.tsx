@@ -232,6 +232,10 @@ async function renderPage(
 /** The name of a control of a meal: what it does, then the meal it does it to. */
 const ofAMeal = (action: string): RegExp => new RegExp(`^${action}: `);
 
+/** Unfold the ways the one meal on the page can be changed. */
+const unfoldMeal = () =>
+  userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.changeMeal) }));
+
 /** Make it the given day for the page, which reads the clock for what has passed. The date alone is replaced: the timers a test waits on stay real. */
 const onTheDay = (day: string) =>
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${day}T12:00:00`) });
@@ -959,6 +963,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
       .mockResolvedValueOnce(scramble as never)
       .mockResolvedValue({ plan, rebalance: null } as never);
 
+    await unfoldMeal();
     await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
 
     const offered = await theOffer();
@@ -1007,6 +1012,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
       .mockResolvedValueOnce(toast as never)
       .mockResolvedValue(scramble as never);
 
+    await unfoldMeal();
     await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerAnother }));
@@ -1023,6 +1029,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await open();
     const post = vi.spyOn(api, 'post').mockResolvedValue(scramble as never);
 
+    await unfoldMeal();
     await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.common.cancel }));
@@ -1037,6 +1044,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
       .mockResolvedValueOnce(scramble as never)
       .mockRejectedValue(new ApiClientError(409, 'PLAN_CHANGED', 'the text of the API'));
 
+    await unfoldMeal();
     await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
@@ -1150,6 +1158,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
 
   it("keeps the model's swap in its place on an account with AI off, disabled, and says once over the plans why", async () => {
     await opened(aPlan());
+    await unfoldMeal();
 
     const swap = screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) });
     const notes = screen.getAllByText(/^AI is turned off for this account/);
@@ -1164,6 +1173,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
 
   it('says nothing of the kind on an account that has a model to ask', async () => {
     await opened(aPlan(), 'admin');
+    await unfoldMeal();
 
     expect(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) })).toBeEnabled();
     expect(screen.queryByText(/^AI is turned off for this account/)).toBeNull();
@@ -1268,6 +1278,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
         .spyOn(api, 'post')
         .mockResolvedValueOnce(offered(by) as never)
         .mockResolvedValue({ plan, rebalance: null } as never);
+      await unfoldMeal();
       await userEvent.click(
         screen.getByRole('button', { name: new RegExp(messages.mealPlans.aiSwap) }),
       );
@@ -2116,5 +2127,80 @@ describe('the plan page, on the day it is today', () => {
 
     expect(screen.queryByRole('button', { name: messages.mealPlans.goToToday })).toBeNull();
     expect(screen.queryByText(messages.mealPlans.today)).toBeNull();
+  });
+});
+
+describe('the plan page, on how a plan reads', () => {
+  const scrollIntoView = vi.fn();
+  beforeEach(() => {
+    // The browser of the tests draws nothing, so it has nothing to scroll.
+    Element.prototype.scrollIntoView = scrollIntoView;
+    address.search = '';
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    scrollIntoView.mockClear();
+    address.search = '';
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+
+  /** The plan of the fixture over `count` days from 2026-01-05, its one meal on each of them. */
+  const daysLong = (count: number): MealPlan => {
+    const plan = aPlan();
+    const day = plan.days[0]!;
+    const numbered = (n: number): string => String(n).padStart(2, '0');
+    return {
+      ...plan,
+      durationDays: count,
+      days: Array.from({ length: count }, (_, n) => ({
+        ...day,
+        id: `22222222-2222-4222-8222-2222222222${numbered(n)}`,
+        date: `2026-01-${numbered(5 + n)}`,
+        meals: day.meals.map((meal) => ({
+          ...meal,
+          id: `33333333-3333-4333-8333-3333333333${numbered(n)}`,
+        })),
+      })),
+    };
+  };
+  const open = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText(`${plan.durationDays}-day plan · Vegan`));
+    await screen.findAllByRole('button', { name: messages.mealPlans.addCustomMeal });
+  };
+  /** What the API offers in the place of a meal. */
+  const anOffer = {
+    recipe: { id: 'a-recipe', title: 'Tofu scramble' },
+    servings: 1,
+    revision: 0,
+    before: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+    after: { calories: 240, protein: 18, fat: 12, carbs: 16 },
+    dayAfter: { calories: 240, protein: 18, fat: 12, carbs: 16 },
+    calorieTarget: 2000,
+  };
+
+  it('folds the ways to change a meal behind one button, and folds them again once the meal is changed', async () => {
+    onTheDay('2026-01-05');
+    const plan = daysLong(1);
+    await open(plan);
+    const change = screen.getByRole('button', { name: ofAMeal(messages.mealPlans.changeMeal) });
+
+    expect(change).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
+
+    await userEvent.click(change);
+
+    expect(change).toHaveAttribute('aria-expanded', 'true');
+    vi.spyOn(api, 'post')
+      .mockResolvedValueOnce(anOffer as never)
+      .mockResolvedValue({ plan, rebalance: null } as never);
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: messages.mealPlans.offerTake }),
+    );
+
+    await vi.waitFor(() => expect(change).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
   });
 });

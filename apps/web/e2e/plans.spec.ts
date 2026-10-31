@@ -8,9 +8,6 @@ const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
 const rerollOf = (messages: Messages): Texts =>
   (messages.mealPlans as unknown as { reroll: Texts }).reroll;
 
-/** Whether the screen is one on which the ways to change a meal fold behind one button. */
-const narrow = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 640;
-
 /** The plan page with the first plan of the list open. */
 async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
   const plans = plansOf(messages);
@@ -24,14 +21,13 @@ async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
 const ofAMeal = (action: string): RegExp =>
   new RegExp(`^${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `);
 
-/** The ways to change the first meal that can be changed, unfolded where they are folded. */
+/** The ways to change the first meal that can be changed, unfolded. */
 async function waysToChangeAMeal(page: Page, messages: Messages): Promise<Locator> {
   const plans = plansOf(messages);
-  if (narrow(page))
-    await page
-      .getByRole('button', { name: ofAMeal(plans.changeMeal!) })
-      .first()
-      .click();
+  await page
+    .getByRole('button', { name: ofAMeal(plans.changeMeal!) })
+    .first()
+    .click();
   const ways = page
     .getByRole('group')
     .filter({ has: page.getByRole('button', { name: ofAMeal(plans.swap!) }) })
@@ -203,21 +199,13 @@ test.describe('a meal of a plan', () => {
     await expect(ways.getByRole('button', { name: ofAMeal(plans.swap!) })).toBeEnabled();
   });
 
-  test('folds the ways to change it behind one button on a narrow screen, and shows them in a row on a wide one', async ({
-    session,
-    messages,
-  }) => {
+  test('folds the ways to change it behind one button', async ({ session, messages }) => {
     const page = session.page;
     const plans = plansOf(messages);
     await anOpenPlan(page, messages);
     const swap = page.getByRole('button', { name: ofAMeal(plans.swap!) }).first();
     const fold = page.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).first();
 
-    if (!narrow(page)) {
-      await expect(swap).toBeVisible();
-      await expect(fold).toBeHidden();
-      return;
-    }
     await expect(swap).toBeHidden();
     await expect(fold).toHaveAttribute('aria-expanded', 'false');
     await fold.click();
