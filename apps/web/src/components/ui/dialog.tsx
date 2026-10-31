@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
  * so the browser does what such a window owes its user: the focus moves into
  * it and stays in it, the page behind takes no key and no click, Esc closes
  * it, and the focus goes back to what opened it. A click beside the window
- * closes it too, and the page behind does not scroll while it is open.
+ * closes it too, and the page behind does not scroll while it is open, nor
+ * when it closes.
  *
  * What is inside is rendered only while the window is open.
  */
@@ -38,8 +39,13 @@ export function Dialog({
   useLayoutEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
+    const { scrollX, scrollY } = window;
     dialog.showModal();
-    return () => dialog.close();
+    return () => {
+      dialog.close();
+      // Giving the focus back scrolls to what opened the window, and that may have moved: the page stays where the window found it.
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: 'instant' });
+    };
   }, [open]);
 
   useEffect(() => {

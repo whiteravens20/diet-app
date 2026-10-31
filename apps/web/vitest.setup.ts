@@ -23,3 +23,4 @@ HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement): v
 
 // The DOM the tests run in lays nothing out, and so has nowhere to scroll to.
 Element.prototype.scrollIntoView ??= function scrollIntoView(): void {};
+window.scrollTo = (): void => {};

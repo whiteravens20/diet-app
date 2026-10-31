@@ -44,6 +44,26 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('leaves the page where it found it when it closes', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(1200);
+    const { rerender } = render(
+      <Dialog open onClose={() => undefined} label="A recipe">
+        <p>Oat porridge</p>
+      </Dialog>,
+    );
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    rerender(
+      <Dialog open={false} onClose={() => undefined} label="A recipe">
+        <p>Oat porridge</p>
+      </Dialog>,
+    );
+
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ left: 0, top: 1200, behavior: 'instant' });
+    vi.restoreAllMocks();
+  });
+
   it('closes on a click beside it, and not on a click inside it', async () => {
     const onClose = vi.fn();
     render(
