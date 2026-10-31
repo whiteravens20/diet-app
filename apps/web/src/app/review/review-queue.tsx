@@ -25,6 +25,8 @@ import { useReviewKeys, useReviewKeysWanted } from './review-keys';
 interface QueueProps {
   locale: Locale;
   kind: 'recipe' | 'ingredient-name';
+  /** A draft was decided on: how many wait has changed. */
+  onDecided?: () => void | Promise<void>;
 }
 
 /** What the queue tells the draft on show about the keys and its place. */
@@ -45,7 +47,7 @@ interface DraftPlace {
  * remove the row from the in-memory queue; the reviewer never sees their own
  * approvals come back.
  */
-export function ReviewQueue({ locale, kind }: QueueProps) {
+export function ReviewQueue({ locale, kind, onDecided }: QueueProps) {
   const t = useTranslations('review');
   const errorText = useErrorText();
   // `itemsKind` is the kind the current `items` were fetched for. If it
@@ -138,6 +140,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
     const next = items.filter((_, i) => i !== safeCursor);
     setTotal((n) => Math.max(0, n - 1));
     setDecided(true);
+    void onDecided?.();
     if (next.length === 0) {
       // The page is done: the next one is read, and nothing is said to be left over meanwhile.
       setItems(null);
@@ -280,6 +283,7 @@ function DraftRegion({
 function Decide({
   reason,
   onReason,
+  reasonHint,
   dirty,
   saving,
   acting,
@@ -292,6 +296,8 @@ function Decide({
 }: {
   reason: string;
   onReason: (reason: string) => void;
+  /** What the field says of the reason, when it says more than that it is optional. */
+  reasonHint?: string;
   dirty: boolean;
   saving: boolean;
   acting: 'approve' | 'reject' | null;
@@ -308,8 +314,8 @@ function Decide({
   return (
     <>
       <textarea
-        aria-label={t('rejectReasonPlaceholder')}
-        placeholder={t('rejectReasonPlaceholder')}
+        aria-label={reasonHint ?? t('rejectReasonPlaceholder')}
+        placeholder={reasonHint ?? t('rejectReasonPlaceholder')}
         value={reason}
         onChange={(e) => onReason(e.target.value)}
         rows={2}
@@ -650,6 +656,7 @@ function IngredientNameReviewCard({
           <Decide
             reason={reason}
             onReason={setReason}
+            reasonHint={t('rejectReasonModel')}
             dirty={dirty}
             saving={saving}
             acting={acting}

@@ -181,8 +181,27 @@ function ReviewSession({
   const fmt = useFormat();
   const [locale, setLocale] = useState<Locale | null>(locales[0] ?? null);
   const [kind, setKind] = useState<'recipe' | 'ingredient-name'>('recipe');
+  const [waiting, setWaiting] = useState<{ recipes: number; names: number } | null>(null);
 
   const localeOptions = useMemo(() => locales, [locales]);
+
+  // How many wait of each kind, by the totals of their lists. Should it fail, the queue says so itself.
+  const loadWaiting = useCallback(async (): Promise<void> => {
+    if (!locale) return;
+    try {
+      const recipes = await reviewApi.listRecipeSlices(locale, { pageSize: 1 });
+      const names = await reviewApi.listIngredientNameSlices(locale, { pageSize: 1 });
+      setWaiting({ recipes: recipes.total, names: names.total });
+    } catch {
+      setWaiting(null);
+    }
+  }, [locale]);
+
+  useEffect(() => {
+    void (async () => {
+      await loadWaiting();
+    })();
+  }, [loadWaiting]);
 
   if (!locale) {
     return (
@@ -232,6 +251,7 @@ function ReviewSession({
                 }`}
               >
                 {t('kindRecipe')}
+                <WaitingCount count={waiting?.recipes} />
               </button>
               <button
                 type="button"
@@ -244,6 +264,7 @@ function ReviewSession({
                 }`}
               >
                 {t('kindIngredientName')}
+                <WaitingCount count={waiting?.names} />
               </button>
             </div>
           </div>
@@ -254,7 +275,21 @@ function ReviewSession({
         </CardContent>
       </Card>
 
-      <ReviewQueue locale={locale} kind={kind} />
+      <ReviewQueue locale={locale} kind={kind} onDecided={loadWaiting} />
     </div>
+  );
+}
+
+/** How many wait of a kind, beside its name. */
+function WaitingCount({ count }: { count: number | undefined }) {
+  const t = useTranslations('review');
+  if (!count) return null;
+  return (
+    <>
+      <span aria-hidden className="ml-1.5 tabular-nums">
+        {count}
+      </span>
+      <span className="sr-only">{`, ${t('waiting', { count })}`}</span>
+    </>
   );
 }

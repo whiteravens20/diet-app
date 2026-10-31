@@ -417,4 +417,58 @@ describe("the reviewer's queue", () => {
 
     expect(approve).toHaveBeenCalledExactlyOnceWith('pl', FIRST);
   });
+
+  it('says of the name of an ingredient that the model is told the reason, and of a recipe nothing of the kind', async () => {
+    const name = {
+      id: FIRST,
+      ingredientSlug: 'beef-tenderloin',
+      rawDescription: 'Beef, loin, tenderloin roast, separable lean only',
+      locale: 'pl',
+      name: 'Polędwica wołowa',
+      nameSource: 'Beef tenderloin',
+      storageHint: null,
+      storageHintSource: null,
+      batchId: 'batch-1',
+      modelUsed: null,
+      status: 'PENDING',
+      alreadyReviewed: false,
+      alreadyReviewedAction: null,
+    } as IngredientNameReviewSlice;
+    vi.spyOn(reviewApi, 'listIngredientNameSlices').mockResolvedValue({
+      items: [name],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReviewQueue locale="pl" kind="ingredient-name" />
+      </NextIntlClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole('textbox', { name: text.rejectReasonModel }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: text.rejectReasonPlaceholder })).toBeNull();
+  });
+
+  it('says when a draft is decided on, for the counts beside the kinds', async () => {
+    const decided = vi.fn();
+    vi.spyOn(reviewApi, 'listRecipeSlices').mockResolvedValue({
+      items: [recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')],
+      total: 2,
+      page: 1,
+      pageSize: 25,
+    });
+    vi.spyOn(reviewApi, 'approveRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReviewQueue locale="pl" kind="recipe" onDecided={decided} />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: text.approve }));
+
+    await vi.waitFor(() => expect(decided).toHaveBeenCalledTimes(1));
+  });
 });
