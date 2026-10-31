@@ -8,6 +8,7 @@ import type { DraftRunnerState } from '@diet-app/shared';
 import { adminApi, type RecipeRunnerState, type ShipConfigDto } from '@/lib/admin-api';
 import messages from '../../../../messages/en.json';
 import { RecipePanel } from './recipe-panel';
+import { ReviewSignature } from './review-signature';
 
 const text = messages.admin.curation;
 
@@ -69,7 +70,9 @@ afterEach(() => {
 const shown = async () => {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <RecipePanel />
+      <ReviewSignature>
+        <RecipePanel />
+      </ReviewSignature>
     </NextIntlClientProvider>,
   );
   const generate = screen.getByRole('button', { name: text.generateRecipes });

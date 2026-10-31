@@ -4,12 +4,13 @@
 
 /** The drafts of ingredient names: the run that writes them, the list, and a draft with its approval for each language. */
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { LoaderCircle, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
+  type AdminOverview,
   type DraftRunnerState,
   type IngredientNameDraft,
   type IngredientNameSuggestionMap,
@@ -18,12 +19,23 @@ import {
 import { useDraftErrorText } from '@/lib/use-draft-error';
 import { FilterStrip, Pagination } from './list-controls';
 import { LocaleReviewMatrix } from './locale-review-matrix';
+import { useReviewSignature } from './review-signature';
 import { PAGE_SIZE, POLL_INTERVAL_MS, type StatusFilter } from './shared';
 import { ShipBar } from './ship-bar';
 
-export function IngredientPanel() {
+export function IngredientPanel({
+  queue,
+  onQueueChanged,
+}: {
+  /** How many names each way of writing them takes on; null until it is read. */
+  queue: AdminOverview['names'] | null;
+  /** The list was read: what it shows may have changed the counts. */
+  onQueueChanged?: () => void | Promise<void>;
+}) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
+  const signature = useReviewSignature();
+  const bulkReasonId = useId();
   const [runner, setRunner] = useState<DraftRunnerState | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
@@ -31,6 +43,7 @@ export function IngredientPanel() {
   // How many times the drafts were read: the ship bar reads its counts again with them.
   const [listRead, setListRead] = useState(0);
   const [rejected, setRejected] = useState<{ rejected: number; skipped: number } | null>(null);
+  const [bulkReason, setBulkReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -44,10 +57,11 @@ export function IngredientPanel() {
       setData(res);
       setListRead((n) => n + 1);
       setError(null);
+      void onQueueChanged?.();
     } catch (err) {
       setError(errorText(err, String(err)));
     }
-  }, [page, statusFilter, errorText]);
+  }, [page, statusFilter, errorText, onQueueChanged]);
 
   const loadRunner = useCallback(async () => {
     try {
@@ -59,18 +73,6 @@ export function IngredientPanel() {
       return null;
     }
   }, [errorText]);
-
-  useEffect(() => {
-    void (async () => {
-      await loadRunner();
-    })();
-  }, [loadRunner]);
-
-  useEffect(() => {
-    void (async () => {
-      await loadDrafts();
-    })();
-  }, [loadDrafts]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -86,6 +88,20 @@ export function IngredientPanel() {
     }, POLL_INTERVAL_MS);
   }, [loadDrafts, loadRunner]);
 
+  // A run may be going when the panel opens, started here before a reload or in another browser.
+  useEffect(() => {
+    void (async () => {
+      const state = await loadRunner();
+      if (state?.status === 'running') startPolling();
+    })();
+  }, [loadRunner, startPolling]);
+
+  useEffect(() => {
+    void (async () => {
+      await loadDrafts();
+    })();
+  }, [loadDrafts]);
+
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -96,16 +112,15 @@ export function IngredientPanel() {
   const open = (data?.items ?? []).filter(
     (draft) => draft.status === 'PENDING' || draft.status === 'APPROVED',
   );
-  // Names nobody will ship, rejected in one go with one reason, so that the next run writes them again.
+  // Names nobody will ship, rejected in one go with one reason, so that they can be written again.
   const onRejectShown = async () => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
-    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
     try {
       const res = await adminApi.rejectIngredientNameDrafts(
         open.map((draft) => draft.id),
         label,
-        reason,
+        bulkReason.trim() || undefined,
       );
       setRejected({ rejected: res.rejected.length, skipped: res.skipped.length });
       await loadDrafts();
@@ -114,15 +129,43 @@ export function IngredientPanel() {
     }
   };
 
-  const onGenerate = async () => {
-    try {
-      const state = await adminApi.startIngredientNamer({ scope: 'all-usda-missing' });
-      setRunner(state);
-      if (state.status === 'running') startPolling();
-      void loadDrafts();
-    } catch (err) {
-      setError(errorText(err, String(err)));
-    }
+  /** Start a run of names, and follow it. */
+  const startRun = useCallback(
+    async (start: () => Promise<DraftRunnerState>) => {
+      try {
+        const state = await start();
+        setRunner(state);
+        setError(null);
+        if (state.status === 'running') startPolling();
+        void loadDrafts();
+      } catch (err) {
+        setError(errorText(err, String(err)));
+      }
+    },
+    [errorText, loadDrafts, startPolling],
+  );
+
+  const onGenerateMissing = () => {
+    if (!window.confirm(t('confirmMissing', { count: queue?.missing ?? 0 }))) return;
+    void startRun(() => adminApi.startIngredientNamer({ scope: 'all-usda-missing' }));
+  };
+
+  const onGenerateRejected = () => {
+    if (!window.confirm(t('confirmRejected', { count: queue?.rejected ?? 0 }))) return;
+    void startRun(() => adminApi.startIngredientNamer({ scope: 'rejected' }));
+  };
+
+  const onGenerateUnapproved = () => {
+    const label = signature.take();
+    if (!label) return;
+    if (!window.confirm(t('confirmUnapproved', { count: queue?.unapproved ?? 0 }))) return;
+    void startRun(() =>
+      adminApi.regenerateIngredientNames({
+        scope: 'unapproved',
+        reviewedByLabel: label,
+        reason: bulkReason.trim() || undefined,
+      }),
+    );
   };
 
   const onStop = async () => {
@@ -146,18 +189,58 @@ export function IngredientPanel() {
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {running
-            ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
-            : t('generate')}
+        <Button
+          size="sm"
+          onClick={onGenerateMissing}
+          disabled={!configured || running || !queue?.missing}
+          className="h-auto min-h-8 gap-2 py-1"
+        >
+          <Sparkles className="h-4 w-4" />
+          {t('generateMissing', { count: queue?.missing ?? 0 })}
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onGenerateRejected}
+          disabled={!configured || running || !queue?.rejected}
+          className="h-auto min-h-8 py-1"
+        >
+          {t('generateRejected', { count: queue?.rejected ?? 0 })}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onGenerateUnapproved}
+          disabled={!configured || running || !queue?.unapproved}
+          className="h-auto min-h-8 py-1"
+        >
+          {t('generateUnapproved', { count: queue?.unapproved ?? 0 })}
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <label htmlFor={bulkReasonId} className="text-muted-foreground">
+          {t('bulkReason')}
+        </label>
+        <Input
+          id={bulkReasonId}
+          value={bulkReason}
+          onChange={(e) => setBulkReason(e.target.value)}
+          maxLength={500}
+          placeholder={t('decisionReasonHint')}
+          className="h-8 w-full sm:w-80"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 empty:hidden" role="status">
         {running && (
-          <Button onClick={onStop} variant="outline" className="gap-2">
+          <span className="inline-flex items-center gap-2 text-xs">
+            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
+            {t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })}
+          </span>
+        )}
+        {running && (
+          <Button onClick={onStop} size="sm" variant="outline" className="gap-2">
             <X className="h-4 w-4" />
             {t('stop')}
           </Button>
@@ -215,7 +298,13 @@ export function IngredientPanel() {
       ) : (
         <ul className="space-y-2">
           {data.items.map((d) => (
-            <IngredientDraftRow key={d.id} draft={d} onChanged={loadDrafts} />
+            <IngredientDraftRow
+              key={d.id}
+              draft={d}
+              onChanged={loadDrafts}
+              canRun={configured && !running}
+              onRun={startRun}
+            />
           ))}
         </ul>
       )}
@@ -232,12 +321,20 @@ export function IngredientPanel() {
 function IngredientDraftRow({
   draft,
   onChanged,
+  canRun,
+  onRun,
 }: {
   draft: IngredientNameDraft;
   onChanged: () => void;
+  /** Whether a run of names can start now. */
+  canRun: boolean;
+  onRun: (start: () => Promise<DraftRunnerState>) => Promise<void>;
 }) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
+  const signature = useReviewSignature();
+  const reasonId = useId();
+  const [reason, setReason] = useState('');
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,17 +360,43 @@ function IngredientDraftRow({
 
   // What each language was last decided: taking the same decision again would only ask for a name and say it twice.
   const decided = new Map(draft.localeReviews.map((review) => [review.locale, review.action]));
+  const given = reason.trim() || undefined;
   const onApprove = (locale: string) => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
     void handle(() => adminApi.approveIngredientNameDraft(draft.id, locale, label));
   };
 
   const onReject = (locale: string) => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
-    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
-    void handle(() => adminApi.rejectIngredientNameDraft(draft.id, locale, label, reason));
+    void handle(() => adminApi.rejectIngredientNameDraft(draft.id, locale, label, given)).then(
+      (done) => {
+        if (done) setReason('');
+      },
+    );
+  };
+
+  // A proposal that waits is replaced, and one that was rejected has only to be written anew.
+  const onRegenerate = () => {
+    if (draft.status === 'REJECTED') {
+      void onRun(() =>
+        adminApi.startIngredientNamer({ scope: 'specific-slugs', slugs: [draft.ingredientSlug] }),
+      );
+      return;
+    }
+    const label = signature.take();
+    if (!label) return;
+    const touched = draft.edited || draft.localeReviews.some((r) => r.action === 'APPROVE');
+    if (touched && !window.confirm(t('regenerateTouchedConfirm'))) return;
+    void onRun(() =>
+      adminApi.regenerateIngredientNames({
+        scope: 'named',
+        ids: [draft.id],
+        reviewedByLabel: label,
+        reason: given,
+      }),
+    );
   };
 
   const onDelete = () => {
@@ -302,15 +425,70 @@ function IngredientDraftRow({
     }));
   };
 
+  /** What the model proposed, or a person made of it: the name above all else in the row. */
+  const names = (
+    <div className="min-w-0 flex-1 space-y-0.5">
+      {draft.locales.map((locale) => (
+        <p key={locale} className="break-words">
+          <span className="mr-1.5 text-xs uppercase text-muted-foreground">{locale}</span>
+          <span className="font-medium">{draft.suggestions.name[locale]}</span>
+        </p>
+      ))}
+    </div>
+  );
+  const source = (
+    <p className="mt-1 break-words text-xs text-muted-foreground">
+      {t('rawDescription')}: <code className="break-words">{draft.rawDescription}</code> ·{' '}
+      {draft.ingredientSlug}
+    </p>
+  );
+  // Who decided what, once anybody has: a draft nobody has touched has its chip beside the name, and no more to say.
+  const decisions = (draft.localeReviews.length > 0 || draft.pastReviews.length > 0) && (
+    <LocaleReviewMatrix
+      expectedLocales={draft.locales}
+      localeReviews={draft.localeReviews}
+      pastReviews={draft.pastReviews}
+      status={draft.status}
+    />
+  );
+
+  // What stands where this draft stood: it stays as history, and nothing more can be done with it.
+  if (draft.replaced) {
+    return (
+      <li className="rounded-md border border-border p-3 text-sm opacity-70">
+        {names}
+        {source}
+        {decisions}
+        <p className="mt-1 text-xs text-muted-foreground">{t('replacedMark')}</p>
+      </li>
+    );
+  }
+
+  const canDecide = draft.status !== 'SHIPPED' && !editing;
+  const canRegenerate = draft.status === 'PENDING' || draft.status === 'REJECTED';
   return (
     <li className="rounded-md border border-border p-3 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">
-            {t('rawDescription')}: <code className="break-words">{draft.rawDescription}</code>
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{draft.ingredientSlug}</p>
-        </div>
+        {editing ? (
+          <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+            {draft.locales.map((locale) => (
+              <label key={locale} className="block space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  {t('suggested')} · {locale}
+                </span>
+                <Input
+                  value={draftSuggestions.name[locale] ?? ''}
+                  onChange={(e) => updateName(locale, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        ) : (
+          names
+        )}
+        {draft.edited && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{t('editedMark')}</span>
+        )}
         <LocaleReviewMatrix
           expectedLocales={draft.locales}
           localeReviews={draft.localeReviews}
@@ -318,31 +496,8 @@ function IngredientDraftRow({
           compact
         />
       </div>
-
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        {draft.locales.map((locale) => (
-          <div key={locale} className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              {t('suggested')} · {locale}
-            </label>
-            {editing ? (
-              <Input
-                value={draftSuggestions.name[locale] ?? ''}
-                onChange={(e) => updateName(locale, e.target.value)}
-              />
-            ) : (
-              <p className="font-medium">{draft.suggestions.name[locale]}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <LocaleReviewMatrix
-        expectedLocales={draft.locales}
-        localeReviews={draft.localeReviews}
-        pastReviews={draft.pastReviews}
-        status={draft.status}
-      />
+      {source}
+      {decisions}
 
       {error && (
         <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
@@ -350,7 +505,23 @@ function IngredientDraftRow({
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      {canDecide && draft.status !== 'REJECTED' && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <label htmlFor={reasonId} className="text-muted-foreground">
+            {t('decisionReason')}
+          </label>
+          <Input
+            id={reasonId}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={500}
+            placeholder={t('decisionReasonHint')}
+            className="h-8 w-full sm:w-80"
+          />
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         {editing ? (
           <>
             <Button size="sm" disabled={working} onClick={onSave}>
@@ -362,14 +533,6 @@ function IngredientDraftRow({
           </>
         ) : (
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={working || draft.status === 'SHIPPED'}
-              onClick={() => setEditing(true)}
-            >
-              {t('edit')}
-            </Button>
             {draft.status !== 'SHIPPED' &&
               draft.locales.map((locale) => (
                 <span key={locale} className="flex items-center gap-1">
@@ -390,6 +553,24 @@ function IngredientDraftRow({
                   </Button>
                 </span>
               ))}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={working || draft.status === 'SHIPPED'}
+              onClick={() => setEditing(true)}
+            >
+              {t('edit')}
+            </Button>
+            {canRegenerate && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={working || !canRun}
+                onClick={onRegenerate}
+              >
+                {t('regenerate')}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"

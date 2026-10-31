@@ -10,6 +10,8 @@ import type {
   AdminConnection,
   AdminOperatorAi,
   AdminSessionState,
+  AdminHealth,
+  AdminOverview,
   AdminStats,
   AdminStatus,
   CatalogueUpdateState,
@@ -18,8 +20,10 @@ import type {
   FoodImportState,
   Ingredient,
   IngredientNameDraft,
+  IngredientNameRegenerateBody,
   IngredientNameSuggestion,
   InstanceDataState,
+  InstanceMirror,
   InstanceSettingsDto,
   LocaleReview,
   Macros,
@@ -45,12 +49,15 @@ import { apiClient } from './http';
 // What the API answers with is a type of the contract, under the name the panel has for it.
 export type {
   AdminConnection,
+  AdminHealth,
   AdminOperatorAi,
+  AdminOverview,
   AdminStats,
   AdminStatus,
   DraftRunnerState,
   IngredientNameDraft,
   InstanceDataState,
+  InstanceMirror,
   InstanceSettingsDto,
   RecipeDraft,
   RecipeDraftIngredientLine,
@@ -97,7 +104,7 @@ export interface RecipeImportRequestInput {
 }
 
 export interface IngredientNameGenerateSpec {
-  scope: 'all-usda-missing' | 'specific-slugs';
+  scope: 'all-usda-missing' | 'rejected' | 'specific-slugs';
   slugs?: string[];
   targetLocales?: string[];
 }
@@ -191,6 +198,8 @@ export const adminApi = {
   /** End every admin session there is, this one too. */
   endAllSessions: () => adminFetch<void>('/session/end-all', { method: 'POST' }),
   stats: () => adminFetch<AdminStats>('/stats'),
+  overview: () => adminFetch<AdminOverview>('/drafts/overview'),
+  health: () => adminFetch<AdminHealth>('/health'),
   startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
   /** The retired ingredients something of the instance still uses. */
@@ -216,6 +225,11 @@ export const adminApi = {
     adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate', {
       method: 'POST',
       body: JSON.stringify(spec),
+    }),
+  regenerateIngredientNames: (body: IngredientNameRegenerateBody) =>
+    adminFetch<DraftRunnerState>('/drafts/ingredient-names/regenerate', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   ingredientNamerStatus: () =>
     adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate/status'),

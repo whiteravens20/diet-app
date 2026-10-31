@@ -4,7 +4,7 @@
 
 /** One recipe draft: what it is, as it is read and as it is edited, with its reviews. */
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Cuisine } from '@diet-app/shared';
 import { CUISINES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
 import { LocaleReviewMatrix } from './locale-review-matrix';
+import { useReviewSignature } from './review-signature';
 
 export function RecipeDraftRow({
   draft,
@@ -31,6 +32,9 @@ export function RecipeDraftRow({
   const errorText = useDraftErrorText();
   const tErrors = useTranslations('errors');
   const skipReason = useSkipReasonText();
+  const signature = useReviewSignature();
+  const reasonId = useId();
+  const [reason, setReason] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
@@ -145,15 +149,18 @@ export function RecipeDraftRow({
   // What each language was last decided: taking the same decision again would only ask for a name and say it twice.
   const decided = new Map(draft.localeReviews.map((review) => [review.locale, review.action]));
   const onApprove = (locale: string) => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
     void handle(() => adminApi.approveRecipeDraft(draft.id, locale, label));
   };
   const onReject = (locale: string) => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
-    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
-    void handle(() => adminApi.rejectRecipeDraft(draft.id, locale, label, reason));
+    void handle(() =>
+      adminApi.rejectRecipeDraft(draft.id, locale, label, reason.trim() || undefined),
+    ).then((done) => {
+      if (done) setReason('');
+    });
   };
   const onDelete = () => {
     if (!window.confirm(t('deleteConfirm'))) return;
@@ -269,6 +276,21 @@ export function RecipeDraftRow({
             pastReviews={draft.pastReviews}
             status={draft.status}
           />
+
+          {!editing && draft.status !== 'SHIPPED' && draft.status !== 'REJECTED' && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <label htmlFor={reasonId} className="text-muted-foreground">
+                {t('rejectReason')}
+              </label>
+              <Input
+                id={reasonId}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={500}
+                className="h-8 w-full sm:w-80"
+              />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             {editing ? (

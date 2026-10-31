@@ -22,8 +22,10 @@ import { MissingLanguage } from '../missing-language';
 import { RecipeImport } from '../recipe-import';
 import { FilterStrip, Pagination } from './list-controls';
 import { RecipeDraftRow } from './recipe-draft-row';
+import { useReviewSignature } from './review-signature';
 import { PAGE_SIZE, POLL_INTERVAL_MS, type StatusFilter } from './shared';
 import { ShipBar } from './ship-bar';
+import { ToolSection } from './tool-section';
 
 /** Where the drafts of the list came from: all of them, those users sent, or those a batch run wrote. */
 export type SourceFilter = 'ALL' | 'AI_USER' | 'AI';
@@ -33,8 +35,15 @@ const SOURCE_FILTERS: readonly SourceFilter[] = ['ALL', 'AI_USER', 'AI'];
 // In the order of a day, as the table of what the catalogue has lists them.
 const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
 
-export function RecipePanel() {
+export function RecipePanel({
+  onQueueChanged,
+}: {
+  /** The list was read: what it shows may have changed the counts. */
+  onQueueChanged?: () => void | Promise<void>;
+} = {}) {
   const t = useTranslations('admin.curation');
+  const signature = useReviewSignature();
+  const bulkReasonId = useId();
   const countId = useId();
   const scopeId = useId();
   const tDiet = useTranslations('enums.dietType');
@@ -49,6 +58,7 @@ export function RecipePanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('ALL');
   const [rejected, setRejected] = useState<{ rejected: number; skipped: number } | null>(null);
+  const [bulkReason, setBulkReason] = useState('');
   const [data, setData] = useState<PagedDrafts<RecipeDraft> | null>(null);
   // How many times the drafts were read: the ship bar reads its counts again with them.
   const [listRead, setListRead] = useState(0);
@@ -74,10 +84,11 @@ export function RecipePanel() {
       setData(res);
       setListRead((n) => n + 1);
       setError(null);
+      void onQueueChanged?.();
     } catch (err) {
       setError(errorText(err, String(err)));
     }
-  }, [page, statusFilter, sourceFilter, errorText]);
+  }, [page, statusFilter, sourceFilter, errorText, onQueueChanged]);
 
   const loadRunner = useCallback(async () => {
     try {
@@ -89,17 +100,6 @@ export function RecipePanel() {
       return null;
     }
   }, [errorText]);
-
-  useEffect(() => {
-    void (async () => {
-      await loadRunner();
-    })();
-  }, [loadRunner]);
-  useEffect(() => {
-    void (async () => {
-      await loadDrafts();
-    })();
-  }, [loadDrafts]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -114,6 +114,19 @@ export function RecipePanel() {
       }
     }, POLL_INTERVAL_MS);
   }, [loadDrafts, loadRunner]);
+
+  // A run may be going when the panel opens, started here before a reload or in another browser.
+  useEffect(() => {
+    void (async () => {
+      const state = await loadRunner();
+      if (state?.status === 'running') startPolling();
+    })();
+  }, [loadRunner, startPolling]);
+  useEffect(() => {
+    void (async () => {
+      await loadDrafts();
+    })();
+  }, [loadDrafts]);
 
   useEffect(() => {
     return () => {
@@ -147,14 +160,13 @@ export function RecipePanel() {
   );
   // What users sent and nobody will ship, rejected in one go with one reason.
   const onRejectShown = async () => {
-    const label = window.prompt(t('reviewLabelPrompt'));
+    const label = signature.take();
     if (!label) return;
-    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
     try {
       const res = await adminApi.rejectRecipeDrafts(
         open.map((draft) => draft.id),
         label,
-        reason,
+        bulkReason.trim() || undefined,
       );
       setRejected({ rejected: res.rejected.length, skipped: res.skipped.length });
       await loadDrafts();
@@ -183,174 +195,179 @@ export function RecipePanel() {
         </p>
       )}
 
-      <fieldset className="space-y-2 text-xs" disabled={running}>
-        <div
-          role="group"
-          aria-label={t('runDiets')}
-          className="flex flex-wrap items-center gap-x-3 gap-y-1"
-        >
-          <span className="text-muted-foreground">{t('runDiets')}</span>
-          {NAMED_DIETS.map((diet) => (
-            <label key={diet} className="flex min-h-6 items-center gap-1">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={diets.includes(diet)}
-                disabled={fillCoverage}
-                onChange={(e) =>
-                  setDiets((chosen) =>
-                    e.target.checked ? [...chosen, diet] : chosen.filter((one) => one !== diet),
-                  )
-                }
-              />
-              {tDiet(diet)}
-            </label>
-          ))}
-        </div>
-        <div
-          role="group"
-          aria-label={t('runMeals')}
-          className="flex flex-wrap items-center gap-x-3 gap-y-1"
-        >
-          <span className="text-muted-foreground">{t('runMeals')}</span>
-          {MEALS.map((meal) => (
-            <label key={meal} className="flex min-h-6 items-center gap-1">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={meals.includes(meal)}
-                disabled={fillCoverage}
-                onChange={(e) =>
-                  setMeals((chosen) =>
-                    e.target.checked ? [...chosen, meal] : chosen.filter((one) => one !== meal),
-                  )
-                }
-              />
-              {tMeal(meal)}
-            </label>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor={cuisineId} className="text-muted-foreground">
-            {t('runCuisine')}
-          </label>
-          <select
-            id={cuisineId}
-            value={cuisine}
-            onChange={(e) => setCuisine(e.target.value as Cuisine | '')}
-            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+      <ToolSection title={t('runTitle')} working={running}>
+        <fieldset className="space-y-2 text-xs" disabled={running}>
+          <div
+            role="group"
+            aria-label={t('runDiets')}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1"
           >
-            <option value="">{t('runAnyCuisine')}</option>
-            {CUISINES.map((one) => (
-              <option key={one} value={one}>
-                {tCuisine(one)}
-              </option>
+            <span className="text-muted-foreground">{t('runDiets')}</span>
+            {NAMED_DIETS.map((diet) => (
+              <label key={diet} className="flex min-h-6 items-center gap-1">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={diets.includes(diet)}
+                  disabled={fillCoverage}
+                  onChange={(e) =>
+                    setDiets((chosen) =>
+                      e.target.checked ? [...chosen, diet] : chosen.filter((one) => one !== diet),
+                    )
+                  }
+                />
+                {tDiet(diet)}
+              </label>
             ))}
-          </select>
-          <label htmlFor={methodId} className="text-muted-foreground">
-            {t('runCookingMethod')}
-          </label>
-          <select
-            id={methodId}
-            value={method}
-            onChange={(e) => setMethod(e.target.value as CookingMethod | '')}
-            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+          </div>
+          <div
+            role="group"
+            aria-label={t('runMeals')}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1"
           >
-            <option value="">{t('runAnyCookingMethod')}</option>
-            {COOKING_METHODS.map((one) => (
-              <option key={one} value={one}>
-                {tMethod(one)}
-              </option>
+            <span className="text-muted-foreground">{t('runMeals')}</span>
+            {MEALS.map((meal) => (
+              <label key={meal} className="flex min-h-6 items-center gap-1">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={meals.includes(meal)}
+                  disabled={fillCoverage}
+                  onChange={(e) =>
+                    setMeals((chosen) =>
+                      e.target.checked ? [...chosen, meal] : chosen.filter((one) => one !== meal),
+                    )
+                  }
+                />
+                {tMeal(meal)}
+              </label>
             ))}
-          </select>
-        </div>
-        <p className="text-muted-foreground">{t('runChoiceHint')}</p>
-      </fieldset>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor={cuisineId} className="text-muted-foreground">
+              {t('runCuisine')}
+            </label>
+            <select
+              id={cuisineId}
+              value={cuisine}
+              onChange={(e) => setCuisine(e.target.value as Cuisine | '')}
+              className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+            >
+              <option value="">{t('runAnyCuisine')}</option>
+              {CUISINES.map((one) => (
+                <option key={one} value={one}>
+                  {tCuisine(one)}
+                </option>
+              ))}
+            </select>
+            <label htmlFor={methodId} className="text-muted-foreground">
+              {t('runCookingMethod')}
+            </label>
+            <select
+              id={methodId}
+              value={method}
+              onChange={(e) => setMethod(e.target.value as CookingMethod | '')}
+              className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+            >
+              <option value="">{t('runAnyCookingMethod')}</option>
+              {COOKING_METHODS.map((one) => (
+                <option key={one} value={one}>
+                  {tMethod(one)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground">{t('runChoiceHint')}</p>
+        </fieldset>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor={countId} className="text-xs text-muted-foreground">
-          {t('recipeCount')}
-        </label>
-        <Input
-          id={countId}
-          type="number"
-          min={1}
-          max={25}
-          value={genCount}
-          onChange={(e) => setGenCount(Math.max(1, Math.min(25, Number(e.target.value) || 1)))}
-          className="w-20"
-          disabled={running}
-        />
-        <label htmlFor={scopeId} className="text-xs text-muted-foreground">
-          {t('scopeLabel')}
-        </label>
-        <select
-          id={scopeId}
-          value={scope}
-          onChange={(e) => setScope(e.target.value as 'curated' | 'all')}
-          disabled={running}
-          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-        >
-          <option value="curated">{t('scopeCurated')}</option>
-          <option value="all">{t('scopeAll')}</option>
-        </select>
-        <label className="flex items-center gap-1.5 text-xs" title={t('fillCoverageHint')}>
-          <input
-            type="checkbox"
-            checked={fillCoverage}
-            onChange={(e) => setFillCoverage(e.target.checked)}
-            disabled={running || diets.length > 0 || meals.length > 0}
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor={countId} className="text-xs text-muted-foreground">
+            {t('recipeCount')}
+          </label>
+          <Input
+            id={countId}
+            type="number"
+            min={1}
+            max={25}
+            value={genCount}
+            onChange={(e) => setGenCount(Math.max(1, Math.min(25, Number(e.target.value) || 1)))}
+            className="w-20"
+            disabled={running}
           />
-          {t('fillCoverage')}
-        </label>
-        <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {running
-            ? t('runningRecipes', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
-            : t('generateRecipes')}
-        </Button>
-        {running && (
-          <Button onClick={onStop} variant="outline" className="gap-2">
-            <X className="h-4 w-4" />
-            {t('stop')}
+          <label htmlFor={scopeId} className="text-xs text-muted-foreground">
+            {t('scopeLabel')}
+          </label>
+          <select
+            id={scopeId}
+            value={scope}
+            onChange={(e) => setScope(e.target.value as 'curated' | 'all')}
+            disabled={running}
+            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+          >
+            <option value="curated">{t('scopeCurated')}</option>
+            <option value="all">{t('scopeAll')}</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-xs" title={t('fillCoverageHint')}>
+            <input
+              type="checkbox"
+              checked={fillCoverage}
+              onChange={(e) => setFillCoverage(e.target.checked)}
+              disabled={running || diets.length > 0 || meals.length > 0}
+            />
+            {t('fillCoverage')}
+          </label>
+          <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
+            {running ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {running
+              ? t('runningRecipes', {
+                  processed: runner?.processed ?? 0,
+                  total: runner?.total ?? 0,
+                })
+              : t('generateRecipes')}
           </Button>
-        )}
-        {!running && runner && (runner.processed > 0 || runner.failed > 0) && (
-          <span className="text-xs text-muted-foreground">
-            {t('lastRunRecipes', {
-              written: runner.written,
-              failed: runner.failed,
-              simple: runner.complexityCounts.simple,
-              medium: runner.complexityCounts.medium,
-              complex: runner.complexityCounts.complex,
-            })}
-          </span>
-        )}
-        {runner?.provider && runner.model && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {t('providerChip', { provider: runner.provider, model: runner.model })}
-          </span>
-        )}
-        {runner?.target && (
-          <span className="text-xs text-muted-foreground">
-            {t('runTarget', { diet: tDiet(runner.target.diet), meal: tMeal(runner.target.meal) })}
-          </span>
-        )}
-        {!running && runner?.note && (
-          <span className="text-xs text-muted-foreground">
-            {t(`runNotes.${runner.note}`, { skipped: runner.skipped })}
-          </span>
-        )}
-        {runner?.mixDrift && !running && (
-          <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
-            {t('mixDriftWarning')}
-          </span>
-        )}
-      </div>
+          {running && (
+            <Button onClick={onStop} variant="outline" className="gap-2">
+              <X className="h-4 w-4" />
+              {t('stop')}
+            </Button>
+          )}
+          {!running && runner && (runner.processed > 0 || runner.failed > 0) && (
+            <span className="text-xs text-muted-foreground">
+              {t('lastRunRecipes', {
+                written: runner.written,
+                failed: runner.failed,
+                simple: runner.complexityCounts.simple,
+                medium: runner.complexityCounts.medium,
+                complex: runner.complexityCounts.complex,
+              })}
+            </span>
+          )}
+          {runner?.provider && runner.model && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {t('providerChip', { provider: runner.provider, model: runner.model })}
+            </span>
+          )}
+          {runner?.target && (
+            <span className="text-xs text-muted-foreground">
+              {t('runTarget', { diet: tDiet(runner.target.diet), meal: tMeal(runner.target.meal) })}
+            </span>
+          )}
+          {!running && runner?.note && (
+            <span className="text-xs text-muted-foreground">
+              {t(`runNotes.${runner.note}`, { skipped: runner.skipped })}
+            </span>
+          )}
+          {runner?.mixDrift && !running && (
+            <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
+              {t('mixDriftWarning')}
+            </span>
+          )}
+        </div>
+      </ToolSection>
 
       <RecipeImport onImported={loadDrafts} />
 
@@ -408,9 +425,21 @@ export function RecipePanel() {
           </button>
         ))}
         {sourceFilter === 'AI_USER' && open.length > 0 && (
-          <Button size="sm" variant="outline" onClick={onRejectShown}>
-            {t('rejectShown', { count: open.length })}
-          </Button>
+          <>
+            <label htmlFor={bulkReasonId} className="text-muted-foreground">
+              {t('bulkReason')}
+            </label>
+            <Input
+              id={bulkReasonId}
+              value={bulkReason}
+              onChange={(e) => setBulkReason(e.target.value)}
+              maxLength={500}
+              className="h-8 w-full sm:w-80"
+            />
+            <Button size="sm" variant="outline" onClick={onRejectShown}>
+              {t('rejectShown', { count: open.length })}
+            </Button>
+          </>
         )}
         {rejected && (
           <span className="text-muted-foreground">{t('rejectShownDone', rejected)}</span>

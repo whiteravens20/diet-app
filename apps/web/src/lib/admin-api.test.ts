@@ -210,6 +210,39 @@ describe("the administrator's requests", () => {
     ]);
   });
 
+  it('ask for what waits, and for names to be written again', async () => {
+    const { adminApi, fetchMock } = await aPage();
+    fetchMock.mockImplementation(() => Promise.resolve(answered(200)));
+
+    await adminApi.overview();
+    await adminApi.startIngredientNamer({ scope: 'rejected' });
+    await adminApi.regenerateIngredientNames({
+      scope: 'named',
+      ids: ['one'],
+      reviewedByLabel: 'curator',
+      reason: 'Too general',
+    });
+    await adminApi.regenerateIngredientNames({ scope: 'unapproved', reviewedByLabel: 'curator' });
+
+    expect(
+      fetchMock.mock.calls.map(([url, init]) => [
+        `${(init as RequestInit).method ?? 'GET'} ${url as string}`,
+        (init as RequestInit).body ? JSON.parse((init as RequestInit).body as string) : null,
+      ]),
+    ).toEqual([
+      ['GET /api/admin/drafts/overview', null],
+      ['POST /api/admin/drafts/ingredient-names/generate', { scope: 'rejected' }],
+      [
+        'POST /api/admin/drafts/ingredient-names/regenerate',
+        { scope: 'named', ids: ['one'], reviewedByLabel: 'curator', reason: 'Too general' },
+      ],
+      [
+        'POST /api/admin/drafts/ingredient-names/regenerate',
+        { scope: 'unapproved', reviewedByLabel: 'curator' },
+      ],
+    ]);
+  });
+
   it('ask for the retired ingredients still in use, find one of the catalogue by name, and move what uses one to it', async () => {
     const { adminApi, fetchMock } = await aPage();
     fetchMock.mockImplementation(() => Promise.resolve(answered(200, [])));
