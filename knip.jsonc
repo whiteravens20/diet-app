@@ -1,5 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  // A test makes a pipe with the system's own tool: Node has no call for it.
+  "ignoreBinaries": ["mkfifo"],
   "workspaces": {
     "apps/api": {
       // `start:worker` runs the built `dist/worker.js`; declare the source so

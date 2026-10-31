@@ -33,6 +33,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -91,6 +92,12 @@ export function readManifest(instanceDataDir: string): InstanceManifest | null {
   } catch {
     return null;
   }
+}
+
+/** When the manifest, the last of the files to be written, was written; null where there is none. */
+export function manifestWrittenAt(instanceDataDir: string): Date | null {
+  const path = join(instanceDataDir, MANIFEST_FILE);
+  return existsSync(path) ? statSync(path).mtime : null;
 }
 
 /** The recipe files of the earlier layout, by their names inside the recipes directory. */

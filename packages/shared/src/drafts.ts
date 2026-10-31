@@ -672,6 +672,53 @@ export const InstanceDataState = z.object({
 });
 export type InstanceDataState = z.infer<typeof InstanceDataState>;
 
+/**
+ * The copy of the instance's files in a git repository, as the `mirror` service
+ * last reported it. Never the repository's address, and never text of the git
+ * server: the service gives the API a fixed result.
+ *
+ *  - `off`: the service has reported nothing: it does not run, or has not finished a round;
+ *  - `current`: the copy holds what the instance's files hold;
+ *  - `behind`: the files were written after its last round, and the next takes them;
+ *  - `empty`: the instance holds no recipes and no names of its own, and the
+ *    service leaves the repository as it is;
+ *  - `failed`: the last round did not reach the repository, `failure` says why;
+ *  - `silent`: it has not reported for over three of its rounds;
+ *  - `unreadable`: what it reported cannot be read.
+ */
+export const MirrorState = z.enum([
+  'off',
+  'current',
+  'behind',
+  'empty',
+  'failed',
+  'silent',
+  'unreadable',
+]);
+export type MirrorState = z.infer<typeof MirrorState>;
+
+/** Why a round of the copy did not reach the repository. */
+export const MirrorFailure = z.enum(['clone', 'foreign', 'unreachable', 'push']);
+export type MirrorFailure = z.infer<typeof MirrorFailure>;
+
+export const InstanceMirror = z.object({
+  state: MirrorState,
+  failure: MirrorFailure.nullable(),
+  /** When its last round ran. */
+  checkedAt: z.string().datetime().nullable(),
+  /** When a commit of the copy last reached the repository. */
+  pushedAt: z.string().datetime().nullable(),
+  /** What the repository holds, as its manifest says. */
+  copy: z
+    .object({
+      version: z.string(),
+      recipes: z.number().int().min(0),
+      names: z.number().int().min(0),
+    })
+    .nullable(),
+});
+export type InstanceMirror = z.infer<typeof InstanceMirror>;
+
 /** The ways approved drafts can be shipped on this instance, and how many wait. */
 export const ShipConfig = z.object({
   modes: z.object({

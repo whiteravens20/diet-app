@@ -170,6 +170,10 @@ export const envSchema = z.object({
   // names of ingredients it gave) from the database after every ship, restore
   // and update of the catalogue, and what a restore reads back.
   INSTANCE_DATA_DIR: z.string().default('instance-data'),
+
+  // Where the `mirror` service reports how its copy of those files stands, for
+  // the panel. Read here and written by the service alone.
+  MIRROR_REPORT_DIR: z.string().default('mirror-report'),
 });
 
 /** Sentinel password meaning "admin panel disabled". */

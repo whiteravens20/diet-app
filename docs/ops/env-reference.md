@@ -108,6 +108,7 @@ See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 | Variable            | Default         | Purpose                                                                                                                                                                                                                                                                                                          |
 | ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `INSTANCE_DATA_DIR` | `instance-data` | Where the instance writes its own files (its library of recipes, the names of ingredients it gave, the version that wrote them) from the database after every ship, restore and update of the catalogue, and what a restore in the admin panel reads back. Keep it on a volume and back it up with the database. |
+| `MIRROR_REPORT_DIR` | `mirror-report` | Where the `mirror` service reports how its copy of those files stands, for the admin panel. With Compose it is the volume `mirror-report`, which the service writes and the API only reads.                                                                                                                      |
 
 ## A copy of the instance's own files
 

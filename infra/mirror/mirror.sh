@@ -10,15 +10,18 @@
 # each other.
 #
 # It reads the instance's files and the key, and writes only the clone of the
-# repository and the host key of the git server, taken on the first connection
-# and held to after it. A repository that holds files of something else is
-# refused: a wrong address would otherwise have them deleted by the copy.
+# repository, the host key of the git server, taken on the first connection and
+# held to after it, and a report of each round for the admin panel, without the
+# repository's address or anything the git server said. A repository that holds
+# files of something else is refused: a wrong address would otherwise have them
+# deleted by the copy.
 set -u
 
 : "${MIRROR_REPO:?set MIRROR_REPO in .env: the SSH address of the repository the copy goes to}"
 : "${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which the commits are made by}"
 FILES=${MIRROR_FILES:-/instance}
 STATE=${MIRROR_STATE:-/state}
+REPORT=${MIRROR_REPORT:-/report}
 KEY=${MIRROR_KEY:-/key}
 EVERY=${MIRROR_EVERY:-3600}
 TREE=$STATE/tree
@@ -33,6 +36,27 @@ say() {
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*"
 }
 
+# What the panel shows of the copy: how the round that started at $STARTED ended,
+# when a commit of the copy last reached the repository, and what the repository
+# holds. Each file is written whole, so a reader never finds half of it.
+report() {
+  pushed=null
+  if [ -d "$TREE/.git" ]; then
+    branch=$(git -C "$TREE" symbolic-ref --short HEAD)
+    when=$(TZ=UTC git -C "$TREE" log -1 --fixed-strings --author="$WHO@" \
+      --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd "origin/$branch" 2>/dev/null)
+    [ -n "$when" ] && pushed="\"$when\""
+    if git -C "$TREE" show "origin/$branch:manifest.json" >"$REPORT/copy.writing" 2>/dev/null; then
+      mv "$REPORT/copy.writing" "$REPORT/copy.json"
+    else
+      rm -f "$REPORT/copy.writing" "$REPORT/copy.json"
+    fi
+  fi
+  printf '{"at":"%s","every":%s,"result":"%s","pushedAt":%s}\n' \
+    "$STARTED" "$EVERY" "$1" "$pushed" >"$REPORT/status.writing" &&
+    mv "$REPORT/status.writing" "$REPORT/status.json"
+}
+
 # The clone, made in the first round. An empty repository is taken, and so is
 # one with nothing but a README, or one this copy has written to before.
 clone() {
@@ -40,12 +64,14 @@ clone() {
   rm -rf "$TREE"
   if ! git -c init.defaultBranch=main clone -q "$MIRROR_REPO" "$TREE" 2>"$STATE/clone.log"; then
     say "could not clone $MIRROR_REPO: $(tail -n 1 "$STATE/clone.log")"
+    report clone
     return 1
   fi
   others=$(find "$TREE" -mindepth 1 -maxdepth 1 ! -name .git ! -name README.md | head -n 1)
   if [ -n "$others" ] && ! head -n 1 "$TREE/README.md" 2>/dev/null | grep -q '^# Diet App instance files'; then
     say "$MIRROR_REPO holds files of something else, $(basename "$others") among them: give the copy an empty repository of its own"
     rm -rf "$TREE"
+    report foreign
     return 1
   fi
 }
@@ -78,8 +104,8 @@ copy leaves alone.
 1. Copy the files into the \`instance-data\` volume of the instance.
 2. Start the stack and choose **Update database** in the admin panel, which
    loads the catalogue's own data that the instance's recipes are made of.
-3. In the curation card, under "This instance's own files", choose **Restore
-   from these files**.
+3. On the panel's Catalogue tab, under "This instance's own files", choose
+   **Restore from these files**.
 
 A restore refuses files that a newer version of the application wrote, as
 \`manifest.json\` says: update the application first.
@@ -92,6 +118,7 @@ EOF
 catch_up() {
   if ! git -C "$TREE" fetch -q origin 2>"$STATE/fetch.log"; then
     say "could not reach $MIRROR_REPO: $(tail -n 1 "$STATE/fetch.log")"
+    report unreachable
     return 1
   fi
   branch=$(git -C "$TREE" symbolic-ref --short HEAD)
@@ -101,6 +128,7 @@ catch_up() {
 }
 
 round() {
+  STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   clone || return 1
   catch_up || return 1
   find "$TREE" -mindepth 1 -maxdepth 1 ! -name .git ! -name README.md -exec rm -rf {} +
@@ -109,12 +137,17 @@ round() {
   find "$TREE" -name '*.writing' -exec rm -f {} +
   readme
   git -C "$TREE" add -A
-  git -C "$TREE" diff --cached --quiet && return 0
+  if git -C "$TREE" diff --cached --quiet; then
+    report ok
+    return 0
+  fi
   git -C "$TREE" commit -q -m "Instance files of $(date -u '+%Y-%m-%d %H:%M') UTC"
   if git -C "$TREE" push -q origin HEAD 2>"$STATE/push.log"; then
     say "pushed a commit to $MIRROR_REPO"
+    report ok
   else
     say "could not push to $MIRROR_REPO: $(tail -n 1 "$STATE/push.log")"
+    report push
   fi
 }
 

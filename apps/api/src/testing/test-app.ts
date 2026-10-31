@@ -55,6 +55,7 @@ function environment(modelUrl: string): Record<string, string> {
     ADMIN_PASSWORD: 'integration-test-admin-password',
     SEED_DATA_DIR: catalogueDirectory(),
     INSTANCE_DATA_DIR: mkdtempSync(join(tmpdir(), 'diet-app-instance-')),
+    MIRROR_REPORT_DIR: mkdtempSync(join(tmpdir(), 'diet-app-mirror-report-')),
   };
 }
 

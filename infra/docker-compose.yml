@@ -112,6 +112,9 @@ services:
       # the same moment on one new volume make the first start fail, so
       # `mirror` starts once this one is healthy.
       - instance-data:/app/instance-data
+      # What the `mirror` service reports of its copy, for the panel: the API
+      # only reads it, and gets nothing else of that service.
+      - mirror-report:/app/mirror-report:ro
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -202,6 +205,8 @@ services:
       - instance-data:/instance:ro
       - ./mirror/key:/key:ro
       - mirror-state:/state
+      # How each round ended, which the API reads for the panel.
+      - mirror-report:/report
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]
@@ -232,6 +237,8 @@ volumes:
   instance-data:
   # The mirror's clone of its repository, and the git server's host key.
   mirror-state:
+  # How the mirror's rounds ended: written by it, read by the API.
+  mirror-report:
 
 networks:
   # The mirror's own: it reaches the git server, and nothing of the stack.
