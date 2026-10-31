@@ -15,6 +15,9 @@ export const IMAGERY = {
   recipes: '/imagery/recipes.webp',
   shopping: '/imagery/shopping.webp',
   inventory: '/imagery/inventory.webp',
+  profile: '/imagery/profile.webp',
+  calculator: '/imagery/calculator.webp',
+  settings: '/imagery/settings.webp',
   // Distinct photos for empty states, so they don't echo the page banner.
   emptyDashboard: '/imagery/empty-dashboard.webp',
   emptyMealPlans: '/imagery/empty-meal-plans.webp',

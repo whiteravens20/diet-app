@@ -64,5 +64,5 @@ export function SessionGate({ children }: { children: ReactNode }) {
       </Card>
     );
   }
-  return <Skeleton className="h-40 max-w-2xl" />;
+  return <Skeleton className="h-40" />;
 }

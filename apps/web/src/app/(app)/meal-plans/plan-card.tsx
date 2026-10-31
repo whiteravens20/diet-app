@@ -228,7 +228,7 @@ export function PlanCard({
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
   return (
-    <Card className="relative w-full max-w-screen-2xl">
+    <Card className="relative w-full">
       {/* What the plan is opens it: one control, with the triangle of a list that unfolds beside what it names. On a narrow screen what can be done with the plan goes under it. */}
       <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
         <button

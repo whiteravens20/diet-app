@@ -133,7 +133,7 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
   }
 
   return (
-    <Card className="max-w-4xl">
+    <Card>
       <CardHeader>
         <CardTitle>{tWizard('title')}</CardTitle>
         <p className="text-sm text-muted-foreground">{tWizard('intro')}</p>

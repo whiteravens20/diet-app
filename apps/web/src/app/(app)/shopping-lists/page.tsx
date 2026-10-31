@@ -197,7 +197,7 @@ export default function ShoppingListsPage() {
   // The API has rounded every quantity and named its unit; this spells it.
   const formatItemQty = useAmount();
 
-  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isLoading) return <Skeleton className="h-40" />;
   if (profiles.isError)
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
@@ -244,7 +244,7 @@ export default function ShoppingListsPage() {
       )}
 
       {plans.isLoading ? (
-        <Skeleton className="h-24 max-w-3xl" />
+        <Skeleton className="h-24" />
       ) : planList.length === 0 ? (
         // A list is made from a plan: without one there is nothing to make it from, and the way on is the plan page.
         <EmptyState
@@ -258,7 +258,7 @@ export default function ShoppingListsPage() {
           }
         />
       ) : (
-        <Card className="max-w-3xl">
+        <Card>
           <CardHeader>
             <CardTitle>{t('generate')}</CardTitle>
           </CardHeader>
@@ -313,10 +313,10 @@ export default function ShoppingListsPage() {
         </Card>
       )}
 
-      {error && <p className="max-w-3xl text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {lists.isLoading ? (
-        <Skeleton className="h-24 max-w-3xl" />
+        <Skeleton className="h-24" />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
           <EmptyState

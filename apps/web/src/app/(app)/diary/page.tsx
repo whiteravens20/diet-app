@@ -71,7 +71,7 @@ function isDay(text: string | null): text is string {
  */
 export default function DiaryPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-40 max-w-2xl" />}>
+    <Suspense fallback={<Skeleton className="h-40" />}>
       <DiaryContent />
     </Suspense>
   );
@@ -217,12 +217,12 @@ function DiaryContent() {
     copy.reset();
   };
 
-  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isLoading) return <Skeleton className="h-40" />;
   if (profiles.isError)
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
   if (!active) {
     return (
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
@@ -248,7 +248,7 @@ function DiaryContent() {
   const busy = eat.isPending || rebalance.isPending || remove.isPending;
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="space-y-8">
       <PageBanner image={IMAGERY.diary} title={t('title')} subtitle={t('subhead')} />
 
       {list.length > 1 && (

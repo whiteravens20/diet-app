@@ -20,6 +20,9 @@ share-alike term, so these adaptations impose no additional license obligations.
 | `inventory.webp`  | Fresh Ingredients                                    | Syd Wachs         | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Fresh_Ingredients_(Unsplash).jpg>)                       | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `diary.webp`      | Bagel Heaven                                         | Toa Heftiba       | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Bagel_Heaven_(Unsplash).jpg>)                            | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `favorites.webp`  | A well garnished pizza                               | David Nuescheler  | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:A_well_garnished_pizza_(Unsplash).jpg>)                  | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `profile.webp`    | Apple is measured using a tape measure               | Shixart1985       | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Apple_is_measured_using_a_tape_measure.jpg)               | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
+| `calculator.webp` | Salt and peppers mix in wooden spoons                | Mira Bozhko       | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Salt_and_peppers_mix_in_wooden_spoons_(Unsplash).jpg>)   | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `settings.webp`   | Kitchen drawer                                       | Jarosław Ceborski | [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Kitchen_drawer_(Unsplash).jpg>)                          | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 ## Empty states
 

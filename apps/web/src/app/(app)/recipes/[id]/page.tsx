@@ -30,7 +30,7 @@ export default function RecipeDetailPage() {
     retry: false,
   });
 
-  if (recipe.isLoading) return <Skeleton className="h-64 max-w-2xl" />;
+  if (recipe.isLoading) return <Skeleton className="h-64" />;
 
   if (recipe.error) {
     const notFound = recipe.error instanceof ApiClientError && recipe.error.status === 404;
@@ -50,7 +50,7 @@ export default function RecipeDetailPage() {
 
   const own = !LIBRARY.has(recipe.data!.origin);
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/recipes" className="text-sm text-primary underline underline-offset-2">
           ← {t('back')}

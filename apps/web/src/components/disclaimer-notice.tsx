@@ -29,7 +29,7 @@ export function DisclaimerNotice({
     <aside
       role="note"
       className={
-        'flex max-w-2xl items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm ' +
+        'flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm ' +
         (className ?? '')
       }
     >

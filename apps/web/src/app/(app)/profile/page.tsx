@@ -40,11 +40,13 @@ import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 
 /** Fetched for an account that has no profile yet: nobody else is shown the steps. */
 const FirstProfile = dynamic(() => import('./first-profile').then((steps) => steps.FirstProfile), {
   ssr: false,
-  loading: () => <Skeleton className="h-96 max-w-4xl" />,
+  loading: () => <Skeleton className="h-96" />,
 });
 
 /** A part of the profile form, under a heading of its own. */
@@ -243,25 +245,25 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subhead', { max: maxProfiles })}</p>
-      </header>
+      <PageBanner image={IMAGERY.profile} title={t('title')} subtitle={t('subhead')} />
+      <p className="max-w-2xl text-sm text-muted-foreground">
+        {t('subheadMore', { max: maxProfiles })}
+      </p>
 
       {/* A change that was refused outside the form (a preference, a profile that could not be deleted) is said here: the form shows its own. */}
       {error && !showForm && (
-        <p role="alert" className="max-w-2xl text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
 
       {profiles.isLoading ? (
-        <Skeleton className="h-24 max-w-2xl" />
+        <Skeleton className="h-24" />
       ) : profiles.isError ? (
         <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />
       ) : (
         list.length > 0 && (
-          <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {list.map((p) => (
               <Card key={p.id} className="flex flex-col gap-3 p-4">
                 <div>
@@ -319,7 +321,7 @@ export default function ProfilePage() {
       )}
 
       {made && list.some((p) => p.id === made.id) && (
-        <Card className="max-w-2xl border-primary/40">
+        <Card className="border-primary/40">
           <CardHeader>
             <CardTitle>{tWizard('made', { name: made.name })}</CardTitle>
           </CardHeader>
@@ -336,7 +338,7 @@ export default function ProfilePage() {
       )}
 
       {canCreate && list.length > 0 && (
-        <div className="max-w-2xl">
+        <div>
           <Button
             type="button"
             onClick={() => {
@@ -356,7 +358,7 @@ export default function ProfilePage() {
       )}
 
       {showForm && (
-        <Card className="max-w-2xl">
+        <Card>
           <CardHeader>
             <CardTitle>
               {editing ? t('editing', { name: editing.name }) : t('newProfile')}
@@ -504,7 +506,7 @@ export default function ProfilePage() {
           <h2 className="text-lg font-semibold tracking-tight">{t('preferencesTitle')}</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('preferencesSubhead')}</p>
           {list.map((p) => (
-            <Card key={`prefs-${p.id}`} className="max-w-2xl">
+            <Card key={`prefs-${p.id}`}>
               <CardHeader>
                 <CardTitle className="text-base">{p.name}</CardTitle>
               </CardHeader>

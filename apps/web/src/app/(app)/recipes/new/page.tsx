@@ -11,7 +11,7 @@ export default function NewOwnRecipePage() {
   const t = useTranslations('ownRecipe');
   const tDetail = useTranslations('recipeDetail');
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Link href="/recipes" className="text-sm text-primary underline underline-offset-2">
         ← {tDetail('back')}
       </Link>

@@ -224,7 +224,7 @@ export function ListView({
   }
 
   return (
-    <Card className="max-w-3xl">
+    <Card>
       <div className="flex items-center justify-between gap-4 border-b border-border p-4">
         <div>
           <p className="font-medium">{dateRangeLabel}</p>

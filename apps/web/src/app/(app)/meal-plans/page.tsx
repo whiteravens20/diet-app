@@ -475,7 +475,7 @@ function MealPlansContent() {
   });
   const startDateField = useRef<HTMLInputElement>(null);
 
-  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isLoading) return <Skeleton className="h-40" />;
   if (profiles.isError)
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
@@ -527,12 +527,12 @@ function MealPlansContent() {
         </div>
       )}
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>{active ? t('generateFor', { name: active.name }) : t('generate')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onGenerate} className="space-y-4">
+          <form onSubmit={onGenerate} className="max-w-2xl space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t('startDate')}>
                 <Input
@@ -673,7 +673,7 @@ function MealPlansContent() {
         </CardContent>
       </Card>
 
-      {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {refused && (
         <Button
           type="button"
@@ -693,7 +693,7 @@ function MealPlansContent() {
       )}
       {inTheWay && (
         <div
-          className="max-w-2xl space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+          className="space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           role="alert"
         >
           <p>
@@ -745,7 +745,7 @@ function MealPlansContent() {
       )}
       {notice && (
         <p
-          className="max-w-2xl rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+          className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           role="status"
         >
           {notice}
@@ -755,7 +755,7 @@ function MealPlansContent() {
       <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
 
       {activeId && (
-        <Card className="max-w-3xl">
+        <Card>
           <CardHeader>
             <CardTitle>{t('calendar.title')}</CardTitle>
             <p className="text-sm text-muted-foreground">{t('calendar.lead')}</p>
@@ -866,7 +866,7 @@ function MealPlansContent() {
         </label>
         {session.data && !aiEnabled && <AiOffNote id={aiOffNote} />}
         {plans.isLoading ? (
-          <Skeleton className="h-24 max-w-3xl" />
+          <Skeleton className="h-24" />
         ) : plans.isError ? (
           <LoadFailed error={plans.error} onRetry={() => void plans.refetch()} />
         ) : (plans.data?.items ?? []).length === 0 ? (
@@ -1011,7 +1011,7 @@ function MealPlansContent() {
 
 export default function MealPlansPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-40 max-w-2xl" />}>
+    <Suspense fallback={<Skeleton className="h-40" />}>
       <MealPlansContent />
     </Suspense>
   );

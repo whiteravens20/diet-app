@@ -121,7 +121,7 @@ export default function FavoritesPage() {
   });
   const busy = save.isPending || remove.isPending;
 
-  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isLoading) return <Skeleton className="h-40" />;
   if (profiles.isError)
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
   if (profileList.length === 0) {
@@ -167,7 +167,7 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      <div className="grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('search')}>
           <Input
             value={search}
@@ -231,13 +231,13 @@ export default function FavoritesPage() {
       <p className="max-w-3xl text-xs text-muted-foreground">{t('legend')}</p>
 
       {error && (
-        <p role="alert" className="max-w-3xl text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
 
       {marks.isLoading ? (
-        <Skeleton className="h-24 max-w-3xl" />
+        <Skeleton className="h-24" />
       ) : marks.isError ? (
         <LoadFailed error={marks.error} onRetry={() => void marks.refetch()} />
       ) : list.length === 0 ? (
@@ -258,7 +258,7 @@ export default function FavoritesPage() {
       ) : (
         <>
           <p className="text-sm text-muted-foreground">{t('count', { count: list.length })}</p>
-          <ul className="max-w-3xl space-y-3">
+          <ul className="space-y-3">
             {list.map((kept) => {
               const marked = shown(kept);
               return (

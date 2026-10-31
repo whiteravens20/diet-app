@@ -22,6 +22,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 
 /**
  * The calculator: what a body, an activity, a pace and a diet come to in a
@@ -50,14 +52,11 @@ export default function CalculatorPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">{t('subhead')}</p>
-      </header>
+      <PageBanner image={IMAGERY.calculator} title={t('title')} subtitle={t('subhead')} />
 
       {/* The form waits for the profiles: one that began empty and then filled itself would take what was typed with it. */}
       {profiles.isLoading ? (
-        <Skeleton className="h-96 max-w-4xl" />
+        <Skeleton className="h-96" />
       ) : (
         <>
           {list.length > 0 && (
@@ -91,7 +90,7 @@ export default function CalculatorPage() {
             </div>
           )}
 
-          <div className="grid max-w-4xl items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
             <Card>
               <CardContent className="pt-6">
                 <form

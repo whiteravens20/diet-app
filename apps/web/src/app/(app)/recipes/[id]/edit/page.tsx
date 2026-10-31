@@ -37,7 +37,7 @@ export default function EditOwnRecipePage() {
   });
 
   if (recipe.isLoading || (recipe.data && ingredients.isLoading)) {
-    return <Skeleton className="h-64 max-w-3xl" />;
+    return <Skeleton className="h-64" />;
   }
   if (recipe.error || !recipe.data || LIBRARY.has(recipe.data.origin)) {
     return (
@@ -80,7 +80,7 @@ export default function EditOwnRecipePage() {
   };
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Link
         href={`/recipes/${found.id}`}
         className="text-sm text-primary underline underline-offset-2"

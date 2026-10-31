@@ -214,7 +214,29 @@ export default function RecipesPage() {
 
   return (
     <div className="space-y-8">
-      <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
+      <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')} />
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
+          {(['library', 'mine'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setTab(key);
+                setPage(1);
+              }}
+              className={
+                'rounded px-3 py-1.5 transition ' +
+                (tab === key
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground')
+              }
+            >
+              {t(`tabs.${key}`)}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap items-start gap-2">
           <WriteLink />
           {session.data && activeProfile && (
@@ -224,32 +246,9 @@ export default function RecipesPage() {
             />
           )}
         </div>
-      </PageBanner>
-
-      <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
-        {(['library', 'mine'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              setTab(key);
-              setPage(1);
-            }}
-            className={
-              'rounded px-3 py-1.5 transition ' +
-              (tab === key
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground')
-            }
-          >
-            {t(`tabs.${key}`)}
-          </button>
-        ))}
       </div>
 
-      <div
-        className={tab === 'mine' ? 'hidden' : 'grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3'}
-      >
+      <div className={tab === 'mine' ? 'hidden' : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
         <Field label={t('search')}>
           <Input
             value={search}
@@ -320,11 +319,7 @@ export default function RecipesPage() {
       </div>
 
       {/* The narrower ways to look stay folded until they are wanted; the count says when one of them is at work. */}
-      <details
-        className={
-          tab === 'mine' ? 'hidden' : 'max-w-4xl rounded-md border border-border px-3 py-2'
-        }
-      >
+      <details className={tab === 'mine' ? 'hidden' : 'rounded-md border border-border px-3 py-2'}>
         <summary className="cursor-pointer text-sm font-medium">
           {more > 0 ? t('moreFiltersOn', { count: more }) : t('moreFilters')}
         </summary>

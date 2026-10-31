@@ -94,13 +94,13 @@ export default function InventoryPage() {
     onError: (e) => setError(errorText(e, t('errDelete'))),
   });
 
-  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isLoading) return <Skeleton className="h-40" />;
   if (profiles.isError)
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
     return (
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
@@ -119,7 +119,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+    <div className="space-y-8">
       <PageBanner image={IMAGERY.inventory} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (
