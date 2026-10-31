@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-178 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+181 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -17,6 +17,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/admin/db/import-usda/status` | the administrator | Where the import of foods stands. |  | 200 `FoodImportState` |  |
 | `POST /api/admin/db/update` | the administrator | Start the catalogue update: the data files are loaded into the database, in the background. 409 while one is running; `db/update/status` says where it stands. |  | 202 `CatalogueUpdateState` |  |
 | `GET /api/admin/db/update/status` | the administrator | Where the catalogue update stands. |  | 200 `CatalogueUpdateState` |  |
+| `GET /api/admin/health` | the administrator | How the instance stands: the database, the scheduled tasks, this process of the API, how fast it answers, the AI calls of the rolling 30 days and whether mail is set up. Nothing of an account or an address. |  | 200 `AdminHealth` |  |
 | `GET /api/admin/ingredients` | the administrator | The ingredients of the catalogue whose name holds `search`: what a retired one can be replaced by. | query `IngredientListQuery` | 200 a list of `Ingredient` |  |
 | `POST /api/admin/ingredients/:id/replace` | the administrator | Replace a retired ingredient by one of the catalogue: what uses it moves over, with each amount kept, what is worked out from the ingredients of recipes outside the seed is worked out again, the retired ingredient goes, and the instance's files are written again. The text of a recipe is not changed: one that names the old food is for a person to correct. | `ReplaceIngredientRequest` | 200 `ReplacedIngredient` |  |
 | `GET /api/admin/ingredients/retired` | the administrator | The retired ingredients that something of the instance still uses, with what uses them. |  | 200 a list of `RetiredIngredient` |  |
@@ -45,7 +46,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/admin/drafts/ingredient-names/generate` | the administrator | Start the run that asks a model for names of ingredients. 409 while one is running. | `IngredientNameGenerateSpec` | 202 `DraftRunnerState` | 5 in a minute |
 | `GET /api/admin/drafts/ingredient-names/generate/status` | the administrator | Where the run of names stands. |  | 200 `DraftRunnerState` |  |
 | `POST /api/admin/drafts/ingredient-names/generate/stop` | the administrator | Stop the run of names. What it has written stays. |  | 202 `DraftRunnerState` |  |
+| `POST /api/admin/drafts/ingredient-names/regenerate` | the administrator | Start a run that writes new proposals in place of drafts that wait: those named, or every unapproved one nobody changed by hand. The model is told the old name and the reason. Each old proposal is rejected once its new one is written, so one the model could not name anew still waits, and one a person decided on during the run stays. 409 while a run of names is going. | `IngredientNameRegenerateBody` | 202 `DraftRunnerState` | 5 in a minute |
 | `POST /api/admin/drafts/ingredient-names/reject` | the administrator | Reject up to a hundred drafts of ingredient names with one reason, each in its first language: what the queue is cleared with before the names are written again. Answers which were rejected and which were left out, each with the refusal a single rejection would have got. | `DraftBulkRejectBody` | 200 `RejectedDrafts` |  |
+| `GET /api/admin/drafts/overview` | the administrator | What the administrator has waiting: how many names each way of writing them takes on, how many names and recipes wait for a decision or to ship, and how the copy of the instance's files in a git repository stands. |  | 200 `AdminOverview` |  |
 | `GET /api/admin/drafts/recipes` | the administrator | The recipe drafts, a page at a time, narrowed as asked. | query `RecipeDraftListQuery` | 200 `RecipeDraftPage` |  |
 | `GET /api/admin/drafts/recipes/:id` | the administrator | One recipe draft. |  | 200 `RecipeDraft` |  |
 | `DELETE /api/admin/drafts/recipes/:id` | the administrator | Remove a recipe draft. |  | 204 |  |

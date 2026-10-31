@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 155 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 156 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -17,10 +17,10 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `AI_DRAFT_OFF_TARGET` | 400 | The AI's recipe came out far from the calories you asked for — try again. | Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_UNKNOWN_INGREDIENT` | 400 | AI proposed an ingredient it was not offered — try again. | AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie. |
 | `AI_INSTANCE_LIMIT_REACHED` | 403 | This instance's shared AI requests for the month are used up. | Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. |
-| `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in Settings. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach. |
+| `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in Settings, on the AI tab. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI. |
 | `AI_MONTHLY_LIMIT_REACHED` | 403 | You've used your AI requests for this month. | Skończył się Twój miesięczny limit zapytań AI. |
 | `AI_NEW_ACCOUNTS_LIMIT_REACHED` | 403 | New accounts have used their part of this instance's AI requests for now. Once your account is no longer new, it has its full limit. | Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit. |
-| `AI_NOT_CONFIGURED` | 409 | No AI provider is set up for your account — choose one in Settings. | Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach. |
+| `AI_NOT_CONFIGURED` | 409 | No AI provider is set up for your account — choose one in Settings, on the AI tab. | Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach, w zakładce AI. |
 | `AI_NOT_PERMITTED` | 403 | The instance's AI is not open to your account. | AI instancji nie jest dostępne dla Twojego konta. |
 | `AI_PROVIDER_TIMEOUT` | 503 | AI provider was too slow — try a smaller model or a cloud provider. | Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. |
 | `AI_UNAVAILABLE` | 503 | The AI provider didn't respond — try again in a moment. | Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę. |
@@ -46,6 +46,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `DRAFT_NOT_PROMOTABLE` | 400 | Only user-drafted (AI_USER) recipes can be promoted to curated. | Do biblioteki można przenieść tylko przepisy napisane dla użytkownika przez AI (AI_USER). |
 | `DRAFT_NOT_SHIPPABLE` | 409 | This draft cannot go into the library as it is: | Ten szkic nie może w tej postaci trafić do biblioteki: |
 | `DRAFT_REJECTED` | 409 | This draft was rejected. Only the administrator can reopen it. | Ten szkic został odrzucony. Ponownie otworzyć może go tylko administrator. |
+| `DRAFT_REPLACED` | 409 | This ingredient has a newer proposal or a shipped name, so this draft stays as history. | Ten składnik ma nowszą propozycję albo wysłaną nazwę, więc ten szkic zostaje w historii. |
 | `DRAFT_SHIPPED` | 409 | This draft has already shipped and can't be changed. | Ten szkic został już wysłany i nie można go zmieniać. |
 | `DRAFT_STRUCTURAL_EDIT_FORBIDDEN` | 403 | User-drafted recipes accept translation edits only — promote first to restructure. | W przepisach użytkowników można zmieniać tylko tłumaczenia — żeby zmienić resztę, najpierw przenieś przepis do biblioteki. |
 | `EMAIL_ALREADY_VERIFIED` | 400 | This email address is already verified. | Ten adres e-mail jest już potwierdzony. |

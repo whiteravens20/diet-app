@@ -2,6 +2,11 @@
 
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller.js';
+import { RequestTimes } from './request-times.js';
 
-@Module({ controllers: [HealthController] })
+@Module({
+  controllers: [HealthController],
+  providers: [RequestTimes],
+  exports: [RequestTimes],
+})
 export class HealthModule {}

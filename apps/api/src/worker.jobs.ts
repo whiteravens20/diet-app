@@ -11,6 +11,7 @@ import { NotificationsService } from './notifications/notifications.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
 import { PrismaService } from './prisma/prisma.service.js';
 import { PersonalRecipesService } from './recipes/personal-recipes.service.js';
+import { recordWorkerPass } from './common/worker-pass.js';
 
 /** A job of the worker: what the log calls it, and what it does. */
 export type Job = readonly [name: string, run: () => Promise<unknown>];
@@ -81,12 +82,17 @@ export async function runJobs(
   jobs: readonly Job[],
   logger: Logger,
 ): Promise<void> {
+  let failed = 0;
   for (const [name, run] of jobs) {
     try {
       const ran = await runAlone(prisma, name, async () => void (await run()));
       if (!ran) logger.log(`${name}: running elsewhere, left alone this time.`);
     } catch (err) {
+      failed += 1;
       logger.error(`${name} failed: ${(err as Error).message}`);
     }
   }
+  await recordWorkerPass(prisma, failed).catch((err: unknown) => {
+    logger.error(`The pass could not be recorded: ${(err as Error).message}`);
+  });
 }

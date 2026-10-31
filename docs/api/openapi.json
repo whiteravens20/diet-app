@@ -723,6 +723,50 @@
         }
       }
     },
+    "/api/admin/drafts/ingredient-names/regenerate": {
+      "post": {
+        "operationId": "Drafts_regenerateIngredientNames",
+        "tags": [
+          "admin/drafts"
+        ],
+        "summary": "Start a run that writes new proposals in place of drafts that wait: those named, or every unapproved one nobody changed by hand.",
+        "description": "Start a run that writes new proposals in place of drafts that wait: those named, or every unapproved one nobody changed by hand. The model is told the old name and the reason. Each old proposal is rejected once its new one is written, so one the model could not name anew still waits, and one a person decided on during the run stays. 409 while a run of names is going.\n\nAsked by the administrator.\n\nLimited to 5 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientNameRegenerateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftRunnerState"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 5,
+          "seconds": 60
+        }
+      }
+    },
     "/api/admin/drafts/ingredient-names/reject": {
       "post": {
         "operationId": "Drafts_rejectIngredientNameDrafts",
@@ -753,6 +797,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RejectedDrafts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/drafts/overview": {
+      "get": {
+        "operationId": "Drafts_overview",
+        "tags": [
+          "admin/drafts"
+        ],
+        "summary": "What the administrator has waiting: how many names each way of writing them takes on, how many names and recipes wait for a decision or to ship, and how the copy of the instance's files in a git repository stands.",
+        "description": "What the administrator has waiting: how many names each way of writing them takes on, how many names and recipes wait for a decision or to ship, and how the copy of the instance's files in a git repository stands.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverview"
                 }
               }
             }
@@ -1657,6 +1731,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DraftRunnerState"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/health": {
+      "get": {
+        "operationId": "Admin_health",
+        "tags": [
+          "admin"
+        ],
+        "summary": "How the instance stands: the database, the scheduled tasks, this process of the API, how fast it answers, the AI calls of the rolling 30 days and whether mail is set up.",
+        "description": "How the instance stands: the database, the scheduled tasks, this process of the API, how fast it answers, the AI calls of the rolling 30 days and whether mail is set up. Nothing of an account or an address.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminHealth"
                 }
               }
             }
@@ -8624,6 +8728,188 @@
         ],
         "additionalProperties": false
       },
+      "AdminHealth": {
+        "type": "object",
+        "properties": {
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "up": {
+                "type": "boolean"
+              },
+              "pingMs": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bytes": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "up",
+              "pingMs",
+              "bytes"
+            ],
+            "additionalProperties": false
+          },
+          "worker": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "$ref": "#/components/schemas/WorkerState"
+              },
+              "lastPassAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "failedJobs": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "state",
+              "lastPassAt",
+              "failedJobs"
+            ],
+            "additionalProperties": false
+          },
+          "api": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "startedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "memoryBytes": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "version",
+              "startedAt",
+              "memoryBytes"
+            ],
+            "additionalProperties": false
+          },
+          "requests": {
+            "type": "object",
+            "properties": {
+              "counted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "medianMs": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "p95Ms": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "serverErrors": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "counted",
+              "medianMs",
+              "p95Ms",
+              "serverErrors"
+            ],
+            "additionalProperties": false
+          },
+          "ai": {
+            "type": "object",
+            "properties": {
+              "configured": {
+                "type": "boolean"
+              },
+              "used": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "configured",
+              "used",
+              "limit"
+            ],
+            "additionalProperties": false
+          },
+          "mail": {
+            "type": "object",
+            "properties": {
+              "configured": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "configured"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "checkedAt",
+          "database",
+          "worker",
+          "api",
+          "requests",
+          "ai",
+          "mail"
+        ],
+        "additionalProperties": false
+      },
       "AdminOperatorAi": {
         "type": "object",
         "properties": {
@@ -8642,6 +8928,71 @@
           "access",
           "mailConfigured",
           "approved"
+        ],
+        "additionalProperties": false
+      },
+      "AdminOverview": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "object",
+            "properties": {
+              "missing": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rejected": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pending": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unapproved": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "approved": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "missing",
+              "rejected",
+              "pending",
+              "unapproved",
+              "approved"
+            ],
+            "additionalProperties": false
+          },
+          "recipes": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "approved": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "pending",
+              "approved"
+            ],
+            "additionalProperties": false
+          },
+          "mirror": {
+            "$ref": "#/components/schemas/InstanceMirror"
+          }
+        },
+        "required": [
+          "names",
+          "recipes",
+          "mirror"
         ],
         "additionalProperties": false
       },
@@ -11304,6 +11655,8 @@
           "nothing-imported",
           "not-imported",
           "all-have-drafts",
+          "nothing-to-write-again",
+          "left-as-they-are",
           "coverage-reached",
           "nothing-to-translate"
         ]
@@ -12197,6 +12550,12 @@
           "updatedAt": {
             "type": "string"
           },
+          "edited": {
+            "type": "boolean"
+          },
+          "replaced": {
+            "type": "boolean"
+          },
           "localeReviews": {
             "type": "array",
             "items": {
@@ -12225,6 +12584,8 @@
           "shippedAt",
           "createdAt",
           "updatedAt",
+          "edited",
+          "replaced",
           "localeReviews",
           "pastReviews"
         ],
@@ -12278,6 +12639,7 @@
             "type": "string",
             "enum": [
               "all-usda-missing",
+              "rejected",
               "specific-slugs"
             ]
           },
@@ -12300,6 +12662,40 @@
           }
         },
         "required": [
+          "scope"
+        ]
+      },
+      "IngredientNameRegenerateBody": {
+        "type": "object",
+        "properties": {
+          "reviewedByLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "named",
+              "unapproved"
+            ]
+          },
+          "ids": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "reviewedByLabel",
           "scope"
         ]
       },
@@ -12490,6 +12886,83 @@
           "names",
           "version",
           "notRestored"
+        ],
+        "additionalProperties": false
+      },
+      "InstanceMirror": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/MirrorState"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MirrorFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pushedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string"
+                  },
+                  "recipes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "names": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "version",
+                  "recipes",
+                  "names"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "failure",
+          "checkedAt",
+          "pushedAt",
+          "copy"
         ],
         "additionalProperties": false
       },
@@ -13565,6 +14038,27 @@
           "dinner",
           "snack",
           "second_breakfast"
+        ]
+      },
+      "MirrorFailure": {
+        "type": "string",
+        "enum": [
+          "clone",
+          "foreign",
+          "unreachable",
+          "push"
+        ]
+      },
+      "MirrorState": {
+        "type": "string",
+        "enum": [
+          "off",
+          "current",
+          "behind",
+          "empty",
+          "failed",
+          "silent",
+          "unreadable"
         ]
       },
       "ModelPickNote": {
@@ -19234,6 +19728,15 @@
         "enum": [
           "kg",
           "lb"
+        ]
+      },
+      "WorkerState": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "failing",
+          "silent",
+          "none"
         ]
       },
       "emailAddress": {

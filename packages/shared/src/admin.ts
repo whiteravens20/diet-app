@@ -101,6 +101,50 @@ export const AdminStats = z.object({
 });
 export type AdminStats = z.infer<typeof AdminStats>;
 
+/** How the scheduled tasks stand: they last ran well, some of them failed, they have gone quiet, or they never reported. */
+export const WorkerState = z.enum(['ok', 'failing', 'silent', 'none']);
+export type WorkerState = z.infer<typeof WorkerState>;
+
+/**
+ * How the instance stands, for its administrator: nothing of an account or an
+ * address. The memory and the figures of the requests are those of the process
+ * that answered, when several run.
+ */
+export const AdminHealth = z.object({
+  checkedAt: z.string().datetime(),
+  database: z.object({
+    up: z.boolean(),
+    pingMs: z.number().min(0).nullable(),
+    bytes: z.number().min(0).nullable(),
+  }),
+  worker: z.object({
+    state: WorkerState,
+    lastPassAt: z.string().datetime().nullable(),
+    /** How many jobs failed in that pass. */
+    failedJobs: z.number().int().min(0),
+  }),
+  api: z.object({
+    version: z.string(),
+    startedAt: z.string().datetime(),
+    memoryBytes: z.number().min(0),
+  }),
+  /** Over the latest requests this process answered, the health checks left out. */
+  requests: z.object({
+    counted: z.number().int().min(0),
+    medianMs: z.number().min(0).nullable(),
+    p95Ms: z.number().min(0).nullable(),
+    serverErrors: z.number().int().min(0),
+  }),
+  /** The calls of the operator's provider in the rolling 30 days, against what the instance may make. */
+  ai: z.object({
+    configured: z.boolean(),
+    used: z.number().int().min(0),
+    limit: z.number().int().min(0),
+  }),
+  mail: z.object({ configured: z.boolean() }),
+});
+export type AdminHealth = z.infer<typeof AdminHealth>;
+
 /** Where a long job of the panel stands. */
 export const JobStatus = z.enum(['idle', 'running', 'done', 'error']);
 export type JobStatus = z.infer<typeof JobStatus>;

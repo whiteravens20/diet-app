@@ -21,6 +21,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   AdminConnection,
+  AdminHealth,
   AdminStats,
   AdminStatus,
   CatalogueUpdateState,
@@ -45,6 +46,7 @@ import { parseTrustProxy } from '../config/trust-proxy.js';
 import { COVERAGE_TARGET, MACRO_OUT_OF_REACH } from '../engine/coverage.js';
 import { macroSplitOf } from '../engine/nutrition.js';
 import { IngredientsService } from '../ingredients/ingredients.service.js';
+import { AdminHealthService } from './admin-health.service.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
 import { InstanceFilesService } from './drafts/ship/instance-files.service.js';
 import { retiredIngredientsInUse } from './retired-ingredients.js';
@@ -63,6 +65,7 @@ export class AdminController {
     private readonly coverage: CatalogueCoverageService,
     private readonly ingredients: IngredientsService,
     private readonly files: InstanceFilesService,
+    private readonly instanceHealth: AdminHealthService,
   ) {}
 
   /** Whether the panel is on. Anyone may ask: the page does, before there is a session. */
@@ -109,6 +112,18 @@ export class AdminController {
       countedAsProxy: forwardedFor !== null && clientAddress === peerAddress,
       overTrusted: typeof trustProxy === 'number' && forwardedHops < trustProxy,
     };
+  }
+
+  /**
+   * How the instance stands: the database, the scheduled tasks, this process of
+   * the API, how fast it answers, the AI calls of the rolling 30 days and whether
+   * mail is set up. Nothing of an account or an address.
+   */
+  @Get('health')
+  @UseGuards(AdminSessionGuard)
+  @Answers(AdminHealth)
+  health(): Promise<AdminHealth> {
+    return this.instanceHealth.read();
   }
 
   /** What the catalogue holds: its counts, how many recipes each diet has for each meal and how many drafts wait for each, what the plans of each diet reach, and whether the data files have changed since they were last loaded. */

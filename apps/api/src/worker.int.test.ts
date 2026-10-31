@@ -39,6 +39,35 @@ describe('the worker', () => {
     vi.clearAllMocks();
   });
 
+  describe('says how its pass went, for the administrator', () => {
+    const pass = () => t.prisma.jobState.findUnique({ where: { name: 'worker pass' } });
+
+    it('with the jobs that failed, each failing on its own', async () => {
+      const before = Date.now();
+
+      await runJobs(
+        prisma,
+        [
+          ['first', () => Promise.reject(new Error('no'))],
+          ['second', () => Promise.resolve()],
+          ['third', () => Promise.reject(new Error('no'))],
+        ],
+        logger,
+      );
+
+      const row = await pass();
+      expect(row?.state).toEqual({ failed: 2 });
+      expect(row!.heartbeatAt.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('and starts anew with each pass', async () => {
+      await runJobs(prisma, [['first', () => Promise.reject(new Error('no'))]], logger);
+      await runJobs(prisma, [['first', () => Promise.resolve()]], logger);
+
+      expect((await pass())?.state).toEqual({ failed: 0 });
+    });
+  });
+
   it("starts with what its jobs need, and without the plans and the administrator's runners", () => {
     expect(jobs.length).toBeGreaterThan(0);
     expect(() => worker.get(PlanGenerationService, { strict: false })).toThrow();
