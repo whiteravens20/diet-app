@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -113,6 +113,13 @@ describe('the profile page, on how many profiles an account may hold', () => {
   });
 });
 
+/** A press of the form's save button, once the form takes one: its first figures have to be in. */
+const pressSave = async () => {
+  const button = screen.getByRole('button', { name: messages.profile.saveChanges });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
+};
+
 describe('the profile form, on the custom diet', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -126,7 +133,7 @@ describe('the profile form, on the custom diet', () => {
     const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
     return {
       put,
-      save: () => userEvent.click(screen.getByRole('button', { name: texts.saveChanges })),
+      save: pressSave,
     };
   };
   const share = (part: 'protein' | 'fat' | 'carbs') => screen.getByLabelText(texts.split[part]);
@@ -134,6 +141,26 @@ describe('the profile form, on the custom diet', () => {
     await userEvent.clear(share(part));
     await userEvent.type(share(part), value);
   };
+
+  it('takes no press of save until the first figures have made the panel above it as tall as it gets', async () => {
+    const profile = aProfile('Me');
+    await renderPage([profile], 2);
+    let answer: (figures: unknown) => void = () => {};
+    vi.mocked(api.post).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }) as never,
+    );
+    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
+    const button = screen.getByRole('button', { name: texts.saveChanges });
+
+    expect(button).toBeDisabled();
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(button).toBeDisabled();
+
+    answer(aPreview());
+    await waitFor(() => expect(button).toBeEnabled());
+  });
 
   it("asks for the split only on that diet, and begins with the balanced diet's", async () => {
     await editing(aProfile('Me'));
@@ -213,7 +240,7 @@ describe('the profile form, on the meals with one kind of protein', () => {
     const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
     return {
       put,
-      save: () => userEvent.click(screen.getByRole('button', { name: texts.saveChanges })),
+      save: pressSave,
       sent: () => (put.mock.calls[0]![1] as Profile).preferences,
     };
   };
@@ -477,8 +504,7 @@ describe('the profile form, on the weights of a profile', () => {
       target: screen.getByRole('spinbutton', {
         name: new RegExp(`^Weight to work towards \\(${unit}\\)`),
       }),
-      save: () =>
-        userEvent.click(screen.getByRole('button', { name: messages.profile.saveChanges })),
+      save: pressSave,
     };
   };
 
@@ -647,7 +673,7 @@ describe('the profile form, on what its figures come to', () => {
         expect.objectContaining({ weeklyLossTarget: null }),
       ),
     );
-    await userEvent.click(screen.getByRole('button', { name: texts.saveChanges }));
+    await pressSave();
 
     expect(put.mock.calls[0]![1]).toMatchObject({ weeklyLossTarget: null });
   });

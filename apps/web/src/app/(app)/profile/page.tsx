@@ -477,7 +477,8 @@ export default function ProfilePage() {
               </FormSection>
               <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
               <div className="flex items-center gap-3 sm:col-span-2">
-                <Button type="submit" disabled={save.isPending}>
+                {/* The first figures make the panel above taller: a press as they arrive would come down on the button and go up on what took its place, and nothing would happen. */}
+                <Button type="submit" disabled={save.isPending || shown.waiting}>
                   {save.isPending ? t('saving') : editing ? t('saveChanges') : t('createProfile')}
                 </Button>
                 <Button
