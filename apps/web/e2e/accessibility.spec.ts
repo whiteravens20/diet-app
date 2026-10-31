@@ -98,6 +98,13 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     await expect(
       page.getByLabel(new RegExp(`^${(messages.profile as Record<string, string>).name!}`)),
     ).toBeVisible();
+    // Its button waits for the first figures: the form is judged once they are in, as it stands then.
+    await expect(
+      page.getByRole('button', {
+        name: (messages.profile as Record<string, string>).saveChanges!,
+        exact: true,
+      }),
+    ).toBeEnabled();
 
     expect(await barriers(page)).toEqual([]);
   });
