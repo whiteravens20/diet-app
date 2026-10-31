@@ -220,16 +220,27 @@ const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 export async function barriers(page: Page): Promise<string[]> {
   // Once what is changing has come to its end: WebKit ends even a transition cut short for less motion
   // only at its next frame, and until then a button that has just been enabled is drawn as a disabled one.
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter((animation) =>
-          Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity),
-        )
-        .map((animation) => animation.finished.catch(() => undefined)),
-    ).then(() => undefined),
-  );
+  // What is not drawn is not judged, and nothing is waited for without end: the whole of a test went on this
+  // once, on four projects of a run, and the page is judged as it stands then.
+  const running = await page.evaluate(async () => {
+    const drawn = document
+      .getAnimations()
+      .filter(
+        (animation) =>
+          Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity) &&
+          (animation.effect as KeyframeEffect | null)?.target?.checkVisibility() !== false,
+      );
+    await Promise.race([
+      Promise.all(drawn.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    return drawn
+      .filter((animation) => animation.playState === 'running')
+      .map((animation) =>
+        (animation.effect as KeyframeEffect | null)?.target?.outerHTML.slice(0, 160),
+      );
+  });
+  if (running.length > 0) console.log('Still changing after 3 s:', running);
   const { violations } = await new AxeBuilder({ page }).withTags(RULES).analyze();
   return violations
     .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
