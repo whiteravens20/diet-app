@@ -252,11 +252,10 @@ under the SIL Open Font License 1.1; its files and the licence text are in
 
 ## How the code is written and checked
 
-Diet App is built using AI coding tools. The tools write most of the code, tests and
-documentation; the maintainer decides what gets built and is responsible for everything
-that lands here. The project relies on checks that anyone can inspect, and before the
-first release is published, a group of human testers will try the release candidate at
-the maintainer's request. The project is in early development: there is no release yet
+Diet App is built using AI coding tools. The maintainer decides what gets built and is
+responsible for everything that lands here. The project relies on checks that anyone can
+inspect, and before the first release is published, a group of human testers will try the
+release candidate at the maintainer's request. The project is in early development: there is no release yet
 and no independent security review.
 
 **What a change goes through**
