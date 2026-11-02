@@ -56,9 +56,9 @@ export class DiaryController {
   /**
    * Write an entry for a day of today or at most a year before it, by the
    * client's day (`X-Client-Date`): a recipe in servings, an ingredient in an
-   * amount, or a meal of one's own by its figures, those of its macronutrients
-   * left out estimated from its energy. Its figures are worked out now and
-   * kept. Sent again with the same `Idempotency-Key` within a week, it is
+   * amount, a product in grams or millilitres, or a meal of one's own by its
+   * figures. What a meal of one's own leaves out, or a product's label lacks, is
+   * estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is
    * answered with the entry the first request wrote and writes nothing.
    */
   @Post('entries')

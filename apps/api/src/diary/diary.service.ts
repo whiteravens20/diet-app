@@ -29,6 +29,7 @@ import { storedSplit } from '../common/stored-split.js';
 import {
   calculateCalories,
   estimatedMacros,
+  labelEntryFigures,
   macroSplitOf,
   macrosForCalories,
   nutritionFor,
@@ -106,7 +107,19 @@ type EntryRow = Prisma.DiaryEntryGetPayload<{ include: ReturnType<typeof entryWi
 /** What an entry holds besides where it is: what it is of, its name, its amount and its figures. */
 type Written = Pick<
   Prisma.DiaryEntryUncheckedCreateInput,
-  'kind' | 'recipeId' | 'ingredientId' | 'name' | 'servings' | 'quantity' | 'unit' | 'estimated'
+  | 'kind'
+  | 'recipeId'
+  | 'ingredientId'
+  | 'productId'
+  | 'name'
+  | 'servings'
+  | 'quantity'
+  | 'unit'
+  | 'estimated'
+  | 'fiber'
+  | 'sugars'
+  | 'salt'
+  | 'saturatedFat'
 > &
   Figures;
 
@@ -272,11 +285,14 @@ export class DiaryService {
   ): Promise<DiaryEntry> {
     const row = await this.prisma.diaryEntry.findFirst({ where: { id, profile: { userId } } });
     if (!row) throw entryNotFound();
-    const ingredient = row.kind === 'ingredient';
-    if (change.servings !== undefined && ingredient)
-      throw refused('servings', 'An entry of an ingredient takes a quantity, not servings.');
-    if (change.quantity !== undefined && !ingredient)
-      throw refused('quantity', 'Only an entry of an ingredient takes a quantity.');
+    const inAmount = row.kind === 'ingredient' || row.kind === 'product';
+    if (change.servings !== undefined && inAmount)
+      throw refused(
+        'servings',
+        'An entry of an ingredient or a product takes a quantity, not servings.',
+      );
+    if (change.quantity !== undefined && !inAmount)
+      throw refused('quantity', 'Only an entry of an ingredient or a product takes a quantity.');
     if (change.quantity !== undefined && change.quantity > DIARY_QUANTITY_LIMITS[row.unit!])
       throw refused('quantity', `More than a day holds of one food in ${row.unit}.`);
     const factor =
@@ -292,6 +308,7 @@ export class DiaryService {
         servings: change.servings,
         quantity: change.quantity,
         ...scaledFigures(row, factor),
+        ...scaledLabel(row, factor),
       },
     });
     if (changed.count === 0) throw entryNotFound();
@@ -399,6 +416,7 @@ export class DiaryService {
             kind: entry.kind,
             recipeId: entry.recipeId,
             ingredientId: entry.ingredientId,
+            productId: entry.productId,
             name: entry.name,
             servings: entry.servings,
             quantity: entry.quantity,
@@ -408,6 +426,10 @@ export class DiaryService {
             protein: entry.protein,
             fat: entry.fat,
             carbs: entry.carbs,
+            fiber: entry.fiber,
+            sugars: entry.sugars,
+            salt: entry.salt,
+            saturatedFat: entry.saturatedFat,
           })),
         ];
         // The copies keep their order: the first of them is the first written.
@@ -527,6 +549,23 @@ export class DiaryService {
     };
   }
 
+  /** What a day aims at and the split an estimate of it goes by, read from the plan that holds it. */
+  private async aimOfDay(
+    profile: DiaryProfile,
+    date: string,
+  ): Promise<ReturnType<DiaryService['aimOf']>> {
+    const planDay = await this.prisma.mealPlanDay.findFirst({
+      where: { date: new Date(date), plan: { profileId: profile.id } },
+      orderBy: [...MADE_LAST],
+      select: {
+        calorieTarget: true,
+        overrides: true,
+        plan: { select: { dietType: true, macroSplit: true } },
+      },
+    });
+    return this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+  }
+
   /** What an entry asked for holds, worked out now from what it is of. */
   private async written(
     userId: string,
@@ -616,17 +655,37 @@ export class DiaryService {
       };
     }
 
+    if (req.kind === 'product') {
+      const product = await this.prisma.product.findUnique({ where: { id: req.productId } });
+      if (!product) {
+        throw new NotFoundException({
+          error: 'PRODUCT_NOT_FOUND',
+          message: 'No product with this code is known.',
+        });
+      }
+      const figures = labelEntryFigures(
+        product,
+        req.quantity,
+        (await this.aimOfDay(profile, req.date)).split,
+      );
+      if (!figures) {
+        throw new ConflictException({
+          error: 'PRODUCT_WITHOUT_FIGURES',
+          message: 'The label of this product gives no energy: write it as a meal of your own.',
+        });
+      }
+      return {
+        kind: 'product',
+        productId: req.productId,
+        name: product.brand ? `${product.name}, ${product.brand}` : product.name,
+        quantity: req.quantity,
+        unit: product.unit,
+        ...figures,
+      };
+    }
+
     const { calories, ...known } = req.nutrition;
-    const planDay = await this.prisma.mealPlanDay.findFirst({
-      where: { date: new Date(req.date), plan: { profileId: profile.id } },
-      orderBy: [...MADE_LAST],
-      select: {
-        calorieTarget: true,
-        overrides: true,
-        plan: { select: { dietType: true, macroSplit: true } },
-      },
-    });
-    const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+    const aim = await this.aimOfDay(profile, req.date);
     const macros = estimatedMacros(calories, known, aim.split);
     if (!macros) {
       throw new BadRequestException({
@@ -662,6 +721,7 @@ export class DiaryService {
       name,
       recipeId: recipe ? row.recipeId : null,
       ingredientId: row.ingredientId,
+      productId: row.productId,
       servings: row.servings,
       amount:
         row.quantity !== null && row.unit !== null
@@ -676,10 +736,47 @@ export class DiaryService {
             }
           : null,
       nutrition: wholeFigures(row),
+      label:
+        row.kind === 'product'
+          ? {
+              fiber: tenths(row.fiber),
+              sugars: tenths(row.sugars),
+              salt: tenths(row.salt),
+              saturatedFat: tenths(row.saturatedFat),
+            }
+          : null,
       estimated: row.estimated,
       createdAt: row.createdAt.toISOString(),
     };
   }
+}
+
+/** A figure of a label as a person reads it: a grain of salt is told by its tenth. */
+const tenths = (grams: number | null): number | null =>
+  grams === null ? null : Math.round(grams * 10) / 10;
+
+/** What an entry's label says for another amount of it. */
+function scaledLabel(
+  row: {
+    fiber: number | null;
+    sugars: number | null;
+    salt: number | null;
+    saturatedFat: number | null;
+  },
+  factor: number,
+): {
+  fiber: number | null;
+  sugars: number | null;
+  salt: number | null;
+  saturatedFat: number | null;
+} {
+  const scaled = (grams: number | null): number | null => (grams === null ? null : grams * factor);
+  return {
+    fiber: scaled(row.fiber),
+    sugars: scaled(row.sugars),
+    salt: scaled(row.salt),
+    saturatedFat: scaled(row.saturatedFat),
+  };
 }
 
 /** One serving of a recipe, as the engine worked it out when the recipe was saved. */

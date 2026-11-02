@@ -141,6 +141,7 @@ export class AccountExportService {
         name: entry.name,
         recipeId: entry.recipeId,
         ingredientId: entry.ingredientId,
+        productId: entry.productId,
         servings: entry.servings,
         quantity: entry.quantity,
         unit: entry.unit,
@@ -151,6 +152,16 @@ export class AccountExportService {
           fat: entry.fat,
           carbs: entry.carbs,
         },
+        // What the label of a product says beside them, for the amount it holds.
+        label:
+          entry.kind === 'product'
+            ? {
+                fiber: entry.fiber,
+                sugars: entry.sugars,
+                salt: entry.salt,
+                saturatedFat: entry.saturatedFat,
+              }
+            : null,
         estimated: entry.estimated,
         createdAt: entry.createdAt.toISOString(),
       }),

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 156 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 164 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -119,6 +119,14 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PLAN_CHANGED` | 409 | The plan changed in the meantime. It has been reloaded; try again. | Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie. |
 | `PLAN_NEEDS_RELAXATION` | 422 | The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for. | Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie. |
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |
+| `PRODUCT_IMPORT_NO_COUNTRIES` | 409 | The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance. | Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie. |
+| `PRODUCT_IMPORT_RUNNING` | 409 | An import is running. | Import właśnie trwa. |
+| `PRODUCT_IMPORT_TOO_SOON` | 409 | The last import of these countries began less than 24 hours ago. | Ostatni import tych krajów zaczął się mniej niż 24 godziny temu. |
+| `PRODUCT_LOOKUPS_BUSY` | 429 | Too many new codes at once: try again in a minute. | Za dużo nowych kodów naraz: spróbuj za minutę. |
+| `PRODUCT_LOOKUPS_USED_UP` | 429 | That is all the new codes an account can check in 24 hours. Products this instance knows still work. | Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej. |
+| `PRODUCT_NOT_FOUND` | 404 | No product with this code is known. | Nie znamy produktu o tym kodzie. |
+| `PRODUCT_SOURCE_UNAVAILABLE` | 503 | Open Food Facts is not answering just now: try later, or write it as a meal of your own. | Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek. |
+| `PRODUCT_WITHOUT_FIGURES` | 409 | The label of this product gives no energy: write it as a meal of your own. | Etykieta tego produktu nie podaje energii: wpisz go jako własny posiłek. |
 | `PROFILE_LIMIT_REACHED` | 409 | You've reached the maximum number of profiles. | Osiągnięto maksymalną liczbę profili. |
 | `PROFILE_NOT_FOUND` | 404 | Profile not found. | Nie znaleziono profilu. |
 | `QUANTITY_TOO_LARGE` | 400 | That quantity is larger than a kitchen holds. Check the number. | Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę. |

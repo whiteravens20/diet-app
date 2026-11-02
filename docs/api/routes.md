@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-181 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+185 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -23,6 +23,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/admin/ingredients/retired` | the administrator | The retired ingredients that something of the instance still uses, with what uses them. |  | 200 a list of `RetiredIngredient` |  |
 | `GET /api/admin/instance-settings` | the administrator | What an administrator sets for the instance in the panel: whether reviewers may sign in, and whether their password is set. |  | 200 `InstanceSettingsDto` |  |
 | `PATCH /api/admin/instance-settings` | the administrator | Change those settings. | `InstanceSettingsPatchBody` | 200 `InstanceSettingsDto` |  |
+| `GET /api/admin/products` | the administrator | The settings of lookups and of the import, what the instance holds, and how the last import went. |  | 200 `AdminProducts` |  |
+| `POST /api/admin/products/import` | the administrator | Ask for an import now, instead of at night: the worker begins it within a minute. Refused while one runs, and within 24 hours of the last start unless the settings name other countries now. |  | 204 | 5 in a minute |
 | `GET /api/admin/session` | anyone | What the admin pages ask first. Says nothing but whether a panel exists, whether this browser is in, and whether signing in takes a code. |  | 200 `AdminSessionState` |  |
 | `POST /api/admin/session` | anyone | Sign the administrator in: the password, and a code where the second factor is on. The session is a cookie. | `AdminSignInRequest` | 204 | 10 in a minute |
 | `DELETE /api/admin/session` | anyone | Sign out of this browser. |  | 204 |  |
@@ -117,7 +119,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 |---|---|---|---|---|---|
 | `POST /api/diary/copy` | an account | Copy what was eaten on one day into another of today or at most a year before it: the entries of the day, and the meals its plan marked as eaten, which come in as entries. Nothing is copied where the day would then hold more than the most. Sent again with the same `Idempotency-Key` within a week, it is answered with the day as it is now and copies nothing. | `CopyDiaryDayRequest` | 201 `DiaryCopyResult` | 20 in a minute |
 | `GET /api/diary/day` | an account | A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten. | query `DiaryDayQuery` | 200 `DiaryDay` |  |
-| `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
+| `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures. What a meal of one's own leaves out, or a product's label lacks, is estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
 | `DELETE /api/diary/entries/:id` | an account | Remove an entry. |  | 204 | 60 in a minute |
 | `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
 
@@ -198,6 +200,13 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/notifications/:id/read` | an account | Mark a notification as read. |  | 204 |  |
 | `POST /api/notifications/read-all` | an account | Mark every notification of the account as read, and say how many there were. |  | 200 `Updated` |  |
 | `GET /api/notifications/unread` | an account | The notifications of the account that are not read yet. |  | 200 a list of `Notification` |  |
+
+## products
+
+| Route | Asked by | What it does | Takes | Answers | Limit |
+|---|---|---|---|---|---|
+| `GET /api/products` | an account | Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first. A search never leaves the instance. | query `ProductSearchQuery` | 200 `ProductSearchResult` | 30 in a minute |
+| `GET /api/products/code/:code` | an account | The product of an EAN or UPC code. A code the instance does not hold is asked of Open Food Facts, in the instance's name, where the instance does that: an account asks at most 5 such codes a minute and 100 in 24 hours, the instance at most 12 a minute, and a code Open Food Facts does not know is not asked again for 7 days. |  | 200 `Product` | 30 in a minute |
 
 ## profiles
 

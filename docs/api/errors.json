@@ -999,6 +999,78 @@
       "pl": "Nie znaleziono planu posiłków."
     }
   },
+  "PRODUCT_IMPORT_NO_COUNTRIES": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
+      "pl": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie."
+    }
+  },
+  "PRODUCT_IMPORT_RUNNING": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "An import is running.",
+      "pl": "Import właśnie trwa."
+    }
+  },
+  "PRODUCT_IMPORT_TOO_SOON": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The last import of these countries began less than 24 hours ago.",
+      "pl": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
+    }
+  },
+  "PRODUCT_LOOKUPS_BUSY": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "Too many new codes at once: try again in a minute.",
+      "pl": "Za dużo nowych kodów naraz: spróbuj za minutę."
+    }
+  },
+  "PRODUCT_LOOKUPS_USED_UP": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
+      "pl": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej."
+    }
+  },
+  "PRODUCT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "No product with this code is known.",
+      "pl": "Nie znamy produktu o tym kodzie."
+    }
+  },
+  "PRODUCT_SOURCE_UNAVAILABLE": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "Open Food Facts is not answering just now: try later, or write it as a meal of your own.",
+      "pl": "Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek."
+    }
+  },
+  "PRODUCT_WITHOUT_FIGURES": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The label of this product gives no energy: write it as a meal of your own.",
+      "pl": "Etykieta tego produktu nie podaje energii: wpisz go jako własny posiłek."
+    }
+  },
   "PROFILE_LIMIT_REACHED": {
     "statuses": [
       409

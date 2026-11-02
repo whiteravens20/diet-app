@@ -120,6 +120,8 @@ describe('deleting an account', () => {
         carbs: 50,
       },
     });
+    // That it asked Open Food Facts about a code.
+    await t.prisma.productLookup.create({ data: { userId: user.id } });
     await t.prisma.notification.create({
       data: { profileId: second.id, type: 'weight_reminder', payload: { profileId: second.id } },
     });
@@ -303,6 +305,7 @@ describe('deleting an account', () => {
       'WeightEntry.profileId',
       'DiaryEntry.profileId',
       'DiaryEntry.recipeId',
+      'ProductLookup.userId',
       'SecondFactor.userId',
       'RecoveryCode.secondFactorId',
       'SignInChallenge.userId',

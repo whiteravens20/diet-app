@@ -1996,6 +1996,63 @@
         }
       }
     },
+    "/api/admin/products": {
+      "get": {
+        "operationId": "AdminProducts_overview",
+        "tags": [
+          "admin"
+        ],
+        "summary": "The settings of lookups and of the import, what the instance holds, and how the last import went.",
+        "description": "The settings of lookups and of the import, what the instance holds, and how the last import went.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProducts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/products/import": {
+      "post": {
+        "operationId": "AdminProducts_askForImport",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Ask for an import now, instead of at night: the worker begins it within a minute.",
+        "description": "Ask for an import now, instead of at night: the worker begins it within a minute. Refused while one runs, and within 24 hours of the last start unless the settings name other countries now.\n\nAsked by the administrator.\n\nLimited to 5 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 5,
+          "seconds": 60
+        }
+      }
+    },
     "/api/admin/session": {
       "get": {
         "operationId": "AdminSession_state",
@@ -3171,8 +3228,8 @@
         "tags": [
           "diary"
         ],
-        "summary": "Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy.",
-        "description": "Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "summary": "Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures.",
+        "description": "Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures. What a meal of one's own leaves out, or a product's label lacks, is estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -5835,6 +5892,97 @@
           "default": {
             "$ref": "#/components/responses/Refused"
           }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "operationId": "Products_search",
+        "tags": [
+          "products"
+        ],
+        "summary": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first.",
+        "description": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first. A search never leaves the instance.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSearchResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/products/code/{code}": {
+      "get": {
+        "operationId": "Products_byCode",
+        "tags": [
+          "products"
+        ],
+        "summary": "The product of an EAN or UPC code.",
+        "description": "The product of an EAN or UPC code. A code the instance does not hold is asked of Open Food Facts, in the instance's name, where the instance does that: an account asks at most 5 such codes a minute and 100 in 24 hours, the instance at most 12 a minute, and a code Open Food Facts does not know is not asked again for 7 days.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
         }
       }
     },
@@ -8996,6 +9144,82 @@
         ],
         "additionalProperties": false
       },
+      "AdminProducts": {
+        "type": "object",
+        "properties": {
+          "lookups": {
+            "type": "boolean"
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "held": {
+            "type": "object",
+            "properties": {
+              "imported": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lookedUp": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unknownCodes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "imported",
+              "lookedUp",
+              "unknownCodes"
+            ],
+            "additionalProperties": false
+          },
+          "lookupsToday": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "import": {
+            "$ref": "#/components/schemas/ProductImportState"
+          },
+          "askedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "askAgainAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "lookups",
+          "countries",
+          "held",
+          "lookupsToday",
+          "import",
+          "askedAt",
+          "askAgainAt"
+        ],
+        "additionalProperties": false
+      },
       "AdminSecondFactorOffRequest": {
         "type": "object",
         "properties": {
@@ -10730,6 +10954,42 @@
               },
               "kind": {
                 "type": "string",
+                "const": "product"
+              },
+              "productId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "quantity": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 5000
+              }
+            },
+            "required": [
+              "profileId",
+              "date",
+              "mealType",
+              "kind",
+              "productId",
+              "quantity"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "date": {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "kind": {
+                "type": "string",
                 "const": "meal"
               },
               "name": {
@@ -11416,6 +11676,17 @@
               }
             ]
           },
+          "productId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "servings": {
             "type": [
               "number",
@@ -11452,6 +11723,16 @@
           "nutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelNutrients"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "estimated": {
             "type": "boolean"
           },
@@ -11469,9 +11750,11 @@
           "name",
           "recipeId",
           "ingredientId",
+          "productId",
           "servings",
           "amount",
           "nutrition",
+          "label",
           "estimated",
           "createdAt"
         ],
@@ -11482,6 +11765,7 @@
         "enum": [
           "recipe",
           "ingredient",
+          "product",
           "meal"
         ]
       },
@@ -13144,6 +13428,42 @@
           "perDay",
           "perWeek"
         ]
+      },
+      "LabelNutrients": {
+        "type": "object",
+        "properties": {
+          "fiber": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sugars": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "salt": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "saturatedFat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fiber",
+          "sugars",
+          "salt",
+          "saturatedFat"
+        ],
+        "additionalProperties": false
       },
       "ListProposal": {
         "oneOf": [
@@ -15367,6 +15687,144 @@
           "csp-report"
         ]
       },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/ProductUnit"
+          },
+          "packAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "servingAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "fiber": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sugars": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "salt": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "saturatedFat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "calories": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "protein": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "fiber",
+              "sugars",
+              "salt",
+              "saturatedFat",
+              "calories",
+              "protein",
+              "fat",
+              "carbs"
+            ],
+            "additionalProperties": false
+          },
+          "energyWorkedOut": {
+            "type": "boolean"
+          },
+          "doubtful": {
+            "type": "boolean"
+          },
+          "changedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "brand",
+          "pack",
+          "unit",
+          "packAmount",
+          "servingAmount",
+          "per100",
+          "energyWorkedOut",
+          "doubtful",
+          "changedAt"
+        ],
+        "additionalProperties": false
+      },
       "ProductCategory": {
         "type": "string",
         "enum": [
@@ -15383,6 +15841,154 @@
           "pantry",
           "beverages",
           "other"
+        ]
+      },
+      "ProductImportFailure": {
+        "type": "string",
+        "enum": [
+          "source",
+          "format",
+          "nothing",
+          "shrunk"
+        ]
+      },
+      "ProductImportState": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductImportFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "perCountry": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "read": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leftOut": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "name": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "figures": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "figures"
+            ],
+            "additionalProperties": false
+          },
+          "added": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "changed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "removed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "status",
+          "startedAt",
+          "finishedAt",
+          "error",
+          "reason",
+          "countries",
+          "perCountry",
+          "read",
+          "leftOut",
+          "added",
+          "changed",
+          "removed"
+        ],
+        "additionalProperties": false
+      },
+      "ProductSearchResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ProductUnit": {
+        "type": "string",
+        "enum": [
+          "g",
+          "ml"
         ]
       },
       "Profile": {
@@ -16314,6 +16920,22 @@
             ],
             "additionalProperties": false
           },
+          "products": {
+            "type": "object",
+            "properties": {
+              "offered": {
+                "type": "boolean"
+              },
+              "lookups": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "offered",
+              "lookups"
+            ],
+            "additionalProperties": false
+          },
           "plans": {
             "type": "object",
             "properties": {
@@ -16369,6 +16991,7 @@
           "instance",
           "catalogue",
           "accounts",
+          "products",
           "plans"
         ],
         "additionalProperties": false

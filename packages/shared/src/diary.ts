@@ -4,22 +4,23 @@ import * as z from './zod.js';
 import { DIARY_QUANTITY_LIMITS, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
 import { CalendarDay, DisplayAmount, MealType, Unit } from './enums.js';
 import { EnteredNutrition, Nutrition } from './nutrition.js';
+import { LabelNutrients } from './product.js';
 
 /**
  * The diary of a profile: what it ate on a day, planned or not.
  *
  * A day is the meals of the plan that holds it, as far as they are marked as
  * eaten, and the entries written for it: a recipe of the library or of the
- * account's own in servings, an ingredient of the catalogue in an amount, or a
- * meal of one's own by its figures. An entry keeps the figures worked out
- * when it was written, so that a later change of the catalogue does not
- * rewrite what was eaten. An entry changes nothing in a plan; a rebalance of
+ * account's own in servings, an ingredient of the catalogue in an amount, a
+ * product with a barcode in an amount, or a meal of one's own by its figures.
+ * An entry keeps the figures worked out when it was written, so that a later
+ * change of the catalogue or of a label does not rewrite what was eaten. An entry changes nothing in a plan; a rebalance of
  * the plan's day, and whatever fills it again, counts the day's entries as
  * eaten.
  */
 
 /** What an entry is of. */
-export const DiaryEntryKind = z.enum(['recipe', 'ingredient', 'meal']);
+export const DiaryEntryKind = z.enum(['recipe', 'ingredient', 'product', 'meal']);
 export type DiaryEntryKind = z.infer<typeof DiaryEntryKind>;
 
 /** Servings of a recipe or of a meal of one's own, as an entry holds them. */
@@ -56,7 +57,8 @@ const EntryPlace = z.object({
 
 /**
  * An entry written for a day: a recipe in servings, an ingredient of the
- * catalogue in an amount, or a meal of one's own by its figures.
+ * catalogue in an amount, a product in grams or millilitres, whichever it is
+ * measured in, or a meal of one's own by its figures.
  */
 export const CreateDiaryEntryRequest = z.discriminatedUnion('kind', [
   EntryPlace.extend({
@@ -70,6 +72,11 @@ export const CreateDiaryEntryRequest = z.discriminatedUnion('kind', [
     amount: IngredientAmount,
   }),
   EntryPlace.extend({
+    kind: z.literal('product'),
+    productId: z.string().uuid(),
+    quantity: z.number().gt(0).max(DIARY_QUANTITY_LIMITS.g),
+  }),
+  EntryPlace.extend({
     kind: z.literal('meal'),
     name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name),
     servings: Servings.default(1),
@@ -81,7 +88,8 @@ export type CreateDiaryEntryRequest = z.infer<typeof CreateDiaryEntryRequest>;
 /**
  * A change of an entry: the meal it is under, and how much of it there was:
  * servings for a recipe or a meal of one's own, a quantity in its own unit
- * for an ingredient. Its figures change in proportion to the amount.
+ * for an ingredient or a product. Its figures change in proportion to the
+ * amount.
  */
 export const UpdateDiaryEntryRequest = z
   .object({
@@ -108,22 +116,27 @@ export const DiaryEntry = z.object({
   /**
    * What it is: the recipe's title or the ingredient's name in the reader's
    * language while it is there, otherwise the name it had when it was written.
+   * A product is called what it was called when the entry was written.
    */
   name: z.string(),
   /** The recipe or the ingredient it is of, while they are there. */
   recipeId: z.string().uuid().nullable(),
   ingredientId: z.string().uuid().nullable(),
-  /** Servings of a recipe or of a meal of one's own; null for an ingredient. */
+  /** The product it is of, while the instance holds it. */
+  productId: z.string().uuid().nullable(),
+  /** Servings of a recipe or of a meal of one's own; null for an ingredient or a product. */
   servings: z.number().nullable(),
   /**
-   * The amount of an ingredient as it was given, and the same amount in the
-   * words a person reads it in, a piece by what the ingredient calls it; null
-   * for the other kinds.
+   * The amount of an ingredient or a product as it was given, and the same
+   * amount in the words a person reads it in, a piece by what the ingredient
+   * calls it; null for the other kinds.
    */
   amount: z.object({ quantity: z.number(), unit: Unit, shown: DisplayAmount }).nullable(),
   /** What it comes to, as it was worked out when it was written. */
   nutrition: Nutrition,
-  /** Its macronutrients were estimated: a meal of one's own written by its energy. */
+  /** What the label of a product says beside them, for the amount; null for the other kinds. */
+  label: LabelNutrients.nullable(),
+  /** A figure was estimated: of a meal written by its energy, or of a product whose label lacks it. */
   estimated: z.boolean(),
   createdAt: z.string().datetime(),
 });
