@@ -607,7 +607,11 @@
     "applyPickDays": "Pick days",
     "applyAllDays": "All days",
     "applyConfirm": "Apply",
-    "applied": "Applied {label} to {count, plural, one {{count, number, ::group-off} day} other {{count, number, ::group-off} days}}."
+    "applied": "Applied {label} to {count, plural, one {{count, number, ::group-off} day} other {{count, number, ::group-off} days}}.",
+    "applyCookingNote": "A dish cooked for two days changes on its second day too.",
+    "applyOnlyChosen": "The chosen days only",
+    "applyOwnMealNote": "A set also replaces meals of your own at those times of day.",
+    "applyNoDays": "Every day of this plan is over."
   },
   "admin": {
     "title": "Diet App · Admin",

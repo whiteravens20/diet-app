@@ -607,7 +607,11 @@
     "applyPickDays": "Wybierz dni",
     "applyAllDays": "Wszystkie dni",
     "applyConfirm": "Zastosuj",
-    "applied": "Zastosowano {label} do {count, plural, one {{count, number, ::group-off} dnia} few {{count, number, ::group-off} dni} many {{count, number, ::group-off} dni} other {{count, number, ::group-off} dni}}."
+    "applied": "Zastosowano {label} do {count, plural, one {{count, number, ::group-off} dnia} few {{count, number, ::group-off} dni} many {{count, number, ::group-off} dni} other {{count, number, ::group-off} dni}}.",
+    "applyCookingNote": "Dania ugotowane na dwa dni zmienią się też drugiego dnia.",
+    "applyOnlyChosen": "Tylko wybrane dni",
+    "applyOwnMealNote": "Zestaw zastąpi też własne posiłki tych pór dnia.",
+    "applyNoDays": "Wszystkie dni tego planu minęły."
   },
   "admin": {
     "title": "Diet App · Administracja",
