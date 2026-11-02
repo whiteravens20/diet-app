@@ -174,9 +174,26 @@ export function estimatedMacros(
   known: Partial<Macros>,
   split: Macros,
 ): Macros | null {
-  const parts = ['protein', 'fat', 'carbs'] as const;
-  const knownKcal = parts.reduce((sum, part) => sum + (known[part] ?? 0) * KCAL_PER_GRAM[part], 0);
+  const knownKcal = kcalOfMacros(known);
   if (knownKcal > calories * (1 + TYPED_ENERGY_SLACK.share) + TYPED_ENERGY_SLACK.kcal) return null;
+  return filledMacros(calories, known, split);
+}
+
+const MACRO_PARTS = ['protein', 'fat', 'carbs'] as const;
+
+/** The energy in the macronutrients that are known. */
+function kcalOfMacros(known: Partial<Macros>): number {
+  return MACRO_PARTS.reduce((sum, part) => sum + (known[part] ?? 0) * KCAL_PER_GRAM[part], 0);
+}
+
+/**
+ * The macronutrients of something known by its energy and by some of them:
+ * those left out share what is left of the energy, in the proportions `split`
+ * gives them, and get nothing where the ones given already carry all of it.
+ */
+export function filledMacros(calories: number, known: Partial<Macros>, split: Macros): Macros {
+  const knownKcal = kcalOfMacros(known);
+  const parts = MACRO_PARTS;
   const missing = parts.filter((part) => known[part] === undefined);
   const missingShare = missing.reduce((sum, part) => sum + split[part], 0);
   const left = Math.max(0, calories - knownKcal);
