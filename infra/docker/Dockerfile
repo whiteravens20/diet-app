@@ -105,7 +105,7 @@ COPY --from=build /app/docs/api ./docs/api
 # mount path in the image; without this the volume (and a bind-mount
 # mountpoint) defaults to root:root, and the API, which runs as `node`, gets
 # EACCES writing the files it exports there (manifest.json,
-# recipes/library.json, ingredient-overrides.json).
+# recipes/library.json, ingredient-overrides.json, products.json).
 RUN mkdir -p /app/instance-data/recipes && chown -R node:node /app/instance-data
 
 # The web front-end lives under /web: the Next.js standalone bundle (server.js
