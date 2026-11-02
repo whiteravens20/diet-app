@@ -715,6 +715,17 @@ export function PlanCard({
                         hidden={!actionsOpen}
                         className="ml-3 flex flex-wrap items-center gap-x-1"
                       >
+                        {parted && dayBefore && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSwapToFavorite(m.id, parted.recipe!.id, false)}
+                            disabled={busy}
+                          >
+                            {t('cooking.same', { day: fmt.weekday(dayBefore.date) })}
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -798,6 +809,7 @@ export function PlanCard({
                         aria-label={t('removeTitle', { title })}
                       >
                         <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
+                        {apart && <p>{apart}</p>}
                         <div className="flex flex-wrap gap-2 pt-1">
                           <Button
                             type="button"
@@ -1290,6 +1302,7 @@ export function PlanCard({
             id: meal.id,
             mealType: meal.mealType,
             title: meal.recipe?.title ?? meal.customName ?? t('customMeal'),
+            apart: cookWords.apart(meal, customDay, today),
           }))}
           onClose={() => setCustomDay(null)}
           onSubmit={(body) => {

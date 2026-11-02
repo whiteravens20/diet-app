@@ -939,7 +939,11 @@ describe('the plan page, when a plan is made again', () => {
 });
 
 describe('the plan page, when another recipe is asked for in the place of a meal', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -1135,7 +1139,11 @@ describe('the list of plans on the plan page', () => {
 });
 
 describe('the plan page, on what a model had to do with a plan', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -1262,6 +1270,9 @@ describe('the plan page, on what a model had to do with a plan', () => {
       dayBefore: plan.days[0]!.dayNutrition,
       dayAfter: { calories: 240, protein: 14, fat: 9, carbs: 26 },
       calorieTarget: 2000,
+      targetMacros: { protein: 100, fat: 60, carbs: 250 },
+      cooking: null,
+      outsideLimits: [],
       revision: 0,
       aiMeta:
         by === 'model'
@@ -1566,18 +1577,42 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     await screen.findAllByRole('button', { name: 'Oat porridge' });
   };
 
-  it('marks, in a plan made for cooking ahead, the meal a dish is cooked at and the one it is eaten from', async () => {
-    await opened(aPlanOf({ cookAhead: 'cook' }, { cookAhead: 'cooked' }));
+  it('marks, in a plan made for cooking ahead, the meal a dish is cooked at and the one it is eaten from, by name', async () => {
+    const first = '33333333-3333-4333-8333-333333333333';
+    const second = '33333338-3333-4333-8333-333333333333';
+    await opened(
+      aPlanOf(
+        {
+          cookAhead: 'cook',
+          cooking: {
+            with: [{ mealId: second, date: '2026-01-05', mealType: 'lunch', eaten: false }],
+            ingredients: [],
+          },
+        },
+        {
+          cookAhead: 'cooked',
+          cooking: {
+            with: [{ mealId: first, date: '2026-01-05', mealType: 'breakfast', eaten: false }],
+            ingredients: [],
+          },
+        },
+      ),
+    );
 
-    for (const text of ['cookOnceChip', 'cookOnceHint', 'cookedChip', 'cookedHint'] as const)
-      expect(screen.getByText(messages.mealPlans[text])).toBeVisible();
+    for (const text of [
+      'Cook for 2 meals',
+      'You cook once, for breakfast and lunch.',
+      'From breakfast',
+      'No cooking: this is the rest of the dish from breakfast.',
+    ])
+      expect(screen.getByText(text)).toBeVisible();
   });
 
   it('says nothing of cooking ahead of a meal that is cooked for itself', async () => {
     await opened(aPlanOf({}, {}));
 
-    expect(screen.queryByText(messages.mealPlans.cookOnceChip)).toBeNull();
-    expect(screen.queryByText(messages.mealPlans.cookedChip)).toBeNull();
+    expect(screen.queryByText(/Cook for 2/)).toBeNull();
+    expect(screen.queryByText(/No cooking/)).toBeNull();
   });
 
   it('says over the days how many meals hold what the profile has ruled out since, and under each of them what and what to do', async () => {
@@ -1890,7 +1925,10 @@ describe('the calendar on the plan page', () => {
     expect(startDate).toHaveValue('2026-01-09');
     expect(startDate).toBeVisible();
     expect(startDate).toHaveFocus();
-    expect(listsAsked()).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
+    expect(listsAsked()).toEqual([
+      `/meal-plans?profileId=${profile.id}&page=1`,
+      `/meal-plans?profileId=${profile.id}&from=2026-01-09&to=2026-01-15`,
+    ]);
   });
 });
 
@@ -1960,7 +1998,11 @@ describe('the plan page, on a plan taken out of the application', () => {
 });
 
 describe('the plan page, on what the planner proposes for a plan', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     address.search = '';
   });
@@ -2196,6 +2238,9 @@ describe('the plan page, on how a plan reads', () => {
     before: { calories: 230, protein: 8, fat: 4, carbs: 40 },
     after: { calories: 240, protein: 18, fat: 12, carbs: 16 },
     dayAfter: { calories: 240, protein: 18, fat: 12, carbs: 16 },
+    targetMacros: { protein: 100, fat: 60, carbs: 250 },
+    cooking: null,
+    outsideLimits: [],
     calorieTarget: 2000,
   };
 
@@ -2539,6 +2584,382 @@ describe('the plan page, on how a plan reads', () => {
       await userEvent.click(screen.getByRole('button', { name: messages.common.close }));
 
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+});
+
+describe('the plan page, on a dish cooked for two days and on what a change comes to', () => {
+  const MONDAY = '2026-01-05';
+  const TUESDAY = '2026-01-06';
+  const first = '33333333-3333-4333-8333-333333333333';
+  const second = '33333338-3333-4333-8333-333333333333';
+  const theDish = aPlan().days[0]!.meals[0]!;
+
+  /** Two days whose breakfast is one dish cooked on the first. */
+  const aPairOfDays = (): MealPlan => {
+    const plan = aPlan();
+    const day = plan.days[0]!;
+    return {
+      ...plan,
+      durationDays: 2,
+      options: { ...plan.options, mealPrepFriendly: true },
+      days: [
+        {
+          ...day,
+          meals: [
+            {
+              ...theDish,
+              servings: 1,
+              ingredients: [
+                {
+                  ingredientId: '55555555-5555-4555-8555-555555555555',
+                  name: 'Rolled oats',
+                  quantity: 60,
+                  unit: 'g',
+                  display: { quantity: 60, unit: 'g' },
+                  note: null,
+                },
+              ],
+              cookAhead: 'cook',
+              cooking: {
+                with: [{ mealId: second, date: TUESDAY, mealType: 'breakfast', eaten: false }],
+                ingredients: [
+                  {
+                    ingredientId: '55555555-5555-4555-8555-555555555555',
+                    name: 'Rolled oats',
+                    quantity: 130,
+                    unit: 'g',
+                    display: { quantity: 130, unit: 'g' },
+                    note: null,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          ...day,
+          id: '22222228-2222-4222-8222-222222222222',
+          date: TUESDAY,
+          meals: [
+            {
+              ...theDish,
+              id: second,
+              servings: 1.25,
+              cookAhead: 'cooked',
+              cooking: {
+                with: [{ mealId: first, date: MONDAY, mealType: 'breakfast', eaten: false }],
+                ingredients: [],
+              },
+            },
+          ],
+        },
+      ],
+    };
+  };
+  const scramble: MealSwapPreview = {
+    recipe: {
+      ...theDish.recipe!,
+      id: '66666666-6666-4666-8666-666666666666',
+      title: 'Tofu scramble',
+    },
+    servings: 1.5,
+    before: theDish.nutrition,
+    after: { calories: 240, protein: 14, fat: 9, carbs: 26 },
+    dayBefore: aPlan().days[0]!.dayNutrition,
+    dayAfter: { calories: 1990, protein: 94, fat: 60, carbs: 250 },
+    calorieTarget: 2000,
+    targetMacros: { protein: 130, fat: 62, carbs: 260 },
+    cooking: { changes: [{ date: TUESDAY, mealType: 'breakfast' }], stays: [] },
+    outsideLimits: [],
+    revision: 4,
+  };
+
+  beforeEach(() => {
+    onTheDay(MONDAY);
+    // The page keeps in view what was changed: the test's document has no layout to scroll.
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const opened = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText(/-day plan · Vegan/));
+    await screen.findAllByRole('button', { name: 'Oat porridge' });
+  };
+  const askForASwap = async () => {
+    await userEvent.click(screen.getAllByRole('button', { name: ofAMeal('Change') })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+    return screen.findByRole('group', { name: messages.mealPlans.offerTitle });
+  };
+  const post = (result: unknown = { plan: aPairOfDays(), rebalance: null }) =>
+    vi
+      .spyOn(api, 'post')
+      .mockImplementation((path: string) =>
+        Promise.resolve((path.endsWith('/preview') ? scramble : result) as never),
+      );
+  const taken = (spy: ReturnType<typeof post>) =>
+    spy.mock.calls.find(([path]) => path === '/meal-plans/swap-meal')?.[1];
+
+  it('says before a swap what else it changes, and sends the change with it', async () => {
+    const spy = post();
+    await opened(aPairOfDays());
+
+    const offered = await askForASwap();
+
+    expect(offered.textContent).toContain('This also changes: Tue breakfast.');
+    expect(offered.textContent).toContain('Protein 94 of 130 g');
+    await userEvent.click(
+      within(offered).getByRole('button', { name: messages.mealPlans.offerTake }),
+    );
+
+    await vi.waitFor(() => expect(taken(spy)).toMatchObject({ together: true }));
+  });
+
+  it('keeps a swap to this day when that is ticked', async () => {
+    const spy = post();
+    await opened(aPairOfDays());
+
+    const offered = await askForASwap();
+    await userEvent.click(
+      within(offered).getByRole('checkbox', { name: messages.mealPlans.cooking.only }),
+    );
+    expect(offered.textContent).not.toContain('This also changes');
+    await userEvent.click(
+      within(offered).getByRole('button', { name: messages.mealPlans.offerTake }),
+    );
+
+    await vi.waitFor(() => expect(taken(spy)).toBeDefined());
+    expect(taken(spy)).not.toHaveProperty('together');
+  });
+
+  it('says of an offer outside a limit which limit that is', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue({
+      ...scramble,
+      outsideLimits: ['cook_time'],
+    } as never);
+    await opened(aPairOfDays());
+
+    const offered = await askForASwap();
+
+    expect(offered.textContent).toContain(
+      `This recipe is outside a limit: ${messages.mealPlans.limit.cook_time}.`,
+    );
+  });
+
+  it('says what the day holds after a swap where no portion changed, and takes the swap back on the plan it left', async () => {
+    const after = { ...aPairOfDays(), revision: 5 };
+    const figures = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+    const spy = post({
+      plan: after,
+      rebalance: {
+        scope: 'day',
+        feasibility: 'in-window',
+        changes: [],
+        unabsorbedKcal: 0,
+        macrosBefore: figures,
+        macrosAfter: figures,
+      },
+    });
+    await opened(aPairOfDays());
+
+    const offered = await askForASwap();
+    await userEvent.click(
+      within(offered).getByRole('button', { name: messages.mealPlans.offerTake }),
+    );
+
+    expect(await screen.findByText(messages.mealPlans.swapDoneTitle)).toBeVisible();
+    expect(screen.getByText('The day: 230 of 2000 kcal · protein 8 of 100 g')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.undoSwap }));
+
+    await vi.waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('/meal-plans/swap-meal/undo', {
+        planId: after.id,
+        revision: 5,
+      }),
+    );
+    await vi.waitFor(() => expect(screen.queryByText(messages.mealPlans.swapDoneTitle)).toBeNull());
+  });
+
+  it('opens the meal to cook with the amounts of the whole cooking, and says how far they are from the original', async () => {
+    await opened(aPairOfDays());
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Oat porridge' })[0]!);
+
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/130/);
+    expect(dialog.textContent).toContain(
+      'The original gives amounts for 1 serving, this cooking comes to 2.3 servings.',
+    );
+  });
+
+  it('opens the meal eaten from what was cooked with its own amounts', async () => {
+    await opened(aPairOfDays());
+    await userEvent.click(screen.getByRole('button', { name: /^Tue, Jan 6(?!:)/ }));
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Oat porridge' })[1]!);
+
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(messages.recipeDetail.ingredients);
+    expect(dialog.textContent).toContain(
+      'The original gives amounts for 1 serving, your meal is 1.3 servings.',
+    );
+  });
+
+  it('tells where the meal to cook is removed that the next day cooks by itself', async () => {
+    await opened(aPairOfDays());
+
+    await userEvent.click(screen.getAllByRole('button', { name: ofAMeal('Change') })[0]!);
+    await userEvent.click(
+      screen.getAllByRole('button', { name: ofAMeal(messages.mealPlans.remove) })[0]!,
+    );
+
+    expect(screen.getByText('On Tuesday you cook this dish separately.')).toBeVisible();
+  });
+
+  it('brings a meal back to the dish of the day before it was parted from', async () => {
+    const plan = aPairOfDays();
+    const other = {
+      ...plan.days[1]!.meals[0]!,
+      cookAhead: null,
+      cooking: null,
+      recipe: { ...theDish.recipe!, id: '77777777-7777-4777-8777-777777777777', title: 'Toast' },
+    };
+    const parted: MealPlan = {
+      ...plan,
+      days: [
+        {
+          ...plan.days[0]!,
+          meals: [{ ...plan.days[0]!.meals[0]!, cookAhead: null, cooking: null }],
+        },
+        { ...plan.days[1]!, meals: [other] },
+      ],
+    };
+    const spy = post();
+    await opened(parted);
+    await userEvent.click(screen.getByRole('button', { name: /^Tue, Jan 6(?!:)/ }));
+
+    await userEvent.click(screen.getByRole('button', { name: /^Change: Toast/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'The same as Mon' }));
+
+    await vi.waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        '/meal-plans/swap-meal/preview',
+        expect.objectContaining({
+          plannedMealId: second,
+          strategy: 'favorite',
+          favoriteRecipeId: theDish.recipe!.id,
+        }),
+      ),
+    );
+  });
+
+  it('keeps the dishes of a day that is over, with what can still be done on it', async () => {
+    onTheDay(TUESDAY);
+    await opened(aPairOfDays());
+    await userEvent.click(screen.getByRole('button', { name: /^Mon, Jan 5(?!:)/ }));
+
+    expect(screen.getByText(messages.mealPlans.dayIsOver)).toBeVisible();
+    expect(screen.getAllByRole('button', { name: ofAMeal('Change') })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: messages.mealPlans.otherWays })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('button', { name: ofAMeal(messages.mealPlans.remove) }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('tells what to do on the second day where the first is over with nothing marked eaten', async () => {
+    onTheDay(TUESDAY);
+    await opened(aPairOfDays());
+
+    expect(
+      screen.getByText(
+        'If there was no cooking on Monday, cook today: the amounts are for this meal.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('marks a meal as eaten from its day on, and lets one marked ahead be unmarked', async () => {
+    const plan = aPairOfDays();
+    plan.days[1]!.meals[0]!.eatenAt = null;
+    await opened(plan);
+    await userEvent.click(screen.getByRole('button', { name: /^Tue, Jan 6(?!:)/ }));
+
+    const boxes = screen.getAllByRole('checkbox', { name: ofAMeal(messages.mealPlans.markEaten) });
+    expect(boxes[0]).toBeEnabled();
+    expect(boxes[1]).toBeDisabled();
+    expect(boxes[1]).toHaveAttribute('title', messages.mealPlans.eatenAhead);
+  });
+
+  it('marks a day whose macronutrients are far from its target, and says so of a plan on average', async () => {
+    const plan = aPairOfDays();
+    await opened({
+      ...plan,
+      averageOff: { calories: 'under', macros: true },
+      days: [{ ...plan.days[0]!, macrosOff: true }, plan.days[1]!],
+    });
+
+    expect(screen.getAllByText(messages.mealPlans.macrosOffChip)).toHaveLength(1);
+    expect(screen.getByText(messages.mealPlans.macrosOffHint)).toBeVisible();
+    expect(screen.getByText(messages.mealPlans.planAverageUnder)).toBeVisible();
+    expect(screen.getByText(messages.mealPlans.planAverageMacros)).toBeVisible();
+  });
+
+  it('turns the figure of a day red only where the day is off its target', async () => {
+    const plan = aPairOfDays();
+    await opened({
+      ...plan,
+      days: [
+        { ...plan.days[0]!, calorieDelta: -60, offTarget: null },
+        { ...plan.days[1]!, calorieDelta: -300, offTarget: 'under' },
+      ],
+    });
+
+    const figures = screen.getAllByText(/\/ 2000 kcal/);
+    expect(figures[0]).not.toHaveClass('text-destructive');
+    expect(figures[1]).toHaveClass('text-destructive');
+  });
+
+  it('offers to size the portions of a day off its target that the diary has no part in', async () => {
+    const plan = aPairOfDays();
+    await opened({
+      ...plan,
+      days: [{ ...plan.days[0]!, offTarget: 'under' }, plan.days[1]!],
+    });
+
+    expect(
+      screen.getByRole('button', { name: messages.mealPlans.resizeDay }),
+    ).toHaveAccessibleDescription(messages.mealPlans.resizeDayNotePlain);
+  });
+
+  describe('the form for a new plan', () => {
+    const newPlanForm = async (plans: MealPlan[], listed: boolean) => {
+      await renderPage(aSupply(), plans);
+      if (listed)
+        await userEvent.click(await screen.findByRole('button', { name: /^Generate a plan/ }));
+    };
+
+    it('says that cooking ahead changes nothing on a plan of one day', async () => {
+      await newPlanForm([], false);
+
+      await userEvent.click(
+        screen.getByRole('checkbox', { name: messages.mealPlans.mealPrepFriendly }),
+      );
+      expect(screen.queryByText(messages.mealPlans.prepCannotPair)).toBeNull();
+
+      const length = screen.getByLabelText(messages.mealPlans.durationDays);
+      await userEvent.clear(length);
+      await userEvent.type(length, '1');
+      expect(await screen.findByText(messages.mealPlans.prepCannotPair)).toBeVisible();
+    });
+
+    it('says what follows from days another plan holds', async () => {
+      await newPlanForm([aPlan()], true);
+
+      expect(await screen.findByText(messages.mealPlans.overlapNote)).toBeVisible();
     });
   });
 });

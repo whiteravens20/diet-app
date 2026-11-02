@@ -19,6 +19,8 @@ export interface DayMealOption {
   id: string;
   mealType: string;
   title: string;
+  /** What follows for the other meal of its cooking if this one gives way. */
+  apart: string | null;
 }
 
 /**
@@ -93,6 +95,8 @@ export function CustomMealModal({
         })
       : t('customTotalEstimated', { calories: inFull(counts.nutrition.calories) })
     : t('customTotalPending');
+
+  const apart = meals.find((meal) => meal.id === replaces)?.apart;
 
   return (
     <Dialog open onClose={onClose} label={t('customModalTitle')} className="max-w-md">
@@ -231,6 +235,7 @@ export function CustomMealModal({
           <p className="text-muted-foreground">
             {t(replaces ? 'customInsteadNote' : 'customBesideNote')}
           </p>
+          {apart && <p className="text-muted-foreground">{apart}</p>}
         </div>
 
         <div className="flex justify-end gap-2">

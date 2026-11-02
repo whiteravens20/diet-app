@@ -11,8 +11,18 @@ const texts = messages.mealPlans;
 
 /** The meals of the day the window is opened for. */
 const MEALS = [
-  { id: '11111111-1111-4111-8111-111111111111', mealType: 'lunch', title: 'Chicken with rice' },
-  { id: '22222222-2222-4222-8222-222222222222', mealType: 'dinner', title: 'Lentil soup' },
+  {
+    id: '11111111-1111-4111-8111-111111111111',
+    mealType: 'lunch',
+    title: 'Chicken with rice',
+    apart: null,
+  },
+  {
+    id: '22222222-2222-4222-8222-222222222222',
+    mealType: 'dinner',
+    title: 'Lentil soup',
+    apart: null,
+  },
 ];
 
 function open() {
@@ -24,6 +34,36 @@ function open() {
   );
   return onSubmit;
 }
+
+describe('the note on the meal it replaces', () => {
+  it('says what follows for the other meal of a cooking when one is chosen', async () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <CustomMealModal
+          date="2026-01-05"
+          meals={[
+            {
+              id: '33333333-3333-4333-8333-333333333333',
+              mealType: 'lunch',
+              title: 'Stew',
+              apart: 'On Tuesday you cook this dish separately.',
+            },
+          ]}
+          onClose={() => {}}
+          onSubmit={() => {}}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText('On Tuesday you cook this dish separately.')).toBeNull();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(texts.customPlace),
+      '33333333-3333-4333-8333-333333333333',
+    );
+
+    expect(screen.getByText('On Tuesday you cook this dish separately.')).toBeVisible();
+  });
+});
 
 /** Type the numbers of one serving, a field with nothing to type being left empty, and how many servings the meal is. */
 async function fill(
