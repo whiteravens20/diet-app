@@ -23,6 +23,7 @@ interface Exported {
   markedRecipes: Record<string, unknown>[];
   favoriteSets: Record<string, unknown>[];
   ownRecipes: (Record<string, unknown> & { title: string; ingredients: unknown[] })[];
+  ownProducts: Record<string, unknown>[];
   plans: {
     id: string;
     profileId: string;
@@ -187,6 +188,7 @@ describe('everything an account holds, as one file', () => {
       'markedRecipes',
       'favoriteSets',
       'ownRecipes',
+      'ownProducts',
       'plans',
       'notifications',
       'aiCalls',
@@ -284,6 +286,43 @@ describe('everything an account holds, as one file', () => {
     });
     expect(exported!.shoppingLists).toHaveLength(1);
     expect(exported!.shoppingLists[0]!.items.length).toBeGreaterThan(0);
+  });
+
+  it("holds the products the account wrote, with what became of them, and no one else's", async () => {
+    const other = await aUser(t);
+    const sentAt = new Date('2026-11-02T10:00:00.000Z');
+    await t.prisma.ownProduct.create({
+      data: {
+        userId: user.id,
+        code: '5900512320359',
+        name: 'Chleb babci',
+        searchText: 'chleb babci',
+        unit: 'g',
+        calories: 245,
+        protein: 8,
+        state: 'rejected',
+        reason: 'Na etykiecie jest inaczej.',
+        sentAt,
+      },
+    });
+    await t.prisma.ownProduct.create({
+      data: { userId: other.id, name: 'Cudzy', searchText: 'cudzy', unit: 'g', calories: 100 },
+    });
+
+    const { text, file } = await fileOf();
+
+    expect(file.ownProducts).toEqual([
+      expect.objectContaining({
+        code: '5900512320359',
+        name: 'Chleb babci',
+        unit: 'g',
+        per100: expect.objectContaining({ calories: 245, protein: 8, fat: null }),
+        state: 'rejected',
+        reason: 'Na etykiecie jest inaczej.',
+        sentAt: sentAt.toISOString(),
+      }),
+    ]);
+    expect(text.includes('Cudzy')).toBe(false);
   });
 
   it('holds nothing that proves who the account is: no password, no token, no key, no secret', async () => {
