@@ -118,6 +118,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           dislikedIngredientIds: [],
           modelPick: null,
           cookAhead: null,
+          cooking: null,
           nutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
         },
       ],
@@ -260,6 +261,7 @@ const aPreview = (over: Partial<RerollPreview> = {}): RerollPreview => ({
   kept: { outside: 0, past: 1, skipped: 0, eaten: 0, custom: 0, locked: 0 },
   couldGo: { past: true, eaten: false, custom: false },
   fromToday: null,
+  cooking: null,
   ...over,
 });
 
@@ -950,6 +952,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     dayAfter: { calories: 240, protein: 14, fat: 9, carbs: 26 },
     calorieTarget: 2000,
     targetMacros: plan.days[0]!.targetMacros,
+    cooking: null,
     outsideLimits: [],
     revision: 0,
   });
@@ -1981,6 +1984,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
       date: '2026-01-05',
       calorieTarget: 2000,
       diary: null,
+      cooking: null,
       current: {
         dayNutrition: plan.days[0]!.dayNutrition,
         packs: { bought: 0, used: 0, wasted: 0 },

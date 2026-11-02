@@ -11,6 +11,7 @@ import {
   fitsDiet,
   PlanOptions,
   type AddCustomMealRequest,
+  type CookingChange,
   type Locale,
   type MealPlan,
   type MealPlanDay,
@@ -24,6 +25,7 @@ import {
   type RebalanceResult,
 } from '@diet-app/shared';
 import {
+  fitServings,
   safetyFloor,
   macrosForCalories,
   sharesOf,
@@ -588,6 +590,123 @@ export class MealPlansService {
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
 
+  /**
+   * For each meal of a plan made for cooking ahead, the other meals of the same
+   * cooking, as the plan stands. Read before a change: the cookings are what the
+   * dishes of the plan make them.
+   */
+  async cookedWith(
+    db: Pick<Prisma.TransactionClient, 'mealPlanDay'>,
+    planId: string,
+    options: PlanOptions,
+  ): Promise<Map<string, CookedMeal[]>> {
+    const found = new Map<string, CookedMeal[]>();
+    if (!options.mealPrepFriendly) return found;
+    const days = await db.mealPlanDay.findMany({
+      where: { planId },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        date: true,
+        overrides: true,
+        meals: {
+          select: {
+            id: true,
+            mealType: true,
+            recipeId: true,
+            source: true,
+            eatenAt: true,
+            servings: true,
+            quantityScale: true,
+            swapHistory: true,
+            recipe: { select: { caloriesPerServing: true } },
+          },
+        },
+      },
+    });
+    const inOrder = days.map((day) =>
+      [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)),
+    );
+    const { cookings } = cookAhead(
+      inOrder.map((meals) =>
+        meals.map((meal) => (meal.source === 'USER_CUSTOM' ? null : meal.recipeId)),
+      ),
+    );
+    for (const places of cookings) {
+      const meals = places.map(({ day, meal }): CookedMeal => {
+        const row = inOrder[day]![meal]!;
+        return {
+          id: row.id,
+          dayId: days[day]!.id,
+          dayIndex: day,
+          date: isoDate(days[day]!.date),
+          mealType: row.mealType as MealType,
+          recipeId: row.recipeId!,
+          eaten: row.eatenAt !== null,
+          skipped: isSkipped(days[day]!),
+          swapHistory: row.swapHistory ?? [],
+          held: row.recipe!.caloriesPerServing * row.servings * row.quantityScale,
+        };
+      });
+      for (const meal of meals)
+        found.set(
+          meal.id,
+          meals.filter((other) => other.id !== meal.id),
+        );
+    }
+    return found;
+  }
+
+  /**
+   * Put a recipe on other meals of a cooking, each sized to what it holds now,
+   * and return the days it changed. A meal that was eaten, or of a day that has
+   * passed or is skipped, stays: what was eaten is a record.
+   */
+  async carryDish(
+    tx: Prisma.TransactionClient,
+    meals: readonly CookedMeal[],
+    recipe: { id: string; caloriesPerServing: number },
+    today: string,
+    picked: { reason: string | null } | null = null,
+  ): Promise<string[]> {
+    const open = meals.filter((meal) => meal.recipeId !== recipe.id && mayCarry(meal, today));
+    for (const meal of open)
+      await tx.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: fitServings(recipe.caloriesPerServing, meal.held),
+          quantityScale: 1,
+          swapHistory: meal.swapHistory.includes(meal.recipeId)
+            ? meal.swapHistory
+            : [...meal.swapHistory, meal.recipeId],
+          modelPicked: picked !== null,
+          modelReason: picked?.reason ?? null,
+        },
+      });
+    return [...new Set(open.map((meal) => meal.dayId))];
+  }
+
+  /**
+   * After the dishes of some days changed: put each new dish on the meals cooked
+   * with the one it replaced, on the other days, and size those days. `cookedWith`
+   * is the cookings as they were before the change.
+   */
+  async carryToOtherDays(
+    tx: Prisma.TransactionClient,
+    cookedWith: ReadonlyMap<string, CookedMeal[]>,
+    moves: readonly { mealId: string; recipe: { id: string; caloriesPerServing: number } }[],
+    changedDays: ReadonlySet<string>,
+    today: string,
+  ): Promise<void> {
+    const touched = new Set<string>();
+    for (const { mealId, recipe } of moves) {
+      const others = (cookedWith.get(mealId) ?? []).filter((meal) => !changedDays.has(meal.dayId));
+      for (const dayId of await this.carryDish(tx, others, recipe, today)) touched.add(dayId);
+    }
+    for (const dayId of touched) await this.rebalanceDayInternal(dayId, tx, today);
+  }
+
   /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
   private async restoreScales(
     planId: string,
@@ -693,6 +812,31 @@ export class MealPlansService {
           ),
         )
       : null;
+    // Each meal of a cooking: the others, and what all of them together take.
+    const cookingOf = new Map<PlannedMeal['id'], NonNullable<PlannedMeal['cooking']>>();
+    for (const places of cookedOnce?.cookings ?? []) {
+      const of = places.map(({ day, meal }) => ({
+        day: plan.days[day]!,
+        meal: inOrder[day]![meal]!,
+      }));
+      const recipe = of[0]!.meal.recipe!;
+      const all =
+        of.reduce((sum, { meal }) => sum + meal.servings * meal.quantityScale, 0) /
+        Math.max(1, recipe.servings);
+      const ingredients = toPlannedIngredients(recipe.ingredients, all, locale);
+      for (const { meal } of of)
+        cookingOf.set(meal.id, {
+          with: of
+            .filter((other) => other.meal.id !== meal.id)
+            .map((other) => ({
+              mealId: other.meal.id,
+              date: isoDate(other.day.date),
+              mealType: other.meal.mealType as MealType,
+              eaten: other.meal.eatenAt !== null,
+            })),
+          ingredients,
+        });
+    }
     // What the meals with a recipe take of it, for the count of the packs the menu opens.
     const packed: PackedMeal[] = [];
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
@@ -718,6 +862,7 @@ export class MealPlansService {
             dislikedIngredientIds: [],
             modelPick: null,
             cookAhead: null,
+            cooking: null,
             nutrition: mealNutrition(m),
           };
         }
@@ -748,7 +893,8 @@ export class MealPlansService {
           ) as PlannedMeal['restrictionConflicts'],
           dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
-          cookAhead: cookedOnce?.[dayIndex]?.[mealIndex] ?? null,
+          cookAhead: cookedOnce?.marks[dayIndex]?.[mealIndex] ?? null,
+          cooking: cookingOf.get(m.id) ?? null,
           nutrition: mealNutrition(m),
         };
       });
@@ -867,6 +1013,35 @@ interface RebalanceRow {
   servings: number;
   quantityScale: number;
   locked: boolean;
+}
+
+/** A meal of a cooking, as a change of the dish of another of its meals reads it. */
+export interface CookedMeal {
+  id: string;
+  dayId: string;
+  dayIndex: number;
+  date: string;
+  mealType: MealType;
+  recipeId: string;
+  eaten: boolean;
+  skipped: boolean;
+  swapHistory: string[];
+  /** What it holds now, in kcal: what a recipe in its place is sized to. */
+  held: number;
+}
+
+/** Whether a meal of a cooking can take a dish that another of its meals got. Dates in this form compare as text. */
+export const mayCarry = (meal: CookedMeal, today: string): boolean =>
+  !meal.eaten && !meal.skipped && meal.date >= today;
+
+/** What a change of a dish would do to these other meals of its cooking, as an offer says it. */
+export function cookingChange(meals: readonly CookedMeal[], today: string): CookingChange {
+  if (meals.length === 0) return null;
+  const place = ({ date, mealType }: CookedMeal) => ({ date, mealType });
+  return {
+    changes: meals.filter((meal) => mayCarry(meal, today)).map(place),
+    stays: meals.filter((meal) => !mayCarry(meal, today)).map(place),
+  };
 }
 
 interface RebalanceSummary {

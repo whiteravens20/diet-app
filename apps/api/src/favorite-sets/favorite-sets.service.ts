@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  PlanOptions,
   type ApplyFavoriteSetRequest,
   type CreateFavoriteSetRequest,
   type FavoriteSet,
@@ -21,7 +22,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { MealPlansService, type CookedMeal } from '../meal-plans/meal-plans.service.js';
 import {
   CANDIDATE,
   restrictionsFor,
@@ -97,7 +98,7 @@ export class FavoriteSetsService {
     userId: string,
     locale: Locale,
     id: string,
-    req: ApplyFavoriteSetRequest,
+    req: Omit<ApplyFavoriteSetRequest, 'together'> & { together?: boolean },
     clientToday: string | null = null,
   ): Promise<MealPlan> {
     const set = await this.load(userId, id);
@@ -188,7 +189,11 @@ export class FavoriteSetsService {
       });
     }
 
+    const cookedWith = req.together
+      ? await this.mealPlans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
     await writePlan(this.prisma, plan.id, plan.revision, async (tx) => {
+      const moves: { mealId: string; recipe: { id: string; caloriesPerServing: number } }[] = [];
       for (const day of targetDays) {
         const existing = await tx.plannedMeal.findMany({
           where: { dayId: day.id },
@@ -213,6 +218,10 @@ export class FavoriteSetsService {
           const servings = fitServings(caloriesById.get(recipeId) ?? 0, budget);
           const current = existingByType.get(mealType);
           if (current) {
+            moves.push({
+              mealId: current.id,
+              recipe: { id: recipeId, caloriesPerServing: caloriesById.get(recipeId) ?? 0 },
+            });
             // The same reset as a swap: the new recipe is a new baseline, and
             // nothing of a custom meal that stood here stays behind.
             await tx.plannedMeal.update({
@@ -253,12 +262,15 @@ export class FavoriteSetsService {
           });
         }
         // The day's total moved: pull it back toward its target, as every edit does.
-        await this.mealPlans.rebalanceDayInternal(
-          day.id,
-          tx,
-          clientToday ?? this.mealPlans.today(),
-        );
+        await this.mealPlans.rebalanceDayInternal(day.id, tx, today);
       }
+      await this.mealPlans.carryToOtherDays(
+        tx,
+        cookedWith,
+        moves,
+        new Set(targetDays.map((day) => day.id)),
+        today,
+      );
     });
 
     return this.mealPlans.get(userId, locale, plan.id);

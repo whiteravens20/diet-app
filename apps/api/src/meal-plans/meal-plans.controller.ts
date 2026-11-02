@@ -253,8 +253,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('dayId', requiredUuid) dayId: string,
     @Body(new ZodValidationPipe(TakeDayVariationRequest)) dto: TakeDayVariationRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.variations.take(user.id, locale, id, dayId, dto);
+    return this.variations.take(user.id, locale, id, dayId, dto, today);
   }
 
   /**

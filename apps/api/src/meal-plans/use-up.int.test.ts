@@ -289,6 +289,7 @@ describe('the swaps that would use up what a plan opens', () => {
           replaceEaten: false,
           replaceCustom: false,
           dropIneligibleLocks: false,
+          together: false,
         },
         plan.startDate,
       );

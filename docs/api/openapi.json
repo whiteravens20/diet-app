@@ -4807,6 +4807,16 @@
             }
           },
           {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "Accept-Language",
             "in": "header",
             "required": false,
@@ -9749,6 +9759,9 @@
           "targetMacros": {
             "$ref": "#/components/schemas/Macros"
           },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
+          },
           "outsideLimits": {
             "type": "array",
             "items": {
@@ -9782,6 +9795,7 @@
           "dayAfter",
           "calorieTarget",
           "targetMacros",
+          "cooking",
           "outsideLimits",
           "revision",
           "aiMeta",
@@ -10234,6 +10248,10 @@
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
             }
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -10260,6 +10278,10 @@
             "items": {
               "$ref": "#/components/schemas/CalendarDay"
             }
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -10301,6 +10323,10 @@
           },
           "pick": {
             "$ref": "#/components/schemas/ModelPickNote"
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -10908,6 +10934,63 @@
           "token"
         ]
       },
+      "CookingChange": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "mealType": {
+                      "$ref": "#/components/schemas/MealType"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "mealType"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "stays": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "mealType": {
+                      "$ref": "#/components/schemas/MealType"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "mealType"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "changes",
+              "stays"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "CookingMethod": {
         "type": "string",
         "enum": [
@@ -11438,6 +11521,9 @@
           },
           "unchanged": {
             "type": "boolean"
+          },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
           }
         },
         "required": [
@@ -11451,7 +11537,8 @@
           "dayCalories",
           "fits",
           "listOutOfDate",
-          "unchanged"
+          "unchanged",
+          "cooking"
         ],
         "additionalProperties": false
       },
@@ -11570,6 +11657,9 @@
             ],
             "additionalProperties": false
           },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
+          },
           "variations": {
             "maxItems": 3,
             "type": "array",
@@ -11593,6 +11683,7 @@
           "calorieTarget",
           "diary",
           "current",
+          "cooking",
           "variations",
           "aiMeta"
         ],
@@ -14457,6 +14548,9 @@
           "targetMacros": {
             "$ref": "#/components/schemas/Macros"
           },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
+          },
           "outsideLimits": {
             "type": "array",
             "items": {
@@ -14477,6 +14571,7 @@
           "dayAfter",
           "calorieTarget",
           "targetMacros",
+          "cooking",
           "outsideLimits",
           "revision"
         ],
@@ -15739,6 +15834,58 @@
               }
             ]
           },
+          "cooking": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "with": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mealId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "mealType": {
+                          "$ref": "#/components/schemas/MealType"
+                        },
+                        "eaten": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mealId",
+                        "date",
+                        "mealType",
+                        "eaten"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "ingredients": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/PlannedIngredient"
+                    }
+                  }
+                },
+                "required": [
+                  "with",
+                  "ingredients"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "nutrition": {
             "$ref": "#/components/schemas/Nutrition"
           }
@@ -15758,6 +15905,7 @@
           "dislikedIngredientIds",
           "modelPick",
           "cookAhead",
+          "cooking",
           "nutrition"
         ],
         "additionalProperties": false
@@ -18484,6 +18632,10 @@
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
             }
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         }
       },
@@ -18513,6 +18665,10 @@
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
             }
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           },
           "from": {
             "$ref": "#/components/schemas/CalendarDay"
@@ -18744,6 +18900,9 @@
                 "type": "null"
               }
             ]
+          },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
           }
         },
         "required": [
@@ -18751,7 +18910,8 @@
           "replaced",
           "kept",
           "couldGo",
-          "fromToday"
+          "fromToday",
+          "cooking"
         ],
         "additionalProperties": false
       },
@@ -19821,6 +19981,10 @@
           },
           "pick": {
             "$ref": "#/components/schemas/ModelPickNote"
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -20001,6 +20165,9 @@
               "$ref": "#/components/schemas/PlanRelaxation"
             }
           },
+          "cooking": {
+            "$ref": "#/components/schemas/CookingChange"
+          },
           "valid": {
             "type": "boolean"
           }
@@ -20017,6 +20184,7 @@
           "violations",
           "moved",
           "outsideLimits",
+          "cooking",
           "valid"
         ],
         "additionalProperties": false
@@ -20026,6 +20194,10 @@
         "properties": {
           "offer": {
             "$ref": "#/components/schemas/DayOfferNote"
+          },
+          "together": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [

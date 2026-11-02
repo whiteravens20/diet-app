@@ -44,11 +44,17 @@ import {
   pickIndex,
   poolWhere,
   restrictionsFor,
+  violations,
   welcome,
   type Waived,
 } from './eligibility.js';
 import { StoredReport, withMealOutside } from './generation-report.js';
-import { MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  MealPlansService,
+  mayCarry,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
@@ -240,7 +246,7 @@ export class MealSwapService {
   async apply(
     userId: string,
     locale: Locale,
-    req: ApplyMealSwapRequest,
+    req: Omit<ApplyMealSwapRequest, 'together'> & { together?: boolean },
     clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
@@ -286,7 +292,15 @@ export class MealSwapService {
       !slot.history.includes(replacement.id),
     );
     const replacementId = replacement.id;
-    const gaveWay = outsideLimitsOf(slot, replacement);
+    // The meals of its cooking that can take it, on the meals the recipe is for.
+    const together = req.together
+      ? openCooking(slot).filter(
+          (other) =>
+            violations(replacement, restrictions, other.mealType, waivedBy(req)).length === 0,
+        )
+      : [];
+    const gaveWay = outsideLimitsOf(slot, replacement, together);
+    const today = slot.today;
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
@@ -306,22 +320,36 @@ export class MealSwapService {
           where: { id: req.planId },
           data: { generationMode: 'ai_assisted' },
         });
-      // What the recipe is outside of the meal says for as long as it holds it.
+      const otherDays = await this.plans.carryDish(tx, together, replacement, today, picked);
+      // What the recipe is outside of the meals say for as long as they hold it.
       const report = StoredReport.nullable().parse(meal.day.plan.report ?? null);
       if (report && gaveWay.length > 0)
         await tx.mealPlan.update({
           where: { id: req.planId },
           data: {
-            report: withMealOutside(report, {
-              date: isoDate(meal.day.date),
-              slot: meal.mealType as MealType,
-              recipeId: replacementId,
-              gaveWay,
-            }),
+            report: [
+              { date: isoDate(meal.day.date), slot: meal.mealType as MealType },
+              ...together.map(({ date, mealType }) => ({ date, slot: mealType })),
+            ].reduce(
+              (kept, place) =>
+                withMealOutside(kept, { ...place, recipeId: replacementId, gaveWay }),
+              report,
+            ),
           },
         });
-      // The swap changed the day total — pull it back toward target.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.plans.today());
+      // The swap changed the day total — pull it back toward target, on each day it changed.
+      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
+      const others = await Promise.all(
+        otherDays
+          .filter((dayId) => dayId !== meal.dayId)
+          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, today)),
+      );
+      return (
+        summary && {
+          ...summary,
+          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+        }
+      );
     });
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
@@ -337,8 +365,10 @@ export class MealSwapService {
     clientToday: string | null,
   ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
-    const recipeId = swappableRecipeOf(meal, clientToday ?? this.plans.today());
-    const [restrictions, current, daySlots, limits, diary] = await Promise.all([
+    const today = clientToday ?? this.plans.today();
+    const recipeId = swappableRecipeOf(meal, today);
+    const options = PlanOptions.parse(meal.day.plan.options);
+    const [restrictions, current, daySlots, limits, diary, cookedWith] = await Promise.all([
       restrictionsFor(this.prisma, meal.day.plan),
       this.prisma.recipe.findUniqueOrThrow({
         where: { id: recipeId },
@@ -370,6 +400,7 @@ export class MealSwapService {
         this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
       ),
       diaryDays(this.prisma, meal.day.plan.profileId, meal.day.date, meal.day.date),
+      this.plans.cookedWith(this.prisma, planId, options),
     ]);
     const dayIndex = await this.prisma.mealPlanDay.count({
       where: { planId, date: { lt: meal.day.date } },
@@ -377,7 +408,6 @@ export class MealSwapService {
     // A day holds a recipe once, as the planner has it: what another meal of
     // the day holds is not offered for this one, unless the plan is for
     // cooking ahead or was let have a recipe twice a day when it was made.
-    const options = PlanOptions.parse(meal.day.plan.options);
     const twiceADay = options.mealPrepFriendly || options.allowRelaxations.includes('same_day');
     const onTheDay = twiceADay
       ? []
@@ -411,6 +441,8 @@ export class MealSwapService {
       dayIndex,
       rest,
       aim: aimOfDay(meal.day.calorieTarget, meal.day.plan),
+      today,
+      cooking: cookedWith.get(meal.id) ?? [],
     };
   }
 
@@ -574,6 +606,7 @@ export class MealSwapService {
       },
       calorieTarget: day.calorieTarget,
       targetMacros: slot.aim,
+      cooking: cookingChange(slot.cooking, slot.today),
       outsideLimits: outsideLimitsOf(slot, replacement),
       revision: plan.revision,
     };
@@ -615,10 +648,26 @@ export class MealSwapService {
 type Slot = Awaited<ReturnType<MealSwapService['slot']>>;
 type Offered = Prisma.RecipeGetPayload<{ select: typeof OFFERED }>;
 
-/** The limits of the plan a recipe would be outside of in the place of this meal. */
-function outsideLimitsOf(slot: Slot, recipe: LimitedRecipe): PlanRelaxation[] {
-  return slot.limits.breaks(recipe, slot.dayIndex, new Set([slot.meal.id]));
+/**
+ * The limits of the plan a recipe would be outside of in the place of this meal,
+ * and of those of its cooking that would take it too.
+ */
+function outsideLimitsOf(
+  slot: Slot,
+  recipe: LimitedRecipe,
+  together: readonly CookedMeal[] = openCooking(slot),
+): PlanRelaxation[] {
+  return slot.limits.breaks(
+    recipe,
+    slot.dayIndex,
+    new Set([slot.meal.id, ...together.map((meal) => meal.id)]),
+    together.map((meal) => meal.dayIndex),
+  );
 }
+
+/** The other meals of this meal's cooking that can take another dish with it. */
+const openCooking = (slot: Slot): CookedMeal[] =>
+  slot.cooking.filter((meal) => mayCarry(meal, slot.today));
 
 /** Of the recipes that could be offered, those inside the limits of the plan; all of them where none is. */
 function insideLimits<T extends LimitedRecipe>(slot: Slot, recipes: T[]): T[] {

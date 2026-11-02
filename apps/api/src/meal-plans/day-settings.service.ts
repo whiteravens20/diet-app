@@ -27,7 +27,12 @@ import {
 } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StoredReport, withDaysAgain } from './generation-report.js';
-import { mealRank, MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  mealRank,
+  MealPlansService,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import {
   dayMealCount,
   isoDate,
@@ -117,6 +122,11 @@ export class DaySettingsService {
           where: { planId, fromDate: { lte: day.date }, toDate: { gte: day.date } },
         })
       : 0;
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
     return {
       revision: plan.revision,
       date,
@@ -135,6 +145,13 @@ export class DaySettingsService {
           : Math.abs(dayCalories - change.target) <= REBALANCE_TOLERANCE * change.target,
       listOutOfDate: lists > 0,
       unchanged: change.unchanged,
+      cooking: cookingChange(
+        change.fates
+          .filter((fate) => fate.fate === 'redrawn')
+          .flatMap((fate) => cookedWith.get(fate.mealId) ?? [])
+          .filter((meal) => meal.dayId !== dayId),
+        clientToday ?? this.plans.today(),
+      ),
     };
   }
 
@@ -244,6 +261,14 @@ export class DaySettingsService {
 
     const result = await this.generation.draw(userId, prepared, this.generation.nextSeed());
     const placed = result.assignments.filter((meal) => meal.dayIndex === dayIndex);
+    const today = clientToday ?? this.plans.today();
+    const cookedWith = request.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(prepared.plan.options))
+      : new Map<string, CookedMeal[]>();
+    const drawnRecipes = await this.prisma.recipe.findMany({
+      where: { id: { in: placed.map((meal) => meal.recipeId) } },
+      select: { id: true, caloriesPerServing: true },
+    });
     const before = StoredReport.nullable().parse(prepared.plan.report ?? null);
     const report = before ? withDaysAgain(before, result.report, [context.date]) : null;
     await writePlan(this.prisma, planId, request.revision, async (tx) => {
@@ -272,7 +297,20 @@ export class DaySettingsService {
         where: { id: planId },
         data: { reuseScore: result.ingredientReuseScore, ...(report ? { report } : {}) },
       });
-      await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
+      await this.plans.rebalanceDayInternal(dayId, tx, today);
+      await this.plans.carryToOtherDays(
+        tx,
+        cookedWith,
+        change.fates
+          .filter((fate) => fate.fate === 'redrawn')
+          .flatMap((fate) => {
+            const drawn = placed.find((meal) => meal.slot === fate.mealType);
+            const recipe = drawn && drawnRecipes.find((one) => one.id === drawn.recipeId);
+            return recipe ? [{ mealId: fate.mealId, recipe }] : [];
+          }),
+        new Set([dayId]),
+        today,
+      );
     });
     return this.plans.get(userId, locale, planId);
   }

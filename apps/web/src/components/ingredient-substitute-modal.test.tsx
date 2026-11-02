@@ -41,6 +41,7 @@ const aPreview = (over: Partial<SwapPreview> = {}): SwapPreview => ({
   violations: [],
   moved: [],
   outsideLimits: [],
+  cooking: null,
   valid: true,
   ...over,
 });

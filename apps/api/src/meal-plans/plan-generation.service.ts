@@ -52,7 +52,7 @@ import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-sto
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
-import { MealPlansService } from './meal-plans.service.js';
+import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   customMacros,
   isoDate,
@@ -208,9 +208,12 @@ export class PlanGenerationService {
         days: {
           orderBy: { date: 'asc' },
           select: {
+            id: true,
             date: true,
             overrides: true,
-            meals: { select: { mealType: true, recipeId: true, source: true, eatenAt: true } },
+            meals: {
+              select: { id: true, mealType: true, recipeId: true, source: true, eatenAt: true },
+            },
           },
         },
       },
@@ -225,8 +228,28 @@ export class PlanGenerationService {
     const days = plan.days.map((day, index) =>
       rerollDayOf(day, dates[index]!, mealCount, profileCount),
     );
+    // What gives place on the days filled again, and the meals cooked with it on the other days.
+    const readings = days.map((day) => readReroll(day, { ...span, ...options }, today));
+    const filled = new Set(
+      plan.days.filter((_, index) => readings[index]!.fate === 'again').map((day) => day.id),
+    );
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
+    const others = days.flatMap((day, index) => {
+      const reading = readings[index]!;
+      if (reading.fate !== 'again') return [];
+      const staying = new Set(reading.staying);
+      return day.meals
+        .filter((meal) => !staying.has(meal))
+        .flatMap((meal) => cookedWith.get(meal.id) ?? [])
+        .filter((meal) => !filled.has(meal.dayId));
+    });
     return {
       ...rerollOutcome(days, { ...span, ...options }, today),
+      cooking: cookingChange(others, today),
       // Dates in this form sort as text.
       fromToday: today <= dates[0]! ? 'not_begun' : today > dates.at(-1)! ? 'over' : null,
     };
@@ -475,6 +498,26 @@ export class PlanGenerationService {
     } = prepared;
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
+    // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
+    const today = clientToday ?? this.today();
+    const cookedWith = options.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
+    const comingRecipes = options.together
+      ? await this.prisma.recipe.findMany({
+          where: { id: { in: result.assignments.map((placed) => placed.recipeId) } },
+          select: { id: true, caloriesPerServing: true },
+        })
+      : [];
+    const moves = filled.flatMap(({ dayIndex, staying }) =>
+      plan.days[dayIndex]!.meals.filter((meal) => !staying.includes(meal.id)).flatMap((meal) => {
+        const placed = result.assignments.find(
+          (one) => one.dayIndex === dayIndex && one.slot === meal.mealType,
+        );
+        const recipe = placed && comingRecipes.find((one) => one.id === placed.recipeId);
+        return recipe ? [{ mealId: meal.id, recipe }] : [];
+      }),
+    );
 
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
@@ -539,6 +582,13 @@ export class PlanGenerationService {
             : {}),
         },
       });
+      await this.plans.carryToOtherDays(
+        tx,
+        cookedWith,
+        moves,
+        new Set(filled.map((entry) => entry.dayId)),
+        today,
+      );
     });
   }
 

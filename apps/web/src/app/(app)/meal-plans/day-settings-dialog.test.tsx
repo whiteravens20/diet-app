@@ -64,6 +64,7 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   dayCalories: 2310,
   fits: true,
   listOutOfDate: false,
+  cooking: null,
   unchanged: false,
   ...over,
 });

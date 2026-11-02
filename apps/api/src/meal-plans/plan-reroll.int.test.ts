@@ -235,6 +235,7 @@ describe('making a plan again, or a part of it', () => {
         kept: { outside: 0, past: 2, skipped: 0, eaten: 1, custom: 0, locked: 0 },
         couldGo: { past: true, eaten: true, custom: false },
         fromToday: null,
+        cooking: null,
       });
       expect(said.days).toBe(3);
     });

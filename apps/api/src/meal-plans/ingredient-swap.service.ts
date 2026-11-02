@@ -11,6 +11,7 @@ import { z } from 'zod';
 import {
   fitsDiet,
   Locale as LocaleEnum,
+  PlanOptions,
   SubstitutionViolation,
   type AiGenerationMeta,
   type AiSuggestIngredientRequest,
@@ -49,7 +50,12 @@ import { toPlannedIngredients } from '../recipes/recipes.service.js';
 import type { Env } from '../config/env.js';
 import { assertMayEnter, pickIndex, restrictionsFor, violations } from './eligibility.js';
 import { StoredReport, withMealOutside } from './generation-report.js';
-import { MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  MealPlansService,
+  mayCarry,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import { isoDate } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
@@ -133,6 +139,7 @@ export class IngredientSwapService {
       violations: s.violations,
       moved: s.moved,
       outsideLimits: await this.outsideLimits(s),
+      cooking: cookingChange(s.cooking, s.today),
       valid: s.violations.length === 0,
     };
   }
@@ -213,30 +220,43 @@ export class IngredientSwapService {
       restrictions.avoidedRecipeIds,
     );
 
-    const gaveWay = await this.outsideLimits({ ...s, variantId });
+    const together = req.together ? s.cooking.filter((other) => mayCarry(other, s.today)) : [];
+    const gaveWay = await this.outsideLimits({ ...s, cooking: together, variantId });
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
-      await tx.plannedMeal.update({
-        where: { id: req.plannedMealId },
-        // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+      // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+      await tx.plannedMeal.updateMany({
+        where: { id: { in: [req.plannedMealId, ...together.map((other) => other.id)] } },
         data: { recipeId: variantId, modelPicked: false, modelReason: null },
       });
-      // What the recipe is outside of the meal says for as long as it holds it.
+      // What the recipe is outside of the meals say for as long as they hold it.
       const report = StoredReport.nullable().parse(meal.day.plan.report ?? null);
       if (report && gaveWay.length > 0)
         await tx.mealPlan.update({
           where: { id: req.planId },
           data: {
-            report: withMealOutside(report, {
-              date: isoDate(meal.day.date),
-              slot: meal.mealType as MealType,
-              recipeId: variantId,
-              gaveWay,
-            }),
+            report: [
+              { date: isoDate(meal.day.date), slot: meal.mealType as MealType },
+              ...together.map(({ date, mealType }) => ({ date, slot: mealType })),
+            ].reduce(
+              (kept, place) => withMealOutside(kept, { ...place, recipeId: variantId, gaveWay }),
+              report,
+            ),
           },
         });
       // The substitution changed the meal's macros, so the day total moved —
-      // run the same rebalance pipeline as every other edit.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.plans.today());
+      // run the same rebalance pipeline as every other edit, on each day it changed.
+      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, s.today);
+      const others = await Promise.all(
+        [...new Set(together.map((other) => other.dayId))]
+          .filter((dayId) => dayId !== meal.dayId)
+          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, s.today)),
+      );
+      return (
+        summary && {
+          ...summary,
+          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+        }
+      );
     });
     return {
       ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
@@ -361,8 +381,9 @@ export class IngredientSwapService {
     clientToday: string | null,
   ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
+    const today = clientToday ?? this.plans.today();
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: swappableRecipeOf(meal, clientToday ?? this.plans.today()) },
+      where: { id: swappableRecipeOf(meal, today) },
       include: {
         ingredients: {
           orderBy: { position: 'asc' },
@@ -371,11 +392,14 @@ export class IngredientSwapService {
         translations: true,
       },
     });
+    const options = PlanOptions.parse(meal.day.plan.options);
     return {
       userId,
       meal,
       recipe,
       restrictions: await restrictionsFor(this.prisma, meal.day.plan),
+      today,
+      cooking: (await this.plans.cookedWith(this.prisma, planId, options)).get(meal.id) ?? [],
     };
   }
 
@@ -432,7 +456,14 @@ export class IngredientSwapService {
    * on. Throws `UnitConversionError` for a line that cannot be converted.
    */
   private workOut(
-    { userId, meal, recipe, restrictions }: Awaited<ReturnType<IngredientSwapService['subject']>>,
+    {
+      userId,
+      meal,
+      recipe,
+      restrictions,
+      today,
+      cooking,
+    }: Awaited<ReturnType<IngredientSwapService['subject']>>,
     fromIngredientId: string,
     to: (typeof recipe.ingredients)[number]['ingredient'],
   ) {
@@ -537,6 +568,8 @@ export class IngredientSwapService {
       waived,
       restrictions,
       heldLines,
+      today,
+      cooking,
     };
   }
 
@@ -548,9 +581,12 @@ export class IngredientSwapService {
     meal: Awaited<ReturnType<IngredientSwapService['subject']>>['meal'];
     recipe: Awaited<ReturnType<IngredientSwapService['subject']>>['recipe'];
     heldLines: LimitedRecipe['ingredients'];
+    cooking: readonly CookedMeal[];
+    today: string;
     variantId?: string;
   }): Promise<PlanRelaxation[]> {
     const { meal, recipe, heldLines, variantId } = s;
+    const together = s.cooking.filter((other) => mayCarry(other, s.today));
     const [limits, day] = await Promise.all([
       readPlanLimits(
         this.prisma,
@@ -570,7 +606,8 @@ export class IngredientSwapService {
         ingredients: heldLines,
       },
       day,
-      new Set([meal.id]),
+      new Set([meal.id, ...together.map((other) => other.id)]),
+      together.map((other) => other.dayIndex),
     );
   }
 

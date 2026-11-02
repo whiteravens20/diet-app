@@ -146,6 +146,7 @@ export function IngredientSubstituteModal({
         toIngredientId: toId!,
         rewriteWithAi: false,
         acceptChange: false,
+        together: false,
       } satisfies SwapIngredientRequest),
     enabled: Boolean(fromId && toId),
   });
@@ -159,6 +160,7 @@ export function IngredientSubstituteModal({
         toIngredientId: toId!,
         rewriteWithAi: Boolean(aiEnabled) && rewriteWithAi,
         acceptChange,
+        together: false,
         ...(aiNote && aiNote.from === fromId && aiNote.to === toId ? { pick: aiNote.note } : {}),
       } satisfies SwapIngredientRequest),
     onSuccess: (result) => {

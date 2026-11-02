@@ -252,6 +252,28 @@ export const PlannedIngredient = z.object({
 });
 export type PlannedIngredient = z.infer<typeof PlannedIngredient>;
 
+/** Another meal of the same cooking, in a plan made for cooking ahead. */
+const OtherMealOfCooking = z.object({
+  mealId: z.string().uuid(),
+  date: z.string().date(),
+  mealType: MealType,
+  eaten: z.boolean(),
+});
+
+/**
+ * What a change of a dish does to the other meals of its cooking: those that
+ * would get the recipe too where the request says `together`, and those that
+ * keep what they hold, for being eaten or of a day that has passed, so that what
+ * was cooked for this meal stays unused. Null for a meal cooked for itself.
+ */
+export const CookingChange = z
+  .object({
+    changes: z.array(z.object({ date: z.string().date(), mealType: MealType })),
+    stays: z.array(z.object({ date: z.string().date(), mealType: MealType })),
+  })
+  .nullable();
+export type CookingChange = z.infer<typeof CookingChange>;
+
 /** A single scheduled meal within a plan day. */
 export const PlannedMeal = z.object({
   id: z.string().uuid(),
@@ -307,6 +329,16 @@ export const PlannedMeal = z.object({
    * not made for cooking ahead.
    */
   cookAhead: z.enum(['cook', 'cooked']).nullable(),
+  /**
+   * The other meals of the same cooking, and what the whole of it takes, in the
+   * amounts to cook on the meal marked `cook`. Null where `cookAhead` is.
+   */
+  cooking: z
+    .object({
+      with: z.array(OtherMealOfCooking),
+      ingredients: z.array(PlannedIngredient),
+    })
+    .nullable(),
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
@@ -337,6 +369,8 @@ const RerollOptions = z.object({
    * made again.
    */
   allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
+  /** The dish a meal gets goes on the meals cooked with it on the days that are not filled again. */
+  together: z.boolean().default(false),
 });
 
 /** Options of a re-roll of one day of a plan. */
@@ -403,6 +437,8 @@ export const RerollPreview = z.object({
    * (`not_begun`), or it is over (`over`). Null where they are one.
    */
   fromToday: z.enum(['not_begun', 'over']).nullable(),
+  /** The meals cooked with those that give place, on the days that are not filled again. */
+  cooking: CookingChange,
 });
 export type RerollPreview = z.infer<typeof RerollPreview>;
 
@@ -496,6 +532,8 @@ export type DaySettings = z.infer<typeof DaySettings>;
 export const ApplyDaySettingsRequest = DaySettings.extend({
   revision: z.number().int().min(0).max(2_147_483_647),
   allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
+  /** The recipe drawn for a meal goes on the meals cooked with it as well. */
+  together: z.boolean().default(false),
 });
 export type ApplyDaySettingsRequest = z.infer<typeof ApplyDaySettingsRequest>;
 
@@ -542,6 +580,8 @@ export const DaySettingsPreview = z.object({
   listOutOfDate: z.boolean(),
   /** The change does nothing to the day. */
   unchanged: z.boolean(),
+  /** The meals cooked with those that get another recipe. */
+  cooking: CookingChange,
 });
 export type DaySettingsPreview = z.infer<typeof DaySettingsPreview>;
 
@@ -818,6 +858,8 @@ export const MealSwapPreview = z.object({
   /** What the day aims at. */
   calorieTarget: z.number(),
   targetMacros: Macros,
+  /** What it would do to the other meals of the same cooking. */
+  cooking: CookingChange,
   /** The limits of the plan the recipe is outside of on this meal: only where no other is left, or it was picked by hand. */
   outsideLimits: z.array(PlanRelaxation),
   /** The revision of the plan the offer was made from: sent back to make the swap. */
@@ -855,6 +897,8 @@ export const ApplyMealSwapRequest = z.object({
    * for this recipe on this meal of the plan as it stands, or has run out.
    */
   pick: ModelPickNote.optional(),
+  /** The recipe goes on the other meals of the same cooking as well, as the offer said. */
+  together: z.boolean().default(false),
 });
 export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 
@@ -933,6 +977,8 @@ export const DayVariations = z.object({
   diary: Nutrition.nullable(),
   /** The day as it is, to hold the others against. */
   current: z.object({ dayNutrition: Nutrition, packs: PackTally }),
+  /** The meals cooked with those of the day that give place, on other days. */
+  cooking: CookingChange,
   /**
    * Up to three ways that differ from the day as it is and from each other:
    * in the order a model gave them where one was asked and answered, in the
@@ -952,7 +998,11 @@ export type DayVariations = z.infer<typeof DayVariations>;
  * model put first is written as its pick: the meals say so, and the plan says
  * that a model had a part in it.
  */
-export const TakeDayVariationRequest = z.object({ offer: DayOfferNote });
+export const TakeDayVariationRequest = z.object({
+  offer: DayOfferNote,
+  /** The dish a meal gets goes on the meals cooked with it on other days. */
+  together: z.boolean().default(false),
+});
 export type TakeDayVariationRequest = z.infer<typeof TakeDayVariationRequest>;
 
 /** A recipe in the place of a meal that would use up what the plan opens. */
@@ -1042,6 +1092,8 @@ export const SwapIngredientRequest = z.object({
    * `MODEL_PICK_INVALID` for a note that is not for this substitution.
    */
   pick: ModelPickNote.optional(),
+  /** The other meals of the same cooking get the recipe it leaves as well. */
+  together: z.boolean().default(false),
 });
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
 
@@ -1124,6 +1176,8 @@ export const SwapPreview = z.object({
   moved: z.array(MovedNutrient),
   /** The limits of the plan the recipe it would leave is outside of on this meal: no bar to it, and said. */
   outsideLimits: z.array(PlanRelaxation),
+  /** What it would do to the other meals of the same cooking. */
+  cooking: CookingChange,
   /** No violation stands in the way. */
   valid: z.boolean(),
 });

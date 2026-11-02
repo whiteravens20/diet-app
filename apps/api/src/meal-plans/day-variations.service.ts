@@ -7,6 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+  PlanOptions,
   RegenerateDayRequest,
   type DayVariation,
   type DayVariationMeal,
@@ -16,7 +17,6 @@ import {
   type MealType,
   type Nutrition,
   type PackTally,
-  type TakeDayVariationRequest,
   type WeighRequest,
 } from '@diet-app/shared';
 import { ModelPickService } from '../ai/model-pick.service.js';
@@ -26,7 +26,12 @@ import { storedSplit } from '../common/stored-split.js';
 import { macrosForCalories, packUse, sharesOf, tallyOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { assertMayEnter, CANDIDATE, pickIndex, restrictionsFor } from './eligibility.js';
-import { mealRank, MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  mealRank,
+  MealPlansService,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import { isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds, type PackedMeal } from './plan-menu.js';
@@ -315,11 +320,23 @@ export class DayVariationsService {
       picked = !weighed.meta.usedDeterministicFallback;
     }
 
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
     return {
       date,
       calorieTarget: day.calorieTarget,
       diary: entered,
       current,
+      cooking: cookingChange(
+        day.meals
+          .filter((meal) => !stays.has(meal.id))
+          .flatMap((meal) => cookedWith.get(meal.id) ?? [])
+          .filter((meal) => meal.dayId !== dayId),
+        clientToday ?? this.plans.today(),
+      ),
       variations: variations.map(({ way, ...variation }, index) => ({
         ...variation,
         // What a model put first is its pick, and is written as one when it is taken.
@@ -353,7 +370,8 @@ export class DayVariationsService {
     locale: Locale,
     planId: string,
     dayId: string,
-    req: TakeDayVariationRequest,
+    req: { offer: string; together?: boolean },
+    clientToday: string | null = null,
   ): Promise<MealPlan> {
     await this.dateOf(userId, planId, dayId);
     const offer = this.notes.dayOffered(userId, req.offer, { plan: planId, day: dayId });
@@ -367,7 +385,7 @@ export class DayVariationsService {
     const restrictions = await restrictionsFor(this.prisma, plan);
     const recipes = await this.prisma.recipe.findMany({
       where: { id: { in: offer.meals.map(([, recipeId]) => recipeId) } },
-      select: CANDIDATE,
+      select: { ...CANDIDATE, caloriesPerServing: true },
     });
     for (const [mealType, recipeId] of offer.meals) {
       const recipe = recipes.find((candidate) => candidate.id === recipeId);
@@ -379,11 +397,14 @@ export class DayVariationsService {
       assertMayEnter(recipe, restrictions, mealType, 'RECIPE_NOT_ELIGIBLE');
     }
 
+    const cookedWith = req.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
     await writePlan(this.prisma, planId, offer.revision, async (tx) => {
       // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
       const meals = await tx.plannedMeal.findMany({
         where: { dayId },
-        select: { id: true, eatenAt: true, source: true },
+        select: { id: true, eatenAt: true, source: true, mealType: true },
       });
       const staying = meals
         .filter((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM')
@@ -408,6 +429,19 @@ export class DayVariationsService {
           ...(offer.picked ? { generationMode: 'ai_assisted' as const } : {}),
         },
       });
+      await this.plans.carryToOtherDays(
+        tx,
+        cookedWith,
+        meals
+          .filter((meal) => !staying.includes(meal.id))
+          .flatMap((meal) => {
+            const placed = offer.meals.find(([mealType]) => mealType === meal.mealType);
+            const recipe = placed && recipes.find((candidate) => candidate.id === placed[1]);
+            return recipe ? [{ mealId: meal.id, recipe }] : [];
+          }),
+        new Set([dayId]),
+        clientToday ?? this.plans.today(),
+      );
     });
     return this.plans.get(userId, locale, planId);
   }
