@@ -1799,7 +1799,9 @@
     "wordDay": "The day: {kcal, number, ::group-off} of {target, number, ::group-off} kcal · protein {protein, number, ::group-off} of {proteinTarget, number, ::group-off} g",
     "swapDoneTitle": "Meal swapped",
     "undoSwap": "Undo the swap",
-    "errUndoSwap": "The swap could not be undone."
+    "errUndoSwap": "The swap could not be undone.",
+    "eatenAhead": "A meal can be marked as eaten on its day.",
+    "dayIsOver": "This day is over: its dishes stay. You can mark what was eaten, add a meal of your own or remove a meal."
   },
   "inventory": {
     "title": "Inventory",

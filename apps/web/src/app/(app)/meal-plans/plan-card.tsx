@@ -357,7 +357,7 @@ export function PlanCard({
         {dayOpen && (
           <div className="space-y-2 border-t border-border p-3">
             <div className="flex flex-wrap items-center gap-x-3">
-              {!day.skipped && (
+              {!day.skipped && day.date >= today && (
                 <>
                   <Button
                     type="button"
@@ -393,6 +393,7 @@ export function PlanCard({
               )}
             </div>
             <DaySettingsLine day={day} />
+            {day.date < today && <p className="text-xs text-muted-foreground">{t('dayIsOver')}</p>}
             {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
             {(day.diary || day.date <= today) && (
               <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
@@ -507,6 +508,28 @@ export function PlanCard({
                 const named = (action: string): string => t('actionFor', { action, title });
                 const favOpen = openFav === m.id;
                 const actionsOpen = openActions === m.id;
+                // A meal of a day that is over, or that is skipped, keeps its dish.
+                const changeable = !day.skipped && day.date >= today;
+                // What follows for the other meal of its cooking when this one leaves it.
+                const apart = cookWords.apart(m, day.date, today);
+                // The dish of the day before, for a meal that was parted from it: a press brings the two together again.
+                const dayBefore = plan.days[plan.days.indexOf(day) - 1];
+                const parted =
+                  plan.options.mealPrepFriendly &&
+                  !m.cookAhead &&
+                  dayBefore &&
+                  dayBefore.date >= today &&
+                  !dayBefore.skipped
+                    ? dayBefore.meals.find(
+                        (one) =>
+                          one.mealType === m.mealType &&
+                          one.recipe !== null &&
+                          one.recipe.id !== m.recipe?.id &&
+                          !one.cookAhead &&
+                          one.eatenAt === null &&
+                          one.source !== 'USER_CUSTOM',
+                      )
+                    : undefined;
                 const mealLabel = tMeal.has(m.mealType)
                   ? tMeal(m.mealType)
                   : m.mealType.replace('_', ' ');
@@ -550,9 +573,9 @@ export function PlanCard({
                           className="mt-0.5 h-4 w-4 shrink-0"
 
                           checked={eaten}
-                          disabled={busy}
+                          disabled={busy || (!eaten && day.date > today)}
                           aria-label={named(t('markEaten'))}
-                          title={t('markEaten')}
+                          title={!eaten && day.date > today ? t('eatenAhead') : t('markEaten')}
                           onChange={() => {
                             changing.current = mealAnchor(m.id);
                             onToggleEaten(m.id, !m.eatenAt);
@@ -634,7 +657,7 @@ export function PlanCard({
                       </span>
 
                       <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
-                        {(eaten || isCustom) && (
+                        {(eaten || isCustom || !changeable) && (
                           <>
                             {eaten && (
                               <span className="text-xs font-medium text-muted-foreground">
@@ -655,7 +678,7 @@ export function PlanCard({
                           </>
                         )}
                         {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
-                        {eaten || isCustom ? null : (
+                        {eaten || isCustom || !changeable ? null : (
                           <Button
                             type="button"
                             variant="ghost"
@@ -670,7 +693,7 @@ export function PlanCard({
                         )}
                       </span>
                     </div>
-                    {!eaten && !isCustom && (
+                    {!eaten && !isCustom && changeable && (
                       <div
                         id={`${m.id}-actions`}
                         role="group"

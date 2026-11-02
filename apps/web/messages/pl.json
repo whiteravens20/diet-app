@@ -1799,7 +1799,9 @@
     "wordDay": "Dzień: {kcal, number, ::group-off} z {target, number, ::group-off} kcal · białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g",
     "swapDoneTitle": "Posiłek zamieniony",
     "undoSwap": "Cofnij zamianę",
-    "errUndoSwap": "Nie udało się cofnąć zamiany."
+    "errUndoSwap": "Nie udało się cofnąć zamiany.",
+    "eatenAhead": "Posiłek oznaczysz jako zjedzony w jego dniu.",
+    "dayIsOver": "Ten dzień minął: jego dania zostają. Możesz oznaczyć, co zjedzone, dodać własny posiłek albo usunąć posiłek."
   },
   "inventory": {
     "title": "Spiżarnia",
