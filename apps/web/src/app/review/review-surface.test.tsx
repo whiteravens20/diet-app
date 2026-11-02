@@ -8,6 +8,11 @@ import { reviewApi } from '@/lib/review-api';
 import messages from '../../../messages/en.json';
 import { ReviewSurface } from './review-surface';
 
+vi.mock('@/lib/use-config', () => ({
+  useConfig: () => ({ data: { products: { offered: productsOffered, lookups: false } } }),
+}));
+let productsOffered = false;
+
 const text = messages.review;
 
 /** The page of a reviewer who is signed in, on an instance that reviews Polish, with nothing waiting. */
@@ -26,6 +31,7 @@ async function renderSignedIn() {
     page: 1,
     pageSize: 25,
   });
+  vi.spyOn(reviewApi, 'productQueue').mockResolvedValue({ items: [], total: 3 });
   const names = vi
     .spyOn(reviewApi, 'listIngredientNameSlices')
     .mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 });
@@ -133,5 +139,30 @@ describe("the reviewer's page", () => {
       'false',
     );
     await vi.waitFor(() => expect(names).toHaveBeenCalledWith('pl', { page: 1, pageSize: 25 }));
+  });
+
+  describe('products sent to the base', () => {
+    afterEach(() => {
+      productsOffered = false;
+    });
+
+    it('are not offered where the instance has no products', async () => {
+      await renderSignedIn();
+
+      expect(screen.queryByRole('button', { name: new RegExp(text.kindProduct) })).toBeNull();
+    });
+
+    it('are a kind beside the others, with how many wait, and open their queue', async () => {
+      productsOffered = true;
+      await renderSignedIn();
+
+      const kind = await screen.findByRole('button', {
+        name: new RegExp(`${text.kindProduct}.*3`),
+      });
+      await userEvent.click(kind);
+
+      expect(kind).toHaveAttribute('aria-pressed', 'true');
+      expect(await screen.findByText(messages.productReview.nothing)).toBeInTheDocument();
+    });
   });
 });
