@@ -793,6 +793,10 @@ model MealPlan {
   // choose from, what the pantry had to do with it. Null on a plan made before
   // this was kept.
   report         Json?
+  // What the last swap of a meal or of an ingredient found on the days it
+  // changed, for the plan's revision it left: taken back while the plan is at
+  // that revision (`StoredSwap` in the plan service).
+  lastSwap       Json?
   // Counts the changes made to the plan. A change is written only if the
   // revision is still the one it was computed from, so two requests that
   // overlap cannot both rewrite the plan.

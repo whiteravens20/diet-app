@@ -320,6 +320,7 @@
     "DAY_IN_THE_PAST": "Ten dzień już minął: zostaje taki, jaki był.",
     "DAY_SKIPPED": "Ten dzień jest pominięty: nie ma na nim posiłku do zmiany.",
     "MEAL_NOT_EATEN_YET": "Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego.",
+    "NOTHING_TO_UNDO": "Nie ma już zamiany, którą można cofnąć.",
     "FAVORITE_NOT_FOUND": "Ten przepis nie jest oznaczony dla tego profilu.",
     "FAVORITE_LIMIT_REACHED": "Ten profil ma już tyle oznaczonych przepisów, ile może mieć. Najpierw usuń jedno oznaczenie.",
     "FAVORITE_SET_LIMIT_REACHED": "Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich.",

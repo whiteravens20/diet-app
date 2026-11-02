@@ -903,6 +903,18 @@ export const ApplyMealSwapRequest = z.object({
 export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 
 /**
+ * Take back the last swap of a meal or of an ingredient: the dishes and the
+ * portions of the days it changed. `revision` is the plan's as that swap left
+ * it: 409 `PLAN_CHANGED` for a plan that changed since, 409 `NOTHING_TO_UNDO`
+ * for one no swap of which can be taken back.
+ */
+export const UndoSwapRequest = z.object({
+  planId: z.string().uuid(),
+  revision: z.number().int().min(0).max(2_147_483_647),
+});
+export type UndoSwapRequest = z.infer<typeof UndoSwapRequest>;
+
+/**
  * Whether a model is asked to weigh what the engine proposes: to put the
  * proposals in order and say a sentence of each. One call on the caller's AI
  * allowance. The engine makes the proposals either way, and they are the same

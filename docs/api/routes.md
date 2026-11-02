@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-185 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+186 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -192,6 +192,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/swap-ingredient/preview` | an account | What swapping an ingredient of a meal for another would do to the meal. Nothing is written. | `SwapIngredientRequest` | 201 `SwapPreview` |  |
 | `POST /api/meal-plans/swap-meal` | an account | Make a swap that was offered, on the plan as it was when the offer was made. | `ApplyMealSwapRequest` | 201 `RebalanceResult` |  |
 | `POST /api/meal-plans/swap-meal/preview` | an account | A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. | `SwapMealRequest` | 201 `MealSwapPreview` |  |
+| `POST /api/meal-plans/swap-meal/undo` | an account | Take back the last swap of a meal or of an ingredient, while the plan is as that swap left it: the dishes and the portions of the days it changed. | `UndoSwapRequest` | 200 `RebalanceResult` |  |
 
 ## notifications
 

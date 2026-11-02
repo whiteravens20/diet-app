@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import {
   fitsDiet,
   PlanOptions,
@@ -23,6 +24,7 @@ import {
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
+  type UndoSwapRequest,
 } from '@diet-app/shared';
 import {
   fitServings,
@@ -707,6 +709,69 @@ export class MealPlansService {
     for (const dayId of touched) await this.rebalanceDayInternal(dayId, tx, today);
   }
 
+  /**
+   * Note what the days a swap is about to change hold, for the revision the
+   * swap leaves the plan at. Called inside the swap's transaction, before it
+   * writes anything.
+   */
+  async rememberSwap(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    readAtRevision: number,
+    dayIds: readonly string[],
+  ): Promise<void> {
+    const meals = await tx.plannedMeal.findMany({
+      where: { dayId: { in: [...dayIds] } },
+      select: {
+        id: true,
+        recipeId: true,
+        servings: true,
+        quantityScale: true,
+        swapHistory: true,
+        modelPicked: true,
+        modelReason: true,
+      },
+    });
+    const lastSwap: StoredSwap = { revision: readAtRevision + 1, meals };
+    await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap } });
+  }
+
+  /** Take back the last swap of a plan, on the plan as that swap left it. */
+  async undoSwap(userId: string, locale: Locale, req: UndoSwapRequest): Promise<RebalanceResult> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: req.planId },
+      select: {
+        revision: true,
+        lastSwap: true,
+        profile: { select: { userId: true } },
+      },
+    });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    const swap = StoredSwap.nullable().parse(plan.lastSwap ?? null);
+    if (!swap) {
+      throw new ConflictException({
+        error: 'NOTHING_TO_UNDO',
+        message: 'There is no swap of this plan to take back.',
+      });
+    }
+    if (swap.revision !== plan.revision || req.revision !== plan.revision) {
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed after the swap: it can no longer be taken back.',
+      });
+    }
+    await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
+      for (const { id, ...before } of swap.meals)
+        await tx.plannedMeal.update({ where: { id }, data: before });
+      await tx.mealPlan.update({
+        where: { id: req.planId },
+        data: { lastSwap: Prisma.JsonNull },
+      });
+    });
+    return this.buildRebalanceResult(userId, locale, req.planId, 'day', null);
+  }
+
   /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
   private async restoreScales(
     planId: string,
@@ -1014,6 +1079,23 @@ interface RebalanceRow {
   quantityScale: number;
   locked: boolean;
 }
+
+/** What the days a swap changed held before it, for the revision of the plan it left. */
+const StoredSwap = z.object({
+  revision: z.number().int(),
+  meals: z.array(
+    z.object({
+      id: z.string(),
+      recipeId: z.string().nullable(),
+      servings: z.number(),
+      quantityScale: z.number(),
+      swapHistory: z.array(z.string()),
+      modelPicked: z.boolean(),
+      modelReason: z.string().nullable(),
+    }),
+  ),
+});
+type StoredSwap = z.infer<typeof StoredSwap>;
 
 /** A meal of a cooking, as a change of the dish of another of its meals reads it. */
 export interface CookedMeal {

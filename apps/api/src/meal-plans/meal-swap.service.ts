@@ -302,6 +302,10 @@ export class MealSwapService {
     const gaveWay = outsideLimitsOf(slot, replacement, together);
     const today = slot.today;
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
+      await this.plans.rememberSwap(tx, req.planId, req.revision, [
+        meal.dayId,
+        ...together.map((other) => other.dayId),
+      ]);
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
         // A fresh recipe is a new baseline for the rebalancer, and says who chose it.

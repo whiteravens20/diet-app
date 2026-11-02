@@ -801,6 +801,15 @@
       "pl": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian."
     }
   },
+  "NOTHING_TO_UNDO": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "There is no swap of this plan to take back.",
+      "pl": "Nie ma już zamiany, którą można cofnąć."
+    }
+  },
   "NOTIFICATION_NOT_FOUND": {
     "statuses": [
       404

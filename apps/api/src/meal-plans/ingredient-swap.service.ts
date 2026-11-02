@@ -223,6 +223,10 @@ export class IngredientSwapService {
     const together = req.together ? s.cooking.filter((other) => mayCarry(other, s.today)) : [];
     const gaveWay = await this.outsideLimits({ ...s, cooking: together, variantId });
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
+      await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
+        meal.dayId,
+        ...together.map((other) => other.dayId),
+      ]);
       // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
       await tx.plannedMeal.updateMany({
         where: { id: { in: [req.plannedMealId, ...together.map((other) => other.id)] } },

@@ -5918,6 +5918,57 @@
         }
       }
     },
+    "/api/meal-plans/swap-meal/undo": {
+      "post": {
+        "operationId": "MealPlans_undoSwap",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take back the last swap of a meal or of an ingredient, while the plan is as that swap left it: the dishes and the portions of the days it changed.",
+        "description": "Take back the last swap of a meal or of an ingredient, while the plan is as that swap left it: the dishes and the portions of the days it changed.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoSwapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebalanceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/notifications/{id}/read": {
       "post": {
         "operationId": "Notifications_markRead",
@@ -20235,6 +20286,24 @@
           "locale"
         ],
         "additionalProperties": false
+      },
+      "UndoSwapRequest": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "planId",
+          "revision"
+        ]
       },
       "Unit": {
         "type": "string",

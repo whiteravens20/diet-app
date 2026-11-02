@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 166 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 167 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -97,6 +97,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `MODEL_PICK_INVALID` | 400 | This suggestion is no longer good for what it was made for. Ask for another. | Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową. |
 | `NAMER_IN_PROGRESS` | 409 | An ingredient-namer run is already in progress. | Generowanie nazw składników już trwa. |
 | `NOTHING_TO_REGENERATE` | 409 | Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are. | Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian. |
+| `NOTHING_TO_UNDO` | 409 | There is no swap of this plan to take back. | Nie ma już zamiany, którą można cofnąć. |
 | `NOTIFICATION_NOT_FOUND` | 404 | Notification not found. | Nie znaleziono powiadomienia. |
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |

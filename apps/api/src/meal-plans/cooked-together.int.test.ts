@@ -356,4 +356,64 @@ describe('a dish cooked for two meals', () => {
     expect(second(after).cookAhead).toBeNull();
     expect(second(after).cooking).toBeNull();
   });
+
+  describe('taken back', () => {
+    const undo = (revision: number) =>
+      t
+        .http()
+        .post('/api/meal-plans/swap-meal/undo')
+        .set(as(user))
+        .send({ planId: plan.id, revision });
+
+    it('has its dishes and portions back on both days', async () => {
+      const before = await read();
+
+      const swapped = (await take(first(), await offer(first()), true)).body.plan as MealPlan;
+      const after = (await undo(swapped.revision).expect(200)).body as {
+        plan: MealPlan;
+        rebalance: unknown;
+      };
+
+      const figures = (of: MealPlan) =>
+        of.days.map((day) =>
+          day.meals.map((meal) => [meal.id, meal.recipe?.id, meal.servings, meal.quantityScale]),
+        );
+      expect(figures(after.plan)).toEqual(figures(before));
+      expect(after.rebalance).toBeNull();
+      expect(first(after.plan).cookAhead).toBe('cook');
+    });
+
+    it('is refused on a plan that changed after it', async () => {
+      const swapped = (await take(first(), await offer(first()), true)).body.plan as MealPlan;
+      await t.app
+        .get(MealPlansService)
+        .setEaten(user.id, 'en', plan.id, swapped.days[0]!.meals[0]!.id, true);
+
+      expect((await undo(swapped.revision).expect(409)).body.error).toBe('PLAN_CHANGED');
+      expect((await undo(swapped.revision + 1).expect(409)).body.error).toBe('PLAN_CHANGED');
+    });
+
+    it('is refused where there is nothing to take back, and a second time', async () => {
+      expect((await undo(plan.revision).expect(409)).body.error).toBe('NOTHING_TO_UNDO');
+
+      const swapped = (await take(first(), await offer(first()), true)).body.plan as MealPlan;
+      const after = (await undo(swapped.revision).expect(200)).body.plan as MealPlan;
+
+      expect((await undo(after.revision).expect(409)).body.error).toBe('NOTHING_TO_UNDO');
+    });
+
+    it("is nobody else's to take back", async () => {
+      const swapped = (await take(first(), await offer(first()), true)).body.plan as MealPlan;
+      const stranger = await aUser(t);
+
+      const refused = await t
+        .http()
+        .post('/api/meal-plans/swap-meal/undo')
+        .set(as(stranger))
+        .send({ planId: plan.id, revision: swapped.revision })
+        .expect(404);
+
+      expect(refused.body.error).toBe('PLAN_NOT_FOUND');
+    });
+  });
 });

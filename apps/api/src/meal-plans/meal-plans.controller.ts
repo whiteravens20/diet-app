@@ -46,6 +46,7 @@ import {
   SwapMealRequest,
   SwapPreview,
   TakeDayVariationRequest,
+  UndoSwapRequest,
   UseUpSuggestions,
   WeighRequest,
   type Locale,
@@ -322,6 +323,21 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.swaps.apply(user.id, locale, dto, today);
+  }
+
+  /**
+   * Take back the last swap of a meal or of an ingredient, while the plan is as
+   * that swap left it: the dishes and the portions of the days it changed.
+   */
+  @Post('swap-meal/undo')
+  @HttpCode(200)
+  @Answers(RebalanceResult)
+  undoSwap(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(UndoSwapRequest)) dto: UndoSwapRequest,
+  ) {
+    return this.plans.undoSwap(user.id, locale, dto);
   }
 
   /**
