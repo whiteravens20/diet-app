@@ -474,12 +474,12 @@ Food Facts sees the server and never who asked. `OPEN_FOOD_FACTS_LOOKUPS=false` 
 The limits below are part of the application: the instance's stays under the 15 product reads
 a minute Open Food Facts allows one address.
 
-| What is asked of Open Food Facts | The most                                       |
-| -------------------------------- | ---------------------------------------------- |
-| By an account                    | 5 a minute, 100 in 24 hours                    |
-| By the whole instance            | 12 a minute                                    |
-| The same code, once not known    | Not again for 7 days                           |
-| A product no import brings       | Read again after 30 days, when it is asked for |
+| What is asked of Open Food Facts | The most                                                                             |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| By an account                    | 5 a minute, 100 in 24 hours                                                          |
+| By the whole instance            | 12 a minute                                                                          |
+| The same code, once not known    | Not again for 7 days                                                                 |
+| A product no import brings       | Read again after 30 days, when it is asked for; gone after 90 without anybody asking |
 
 What the instance holds or remembers as not known counts against none of these, only against
 the route's own 30 a minute. A search by name looks at nothing but the instance's own table. An

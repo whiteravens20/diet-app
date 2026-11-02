@@ -75,7 +75,10 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
       'removal of what no longer counts of the lookups of products',
       async () => {
         const removed = await products.prune();
-        if (removed > 0) logger.log(`Removed ${removed} counted lookup(s) and remembered code(s).`);
+        if (removed > 0)
+          logger.log(
+            `Removed ${removed} counted lookup(s), remembered code(s) and old product(s).`,
+          );
       },
     ],
   ];

@@ -9,7 +9,7 @@ import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ExportReadError, figureOf, OpenFoodFacts } from './open-food-facts.js';
 import { productRowOf, type ProductRow } from './product-row.js';
-import { PRODUCT_MEMORY_DAYS } from './limits.js';
+import { LOOKED_UP_KEPT_DAYS, PRODUCT_MEMORY_DAYS } from './limits.js';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -274,17 +274,27 @@ export class ProductImport {
     return hours >= (failed ? AGAIN_AFTER_HOURS : WEEKLY_AFTER_HOURS);
   }
 
-  /** Remove what no longer counts: lookups older than the limits look, and codes that may be asked again. */
+  /**
+   * Remove what no longer counts: lookups older than the limits look, codes that
+   * may be asked again, and products no import brings that nobody asked for in
+   * a long while, which an entry of a diary does without.
+   */
   async prune(now = new Date()): Promise<number> {
-    const [lookups, codes] = await this.prisma.$transaction([
+    const [lookups, codes, products] = await this.prisma.$transaction([
       this.prisma.productLookup.deleteMany({
         where: { at: { lt: new Date(now.getTime() - DAY_MS) } },
       }),
       this.prisma.productCodeUnknown.deleteMany({
         where: { askedAt: { lt: new Date(now.getTime() - PRODUCT_MEMORY_DAYS.unknown * DAY_MS) } },
       }),
+      this.prisma.product.deleteMany({
+        where: {
+          origin: 'looked_up',
+          readAt: { lt: new Date(now.getTime() - LOOKED_UP_KEPT_DAYS * DAY_MS) },
+        },
+      }),
     ]);
-    return lookups.count + codes.count;
+    return lookups.count + codes.count + products.count;
   }
 
   /** A run, where one is due and none is running anywhere. */

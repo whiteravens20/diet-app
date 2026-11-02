@@ -504,4 +504,53 @@ describe('the import of products', () => {
     expect(await t.prisma.productLookup.count()).toBe(1);
     expect(await t.prisma.productCodeUnknown.findMany()).toMatchObject([{ code: GERMAN }]);
   });
+
+  it('removes a product no import brings once nobody asked for it in a long while, and a diary keeps what it wrote', async () => {
+    const now = new Date();
+    const user = await aUser(t);
+    const profile = await aProfile(t, user);
+    const aProduct = (code: string, origin: 'imported' | 'looked_up', daysAgo: number) =>
+      t.prisma.product.create({
+        data: {
+          code,
+          origin,
+          name: `Produkt ${code}`,
+          searchText: `produkt ${code}`,
+          unit: 'g',
+          calories: 100,
+          protein: 1,
+          fat: 1,
+          carbs: 1,
+          readAt: new Date(now.getTime() - daysAgo * 24 * HOUR),
+        },
+      });
+    const old = await aProduct(POLISH, 'looked_up', 91);
+    await aProduct(GERMAN, 'looked_up', 89);
+    await aProduct(BOTH, 'imported', 400);
+    await t
+      .http()
+      .post('/api/diary/entries')
+      .set(as(user))
+      .set('X-Client-Date', TODAY)
+      .send({
+        profileId: profile.id,
+        date: TODAY,
+        mealType: 'snack',
+        kind: 'product',
+        productId: old.id,
+        quantity: 100,
+      })
+      .expect(201);
+
+    expect(await products.prune(now)).toBe(1);
+
+    expect(
+      (await t.prisma.product.findMany({ orderBy: { code: 'asc' } })).map((one) => one.code),
+    ).toEqual([GERMAN, BOTH].sort());
+    expect(await t.prisma.diaryEntry.findFirstOrThrow()).toMatchObject({
+      productId: null,
+      name: `Produkt ${POLISH}`,
+      calories: 100,
+    });
+  });
 });
