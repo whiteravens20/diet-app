@@ -93,6 +93,12 @@ export const dayAnchor = (planId: string, date: string): string => `plan-${planI
 /** The name a meal of a plan has on the page. */
 const mealAnchor = (mealId: string): string => `meal-${mealId}`;
 
+/** From how far off a whole recipe a meal's portion is worth a mark of its own. */
+const AUTO_BALANCED_FROM = 0.05;
+
+/** How near its target a day stays as it is, as a share of the target: the API does not fit it then. */
+const DAY_ON_TARGET = 0.02;
+
 /** A plan longer than this is shown a week at a time. */
 const DAYS_A_WEEK = 7;
 
@@ -327,6 +333,11 @@ export function PlanCard({
                   {t(`dayKindChip.${day.overrides.dayType}`)}
                 </span>
               )}
+              {day.macrosOff && !day.skipped && (
+                <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium text-warning">
+                  {t('macrosOffChip')}
+                </span>
+              )}
               {/* What the profile has ruled out is not to stay behind a fold. */}
               {day.meals.some((meal) => meal.restrictionConflicts.length > 0) && (
                 <span className="whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive">
@@ -340,7 +351,7 @@ export function PlanCard({
             ) : (
               <span
                 className={
-                  Math.abs(day.calorieDelta) <= 50
+                  day.offTarget === null
                     ? 'text-sm text-muted-foreground'
                     : 'text-sm text-destructive'
                 }
@@ -435,9 +446,8 @@ export function PlanCard({
                     )}
                   </span>
                 </p>
-                {/* A day of today or after it, which the diary put off its target, is resized with its own meals first: those from a recipe, not eaten yet. */}
-                {day.diary &&
-                  day.date >= today &&
+                {/* A day of today or after it is resized with its own meals first: those from a recipe, not eaten yet. */}
+                {day.date >= today &&
                   day.meals.some(
                     (m) => m.eatenAt === null && m.source !== 'USER_CUSTOM' && m.recipe !== null,
                   ) && (
@@ -456,7 +466,7 @@ export function PlanCard({
                         {t('resizeDay')}
                       </Button>
                       <span id={`${day.id}-resize`} className="text-muted-foreground">
-                        {t('resizeDayNote')}
+                        {t(day.diary ? 'resizeDayNote' : 'resizeDayNotePlain')}
                       </span>
                     </div>
                   )}
@@ -497,6 +507,9 @@ export function PlanCard({
                   carbsTarget: day.targetMacros.carbs,
                 })}
               </p>
+            )}
+            {!day.skipped && day.macrosOff && (
+              <p className="text-xs text-warning">{t('macrosOffHint')}</p>
             )}
             {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
             <ul className="divide-y divide-border text-sm">
@@ -643,7 +656,8 @@ export function PlanCard({
                               {t('onlyRecipeChip')}
                             </span>
                           )}
-                          {m.quantityScale !== 1 && (
+                          {/* A small difference is the sizing of an ordinary day, and says nothing to the reader. */}
+                          {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM && (
                             <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
                               {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
                             </span>
@@ -1148,6 +1162,12 @@ export function PlanCard({
                 carbsTarget: plan.targetMacros.carbs,
               })}
             </p>
+            {plan.averageOff.calories && (
+              <p className="text-warning">
+                {t(plan.averageOff.calories === 'over' ? 'planAverageOver' : 'planAverageUnder')}
+              </p>
+            )}
+            {plan.averageOff.macros && <p className="text-warning">{t('planAverageMacros')}</p>}
             {plan.packs.bought > 0 && (
               <PlanPacksLine packs={plan.packs}>
                 {plan.packs.open.some((pack) => pack.wasted) && (
