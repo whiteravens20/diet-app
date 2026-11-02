@@ -95,7 +95,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           defaultValue={initial ? shownToOne(initial.weightKg, unit) : ''}
         />
       </Field>
-      <Field label={t('activityLevel')} hint={t(`activityHint.${activity}`)}>
+      <Field label={t('activityLevel')}>
         <select
           name="activityLevel"
           className={selectClass}
@@ -108,6 +108,12 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
             </option>
           ))}
         </select>
+        <span
+          aria-live="polite"
+          className="block rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+        >
+          {t(`activityHint.${activity}`)}
+        </span>
       </Field>
     </>
   );
