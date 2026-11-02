@@ -217,6 +217,7 @@ end. The limits are part of the application, not settings.
 | Recipes a profile has marked             | 500                   |
 | Favorite sets of a profile               | 50                    |
 | Rows in the pantry of a profile          | 1000                  |
+| Products an account wrote                | 500                   |
 | Diary entries of a profile on one day    | 40                    |
 | Shopping lists of a plan                 | 10                    |
 | AI provider configurations of an account | One for each provider |
@@ -525,13 +526,29 @@ be right. A figure that cannot be (over 100 g in 100 g, over 900 kcal) counts as
 whose energy lies more than 40 kcal and a fifth from what its figures come to is shown with a note
 to check the label. They are for the diary alone: nothing enters a recipe or a plan.
 
+**Products people write.** A product the base does not know can be written by an account from
+its label, on its page of products or in the diary's window, for itself alone: at most 500, and 50
+written or changed in 24 hours. With a code, its energy, protein, fat and carbohydrates it can be
+sent to the base, 10 in 24 hours. The administrator in the panel or a reviewer on their page then
+accepts it or turns it down with a reason, without seeing whose it is, and its author is told. An
+accepted product belongs to the instance: what other accounts wrote of its code gives way to it, no
+import touches it, and it stays when its author's account is deleted. The administrator can withdraw
+it, with a reason: it goes back to its author, or is removed where the author is gone. The worker
+also asks about the codes people wrote, 3 a pass and each at most once in 7 days, and a product gives
+way to what Open Food Facts says of its code, with a notification. Diary entries keep their figures
+through all of this. An instance with neither lookups nor countries has no products at all, these
+included.
+
 **The licence.** The database of Open Food Facts is under the
 [Open Database License](https://opendatacommons.org/licenses/odbl/1-0/) and its contents under the
 [Database Contents License](https://opendatacommons.org/licenses/dbcl/1-0/). Where a product is
 shown, the application says where it comes from, and the page of the terms says so under what an
 operator writes. The instance's table is a part of that database, offered under the same licence:
 what it holds is what the export holds, and how it is chosen is in this repository
-(`apps/api/src/products`).
+(`apps/api/src/products`). What the instance accepted from its people is a part of the same table:
+`products.json` among the instance's files holds it without authors, every signed-in account can
+download it from its page of products, five times a minute, and the `mirror` service copies it. That
+follows one reading of the licence, and is not legal advice.
 
 ## A copy of the instance's own files
 
@@ -574,7 +591,7 @@ manifest. The API mounts that volume read-only and sees nothing else of the serv
 the key, not the clone, not the repository's address, which stays in `.env`. The panel
 counts the service as gone after three rounds without a report.
 
-An instance that holds no recipes and no names of its own, as its manifest says, leaves the
+An instance that holds no recipes, no names and no products of its own, as its manifest says, leaves the
 repository as it is: an emptied `instance-data` volume or a new database does not empty the
 copy. Files the instance removed while it still holds something are removed from the copy.
 

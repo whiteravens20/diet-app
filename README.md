@@ -42,7 +42,10 @@ The companion Android app lives in a separate repository:
   (ODbL), with their label's figures checked for whether they add up: the countries an
   operator names are imported once a week, and a code no import brought is asked about
   through the instance, so that Open Food Facts sees the server and never who asks. Label
-  figures go into the diary alone, never into a recipe or a plan.
+  figures go into the diary alone, never into a recipe or a plan. A product the base does not
+  know can be written from its label, for the account alone or sent to the instance's reviewers,
+  and what they accept joins the base, without its author, in a file of the instance every
+  account can download.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. A user can also
   write recipes of their own by hand from the catalogue's ingredients, and the engine works

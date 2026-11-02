@@ -41,7 +41,7 @@ Przepis zgłoszony do wspólnej biblioteki jest przez samo zgłoszenie udostępn
 
 ## 7. Twoje dane
 
-Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, oraz hasło, zapisane tylko w postaci, z której nie da się go odczytać. Zawiera też to, co wpisujesz: profile (na przykład wiek, płeć, wzrost, wagę, cele i upodobania kulinarne), wpisy wagi, wpisy dziennika, plany posiłków i listy zakupów, spiżarnię, oznaczone przepisy i własne przepisy, sesje logowania, dodane klucze dostawców AI (zaszyfrowane) oraz zapis użycia AI. Dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik. Usunięcie konta od razu usuwa je z bazy; kopie zrobione wcześniej zostają, dopóki nie zostaną zastąpione.
+Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, oraz hasło, zapisane tylko w postaci, z której nie da się go odczytać. Zawiera też to, co wpisujesz: profile (na przykład wiek, płeć, wzrost, wagę, cele i upodobania kulinarne), wpisy wagi, wpisy dziennika, plany posiłków i listy zakupów, spiżarnię, własne produkty, oznaczone przepisy i własne przepisy, sesje logowania, dodane klucze dostawców AI (zaszyfrowane) oraz zapis użycia AI. Dane są przechowywane w bazie tej instancji, na [gdzie stoi serwer]. [Jak często operator robi kopie zapasowe, jak długo je trzyma i kto może je czytać.] [Jeśli instancja wysyła e-maile: przez jaką usługę.] Wszystko, co zawiera Twoje konto, możesz w każdej chwili pobrać w Ustawieniach jako jeden plik. Usunięcie konta od razu usuwa je z bazy; kopie zrobione wcześniej zostają, dopóki nie zostaną zastąpione.
 
 ## 8. Ochrona przed botami
 
@@ -50,6 +50,8 @@ Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, ora
 ## 9. Produkty z kodem kreskowym
 
 [Usuń tę sekcję, jeśli instancja nie sprawdza kodów ani nie importuje produktów.] Kod kreskowy, który zeskanujesz albo wpiszesz, sprawdza ta instancja: najpierw we własnej tabeli produktów, a jeśli go tam nie ma, pyta Open Food Facts we własnym imieniu. Open Food Facts widzi serwer instancji, nie Ciebie. Instancja nie zapisuje przy Twoim koncie, o jakie kody pytasz, a jedynie to, że pytanie padło, i usuwa ten zapis po dobie. Wpis produktu w dzienniku należy do Twoich danych. Wartości produktów wpisują użytkownicy Open Food Facts i mogą być błędne: aplikacja sprawdza tylko, czy się zgadzają, więc porównaj je z opakowaniem. Dane Open Food Facts są dostępne na licencji Open Database License (ODbL), a tabela produktów tej instancji jest udostępniana na tej samej licencji, jak opisano pod regulaminem.
+
+Produkt, którego nie ma w tabeli, możesz wpisać sam i pozostaje on tylko Twój. Jego kod jest sprawdzany tak samo, od razu i później; gdy Open Food Facts albo ta instancja pozna ten kod, Twoja kopia ustępuje, dostajesz o tym informację, a dziennik zachowuje to, co zapisał. Jeśli wyślesz produkt do bazy, sprawdzający tej instancji czytają go, nie widząc, czyj jest. Przyjęty produkt należy do bazy: każdy na tej instancji może go znaleźć, jest udostępniany na tej samej licencji w pliku bez informacji, kto co dodał, i zostaje po usunięciu Twojego konta. Administrator może go wycofać, podając powód, a wtedy wraca do Ciebie. Produkt niewysłany, czekający i nieprzyjęty znika razem z kontem.
 
 ## 10. Odpowiedzialność
 
