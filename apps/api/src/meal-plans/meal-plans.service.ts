@@ -27,7 +27,9 @@ import {
   type UndoSwapRequest,
 } from '@diet-app/shared';
 import {
+  estimatedMacros,
   fitServings,
+  macroSplitOf,
   safetyFloor,
   macrosForCalories,
   sharesOf,
@@ -239,17 +241,28 @@ export class MealPlansService {
       request: req,
       write: async (keep) => {
         const day = await this.loadDay(userId, planId, date);
-        if (
-          ![
-            req.nutrition.calories,
-            req.nutrition.protein,
-            req.nutrition.fat,
-            req.nutrition.carbs,
-          ].every((v) => Number.isFinite(v) && v >= 0)
-        ) {
+        const { calories, ...known } = req.nutrition;
+        const given = Object.values(known).filter((value) => value !== undefined);
+        if (![calories, ...given].every((v) => Number.isFinite(v) && v >= 0)) {
           throw new BadRequestException({
             error: 'CUSTOM_MEAL_INVALID_MACROS',
             message: 'Custom meal macros must be non-negative numbers.',
+          });
+        }
+        // What is typed stands as it is; only what is left out is worked out.
+        const estimated = given.length < 3;
+        const macros = estimated
+          ? estimatedMacros(
+              calories,
+              known,
+              macroSplitOf(day.plan.dietType, sharesOf(storedSplit(day.plan.macroSplit))),
+            )
+          : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
+        if (!macros) {
+          throw new BadRequestException({
+            error: 'DIARY_MACROS_OVER_ENERGY',
+            message:
+              'The protein, fat and carbohydrate given hold more energy than the calories given.',
           });
         }
 
@@ -286,12 +299,8 @@ export class MealPlansService {
               quantityScale: 1,
               source: 'USER_CUSTOM',
               customName: req.name,
-              customMacros: {
-                calories: req.nutrition.calories,
-                protein: req.nutrition.protein,
-                fat: req.nutrition.fat,
-                carbs: req.nutrition.carbs,
-              },
+              customMacros: { calories, ...macros },
+              estimated,
             },
           });
           await keep(tx, planId);
@@ -918,6 +927,7 @@ export class MealPlansService {
             recipe: null,
             source: 'USER_CUSTOM' as const,
             customName: m.customName ?? null,
+            estimated: m.estimated,
             ingredients: [],
             servings: m.servings,
             quantityScale: m.quantityScale,
@@ -942,6 +952,7 @@ export class MealPlansService {
           ingredients: toPlannedIngredients(m.recipe.ingredients, ofRecipe, locale),
           source: 'CATALOGUE' as const,
           customName: null,
+          estimated: false,
           servings: m.servings,
           quantityScale: m.quantityScale,
           eatenAt,
@@ -1045,6 +1056,7 @@ interface PlanWithRelations {
       quantityScale: number;
       source: 'CATALOGUE' | 'USER_CUSTOM';
       customName: string | null;
+      estimated: boolean;
       customMacros: unknown;
       eatenAt: Date | null;
       modelPicked: boolean;

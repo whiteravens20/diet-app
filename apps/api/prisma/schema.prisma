@@ -853,6 +853,8 @@ model PlannedMeal {
   // user-entered macros { calories, protein, fat, carbs } live on the row.
   customName  String?
   customMacros Json?
+  // A macronutrient of a custom meal was left out and estimated from its day's target.
+  estimated   Boolean     @default(false)
   // Mark-eaten: a checked meal is pinned (excluded from the rebalance set).
   eatenAt     DateTime?
   // Rebalancer multiplier on top of `servings`. Effective amount = servings *

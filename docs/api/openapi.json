@@ -8929,7 +8929,32 @@
             "$ref": "#/components/schemas/MealType"
           },
           "nutrition": {
-            "$ref": "#/components/schemas/EnteredNutrition"
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              "protein": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "fat": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "carbs": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              }
+            },
+            "required": [
+              "calories"
+            ]
           },
           "servings": {
             "default": 1,
@@ -12326,37 +12351,6 @@
           "APPROVED",
           "REJECTED",
           "SHIPPED"
-        ]
-      },
-      "EnteredNutrition": {
-        "type": "object",
-        "properties": {
-          "calories": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 5000
-          },
-          "protein": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 500
-          },
-          "fat": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 500
-          },
-          "carbs": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1000
-          }
-        },
-        "required": [
-          "calories",
-          "protein",
-          "fat",
-          "carbs"
         ]
       },
       "FavoriteMark": {
@@ -15805,6 +15799,9 @@
               "null"
             ]
           },
+          "estimated": {
+            "type": "boolean"
+          },
           "servings": {
             "type": "number",
             "minimum": 0.25
@@ -15948,6 +15945,7 @@
           "ingredients",
           "source",
           "customName",
+          "estimated",
           "servings",
           "quantityScale",
           "eatenAt",

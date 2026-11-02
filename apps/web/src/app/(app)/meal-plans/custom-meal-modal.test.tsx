@@ -110,17 +110,35 @@ describe("the window a meal of the user's own is added in", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('sends nothing while a number is missing or is more than a serving can hold, and shows no sum for it', async () => {
+  it('takes a meal by its calories alone, says that the rest is estimated, and sends only what was typed', async () => {
     const onSubmit = open();
     await userEvent.type(screen.getByLabelText(texts.customName), 'Soup');
 
-    await fill({ calories: '900', protein: '30', fat: '20', carbs: '' });
+    await fill({ calories: '450', protein: '30', fat: '', carbs: '' }, '2');
+    expect(
+      screen.getByText(
+        "The meal adds to the day: 900 kcal. The macronutrients left out are estimated from the day's target.",
+      ),
+    ).toBeInTheDocument();
+    await add();
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: 'Soup',
+      mealType: 'lunch',
+      nutrition: { calories: 450, protein: 30 },
+      servings: 2,
+    });
+  });
+
+  it('sends nothing without its calories or with more than a serving can hold, and shows no sum for it', async () => {
+    const onSubmit = open();
+    await userEvent.type(screen.getByLabelText(texts.customName), 'Soup');
+
+    await fill({ calories: '', protein: '30', fat: '20', carbs: '110' });
     await add();
     expect(screen.getByText(texts.customTotalPending)).toBeInTheDocument();
 
     // A slip of the keyboard: nine thousand in one serving.
-    await userEvent.type(screen.getByLabelText(texts.customCarbs), '110');
-    await userEvent.clear(screen.getByLabelText(texts.customCalories));
     await userEvent.type(screen.getByLabelText(texts.customCalories), '9000');
     await add();
 

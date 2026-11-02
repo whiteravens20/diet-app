@@ -579,6 +579,11 @@ export function PlanCard({
                               {t('customChip')}
                             </span>
                           )}
+                          {m.estimated && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                              {t('estimatedChip')}
+                            </span>
+                          )}
                           {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
                           {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
                           {m.dietOverride && (
@@ -879,7 +884,7 @@ export function PlanCard({
                     )}
                     {isCustom && (
                       <p className="ml-6 text-xs italic text-muted-foreground">
-                        {t('customMacrosNote')}
+                        {t(m.estimated ? 'customEstimatedNote' : 'customMacrosNote')}
                       </p>
                     )}
                     {favOpen && !isCustom && (

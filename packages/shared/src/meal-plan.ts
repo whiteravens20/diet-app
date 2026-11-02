@@ -290,6 +290,8 @@ export const PlannedMeal = z.object({
   source: z.enum(['CATALOGUE', 'USER_CUSTOM']),
   /** Display name for a custom meal (null for catalogue meals — use the recipe). */
   customName: z.string().nullable(),
+  /** A macronutrient of a custom meal was left out and estimated. */
+  estimated: z.boolean(),
   /** Baseline servings assigned to this slot (before the rebalancer multiplier). */
   servings: z.number().min(0.25),
   /** Rebalancer multiplier; effective amount = servings * quantityScale. */
@@ -1206,8 +1208,14 @@ export const AddCustomMealRequest = z.object({
   /** Free-text name for the meal (e.g. "Mum's lasagne"). */
   name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name),
   mealType: MealType,
-  /** User-entered macros for one serving. Engine never recomputes these. */
-  nutrition: EnteredNutrition,
+  /**
+   * User-entered figures of one serving: its energy, and of the macronutrients
+   * those that are known. Engine never recomputes what is given; those left out
+   * are estimated from what is left of the energy, in the proportions of the
+   * day's target, and the meal says that they were. 400
+   * `DIARY_MACROS_OVER_ENERGY` where the ones given hold more than the energy.
+   */
+  nutrition: EnteredNutrition.partial({ protein: true, fat: true, carbs: true }),
   servings: z
     .number()
     .min(OWN_MEAL_LIMITS.servings.min)
