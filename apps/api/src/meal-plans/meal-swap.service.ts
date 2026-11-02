@@ -48,7 +48,6 @@ import {
   welcome,
   type Waived,
 } from './eligibility.js';
-import { StoredReport, withMealOutside } from './generation-report.js';
 import {
   cookingChange,
   MealPlansService,
@@ -129,7 +128,7 @@ export class MealSwapService {
     clientToday: string | null = null,
   ): Promise<MealSwapPreview> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
-    return this.previewOf(userId, locale, slot, await this.pick(slot, req));
+    return this.previewOf(userId, locale, slot, await this.pick(slot, req), waivedBy(req));
   }
 
   /**
@@ -292,14 +291,7 @@ export class MealSwapService {
       !slot.history.includes(replacement.id),
     );
     const replacementId = replacement.id;
-    // The meals of its cooking that can take it, on the meals the recipe is for.
-    const together = req.together
-      ? openCooking(slot).filter(
-          (other) =>
-            violations(replacement, restrictions, other.mealType, waivedBy(req)).length === 0,
-        )
-      : [];
-    const gaveWay = outsideLimitsOf(slot, replacement, together);
+    const together = req.together ? takingIt(slot, replacement, waivedBy(req)) : [];
     const today = slot.today;
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
       await this.plans.rememberSwap(tx, req.planId, req.revision, [
@@ -318,23 +310,13 @@ export class MealSwapService {
           modelReason: picked?.reason ?? null,
         },
       });
-      const otherDays = await this.plans.carryDish(tx, together, replacement, today, picked);
+      const carried = await this.plans.carryDish(tx, together, replacement, today, picked);
+      const otherDays = [...new Set(carried.map((other) => other.dayId))];
       // What the recipe is outside of the meals say for as long as they hold it.
-      const report = StoredReport.nullable().parse(meal.day.plan.report ?? null);
-      if (report && gaveWay.length > 0)
-        await tx.mealPlan.update({
-          where: { id: req.planId },
-          data: {
-            report: [
-              { date: isoDate(meal.day.date), slot: meal.mealType as MealType },
-              ...together.map(({ date, mealType }) => ({ date, slot: mealType })),
-            ].reduce(
-              (kept, place) =>
-                withMealOutside(kept, { ...place, recipeId: replacementId, gaveWay }),
-              report,
-            ),
-          },
-        });
+      await this.plans.noteOutsideLimits(tx, req.planId, [
+        req.plannedMealId,
+        ...together.map((other) => other.id),
+      ]);
       // The swap changed the day total — pull it back toward target, on each day it changed.
       const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
       const others = await Promise.all(
@@ -550,6 +532,7 @@ export class MealSwapService {
     locale: Locale,
     slot: Slot,
     replacement: Offered,
+    waived: Waived = {},
   ): Promise<MealSwapPreview> {
     const { meal, held } = slot;
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
@@ -590,6 +573,7 @@ export class MealSwapService {
       fat: Math.round(perServing.fat * servings),
       carbs: Math.round(perServing.carbs * servings),
     };
+    const takers = takingIt(slot, replacement, waived);
     return {
       recipe,
       servings,
@@ -604,8 +588,8 @@ export class MealSwapService {
       },
       calorieTarget: day.calorieTarget,
       targetMacros: slot.aim,
-      cooking: cookingChange(slot.cooking, slot.today),
-      outsideLimits: outsideLimitsOf(slot, replacement),
+      cooking: cookingChange(slot.cooking, slot.today, takers),
+      outsideLimits: outsideLimitsOf(slot, replacement, takers),
       revision: plan.revision,
     };
   }
@@ -666,6 +650,12 @@ function outsideLimitsOf(
 /** The other meals of this meal's cooking that can take another dish with it. */
 const openCooking = (slot: Slot): CookedMeal[] =>
   slot.cooking.filter((meal) => mayCarry(meal, slot.today));
+
+/** Of those, the meals `recipe` may stand on. */
+const takingIt = (slot: Slot, recipe: Offered, waived: Waived): CookedMeal[] =>
+  openCooking(slot).filter(
+    (meal) => violations(recipe, slot.restrictions, meal.mealType, waived).length === 0,
+  );
 
 /** Of the recipes that could be offered, those inside the limits of the plan; all of them where none is. */
 function insideLimits<T extends LimitedRecipe>(slot: Slot, recipes: T[]): T[] {

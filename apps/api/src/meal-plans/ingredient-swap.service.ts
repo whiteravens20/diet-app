@@ -18,7 +18,6 @@ import {
   type AiSuggestIngredientResponse,
   type Locale,
   type MovedNutrient,
-  type MealType,
   type Nutrition,
   type PlanRelaxation,
   type PlannedIngredient,
@@ -49,14 +48,12 @@ import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
 import { toPlannedIngredients } from '../recipes/recipes.service.js';
 import type { Env } from '../config/env.js';
 import { assertMayEnter, pickIndex, restrictionsFor, violations } from './eligibility.js';
-import { StoredReport, withMealOutside } from './generation-report.js';
 import {
   cookingChange,
   MealPlansService,
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { isoDate } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -221,7 +218,6 @@ export class IngredientSwapService {
     );
 
     const together = req.together ? s.cooking.filter((other) => mayCarry(other, s.today)) : [];
-    const gaveWay = await this.outsideLimits({ ...s, cooking: together, variantId });
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
       await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
         meal.dayId,
@@ -233,20 +229,10 @@ export class IngredientSwapService {
         data: { recipeId: variantId, modelPicked: false, modelReason: null },
       });
       // What the recipe is outside of the meals say for as long as they hold it.
-      const report = StoredReport.nullable().parse(meal.day.plan.report ?? null);
-      if (report && gaveWay.length > 0)
-        await tx.mealPlan.update({
-          where: { id: req.planId },
-          data: {
-            report: [
-              { date: isoDate(meal.day.date), slot: meal.mealType as MealType },
-              ...together.map(({ date, mealType }) => ({ date, slot: mealType })),
-            ].reduce(
-              (kept, place) => withMealOutside(kept, { ...place, recipeId: variantId, gaveWay }),
-              report,
-            ),
-          },
-        });
+      await this.plans.noteOutsideLimits(tx, req.planId, [
+        req.plannedMealId,
+        ...together.map((other) => other.id),
+      ]);
       // The substitution changed the meal's macros, so the day total moved —
       // run the same rebalance pipeline as every other edit, on each day it changed.
       const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, s.today);

@@ -193,7 +193,8 @@ export class FavoriteSetsService {
       ? await this.mealPlans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))
       : new Map<string, CookedMeal[]>();
     await writePlan(this.prisma, plan.id, plan.revision, async (tx) => {
-      const moves: { mealId: string; recipe: { id: string; caloriesPerServing: number } }[] = [];
+      const moves: { mealId: string; recipeId: string }[] = [];
+      const written: string[] = [];
       for (const day of targetDays) {
         const existing = await tx.plannedMeal.findMany({
           where: { dayId: day.id },
@@ -218,10 +219,8 @@ export class FavoriteSetsService {
           const servings = fitServings(caloriesById.get(recipeId) ?? 0, budget);
           const current = existingByType.get(mealType);
           if (current) {
-            moves.push({
-              mealId: current.id,
-              recipe: { id: recipeId, caloriesPerServing: caloriesById.get(recipeId) ?? 0 },
-            });
+            moves.push({ mealId: current.id, recipeId });
+            written.push(current.id);
             // The same reset as a swap: the new recipe is a new baseline, and
             // nothing of a custom meal that stood here stays behind.
             await tx.plannedMeal.update({
@@ -240,9 +239,11 @@ export class FavoriteSetsService {
               },
             });
           } else {
-            await tx.plannedMeal.create({
+            const created = await tx.plannedMeal.create({
               data: { dayId: day.id, mealType, recipeId, servings, swapHistory: [recipeId] },
+              select: { id: true },
             });
+            written.push(created.id);
           }
         }
 
@@ -266,11 +267,14 @@ export class FavoriteSetsService {
       }
       await this.mealPlans.carryToOtherDays(
         tx,
+        plan.id,
         cookedWith,
         moves,
         new Set(targetDays.map((day) => day.id)),
         today,
       );
+      // A set is the user's own choice: what it is outside of is said, not refused.
+      await this.mealPlans.noteOutsideLimits(tx, plan.id, written);
     });
 
     return this.mealPlans.get(userId, locale, plan.id);

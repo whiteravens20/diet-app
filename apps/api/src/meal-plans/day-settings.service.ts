@@ -265,10 +265,6 @@ export class DaySettingsService {
     const cookedWith = request.together
       ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(prepared.plan.options))
       : new Map<string, CookedMeal[]>();
-    const drawnRecipes = await this.prisma.recipe.findMany({
-      where: { id: { in: placed.map((meal) => meal.recipeId) } },
-      select: { id: true, caloriesPerServing: true },
-    });
     const before = StoredReport.nullable().parse(prepared.plan.report ?? null);
     const report = before ? withDaysAgain(before, result.report, [context.date]) : null;
     await writePlan(this.prisma, planId, request.revision, async (tx) => {
@@ -300,13 +296,13 @@ export class DaySettingsService {
       await this.plans.rebalanceDayInternal(dayId, tx, today);
       await this.plans.carryToOtherDays(
         tx,
+        planId,
         cookedWith,
         change.fates
           .filter((fate) => fate.fate === 'redrawn')
           .flatMap((fate) => {
             const drawn = placed.find((meal) => meal.slot === fate.mealType);
-            const recipe = drawn && drawnRecipes.find((one) => one.id === drawn.recipeId);
-            return recipe ? [{ mealId: fate.mealId, recipe }] : [];
+            return drawn ? [{ mealId: fate.mealId, recipeId: drawn.recipeId }] : [];
           }),
         new Set([dayId]),
         today,

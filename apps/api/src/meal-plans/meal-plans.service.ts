@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -38,10 +39,12 @@ import {
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
+import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
-import { shownReport } from './generation-report.js';
+import { shownReport, StoredReport, withMealOutside } from './generation-report.js';
+import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
@@ -62,6 +65,7 @@ import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { writePlan } from './plan-write.js';
 import {
+  CANDIDATE,
   dislikedIn,
   restrictionsFor,
   violations,
@@ -80,7 +84,10 @@ export class MealPlansService {
   /** The server's own day, for a request that names none; replaceable in a test. */
   today: () => string = () => isoDate(new Date());
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
   async remove(userId: string, planId: string): Promise<void> {
@@ -672,7 +679,7 @@ export class MealPlansService {
 
   /**
    * Put a recipe on other meals of a cooking, each sized to what it holds now,
-   * and return the days it changed. A meal that was eaten, or of a day that has
+   * and return those that took it. A meal that was eaten, or of a day that has
    * passed or is skipped, stays: what was eaten is a record.
    */
   async carryDish(
@@ -681,7 +688,7 @@ export class MealPlansService {
     recipe: { id: string; caloriesPerServing: number },
     today: string,
     picked: { reason: string | null } | null = null,
-  ): Promise<string[]> {
+  ): Promise<CookedMeal[]> {
     const open = meals.filter((meal) => meal.recipeId !== recipe.id && mayCarry(meal, today));
     for (const meal of open)
       await tx.plannedMeal.update({
@@ -697,27 +704,110 @@ export class MealPlansService {
           modelReason: picked?.reason ?? null,
         },
       });
-    return [...new Set(open.map((meal) => meal.dayId))];
+    return open;
   }
 
   /**
    * After the dishes of some days changed: put each new dish on the meals cooked
-   * with the one it replaced, on the other days, and size those days. `cookedWith`
-   * is the cookings as they were before the change.
+   * with the one it replaced, on the other days, where it may stand on that meal,
+   * and size those days. `cookedWith` is the cookings as they were before the change.
    */
   async carryToOtherDays(
     tx: Prisma.TransactionClient,
+    planId: string,
     cookedWith: ReadonlyMap<string, CookedMeal[]>,
-    moves: readonly { mealId: string; recipe: { id: string; caloriesPerServing: number } }[],
+    moves: readonly { mealId: string; recipeId: string }[],
     changedDays: ReadonlySet<string>,
     today: string,
   ): Promise<void> {
-    const touched = new Set<string>();
-    for (const { mealId, recipe } of moves) {
-      const others = (cookedWith.get(mealId) ?? []).filter((meal) => !changedDays.has(meal.dayId));
-      for (const dayId of await this.carryDish(tx, others, recipe, today)) touched.add(dayId);
+    const places = moves.flatMap(({ mealId, recipeId }) =>
+      (cookedWith.get(mealId) ?? [])
+        .filter((meal) => !changedDays.has(meal.dayId))
+        .map((meal) => ({ meal, recipeId })),
+    );
+    if (places.length === 0) return;
+    const plan = await tx.mealPlan.findUniqueOrThrow({
+      where: { id: planId },
+      include: { profile: { include: { preferences: true } } },
+    });
+    const recipes = await tx.recipe.findMany({
+      where: { id: { in: places.map((place) => place.recipeId) } },
+      select: { ...CANDIDATE, caloriesPerServing: true },
+    });
+    if (!plan.profile) return;
+    const restrictions = await restrictionsFor(tx, { ...plan, profile: plan.profile });
+    const carried: CookedMeal[] = [];
+    for (const { meal, recipeId } of places) {
+      const recipe = recipes.find((one) => one.id === recipeId);
+      if (!recipe || violations(recipe, restrictions, meal.mealType).length > 0) continue;
+      carried.push(...(await this.carryDish(tx, [meal], recipe, today)));
     }
-    for (const dayId of touched) await this.rebalanceDayInternal(dayId, tx, today);
+    for (const dayId of new Set(carried.map((meal) => meal.dayId)))
+      await this.rebalanceDayInternal(dayId, tx, today);
+    await this.noteOutsideLimits(
+      tx,
+      planId,
+      carried.map((meal) => meal.id),
+    );
+  }
+
+  /**
+   * What the meals named are outside of, as the plan now stands, goes into its
+   * report, and is said for as long as they hold the recipe they hold now.
+   */
+  async noteOutsideLimits(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    mealIds: readonly string[],
+  ): Promise<void> {
+    if (mealIds.length === 0) return;
+    const plan = await tx.mealPlan.findUniqueOrThrow({
+      where: { id: planId },
+      select: {
+        id: true,
+        report: true,
+        options: true,
+        profile: { select: { preferences: true } },
+        days: { orderBy: { date: 'asc' }, select: { id: true, date: true } },
+      },
+    });
+    const kept = StoredReport.nullable().parse(plan.report ?? null);
+    if (!kept || !plan.profile) return;
+    const limits = await readPlanLimits(
+      tx,
+      { ...plan, profile: plan.profile },
+      this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+    );
+    const meals = await tx.plannedMeal.findMany({
+      where: { id: { in: [...mealIds] } },
+      select: {
+        id: true,
+        dayId: true,
+        mealType: true,
+        recipe: {
+          select: {
+            id: true,
+            prepMinutes: true,
+            cookMinutes: true,
+            ingredients: LINES_OF_KINDS,
+          },
+        },
+      },
+    });
+    const report = meals.reduce((sofar, meal) => {
+      if (!meal.recipe) return sofar;
+      const dayIndex = plan.days.findIndex((day) => day.id === meal.dayId);
+      const gaveWay = limits.breaks(meal.recipe, dayIndex, new Set([meal.id]));
+      return gaveWay.length === 0
+        ? sofar
+        : withMealOutside(sofar, {
+            date: isoDate(plan.days[dayIndex]!.date),
+            slot: meal.mealType as MealType,
+            recipeId: meal.recipe.id,
+            gaveWay,
+          });
+    }, kept);
+    if (report !== kept) await tx.mealPlan.update({ where: { id: planId }, data: { report } });
   }
 
   /**
@@ -1146,12 +1236,16 @@ export const mayCarry = (meal: CookedMeal, today: string): boolean =>
   !meal.eaten && !meal.skipped && meal.date >= today;
 
 /** What a change of a dish would do to these other meals of its cooking, as an offer says it. */
-export function cookingChange(meals: readonly CookedMeal[], today: string): CookingChange {
+export function cookingChange(
+  meals: readonly CookedMeal[],
+  today: string,
+  takers: readonly CookedMeal[] = meals.filter((meal) => mayCarry(meal, today)),
+): CookingChange {
   if (meals.length === 0) return null;
   const place = ({ date, mealType }: CookedMeal) => ({ date, mealType });
   return {
-    changes: meals.filter((meal) => mayCarry(meal, today)).map(place),
-    stays: meals.filter((meal) => !mayCarry(meal, today)).map(place),
+    changes: takers.map(place),
+    stays: meals.filter((meal) => !takers.includes(meal)).map(place),
   };
 }
 

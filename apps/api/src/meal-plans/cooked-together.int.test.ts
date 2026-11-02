@@ -337,6 +337,78 @@ describe('a dish cooked for two meals', () => {
     expect(first(after).cookAhead).toBe('cook');
   });
 
+  describe('going to the other day with a set', () => {
+    const lunchOnly = () =>
+      t.prisma.recipe.findFirstOrThrow({
+        where: { mealTypes: { equals: ['lunch'] }, id: { not: first().recipe!.id } },
+      });
+    const applied = async (recipeId: string): Promise<MealPlan> => {
+      const set = (
+        await t
+          .http()
+          .post('/api/favorite-sets')
+          .set(as(user))
+          .send({ profileId: profile.id, label: 'Mine', slots: { lunch: recipeId } })
+          .expect(201)
+      ).body as { id: string };
+      return (
+        await t
+          .http()
+          .post(`/api/favorite-sets/${set.id}/apply`)
+          .set(as(user))
+          .send({ planId: plan.id, dayDates: [plan.days[0]!.date], together: true })
+          .expect(201)
+      ).body as MealPlan;
+    };
+
+    it('leaves a meal the new dish is not a dish for', async () => {
+      const recipe = await lunchOnly();
+      const both = await t.prisma.recipe.findFirstOrThrow({
+        where: { mealTypes: { hasEvery: ['lunch', 'dinner'] }, id: { not: recipe.id } },
+      });
+      const other = await t.prisma.recipe.findFirstOrThrow({
+        where: { mealTypes: { has: 'lunch' }, id: { notIn: [recipe.id, both.id] } },
+      });
+      const dinner = plan.days[1]!.meals.find((meal) => meal.mealType === 'dinner')!;
+      await t.prisma.plannedMeal.update({
+        where: { id: first().id },
+        data: { recipeId: both.id },
+      });
+      await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { recipeId: both.id } });
+      await t.prisma.plannedMeal.update({
+        where: { id: second().id },
+        data: { recipeId: other.id },
+      });
+      plan = await read();
+      expect(first().cooking!.with.map((one) => one.mealId)).toEqual([dinner.id]);
+
+      const after = await applied(recipe.id);
+
+      expect(first(after).recipe!.id).toBe(recipe.id);
+      const stayed = after.days[1]!.meals.find((meal) => meal.mealType === 'dinner')!;
+      expect(stayed.recipe!.id).toBe(both.id);
+    });
+
+    it('says what the other day is outside of with it', async () => {
+      await t.prisma.mealPlanDay.update({
+        where: { id: plan.days[1]!.id },
+        data: { overrides: { cookTimeBudgetMinutes: 1 } },
+      });
+      const recipe = await lunchOnly();
+
+      const after = await applied(recipe.id);
+
+      expect(second(after).recipe!.id).toBe(recipe.id);
+      expect(after.report!.relaxations).toContainEqual(
+        expect.objectContaining({
+          date: plan.days[1]!.date,
+          slot: 'lunch',
+          gaveWay: expect.arrayContaining(['cook_time']),
+        }),
+      );
+    });
+  });
+
   it('stands alone once an own meal takes the place of one of its meals', async () => {
     await t
       .http()

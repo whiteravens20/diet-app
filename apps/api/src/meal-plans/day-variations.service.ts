@@ -424,16 +424,25 @@ export class DayVariationsService {
       await tx.mealPlan.update({ where: { id: planId }, data: { reuseScore: offer.reuse } });
       await this.plans.carryToOtherDays(
         tx,
+        planId,
         cookedWith,
         meals
           .filter((meal) => !staying.includes(meal.id))
           .flatMap((meal) => {
             const placed = offer.meals.find(([mealType]) => mealType === meal.mealType);
-            const recipe = placed && recipes.find((candidate) => candidate.id === placed[1]);
-            return recipe ? [{ mealId: meal.id, recipe }] : [];
+            return placed ? [{ mealId: meal.id, recipeId: placed[1] }] : [];
           }),
         new Set([dayId]),
         clientToday ?? this.plans.today(),
+      );
+      const written = await tx.plannedMeal.findMany({
+        where: { dayId, id: { notIn: staying } },
+        select: { id: true },
+      });
+      await this.plans.noteOutsideLimits(
+        tx,
+        planId,
+        written.map((meal) => meal.id),
       );
     });
     return this.plans.get(userId, locale, planId);

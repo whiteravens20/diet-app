@@ -484,19 +484,12 @@ export class PlanGenerationService {
     const cookedWith = options.together
       ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
       : new Map<string, CookedMeal[]>();
-    const comingRecipes = options.together
-      ? await this.prisma.recipe.findMany({
-          where: { id: { in: result.assignments.map((placed) => placed.recipeId) } },
-          select: { id: true, caloriesPerServing: true },
-        })
-      : [];
     const moves = filled.flatMap(({ dayIndex, staying }) =>
       plan.days[dayIndex]!.meals.filter((meal) => !staying.includes(meal.id)).flatMap((meal) => {
         const placed = result.assignments.find(
           (one) => one.dayIndex === dayIndex && one.slot === meal.mealType,
         );
-        const recipe = placed && comingRecipes.find((one) => one.id === placed.recipeId);
-        return recipe ? [{ mealId: meal.id, recipe }] : [];
+        return placed ? [{ mealId: meal.id, recipeId: placed.recipeId }] : [];
       }),
     );
 
@@ -562,6 +555,7 @@ export class PlanGenerationService {
       });
       await this.plans.carryToOtherDays(
         tx,
+        planId,
         cookedWith,
         moves,
         new Set(filled.map((entry) => entry.dayId)),
