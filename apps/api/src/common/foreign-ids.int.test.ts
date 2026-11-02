@@ -172,6 +172,12 @@ const ASKS: Ask[] = [
     (ids) => ({ planId: ids.plan, plannedMealId: ids.meal, strategy: 'random' }),
   ],
   [
+    'undo a swap',
+    'post',
+    () => '/api/meal-plans/swap-meal/undo',
+    (ids) => ({ planId: ids.plan, revision: 0 }),
+  ],
+  [
     'swap a meal',
     'post',
     () => '/api/meal-plans/swap-meal',
