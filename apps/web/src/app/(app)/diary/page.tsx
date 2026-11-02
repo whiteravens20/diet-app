@@ -29,6 +29,7 @@ import {
   MEAL_SLOTS_BY_COUNT,
 } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { localDate } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
@@ -79,6 +80,7 @@ export default function DiaryPage() {
 
 function DiaryContent() {
   const t = useTranslations('diary');
+  const productsOffered = useConfig().data?.products.offered ?? false;
   const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
@@ -325,7 +327,11 @@ function DiaryContent() {
             )}
 
             {meals.length === 0 && !ahead && !tooOld && (
-              <EmptyState icon={NotebookPen} title={t('emptyTitle')} description={t('emptyText')} />
+              <EmptyState
+                icon={NotebookPen}
+                title={t('emptyTitle')}
+                description={t(productsOffered ? 'emptyTextProducts' : 'emptyText')}
+              />
             )}
             {meals.map((slot) => (
               <MealSection
@@ -742,6 +748,12 @@ function MealSection({
                       <span className="whitespace-nowrap font-medium text-foreground">
                         ≈ {t('estimated')}
                       </span>
+                    </>
+                  )}
+                  {entry.kind === 'product' && (
+                    <>
+                      {' · '}
+                      <span className="whitespace-nowrap">{t('entrySource')}</span>
                     </>
                   )}
                 </p>

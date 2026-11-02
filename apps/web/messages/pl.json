@@ -429,7 +429,15 @@
     "INSTANCE_DATA_NEWER": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz.",
     "INGREDIENT_NOT_RETIRED": "Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany.",
     "REPLACEMENT_NOT_IN_CATALOGUE": "Wybierz inny składnik z katalogu, którym go zastąpić.",
-    "UNITS_STAND_IN_THE_WAY": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny."
+    "UNITS_STAND_IN_THE_WAY": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny.",
+    "PRODUCT_NOT_FOUND": "Nie znamy produktu o tym kodzie.",
+    "PRODUCT_WITHOUT_FIGURES": "Etykieta tego produktu nie podaje energii: wpisz go jako własny posiłek.",
+    "PRODUCT_LOOKUPS_BUSY": "Za dużo nowych kodów naraz: spróbuj za minutę.",
+    "PRODUCT_LOOKUPS_USED_UP": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej.",
+    "PRODUCT_SOURCE_UNAVAILABLE": "Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek.",
+    "PRODUCT_IMPORT_NO_COUNTRIES": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie.",
+    "PRODUCT_IMPORT_RUNNING": "Import właśnie trwa.",
+    "PRODUCT_IMPORT_TOO_SOON": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
   },
   "notifications": {
     "label": "Powiadomienia",
@@ -468,7 +476,7 @@
     "targetFromPlan": "Cel to cel dnia planu.",
     "targetFromProfile": "Żaden plan nie obejmuje tego dnia: cel to cel profilu.",
     "targetFromSkipped": "Plan pomija ten dzień: cel to cel profilu.",
-    "estimatedNote": "≈ Część wartości to szacunek: posiłek wpisany po samych kaloriach ma białko, tłuszcz i węglowodany oszacowane z proporcji celu dnia.",
+    "estimatedNote": "≈ Część wartości to szacunek: białko, tłuszcz i węglowodany posiłku wpisanego po samych kaloriach albo produktu bez pełnej etykiety są oszacowane z proporcji celu dnia.",
     "planOver": "Ponad cel",
     "planUnder": "Poniżej celu",
     "planOverNote": "Licząc wpisy dziennika jako zjedzone, dzień planu ma {kcal, number, ::group-off} kcal ponad cel.",
@@ -539,7 +547,38 @@
     "pickIngredientFirst": "Najpierw znajdź i wybierz składnik.",
     "copySameDay": "Wybierz inny dzień niż ten.",
     "copyDone": "Ten dzień jest już skopiowany.",
-    "planPastNote": "Ten dzień już minął. Jeśli plan ma jeszcze dni od dziś, na stronie planu można rozłożyć na nie różnicę."
+    "planPastNote": "Ten dzień już minął. Jeśli plan ma jeszcze dni od dziś, na stronie planu można rozłożyć na nie różnicę.",
+    "kindProduct": "Produkt",
+    "pickProductFirst": "Najpierw znajdź i wybierz produkt.",
+    "productNoFiguresShort": "Ten produkt nie ma wartości do dodania.",
+    "productField": "Kod kreskowy albo nazwa",
+    "productHint": "Kod ma 8, 12 albo 13 cyfr. Nazwa wymaga co najmniej trzech liter i szuka tylko wśród produktów, które zna ta instancja.",
+    "productCheck": "Sprawdź kod",
+    "productCodeBad": "To nie jest poprawny kod: sprawdź cyfry.",
+    "productNotFound": "Tego kodu nie zna ani ta instancja, ani Open Food Facts.",
+    "productNotFoundHere": "Ta instancja nie zna tego kodu.",
+    "productNothingHere": "Ta instancja nie zna takiego produktu. Spróbuj po kodzie kreskowym.",
+    "productAsOwn": "Wpisz jako własny posiłek",
+    "productNoFigures": "Open Food Facts nie zna wartości tego produktu. Przepisz je z opakowania jako własny posiłek.",
+    "productDoubtful": "Wartości się nie zgadzają: energia nie pasuje do makroskładników albo któraś liczba jest niemożliwa. Sprawdź z etykietą.",
+    "productLacking": "≈ Etykieta nie podaje wszystkich makroskładników: brakujące zostaną oszacowane z proporcji celu dnia i oznaczone jako szacunek.",
+    "productEnergyWorkedOut": "≈ Etykieta nie podaje energii: jest wyliczona z makroskładników i oznaczona jako szacunek.",
+    "productSource": "Dane: <off>Open Food Facts</off> (<odbl>ODbL</odbl>)",
+    "productServing": "1 porcja ({amount})",
+    "productPack": "Całe opakowanie ({amount})",
+    "labelIn100": "W 100 {unit}",
+    "labelEnergy": "Energia",
+    "labelProtein": "Białko",
+    "labelFat": "Tłuszcz",
+    "labelSaturated": "w tym nasycone",
+    "labelCarbs": "Węglowodany",
+    "labelSugars": "w tym cukry",
+    "labelFiber": "Błonnik",
+    "labelSalt": "Sól",
+    "labelUnknown": "brak",
+    "labelGrams": "{grams, number, ::group-off} g",
+    "entrySource": "Open Food Facts",
+    "emptyTextProducts": "Dodaj, co zostało zjedzone: przepis, składnik, produkt z kodem kreskowym albo własny posiłek po jego wartościach."
   },
   "favoriteSets": {
     "title": "Zestawy ulubionych",
@@ -1002,7 +1041,8 @@
       "recipesApproved": "{count, plural, one {{count, number, ::group-off} zatwierdzony przepis do wysłania} few {{count, number, ::group-off} zatwierdzone przepisy do wysłania} many {{count, number, ::group-off} zatwierdzonych przepisów do wysłania} other {{count, number, ::group-off} zatwierdzonego przepisu do wysłania}}",
       "updateAvailable": "Dostępna aktualizacja bazy katalogu",
       "retired": "{count, plural, one {{count, number, ::group-off} wycofany składnik nadal w użyciu} few {{count, number, ::group-off} wycofane składniki nadal w użyciu} many {{count, number, ::group-off} wycofanych składników nadal w użyciu} other {{count, number, ::group-off} wycofanego składnika nadal w użyciu}}",
-      "mirrorProblem": "Kopia w repozytorium nie działa"
+      "mirrorProblem": "Kopia w repozytorium nie działa",
+      "productImportProblem": "Ostatni import produktów się nie powiódł"
     },
     "mirror": {
       "title": "Kopia w repozytorium",
@@ -1073,6 +1113,32 @@
       "mail": "Poczta",
       "mailOn": "Włączona",
       "mailOff": "Wyłączona"
+    },
+    "products": {
+      "title": "Produkty z kodem kreskowym",
+      "explain": "Produkty w dzienniku pochodzą z Open Food Facts (ODbL): kraje z ustawień są importowane raz w tygodniu w nocy, a kod, którego import nie przyniósł, jest sprawdzany osobno. Wyszukiwanie po nazwie patrzy tylko na to, co instancja już ma. Open Food Facts widzi instancję, nigdy osobę, która pyta.",
+      "lookupsOn": "Sprawdzanie pojedynczych kodów: włączone, {count, number, ::group-off} w ostatniej dobie.",
+      "lookupsOff": "Sprawdzanie pojedynczych kodów: wyłączone (OPEN_FOOD_FACTS_LOOKUPS).",
+      "countries": "Kraje importu: {countries}.",
+      "noCountries": "Bez importu: ustawienia nie wymieniają żadnego kraju (OPEN_FOOD_FACTS_COUNTRIES).",
+      "held": "Z importu: {imported, number, ::group-off}. Z pojedynczych kodów: {lookedUp, number, ::group-off}. Kody zapamiętane jako nieznane: {unknown, number, ::group-off}.",
+      "never": "Żaden import jeszcze nie ruszył. Worker zacznie go w nocy albo na prośbę z tego miejsca.",
+      "running": "Import trwa: przeczytane wiersze eksportu: {read, number, ::group-off}.",
+      "done": "Ostatni import: {when}. Dodane: {added, number, ::group-off}, zmienione: {changed, number, ::group-off}, usunięte: {removed, number, ::group-off}, z {read, number, ::group-off} wierszy eksportu.",
+      "perCountry": "{country}: {count, number, ::group-off}",
+      "leftOut": "Pominięte z tych krajów: bez poprawnego kodu {code, number, ::group-off}, bez nazwy {name, number, ::group-off}, bez wartości {figures, number, ::group-off}.",
+      "countryEmpty": "{country} nie przyniósł żadnego produktu. Zapisz go tak jak w adresie jego strony: world.openfoodfacts.org/country/{country}.",
+      "failedAt": "Import z {when} się nie udał, a produkty zostały bez zmian.",
+      "failedSource": "Eksportu nie udało się przeczytać do końca. Worker spróbuje następnej nocy.",
+      "failedFormat": "Eksport nie ma kolumn, które czyta ta wersja: potrzebna jest aktualizacja aplikacji.",
+      "failedNothing": "W eksporcie nie ma żadnego przydatnego produktu tych krajów: sprawdź ich nazwy w ustawieniach.",
+      "failedShrunk": "Eksport przyniósł mniej niż połowę produktów poprzedniego importu, więc nic nie zostało usunięte. Worker spróbuje następnej nocy.",
+      "failedOther": "Co się stało: {error}",
+      "ask": "Importuj teraz",
+      "asked": "Zlecone: worker zacznie w ciągu minuty.",
+      "askAgainAt": "Można będzie zlecić go ponownie: {when}. Import czyta około 1,5 GB, więc raz na dobę wystarczy.",
+      "schedule": "Sam raz w tygodniu, między 2:00 a 5:00 według zegara serwera.",
+      "loadFailed": "Nie udało się odczytać stanu produktów."
     }
   },
   "review": {
@@ -2423,7 +2489,8 @@
       "changed": "Jeśli ta instancja działa na zmienionej wersji, licencja zobowiązuje jej operatora do udostępnienia Ci kodu źródłowego tej wersji.",
       "problems": "Błąd w oprogramowaniu albo pomysł na nie zgłoś w jego <issues>systemie zgłoszeń</issues>. Problem z bezpieczeństwem zgłoś prywatnie, jak opisuje <security>polityka bezpieczeństwa</security>.",
       "operator": "Sprawy tej instancji kieruj do jej operatora:",
-      "operatorNotSet": "Operator tej instancji nie opublikował adresu kontaktowego."
+      "operatorNotSet": "Operator tej instancji nie opublikował adresu kontaktowego.",
+      "products": "Wartości produktów z kodem kreskowym pochodzą z <off>Open Food Facts</off>, bazy dostępnej na licencji <odbl>Open Database License</odbl>, a jej zawartość na licencji <dbcl>Database Contents License</dbcl>. Wpisują je jej użytkownicy i mogą być błędne. Tabela produktów tej instancji to część tej bazy, udostępniana na tej samej licencji: powstaje z eksportu Open Food Facts przez wybór krajów i pominięcie tego, co nie może być prawdą, jak pokazuje <source>kod źródłowy</source>."
     }
   }
 }

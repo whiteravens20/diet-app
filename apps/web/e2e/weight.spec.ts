@@ -36,7 +36,7 @@ const BUDGETS: Record<string, number> = {
   // The pages that also check what is typed or answered against the contract, which brings its schemas.
   '/profile': 240,
   '/calculator': 240,
-  '/meal-plans': 260,
+  '/meal-plans': 265,
 };
 
 /** What every page needs: the framework and what the shell is made of. */

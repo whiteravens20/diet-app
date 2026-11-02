@@ -36,9 +36,11 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   name: 'Soup from the canteen',
   recipeId: null,
   ingredientId: null,
+  productId: null,
   servings: 1,
   amount: null,
   nutrition: { calories: 300, protein: 19, fat: 10, carbs: 34 },
+  label: null,
   estimated: true,
   createdAt: `${TODAY}T12:00:00.000Z`,
   ...over,
@@ -502,6 +504,40 @@ describe('the diary', () => {
 
     const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
     expect(window.getByRole('spinbutton', { name: `${texts.quantity} (slices)` })).toHaveValue(2.5);
+  });
+
+  it('says where the figures of a product come from, and takes a change of its amount', async () => {
+    const entry = anEntry({
+      kind: 'product',
+      name: 'Mleko, Mlekovita',
+      productId: '77777777-7777-4777-8777-777777777777',
+      servings: null,
+      amount: { quantity: 250, unit: 'ml', shown: { quantity: 250, unit: 'ml' } },
+      label: { fiber: null, sugars: 11.8, salt: 0.3, saturatedFat: 5.3 },
+      estimated: false,
+    });
+    await renderPage(aDay({ entries: [entry] }));
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(entry as never);
+    const user = userEvent.setup();
+
+    const row = screen.getByText('Mleko, Mlekovita').closest('li')!;
+    expect(within(row).getByText(texts.entrySource)).toBeInTheDocument();
+    await user.click(
+      within(row).getByRole('button', {
+        name: texts.editLabel.replace('{name}', 'Mleko, Mlekovita'),
+      }),
+    );
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    const quantity = window.getByRole('spinbutton', { name: /ml/ });
+    expect(quantity).toHaveValue(250);
+    await user.clear(quantity);
+    await user.type(quantity, '300');
+    await user.click(window.getByRole('button', { name: messages.common.save }));
+
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${entry.id}`, {
+      mealType: 'lunch',
+      quantity: 300,
+    });
   });
 
   it('says nothing of what a number that cannot be written would add', async () => {

@@ -29,6 +29,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
     catalogue: { supply: aSupply() },
     accounts: { maxProfiles: 2 },
+    products: { offered: false, lookups: false },
     plans: {
       maxRepeatsPerRecipe: null,
       mealSlots: {

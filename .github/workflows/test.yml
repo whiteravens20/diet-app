@@ -146,10 +146,17 @@ jobs:
       - name: Install the browsers the tests drive
         working-directory: apps/web
         run: npx playwright install --with-deps chromium webkit
+      # The products the tests look for: no test depends on Open Food Facts.
+      - name: Give the stack the products of the browser tests
+        run: |
+          docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres \
+            psql -U "$(sed -n 's/^POSTGRES_USER=//p' .env)" -d "$(sed -n 's/^POSTGRES_DB=//p' .env)" \
+            -v ON_ERROR_STOP=1 < apps/web/e2e/products.sql
       - name: Run the browser tests against the stack
         working-directory: apps/web
         env:
           E2E_BASE_URL: http://localhost:3000
+          E2E_PRODUCTS: '1'
         run: |
           E2E_ADMIN_USER="$(sed -n 's/^ADMIN_USER=//p' ../../.env)" \
           E2E_ADMIN_PASSWORD="$(sed -n 's/^ADMIN_PASSWORD=//p' ../../.env)" \

@@ -9,6 +9,7 @@ import type {
   CreateDiaryEntryRequest,
   Ingredient,
   MealType,
+  Product,
   Recipe,
   RecipeSearchPage,
   Unit,
@@ -19,12 +20,15 @@ import {
   OWN_MEAL_LIMITS,
 } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { useUnitName } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { useSettled } from '@/lib/use-settled';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/input';
+import { FoundList } from './found-list';
+import { firstAmount, PickedProduct, ProductAmount, ProductSearch } from './product-entry';
 
 /** An entry as the window makes it: the page adds whose diary and which day. */
 type NewEntry = CreateDiaryEntryRequest extends infer Entry
@@ -44,8 +48,9 @@ const OFFERED = 8;
 /**
  * The window an entry is added to a day of the diary in: a recipe of the
  * library or of the account's own in servings, an ingredient of the catalogue
- * in an amount of a unit it can be given in, or a meal of one's own by its
- * figures, those of the macronutrients left empty estimated by the API. What
+ * in an amount of a unit it can be given in, a product with a barcode where
+ * the instance offers them, or a meal of one's own by its figures, those of the
+ * macronutrients left empty estimated by the API. What
  * the entry adds to the day is said before it is added where the window knows
  * it; the API works out the rest.
  */
@@ -71,6 +76,7 @@ export function AddEntryDialog({
   const fmt = useFormat();
   const unitName = useUnitName();
   const id = useId();
+  const products = useConfig().data?.products;
 
   const [kind, setKind] = useState<Kind>('recipe');
   const [mealType, setMealType] = useState<MealType>(meal);
@@ -78,6 +84,7 @@ export function AddEntryDialog({
   const asked = useSettled(search.trim(), 300);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [ingredient, setIngredient] = useState<Ingredient | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [servings, setServings] = useState('1');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
@@ -104,6 +111,8 @@ export function AddEntryDialog({
   const number = (typed: string): number => (typed.trim() === '' ? Number.NaN : Number(typed));
   const typedServings = number(servings);
   const typedCalories = number(calories);
+  const typedQuantity = number(quantity);
+  const productCalories = product?.per100.calories ?? null;
   const servingsFit =
     typedServings >= OWN_MEAL_LIMITS.servings.min && typedServings <= OWN_MEAL_LIMITS.servings.max;
   const caloriesFit = typedCalories >= 0 && typedCalories <= OWN_MEAL_LIMITS.perServing.calories;
@@ -113,17 +122,35 @@ export function AddEntryDialog({
       ? Math.round(recipe.nutritionPerServing.calories * typedServings)
       : kind === 'meal' && caloriesFit && servingsFit
         ? Math.round(typedCalories * typedServings)
-        : null;
+        : kind === 'product' &&
+            product &&
+            productCalories !== null &&
+            typedQuantity > 0 &&
+            typedQuantity <= DIARY_QUANTITY_LIMITS[product.unit]
+          ? Math.round((productCalories * typedQuantity) / 100)
+          : null;
   const missing =
     kind === 'recipe' && !recipe
       ? t('pickRecipeFirst')
       : kind === 'ingredient' && !ingredient
         ? t('pickIngredientFirst')
-        : null;
+        : kind === 'product' && !product
+          ? t('pickProductFirst')
+          : kind === 'product' && productCalories === null
+            ? t('productNoFiguresShort')
+            : null;
 
   const pickKind = (next: Kind) => {
     setKind(next);
     setSearch('');
+    // An amount is of what it was typed for: a product it comes back to starts as it did.
+    setQuantity(next === 'product' && product ? firstAmount(product) : '');
+  };
+
+  /** Whatever a product could not give, it is written as a meal of one's own, under its name where it has one. */
+  const asOwnMeal = (known: string) => {
+    if (known !== '') setName([...known].slice(0, OWN_MEAL_LIMITS.name).join(''));
+    pickKind('meal');
   };
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -138,6 +165,8 @@ export function AddEntryDialog({
         ingredientId: ingredient.id,
         amount: { quantity: number(quantity), unit },
       });
+    } else if (kind === 'product' && product) {
+      onSubmit({ kind, mealType, productId: product.id, quantity: typedQuantity });
     } else if (kind === 'meal') {
       // A macronutrient left empty is one the API estimates.
       onSubmit({
@@ -186,7 +215,10 @@ export function AddEntryDialog({
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t('kindLegend')}</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {(['recipe', 'ingredient', 'meal'] as const).map((choice) => (
+            {(products?.offered
+              ? (['recipe', 'ingredient', 'product', 'meal'] as const)
+              : (['recipe', 'ingredient', 'meal'] as const)
+            ).map((choice) => (
               <label key={choice} className="flex min-h-6 items-center gap-2 text-sm">
                 <input
                   type="radio"
@@ -200,7 +232,9 @@ export function AddEntryDialog({
                     ? 'kindRecipe'
                     : choice === 'ingredient'
                       ? 'kindIngredient'
-                      : 'kindMeal',
+                      : choice === 'product'
+                        ? 'kindProduct'
+                        : 'kindMeal',
                 )}
               </label>
             ))}
@@ -315,6 +349,29 @@ export function AddEntryDialog({
                   setSearch('');
                 },
               }))}
+            />
+          ))}
+
+        {kind === 'product' &&
+          (product ? (
+            <>
+              <PickedProduct
+                product={product}
+                onAgain={() => setProduct(null)}
+                onOwnMeal={() => asOwnMeal(product.name)}
+              />
+              {productCalories !== null && (
+                <ProductAmount product={product} quantity={quantity} onChange={setQuantity} />
+              )}
+            </>
+          ) : (
+            <ProductSearch
+              lookups={products?.lookups ?? false}
+              onPick={(picked) => {
+                setProduct(picked);
+                setQuantity(firstAmount(picked));
+              }}
+              onOwnMeal={() => asOwnMeal('')}
             />
           ))}
 
@@ -476,22 +533,7 @@ function Search({
         {searching && !loading && !failed && found.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('noResults')}</p>
         )}
-        {found.length > 0 && (
-          <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-md border border-border">
-            {found.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-                  onClick={item.pick}
-                >
-                  <span className="max-w-full break-words text-sm font-medium">{item.name}</span>
-                  <span className="text-xs text-muted-foreground">{item.about}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {found.length > 0 && <FoundList found={found} />}
       </div>
     </div>
   );

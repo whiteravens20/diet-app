@@ -429,7 +429,15 @@
     "INSTANCE_DATA_NEWER": "These files were written by a newer version of the application. Update the application before restoring them.",
     "INGREDIENT_NOT_RETIRED": "Only a retired ingredient can be replaced, and this one is not retired any more.",
     "REPLACEMENT_NOT_IN_CATALOGUE": "Choose another ingredient of the catalogue to replace it with.",
-    "UNITS_STAND_IN_THE_WAY": "That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another."
+    "UNITS_STAND_IN_THE_WAY": "That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another.",
+    "PRODUCT_NOT_FOUND": "No product with this code is known.",
+    "PRODUCT_WITHOUT_FIGURES": "The label of this product gives no energy: write it as a meal of your own.",
+    "PRODUCT_LOOKUPS_BUSY": "Too many new codes at once: try again in a minute.",
+    "PRODUCT_LOOKUPS_USED_UP": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
+    "PRODUCT_SOURCE_UNAVAILABLE": "Open Food Facts is not answering just now: try later, or write it as a meal of your own.",
+    "PRODUCT_IMPORT_NO_COUNTRIES": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
+    "PRODUCT_IMPORT_RUNNING": "An import is running.",
+    "PRODUCT_IMPORT_TOO_SOON": "The last import of these countries began less than 24 hours ago."
   },
   "notifications": {
     "label": "Notifications",
@@ -468,7 +476,7 @@
     "targetFromPlan": "The target is that of the plan's day.",
     "targetFromProfile": "No plan holds this day: the target is the profile's own.",
     "targetFromSkipped": "The plan skips this day: the target is the profile's own.",
-    "estimatedNote": "≈ Some figures are estimates: a meal written by its calories alone has its protein, fat and carbohydrate estimated from the proportions of the day's target.",
+    "estimatedNote": "≈ Some figures are estimates: the protein, fat and carbohydrate of a meal written by its calories alone, or of a product without a full label, are estimated from the proportions of the day's target.",
     "planOver": "Over target",
     "planUnder": "Under target",
     "planOverNote": "With what the diary holds counted as eaten, the plan's day is {kcal, number, ::group-off} kcal over its target.",
@@ -539,7 +547,38 @@
     "pickIngredientFirst": "Find and pick an ingredient first.",
     "copySameDay": "Pick a day other than this one.",
     "copyDone": "That day is copied already.",
-    "planPastNote": "This day is over. If the plan still has days from today on, what it is off by can be spread over them on the plan's page."
+    "planPastNote": "This day is over. If the plan still has days from today on, what it is off by can be spread over them on the plan's page.",
+    "kindProduct": "Product",
+    "pickProductFirst": "First find and pick a product.",
+    "productNoFiguresShort": "This product has no figures to add.",
+    "productField": "Barcode or name",
+    "productHint": "A code has 8, 12 or 13 digits. A name takes at least three letters, and looks only among the products this instance knows.",
+    "productCheck": "Check the code",
+    "productCodeBad": "This is not a valid code: check the digits.",
+    "productNotFound": "Neither this instance nor Open Food Facts knows this code.",
+    "productNotFoundHere": "This instance does not know this code.",
+    "productNothingHere": "This instance knows no such product. Try its barcode.",
+    "productAsOwn": "Write it as a meal of your own",
+    "productNoFigures": "Open Food Facts has no figures for this product. Copy them from the pack as a meal of your own.",
+    "productDoubtful": "These figures do not add up: the energy does not fit the macronutrients, or a number cannot be right. Check the label.",
+    "productLacking": "≈ The label does not give every macronutrient: what is missing is estimated from the proportions of the day's target and marked as an estimate.",
+    "productEnergyWorkedOut": "≈ The label gives no energy: it is worked out from the macronutrients and marked as an estimate.",
+    "productSource": "Data: <off>Open Food Facts</off> (<odbl>ODbL</odbl>)",
+    "productServing": "1 serving ({amount})",
+    "productPack": "Whole pack ({amount})",
+    "labelIn100": "In 100 {unit}",
+    "labelEnergy": "Energy",
+    "labelProtein": "Protein",
+    "labelFat": "Fat",
+    "labelSaturated": "of which saturated",
+    "labelCarbs": "Carbohydrates",
+    "labelSugars": "of which sugars",
+    "labelFiber": "Fibre",
+    "labelSalt": "Salt",
+    "labelUnknown": "not given",
+    "labelGrams": "{grams, number, ::group-off} g",
+    "entrySource": "Open Food Facts",
+    "emptyTextProducts": "Add what was eaten: a recipe, an ingredient, a product with a barcode, or a meal of your own by its figures."
   },
   "favoriteSets": {
     "title": "Favourite sets",
@@ -1002,7 +1041,8 @@
       "recipesApproved": "{count, plural, one {{count, number, ::group-off} approved recipe to ship} other {{count, number, ::group-off} approved recipes to ship}}",
       "updateAvailable": "A catalogue update is available",
       "retired": "{count, plural, one {{count, number, ::group-off} retired ingredient still in use} other {{count, number, ::group-off} retired ingredients still in use}}",
-      "mirrorProblem": "The copy in the repository does not work"
+      "mirrorProblem": "The copy in the repository does not work",
+      "productImportProblem": "The last import of products failed"
     },
     "mirror": {
       "title": "Copy in a repository",
@@ -1073,6 +1113,32 @@
       "mail": "Mail",
       "mailOn": "Set up",
       "mailOff": "Not set up"
+    },
+    "products": {
+      "title": "Products with a barcode",
+      "explain": "The products of the diary come from Open Food Facts (ODbL): the countries the settings name are imported once a week at night, and a code no import brought is asked about by itself. A search by name looks only at what the instance holds. Open Food Facts sees the instance, never who asked.",
+      "lookupsOn": "Checking single codes: on, {count, number, ::group-off} in the last 24 hours.",
+      "lookupsOff": "Checking single codes: off (OPEN_FOOD_FACTS_LOOKUPS).",
+      "countries": "Countries of the import: {countries}.",
+      "noCountries": "No import: the settings name no country (OPEN_FOOD_FACTS_COUNTRIES).",
+      "held": "From the import: {imported, number, ::group-off}. From single codes: {lookedUp, number, ::group-off}. Codes remembered as unknown: {unknown, number, ::group-off}.",
+      "never": "No import has run yet. The worker begins one at night, or when asked here.",
+      "running": "An import is running: {read, number, ::group-off} rows of the export read.",
+      "done": "Last import: {when}. Added {added, number, ::group-off}, changed {changed, number, ::group-off}, removed {removed, number, ::group-off}, of {read, number, ::group-off} rows of the export.",
+      "perCountry": "{country}: {count, number, ::group-off}",
+      "leftOut": "Left out of those countries: without a valid code {code, number, ::group-off}, without a name {name, number, ::group-off}, without figures {figures, number, ::group-off}.",
+      "countryEmpty": "{country} brought no product. Write it as in the address of its page: world.openfoodfacts.org/country/{country}.",
+      "failedAt": "The import of {when} failed, and the products stayed as they were.",
+      "failedSource": "The export could not be read to its end. The worker tries again the next night.",
+      "failedFormat": "The export does not hold the columns this version reads: an update of the application is needed.",
+      "failedNothing": "The export holds no usable product of these countries: check their names in the settings.",
+      "failedShrunk": "The export brought less than half of the products of the last import, so nothing was removed. The worker tries again the next night.",
+      "failedOther": "What went wrong: {error}",
+      "ask": "Import now",
+      "asked": "Asked for: the worker begins within a minute.",
+      "askAgainAt": "It can be asked for again: {when}. The import reads about 1.5 GB, so once a day is enough.",
+      "schedule": "By itself once a week, between 2:00 and 5:00 by the server's clock.",
+      "loadFailed": "The state of the products could not be read."
     }
   },
   "review": {
@@ -2423,7 +2489,8 @@
       "changed": "If this instance runs a changed version, the licence requires its operator to offer you the source code of that version.",
       "problems": "A mistake in the software or an idea for it goes to its <issues>issue tracker</issues>. A security problem is reported privately, as its <security>security policy</security> describes.",
       "operator": "Anything about this instance goes to its operator:",
-      "operatorNotSet": "The operator of this instance has not published a contact address."
+      "operatorNotSet": "The operator of this instance has not published a contact address.",
+      "products": "The figures of products with a barcode come from <off>Open Food Facts</off>, a database available under the <odbl>Open Database License</odbl>, its contents under the <dbcl>Database Contents License</dbcl>. They are written by its users and may be wrong. The instance's table of products is a part of that database, offered under the same licence: it is made from the export of Open Food Facts by choosing countries and leaving out what cannot be right, as the <source>source code</source> shows."
     }
   }
 }
