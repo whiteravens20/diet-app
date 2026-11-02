@@ -179,7 +179,11 @@ describe('other ways to fill a day of a plan', () => {
       const after = await variations.take(user.id, 'en', plan.id, day().id, { offer: way!.offer });
 
       expect(
-        after.days[1]!.meals.map((meal) => [meal.mealType, meal.recipe!.id, meal.servings]),
+        after.days[1]!.meals.map((meal) => [
+          meal.mealType,
+          meal.recipe!.id,
+          meal.servings * meal.quantityScale,
+        ]),
       ).toEqual(way!.meals.map((meal) => [meal.mealType, meal.recipeId, meal.servings]));
       expect(after.days[1]!.dayNutrition).toEqual(way!.dayNutrition);
       expect(after.days[0]).toEqual(plan.days[0]);

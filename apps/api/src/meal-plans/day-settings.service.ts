@@ -107,7 +107,7 @@ export class DaySettingsService {
       change.drawn.length > 0
         ? null
         : change.resizes
-          ? this.plans.resizedKcal(left, change.target, entered)
+          ? this.plans.resizedKcal(left, change.target, entered, plan)
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
             (entered?.nutrition.calories ?? 0);
     const changesMeals =
@@ -167,8 +167,9 @@ export class DaySettingsService {
           data: { calorieTarget: change.target, overrides: asJson(change.overrides) },
         });
         if (gone.length > 0) await tx.plannedMeal.deleteMany({ where: { id: { in: gone } } });
-        // The dishes that stay, brought to the day's target itself: the target was asked for.
-        if (change.resizes) await this.plans.rebalanceDayInternal(dayId, tx, { exact: true });
+        // The dishes that stay, brought to the day's target.
+        if (change.resizes)
+          await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
       });
       return this.plans.get(userId, locale, planId);
     }
@@ -271,7 +272,7 @@ export class DaySettingsService {
         where: { id: planId },
         data: { reuseScore: result.ingredientReuseScore, ...(report ? { report } : {}) },
       });
-      await this.plans.rebalanceDayInternal(dayId, tx);
+      await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
     });
     return this.plans.get(userId, locale, planId);
   }

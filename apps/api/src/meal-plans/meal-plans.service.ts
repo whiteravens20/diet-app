@@ -6,7 +6,9 @@ import {
   fitsDiet,
   PlanOptions,
   type AddCustomMealRequest,
+  type DietType,
   type Locale,
+  type Macros,
   type MealPlan,
   type MealPlanDay,
   type MealPlanPage,
@@ -22,9 +24,8 @@ import {
   safetyFloor,
   macrosForCalories,
   sharesOf,
-  rebalanceDay,
   rebalanceDays,
-  REBALANCE_TOLERANCE,
+  sizeDay,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
@@ -65,6 +66,9 @@ import {
  */
 @Injectable()
 export class MealPlansService {
+  /** The server's own day, for a request that names none; replaceable in a test. */
+  today: () => string = () => isoDate(new Date());
+
   constructor(private readonly prisma: PrismaService) {}
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
@@ -218,6 +222,7 @@ export class MealPlansService {
     date: string,
     req: AddCustomMealRequest,
     key: string | null = null,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     return writeOnce(this.prisma, {
       userId,
@@ -282,7 +287,7 @@ export class MealPlansService {
             },
           });
           await keep(tx, planId);
-          return this.rebalanceDayInternal(day.id, tx);
+          return this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today());
         });
         return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
       },
@@ -300,11 +305,12 @@ export class MealPlansService {
     locale: Locale,
     planId: string,
     mealId: string,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
     const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.delete({ where: { id: mealId } });
-      return this.rebalanceDayInternal(meal.dayId, tx);
+      return this.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.today());
     });
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -321,17 +327,19 @@ export class MealPlansService {
     planId: string,
     mealId: string,
     eaten: boolean,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
     if ((meal.eatenAt !== null) === eaten) {
       return this.buildRebalanceResult(userId, locale, planId, 'day', null);
     }
+    const today = clientToday ?? this.today();
     const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: mealId },
         data: { eatenAt: eaten ? new Date() : null },
       });
-      return this.rebalanceDayInternal(meal.dayId, tx);
+      return this.rebalanceDayInternal(meal.dayId, tx, today);
     });
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -361,7 +369,7 @@ export class MealPlansService {
     }
 
     if (req.scope === 'plan') {
-      const today = clientToday ?? isoDate(new Date());
+      const today = clientToday ?? this.today();
       const summary = await writePlan(this.prisma, planId, revision, (tx) =>
         this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
       );
@@ -371,7 +379,7 @@ export class MealPlansService {
     // The contract refuses a single day without its date before it gets here.
     const day = await this.loadDay(userId, planId, req.date!);
     const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-      this.rebalanceDayInternal(day.id, tx),
+      this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -441,36 +449,35 @@ export class MealPlansService {
   }
 
   /**
-   * Rebalance one day's unchecked, non-custom meals toward its target and
-   * persist the new quantity scales. What the profile's diary holds for the
+   * Size one day's unchecked, non-custom meals for its target and its macros
+   * and persist the new quantity scales. What the profile's diary holds for the
    * day counts as eaten, as an eaten meal does. Returns the summary the UI
    * toast renders, or null when the day has vanished or is skipped, which has
-   * no target to keep to. Runs inside the transaction of the edit that changed
-   * the day, whichever service made it. `exact` brings the day to its target
-   * itself, not just inside the window around it: for a target that was just
-   * changed.
+   * no target to keep to, or has passed: what was on it is a record, and no
+   * edit of it changes the portions of the rest. Runs inside the transaction
+   * of the edit that changed the day, whichever service made it.
    */
   async rebalanceDayInternal(
     dayId: string,
     tx: Prisma.TransactionClient,
-    { exact = false }: { exact?: boolean } = {},
+    today: string,
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: {
-        plan: { select: { profileId: true } },
+        plan: { select: { profileId: true, dietType: true, macroSplit: true } },
         meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } },
       },
     });
-    if (!day?.plan || isSkipped(day)) return null;
+    if (!day?.plan || isSkipped(day) || isoDate(day.date) < today) return null;
     const rows = day.meals.map(toRebalanceRow);
     const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
     const counted = [...rows, ...diaryRows(diary.get(isoDate(day.date)))];
     const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-    const { scales, feasibility } = rebalanceDay(
+    const { scales, feasibility } = sizeDay(
       counted.map(toEngineMeal),
       day.calorieTarget,
-      exact ? 0 : REBALANCE_TOLERANCE,
+      aimOfDay(day.calorieTarget, day.plan),
     );
     const changes = await this.persistScales(rows, scales, tx);
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
@@ -505,6 +512,7 @@ export class MealPlansService {
     const dayRows = days.map((d) => ({
       target: d.calorieTarget,
       past: isoDate(d.date) < today,
+      aim: aimOfDay(d.calorieTarget, plan),
       rows: d.meals.map(toRebalanceRow),
       // Each day's own row of what its diary holds: the ids of the meals are the plan's.
       diary: diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
@@ -515,6 +523,7 @@ export class MealPlansService {
     const { scales, feasibility, unabsorbed } = rebalanceDays(
       dayRows.map((d) => ({
         target: d.target,
+        aim: d.aim,
         meals: [...d.rows, ...d.diary].map((row) => ({
           ...toEngineMeal(row),
           locked: toEngineMeal(row).locked || d.past,
@@ -553,14 +562,18 @@ export class MealPlansService {
   }
 
   /**
-   * What a day would come to, in kcal, with its meals brought to `target` as
-   * a change of the day's target brings them (`rebalanceDayInternal` with
-   * `exact`): the meals, and what its diary holds as eaten. Nothing is
-   * written.
+   * What a day would come to, in kcal, with its meals sized for `target` as a
+   * change of the day's target sizes them: the meals, and what its diary holds
+   * as eaten. Nothing is written.
    */
-  resizedKcal(meals: RebalanceMealRow[], target: number, diary: DiaryOnDay | null): number {
+  resizedKcal(
+    meals: RebalanceMealRow[],
+    target: number,
+    diary: DiaryOnDay | null,
+    plan: { dietType: string; macroSplit: unknown },
+  ): number {
     const rows = [...meals.map(toRebalanceRow), ...diaryRows(diary)];
-    const { scales } = rebalanceDay(rows.map(toEngineMeal), target, 0);
+    const { scales } = sizeDay(rows.map(toEngineMeal), target, aimOfDay(target, plan));
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
 
@@ -912,7 +925,12 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   servings: r.servings,
   quantityScale: r.quantityScale,
   locked: r.locked,
+  macros: { protein: r.per.protein, fat: r.per.fat, carbs: r.per.carbs },
 });
+
+/** What a day of a plan aims at of protein, fat and carbohydrate, in grams, as the plan says it. */
+const aimOfDay = (target: number, plan: { dietType: string; macroSplit: unknown }): Macros =>
+  macrosForCalories(target, plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
 
 /** Sum the effective macros of meals given a per-meal scale lookup. */
 function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number): MacroQuad {

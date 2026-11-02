@@ -121,7 +121,7 @@ export class DayVariationsService {
       .map((meal) => ({ slot: meal.mealType, recipeId: meal.recipeId! }));
     const seen = new Set([signature(replaced)]);
     const ways: {
-      placed: { slot: MealType; recipeId: string; servings: number }[];
+      placed: { slot: MealType; recipeId: string; servings: number; quantityScale: number }[];
       reuse: number;
     }[] = [];
     // Each way is filled around what the day holds and what the ways before it hold, so that it is another day and
@@ -152,7 +152,12 @@ export class DayVariationsService {
       if (result.report.relaxations.some((entry) => entry.date === date)) continue;
       const placed = result.assignments
         .filter((meal) => meal.dayIndex === dayIndex)
-        .map(({ slot, recipeId, servings }) => ({ slot, recipeId, servings }));
+        .map(({ slot, recipeId, servings, quantityScale }) => ({
+          slot,
+          recipeId,
+          servings,
+          quantityScale,
+        }));
       const found = signature(placed);
       if (placed.length === 0 || seen.has(found)) continue;
       seen.add(found);
@@ -232,16 +237,17 @@ export class DayVariationsService {
       (way) => {
         const placed: DayVariationMeal[] = way.placed.map((meal) => {
           const recipe = recipeOf.get(meal.recipeId)!;
+          const amount = meal.servings * meal.quantityScale;
           return {
             mealType: meal.slot,
             title: titleOf(recipe, locale),
             recipeId: recipe.id,
-            servings: meal.servings,
+            servings: amount,
             nutrition: {
-              calories: Math.round(recipe.caloriesPerServing * meal.servings),
-              protein: Math.round(recipe.proteinPerServing * meal.servings),
-              fat: Math.round(recipe.fatPerServing * meal.servings),
-              carbs: Math.round(recipe.carbsPerServing * meal.servings),
+              calories: Math.round(recipe.caloriesPerServing * amount),
+              protein: Math.round(recipe.proteinPerServing * amount),
+              fat: Math.round(recipe.fatPerServing * amount),
+              carbs: Math.round(recipe.carbsPerServing * amount),
             },
             stays: false,
           };
@@ -253,7 +259,9 @@ export class DayVariationsService {
           packs: tally([
             ...rest,
             ...way.placed.map((meal) => ({
-              factor: meal.servings / Math.max(1, recipeOf.get(meal.recipeId)!.servings),
+              factor:
+                (meal.servings * meal.quantityScale) /
+                Math.max(1, recipeOf.get(meal.recipeId)!.servings),
               lines: recipeOf.get(meal.recipeId)!.ingredients,
             })),
           ]),
@@ -320,7 +328,12 @@ export class DayVariationsService {
           plan: planId,
           day: dayId,
           revision: plan.revision,
-          meals: way.placed.map((meal) => [meal.slot, meal.recipeId, meal.servings]),
+          meals: way.placed.map((meal) => [
+            meal.slot,
+            meal.recipeId,
+            meal.servings,
+            meal.quantityScale,
+          ]),
           reuse: way.reuse,
           picked: picked && index === 0,
           reason: picked && index === 0 ? variation.reason : null,
@@ -377,11 +390,12 @@ export class DayVariationsService {
         .map((meal) => meal.id);
       await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
       await tx.plannedMeal.createMany({
-        data: offer.meals.map(([mealType, recipeId, servings]) => ({
+        data: offer.meals.map(([mealType, recipeId, servings, quantityScale]) => ({
           dayId,
           recipeId,
           mealType,
           servings,
+          quantityScale,
           modelPicked: offer.picked,
           modelReason: offer.picked ? offer.reason : null,
         })),

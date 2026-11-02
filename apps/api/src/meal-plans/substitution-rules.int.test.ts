@@ -37,6 +37,12 @@ describe('putting one ingredient of a planned meal in the place of another', () 
         { date: '2026-01-05', lockedSlots: [{ mealType: 'dinner', recipeId: recipe.id }] },
       ],
     });
+    // The figures below are those of the dinner at its own servings, as a plan with no factor on it has them.
+    await t.prisma.plannedMeal.updateMany({
+      where: { day: { planId: plan.id } },
+      data: { quantityScale: 1 },
+    });
+    plan = await t.app.get(MealPlansService).get(user.id, 'en', plan.id);
     dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
   });
 

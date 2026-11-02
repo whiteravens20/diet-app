@@ -136,6 +136,7 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: SwapIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<SwapIngredientResponse> {
     const s = await this.substitution(userId, req);
     const { meal, recipe, facts, lines, restrictions } = s;
@@ -210,7 +211,7 @@ export class IngredientSwapService {
       });
       // The substitution changed the meal's macros, so the day total moved —
       // run the same rebalance pipeline as every other edit.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx);
+      return this.plans.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.plans.today());
     });
     return {
       ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),

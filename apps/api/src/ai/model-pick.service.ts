@@ -28,7 +28,7 @@ export interface DayOffer {
   plan: string;
   day: string;
   revision: number;
-  meals: [meal: string, recipe: string, servings: number][];
+  meals: [meal: string, recipe: string, servings: number, quantityScale: number][];
   reuse: number;
   picked: boolean;
   reason: string | null;

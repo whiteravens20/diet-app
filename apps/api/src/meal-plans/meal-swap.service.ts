@@ -207,7 +207,12 @@ export class MealSwapService {
    * that enters a plan is, and written only onto the plan the offer was made
    * from: a plan that changed since answers `PLAN_CHANGED`.
    */
-  async apply(userId: string, locale: Locale, req: ApplyMealSwapRequest): Promise<RebalanceResult> {
+  async apply(
+    userId: string,
+    locale: Locale,
+    req: ApplyMealSwapRequest,
+    clientToday: string | null = null,
+  ): Promise<RebalanceResult> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId);
     const { meal, restrictions } = slot;
     // A model's pick is taken with the note that came with it, and with no other.
@@ -271,7 +276,7 @@ export class MealSwapService {
           data: { generationMode: 'ai_assisted' },
         });
       // The swap changed the day total — pull it back toward target.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx);
+      return this.plans.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.plans.today());
     });
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }

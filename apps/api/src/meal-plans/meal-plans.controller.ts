@@ -317,8 +317,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(ApplyMealSwapRequest)) dto: ApplyMealSwapRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.apply(user.id, locale, dto);
+    return this.swaps.apply(user.id, locale, dto, today);
   }
 
   /**
@@ -336,8 +337,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('date', requiredDate) date: string,
     @Body(new ZodValidationPipe(AddCustomMealRequest)) dto: AddCustomMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.addCustomMeal(user.id, locale, id, date, dto, key);
+    return this.plans.addCustomMeal(user.id, locale, id, date, dto, key, today);
   }
 
   /** Take a meal off its day, whichever it is (rebalances the day). */
@@ -348,8 +350,9 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.removeMeal(user.id, locale, id, mealId);
+    return this.plans.removeMeal(user.id, locale, id, mealId, today);
   }
 
   /** Mark a planned meal eaten or not eaten (rebalances the day). */
@@ -361,8 +364,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
     @Body(new ZodValidationPipe(SetMealEatenRequest)) dto: SetMealEatenRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
+    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today);
   }
 
   /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
@@ -461,7 +465,8 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.applyIngredientSwap(user.id, locale, dto);
+    return this.ingredients.applyIngredientSwap(user.id, locale, dto, today);
   }
 }

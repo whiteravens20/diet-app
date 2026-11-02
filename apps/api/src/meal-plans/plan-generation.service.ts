@@ -35,6 +35,7 @@ import {
   effectiveDayTarget,
   macroSplitOf,
   optimisePlan,
+  sizeAssignments,
   sharesOf,
   OptimizerError,
   proteinKindsOf,
@@ -44,7 +45,7 @@ import {
   type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
-  type OptimizerResult,
+  type SizedAssignment,
 } from '../engine/index.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
@@ -515,6 +516,7 @@ export class PlanGenerationService {
               recipeId: placed.recipeId,
               mealType: placed.slot,
               servings: placed.servings,
+              quantityScale: placed.quantityScale,
             })),
         });
       }
@@ -635,7 +637,7 @@ export class PlanGenerationService {
       seed: number;
     },
   ): Promise<{
-    assignments: OptimizerResult['assignments'];
+    assignments: SizedAssignment[];
     ingredientReuseScore: number;
     report: StoredReport;
     pantryRound?: PantryRound;
@@ -725,11 +727,12 @@ export class PlanGenerationService {
     }));
 
     const dates = opts.days.map((d) => d.isoDate);
+    const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
     try {
       const result = optimisePlan({
         recipes: optimizerRecipes,
         days,
-        macroSplit: macroSplitOf(opts.dietType, sharesOf(opts.macroSplit)),
+        macroSplit: split,
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
@@ -748,7 +751,7 @@ export class PlanGenerationService {
         seed: opts.seed,
       });
       return {
-        assignments: result.assignments,
+        assignments: sizeAssignments(days, optimizerRecipes, result.assignments, split),
         ingredientReuseScore: result.ingredientReuseScore,
         report: reportOf(result, dates, pantry.use),
         pantryRound: pantry.round,
@@ -1188,10 +1191,7 @@ function keptOfDiary(diary: DiaryOnDay | undefined): KeptMeal[] {
 }
 
 /** Nested `days.create` payload from resolved days + optimiser assignments. */
-function buildDays(
-  resolved: ResolvedDay[],
-  assignments: { dayIndex: number; slot: string; recipeId: string; servings: number }[],
-) {
+function buildDays(resolved: ResolvedDay[], assignments: SizedAssignment[]) {
   return resolved.map((d, dayIndex) => ({
     date: d.date,
     calorieTarget: d.calorieTarget,
@@ -1199,7 +1199,12 @@ function buildDays(
     meals: {
       create: assignments
         .filter((a) => a.dayIndex === dayIndex)
-        .map((a) => ({ recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
+        .map((a) => ({
+          recipeId: a.recipeId,
+          mealType: a.slot,
+          servings: a.servings,
+          quantityScale: a.quantityScale,
+        })),
     },
   }));
 }

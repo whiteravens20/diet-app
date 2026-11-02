@@ -81,6 +81,7 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   const { AppModule } = await import('../app.module.js');
   const { configureApp } = await import('../app.setup.js');
   const { PrismaService: Prisma } = await import('../prisma/prisma.service.js');
+  const { MealPlansService } = await import('../meal-plans/meal-plans.service.js');
   const { PlanGenerationService } = await import('../meal-plans/plan-generation.service.js');
 
   const app = await NestFactory.create(AppModule, {
@@ -94,6 +95,7 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   // application under test it is the first of that month, so those days are
   // ahead of it; a test about days that have passed sets another date.
   app.get(PlanGenerationService).today = () => TEST_TODAY;
+  app.get(MealPlansService).today = () => TEST_TODAY;
   // A plan is made with a seed of its own. Here the seeds are 1, 2, 3 and on
   // from the start of every test, so that a test makes the same plans each run.
   app.get(PlanGenerationService).nextSeed = nextSeed;

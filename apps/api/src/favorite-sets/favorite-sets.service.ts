@@ -98,6 +98,7 @@ export class FavoriteSetsService {
     locale: Locale,
     id: string,
     req: ApplyFavoriteSetRequest,
+    clientToday: string | null = null,
   ): Promise<MealPlan> {
     const set = await this.load(userId, id);
     const slots = parseSlots(set.slots);
@@ -243,7 +244,11 @@ export class FavoriteSetsService {
           });
         }
         // The day's total moved: pull it back toward its target, as every edit does.
-        await this.mealPlans.rebalanceDayInternal(day.id, tx);
+        await this.mealPlans.rebalanceDayInternal(
+          day.id,
+          tx,
+          clientToday ?? this.mealPlans.today(),
+        );
       }
     });
 

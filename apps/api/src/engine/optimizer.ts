@@ -220,7 +220,7 @@ export function uniformDays(
   return Array.from({ length: days }, () => ({ mealSlots, dailyCalorieTarget }));
 }
 
-interface OptimizerAssignment {
+export interface OptimizerAssignment {
   dayIndex: number;
   slot: MealType;
   recipeId: string;
