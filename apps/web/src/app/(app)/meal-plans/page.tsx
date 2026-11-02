@@ -351,7 +351,7 @@ function MealPlansContent() {
     },
   });
   const takeOffer = useMutation({
-    mutationFn: ({ asked, preview }: SwapOffer) =>
+    mutationFn: ({ asked, preview, together }: SwapOffer & { together: boolean }) =>
       api.post<RebalanceResult>('/meal-plans/swap-meal', {
         planId: asked.planId,
         plannedMealId: asked.plannedMealId,
@@ -360,6 +360,7 @@ function MealPlansContent() {
         // What a model picked is held to what the engine's own pick is.
         strategy: asked.strategy === 'ai' ? 'random' : asked.strategy,
         allowOffDiet: asked.allowOffDiet ?? false,
+        ...(together ? { together: true } : {}),
         // The note that came with a model's own pick: the meal then says who chose its recipe.
         ...(preview.pick ? { pick: preview.pick } : {}),
       }),
@@ -865,7 +866,7 @@ function MealPlansContent() {
               }
               aiOffNote={aiOffNote}
               offer={offer?.asked.planId === plan.id ? offer : null}
-              onTakeOffer={() => offer && takeOffer.mutate(offer)}
+              onTakeOffer={(together) => offer && takeOffer.mutate({ ...offer, together })}
               onAnotherOffer={() => offer && askFor(offer.asked, offer.seen)}
               onCancelOffer={() => setOffer(null)}
               onToggleEaten={(mealId, eaten) => {

@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { useAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { Dialog } from '@/components/ui/dialog';
+import { CookingNote } from '@/app/(app)/meal-plans/cooking';
 
 interface PlannedMealLike {
   id: string;
@@ -46,16 +47,19 @@ interface PlannedMealLike {
 export function IngredientSubstituteModal({
   meal,
   planId,
+  mealName,
   onClose,
   onApplied,
 }: {
   meal: PlannedMealLike;
   planId: string;
+  mealName: (mealType: string) => string;
   onClose: () => void;
   onApplied: (result: SwapIngredientResponse) => void;
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
+  const tPlans = useTranslations('mealPlans');
   const worded = useErrorText();
   const tCommon = useTranslations('common');
   const tPickers = useTranslations('pickers');
@@ -78,6 +82,8 @@ export function IngredientSubstituteModal({
   const [rewriteWithAi, setRewriteWithAi] = useState(false);
   // A substitution that moves what a serving holds by more than a tenth is made only when the user says so.
   const [acceptChange, setAcceptChange] = useState(false);
+  // The other meal of its cooking changes with this one, unless the user keeps it to this day.
+  const [only, setOnly] = useState(false);
   // What the API refused with, in the reader's language where the code is known.
 
   const session = useQuery({
@@ -160,7 +166,7 @@ export function IngredientSubstituteModal({
         toIngredientId: toId!,
         rewriteWithAi: Boolean(aiEnabled) && rewriteWithAi,
         acceptChange,
-        together: false,
+        together: !only,
         ...(aiNote && aiNote.from === fromId && aiNote.to === toId ? { pick: aiNote.note } : {}),
       } satisfies SwapIngredientRequest),
     onSuccess: (result) => {
@@ -410,6 +416,24 @@ export function IngredientSubstituteModal({
                     </label>
                   </div>
                 )}
+                {preview.data.outsideLimits.length > 0 && (
+                  <p className="mt-2 text-xs text-warning">
+                    {tPlans('offerOutside', {
+                      limits: preview.data.outsideLimits
+                        .map((kind) => tPlans(`limit.${kind}`))
+                        .join(', '),
+                    })}
+                  </p>
+                )}
+                <div className="mt-2 text-xs">
+                  <CookingNote
+                    change={preview.data.cooking}
+                    only={only}
+                    onOnly={setOnly}
+                    label="only"
+                    mealName={mealName}
+                  />
+                </div>
               </>
             )}
             <label

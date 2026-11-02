@@ -1793,7 +1793,9 @@
         "snack": "for the snack",
         "dinner": "for dinner"
       }
-    }
+    },
+    "offerDayAfter": "The day after the swap: {kcal, number, ::group-off} of {target, number, ::group-off} kcal.",
+    "offerOutside": "This recipe is outside a limit: {limits}. The meal will say so."
   },
   "inventory": {
     "title": "Inventory",

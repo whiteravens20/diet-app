@@ -158,7 +158,8 @@ export function PlanCard({
   aiOffNote?: string;
   /** The recipe that is on offer for one of this plan's meals, if any. */
   offer: SwapOffer | null;
-  onTakeOffer: () => void;
+  /** Take the recipe on offer, on this meal alone or with the others of its cooking. */
+  onTakeOffer: (together: boolean) => void;
   onAnotherOffer: () => void;
   onCancelOffer: () => void;
   onToggleEaten: (mealId: string, eaten: boolean) => void;
@@ -818,11 +819,42 @@ export function PlanCard({
                           })}
                         </p>
                         <p className="text-muted-foreground">
-                          {t('offerDay', {
-                            kcal: offer.preview.dayAfter.calories,
-                            target: offer.preview.calorieTarget,
+                          {/* The other meals are fitted to the day only where it comes out away from its target. */}
+                          {t(
+                            Math.abs(
+                              offer.preview.dayAfter.calories - offer.preview.calorieTarget,
+                            ) >
+                              offer.preview.calorieTarget * DAY_ON_TARGET
+                              ? 'offerDay'
+                              : 'offerDayAfter',
+                            {
+                              kcal: offer.preview.dayAfter.calories,
+                              target: offer.preview.calorieTarget,
+                            },
+                          )}{' '}
+                          {t('dayMacros', {
+                            protein: offer.preview.dayAfter.protein,
+                            proteinTarget: offer.preview.targetMacros.protein,
+                            fat: offer.preview.dayAfter.fat,
+                            fatTarget: offer.preview.targetMacros.fat,
+                            carbs: offer.preview.dayAfter.carbs,
+                            carbsTarget: offer.preview.targetMacros.carbs,
                           })}
                         </p>
+                        <CookingNote
+                          change={offer.preview.cooking}
+                          only={onlyFor === m.id}
+                          onOnly={(only) => setOnlyFor(only ? m.id : null)}
+                          label="only"
+                          mealName={mealName}
+                        />
+                        {offer.preview.outsideLimits.length > 0 && (
+                          <p className="text-warning">
+                            {t('offerOutside', {
+                              limits: limitNames(offer.preview.outsideLimits),
+                            })}
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2 pt-1">
                           <Button
                             type="button"
@@ -830,7 +862,11 @@ export function PlanCard({
                             onClick={() => {
                               setOpenActions(null);
                               changing.current = mealAnchor(m.id);
-                              onTakeOffer();
+                              onTakeOffer(
+                                onlyFor !== m.id &&
+                                  (offer.preview.cooking?.changes.length ?? 0) > 0,
+                              );
+                              setOnlyFor(null);
                             }}
                             disabled={busy}
                           >
@@ -848,7 +884,15 @@ export function PlanCard({
                               {t('offerAnother')}
                             </Button>
                           )}
-                          <Button type="button" size="sm" variant="ghost" onClick={onCancelOffer}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setOnlyFor(null);
+                              onCancelOffer();
+                            }}
+                          >
                             {tCommon('cancel')}
                           </Button>
                         </div>
@@ -1188,6 +1232,7 @@ export function PlanCard({
           title={t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           start={reroll}
           limitNames={limitNames}
+          mealName={mealName}
           onClose={() => setReroll(null)}
           onSubmit={(asked) => {
             changing.current = reroll.day ? dayAnchor(summary.id, reroll.day) : null;
@@ -1216,6 +1261,7 @@ export function PlanCard({
           meal={openSub}
           planId={summary.id}
           onClose={() => setOpenSub(null)}
+          mealName={mealName}
           onApplied={(result) => {
             setOpenActions(null);
             changing.current = mealAnchor(openSub.id);

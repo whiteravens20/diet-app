@@ -15,6 +15,8 @@ export interface Reroll {
   dropIneligibleLocks?: boolean;
   /** Left out: the limits the plan may let give way already. */
   allowRelaxations?: PlanRelaxation[];
+  /** The other meals of each cooking change with the days filled again. */
+  together?: boolean;
 }
 
 /** What a re-roll sends: nothing at all when it asks for nothing of its own. */
@@ -27,6 +29,7 @@ export function rerollBody(v: Reroll): Record<string, unknown> | undefined {
     ...(v.replaceCustom ? { replaceCustom: true } : {}),
     ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}),
     ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}),
+    ...(v.together ? { together: true } : {}),
   };
   return Object.keys(body).length > 0 ? body : undefined;
 }

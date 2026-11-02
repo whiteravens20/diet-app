@@ -76,6 +76,7 @@ async function substituting(preview: SwapPreview, locale: 'en' | 'pl' = 'en') {
         <IngredientSubstituteModal
           meal={meal}
           planId="55555555-5555-4555-8555-555555555555"
+          mealName={(mealType) => mealType}
           onClose={() => undefined}
           onApplied={onApplied}
         />
@@ -228,6 +229,7 @@ describe('the substitution of an ingredient, before it is made', () => {
           <IngredientSubstituteModal
             meal={meal}
             planId="55555555-5555-4555-8555-555555555555"
+            mealName={(mealType) => mealType}
             onClose={() => undefined}
             onApplied={() => undefined}
           />
@@ -326,6 +328,7 @@ describe('a substitute a model suggested', () => {
           <IngredientSubstituteModal
             meal={meal}
             planId="55555555-5555-4555-8555-555555555555"
+            mealName={(mealType) => mealType}
             onClose={() => undefined}
             onApplied={() => undefined}
           />
