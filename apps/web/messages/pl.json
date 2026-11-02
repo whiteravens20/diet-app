@@ -2250,7 +2250,7 @@
     "nameHint": "Nazwa profilu: Twoje imię albo imię osoby, dla której planujesz.",
     "age": "Wiek",
     "sex": "Płeć",
-    "sexHint": "Wymaga jej wzór na energię zużywaną przez organizm. Bez niej przyjmujemy wartość pośrednią.",
+    "sexHint": "Wzór na energię zużywaną przez organizm ma osobne wartości dla kobiet i mężczyzn. Przy pozostałych opcjach przyjmujemy wartość pośrednią.",
     "preferNotToSay": "Wolę nie podawać",
     "heightCm": "Wzrost (cm)",
     "weight": "Waga ({unit})",
@@ -2576,7 +2576,8 @@
     },
     "sex": {
       "male": "Mężczyzna",
-      "female": "Kobieta"
+      "female": "Kobieta",
+      "non_binary": "Osoba niebinarna"
     },
     "proteinKind": {
       "chicken": "Kurczak",

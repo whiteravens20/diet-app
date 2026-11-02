@@ -21118,7 +21118,8 @@
         "type": "string",
         "enum": [
           "male",
-          "female"
+          "female",
+          "non_binary"
         ]
       },
       "ShipConfig": {

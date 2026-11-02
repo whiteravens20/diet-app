@@ -79,8 +79,9 @@ const MAX_DEFICIT_SHARE = 0.25;
 
 /**
  * Basal Metabolic Rate via Mifflin-St Jeor.
- * Sex offset: +5 male, -161 female. When sex is unknown we use the midpoint
- * (-78) so the estimate is unbiased rather than defaulting to one sex.
+ * Sex offset: +5 male, -161 female. For anybody else, and where it is not said,
+ * we use the midpoint (-78) so the estimate is unbiased rather than defaulting
+ * to one sex.
  */
 export function calculateBmr(
   input: Pick<CalorieEngineInput, 'age' | 'sex' | 'heightCm' | 'weightKg'>,

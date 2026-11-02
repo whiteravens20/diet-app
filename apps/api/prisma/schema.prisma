@@ -235,6 +235,7 @@ model EmailChangeToken {
 enum Sex {
   male
   female
+  non_binary
 }
 
 enum ActivityLevel {

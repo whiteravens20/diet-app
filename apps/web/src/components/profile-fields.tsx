@@ -66,6 +66,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           <option value="">{t('preferNotToSay')}</option>
           <option value="male">{tSex('male')}</option>
           <option value="female">{tSex('female')}</option>
+          <option value="non_binary">{tSex('non_binary')}</option>
         </select>
       </Field>
       <Field label={t('heightCm')}>

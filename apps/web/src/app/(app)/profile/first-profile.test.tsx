@@ -139,6 +139,16 @@ describe('the steps a first profile is set up in', () => {
     expect(screen.getByLabelText(new RegExp(`^${texts.activityLevel}`))).toHaveValue('active');
   });
 
+  it('offer a choice of neither of the two, and say what it does to the figure', async () => {
+    open();
+    const sex = screen.getByLabelText(new RegExp(`^${texts.sex}`));
+
+    await userEvent.selectOptions(sex, 'non_binary');
+
+    expect(sex).toHaveValue('non_binary');
+    expect(screen.getByText(texts.sexHint)).toBeInTheDocument();
+  });
+
   it('say what a level of activity means under the list it is chosen from', async () => {
     open();
     expect(screen.getByText(texts.activityHint.moderate)).toBeInTheDocument();

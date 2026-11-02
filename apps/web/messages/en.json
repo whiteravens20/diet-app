@@ -2250,7 +2250,7 @@
     "nameHint": "What the profile is called: your name, or that of somebody you plan for.",
     "age": "Age",
     "sex": "Sex",
-    "sexHint": "The equation for the energy a body uses asks for it. Without it the figure lies between the two.",
+    "sexHint": "The equation for the energy a body uses has one value for women and one for men. With the other choices the figure lies between the two.",
     "preferNotToSay": "Prefer not to say",
     "heightCm": "Height (cm)",
     "weight": "Weight ({unit})",
@@ -2576,7 +2576,8 @@
     },
     "sex": {
       "male": "Male",
-      "female": "Female"
+      "female": "Female",
+      "non_binary": "Non-binary"
     },
     "proteinKind": {
       "chicken": "Chicken",

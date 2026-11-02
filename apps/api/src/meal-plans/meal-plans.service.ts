@@ -25,6 +25,7 @@ import {
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
+  type Sex,
   type UndoSwapRequest,
 } from '@diet-app/shared';
 import {
@@ -1150,7 +1151,7 @@ interface PlanWithRelations {
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
-  profile: { sex: 'male' | 'female' | null; mealCount: number } | null;
+  profile: { sex: Sex | null; mealCount: number } | null;
   days: {
     id: string;
     date: Date;

@@ -337,6 +337,29 @@ describe('changing a profile', () => {
     });
   });
 
+  it('keeps a choice of neither of the two, and works it out as where nothing is said', async () => {
+    const body = { name: 'Another', age: 30, heightCm: 180, weightKg: 80 };
+    await t.prisma.profile.deleteMany({ where: { userId: user.id } });
+
+    const chosen = await t
+      .http()
+      .post('/api/profiles')
+      .set(as(user))
+      .send({ ...body, sex: 'non_binary' })
+      .expect(201);
+    const unsaid = await t
+      .http()
+      .post('/api/profiles')
+      .set(as(user))
+      .send({ ...body, name: 'Unsaid', sex: null })
+      .expect(201);
+
+    expect(chosen.body.sex).toBe('non_binary');
+    const read = await t.http().get(`/api/profiles/${chosen.body.id}`).set(as(user)).expect(200);
+    expect(read.body.sex).toBe('non_binary');
+    expect(chosen.body.calorieTarget).toEqual(unsaid.body.calorieTarget);
+  });
+
   it('is one of as many as an account may have, however many more are asked for together', async () => {
     const another = { name: 'Another', age: 30, sex: 'male', heightCm: 180, weightKg: 80 };
 
