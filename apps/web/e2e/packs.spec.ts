@@ -5,6 +5,14 @@ import { barriers, expect, settled, test, theFormForAPlan, type Messages } from 
 
 type Texts = Record<string, string>;
 
+/** What is said of a dish cooked for two days. */
+interface CookingTexts {
+  cookDays: string;
+  cookHint: string;
+  fromHint: string;
+  dayFrom: Record<string, string>;
+}
+
 /** What a text says before the first thing that is put into it. */
 const start = (text: string): string => text.split('{')[0]!;
 
@@ -78,13 +86,13 @@ test.describe('a plan made for cooking ahead', () => {
     const folded = page.locator(`[id^="plan-${made.id}-"] > button[aria-expanded="false"]`);
     await expect(folded).not.toHaveCount(0);
     while ((await folded.count()) > 0) await folded.first().click();
-    const cooking = (messages.mealPlans as unknown as { cooking: Texts }).cooking;
-    await expect(page.getByText(cooking.cookDays!, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/^From [A-Z]/).first()).toBeVisible();
-    await expect(page.getByText(/^You cook once, for /).first()).toBeVisible();
-    await expect(
-      page.getByText(/^No cooking: this is the rest of the dish from /).first(),
-    ).toBeVisible();
+    const cooking = (messages.mealPlans as unknown as { cooking: CookingTexts }).cooking;
+    const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+    const fromADay = Object.values(cooking.dayFrom).map(capitalised).join('|');
+    await expect(page.getByText(cooking.cookDays, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`^(${fromADay})$`)).first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`^${start(cooking.cookHint)}`)).first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`^${start(cooking.fromHint)}`)).first()).toBeVisible();
 
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had.
     page.once('dialog', (confirm) => void confirm.accept());
