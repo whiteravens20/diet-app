@@ -40,11 +40,16 @@ function linkTo(href: string) {
 }
 
 /** Where the figures of a product come from, under the licence they come with. */
-function ProductSource() {
+function ProductSource({ source }: { source: Product['source'] }) {
   const t = useTranslations('diary');
   return (
     <p className="text-xs text-muted-foreground">
-      {t.rich('productSource', { off: linkTo(OPEN_FOOD_FACTS), odbl: linkTo(ODBL) })}
+      {source === 'own'
+        ? t('productSourceOwn')
+        : t.rich(source === 'instance' ? 'productSourceInstance' : 'productSource', {
+            off: linkTo(OPEN_FOOD_FACTS),
+            odbl: linkTo(ODBL),
+          })}
     </p>
   );
 }
@@ -59,11 +64,14 @@ export function ProductSearch({
   lookups,
   onPick,
   onOwnMeal,
+  onOwnProduct,
 }: {
   /** Whether a code the instance does not hold is asked of Open Food Facts. */
   lookups: boolean;
   onPick: (product: Product) => void;
   onOwnMeal: () => void;
+  /** Writes a product of one's own, with the code that was looked for where one was. */
+  onOwnProduct: (code: string) => void;
 }) {
   const t = useTranslations('diary');
   const unitName = useUnitName();
@@ -142,9 +150,21 @@ export function ProductSearch({
                 ? t(lookups ? 'productNotFound' : 'productNotFoundHere')
                 : errorText(check.error)}
             </p>
-            <Button type="button" variant="ghost" size="sm" onClick={onOwnMeal}>
-              {t('productAsOwn')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {unknown && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOwnProduct(productCodeOf(text) ?? '')}
+                >
+                  {t('productAddOwn')}
+                </Button>
+              )}
+              <Button type="button" variant="ghost" size="sm" onClick={onOwnMeal}>
+                {t('productAsOwn')}
+              </Button>
+            </div>
           </div>
         )}
         {searching && !found.isFetching && found.isError && (
@@ -160,13 +180,21 @@ export function ProductSearch({
             found={offered.map((product) => ({
               id: product.id,
               name: product.brand ? `${product.name}, ${product.brand}` : product.name,
-              about: t('per100', {
-                kcal: Math.round(product.per100.calories ?? 0),
-                unit: unitName(product.unit),
-              }),
+              about: [
+                t('per100', {
+                  kcal: Math.round(product.per100.calories ?? 0),
+                  unit: unitName(product.unit),
+                }),
+                ...(product.source === 'own' ? [t('productOwnMark')] : []),
+              ].join(' · '),
               pick: () => onPick(product),
             }))}
           />
+        )}
+        {searching && !found.isFetching && !found.isError && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => onOwnProduct('')}>
+            {t('productAddOwn')}
+          </Button>
         )}
       </div>
     </div>
@@ -247,7 +275,7 @@ export function PickedProduct({
       {product.energyWorkedOut && (
         <p className="text-xs text-muted-foreground">{t('productEnergyWorkedOut')}</p>
       )}
-      <ProductSource />
+      <ProductSource source={product.source} />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type {
@@ -26,6 +27,7 @@ import { useFormat } from '@/lib/use-format';
 import { useSettled } from '@/lib/use-settled';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Field, Input } from '@/components/ui/input';
 import { FoundList } from './found-list';
 import { firstAmount, PickedProduct, ProductAmount, ProductSearch } from './product-entry';
@@ -44,6 +46,13 @@ const selectClass =
 
 /** How many of what a search finds are offered. */
 const OFFERED = 8;
+
+// It checks what is typed against the contract, which only somebody writing a product needs loaded.
+// Waited for here, so that the window stays open: a page that waits closes every window over it.
+const OwnProductForm = dynamic(
+  () => import('@/components/own-product-form').then((form) => form.OwnProductForm),
+  { ssr: false, loading: () => <Skeleton className="h-96" /> },
+);
 
 /**
  * The window an entry is added to a day of the diary in: a recipe of the
@@ -85,6 +94,8 @@ export function AddEntryDialog({
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [ingredient, setIngredient] = useState<Ingredient | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
+  // The product of one's own being written, by the code it is written for; the search stays as it was behind it.
+  const [writing, setWriting] = useState<{ code: string } | null>(null);
   const [servings, setServings] = useState('1');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
@@ -199,6 +210,12 @@ export function AddEntryDialog({
     </Field>
   );
 
+  const pickProduct = (picked: Product): void => {
+    setWriting(null);
+    setProduct(picked);
+    setQuantity(firstAmount(picked));
+  };
+
   return (
     <Dialog open onClose={onClose} label={t('addTitle')} className="max-w-lg">
       <div className="flex items-center justify-between border-b border-border p-4">
@@ -211,7 +228,18 @@ export function AddEntryDialog({
         </Button>
       </div>
 
-      <form className="space-y-4 p-4" onSubmit={submit}>
+      {writing && (
+        <div className="space-y-3 p-4">
+          <h3 className="text-sm font-medium">{t('productWriteTitle')}</h3>
+          <OwnProductForm
+            code={writing.code}
+            onSaved={pickProduct}
+            onUseBase={pickProduct}
+            onCancel={() => setWriting(null)}
+          />
+        </div>
+      )}
+      <form hidden={writing !== null} className="space-y-4 p-4" onSubmit={submit}>
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t('kindLegend')}</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -367,11 +395,9 @@ export function AddEntryDialog({
           ) : (
             <ProductSearch
               lookups={products?.lookups ?? false}
-              onPick={(picked) => {
-                setProduct(picked);
-                setQuantity(firstAmount(picked));
-              }}
+              onPick={pickProduct}
               onOwnMeal={() => asOwnMeal('')}
+              onOwnProduct={(code) => setWriting({ code })}
             />
           ))}
 

@@ -18,6 +18,7 @@ const texts = en.diary;
 const MILK: Product = {
   id: '77777777-7777-4777-8777-777777777777',
   code: '5900512320359',
+  source: 'open_food_facts',
   name: 'Mleko 3,2%',
   brand: 'Mlekovita',
   pack: '1l',
@@ -101,6 +102,27 @@ describe('a product in the window that adds to a diary', () => {
       expect(await window.findByText(texts.productNothingHere)).toBeInTheDocument();
     });
 
+    it("leads from a search to a product of one's own, with no code to start with", async () => {
+      vi.spyOn(api, 'get').mockResolvedValue({ items: [] });
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, 'chleb babci');
+      await user.click(await window.findByRole('button', { name: texts.productAddOwn }));
+
+      expect(
+        await window.findByRole('textbox', { name: (said) => said.startsWith(en.products.code) }),
+      ).toHaveValue('');
+    });
+
+    it("marks a product of one's own among what is found", async () => {
+      vi.spyOn(api, 'get').mockResolvedValue({ items: [{ ...MILK, source: 'own' }] });
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, 'mleko');
+
+      expect(await window.findByText(/· your own$/)).toBeInTheDocument();
+    });
+
     it('says when a search got no answer, which is not that nothing was found', async () => {
       vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(0, 'NETWORK', 'No answer.'));
       const { window, user, field } = await openOnProducts();
@@ -176,6 +198,82 @@ describe('a product in the window that adds to a diary', () => {
       expect(window.queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    it("leads from a code nobody knows to a product of one's own with that code, which it then adds", async () => {
+      vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'No.'));
+      const own: Product = { ...MILK, source: 'own', servingAmount: 200, name: 'Moje mleko' };
+      const post = vi.spyOn(api, 'post').mockResolvedValue(own);
+      const { window, field, user, onSubmit } = await openOnProducts();
+
+      await user.type(field, '590 0512 320359');
+      await user.click(window.getByRole('button', { name: texts.productCheck }));
+      await user.click(await window.findByRole('button', { name: texts.productAddOwn }));
+
+      const code = await window.findByRole('textbox', {
+        name: (said) => said.startsWith(en.products.code),
+      });
+      expect(code).toHaveValue(MILK.code);
+      await user.type(window.getByRole('textbox', { name: en.products.name }), 'Moje mleko');
+      await user.type(window.getByRole('textbox', { name: en.products.calories }), '60');
+      await user.click(window.getByRole('button', { name: en.products.save }));
+
+      expect(post.mock.calls[0]![0]).toBe('/products/own');
+      expect(await window.findByText('Moje mleko')).toBeInTheDocument();
+      expect(window.getByText(texts.productSourceOwn)).toBeInTheDocument();
+      expect(window.getByRole('spinbutton', { name: /ml/ })).toHaveValue(200);
+      await user.click(window.getByRole('button', { name: texts.submit }));
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: own.id, quantity: 200 }),
+      );
+    });
+
+    it("takes the base's product where the code turned out to be known", async () => {
+      const get = vi
+        .spyOn(api, 'get')
+        .mockRejectedValueOnce(new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'No.'));
+      vi.spyOn(api, 'post').mockRejectedValue(
+        new ApiClientError(409, 'PRODUCT_CODE_KNOWN', 'Known.'),
+      );
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, MILK.code!);
+      await user.click(window.getByRole('button', { name: texts.productCheck }));
+      await user.click(await window.findByRole('button', { name: texts.productAddOwn }));
+      get.mockResolvedValue(MILK);
+      await user.type(await window.findByRole('textbox', { name: en.products.name }), 'Moje mleko');
+      await user.type(window.getByRole('textbox', { name: en.products.calories }), '60');
+      await user.click(window.getByRole('button', { name: en.products.save }));
+      await user.click(await window.findByRole('button', { name: en.products.useBase }));
+
+      expect(window.getByText(texts.labelEnergy)).toBeInTheDocument();
+      expect(window.getByRole('spinbutton', { name: /ml/ })).toHaveValue(250);
+    });
+
+    it('comes back to the search as it was when the writing is given up', async () => {
+      vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'No.'));
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, MILK.code!);
+      await user.click(window.getByRole('button', { name: texts.productCheck }));
+      await user.click(await window.findByRole('button', { name: texts.productAddOwn }));
+      await user.click(await window.findByRole('button', { name: en.products.cancel }));
+
+      expect(window.getByRole('searchbox')).toHaveValue(MILK.code);
+      expect(window.queryByRole('textbox', { name: en.products.name })).not.toBeInTheDocument();
+    });
+
+    it("offers no product of one's own where the refusal is not that it is unknown", async () => {
+      vi.spyOn(api, 'get').mockRejectedValue(
+        new ApiClientError(429, 'PRODUCT_LOOKUPS_BUSY', 'Enough.'),
+      );
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, MILK.code!);
+      await user.click(window.getByRole('button', { name: texts.productCheck }));
+
+      await window.findByRole('alert');
+      expect(window.queryByRole('button', { name: texts.productAddOwn })).not.toBeInTheDocument();
+    });
+
     it("says who does not know a code, and leads to a meal of one's own", async () => {
       vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'No.'));
       const { window, user, field } = await openOnProducts();
@@ -233,6 +331,18 @@ describe('a product in the window that adds to a diary', () => {
         'href',
         'https://opendatacommons.org/licenses/odbl/1-0/',
       );
+    });
+
+    it('says of a product people of the instance added where it comes from, with both links', async () => {
+      vi.spyOn(api, 'get').mockResolvedValue({ items: [{ ...MILK, source: 'instance' }] });
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, 'mleko');
+      await user.click(await window.findByRole('button', { name: /Mleko/ }));
+
+      const said = window.getByText(/Added by a person using this instance/);
+      expect(within(said).getByRole('link', { name: 'ODbL' })).toBeInTheDocument();
+      expect(within(said).getByRole('link', { name: 'Open Food Facts' })).toBeInTheDocument();
     });
 
     it('starts at a serving by its label, and says what it adds', async () => {
