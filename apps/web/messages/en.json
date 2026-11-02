@@ -1526,7 +1526,7 @@
     "customTotal": "The meal adds to the day: {calories, number, ::group-off} kcal · protein {protein, number, ::group-off} g · fat {fat, number, ::group-off} g · carbs {carbs, number, ::group-off} g.",
     "customTotalPending": "What the meal adds to the day shows here once one serving and the number of servings are filled in.",
     "customSubmit": "Add meal",
-    "rebalanceTitle": "Day macros updated",
+    "rebalanceTitle": "The portions of the day were sized again",
     "rebalanceSummary": "{before, number, ::group-off} → {after, number, ::group-off} kcal · {count} meal(s) rescaled.",
     "rebalanceBestEffort": "The day is still off its target: sizing its meals could not close the gap.",
     "rebalanceLeftOver": "The rest of the plan is still {kcal, number, ::group-off} kcal over: the other days have no more room inside their own targets.",
@@ -1795,7 +1795,11 @@
       }
     },
     "offerDayAfter": "The day after the swap: {kcal, number, ::group-off} of {target, number, ::group-off} kcal.",
-    "offerOutside": "This recipe is outside a limit: {limits}. The meal will say so."
+    "offerOutside": "This recipe is outside a limit: {limits}. The meal will say so.",
+    "wordDay": "The day: {kcal, number, ::group-off} of {target, number, ::group-off} kcal · protein {protein, number, ::group-off} of {proteinTarget, number, ::group-off} g",
+    "swapDoneTitle": "Meal swapped",
+    "undoSwap": "Undo the swap",
+    "errUndoSwap": "The swap could not be undone."
   },
   "inventory": {
     "title": "Inventory",

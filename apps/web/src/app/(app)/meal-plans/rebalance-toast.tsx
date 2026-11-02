@@ -4,55 +4,90 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
-import type { RebalanceResult } from '@diet-app/shared';
+import type { MealPlanDay, RebalanceResult } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 
+/** How long the card stays by itself, in milliseconds: long enough to read it and take a swap back. */
+const SHOWN_FOR = 15_000;
+
+/** What a change of a plan came to, and whether it was a swap, which can be taken back whole. */
+export interface PlanWord {
+  planId: string;
+  revision: number;
+  swap: boolean;
+  /** The day it changed, as it stands now. */
+  day: MealPlanDay | null;
+  rebalance: RebalanceResult['rebalance'];
+}
+
 /**
- * Rebalance toast: a bottom-right card summarising the auto-rebalance, with
- * "undo last rebalance" (restores the pre-edit scales), "spread over the rest
- * of the plan" with what it does said beside it, and dismiss. Auto-dismisses
- * after 10 s; a day that stays off its target keeps the spreading button of
- * its own.
+ * A card at the bottom right that says what a change came to: what the day
+ * holds now, what was sized again, and what can be done about it. A swap can
+ * be taken back with its portions; any other change, its portions alone.
+ * Spreading is offered with what it does said beside it where the day is off
+ * its target, as the day itself offers it. Goes by itself after some seconds,
+ * and with the next change.
  */
 export function RebalanceToast({
-  rebalance,
+  word,
   busy,
   onUndo,
+  onUndoSwap,
   onRebalanceRest,
   onDismiss,
 }: {
-  rebalance: NonNullable<RebalanceResult['rebalance']>;
+  word: PlanWord;
   busy: boolean;
   onUndo: () => void;
+  /** Where the card can speak of a swap at all. */
+  onUndoSwap?: () => void;
   onRebalanceRest: () => void;
   onDismiss: () => void;
 }) {
   const t = useTranslations('mealPlans');
+  const { rebalance, swap, day } = word;
   // Keep the auto-dismiss timer stable across parent re-renders: the latest
   // onDismiss lives in a ref (updated in an effect, never during render) so the
-  // 10 s timer is armed exactly once.
+  // timer is armed exactly once.
   const dismiss = useRef(onDismiss);
   useEffect(() => {
     dismiss.current = onDismiss;
   }, [onDismiss]);
   useEffect(() => {
-    const id = setTimeout(() => dismiss.current(), 10_000);
+    const id = setTimeout(() => dismiss.current(), SHOWN_FOR);
     return () => clearTimeout(id);
   }, []);
+  const sized = (rebalance?.changes.length ?? 0) > 0;
+  const ofTheDay = rebalance === null || rebalance.scope === 'day';
+  const spreadable = ofTheDay && day !== null && day.offTarget !== null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg">
-      {rebalance.scope === 'day' ? (
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg print:hidden">
+      {ofTheDay ? (
         <>
-          <p className="text-sm font-medium">{t('rebalanceTitle')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('rebalanceSummary', {
-              before: Math.round(rebalance.macrosBefore.calories),
-              after: Math.round(rebalance.macrosAfter.calories),
-              count: rebalance.changes.length,
-            })}
+          <p className="text-sm font-medium">
+            {t(swap && !sized ? 'swapDoneTitle' : 'rebalanceTitle')}
           </p>
-          {rebalance.feasibility === 'best-effort' && (
+          {day && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('wordDay', {
+                kcal: day.dayNutrition.calories,
+                target: day.calorieTarget,
+                protein: day.dayNutrition.protein,
+                proteinTarget: day.targetMacros.protein,
+              })}
+            </p>
+          )}
+          {rebalance && sized && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('rebalanceSummary', {
+                before: Math.round(rebalance.macrosBefore.calories),
+                after: Math.round(rebalance.macrosAfter.calories),
+                count: rebalance.changes.length,
+              })}
+            </p>
+          )}
+          {rebalance?.feasibility === 'best-effort' && (
             <p className="mt-1 text-xs text-warning">{t('rebalanceBestEffort')}</p>
           )}
         </>
@@ -65,12 +100,12 @@ export function RebalanceToast({
           </p>
         </>
       )}
-      {rebalance.scope === 'day' && (
+      {spreadable && (
         <p id="rebalance-rest-note" className="mt-1 text-xs text-muted-foreground">
           {t('rebalanceRestNote')}
         </p>
       )}
-      {rebalance.unabsorbedKcal !== 0 && (
+      {rebalance !== null && rebalance.unabsorbedKcal !== 0 && (
         <p className="mt-1 text-xs text-warning">
           {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', {
             kcal: Math.abs(rebalance.unabsorbedKcal),
@@ -78,10 +113,16 @@ export function RebalanceToast({
         </p>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={busy}>
-          {t('rebalanceUndo')}
-        </Button>
-        {rebalance.scope === 'day' && (
+        {swap ? (
+          <Button type="button" variant="outline" size="sm" onClick={onUndoSwap} disabled={busy}>
+            {t('undoSwap')}
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={busy}>
+            {t('rebalanceUndo')}
+          </Button>
+        )}
+        {spreadable && (
           <Button
             type="button"
             variant="outline"

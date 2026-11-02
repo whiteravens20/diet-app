@@ -47,7 +47,7 @@ import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
-import { RebalanceToast } from './rebalance-toast';
+import { RebalanceToast, type PlanWord } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
@@ -286,6 +286,7 @@ function MealPlansContent() {
     onSuccess: (_plan: MealPlan, v: Reroll) => {
       setRefused(null);
       setInTheWay(null);
+      setRebalanceToast(null);
       void invalidateEdited(v.planId);
     },
     onError: (e: unknown, v: Reroll) => {
@@ -304,17 +305,44 @@ function MealPlansContent() {
   const regenerate = useMutation(reroll(t('errRecalculate')));
   const regenerateDay = useMutation(reroll(t('errChangeDay')));
 
-  // Rebalance toast: surfaced after any edit that changed a day's totals.
-  const [rebalanceToast, setRebalanceToast] = useState<{
-    planId: string;
-    rebalance: NonNullable<RebalanceResult['rebalance']>;
-  } | null>(null);
-  const showRebalance = (planId: string, res: RebalanceResult) => {
+  // What the last edit came to, surfaced after a swap and after anything that resized a day. It goes with the next change.
+  const [rebalanceToast, setRebalanceToast] = useState<PlanWord | null>(null);
+  const showRebalance = (
+    planId: string,
+    res: RebalanceResult,
+    swapped: string | null = null,
+    date: string | null = null,
+  ) => {
     void invalidateEdited(planId);
-    if (res.rebalance && res.rebalance.changes.length > 0) {
-      setRebalanceToast({ planId, rebalance: res.rebalance });
-    }
+    const resized = res.rebalance && res.rebalance.changes.length > 0;
+    const about = swapped ?? res.rebalance?.changes[0]?.mealId;
+    setRebalanceToast(
+      swapped || resized
+        ? {
+            planId,
+            revision: res.plan.revision,
+            swap: swapped !== null,
+            day:
+              res.plan.days.find(
+                (day) => day.date === date || day.meals.some((meal) => meal.id === about),
+              ) ?? null,
+            rebalance: res.rebalance,
+          }
+        : null,
+    );
   };
+  const undoSwap = useMutation({
+    mutationFn: (v: { planId: string; revision: number }) =>
+      api.post<RebalanceResult>('/meal-plans/swap-meal/undo', v),
+    onSuccess: (_res, v) => {
+      setRebalanceToast(null);
+      void invalidateEdited(v.planId);
+    },
+    onError: (e: unknown) => {
+      setRebalanceToast(null);
+      fail(t('errUndoSwap'))(e);
+    },
+  });
 
   // A recipe that was offered in the place of a meal, with what the swap
   // would do: nothing is written until the user takes it.
@@ -366,7 +394,7 @@ function MealPlansContent() {
       }),
     onSuccess: (res, { asked }) => {
       setOffer(null);
-      showRebalance(asked.planId, res);
+      showRebalance(asked.planId, res, asked.plannedMealId);
     },
     onError: (e: unknown) => {
       // The offer was for the plan as it was: it does not outlive a refusal.
@@ -383,7 +411,7 @@ function MealPlansContent() {
   const addCustomMeal = useMutation({
     mutationFn: (v: { planId: string; date: string; body: AddCustomMealRequest }) =>
       api.post<RebalanceResult>(`/meal-plans/${v.planId}/days/${v.date}/custom-meal`, v.body),
-    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onSuccess: (res, v) => showRebalance(v.planId, res, null, v.date),
     onError: fail(t('errCustomMeal')),
   });
 
@@ -450,6 +478,7 @@ function MealPlansContent() {
     regenerateDay.isPending ||
     offerSwap.isPending ||
     takeOffer.isPending ||
+    undoSwap.isPending ||
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
     removeMeal.isPending ||
@@ -873,8 +902,8 @@ function MealPlansContent() {
                 setError(null);
                 toggleEaten.mutate({ planId: plan.id, mealId, eaten });
               }}
-              onIngredientSwapped={(res) => {
-                showRebalance(plan.id, res);
+              onIngredientSwapped={(res, plannedMealId) => {
+                showRebalance(plan.id, res, plannedMealId);
                 // Set only when a rewording by a model was asked for: say so
                 // when the plain replacement stands instead.
                 if (res.aiMeta)
@@ -900,8 +929,11 @@ function MealPlansContent() {
                 setNotice(null);
                 rebalance.mutate({ planId: plan.id, scope: 'day', date });
               }}
-              onSwapped={(res) => showRebalance(plan.id, res)}
-              onChanged={() => void invalidateEdited(plan.id)}
+              onSwapped={(res, plannedMealId) => showRebalance(plan.id, res, plannedMealId)}
+              onChanged={() => {
+                setRebalanceToast(null);
+                void invalidateEdited(plan.id);
+              }}
               favorites={liked}
               tMeal={tMeal}
             />
@@ -1039,16 +1071,23 @@ function MealPlansContent() {
 
       {rebalanceToast && (
         <RebalanceToast
-          rebalance={rebalanceToast.rebalance}
-          busy={rebalance.isPending}
+          key={rebalanceToast.revision}
+          word={rebalanceToast}
+          busy={rebalance.isPending || undoSwap.isPending}
           onUndo={() =>
             rebalance.mutate({
               planId: rebalanceToast.planId,
               scope: 'day',
-              restore: rebalanceToast.rebalance.changes.map((c) => ({
+              restore: (rebalanceToast.rebalance?.changes ?? []).map((c) => ({
                 mealId: c.mealId,
                 scale: c.before,
               })),
+            })
+          }
+          onUndoSwap={() =>
+            undoSwap.mutate({
+              planId: rebalanceToast.planId,
+              revision: rebalanceToast.revision,
             })
           }
           onRebalanceRest={() => rebalance.mutate({ planId: rebalanceToast.planId, scope: 'plan' })}

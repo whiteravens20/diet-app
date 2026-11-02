@@ -163,7 +163,7 @@ export function PlanCard({
   onAnotherOffer: () => void;
   onCancelOffer: () => void;
   onToggleEaten: (mealId: string, eaten: boolean) => void;
-  onIngredientSwapped: (result: SwapIngredientResponse) => void;
+  onIngredientSwapped: (result: SwapIngredientResponse, plannedMealId: string) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
   /** Take a meal off its day. */
   onRemoveMeal: (mealId: string) => void;
@@ -172,7 +172,7 @@ export function PlanCard({
   /** Bring the day of `date` back to its target with its own meals, the diary's entries counted as eaten. */
   onResizeDay: (date: string) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
-  onSwapped: (result: RebalanceResult) => void;
+  onSwapped: (result: RebalanceResult, plannedMealId: string) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
   onChanged: () => void;
 }) {
@@ -1134,9 +1134,9 @@ export function PlanCard({
                     aiOffNote={aiOffNote}
                     mealName={mealName}
                     busy={busy}
-                    onSwapped={(result) => {
+                    onSwapped={(result, plannedMealId) => {
                       changing.current = null;
-                      onSwapped(result);
+                      onSwapped(result, plannedMealId);
                     }}
                     onStale={() => {
                       changing.current = null;
@@ -1265,7 +1265,7 @@ export function PlanCard({
           onApplied={(result) => {
             setOpenActions(null);
             changing.current = mealAnchor(openSub.id);
-            onIngredientSwapped(result);
+            onIngredientSwapped(result, openSub.id);
           }}
         />
       )}

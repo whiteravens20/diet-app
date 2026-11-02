@@ -1526,7 +1526,7 @@
     "customTotal": "Posiłek doda do dnia: {calories, number, ::group-off} kcal · białko {protein, number, ::group-off} g · tłuszcz {fat, number, ::group-off} g · węglowodany {carbs, number, ::group-off} g.",
     "customTotalPending": "Tu pojawi się to, co posiłek doda do dnia, gdy wpiszesz jedną porcję i liczbę porcji.",
     "customSubmit": "Dodaj posiłek",
-    "rebalanceTitle": "Zaktualizowano makro dnia",
+    "rebalanceTitle": "Przeliczono porcje dnia",
     "rebalanceSummary": "{before, number, ::group-off} → {after, number, ::group-off} kcal · przeliczono posiłki: {count}.",
     "rebalanceBestEffort": "Dzień nadal jest poza celem: dopasowanie porcji nie wystarczyło.",
     "rebalanceLeftOver": "Reszta planu nadal ma {kcal, number, ::group-off} kcal nadwyżki: pozostałe dni nie mają już zapasu w granicach własnych celów.",
@@ -1795,7 +1795,11 @@
       }
     },
     "offerDayAfter": "Dzień po zamianie: {kcal, number, ::group-off} z {target, number, ::group-off} kcal.",
-    "offerOutside": "Ten przepis jest poza limitem: {limits}. Posiłek będzie to oznaczał."
+    "offerOutside": "Ten przepis jest poza limitem: {limits}. Posiłek będzie to oznaczał.",
+    "wordDay": "Dzień: {kcal, number, ::group-off} z {target, number, ::group-off} kcal · białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g",
+    "swapDoneTitle": "Posiłek zamieniony",
+    "undoSwap": "Cofnij zamianę",
+    "errUndoSwap": "Nie udało się cofnąć zamiany."
   },
   "inventory": {
     "title": "Spiżarnia",
