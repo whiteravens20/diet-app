@@ -2026,6 +2026,97 @@
         }
       }
     },
+    "/api/admin/products/accepted": {
+      "get": {
+        "operationId": "AdminProducts_accepted",
+        "tags": [
+          "admin"
+        ],
+        "summary": "What the instance accepted, the latest first.",
+        "description": "What the instance accepted, the latest first.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedProducts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/products/accepted/{id}/withdraw": {
+      "post": {
+        "operationId": "AdminProducts_withdraw",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Withdraw an accepted product, with what its author is told.",
+        "description": "Withdraw an accepted product, with what its author is told.\n\nAsked by the administrator.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/admin/products/import": {
       "post": {
         "operationId": "AdminProducts_askForImport",
@@ -2049,6 +2140,132 @@
         },
         "x-rate-limit": {
           "times": 5,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/admin/products/queue": {
+      "get": {
+        "operationId": "AdminProducts_queue",
+        "tags": [
+          "admin"
+        ],
+        "summary": "The products accounts sent to the base, the longest waiting first.",
+        "description": "The products accounts sent to the base, the longest waiting first.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/products/queue/{id}/accept": {
+      "post": {
+        "operationId": "AdminProducts_accept",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Take a product into the base, as it was read.",
+        "description": "Take a product into the base, as it was read.\n\nAsked by the administrator.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/admin/products/queue/{id}/reject": {
+      "post": {
+        "operationId": "AdminProducts_reject",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Turn a product down, with what its author is told.",
+        "description": "Turn a product down, with what its author is told.\n\nAsked by the administrator.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
           "seconds": 60
         }
       }
@@ -6072,8 +6289,8 @@
         "tags": [
           "products"
         ],
-        "summary": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first.",
-        "description": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first. A search never leaves the instance.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "summary": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, the reader's own first, then those people scan most.",
+        "description": "Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, the reader's own first, then those people scan most. A search never leaves the instance.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -6112,6 +6329,40 @@
         }
       }
     },
+    "/api/products/additions": {
+      "get": {
+        "operationId": "OwnProducts_additions",
+        "tags": [
+          "products"
+        ],
+        "summary": "What people added to the instance's base, without who added it, as a file.",
+        "description": "What people added to the instance's base, without who added it, as a file.\n\nAsked by an account.\n\nLimited to 5 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAdditions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 5,
+          "seconds": 60
+        }
+      }
+    },
     "/api/products/code/{code}": {
       "get": {
         "operationId": "Products_byCode",
@@ -6143,6 +6394,259 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/products/own": {
+      "get": {
+        "operationId": "OwnProducts_list",
+        "tags": [
+          "products"
+        ],
+        "summary": "The account's own products, whatever became of them.",
+        "description": "The account's own products, whatever became of them.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProducts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      },
+      "post": {
+        "operationId": "OwnProducts_create",
+        "tags": [
+          "products"
+        ],
+        "summary": "Write a product: 500 held, 50 written or changed in 24 hours, and a code the base knows is refused.",
+        "description": "Write a product: 500 held, 50 written or changed in 24 hours, and a code the base knows is refused.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnProductBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/products/own/{id}": {
+      "delete": {
+        "operationId": "OwnProducts_remove",
+        "tags": [
+          "products"
+        ],
+        "summary": "Delete a product: what the diary holds of it keeps its figures.",
+        "description": "Delete a product: what the diary holds of it keeps its figures.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      },
+      "patch": {
+        "operationId": "OwnProducts_update",
+        "tags": [
+          "products"
+        ],
+        "summary": "Change a product: one waiting for review leaves the queue, and has to be sent again.",
+        "description": "Change a product: one waiting for review leaves the queue, and has to be sent again.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnProductBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/products/own/{id}/send": {
+      "post": {
+        "operationId": "OwnProducts_send",
+        "tags": [
+          "products"
+        ],
+        "summary": "Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours.",
+        "description": "Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/products/own/{id}/withdraw": {
+      "post": {
+        "operationId": "OwnProducts_withdraw",
+        "tags": [
+          "products"
+        ],
+        "summary": "Take a product back out of the queue.",
+        "description": "Take a product back out of the queue.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProduct"
                 }
               }
             }
@@ -7732,6 +8236,132 @@
         }
       }
     },
+    "/api/review/products": {
+      "get": {
+        "operationId": "Review_productQueue",
+        "tags": [
+          "review"
+        ],
+        "summary": "The products accounts sent to the base, the longest waiting first.",
+        "description": "The products accounts sent to the base, the longest waiting first. Who sent one is not said.\n\nAsked by a reviewer.",
+        "security": [
+          {
+            "reviewer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/review/products/{id}/accept": {
+      "post": {
+        "operationId": "Review_acceptProduct",
+        "tags": [
+          "review"
+        ],
+        "summary": "Take a product into the base, as it was read: one changed since is refused.",
+        "description": "Take a product into the base, as it was read: one changed since is refused.\n\nAsked by a reviewer.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "reviewer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/review/products/{id}/reject": {
+      "post": {
+        "operationId": "Review_rejectProduct",
+        "tags": [
+          "review"
+        ],
+        "summary": "Turn a product down, with what its author is told.",
+        "description": "Turn a product down, with what its author is told.\n\nAsked by a reviewer.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "reviewer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/review/session": {
       "get": {
         "operationId": "Review_session",
@@ -8860,6 +9490,205 @@
       }
     },
     "schemas": {
+      "AcceptProductRequest": {
+        "type": "object",
+        "properties": {
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "updatedAt"
+        ]
+      },
+      "AcceptedProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/ProductUnit"
+          },
+          "packAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "servingAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "fiber": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sugars": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "salt": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "saturatedFat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "calories": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "protein": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "fiber",
+              "sugars",
+              "salt",
+              "saturatedFat",
+              "calories",
+              "protein",
+              "fat",
+              "carbs"
+            ],
+            "additionalProperties": false
+          },
+          "energyWorkedOut": {
+            "type": "boolean"
+          },
+          "doubtful": {
+            "type": "boolean"
+          },
+          "changedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasAuthor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "brand",
+          "pack",
+          "unit",
+          "packAmount",
+          "servingAmount",
+          "per100",
+          "energyWorkedOut",
+          "doubtful",
+          "changedAt",
+          "acceptedAt",
+          "acceptedBy",
+          "hasAuthor"
+        ],
+        "additionalProperties": false
+      },
+      "AcceptedProducts": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AcceptedProduct"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "totalPages",
+          "total"
+        ],
+        "additionalProperties": false
+      },
       "AccountSecondFactorRemoval": {
         "type": "object",
         "properties": {
@@ -9366,12 +10195,22 @@
               "unknownCodes": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "accepted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "waiting": {
+                "type": "integer",
+                "minimum": 0
               }
             },
             "required": [
               "imported",
               "lookedUp",
-              "unknownCodes"
+              "unknownCodes",
+              "accepted",
+              "waiting"
             ],
             "additionalProperties": false
           },
@@ -13409,6 +14248,10 @@
             "type": "integer",
             "minimum": 0
           },
+          "products": {
+            "type": "integer",
+            "minimum": 0
+          },
           "version": {
             "type": [
               "string",
@@ -13425,6 +14268,7 @@
           "recipeFiles",
           "recipes",
           "names",
+          "products",
           "version",
           "notRestored"
         ],
@@ -13483,12 +14327,17 @@
                   "names": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "products": {
+                    "type": "integer",
+                    "minimum": 0
                   }
                 },
                 "required": [
                   "version",
                   "recipes",
-                  "names"
+                  "names",
+                  "products"
                 ],
                 "additionalProperties": false
               },
@@ -14928,7 +15777,11 @@
         "type": "string",
         "enum": [
           "weight_reminder",
-          "preferences_review"
+          "preferences_review",
+          "product_accepted",
+          "product_rejected",
+          "product_replaced",
+          "product_withdrawn"
         ]
       },
       "Nutrition": {
@@ -14984,6 +15837,386 @@
         },
         "required": [
           "email"
+        ],
+        "additionalProperties": false
+      },
+      "OwnProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProductSource"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/ProductUnit"
+          },
+          "packAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "servingAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "fiber": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sugars": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "salt": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "saturatedFat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "calories": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "protein": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "fiber",
+              "sugars",
+              "salt",
+              "saturatedFat",
+              "calories",
+              "protein",
+              "fat",
+              "carbs"
+            ],
+            "additionalProperties": false
+          },
+          "energyWorkedOut": {
+            "type": "boolean"
+          },
+          "doubtful": {
+            "type": "boolean"
+          },
+          "changedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/OwnProductState"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "source",
+          "name",
+          "brand",
+          "pack",
+          "unit",
+          "packAmount",
+          "servingAmount",
+          "per100",
+          "energyWorkedOut",
+          "doubtful",
+          "changedAt",
+          "state",
+          "reason",
+          "sentAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "OwnProductBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "brand": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pack": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/ProductUnit"
+          },
+          "packAmount": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "servingAmount": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 900
+              },
+              "protein": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fat": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "carbs": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fiber": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sugars": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "salt": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "saturatedFat": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "calories"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "per100"
+        ]
+      },
+      "OwnProductState": {
+        "type": "string",
+        "enum": [
+          "own",
+          "sent",
+          "rejected"
+        ]
+      },
+      "OwnProducts": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnProduct"
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
@@ -16056,7 +17289,13 @@
             "format": "uuid"
           },
           "code": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProductSource"
           },
           "name": {
             "type": "string"
@@ -16173,6 +17412,7 @@
         "required": [
           "id",
           "code",
+          "source",
           "name",
           "brand",
           "pack",
@@ -16183,6 +17423,151 @@
           "energyWorkedOut",
           "doubtful",
           "changedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ProductAdditions": {
+        "type": "object",
+        "properties": {
+          "license": {
+            "type": "string",
+            "const": "ODbL-1.0"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "brand": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pack": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "unit": {
+                  "$ref": "#/components/schemas/ProductUnit"
+                },
+                "packAmount": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "servingAmount": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "per100": {
+                  "type": "object",
+                  "properties": {
+                    "fiber": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sugars": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "salt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "saturatedFat": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "calories": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "protein": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "fat": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "carbs": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "fiber",
+                    "sugars",
+                    "salt",
+                    "saturatedFat",
+                    "calories",
+                    "protein",
+                    "fat",
+                    "carbs"
+                  ],
+                  "additionalProperties": false
+                },
+                "acceptedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "brand",
+                "pack",
+                "unit",
+                "packAmount",
+                "servingAmount",
+                "per100",
+                "acceptedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "license",
+          "products"
         ],
         "additionalProperties": false
       },
@@ -16329,6 +17714,26 @@
         ],
         "additionalProperties": false
       },
+      "ProductQueue": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductUnderReview"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "additionalProperties": false
+      },
       "ProductSearchResult": {
         "type": "object",
         "properties": {
@@ -16342,6 +17747,172 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "ProductSource": {
+        "type": "string",
+        "enum": [
+          "open_food_facts",
+          "instance",
+          "own"
+        ]
+      },
+      "ProductUnderReview": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/ProductUnit"
+          },
+          "packAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "servingAmount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "fiber": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sugars": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "salt": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "saturatedFat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "calories": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "protein": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "fiber",
+              "sugars",
+              "salt",
+              "saturatedFat",
+              "calories",
+              "protein",
+              "fat",
+              "carbs"
+            ],
+            "additionalProperties": false
+          },
+          "energyWorkedOut": {
+            "type": "boolean"
+          },
+          "doubtful": {
+            "type": "boolean"
+          },
+          "changedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "brand",
+          "pack",
+          "unit",
+          "packAmount",
+          "servingAmount",
+          "per100",
+          "energyWorkedOut",
+          "doubtful",
+          "changedAt",
+          "sentAt",
+          "updatedAt"
         ],
         "additionalProperties": false
       },
@@ -18784,6 +20355,24 @@
           "displayName"
         ]
       },
+      "RejectProductRequest": {
+        "type": "object",
+        "properties": {
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "updatedAt",
+          "reason"
+        ]
+      },
       "RejectedDrafts": {
         "type": "object",
         "properties": {
@@ -19081,6 +20670,24 @@
             ],
             "additionalProperties": false
           },
+          "products": {
+            "type": "object",
+            "properties": {
+              "added": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "skipped": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "added",
+              "skipped"
+            ],
+            "additionalProperties": false
+          },
           "unreadable": {
             "type": "array",
             "items": {
@@ -19104,6 +20711,7 @@
         "required": [
           "recipes",
           "names",
+          "products",
           "unreadable"
         ],
         "additionalProperties": false
@@ -20761,6 +22369,19 @@
         "enum": [
           "kg",
           "lb"
+        ]
+      },
+      "WithdrawProductRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "WorkerState": {

@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { type Product, type ProductUnit } from '@diet-app/shared';
+import {
+  type OwnProduct,
+  type Product,
+  type ProductSource,
+  type ProductUnit,
+} from '@diet-app/shared';
 import { foldedProductText, productCodeOf } from '@diet-app/shared/product-code';
 import { readLabel, type LabelFigures, type LabelReading } from '../engine/index.js';
 import { PRODUCT_TEXT_LIMITS } from './limits.js';
@@ -114,9 +119,7 @@ export function productRowOf(fields: ProductFields): ProductRow | 'code' | 'name
     code,
     name,
     brand,
-    searchText: brand
-      ? `${foldedProductText(name)}${SEARCH_TEXT_PARTS}${foldedProductText(brand)}`
-      : foldedProductText(name),
+    searchText: searchTextOf(name, brand),
     pack: pack === '' ? null : pack,
     unit,
     packAmount: positive(fields.packAmount) ?? positive(words.amount),
@@ -130,10 +133,41 @@ export function productRowOf(fields: ProductFields): ProductRow | 'code' | 'name
   };
 }
 
+/** The columns of a product, from what is known of it. */
+export const productColumns = (row: ProductRow) => ({
+  name: row.name,
+  brand: row.brand,
+  searchText: row.searchText,
+  pack: row.pack,
+  unit: row.unit,
+  packAmount: row.packAmount,
+  servingAmount: row.servingAmount,
+  calories: row.calories,
+  protein: row.protein,
+  fat: row.fat,
+  carbs: row.carbs,
+  fiber: row.fiber,
+  sugars: row.sugars,
+  salt: row.salt,
+  saturatedFat: row.saturatedFat,
+  energyWorkedOut: row.energyWorkedOut,
+  doubtful: row.doubtful,
+  changedAt: row.changedAt === null ? null : new Date(row.changedAt),
+  popularity: row.popularity,
+});
+
+/** What a search reads of a name and a brand. */
+export function searchTextOf(name: string, brand: string | null): string {
+  return brand
+    ? `${foldedProductText(name)}${SEARCH_TEXT_PARTS}${foldedProductText(brand)}`
+    : foldedProductText(name);
+}
+
 /** A product as the database holds it, as far as an answer needs it. */
 export interface HeldProduct {
   id: string;
   code: string;
+  origin: string;
   name: string;
   brand: string | null;
   pack: string | null;
@@ -153,11 +187,16 @@ export interface HeldProduct {
   changedAt: Date | null;
 }
 
+/** Where a product held in the base has its figures from. */
+const sourceOf = (origin: string): ProductSource =>
+  origin === 'accepted' ? 'instance' : 'open_food_facts';
+
 /** A product as an answer gives it. */
 export function productDto(row: HeldProduct): Product {
   return {
     id: row.id,
     code: row.code,
+    source: sourceOf(row.origin),
     name: row.name,
     brand: row.brand,
     pack: row.pack,
@@ -177,5 +216,57 @@ export function productDto(row: HeldProduct): Product {
     energyWorkedOut: row.energyWorkedOut,
     doubtful: row.doubtful,
     changedAt: row.changedAt?.toISOString() ?? null,
+  };
+}
+
+/** A product of an account's own as the database holds it, as far as an answer needs it. */
+export interface HeldOwnProduct extends Omit<
+  HeldProduct,
+  'code' | 'origin' | 'energyWorkedOut' | 'changedAt' | 'calories'
+> {
+  code: string | null;
+  calories: number;
+  state: string;
+  reason: string | null;
+  sentAt: Date | null;
+  updatedAt: Date;
+}
+
+/** A product of the reader's own as a search or a code answers it. */
+export function productOfOwn(row: HeldOwnProduct): Product {
+  return {
+    id: row.id,
+    code: row.code,
+    source: 'own',
+    name: row.name,
+    brand: row.brand,
+    pack: row.pack,
+    unit: row.unit as ProductUnit,
+    packAmount: row.packAmount,
+    servingAmount: row.servingAmount,
+    per100: {
+      calories: row.calories,
+      protein: row.protein,
+      fat: row.fat,
+      carbs: row.carbs,
+      fiber: row.fiber,
+      sugars: row.sugars,
+      salt: row.salt,
+      saturatedFat: row.saturatedFat,
+    },
+    energyWorkedOut: false,
+    doubtful: row.doubtful,
+    changedAt: null,
+  };
+}
+
+/** A product of the reader's own as the page of them shows it. */
+export function ownProductDto(row: HeldOwnProduct): OwnProduct {
+  return {
+    ...productOfOwn(row),
+    state: row.state as OwnProduct['state'],
+    reason: row.reason,
+    sentAt: row.sentAt?.toISOString() ?? null,
+    updatedAt: row.updatedAt.toISOString(),
   };
 }

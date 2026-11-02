@@ -32,6 +32,7 @@ interface Ids {
   weight: string;
   diaryEntry: string;
   ownRecipe: string;
+  ownProduct: string;
   set: string;
   notification: string;
   provider: string;
@@ -442,6 +443,38 @@ const ASKS: Ask[] = [
     }),
   ],
   ["delete a recipe of somebody's own", 'delete', (ids) => `/api/recipes/${ids.ownRecipe}`],
+
+  [
+    "change a product of somebody's own",
+    'patch',
+    (ids) => `/api/products/own/${ids.ownProduct}`,
+    () => ({
+      code: null,
+      name: 'Not mine',
+      brand: null,
+      pack: null,
+      unit: 'g',
+      packAmount: null,
+      servingAmount: null,
+      per100: {
+        calories: 100,
+        protein: null,
+        fat: null,
+        carbs: null,
+        fiber: null,
+        sugars: null,
+        salt: null,
+        saturatedFat: null,
+      },
+    }),
+  ],
+  ["delete a product of somebody's own", 'delete', (ids) => `/api/products/own/${ids.ownProduct}`],
+  ["send a product of somebody's own", 'post', (ids) => `/api/products/own/${ids.ownProduct}/send`],
+  [
+    "take a product of somebody's own back",
+    'post',
+    (ids) => `/api/products/own/${ids.ownProduct}/withdraw`,
+  ],
   ['end a session', 'delete', (ids) => `/api/users/me/sessions/${ids.session}`],
 ];
 
@@ -563,6 +596,21 @@ describe('what belongs to another account', () => {
       weight: weight.id,
       diaryEntry: diaryEntry.id,
       ownRecipe: own.id,
+      ownProduct: (
+        await t.prisma.ownProduct.create({
+          data: {
+            userId: owner.id,
+            name: 'Konfitura',
+            searchText: 'konfitura',
+            unit: 'g',
+            calories: 240,
+            protein: 1,
+            fat: 1,
+            carbs: 58,
+            code: '5900512320359',
+          },
+        })
+      ).id,
       set: set.id,
       notification: notification.id,
       provider: provider.id,
@@ -637,6 +685,7 @@ describe('what belongs to another account', () => {
         select: { deletedAt: true },
       }),
     ),
+    products: JSON.stringify(await t.prisma.ownProduct.findMany({ where: { userId: owner.id } })),
     drafts: await t.prisma.recipeDraft.count(),
     sessions: await t.prisma.refreshToken.count({ where: { userId: owner.id, revokedAt: null } }),
   });

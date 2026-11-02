@@ -23,4 +23,8 @@ export const PRODUCT_MEMORY_DAYS = { unknown: 7, lookedUp: 30 } as const;
 export const LOOKED_UP_KEPT_DAYS = 90;
 
 /** How long a name, a brand and a pack's words may be when they are kept. */
-export const PRODUCT_TEXT_LIMITS = { name: 160, brand: 80, pack: 40 } as const;
+export { PRODUCT_TEXT as PRODUCT_TEXT_LIMITS } from '@diet-app/shared';
+
+/** How many codes people wrote the worker asks Open Food Facts about on a pass, and how often about one code. */
+export const CODES_CHECKED_A_PASS = 3;
+export const CODE_CHECKED_EVERY_DAYS = 7;

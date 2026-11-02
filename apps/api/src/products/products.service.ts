@@ -14,11 +14,17 @@ import { PRODUCT_SEARCH, type Product, type ProductSearchResult } from '@diet-ap
 import { wordsOfProductSearch } from '@diet-app/shared/product-code';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { productsOffered } from './offered.js';
 import { OpenFoodFacts, ProductSourceError } from './open-food-facts.js';
+import { copiesGiveWay } from './own-product-copies.js';
 import {
+  productColumns,
   productDto,
+  productOfOwn,
   productRowOf,
   SEARCH_TEXT_PARTS,
+  type HeldOwnProduct,
   type HeldProduct,
   type ProductRow,
 } from './product-row.js';
@@ -29,29 +35,6 @@ const MINUTE_MS = 60_000;
 
 /** Of the requests that count a lookup, one goes at a time, so that a limit is the limit in every process of the API. */
 const LOOKUPS_LOCK = 'diet-app product lookups';
-
-/** The columns of a product, from what is known of it. */
-const productColumns = (row: ProductRow) => ({
-  name: row.name,
-  brand: row.brand,
-  searchText: row.searchText,
-  pack: row.pack,
-  unit: row.unit,
-  packAmount: row.packAmount,
-  servingAmount: row.servingAmount,
-  calories: row.calories,
-  protein: row.protein,
-  fat: row.fat,
-  carbs: row.carbs,
-  fiber: row.fiber,
-  sugars: row.sugars,
-  salt: row.salt,
-  saturatedFat: row.saturatedFat,
-  energyWorkedOut: row.energyWorkedOut,
-  doubtful: row.doubtful,
-  changedAt: row.changedAt === null ? null : new Date(row.changedAt),
-  popularity: row.popularity,
-});
 
 function notFound(): NotFoundException {
   return new NotFoundException({
@@ -73,7 +56,33 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     private readonly source: OpenFoodFacts,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** The product of a code: the reader's own first, then what the base knows. */
+  async byCode(userId: string, code: string, now = new Date()): Promise<Product> {
+    if (productsOffered(this.config)) {
+      const own = await this.prisma.ownProduct.findUnique({
+        where: { userId_code: { userId, code } },
+      });
+      if (own) return productOfOwn(own);
+    }
+    return this.ofTheBase(userId, code, now);
+  }
+
+  /**
+   * Whether the base knows a code with figures, asking Open Food Facts as a scan
+   * would and counting that against the account. What cannot be told just now
+   * (lookups used up, Open Food Facts silent) stands in nobody's way.
+   */
+  async knownToTheBase(userId: string, code: string, now: Date): Promise<boolean> {
+    try {
+      return (await this.ofTheBase(userId, code, now)).per100.calories !== null;
+    } catch (err) {
+      if (err instanceof HttpException) return false;
+      throw err;
+    }
+  }
 
   /**
    * The product of a code. What the import brought is answered as it is, and
@@ -81,10 +90,13 @@ export class ProductsService {
    * Open Food Facts where the instance does that, and what it answered is kept
    * for everybody. An older answer stands where a new one cannot be had.
    */
-  async byCode(userId: string, code: string, now = new Date()): Promise<Product> {
+  private async ofTheBase(userId: string, code: string, now: Date): Promise<Product> {
     const held = await this.prisma.product.findUnique({ where: { code } });
     const recent = (at: Date, days: number) => now.getTime() - at.getTime() < days * DAY_MS;
-    if (held && (held.origin === 'imported' || recent(held.readAt, PRODUCT_MEMORY_DAYS.lookedUp))) {
+    if (
+      held &&
+      (held.origin !== 'looked_up' || recent(held.readAt, PRODUCT_MEMORY_DAYS.lookedUp))
+    ) {
       return productDto(held);
     }
     const lookups = this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true });
@@ -129,23 +141,30 @@ export class ProductsService {
       throw notFound();
     }
     const columns = { ...productColumns(row), readAt: now };
-    const kept = await this.prisma.product.upsert({
-      where: { code },
-      create: { code, origin: 'looked_up', ...columns },
-      update: columns,
+    const kept = await this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.upsert({
+        where: { code },
+        create: { code, origin: 'looked_up', ...columns },
+        update: columns,
+      });
+      await tx.productCodeUnknown.deleteMany({ where: { code } });
+      // What accounts wrote of this code gives way, now that the base has its figures.
+      if (product.calories !== null)
+        await copiesGiveWay(tx, this.notifications, product, 'open_food_facts', now);
+      return product;
     });
-    await this.prisma.productCodeUnknown.deleteMany({ where: { code } });
     return productDto(kept);
   }
 
   /**
    * What the instance holds that has every word of a search in its name or
-   * brand and can be written into a diary. What holds them in its name comes
-   * before what holds them only in its brand: a search for milk is not for the
-   * butter of a brand called after it. Within that, the products people scan
-   * most come first. A search looks at nothing but the instance's own table.
+   * brand and can be written into a diary, the reader's own products first.
+   * What holds them in its name comes before what holds them only in its brand:
+   * a search for milk is not for the butter of a brand called after it. Within
+   * that, the products people scan most come first. A search looks at nothing
+   * but the instance's own tables.
    */
-  async search(query: string): Promise<ProductSearchResult> {
+  async search(userId: string, query: string): Promise<ProductSearchResult> {
     const words = wordsOfProductSearch(query);
     if (words.length === 0) return { items: [] };
     // Letters and digits alone: nothing here means anything else in a pattern.
@@ -159,12 +178,19 @@ export class ProductsService {
       ),
       ' AND ',
     );
+    const own = productsOffered(this.config)
+      ? await this.prisma.$queryRaw<HeldOwnProduct[]>`
+          SELECT * FROM "OwnProduct"
+          WHERE "userId" = ${userId} AND ${inText}
+          ORDER BY (${inName}) DESC, "name" ASC, "id" ASC
+          LIMIT ${PRODUCT_SEARCH.found}`
+      : [];
     const rows = await this.prisma.$queryRaw<HeldProduct[]>`
       SELECT * FROM "Product"
       WHERE "calories" IS NOT NULL AND ${inText}
       ORDER BY (${inName}) DESC, "popularity" DESC, "name" ASC, "id" ASC
-      LIMIT ${PRODUCT_SEARCH.found}`;
-    return { items: rows.map(productDto) };
+      LIMIT ${PRODUCT_SEARCH.found - own.length}`;
+    return { items: [...own.map(productOfOwn), ...rows.map(productDto)] };
   }
 
   /**

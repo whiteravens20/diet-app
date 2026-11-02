@@ -16,14 +16,17 @@ export class ProductsController {
 
   /**
    * Search what the instance holds by words of a name or a brand: at most 20
-   * products that can be written into a diary, those people scan most first. A
-   * search never leaves the instance.
+   * products that can be written into a diary, the reader's own first, then
+   * those people scan most. A search never leaves the instance.
    */
   @Get()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Answers(ProductSearchResult)
-  search(@Query(new ZodValidationPipe(ProductSearchQuery)) query: ProductSearchQuery) {
-    return this.products.search(query.search);
+  search(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(ProductSearchQuery)) query: ProductSearchQuery,
+  ) {
+    return this.products.search(user.id, query.search);
   }
 
   /**

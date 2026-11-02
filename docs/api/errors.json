@@ -963,6 +963,51 @@
       "pl": "Ustawienie dnia wykracza poza zakres dat planu."
     }
   },
+  "OWN_PRODUCT_DAILY_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You can write or change at most 50 products in 24 hours.",
+      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
+    }
+  },
+  "OWN_PRODUCT_LIMIT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "An account holds at most 500 products of its own.",
+      "pl": "Konto może mieć najwyżej 500 własnych produktów."
+    }
+  },
+  "OWN_PRODUCT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "This product is no longer there.",
+      "pl": "Nie ma już tego produktu."
+    }
+  },
+  "OWN_PRODUCT_NOT_SENDABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A product goes to the base with its code, calories, protein, fat and carbohydrates.",
+      "pl": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami."
+    }
+  },
+  "OWN_PRODUCT_SEND_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You can send at most 10 products to the base in 24 hours.",
+      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
+    }
+  },
   "OWN_RECIPE_DAILY_LIMIT": {
     "statuses": [
       429
@@ -1026,6 +1071,42 @@
       "pl": "Nie znaleziono planu posiłków."
     }
   },
+  "PRODUCTS_NOT_OFFERED": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "This instance offers no products.",
+      "pl": "Ta instancja nie oferuje produktów."
+    }
+  },
+  "PRODUCT_CHANGED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This product changed after it was opened. Open it again.",
+      "pl": "Ten produkt zmienił się po otwarciu. Otwórz go ponownie."
+    }
+  },
+  "PRODUCT_CODE_HELD": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A product of yours has this code already.",
+      "pl": "Masz już własny produkt o tym kodzie."
+    }
+  },
+  "PRODUCT_CODE_KNOWN": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The base has a product of this code. If you disagree with it, add yours without a code.",
+      "pl": "Baza ma już produkt o tym kodzie. Jeśli się z nim nie zgadzasz, dodaj swój bez kodu."
+    }
+  },
   "PRODUCT_IMPORT_NO_COUNTRIES": {
     "statuses": [
       409
@@ -1078,6 +1159,15 @@
     "messages": {
       "en": "No product with this code is known.",
       "pl": "Nie znamy produktu o tym kodzie."
+    }
+  },
+  "PRODUCT_NOT_WAITING": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This product is no longer waiting for review.",
+      "pl": "Ten produkt nie czeka już na sprawdzenie."
     }
   },
   "PRODUCT_SOURCE_UNAVAILABLE": {

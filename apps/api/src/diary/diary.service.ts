@@ -111,6 +111,7 @@ type Written = Pick<
   | 'recipeId'
   | 'ingredientId'
   | 'productId'
+  | 'ownProductId'
   | 'name'
   | 'servings'
   | 'quantity'
@@ -417,6 +418,7 @@ export class DiaryService {
             recipeId: entry.recipeId,
             ingredientId: entry.ingredientId,
             productId: entry.productId,
+            ownProductId: entry.ownProductId,
             name: entry.name,
             servings: entry.servings,
             quantity: entry.quantity,
@@ -656,7 +658,14 @@ export class DiaryService {
     }
 
     if (req.kind === 'product') {
-      const product = await this.prisma.product.findUnique({ where: { id: req.productId } });
+      const base = await this.prisma.product.findUnique({ where: { id: req.productId } });
+      // Not the base's: a product of the account's own, which nobody else's request can reach.
+      const own = base
+        ? null
+        : await this.prisma.ownProduct.findFirst({
+            where: { id: req.productId, userId: profile.userId },
+          });
+      const product = base ?? (own && { ...own, energyWorkedOut: false });
       if (!product) {
         throw new NotFoundException({
           error: 'PRODUCT_NOT_FOUND',
@@ -676,7 +685,8 @@ export class DiaryService {
       }
       return {
         kind: 'product',
-        productId: req.productId,
+        productId: base ? req.productId : null,
+        ownProductId: own ? req.productId : null,
         name: product.brand ? `${product.name}, ${product.brand}` : product.name,
         quantity: req.quantity,
         unit: product.unit,
@@ -721,7 +731,7 @@ export class DiaryService {
       name,
       recipeId: recipe ? row.recipeId : null,
       ingredientId: row.ingredientId,
-      productId: row.productId,
+      productId: row.productId ?? row.ownProductId,
       servings: row.servings,
       amount:
         row.quantity !== null && row.unit !== null

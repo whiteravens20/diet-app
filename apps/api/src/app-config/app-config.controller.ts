@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { productsOffered } from '../products/offered.js';
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -57,9 +58,7 @@ export class AppConfigController {
       catalogue: { supply: supplyByMealCount(await this.coverage.recent()) },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
       products: {
-        offered:
-          this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true }) ||
-          this.config.get('OPEN_FOOD_FACTS_COUNTRIES', { infer: true }).length > 0,
+        offered: productsOffered(this.config),
         lookups: this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true }),
       },
       plans: {

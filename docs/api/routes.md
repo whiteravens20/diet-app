@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-186 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+201 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -24,7 +24,12 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/admin/instance-settings` | the administrator | What an administrator sets for the instance in the panel: whether reviewers may sign in, and whether their password is set. |  | 200 `InstanceSettingsDto` |  |
 | `PATCH /api/admin/instance-settings` | the administrator | Change those settings. | `InstanceSettingsPatchBody` | 200 `InstanceSettingsDto` |  |
 | `GET /api/admin/products` | the administrator | The settings of lookups and of the import, what the instance holds, and how the last import went. |  | 200 `AdminProducts` |  |
+| `GET /api/admin/products/accepted` | the administrator | What the instance accepted, the latest first. | query `AcceptedProductsQuery` | 200 `AcceptedProducts` |  |
+| `POST /api/admin/products/accepted/:id/withdraw` | the administrator | Withdraw an accepted product, with what its author is told. | `WithdrawProductRequest` | 204 | 60 in a minute |
 | `POST /api/admin/products/import` | the administrator | Ask for an import now, instead of at night: the worker begins it within a minute. Refused while one runs, and within 24 hours of the last start unless the settings name other countries now. |  | 204 | 5 in a minute |
+| `GET /api/admin/products/queue` | the administrator | The products accounts sent to the base, the longest waiting first. |  | 200 `ProductQueue` |  |
+| `POST /api/admin/products/queue/:id/accept` | the administrator | Take a product into the base, as it was read. | `AcceptProductRequest` | 204 | 60 in a minute |
+| `POST /api/admin/products/queue/:id/reject` | the administrator | Turn a product down, with what its author is told. | `RejectProductRequest` | 204 | 60 in a minute |
 | `GET /api/admin/session` | anyone | What the admin pages ask first. Says nothing but whether a panel exists, whether this browser is in, and whether signing in takes a code. |  | 200 `AdminSessionState` |  |
 | `POST /api/admin/session` | anyone | Sign the administrator in: the password, and a code where the second factor is on. The session is a cookie. | `AdminSignInRequest` | 204 | 10 in a minute |
 | `DELETE /api/admin/session` | anyone | Sign out of this browser. |  | 204 |  |
@@ -206,8 +211,15 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
-| `GET /api/products` | an account | Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, those people scan most first. A search never leaves the instance. | query `ProductSearchQuery` | 200 `ProductSearchResult` | 30 in a minute |
+| `GET /api/products` | an account | Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, the reader's own first, then those people scan most. A search never leaves the instance. | query `ProductSearchQuery` | 200 `ProductSearchResult` | 30 in a minute |
+| `GET /api/products/additions` | an account | What people added to the instance's base, without who added it, as a file. |  | 200 `ProductAdditions` | 5 in a minute |
 | `GET /api/products/code/:code` | an account | The product of an EAN or UPC code. A code the instance does not hold is asked of Open Food Facts, in the instance's name, where the instance does that: an account asks at most 5 such codes a minute and 100 in 24 hours, the instance at most 12 a minute, and a code Open Food Facts does not know is not asked again for 7 days. |  | 200 `Product` | 30 in a minute |
+| `GET /api/products/own` | an account | The account's own products, whatever became of them. |  | 200 `OwnProducts` |  |
+| `POST /api/products/own` | an account | Write a product: 500 held, 50 written or changed in 24 hours, and a code the base knows is refused. | `OwnProductBody` | 201 `OwnProduct` | 30 in a minute |
+| `DELETE /api/products/own/:id` | an account | Delete a product: what the diary holds of it keeps its figures. |  | 204 | 30 in a minute |
+| `PATCH /api/products/own/:id` | an account | Change a product: one waiting for review leaves the queue, and has to be sent again. | `OwnProductBody` | 200 `OwnProduct` | 30 in a minute |
+| `POST /api/products/own/:id/send` | an account | Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours. |  | 200 `OwnProduct` | 10 in a minute |
+| `POST /api/products/own/:id/withdraw` | an account | Take a product back out of the queue. |  | 200 `OwnProduct` | 30 in a minute |
 
 ## profiles
 
@@ -252,6 +264,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `PATCH /api/review/drafts/recipes/:id` | a reviewer | Change the text of a recipe draft in the language. | `RecipeReviewPatchBody`, query `TargetLocaleQuery` | 200 `RecipeReviewSlice` |  |
 | `POST /api/review/drafts/recipes/:id/approve` | a reviewer | Approve a recipe draft in the language. | `ReviewerReasonBody`, query `TargetLocaleQuery` | 201 `RecipeReviewSlice` |  |
 | `POST /api/review/drafts/recipes/:id/reject` | a reviewer | Reject a recipe draft in the language, with a reason. | `ReviewerReasonBody`, query `TargetLocaleQuery` | 201 `RecipeReviewSlice` |  |
+| `GET /api/review/products` | a reviewer | The products accounts sent to the base, the longest waiting first. Who sent one is not said. |  | 200 `ProductQueue` |  |
+| `POST /api/review/products/:id/accept` | a reviewer | Take a product into the base, as it was read: one changed since is refused. | `AcceptProductRequest` | 204 | 60 in a minute |
+| `POST /api/review/products/:id/reject` | a reviewer | Turn a product down, with what its author is told. | `RejectProductRequest` | 204 | 60 in a minute |
 | `GET /api/review/session` | anyone | The reviewer's session, or none: what the page asks first, to show the queue or the form to sign in. Answers 200 either way. |  | 200 `ReviewerSessionAnswer` |  |
 | `GET /api/review/status` | anyone | Whether reviewers may sign in on this instance, and the languages there are to review. Anyone may ask; the password is no part of the answer. |  | 200 `ReviewStatus` |  |
 

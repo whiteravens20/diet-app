@@ -218,6 +218,36 @@ export class AccountExportService {
       }),
     );
 
+    // The products that are the account's own: those it wrote, whatever became of them. What the base accepted is nobody's any more.
+    yield* list(
+      'ownProducts',
+      (page) => this.prisma.ownProduct.findMany({ where: { userId }, ...page }),
+      (product) => ({
+        code: product.code,
+        name: product.name,
+        brand: product.brand,
+        pack: product.pack,
+        unit: product.unit,
+        packAmount: product.packAmount,
+        servingAmount: product.servingAmount,
+        per100: {
+          calories: product.calories,
+          protein: product.protein,
+          fat: product.fat,
+          carbs: product.carbs,
+          fiber: product.fiber,
+          sugars: product.sugars,
+          salt: product.salt,
+          saturatedFat: product.saturatedFat,
+        },
+        state: product.state,
+        reason: product.reason,
+        sentAt: product.sentAt?.toISOString() ?? null,
+        createdAt: product.createdAt.toISOString(),
+        updatedAt: product.updatedAt.toISOString(),
+      }),
+    );
+
     // The recipes that are the account's own: the ones it deleted are gone from its library, and are not in the file.
     yield* list(
       'ownRecipes',

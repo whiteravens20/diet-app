@@ -38,6 +38,38 @@ describe('an instance whose operator switched lookups off and named no country',
     expect(config.body.products).toEqual({ offered: false, lookups: false });
   });
 
+  it('has no products of an account either', async () => {
+    const user = await aUser(t);
+
+    const list = await t.http().get('/api/products/own').set(as(user)).expect(404);
+    expect(list.body.error).toBe('PRODUCTS_NOT_OFFERED');
+    await t
+      .http()
+      .post('/api/products/own')
+      .set(as(user))
+      .send({
+        code: null,
+        name: 'Konfitura',
+        brand: null,
+        pack: null,
+        unit: 'g',
+        packAmount: null,
+        servingAmount: null,
+        per100: {
+          calories: 240,
+          protein: null,
+          fat: null,
+          carbs: null,
+          fiber: null,
+          sugars: null,
+          salt: null,
+          saturatedFat: null,
+        },
+      })
+      .expect(404);
+    await t.http().get('/api/products/additions').set(as(user)).expect(404);
+  });
+
   it('asks nobody about a code', async () => {
     const user = await aUser(t);
     off.answers.set(MILK, { code: MILK, product_name: 'Mleko' });
