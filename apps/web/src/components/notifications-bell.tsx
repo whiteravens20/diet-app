@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import type { Notification, WeightReminderPayload } from '@diet-app/shared';
+import type { Notification, ProductNoticePayload, WeightReminderPayload } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,24 @@ export function useNotificationText(): (notification: Notification) => string {
       return days > 0 ? tBody('withHistory', { days }) : tBody('noHistory');
     }
     if (n.type === 'preferences_review') return t('preferences_review');
+    if (n.type.startsWith('product_')) {
+      const { name, reason, replacedBy } = n.payload as ProductNoticePayload;
+      switch (n.type) {
+        case 'product_accepted':
+          return t('product_accepted', { name });
+        case 'product_rejected':
+          return t('product_rejected', { name, reason: reason ?? '' });
+        case 'product_withdrawn':
+          return t('product_withdrawn', { name, reason: reason ?? '' });
+        case 'product_replaced':
+          return t(
+            replacedBy === 'open_food_facts'
+              ? 'product_replaced_open_food_facts'
+              : 'product_replaced_instance',
+            { name },
+          );
+      }
+    }
     return n.type;
   };
 }

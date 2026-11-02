@@ -95,6 +95,17 @@ describe('Field', () => {
     ).toBeTruthy();
   });
 
+  it('says what is wrong with what it holds, as soon as somebody may read it', () => {
+    render(
+      <Field label="Code" error="Not a code.">
+        <Input />
+      </Field>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Not a code.');
+    expect(screen.getByRole('textbox', { name: /Code/ })).toBeInTheDocument();
+  });
+
   it('shows no empty line where there is no hint', () => {
     const { container } = render(
       <Field label="Name">

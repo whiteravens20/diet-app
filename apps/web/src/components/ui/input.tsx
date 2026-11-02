@@ -18,14 +18,16 @@ export function Input({ className, ...props }: ComponentProps<'input'>) {
   );
 }
 
-/** A labelled field wrapper. Optional `hint` renders as muted helper text below the input. */
+/** A labelled field wrapper. Optional `hint` renders as muted helper text below the input, `error` as what is wrong with what it holds. */
 export function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   return (
@@ -33,6 +35,11 @@ export function Field({
       <span className="text-sm font-medium">{label}</span>
       {children}
       {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+      {error && (
+        <span role="alert" className="block text-xs text-destructive">
+          {error}
+        </span>
+      )}
     </label>
   );
 }

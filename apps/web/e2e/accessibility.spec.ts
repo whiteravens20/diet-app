@@ -34,6 +34,7 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     '/meal-plans',
     '/shopping-lists',
     '/inventory',
+    '/products',
     '/settings',
     '/settings?tab=ai',
     '/settings?tab=security',

@@ -41,7 +41,8 @@
     "admin": "Admin",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signUp": "Create account"
+    "signUp": "Create account",
+    "products": "My products"
   },
   "aiMark": {
     "label": "AI-assisted",
@@ -440,7 +441,17 @@
     "PRODUCT_SOURCE_UNAVAILABLE": "Open Food Facts is not answering just now: try later, or write it as a meal of your own.",
     "PRODUCT_IMPORT_NO_COUNTRIES": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
     "PRODUCT_IMPORT_RUNNING": "An import is running.",
-    "PRODUCT_IMPORT_TOO_SOON": "The last import of these countries began less than 24 hours ago."
+    "PRODUCT_IMPORT_TOO_SOON": "The last import of these countries began less than 24 hours ago.",
+    "PRODUCT_CODE_KNOWN": "The base has a product of this code. If you disagree with it, add yours without a code.",
+    "PRODUCT_CODE_HELD": "A product of yours has this code already.",
+    "OWN_PRODUCT_LIMIT": "An account holds at most 500 products of its own.",
+    "OWN_PRODUCT_DAILY_LIMIT": "You can write or change at most 50 products in 24 hours.",
+    "OWN_PRODUCT_SEND_LIMIT": "You can send at most 10 products to the base in 24 hours.",
+    "OWN_PRODUCT_NOT_SENDABLE": "A product goes to the base with its code, calories, protein, fat and carbohydrates.",
+    "OWN_PRODUCT_NOT_FOUND": "This product is no longer there.",
+    "PRODUCT_NOT_WAITING": "This product is no longer waiting for review.",
+    "PRODUCT_CHANGED": "This product changed after it was opened. Open it again.",
+    "PRODUCTS_NOT_OFFERED": "This instance offers no products."
   },
   "notifications": {
     "label": "Notifications",
@@ -454,7 +465,12 @@
       "withHistory": "Time to log your weight — {days, plural, one {it's been 1 day} other {it's been {days, number, ::group-off} days}}.",
       "noHistory": "Log your first weight to start your trend chart."
     },
-    "preferences_review": "Some ingredients or recipes you had marked are no longer in the catalogue. Check your avoided and favourite ingredients and your favourite sets."
+    "preferences_review": "Some ingredients or recipes you had marked are no longer in the catalogue. Check your avoided and favourite ingredients and your favourite sets.",
+    "product_accepted": "“{name}” is now in the base of this instance: everyone here can find it.",
+    "product_rejected": "“{name}” was not accepted: {reason}",
+    "product_withdrawn": "“{name}” was withdrawn from the base and is back among your products: {reason}",
+    "product_replaced_open_food_facts": "Open Food Facts now knows “{name}” by its code, so your copy gave way to it. Diary entries keep their figures.",
+    "product_replaced_instance": "The base of this instance now has “{name}” under its code, so your copy gave way to it. Diary entries keep their figures."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -581,7 +597,12 @@
     "labelUnknown": "not given",
     "labelGrams": "{grams, number, ::group-off} g",
     "entrySource": "Open Food Facts",
-    "emptyTextProducts": "Add what was eaten: a recipe, an ingredient, a product with a barcode, or a meal of your own by its figures."
+    "emptyTextProducts": "Add what was eaten: a recipe, an ingredient, a product with a barcode, or a meal of your own by its figures.",
+    "productAddOwn": "Add it as your own product",
+    "productOwnMark": "your own",
+    "productWriteTitle": "Your own product",
+    "productSourceOwn": "Your own product: its figures are what you wrote.",
+    "productSourceInstance": "Added by a person using this instance and accepted by its reviewers. Shared under the <odbl>ODbL</odbl>, as the data of <off>Open Food Facts</off> are."
   },
   "favoriteSets": {
     "title": "Favourite sets",
@@ -665,7 +686,7 @@
     "generatedMissing": "<code>ingredients.generated.json</code> is missing — only the hand-curated baseline will be seeded. Run <code>npm run import:usda</code> with an FDC_API_KEY first to add USDA whole foods.",
     "updating": "Updating…",
     "updateDb": "Update database",
-    "updateExplain": "Wipes seed-origin recipes not referenced by any plan/favorite and any ingredient no recipe uses, then re-seeds from <code>data/*.json</code>. User profiles, plans, diaries, favorites and inventory are preserved.",
+    "updateExplain": "Wipes seed-origin recipes not referenced by any plan/favorite and any ingredient no recipe uses, then re-seeds from <code>data/*.json</code>. User profiles, plans, diaries, favorites, inventory and products are preserved.",
     "loadStatsFailed": "Failed to load stats.",
     "lostConnection": "Lost connection to API.",
     "updateFailed": "Update failed.",
@@ -890,14 +911,14 @@
       "namesSkipped": "{count, plural, one {Skipped {count, number, ::group-off} unknown slug this instance has no ingredient for} other {Skipped {count, number, ::group-off} unknown slugs this instance has no ingredient for}}: {slugs}…",
       "namesRefused": "{count, plural, one {{count, number, ::group-off} entry was refused because it breaks a rule for names:} other {{count, number, ::group-off} entries were refused because they break a rule for names:}}",
       "instanceDataHeader": "This instance's own files",
-      "instanceDataState": "Recipes: {recipes} (files: {files}) · names: {names}",
+      "instanceDataState": "Recipes: {recipes} (files: {files}) · names: {names} · products: {products}",
       "instanceDataExplain": "The recipes and names of this instance are written to its data directory from the database after every ship into it, every restore and every update of the database, with the version of the application that wrote them. To move to a new server, copy that directory over, update the database there, then restore: the recipes and names this instance added come back without the old database. Files a newer version wrote are not restored.",
       "instanceDataVersion": "Written by version {version} of the application.",
       "instanceDataNotRestored": "{count, plural, one {A file} other {{count, number, ::group-off} files}} of the earlier layout {count, plural, one {holds} other {hold}} recipes the library does not have, or cannot be read. Until that changes, nothing is written to the directory: restore from these files, or take away a file that cannot be restored.",
       "instanceDataNotWritable": "The API cannot write to the instance's data directory. What ships into this instance is not copied to files, so it could not be restored on another server.",
       "restoreButton": "Restore from these files",
       "restoreConfirm": "Read the files of the instance's data directory into the database? A recipe the library already has under the same slug is written over from its file.",
-      "restoreDone": "Restored. Recipes added: {added}, written over: {rewritten}. Names stored: {names}.",
+      "restoreDone": "Restored. Recipes added: {added}, written over: {rewritten}. Names stored: {names}. Products added: {products}.",
       "restoreSkipped": "{count, plural, one {{count, number, ::group-off} recipe was left out:} other {{count, number, ::group-off} recipes were left out:}}",
       "restoreUnreadable": "{count, plural, one {{count, number, ::group-off} file could not be read:} other {{count, number, ::group-off} files could not be read:}}",
       "restoreUnreadableReasons": {
@@ -962,7 +983,8 @@
       "replacedMark": "Replaced by a newer proposal",
       "shipMore": "More options",
       "runTitle": "Generating recipes",
-      "waitingCount": "{count, plural, one {{count, number, ::group-off} waits} other {{count, number, ::group-off} wait}}"
+      "waitingCount": "{count, plural, one {{count, number, ::group-off} waits} other {{count, number, ::group-off} wait}}",
+      "restoreProductsSkipped": "{count, plural, one {One product was left out: the base has its code, or the file is wrong.} other {{count, number, ::group-off} products were left out: the base has their codes, or the file is wrong.}}"
     },
     "operatorAi": {
       "title": "AI of the instance",
@@ -1081,7 +1103,7 @@
       "pushedAt": "Last pushed",
       "contents": "In the copy",
       "none": "Not yet",
-      "held": "Recipes: {recipes} · names: {names} · version {version}"
+      "held": "Recipes: {recipes} · names: {names} · products: {products} · version {version}"
     },
     "health": {
       "title": "State of the instance",
@@ -1128,7 +1150,7 @@
       "lookupsOff": "Checking single codes: off (OPEN_FOOD_FACTS_LOOKUPS).",
       "countries": "Countries of the import: {countries}.",
       "noCountries": "No import: the settings name no country (OPEN_FOOD_FACTS_COUNTRIES).",
-      "held": "From the import: {imported, number, ::group-off}. From single codes: {lookedUp, number, ::group-off}. Codes remembered as unknown: {unknown, number, ::group-off}.",
+      "held": "From the import: {imported, number, ::group-off}. From single codes: {lookedUp, number, ::group-off}. Accepted from people: {accepted, number, ::group-off}. Codes remembered as unknown: {unknown, number, ::group-off}.",
       "never": "No import has run yet. The worker begins one at night, or when asked here.",
       "running": "An import is running: {read, number, ::group-off} rows of the export read.",
       "done": "Last import: {when}. Added {added, number, ::group-off}, changed {changed, number, ::group-off}, removed {removed, number, ::group-off}, of {read, number, ::group-off} rows of the export.",
@@ -1145,7 +1167,21 @@
       "asked": "Asked for: the worker begins within a minute.",
       "askAgainAt": "It can be asked for again: {when}. The import reads about 1.5 GB, so once a day is enough.",
       "schedule": "By itself once a week, between 2:00 and 5:00 by the server's clock.",
-      "loadFailed": "The state of the products could not be read."
+      "loadFailed": "The state of the products could not be read.",
+      "queueTitle": "Sent by people, waiting",
+      "acceptedTitle": "Accepted from people",
+      "acceptedLoading": "Reading what was accepted…",
+      "acceptedNone": "Nothing accepted yet.",
+      "acceptedWhen": "Accepted {when} by {by}.",
+      "acceptedByNobody": "someone no longer named",
+      "acceptedNoAuthor": "Its author no longer has an account: a withdrawal removes it.",
+      "withdraw": "Withdraw",
+      "withdrawReason": "Why it is withdrawn",
+      "withdrawHint": "Its author is told this, and the product goes back to them as not accepted.",
+      "withdrawConfirm": "Withdraw from the base",
+      "prev": "Prev",
+      "next": "Next",
+      "pageOf": "Page {page, number, ::group-off} of {pages, number, ::group-off}"
     }
   },
   "review": {
@@ -1211,7 +1247,8 @@
       "pl": "Polish"
     },
     "rejectReasonModel": "Optional reason: the model is told it with the new proposal",
-    "waiting": "{count, plural, one {{count, number, ::group-off} waits} other {{count, number, ::group-off} wait}}"
+    "waiting": "{count, plural, one {{count, number, ::group-off} waits} other {{count, number, ::group-off} wait}}",
+    "kindProduct": "Products"
   },
   "draftProblems": {
     "intro": "Not saved.",
@@ -1945,7 +1982,7 @@
     "emailVerified": "Verified",
     "emailUnverified": "Not verified",
     "danger": "Danger zone",
-    "dangerSubhead": "Permanently delete your account and every profile, meal plan, diary entry, favourite, shopping list and AI key that belongs to it. This cannot be undone.",
+    "dangerSubhead": "Permanently delete your account and every profile, meal plan, diary entry, favourite, shopping list, product of your own and AI key that belongs to it. Products accepted into the base stay there, without saying who added them. This cannot be undone.",
     "deleteAccount": "Delete account",
     "deleteAccountConfirmTitle": "Delete account",
     "deleteAccountConfirmBody": "Type your email to confirm.",
@@ -1967,7 +2004,7 @@
     "resendVerificationSent": "Verification email sent.",
     "resendVerificationFailed": "Could not send the verification email.",
     "dataExport": "Your data",
-    "dataExportBody": "Everything this account holds, as one JSON file: its profiles and their preferences, the weights you logged, your diary, your pantry, the recipes you marked and the ones that are your own, your plans with their meals and shopping lists. No password, token or provider key is in it.",
+    "dataExportBody": "Everything this account holds, as one JSON file: its profiles and their preferences, the weights you logged, your diary, your pantry, your own products, the recipes you marked and the ones that are your own, your plans with their meals and shopping lists. No password, token or provider key is in it.",
     "dataExportButton": "Download my data",
     "dataExportPreparing": "Preparing the file…",
     "dataExportSaved": "The file was handed to your browser.",
@@ -2579,7 +2616,79 @@
       "problems": "A mistake in the software or an idea for it goes to its <issues>issue tracker</issues>. A security problem is reported privately, as its <security>security policy</security> describes.",
       "operator": "Anything about this instance goes to its operator:",
       "operatorNotSet": "The operator of this instance has not published a contact address.",
-      "products": "The figures of products with a barcode come from <off>Open Food Facts</off>, a database available under the <odbl>Open Database License</odbl>, its contents under the <dbcl>Database Contents License</dbcl>. They are written by its users and may be wrong. The instance's table of products is a part of that database, offered under the same licence: it is made from the export of Open Food Facts by choosing countries and leaving out what cannot be right, as the <source>source code</source> shows."
+      "products": "The figures of products with a barcode come from <off>Open Food Facts</off>, a database available under the <odbl>Open Database License</odbl>, its contents under the <dbcl>Database Contents License</dbcl>. They are written by its users and may be wrong. The instance's table of products is a part of that database, offered under the same licence: it is made from the export of Open Food Facts by choosing countries and leaving out what cannot be right, as the <source>source code</source> shows. It also holds what people of this instance added and its reviewers accepted, without saying who added what, which every signed-in account can download from the page of its products."
     }
+  },
+  "products": {
+    "title": "My products",
+    "subhead": "Products with a barcode that the base does not know, written from their labels.",
+    "notOffered": "This instance has no products with a barcode.",
+    "add": "Add a product",
+    "addTitle": "Add a product",
+    "editTitle": "Change a product",
+    "file": "Download what people added",
+    "limits": "You can hold {held, number, ::group-off} products, add or change {written, number, ::group-off} a day and send {sent, number, ::group-off} a day.",
+    "source": "The base comes from <off>Open Food Facts</off>. What people of this instance add to it is shared under the same licence, the <odbl>Open Database License</odbl>: the file above holds it, without saying who added what.",
+    "emptyTitle": "No products yet",
+    "emptyBody": "When the diary cannot find a product by its barcode, write it here from its label: for yourself, or to send it to the base of this instance.",
+    "state": {
+      "own": "Only yours",
+      "sent": "Waiting for review",
+      "rejected": "Not accepted"
+    },
+    "figures": "{kcal, number, ::group-off} kcal in 100 {unit}",
+    "macros": "protein {protein} g, fat {fat} g, carbohydrates {carbs} g",
+    "reason": "Reason: {reason}",
+    "doubtful": "These figures do not add up. Check them against the label.",
+    "edit": "Change",
+    "send": "Send to the base",
+    "withdraw": "Take back",
+    "remove": "Remove",
+    "sendNeeds": "To send it, it needs a code, calories, protein, fat and carbohydrates.",
+    "sendNote": "It goes to the reviewers of this instance. Once accepted, everyone here can find it, and it is shared under the Open Database License in a file every account here can download, without saying who added it. If you delete your account, an accepted product stays in the base.",
+    "sendConfirm": "Send",
+    "removeNote": "It leaves your products. Diary entries keep their figures.",
+    "removeConfirm": "Remove",
+    "cancel": "Cancel",
+    "save": "Save",
+    "code": "Barcode",
+    "codeHint": "The digits under the bars. Leave it empty for a product without one.",
+    "name": "Name",
+    "brand": "Brand",
+    "pack": "Pack, as its label says",
+    "unit": "Measured in",
+    "packAmount": "A pack holds ({unit})",
+    "servingAmount": "A serving is ({unit})",
+    "in100": "In 100 {unit}",
+    "figuresHint": "Only the calories are needed. What you leave out the diary estimates and marks ≈.",
+    "calories": "Calories (kcal)",
+    "protein": "Protein (g)",
+    "fat": "Fat (g)",
+    "saturatedFat": "of which saturated (g)",
+    "carbs": "Carbohydrates (g)",
+    "sugars": "of which sugars (g)",
+    "fiber": "Fibre (g)",
+    "salt": "Salt (g)",
+    "errCode": "This is no EAN or UPC code: check the digits.",
+    "errName": "A name needs a letter or a digit.",
+    "errAmount": "A number above 0, at most 100000.",
+    "errCalories": "Give the calories: from 0 to 900 in 100.",
+    "errFigure": "A number from 0 to 100.",
+    "errMacros": "Protein, fat and carbohydrates come to at most 105 g in 100.",
+    "errSugars": "Sugars are a part of the carbohydrates: they cannot be more.",
+    "errSaturated": "Saturated fat is a part of the fat: it cannot be more.",
+    "changeLeavesQueue": "Saving takes it out of the queue: it has to be sent again.",
+    "useBase": "Use this product",
+    "withoutCode": "Add mine without a code"
+  },
+  "productReview": {
+    "loading": "Reading the queue…",
+    "nothing": "Nothing waits.",
+    "waiting": "{count, plural, one {One product waits} other {{count, number, ::group-off} products wait}}, the longest first.",
+    "doubtful": "These figures do not add up: check them against the label before accepting.",
+    "accept": "Accept",
+    "reject": "Do not accept",
+    "reason": "What its author is told",
+    "rejectConfirm": "Do not accept, with this reason"
   }
 }

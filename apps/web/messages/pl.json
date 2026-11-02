@@ -41,7 +41,8 @@
     "admin": "Administracja",
     "signIn": "Zaloguj się",
     "signOut": "Wyloguj się",
-    "signUp": "Załóż konto"
+    "signUp": "Załóż konto",
+    "products": "Moje produkty"
   },
   "aiMark": {
     "label": "Z pomocą AI",
@@ -440,7 +441,17 @@
     "PRODUCT_SOURCE_UNAVAILABLE": "Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek.",
     "PRODUCT_IMPORT_NO_COUNTRIES": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie.",
     "PRODUCT_IMPORT_RUNNING": "Import właśnie trwa.",
-    "PRODUCT_IMPORT_TOO_SOON": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
+    "PRODUCT_IMPORT_TOO_SOON": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu.",
+    "PRODUCT_CODE_KNOWN": "Baza ma już produkt o tym kodzie. Jeśli się z nim nie zgadzasz, dodaj swój bez kodu.",
+    "PRODUCT_CODE_HELD": "Masz już własny produkt o tym kodzie.",
+    "OWN_PRODUCT_LIMIT": "Konto może mieć najwyżej 500 własnych produktów.",
+    "OWN_PRODUCT_DAILY_LIMIT": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów.",
+    "OWN_PRODUCT_SEND_LIMIT": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów.",
+    "OWN_PRODUCT_NOT_SENDABLE": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami.",
+    "OWN_PRODUCT_NOT_FOUND": "Nie ma już tego produktu.",
+    "PRODUCT_NOT_WAITING": "Ten produkt nie czeka już na sprawdzenie.",
+    "PRODUCT_CHANGED": "Ten produkt zmienił się po otwarciu. Otwórz go ponownie.",
+    "PRODUCTS_NOT_OFFERED": "Ta instancja nie oferuje produktów."
   },
   "notifications": {
     "label": "Powiadomienia",
@@ -454,7 +465,12 @@
       "withHistory": "Czas się zważyć — od ostatniego wpisu {days, plural, one {minął 1 dzień} few {minęły {days, number, ::group-off} dni} many {minęło {days, number, ::group-off} dni} other {minęło {days, number, ::group-off} dnia}}.",
       "noHistory": "Dodaj pierwszy wpis wagi, aby uruchomić wykres trendu."
     },
-    "preferences_review": "Części składników lub przepisów, które były u Ciebie oznaczone, nie ma już w katalogu. Sprawdź unikane i ulubione składniki oraz zestawy ulubionych."
+    "preferences_review": "Części składników lub przepisów, które były u Ciebie oznaczone, nie ma już w katalogu. Sprawdź unikane i ulubione składniki oraz zestawy ulubionych.",
+    "product_accepted": "„{name}” jest już w bazie tej instancji: każdy tutaj może go znaleźć.",
+    "product_rejected": "Nie przyjęto „{name}”: {reason}",
+    "product_withdrawn": "„{name}” wycofano z bazy i wrócił do Twoich produktów: {reason}",
+    "product_replaced_open_food_facts": "Open Food Facts zna już „{name}” po kodzie, więc Twoja kopia ustąpiła. Wpisy w dzienniku zachowują swoje wartości.",
+    "product_replaced_instance": "Baza tej instancji ma już „{name}” pod tym kodem, więc Twoja kopia ustąpiła. Wpisy w dzienniku zachowują swoje wartości."
   },
   "dashboard": {
     "title": "Pulpit",
@@ -581,7 +597,12 @@
     "labelUnknown": "brak",
     "labelGrams": "{grams, number, ::group-off} g",
     "entrySource": "Open Food Facts",
-    "emptyTextProducts": "Dodaj, co zostało zjedzone: przepis, składnik, produkt z kodem kreskowym albo własny posiłek po jego wartościach."
+    "emptyTextProducts": "Dodaj, co zostało zjedzone: przepis, składnik, produkt z kodem kreskowym albo własny posiłek po jego wartościach.",
+    "productAddOwn": "Dodaj jako własny produkt",
+    "productOwnMark": "własny",
+    "productWriteTitle": "Własny produkt",
+    "productSourceOwn": "Własny produkt: dane są takie, jak je wpisano.",
+    "productSourceInstance": "Dodany przez użytkownika tej instancji i przyjęty po sprawdzeniu. Udostępniany na licencji <odbl>ODbL</odbl>, tak jak dane <off>Open Food Facts</off>."
   },
   "favoriteSets": {
     "title": "Zestawy ulubionych",
@@ -665,7 +686,7 @@
     "generatedMissing": "Brakuje <code>ingredients.generated.json</code> — wczytany zostanie tylko ręcznie opracowany katalog. Uruchom <code>npm run import:usda</code> z FDC_API_KEY, aby dodać produkty USDA.",
     "updating": "Aktualizacja…",
     "updateDb": "Zaktualizuj bazę",
-    "updateExplain": "Usuwa przepisy katalogu, których nie używa żaden plan ani żadne ulubione, oraz składniki, których nie używa żaden przepis, a potem wczytuje dane od nowa z <code>data/*.json</code>. Profile użytkowników, plany, dzienniki, ulubione i spiżarnia zostają.",
+    "updateExplain": "Usuwa przepisy katalogu, których nie używa żaden plan ani żadne ulubione, oraz składniki, których nie używa żaden przepis, a potem wczytuje dane od nowa z <code>data/*.json</code>. Profile użytkowników, plany, dzienniki, ulubione, spiżarnia i produkty zostają.",
     "loadStatsFailed": "Nie udało się wczytać statystyk.",
     "lostConnection": "Utracono połączenie z API.",
     "updateFailed": "Aktualizacja nie powiodła się.",
@@ -890,14 +911,14 @@
       "namesSkipped": "{count, plural, one {Pominięto {count, number, ::group-off} nieznany slug, dla którego ta instancja nie ma składnika} few {Pominięto {count, number, ::group-off} nieznane slugi, dla których ta instancja nie ma składnika} many {Pominięto {count, number, ::group-off} nieznanych slugów, dla których ta instancja nie ma składnika} other {Pominięto {count, number, ::group-off} nieznanego sluga, dla którego ta instancja nie ma składnika}}: {slugs}…",
       "namesRefused": "{count, plural, one {Odrzucono {count, number, ::group-off} wpis, bo łamie regułę dla nazw:} few {Odrzucono {count, number, ::group-off} wpisy, bo łamią regułę dla nazw:} many {Odrzucono {count, number, ::group-off} wpisów, bo łamią regułę dla nazw:} other {Odrzucono {count, number, ::group-off} wpisu, bo łamie regułę dla nazw:}}",
       "instanceDataHeader": "Własne pliki tej instancji",
-      "instanceDataState": "Przepisy: {recipes} (pliki: {files}) · nazwy: {names}",
+      "instanceDataState": "Przepisy: {recipes} (pliki: {files}) · nazwy: {names} · produkty: {products}",
       "instanceDataExplain": "Przepisy i nazwy tej instancji są zapisywane z bazy do jej katalogu danych po każdej wysyłce, każdym przywróceniu i każdej aktualizacji bazy, razem z wersją aplikacji, która je zapisała. Aby przenieść się na nowy serwer, skopiuj ten katalog, zaktualizuj tam bazę danych, a potem przywróć: przepisy i nazwy dodane przez tę instancję wracają bez starej bazy. Plików zapisanych przez nowszą wersję nie da się przywrócić.",
       "instanceDataVersion": "Zapisane przez wersję aplikacji {version}.",
       "instanceDataNotRestored": "{count, plural, one {Plik} few {{count, number, ::group-off} pliki} many {{count, number, ::group-off} plików} other {{count, number, ::group-off} pliku}} starszego układu {count, plural, one {zawiera} few {zawierają} many {zawiera} other {zawiera}} przepisy spoza biblioteki albo nie da się {count, plural, one {go} other {ich}} odczytać. Dopóki tak jest, nic nie jest zapisywane do katalogu: przywróć z tych plików albo usuń plik, którego nie da się przywrócić.",
       "instanceDataNotWritable": "API nie może zapisywać w katalogu danych instancji. To, co trafia do tej instancji, nie jest kopiowane do plików, więc nie da się tego przywrócić na innym serwerze.",
       "restoreButton": "Przywróć z tych plików",
       "restoreConfirm": "Wczytać pliki z katalogu danych instancji do bazy? Przepis, który biblioteka ma już pod tym samym slugiem, zostanie nadpisany treścią z pliku.",
-      "restoreDone": "Przywrócono. Przepisy dodane: {added}, nadpisane: {rewritten}. Zapisane nazwy: {names}.",
+      "restoreDone": "Przywrócono. Przepisy dodane: {added}, nadpisane: {rewritten}. Zapisane nazwy: {names}. Dodane produkty: {products}.",
       "restoreSkipped": "{count, plural, one {Pominięto {count, number, ::group-off} przepis:} few {Pominięto {count, number, ::group-off} przepisy:} many {Pominięto {count, number, ::group-off} przepisów:} other {Pominięto {count, number, ::group-off} przepisu:}}",
       "restoreUnreadable": "{count, plural, one {Nie udało się odczytać {count, number, ::group-off} pliku:} few {Nie udało się odczytać {count, number, ::group-off} plików:} many {Nie udało się odczytać {count, number, ::group-off} plików:} other {Nie udało się odczytać {count, number, ::group-off} pliku:}}",
       "restoreUnreadableReasons": {
@@ -962,7 +983,8 @@
       "replacedMark": "Zastąpiona nowszą propozycją",
       "shipMore": "Więcej opcji",
       "runTitle": "Generowanie przepisów",
-      "waitingCount": "{count, plural, one {{count, number, ::group-off} czeka} few {{count, number, ::group-off} czekają} many {{count, number, ::group-off} czeka} other {{count, number, ::group-off} czeka}}"
+      "waitingCount": "{count, plural, one {{count, number, ::group-off} czeka} few {{count, number, ::group-off} czekają} many {{count, number, ::group-off} czeka} other {{count, number, ::group-off} czeka}}",
+      "restoreProductsSkipped": "{count, plural, one {Pominięto jeden produkt: baza ma już jego kod albo plik jest błędny.} few {Pominięto {count, number, ::group-off} produkty: baza ma już ich kody albo plik jest błędny.} many {Pominięto {count, number, ::group-off} produktów: baza ma już ich kody albo plik jest błędny.} other {Pominięto {count, number, ::group-off} produktu: baza ma już ich kody albo plik jest błędny.}}"
     },
     "operatorAi": {
       "title": "AI instancji",
@@ -1081,7 +1103,7 @@
       "pushedAt": "Ostatnia wysyłka",
       "contents": "W kopii",
       "none": "Jeszcze nie było",
-      "held": "Przepisy: {recipes} · nazwy: {names} · wersja {version}"
+      "held": "Przepisy: {recipes} · nazwy: {names} · produkty: {products} · wersja {version}"
     },
     "health": {
       "title": "Stan instancji",
@@ -1128,7 +1150,7 @@
       "lookupsOff": "Sprawdzanie pojedynczych kodów: wyłączone (OPEN_FOOD_FACTS_LOOKUPS).",
       "countries": "Kraje importu: {countries}.",
       "noCountries": "Bez importu: ustawienia nie wymieniają żadnego kraju (OPEN_FOOD_FACTS_COUNTRIES).",
-      "held": "Z importu: {imported, number, ::group-off}. Z pojedynczych kodów: {lookedUp, number, ::group-off}. Kody zapamiętane jako nieznane: {unknown, number, ::group-off}.",
+      "held": "Z importu: {imported, number, ::group-off}. Z pojedynczych kodów: {lookedUp, number, ::group-off}. Przyjęte od użytkowników: {accepted, number, ::group-off}. Kody zapamiętane jako nieznane: {unknown, number, ::group-off}.",
       "never": "Żaden import jeszcze nie ruszył. Worker zacznie go w nocy albo na prośbę z tego miejsca.",
       "running": "Import trwa: przeczytane wiersze eksportu: {read, number, ::group-off}.",
       "done": "Ostatni import: {when}. Dodane: {added, number, ::group-off}, zmienione: {changed, number, ::group-off}, usunięte: {removed, number, ::group-off}, z {read, number, ::group-off} wierszy eksportu.",
@@ -1145,7 +1167,21 @@
       "asked": "Zlecone: worker zacznie w ciągu minuty.",
       "askAgainAt": "Można będzie zlecić go ponownie: {when}. Import czyta około 1,5 GB, więc raz na dobę wystarczy.",
       "schedule": "Sam raz w tygodniu, między 2:00 a 5:00 według zegara serwera.",
-      "loadFailed": "Nie udało się odczytać stanu produktów."
+      "loadFailed": "Nie udało się odczytać stanu produktów.",
+      "queueTitle": "Wysłane przez użytkowników, czekają",
+      "acceptedTitle": "Przyjęte od użytkowników",
+      "acceptedLoading": "Czytam, co przyjęto…",
+      "acceptedNone": "Nic jeszcze nie przyjęto.",
+      "acceptedWhen": "Przyjęto {when}, przyjmujący: {by}.",
+      "acceptedByNobody": "nikt już nienazwany",
+      "acceptedNoAuthor": "Autor nie ma już konta: wycofanie usuwa produkt.",
+      "withdraw": "Wycofaj",
+      "withdrawReason": "Powód wycofania",
+      "withdrawHint": "Autor dostanie ten powód, a produkt wróci do niego jako nieprzyjęty.",
+      "withdrawConfirm": "Wycofaj z bazy",
+      "prev": "Poprzednia",
+      "next": "Następna",
+      "pageOf": "Strona {page, number, ::group-off} z {pages, number, ::group-off}"
     }
   },
   "review": {
@@ -1211,7 +1247,8 @@
       "pl": "Polski"
     },
     "rejectReasonModel": "Opcjonalny powód: model dostanie go przy nowej propozycji",
-    "waiting": "{count, plural, one {{count, number, ::group-off} czeka} few {{count, number, ::group-off} czekają} many {{count, number, ::group-off} czeka} other {{count, number, ::group-off} czeka}}"
+    "waiting": "{count, plural, one {{count, number, ::group-off} czeka} few {{count, number, ::group-off} czekają} many {{count, number, ::group-off} czeka} other {{count, number, ::group-off} czeka}}",
+    "kindProduct": "Produkty"
   },
   "draftProblems": {
     "intro": "Nie zapisano.",
@@ -1945,7 +1982,7 @@
     "emailVerified": "Zweryfikowany",
     "emailUnverified": "Niezweryfikowany",
     "danger": "Usuwanie konta",
-    "dangerSubhead": "Trwale usuń swoje konto wraz z każdym profilem, planem posiłków, wpisem dziennika, ulubionym przepisem, listą zakupów i kluczem AI. Tej operacji nie można cofnąć.",
+    "dangerSubhead": "Trwale usuń swoje konto wraz z każdym profilem, planem posiłków, wpisem dziennika, ulubionym przepisem, listą zakupów, własnym produktem i kluczem AI. Produkty przyjęte do bazy zostają w niej, bez informacji, kto je dodał. Tej operacji nie można cofnąć.",
     "deleteAccount": "Usuń konto",
     "deleteAccountConfirmTitle": "Usuń konto",
     "deleteAccountConfirmBody": "Wpisz swój e-mail, aby potwierdzić.",
@@ -1967,7 +2004,7 @@
     "resendVerificationSent": "Wysłano e-mail weryfikacyjny.",
     "resendVerificationFailed": "Nie udało się wysłać e-maila weryfikacyjnego.",
     "dataExport": "Twoje dane",
-    "dataExportBody": "Wszystko, co przechowuje to konto, w jednym pliku JSON: profile i ich preferencje, zapisane pomiary wagi, dziennik, spiżarnia, oznaczone przepisy i przepisy własne, plany z posiłkami i listami zakupów. W pliku nie ma hasła, tokenów ani kluczy dostawców AI.",
+    "dataExportBody": "Wszystko, co przechowuje to konto, w jednym pliku JSON: profile i ich preferencje, zapisane pomiary wagi, dziennik, spiżarnia, własne produkty, oznaczone przepisy i przepisy własne, plany z posiłkami i listami zakupów. W pliku nie ma hasła, tokenów ani kluczy dostawców AI.",
     "dataExportButton": "Pobierz moje dane",
     "dataExportPreparing": "Przygotowywanie pliku…",
     "dataExportSaved": "Plik został przekazany przeglądarce.",
@@ -2579,7 +2616,79 @@
       "problems": "Błąd w oprogramowaniu albo pomysł na nie zgłoś w jego <issues>systemie zgłoszeń</issues>. Problem z bezpieczeństwem zgłoś prywatnie, jak opisuje <security>polityka bezpieczeństwa</security>.",
       "operator": "Sprawy tej instancji kieruj do jej operatora:",
       "operatorNotSet": "Operator tej instancji nie opublikował adresu kontaktowego.",
-      "products": "Wartości produktów z kodem kreskowym pochodzą z <off>Open Food Facts</off>, bazy dostępnej na licencji <odbl>Open Database License</odbl>, a jej zawartość na licencji <dbcl>Database Contents License</dbcl>. Wpisują je jej użytkownicy i mogą być błędne. Tabela produktów tej instancji to część tej bazy, udostępniana na tej samej licencji: powstaje z eksportu Open Food Facts przez wybór krajów i pominięcie tego, co nie może być prawdą, jak pokazuje <source>kod źródłowy</source>."
+      "products": "Wartości produktów z kodem kreskowym pochodzą z <off>Open Food Facts</off>, bazy dostępnej na licencji <odbl>Open Database License</odbl>, a jej zawartość na licencji <dbcl>Database Contents License</dbcl>. Wpisują je jej użytkownicy i mogą być błędne. Tabela produktów tej instancji to część tej bazy, udostępniana na tej samej licencji: powstaje z eksportu Open Food Facts przez wybór krajów i pominięcie tego, co nie może być prawdą, jak pokazuje <source>kod źródłowy</source>. Zawiera też to, co dodali użytkownicy tej instancji i co przyjęto po sprawdzeniu, bez informacji, kto co dodał; każde zalogowane konto może to pobrać ze strony swoich produktów."
     }
+  },
+  "products": {
+    "title": "Moje produkty",
+    "subhead": "Produkty z kodem kreskowym, których baza nie zna, spisane z etykiet.",
+    "notOffered": "Ta instancja nie ma produktów z kodem kreskowym.",
+    "add": "Dodaj produkt",
+    "addTitle": "Dodaj produkt",
+    "editTitle": "Zmień produkt",
+    "file": "Pobierz to, co dodali użytkownicy",
+    "limits": "Możesz mieć {held, number, ::group-off} produktów, dodać lub zmienić {written, number, ::group-off} dziennie i wysłać {sent, number, ::group-off} dziennie.",
+    "source": "Baza pochodzi z <off>Open Food Facts</off>. To, co dodają do niej użytkownicy tej instancji, jest udostępniane na tej samej licencji, <odbl>Open Database License</odbl>: plik powyżej to zawiera i nie mówi, kto co dodał.",
+    "emptyTitle": "Nie ma jeszcze produktów",
+    "emptyBody": "Gdy dziennik nie znajduje produktu po kodzie kreskowym, spisz go tutaj z etykiety: dla siebie albo żeby wysłać go do bazy tej instancji.",
+    "state": {
+      "own": "Tylko Twój",
+      "sent": "Czeka na sprawdzenie",
+      "rejected": "Nieprzyjęty"
+    },
+    "figures": "{kcal, number, ::group-off} kcal w 100 {unit}",
+    "macros": "białko {protein} g, tłuszcz {fat} g, węglowodany {carbs} g",
+    "reason": "Powód: {reason}",
+    "doubtful": "Te wartości się nie zgadzają. Sprawdź je na etykiecie.",
+    "edit": "Zmień",
+    "send": "Wyślij do bazy",
+    "withdraw": "Wycofaj",
+    "remove": "Usuń",
+    "sendNeeds": "Aby go wysłać, potrzebny jest kod, kalorie, białko, tłuszcz i węglowodany.",
+    "sendNote": "Trafi do sprawdzających tej instancji. Po przyjęciu każdy tutaj będzie mógł go znaleźć, a produkt będzie udostępniany na licencji Open Database License w pliku, który może pobrać każde konto tutaj, bez informacji, kto go dodał. Gdy usuniesz konto, przyjęty produkt zostanie w bazie.",
+    "sendConfirm": "Wyślij",
+    "removeNote": "Zniknie z Twoich produktów. Wpisy w dzienniku zachowają swoje wartości.",
+    "removeConfirm": "Usuń",
+    "cancel": "Anuluj",
+    "save": "Zapisz",
+    "code": "Kod kreskowy",
+    "codeHint": "Cyfry pod kreskami. Zostaw puste, jeśli produkt nie ma kodu.",
+    "name": "Nazwa",
+    "brand": "Marka",
+    "pack": "Opakowanie, jak na etykiecie",
+    "unit": "Mierzony w",
+    "packAmount": "Opakowanie ma ({unit})",
+    "servingAmount": "Porcja to ({unit})",
+    "in100": "W 100 {unit}",
+    "figuresHint": "Wystarczą kalorie. Czego nie wpiszesz, dziennik oszacuje i oznaczy ≈.",
+    "calories": "Kalorie (kcal)",
+    "protein": "Białko (g)",
+    "fat": "Tłuszcz (g)",
+    "saturatedFat": "w tym nasycone (g)",
+    "carbs": "Węglowodany (g)",
+    "sugars": "w tym cukry (g)",
+    "fiber": "Błonnik (g)",
+    "salt": "Sól (g)",
+    "errCode": "To nie jest kod EAN ani UPC: sprawdź cyfry.",
+    "errName": "Nazwa musi mieć literę lub cyfrę.",
+    "errAmount": "Liczba większa od 0, najwyżej 100000.",
+    "errCalories": "Podaj kalorie: od 0 do 900 w 100.",
+    "errFigure": "Liczba od 0 do 100.",
+    "errMacros": "Białko, tłuszcz i węglowodany to razem najwyżej 105 g w 100.",
+    "errSugars": "Cukry są częścią węglowodanów: nie może ich być więcej.",
+    "errSaturated": "Tłuszcze nasycone są częścią tłuszczu: nie może ich być więcej.",
+    "changeLeavesQueue": "Zapisanie wycofa go z kolejki: trzeba będzie wysłać go jeszcze raz.",
+    "useBase": "Użyj tego produktu",
+    "withoutCode": "Dodaj mój bez kodu"
+  },
+  "productReview": {
+    "loading": "Czytam kolejkę…",
+    "nothing": "Nic nie czeka.",
+    "waiting": "{count, plural, one {Czeka jeden produkt} few {Czekają {count, number, ::group-off} produkty} many {Czeka {count, number, ::group-off} produktów} other {Czeka {count, number, ::group-off} produktu}}, od najdłużej czekających.",
+    "doubtful": "Te wartości się nie zgadzają: sprawdź je na etykiecie, zanim przyjmiesz.",
+    "accept": "Przyjmij",
+    "reject": "Nie przyjmuj",
+    "reason": "Co dostanie autor",
+    "rejectConfirm": "Nie przyjmuj, z tym powodem"
   }
 }
