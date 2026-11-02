@@ -765,11 +765,6 @@ model RecipeIngredient {
 
 // ── Meal plans ────────────────────────────────────────────────────────────────
 
-enum GenerationMode {
-  deterministic
-  ai_assisted
-}
-
 model MealPlan {
   id             String         @id @default(uuid())
   profile        Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -781,7 +776,6 @@ model MealPlan {
   // The split a plan on the custom diet aims at, as the profile had it when
   // the plan was made (`MacroSplit`); null on every other diet.
   macroSplit     Json?
-  generationMode GenerationMode @default(deterministic)
   reuseScore     Float          @default(0)
   // What the plan was asked for (`PlanOptions` of the shared contract): what
   // making it again, and changing a meal of it, goes by.

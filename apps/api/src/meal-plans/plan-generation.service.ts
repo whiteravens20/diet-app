@@ -142,7 +142,6 @@ export class PlanGenerationService {
           dietType,
           calorieTarget: baseCalorieTarget,
           macroSplit: macroSplit ?? Prisma.JsonNull,
-          generationMode: 'deterministic',
           reuseScore: result.ingredientReuseScore,
           options,
           seed,
@@ -422,12 +421,6 @@ export class PlanGenerationService {
       };
     });
 
-    // Whether a meal a model picked stays in the plan: a plan made again as a whole then still says that a model had a part in it.
-    const stayingOn = new Map(filled.map((entry) => [entry.dayId, new Set(entry.staying)]));
-    const modelsPickStays = plan.days.some((day) =>
-      day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)),
-    );
-
     return {
       plan,
       profile,
@@ -441,7 +434,6 @@ export class PlanGenerationService {
       base,
       dietType,
       macroSplit,
-      modelsPickStays,
       dropIneligibleLocks: options.dropIneligibleLocks,
     };
   }
@@ -483,19 +475,8 @@ export class PlanGenerationService {
           'Every day asked for is skipped or before today. A skipped day is left as it is, and days in the past are made again only when the request says so.',
       });
     }
-    const {
-      plan,
-      made,
-      dates,
-      whole,
-      days,
-      filled,
-      allowRelaxations,
-      base,
-      dietType,
-      macroSplit,
-      modelsPickStays,
-    } = prepared;
+    const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit } =
+      prepared;
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
     // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
@@ -575,9 +556,6 @@ export class PlanGenerationService {
                 macroSplit: macroSplit ?? Prisma.JsonNull,
                 options: { ...made, allowRelaxations },
                 seed,
-                generationMode: modelsPickStays
-                  ? ('ai_assisted' as const)
-                  : ('deterministic' as const),
               }
             : {}),
         },

@@ -282,7 +282,10 @@ export class AccountExportService {
         dietType: plan.dietType,
         calorieTarget: plan.calorieTarget,
         macroSplit: plan.macroSplit,
-        generationMode: plan.generationMode,
+        // A plan that holds a model's pick says that a model had a part in it.
+        generationMode: plan.days.some((day) => day.meals.some((meal) => meal.modelPicked))
+          ? 'ai_assisted'
+          : 'deterministic',
         options: plan.options,
         createdAt: plan.createdAt.toISOString(),
         days: plan.days.map((planned) => ({

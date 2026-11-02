@@ -479,6 +479,11 @@ export const MealPlanDay = z.object({
    */
   offTarget: z.enum(['over', 'under']).nullable(),
   /**
+   * What the day holds lies far from the split of protein, fat and carbohydrate
+   * it aims at: over 12 % of its energy would have to move. False for a skipped day.
+   */
+  macrosOff: z.boolean(),
+  /**
    * The user skips this day: it is no shortfall, and is left out of the
    * plan's averages. What was eaten of it before it was skipped stays on it.
    */
@@ -631,10 +636,12 @@ export const MealPlan = z.object({
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
   targetMacros: Macros,
+  /** Where those averages stand against what the days of the plan aim at, as a day's `offTarget` and `macrosOff` do. */
+  averageOff: z.object({ calories: z.enum(['over', 'under']).nullable(), macros: z.boolean() }),
   ingredientReuseScore: z.number().min(0).max(1),
   /** What the menu, as it is now, buys and uses of packs that do not keep. */
   packs: PlanPacks,
-  /** `deterministic` = engine only; `ai_assisted` = AI-drafted + validated. */
+  /** `ai_assisted` where a meal of the plan holds a model's pick now; `deterministic` otherwise. */
   generationMode: z.enum(['deterministic', 'ai_assisted']),
   /** What the plan was asked for. */
   options: PlanOptions,
@@ -757,6 +764,7 @@ export type PlanCalendar = z.infer<typeof PlanCalendar>;
  * `GET /meal-plans/:id` answers the whole plan.
  */
 export const MealPlanSummary = MealPlan.omit({
+  averageOff: true,
   days: true,
   report: true,
   targetMacros: true,

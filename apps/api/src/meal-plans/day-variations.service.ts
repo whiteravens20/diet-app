@@ -421,14 +421,7 @@ export class DayVariationsService {
           modelReason: offer.picked ? offer.reason : null,
         })),
       });
-      // A plan that holds a model's pick says that a model had a part in it.
-      await tx.mealPlan.update({
-        where: { id: planId },
-        data: {
-          reuseScore: offer.reuse,
-          ...(offer.picked ? { generationMode: 'ai_assisted' as const } : {}),
-        },
-      });
+      await tx.mealPlan.update({ where: { id: planId }, data: { reuseScore: offer.reuse } });
       await this.plans.carryToOtherDays(
         tx,
         cookedWith,

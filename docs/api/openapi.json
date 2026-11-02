@@ -14250,6 +14250,33 @@
           "targetMacros": {
             "$ref": "#/components/schemas/Macros"
           },
+          "averageOff": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "over",
+                      "under"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "macros": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "calories",
+              "macros"
+            ],
+            "additionalProperties": false
+          },
           "ingredientReuseScore": {
             "type": "number",
             "minimum": 0,
@@ -14296,6 +14323,7 @@
           "days",
           "averageDailyNutrition",
           "targetMacros",
+          "averageOff",
           "ingredientReuseScore",
           "packs",
           "generationMode",
@@ -14373,6 +14401,9 @@
               }
             ]
           },
+          "macrosOff": {
+            "type": "boolean"
+          },
           "skipped": {
             "type": "boolean"
           },
@@ -14405,6 +14436,7 @@
           "targetMacros",
           "calorieDelta",
           "offTarget",
+          "macrosOff",
           "skipped",
           "belowSafetyFloor",
           "overrides",

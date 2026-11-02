@@ -318,12 +318,6 @@ export class MealSwapService {
           modelReason: picked?.reason ?? null,
         },
       });
-      // A plan that holds a model's pick says that a model had a part in it.
-      if (picked !== null)
-        await tx.mealPlan.update({
-          where: { id: req.planId },
-          data: { generationMode: 'ai_assisted' },
-        });
       const otherDays = await this.plans.carryDish(tx, together, replacement, today, picked);
       // What the recipe is outside of the meals say for as long as they hold it.
       const report = StoredReport.nullable().parse(meal.day.plan.report ?? null);

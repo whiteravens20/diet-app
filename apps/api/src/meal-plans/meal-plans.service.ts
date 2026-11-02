@@ -49,6 +49,7 @@ import {
   customMacros,
   aimOfDay,
   dayMealCount,
+  macrosOff,
   isoDate,
   isSkipped,
   mealNutrition,
@@ -157,6 +158,7 @@ export class MealPlansService {
                 quantityScale: true,
                 source: true,
                 customMacros: true,
+                modelPicked: true,
                 recipe: { select: amount },
               },
             },
@@ -856,7 +858,7 @@ export class MealPlansService {
       dietType: plan.dietType,
       averageDailyNutrition: averageDay(plan.days),
       ingredientReuseScore: plan.reuseScore,
-      generationMode: plan.generationMode,
+      generationMode: modelHadAPart(plan.days),
       options: PlanOptions.parse(plan.options),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
@@ -991,6 +993,7 @@ export class MealPlansService {
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
+        macrosOff: !skipped && meals.length > 0 && macrosOff(dayNutrition, plan),
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
@@ -998,6 +1001,11 @@ export class MealPlansService {
       };
     });
 
+    const average = averageDay(plan.days);
+    // What the days the plan eats on aim at, each by its own target.
+    const eaten = plan.days.filter((day) => !isSkipped(day));
+    const meanTarget =
+      eaten.reduce((sum, day) => sum + day.calorieTarget, 0) / Math.max(1, eaten.length);
     return {
       id: plan.id,
       profileId: plan.profileId,
@@ -1005,11 +1013,15 @@ export class MealPlansService {
       durationDays: plan.durationDays,
       dietType: plan.dietType,
       days,
-      averageDailyNutrition: averageDay(plan.days),
+      averageDailyNutrition: average,
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
+      averageOff: {
+        calories: standingOf(average.calories, meanTarget, eaten.length === 0).offTarget,
+        macros: eaten.length > 0 && macrosOff(average, plan),
+      },
       ingredientReuseScore: plan.reuseScore,
       packs: planPacks(packed, locale),
-      generationMode: plan.generationMode,
+      generationMode: modelHadAPart(plan.days),
       options,
       report: shownReport(plan.report, days),
       revision: plan.revision,
@@ -1025,8 +1037,14 @@ const SCALE_SLACK = 1e-6;
 
 /** A plan as far as its summary takes: the row, and what its meals amount to. */
 type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
-  days: { overrides: unknown; meals: MealAmount[] }[];
+  days: { overrides: unknown; meals: (MealAmount & { modelPicked: boolean })[] }[];
 };
+
+/** A plan that holds a model's pick says that a model had a part in it. */
+const modelHadAPart = (
+  days: readonly { meals: readonly { modelPicked: boolean }[] }[],
+): MealPlan['generationMode'] =>
+  days.some((day) => day.meals.some((meal) => meal.modelPicked)) ? 'ai_assisted' : 'deterministic';
 
 interface PlanWithRelations {
   id: string;
@@ -1037,7 +1055,6 @@ interface PlanWithRelations {
   calorieTarget: number;
   macroSplit: unknown;
   reuseScore: number;
-  generationMode: 'deterministic' | 'ai_assisted';
   options: unknown;
   report: unknown;
   revision: number;
