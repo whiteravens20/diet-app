@@ -220,8 +220,8 @@
       409
     ],
     "messages": {
-      "en": "This day is over: its settings stay as they were.",
-      "pl": "Ten dzień już minął: jego ustawienia zostają bez zmian."
+      "en": "This day is over: it stays as it was.",
+      "pl": "Ten dzień już minął: zostaje taki, jaki był."
     }
   },
   "DAY_NOT_FOUND": {
@@ -231,6 +231,15 @@
     "messages": {
       "en": "Day not found in this plan.",
       "pl": "Nie znaleziono dnia w tym planie."
+    }
+  },
+  "DAY_SKIPPED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day is skipped: there is no meal on it to change.",
+      "pl": "Ten dzień jest pominięty: nie ma na nim posiłku do zmiany."
     }
   },
   "DIARY_DAY_AHEAD": {
@@ -727,6 +736,15 @@
     "messages": {
       "en": "This meal is marked as eaten and can't be changed. Unmark it first.",
       "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
+    }
+  },
+  "MEAL_NOT_EATEN_YET": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A meal of a day still to come cannot be marked as eaten.",
+      "pl": "Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego."
     }
   },
   "MEAL_NOT_FOUND": {

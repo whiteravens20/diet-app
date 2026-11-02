@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   fitsDiet,
@@ -334,6 +339,13 @@ export class MealPlansService {
       return this.buildRebalanceResult(userId, locale, planId, 'day', null);
     }
     const today = clientToday ?? this.today();
+    // A day still to come is not eaten yet, as the diary holds no day ahead. Dates in this form compare as text.
+    if (eaten && isoDate(meal.day.date) > today) {
+      throw new ConflictException({
+        error: 'MEAL_NOT_EATEN_YET',
+        message: 'A meal of a day still to come cannot be marked as eaten.',
+      });
+    }
     const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: mealId },

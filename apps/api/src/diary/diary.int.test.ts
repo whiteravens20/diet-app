@@ -567,6 +567,7 @@ describe('the diary of a profile', () => {
           .http()
           .patch(`/api/meal-plans/${plan.id}/meals/${mealId}/eaten`)
           .set(as(user))
+          .set('X-Client-Date', day(0))
           .send({ eaten: true })
           .expect(200)
       ).body;
@@ -871,6 +872,7 @@ describe('the diary of a profile', () => {
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${meal.id}/eaten`)
         .set(as(user))
+        .set('X-Client-Date', day(0))
         .send({ eaten: true })
         .expect(200);
       const eaten = (await planOf(plan.id)).days[0]!.meals.find((m) => m.id === meal.id)!;

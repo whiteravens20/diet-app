@@ -82,8 +82,9 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: SwapIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<SwapPreview> {
-    const s = await this.substitution(userId, req);
+    const s = await this.substitution(userId, req, clientToday);
     // The servings of the recipe that are on the plate.
     const portion = s.meal.servings * s.meal.quantityScale;
     const held = (perServing: Nutrition): Nutrition => ({
@@ -138,7 +139,7 @@ export class IngredientSwapService {
     req: SwapIngredientRequest,
     clientToday: string | null = null,
   ): Promise<SwapIngredientResponse> {
-    const s = await this.substitution(userId, req);
+    const s = await this.substitution(userId, req, clientToday);
     const { meal, recipe, facts, lines, restrictions } = s;
     // A substitute a model suggested is taken with the note that came with it, and with no other.
     const picked = this.picks.taken(userId, req.pick, {
@@ -230,9 +231,10 @@ export class IngredientSwapService {
     locale: Locale,
     planId: string,
     plannedMealId: string,
+    clientToday: string | null = null,
     only?: string,
   ): Promise<SubstituteSuggestion[]> {
-    const subject = await this.subject(userId, planId, plannedMealId);
+    const subject = await this.subject(userId, planId, plannedMealId, clientToday);
     const sources = [
       ...new Set(subject.recipe.ingredients.map((line) => line.ingredientId)),
     ].filter((source) => only === undefined || source === only);
@@ -298,8 +300,9 @@ export class IngredientSwapService {
     plannedMealId: string,
     fromIngredientId: string,
     toIngredientId: string,
+    clientToday: string | null = null,
   ): Promise<number | null> {
-    const subject = await this.subject(userId, planId, plannedMealId);
+    const subject = await this.subject(userId, planId, plannedMealId, clientToday);
     if (
       fromIngredientId === toIngredientId ||
       !subject.recipe.ingredients.some((line) => line.ingredientId === fromIngredientId)
@@ -327,10 +330,15 @@ export class IngredientSwapService {
   }
 
   /** The planned meal a substitution is made in: its recipe with every line, and what its plan's profile rules out. */
-  private async subject(userId: string, planId: string, plannedMealId: string) {
+  private async subject(
+    userId: string,
+    planId: string,
+    plannedMealId: string,
+    clientToday: string | null,
+  ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: swappableRecipeOf(meal) },
+      where: { id: swappableRecipeOf(meal, clientToday ?? this.plans.today()) },
       include: {
         ingredients: {
           orderBy: { position: 'asc' },
@@ -352,8 +360,12 @@ export class IngredientSwapService {
    * serving of it holds, and what stands in its way. The preview shows this
    * and the apply writes it, so the two cannot say different things.
    */
-  private async substitution(userId: string, req: SwapIngredientRequest) {
-    const subject = await this.subject(userId, req.planId, req.plannedMealId);
+  private async substitution(
+    userId: string,
+    req: SwapIngredientRequest,
+    clientToday: string | null,
+  ) {
+    const subject = await this.subject(userId, req.planId, req.plannedMealId, clientToday);
     if (req.fromIngredientId === req.toIngredientId) {
       throw new BadRequestException({
         error: 'SAME_INGREDIENT',
@@ -631,9 +643,10 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: AiSuggestIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<AiSuggestIngredientResponse> {
     const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const mealRecipeId = swappableRecipeOf(meal);
+    const mealRecipeId = swappableRecipeOf(meal, clientToday ?? this.plans.today());
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: mealRecipeId },
       include: { ingredients: { orderBy: { position: 'asc' } } },
@@ -729,6 +742,7 @@ export class IngredientSwapService {
         locale,
         req.planId,
         req.plannedMealId,
+        clientToday,
         req.fromIngredientId,
       );
       return (

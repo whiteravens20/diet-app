@@ -121,9 +121,18 @@ export class FavoriteSetsService {
     }
 
     const requested = new Set(req.dayDates);
-    const targetDays = plan.days.filter((d) => requested.has(d.date.toISOString().slice(0, 10)));
-    if (targetDays.length === 0) {
+    const namedDays = plan.days.filter((d) => requested.has(d.date.toISOString().slice(0, 10)));
+    if (namedDays.length === 0) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'No matching day in plan.' });
+    }
+    // A day that has passed keeps what was on it. Dates in this form compare as text.
+    const today = clientToday ?? this.mealPlans.today();
+    const targetDays = namedDays.filter((d) => d.date.toISOString().slice(0, 10) >= today);
+    if (targetDays.length === 0) {
+      throw new ConflictException({
+        error: 'DAY_IN_THE_PAST',
+        message: 'This day is over: its meals stay as they were.',
+      });
     }
 
     // Every recipe of the set passes the same gate as any other way into the

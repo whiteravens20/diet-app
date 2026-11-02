@@ -94,8 +94,13 @@ export class MealSwapService {
   ) {}
 
   /** A recipe to put in the place of a planned meal, and what that would do. Nothing is written. */
-  async preview(userId: string, locale: Locale, req: SwapMealRequest): Promise<MealSwapPreview> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
+  async preview(
+    userId: string,
+    locale: Locale,
+    req: SwapMealRequest,
+    clientToday: string | null = null,
+  ): Promise<MealSwapPreview> {
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
     return this.previewOf(userId, locale, slot, await this.pick(slot, req));
   }
 
@@ -110,8 +115,9 @@ export class MealSwapService {
     userId: string,
     locale: Locale,
     req: AiSwapMealRequest,
+    clientToday: string | null = null,
   ): Promise<AiMealSwapPreview> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
     const { meal, restrictions } = slot;
     const shown = new Set<string>([slot.recipeId, ...slot.history, ...req.skip]);
 
@@ -213,7 +219,7 @@ export class MealSwapService {
     req: ApplyMealSwapRequest,
     clientToday: string | null = null,
   ): Promise<RebalanceResult> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
     const { meal, restrictions } = slot;
     // A model's pick is taken with the note that came with it, and with no other.
     const picked = this.picks.taken(userId, req.pick, {
@@ -285,9 +291,14 @@ export class MealSwapService {
    * The meal a swap is about: its recipe, what it holds, what was offered for
    * it before, what its plan rules out, and the recipes its day holds already.
    */
-  private async slot(userId: string, planId: string, plannedMealId: string) {
+  private async slot(
+    userId: string,
+    planId: string,
+    plannedMealId: string,
+    clientToday: string | null,
+  ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
-    const recipeId = swappableRecipeOf(meal);
+    const recipeId = swappableRecipeOf(meal, clientToday ?? this.plans.today());
     const [restrictions, current, daySlots] = await Promise.all([
       restrictionsFor(this.prisma, meal.day.plan),
       this.prisma.recipe.findUniqueOrThrow({

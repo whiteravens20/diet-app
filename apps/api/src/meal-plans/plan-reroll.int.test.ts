@@ -12,6 +12,7 @@ import { ProfilesService } from '../profiles/profiles.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, TEST_TODAY, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -216,6 +217,7 @@ describe('making a plan again, or a part of it', () => {
 
     it('says what the re-roll then does: the days that get other meals, the meals that give place, and what is kept and why', async () => {
       const breakfast = plan.days[2]!.meals.find((meal) => meal.mealType === 'breakfast')!;
+      plansTodayIs(plan.days[2]!.date);
       const eaten = (await plans.setEaten(user.id, 'en', plan.id, breakfast.id, true)).plan;
 
       const said: RerollPreview = (await preview(eaten).expect(200)).body;
@@ -311,6 +313,7 @@ describe('making a plan again, or a part of it', () => {
         durationDays: 2,
         startDate: isoDate(new Date()),
       });
+      plansTodayIs(plan.days[1]!.date);
       for (const day of plan.days) {
         const breakfast = day.meals.find((meal) => meal.mealType === 'breakfast')!;
         await plans.setEaten(user.id, 'en', plan.id, breakfast.id, true);

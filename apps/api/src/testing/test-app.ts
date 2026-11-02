@@ -16,6 +16,7 @@ import { AnswersCheck, answersAreHeld } from './answers-check.js';
 import { catalogueDirectory } from './catalogue.js';
 import { testDatabaseUrl } from './database.js';
 import { startFakeModel, type FakeModel } from './fake-model.js';
+import { plansToday } from './plans-today.js';
 import { nextSeed } from './seeds.js';
 
 /** The date the application under test takes for today, unless a test sets another. */
@@ -93,9 +94,10 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   await app.init();
   // The plans of the tests start on fixed days of January 2026. For the
   // application under test it is the first of that month, so those days are
-  // ahead of it; a test about days that have passed sets another date.
+  // ahead of it; a test about days that have passed sets another date. For the
+  // service of the plans it is the first of those days (`plans-today.ts`).
   app.get(PlanGenerationService).today = () => TEST_TODAY;
-  app.get(MealPlansService).today = () => TEST_TODAY;
+  app.get(MealPlansService).today = plansToday;
   // A plan is made with a seed of its own. Here the seeds are 1, 2, 3 and on
   // from the start of every test, so that a test makes the same plans each run.
   app.get(PlanGenerationService).nextSeed = nextSeed;

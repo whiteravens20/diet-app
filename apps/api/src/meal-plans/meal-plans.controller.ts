@@ -306,8 +306,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.preview(user.id, locale, dto);
+    return this.swaps.preview(user.id, locale, dto, today);
   }
 
   /** Make a swap that was offered, on the plan as it was when the offer was made. */
@@ -395,8 +396,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.previewWithAi(user.id, locale, dto);
+    return this.swaps.previewWithAi(user.id, locale, dto, today);
   }
 
   /**
@@ -430,8 +432,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSuggestIngredientRequest)) dto: AiSuggestIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.aiSuggestIngredient(user.id, locale, dto);
+    return this.ingredients.aiSuggestIngredient(user.id, locale, dto, today);
   }
 
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
@@ -442,8 +445,9 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.suggestions(user.id, locale, id, mealId);
+    return this.ingredients.suggestions(user.id, locale, id, mealId, today);
   }
 
   /** What swapping an ingredient of a meal for another would do to the meal. Nothing is written. */
@@ -453,8 +457,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.previewIngredientSwap(user.id, locale, dto);
+    return this.ingredients.previewIngredientSwap(user.id, locale, dto, today);
   }
 
   /** Make a substitution: the meal gets a recipe of the account's own, the planned one with the ingredient swapped. */

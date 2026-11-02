@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 164 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 166 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -32,8 +32,9 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `CUSTOM_MEAL_INVALID_MACROS` | 400 | Custom meal macros must be non-negative numbers. | Makroskładniki własnego posiłku muszą być liczbami nieujemnymi. |
 | `CUSTOM_MEAL_NOT_SWAPPABLE` | 400 | Custom meals can't be swapped or have ingredients substituted. | Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika. |
 | `CUSTOM_SPLIT_MISSING` | 400 | The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first. | Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu. |
-| `DAY_IN_THE_PAST` | 409 | This day is over: its settings stay as they were. | Ten dzień już minął: jego ustawienia zostają bez zmian. |
+| `DAY_IN_THE_PAST` | 409 | This day is over: it stays as it was. | Ten dzień już minął: zostaje taki, jaki był. |
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
+| `DAY_SKIPPED` | 409 | This day is skipped: there is no meal on it to change. | Ten dzień jest pominięty: nie ma na nim posiłku do zmiany. |
 | `DIARY_DAY_AHEAD` | 409 | The diary takes today and the year before it, not a day still to come. | Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie. |
 | `DIARY_DAY_FULL` | 409 | The diary holds no more entries for this day: remove some to add others. | Dziennik nie zmieści więcej wpisów na ten dzień: usuń któreś, aby dodać inne. |
 | `DIARY_DAY_TOO_OLD` | 409 | The diary takes new entries at most a year back. | Dziennik przyjmuje nowe wpisy najwyżej rok wstecz. |
@@ -89,6 +90,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `LOCALE_NOT_IN_DRAFT` | 400 | This draft wasn't generated for that locale. | Ten szkic nie został przygotowany w wybranym języku. |
 | `LOCKED_RECIPE_INELIGIBLE` | 400 | A locked recipe can't go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out. | Przypiętego przepisu nie można dodać do tego planu: jest niedostępny albo wyklucza go dieta, alergeny, pomijane składniki lub oznaczenie do unikania. |
 | `MEAL_EATEN` | 409 | This meal is marked as eaten and can't be changed. Unmark it first. | Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie. |
+| `MEAL_NOT_EATEN_YET` | 409 | A meal of a day still to come cannot be marked as eaten. | Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego. |
 | `MEAL_NOT_FOUND` | 404 | Meal not found in this plan. | Nie znaleziono posiłku w tym planie. |
 | `MEAL_NOT_REBALANCEABLE` | 400 | Custom and eaten meals are never rebalanced. | Własne i zjedzone posiłki nie są przeliczane. |
 | `METHOD_NOT_ALLOWED` | 405 | That action is not available here. | Ta operacja nie jest tutaj dostępna. |
