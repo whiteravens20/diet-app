@@ -196,8 +196,8 @@ services:
       # uses `localhost` (correct for `npm run dev`), which would point the
       # worker at itself inside the network.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-    # Same image, different command: runs scheduled tasks (weight-reminder
-    # scan) on a single instance.
+    # Same image, different command: runs scheduled tasks (the weight-reminder
+    # scan, the weekly import of products) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }

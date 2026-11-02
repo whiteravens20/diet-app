@@ -8,9 +8,11 @@ import { HealthModule } from '../health/health.module.js';
 import { IngredientsModule } from '../ingredients/ingredients.module.js';
 import { MailModule } from '../mail/mail.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { ProductSourceModule } from '../products/product-source.module.js';
 import { AdminAccountsController } from './admin-accounts.controller.js';
 import { AdminController } from './admin.controller.js';
 import { AdminHealthService } from './admin-health.service.js';
+import { AdminProductsController } from './admin-products.controller.js';
 import { AdminSecondFactorReset } from './admin-second-factor-reset.js';
 import { AdminSessionController } from './admin-session.controller.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
@@ -34,8 +36,14 @@ import { UsdaImportRunner } from './usda/runner.js';
     MailModule,
     InstanceFilesModule,
     IngredientsModule,
+    ProductSourceModule,
   ],
-  controllers: [AdminController, AdminAccountsController, AdminSessionController],
+  controllers: [
+    AdminController,
+    AdminAccountsController,
+    AdminProductsController,
+    AdminSessionController,
+  ],
   providers: [
     AdminHealthService,
     AdminSecondFactorReset,

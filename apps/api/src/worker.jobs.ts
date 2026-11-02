@@ -10,6 +10,7 @@ import { runAlone } from './common/job-lock.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
 import { PrismaService } from './prisma/prisma.service.js';
+import { ProductImport } from './products/product-import.js';
 import { PersonalRecipesService } from './recipes/personal-recipes.service.js';
 import { recordWorkerPass } from './common/worker-pass.js';
 
@@ -31,6 +32,7 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
   const secondFactor = app.get(AccountSecondFactor);
   const browsers = app.get(BrowserSignIn);
   const prisma = app.get(PrismaService);
+  const products = app.get(ProductImport);
 
   return [
     ['weight-reminder scan', () => weightReminders.scan()],
@@ -67,6 +69,13 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
         const removed = await pruneIdempotencyKeys(prisma);
         if (removed > 0)
           logger.log(`Removed ${removed} key(s) of additions sent more than a week ago.`);
+      },
+    ],
+    [
+      'removal of what no longer counts of the lookups of products',
+      async () => {
+        const removed = await products.prune();
+        if (removed > 0) logger.log(`Removed ${removed} counted lookup(s) and remembered code(s).`);
       },
     ],
   ];
