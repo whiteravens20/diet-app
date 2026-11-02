@@ -9746,6 +9746,15 @@
           "calorieTarget": {
             "type": "number"
           },
+          "targetMacros": {
+            "$ref": "#/components/schemas/Macros"
+          },
+          "outsideLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanRelaxation"
+            }
+          },
           "revision": {
             "type": "integer",
             "minimum": 0
@@ -9772,6 +9781,8 @@
           "dayBefore",
           "dayAfter",
           "calorieTarget",
+          "targetMacros",
+          "outsideLimits",
           "revision",
           "aiMeta",
           "pick"
@@ -14443,6 +14454,15 @@
           "calorieTarget": {
             "type": "number"
           },
+          "targetMacros": {
+            "$ref": "#/components/schemas/Macros"
+          },
+          "outsideLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanRelaxation"
+            }
+          },
           "revision": {
             "type": "integer",
             "minimum": 0
@@ -14456,6 +14476,8 @@
           "dayBefore",
           "dayAfter",
           "calorieTarget",
+          "targetMacros",
+          "outsideLimits",
           "revision"
         ],
         "additionalProperties": false
@@ -19973,6 +19995,12 @@
               "$ref": "#/components/schemas/MovedNutrient"
             }
           },
+          "outsideLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanRelaxation"
+            }
+          },
           "valid": {
             "type": "boolean"
           }
@@ -19988,6 +20016,7 @@
           "merged",
           "violations",
           "moved",
+          "outsideLimits",
           "valid"
         ],
         "additionalProperties": false

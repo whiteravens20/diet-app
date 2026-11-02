@@ -1,7 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
-import type { MealType } from '@diet-app/shared';
+import type { DietType, Macros, MealType } from '@diet-app/shared';
+import { storedSplit } from '../common/stored-split.js';
+import { macrosForCalories, sharesOf } from '../engine/nutrition.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 
 /**
@@ -96,6 +98,10 @@ export function sumNutrition(items: Amounts[]): Amounts {
     },
   );
 }
+
+/** What a day of a plan aims at of protein, fat and carbohydrate, in grams, as the plan says it. */
+export const aimOfDay = (target: number, plan: { dietType: string; macroSplit: unknown }): Macros =>
+  macrosForCalories(target, plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
 
 /** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */
 export function isSkipped(day: { overrides: unknown }): boolean {

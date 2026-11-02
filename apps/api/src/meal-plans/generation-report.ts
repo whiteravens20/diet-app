@@ -70,6 +70,27 @@ export function withDaysAgain(
   };
 }
 
+/**
+ * A report that says one more meal is outside limits of its plan: a recipe put
+ * on it after the plan was made, by hand or for want of another. What it said
+ * of that recipe on that meal before gives way.
+ */
+export function withMealOutside(
+  kept: StoredReport,
+  meal: StoredReport['relaxations'][number],
+): StoredReport {
+  return {
+    ...kept,
+    relaxations: [
+      ...kept.relaxations.filter(
+        (entry) =>
+          entry.date !== meal.date || entry.slot !== meal.slot || entry.recipeId !== meal.recipeId,
+      ),
+      meal,
+    ],
+  };
+}
+
 /** What a kept report still says of the plan as it is, in the order of its days and meals. */
 export function shownReport(kept: unknown, days: readonly MealPlanDay[]): GenerationReport | null {
   const report = StoredReport.nullable().parse(kept ?? null);

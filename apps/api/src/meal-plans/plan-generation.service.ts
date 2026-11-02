@@ -14,7 +14,6 @@ import {
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
-  ProteinKind,
   RegenerateDayRequest,
   RegenerateRequest,
   type DayOverride,
@@ -51,7 +50,6 @@ import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { storedKindLimits } from '../common/stored-kind-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -62,6 +60,7 @@ import {
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
+import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import { readReroll, rerollDayOf, rerollOutcome } from './reroll-reading.js';
 
@@ -704,16 +703,7 @@ export class PlanGenerationService {
       }
     }
 
-    // When mealPrepFriendly is set on the request, relax the profile's caps
-    // up to a generous baseline (4 consecutive days, 5 occurrences/week) —
-    // the user is asking for cook-once-eat-many, so honour their intent even
-    // if their profile defaults skew strict.
-    const profileCons = profile.preferences?.maxConsecutiveDaysSameMeal ?? 2;
-    const profileWeek = profile.preferences?.maxTimesPerWeekSameMeal ?? 3;
-    const maxConsecutiveDaysSameMeal = opts.mealPrepFriendly
-      ? Math.max(profileCons, 4)
-      : profileCons;
-    const maxTimesPerWeekSameMeal = opts.mealPrepFriendly ? Math.max(profileWeek, 5) : profileWeek;
+    const caps = capsOnARecipe(profile.preferences, opts.mealPrepFriendly);
 
     const days: OptimizerDay[] = opts.days.map((d) => ({
       mealSlots: d.mealSlots,
@@ -739,8 +729,8 @@ export class PlanGenerationService {
         dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
         preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
         inventoryCoverage,
-        maxConsecutiveDaysSameMeal,
-        maxTimesPerWeekSameMeal,
+        maxConsecutiveDaysSameMeal: caps.consecutive,
+        maxTimesPerWeekSameMeal: caps.perWeek,
         // A plan that names no number is held to the operator's, where one is set.
         maxRepeatsPerRecipe:
           opts.maxRepeatsPerRecipe ??
@@ -1229,31 +1219,6 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
   const next: DayOverridesJson = { ...day.overrides, lockedSlots: kept };
   if (kept.length === 0) delete next.lockedSlots;
   day.overrides = Object.keys(next).length > 0 ? next : null;
-}
-
-/**
- * The most meals of a day and of seven days that may hold each kind of
- * protein: a kind's own numbers where the profile gives it some, the
- * profile's two for every kind where it does not. A kind with neither is left
- * out, and with it the limit.
- */
-function mealsPerKind(
-  preferences: {
-    maxMealsPerDaySameKind: number | null;
-    maxMealsPerWeekSameKind: number | null;
-    kindLimits: unknown;
-  } | null,
-): Map<ProteinKind, { perDay?: number; perWeek?: number }> {
-  const own = new Map(
-    storedKindLimits(preferences?.kindLimits).map((limit) => [limit.kind, limit]),
-  );
-  const limits = new Map<ProteinKind, { perDay?: number; perWeek?: number }>();
-  for (const kind of ProteinKind.options) {
-    const perDay = own.get(kind)?.perDay ?? preferences?.maxMealsPerDaySameKind ?? undefined;
-    const perWeek = own.get(kind)?.perWeek ?? preferences?.maxMealsPerWeekSameKind ?? undefined;
-    if (perDay !== undefined || perWeek !== undefined) limits.set(kind, { perDay, perWeek });
-  }
-  return limits;
 }
 
 /**

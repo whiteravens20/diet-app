@@ -11,9 +11,7 @@ import {
   fitsDiet,
   PlanOptions,
   type AddCustomMealRequest,
-  type DietType,
   type Locale,
-  type Macros,
   type MealPlan,
   type MealPlanDay,
   type MealPlanPage,
@@ -43,6 +41,7 @@ import { storedSplit } from '../common/stored-split.js';
 import {
   averageDay,
   customMacros,
+  aimOfDay,
   dayMealCount,
   isoDate,
   isSkipped,
@@ -939,10 +938,6 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   locked: r.locked,
   macros: { protein: r.per.protein, fat: r.per.fat, carbs: r.per.carbs },
 });
-
-/** What a day of a plan aims at of protein, fat and carbohydrate, in grams, as the plan says it. */
-const aimOfDay = (target: number, plan: { dietType: string; macroSplit: unknown }): Macros =>
-  macrosForCalories(target, plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
 
 /** Sum the effective macros of meals given a per-meal scale lookup. */
 function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number): MacroQuad {

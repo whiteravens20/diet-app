@@ -949,6 +949,8 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     dayBefore: plan.days[0]!.dayNutrition,
     dayAfter: { calories: 240, protein: 14, fat: 9, carbs: 26 },
     calorieTarget: 2000,
+    targetMacros: plan.days[0]!.targetMacros,
+    outsideLimits: [],
     revision: 0,
   });
   const scramble = anOffer('66666666-6666-4666-8666-666666666666', 'Tofu scramble');

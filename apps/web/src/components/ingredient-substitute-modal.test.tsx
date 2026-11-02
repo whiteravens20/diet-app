@@ -40,6 +40,7 @@ const aPreview = (over: Partial<SwapPreview> = {}): SwapPreview => ({
   merged: false,
   violations: [],
   moved: [],
+  outsideLimits: [],
   valid: true,
   ...over,
 });

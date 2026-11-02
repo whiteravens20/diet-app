@@ -340,7 +340,7 @@ interface KindMeals {
 }
 
 /** `KindMeals` for `day`, from the day of each meal that holds the kind. */
-function kindMealsAround(days: readonly number[], day: number): KindMeals {
+export function kindMealsAround(days: readonly number[], day: number): KindMeals {
   let onTheDay = 0;
   for (const d of days) if (d === day) onTheDay += 1;
   let inSevenDays = 0;
@@ -685,7 +685,7 @@ function fill(
 
 /** The limits a recipe would break if it were placed at this meal. */
 function broken(
-  recipe: OptimizerRecipe,
+  recipe: Pick<OptimizerRecipe, 'id' | 'totalMinutes' | 'proteinKinds'>,
   at: {
     day: number;
     /** The meals of the plan so far that hold a recipe. */
@@ -747,6 +747,8 @@ function broken(
   }
   return out;
 }
+
+export { broken as limitsBroken };
 
 /** What a recipe inside every limit breaks: the same list for all of them, which nobody adds to. */
 const WITHIN_EVERY_LIMIT: readonly Relaxation[] = [];

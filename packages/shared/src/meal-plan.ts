@@ -817,6 +817,9 @@ export const MealSwapPreview = z.object({
   dayAfter: Nutrition,
   /** What the day aims at. */
   calorieTarget: z.number(),
+  targetMacros: Macros,
+  /** The limits of the plan the recipe is outside of on this meal: only where no other is left, or it was picked by hand. */
+  outsideLimits: z.array(PlanRelaxation),
   /** The revision of the plan the offer was made from: sent back to make the swap. */
   revision: z.number().int().min(0),
 });
@@ -1119,6 +1122,8 @@ export const SwapPreview = z.object({
   violations: z.array(SubstitutionViolation),
   /** What of a serving moves by more than a tenth: applying then needs `acceptChange`. */
   moved: z.array(MovedNutrient),
+  /** The limits of the plan the recipe it would leave is outside of on this meal: no bar to it, and said. */
+  outsideLimits: z.array(PlanRelaxation),
   /** No violation stands in the way. */
   valid: z.boolean(),
 });

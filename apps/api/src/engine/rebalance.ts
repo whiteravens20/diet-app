@@ -119,7 +119,7 @@ const ON_TARGET = 0.02;
 const NOTHING_MUCH = 0.01;
 
 /** How far what a day holds is from what it aims at, in kcal of protein, fat and carbohydrate. */
-const energyAway = (held: Macros, aim: Macros): number =>
+export const energyAway = (held: Macros, aim: Macros): number =>
   KCAL_PER_GRAM.protein * Math.abs(held.protein - aim.protein) +
   KCAL_PER_GRAM.fat * Math.abs(held.fat - aim.fat) +
   KCAL_PER_GRAM.carbs * Math.abs(held.carbs - aim.carbs);
