@@ -18,7 +18,7 @@ When you add a key of an AI provider in Settings, the instance stores it encrypt
 
 ## 4. Not medical advice
 
-Every calorie and macronutrient value of a recipe and a meal plan is computed from a curated ingredient database; a meal of your own carries the values you typed in. The values are estimates and have not been checked for any medical or therapeutic purpose.
+Every calorie and macronutrient value of a recipe and a meal plan is computed from a curated ingredient database; a meal of your own carries the values you typed in, and a product with a barcode the values of its label, as the users of Open Food Facts give them. The values are estimates and have not been checked for any medical or therapeutic purpose.
 
 A profile's calorie target and pace of weight loss are worked out from an equation for adults, from age, sex, height, weight and activity. They are an approximation for a healthy adult: the application knows nothing of your health, does not diagnose or treat anything and does not replace a doctor or a dietitian.
 
@@ -29,7 +29,7 @@ Before you start losing weight or change your diet, ask a doctor or a dietitian 
 - you have an eating disorder, now or in the past;
 - you have a long-term illness (such as diabetes or kidney disease), or take medicines that your diet affects.
 
-If you feel unwell while following a plan, stop and see a doctor. You follow the diet, targets and plans of the application at your own risk. The operator is not liable for damage that comes of following them, within the limits set out in section 9.
+If you feel unwell while following a plan, stop and see a doctor. You follow the diet, targets and plans of the application at your own risk. The operator is not liable for damage that comes of following them, within the limits set out in section 10.
 
 ## 5. Content written with AI
 
@@ -47,10 +47,14 @@ Your account holds your email address, which the instance keeps encrypted, and y
 
 [Delete this section if the instance does not use Cloudflare Turnstile.] Signing in, signing up and resetting a password are protected by Cloudflare Turnstile. On those pages your browser loads Cloudflare's check, so Cloudflare sees your IP address and details of your browser.
 
-## 9. Liability
+## 9. Products with a barcode
+
+[Remove this section if the instance neither checks codes nor imports products.] A barcode you scan or type is checked by this instance: first in its own table of products, and where it is not there, by asking Open Food Facts in the instance's own name. Open Food Facts sees the instance's server, not you. The instance does not keep with your account which codes you ask about, only that a question was asked, and removes that record after a day. An entry of a product in your diary is part of your data. The values of products are written by the users of Open Food Facts and may be wrong: the application only checks whether they add up, so compare them with the pack. The data of Open Food Facts is available under the Open Database License (ODbL), and this instance's table of products is offered under the same licence, as described under these terms.
+
+## 10. Liability
 
 [The operator's liability, as far as the law that applies to them allows them to limit it.]
 
-## 10. Changes
+## 11. Changes
 
 These terms may change. [How the operator announces a change: by email, or by a notice in the application.] Using the instance after a change has been published means accepting it.

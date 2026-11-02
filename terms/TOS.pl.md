@@ -18,7 +18,7 @@ Gdy dodasz w Ustawieniach klucz dostawcy AI, instancja przechowuje go zaszyfrowa
 
 ## 4. To nie porada medyczna
 
-Każda wartość kalorii i makroskładników przepisu i planu posiłków jest wyliczana z prowadzonej bazy składników; posiłek własny ma wartości, które sam wpisujesz. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych.
+Każda wartość kalorii i makroskładników przepisu i planu posiłków jest wyliczana z prowadzonej bazy składników; posiłek własny ma wartości, które sam wpisujesz, a produkt z kodem kreskowym wartości z etykiety, które podają użytkownicy Open Food Facts. To wartości przybliżone, niesprawdzane pod kątem żadnych zastosowań medycznych ani terapeutycznych.
 
 Cel kaloryczny profilu i tempo utraty wagi są wyliczane ze wzoru dla dorosłych na podstawie wieku, płci, wzrostu, wagi i aktywności. To przybliżenie dla zdrowej osoby dorosłej: aplikacja nie zna Twojego stanu zdrowia, niczego nie diagnozuje ani nie leczy i nie zastępuje lekarza ani dietetyka.
 
@@ -29,7 +29,7 @@ Zanim zaczniesz odchudzanie albo zmienisz dietę, zapytaj lekarza lub dietetyka,
 - masz zaburzenia odżywiania teraz albo w przeszłości;
 - chorujesz przewlekle (na przykład na cukrzycę albo choroby nerek) albo przyjmujesz leki, na które wpływa dieta.
 
-Jeśli podczas diety źle się poczujesz, przerwij ją i skontaktuj się z lekarzem. Z diety, celów i planów aplikacji korzystasz na własną odpowiedzialność. Operator nie odpowiada za szkody wynikające z ich stosowania, w granicach opisanych w punkcie 9.
+Jeśli podczas diety źle się poczujesz, przerwij ją i skontaktuj się z lekarzem. Z diety, celów i planów aplikacji korzystasz na własną odpowiedzialność. Operator nie odpowiada za szkody wynikające z ich stosowania, w granicach opisanych w punkcie 10.
 
 ## 5. Treści tworzone z pomocą AI
 
@@ -47,10 +47,14 @@ Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, ora
 
 [Usuń tę sekcję, jeśli instancja nie korzysta z Cloudflare Turnstile.] Logowanie, rejestrację i reset hasła chroni Cloudflare Turnstile. Na tych stronach przeglądarka ładuje weryfikację Cloudflare, więc Cloudflare widzi Twój adres IP i dane przeglądarki.
 
-## 9. Odpowiedzialność
+## 9. Produkty z kodem kreskowym
+
+[Usuń tę sekcję, jeśli instancja nie sprawdza kodów ani nie importuje produktów.] Kod kreskowy, który zeskanujesz albo wpiszesz, sprawdza ta instancja: najpierw we własnej tabeli produktów, a jeśli go tam nie ma, pyta Open Food Facts we własnym imieniu. Open Food Facts widzi serwer instancji, nie Ciebie. Instancja nie zapisuje przy Twoim koncie, o jakie kody pytasz, a jedynie to, że pytanie padło, i usuwa ten zapis po dobie. Wpis produktu w dzienniku należy do Twoich danych. Wartości produktów wpisują użytkownicy Open Food Facts i mogą być błędne: aplikacja sprawdza tylko, czy się zgadzają, więc porównaj je z opakowaniem. Dane Open Food Facts są dostępne na licencji Open Database License (ODbL), a tabela produktów tej instancji jest udostępniana na tej samej licencji, jak opisano pod regulaminem.
+
+## 10. Odpowiedzialność
 
 [Odpowiedzialność operatora, w granicach, w jakich prawo, które go dotyczy, pozwala ją ograniczyć.]
 
-## 10. Zmiany
+## 11. Zmiany
 
 Ten regulamin może się zmieniać. [Jak operator ogłasza zmianę: e-mailem albo komunikatem w aplikacji.] Korzystanie z instancji po ogłoszeniu zmiany oznacza jej akceptację.

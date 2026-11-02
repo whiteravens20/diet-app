@@ -111,8 +111,8 @@ describe('the template that comes with the application', () => {
   it('is in English and in Polish, with the same sections', () => {
     expect(template).not.toBeNull();
     expect(Object.keys(template?.translations ?? {})).toEqual(['pl']);
-    expect(template?.terms.outline).toHaveLength(10);
-    expect(template?.translations.pl.outline).toHaveLength(10);
+    expect(template?.terms.outline).toHaveLength(11);
+    expect(template?.translations.pl.outline).toHaveLength(11);
   });
 
   it('says in both languages that it is a template, and names the check Cloudflare runs', () => {

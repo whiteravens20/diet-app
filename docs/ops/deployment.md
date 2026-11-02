@@ -85,6 +85,10 @@ Load them on the first run, in the admin panel:
 3. Click **Update database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 
+Products with a barcode need nothing here: a code is asked about when somebody scans it. To
+have the products of your country at hand, name it: see
+[Products with a barcode](#products-with-a-barcode).
+
 CLI alternative (the image ships no npm, so the seed runs through its binary):
 `docker compose ... exec -w /app/apps/api api /app/node_modules/.bin/tsx prisma/seed.ts`.
 
@@ -457,6 +461,78 @@ mounted directory is `terms/` of the checkout, and you write your terms there.
 Raw HTML in the files is shown as text, and a link or a picture keeps its address only when
 it is a web or mail address or a path of the site.
 
+## Products with a barcode
+
+The diary takes products by their barcode or name, with the figures of their label, from
+[Open Food Facts](https://world.openfoodfacts.org). They reach the instance in two ways, and
+both are in the panel's Catalogue tab, with how the last import went, country by country.
+
+**A code asked about alone.** A code the instance does not hold is asked of Open Food Facts when
+somebody scans or types it. The request goes out in the instance's name
+(`DietApp/<version> (<OPERATOR_CONTACT, or the project's page>)`) and carries only the code: Open
+Food Facts sees the server and never who asked. `OPEN_FOOD_FACTS_LOOKUPS=false` turns this off.
+The limits below are part of the application: the instance's stays under the 15 product reads
+a minute Open Food Facts allows one address.
+
+| What is asked of Open Food Facts | The most                                       |
+| -------------------------------- | ---------------------------------------------- |
+| By an account                    | 5 a minute, 100 in 24 hours                    |
+| By the whole instance            | 12 a minute                                    |
+| The same code, once not known    | Not again for 7 days                           |
+| A product no import brings       | Read again after 30 days, when it is asked for |
+
+What the instance holds or remembers as not known counts against none of these, only against
+the route's own 30 a minute. A search by name looks at nothing but the instance's own table. An
+account can take up to 5 of the instance's 12 a minute, so a few accounts can keep new codes
+waiting for as long as their daily 100 last, which is about 20 minutes each; what the instance
+holds keeps working meanwhile. The instance keeps that an account asked, and when, for a day,
+and never which code.
+
+**An import of countries.** `OPEN_FOOD_FACTS_COUNTRIES=poland,germany` names the countries, as
+Open Food Facts writes them in the address of a country's page
+(`world.openfoodfacts.org/country/united-kingdom`). The worker reads Open Food Facts' whole export
+once a week, between 2:00 and 5:00 by the server's clock, and the panel's **Import now** starts it
+within a minute, at most once in 24 hours for the same countries. A first import waits for one
+of the two.
+
+The export is streamed and not kept: about 1.5 GB comes in and 14 GB of text goes through the
+worker, whichever countries are named. What the run keeps stays in one transaction until the
+end, so the products change all at once or not at all: a file cut short, columns this version
+does not read, no product of the countries named, or less than half of what the last run of the
+same countries brought, and nothing changes while the panel says why. A country that brought
+nothing is named there; it is usually misspelt (`czech-republic`, not `czechia`). A product
+without a usable code, a name or figures is left out and counted. What leaves the export goes
+from the table, and an entry of a diary keeps the figures it was written with.
+
+What it takes, measured in November 2026 on PostgreSQL's own settings, with all that a country's
+products bring (Germany 239926, France 887023, the United States 778234, Spain about 248000, Italy
+about 217000, the United Kingdom about 152000, Poland 24690):
+
+| Countries             | Products | A first run | In the database |
+| --------------------- | -------- | ----------- | --------------- |
+| Poland, Germany       | 263561   | 1.5 minutes | 127 MB          |
+| France, United States | 1660258  | 5.5 minutes | 746 MB          |
+
+That is about half a gigabyte for a million products, the index of the search included. A run that
+finds nothing new writes nothing and takes as long as reading does, 1.5 minutes on that machine,
+with a fast connection; a slow one takes as long as 1.5 GB takes. The worker holds up to about 350 MB
+while it reads, which it would give back under a smaller heap: it also finished within
+`--max-old-space-size=128`, in twice the time. A search takes a few milliseconds, and up to 200 ms for a
+word that hundreds of thousands of products hold.
+
+**The figures are those of a label.** People write them, so the instance checks whether they can
+be right. A figure that cannot be (over 100 g in 100 g, over 900 kcal) counts as unknown. A product
+whose energy lies more than 40 kcal and a fifth from what its figures come to is shown with a note
+to check the label. They are for the diary alone: nothing enters a recipe or a plan.
+
+**The licence.** The database of Open Food Facts is under the
+[Open Database License](https://opendatacommons.org/licenses/odbl/1-0/) and its contents under the
+[Database Contents License](https://opendatacommons.org/licenses/dbcl/1-0/). Where a product is
+shown, the application says where it comes from, and the page of the terms says so under what an
+operator writes. The instance's table is a part of that database, offered under the same licence:
+what it holds is what the export holds, and how it is chosen is in this repository
+(`apps/api/src/products`).
+
 ## A copy of the instance's own files
 
 What the instance added to its catalogue lives in its database, and in the files written
@@ -537,11 +613,16 @@ Once when it starts and every hour after that it:
 - removes personal recipes that were deleted, once nothing uses them any more;
 - removes the tokens of sessions that have ended, and links and sign-in challenges that
   were used or have expired;
+- removes what no longer counts of the lookups of products: that an account asked, after a
+  day, and that a code was not known, after a week;
 - seals stored addresses and provider keys for the account each belongs to, which finds
   something to do only after a database from before that was done has been restored.
 
 A job that fails is logged as `<job> failed: <reason>`, does not keep the others from
 running, and is tried again an hour later.
+
+Beside that pass it looks once a minute at whether the [import of products](#products-with-a-barcode)
+is due, on an instance that names countries; however long it reads, the pass goes on without it.
 
 One worker is enough, and a second one does no harm. Each job holds a lock of the
 database's for as long as it runs, so a second worker, or an old one that is still up
