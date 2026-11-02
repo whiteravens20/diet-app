@@ -21,10 +21,17 @@ import type { Kind } from './curation/shared';
 import { InstanceFilesCard, mirrorNeedsAttention } from './instance-files-card';
 import { OperatorAiCard } from './operator-ai-card';
 import { OverviewTab } from './overview-tab';
+import { ProductsCard, productImportNeedsAttention } from './products-card';
 import { RetiredIngredientsCard } from './retired-ingredients-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import { UsdaImportCard } from './usda-import-card';
-import { adminApi, type AdminHealth, type AdminOverview, type AdminStats } from '@/lib/admin-api';
+import {
+  adminApi,
+  type AdminHealth,
+  type AdminOverview,
+  type AdminProducts,
+  type AdminStats,
+} from '@/lib/admin-api';
 
 type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
 
@@ -269,6 +276,7 @@ function ReadyPanel({
   const [{ tab, kind }, setPlace] = useState(fromAddress);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [retired, setRetired] = useState(0);
+  const [products, setProducts] = useState<AdminProducts | null>(null);
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [healthFailed, setHealthFailed] = useState(false);
 
@@ -285,6 +293,7 @@ function ReadyPanel({
       (ingredients) => setRetired(ingredients.length),
       () => undefined,
     );
+    await adminApi.products().then(setProducts, () => undefined);
   }, []);
 
   useEffect(() => {
@@ -324,7 +333,10 @@ function ReadyPanel({
       overview.recipes.approved
     : 0;
   const catalogueAttention =
-    stats.seed.updateAvailable || retired > 0 || mirrorNeedsAttention(overview?.mirror);
+    stats.seed.updateAvailable ||
+    retired > 0 ||
+    mirrorNeedsAttention(overview?.mirror) ||
+    productImportNeedsAttention(products);
 
   const tabs: TabItem<TabId>[] = [
     {
@@ -335,6 +347,7 @@ function ReadyPanel({
           stats={stats}
           overview={overview}
           retired={retired}
+          products={products}
           health={health}
           healthFailed={healthFailed}
           onRefresh={() => {
@@ -374,6 +387,7 @@ function ReadyPanel({
             onRestored={reload}
           />
           <UsdaImportCard onFinished={onReload} />
+          <ProductsCard products={products} onChanged={setProducts} />
           <RetiredIngredientsCard onChanged={loadOverview} />
           <CoverageCard
             coverage={stats.coverage}

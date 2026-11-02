@@ -12,6 +12,7 @@ import type {
   AdminSessionState,
   AdminHealth,
   AdminOverview,
+  AdminProducts,
   AdminStats,
   AdminStatus,
   CatalogueUpdateState,
@@ -52,6 +53,7 @@ export type {
   AdminHealth,
   AdminOperatorAi,
   AdminOverview,
+  AdminProducts,
   AdminStats,
   AdminStatus,
   DraftRunnerState,
@@ -219,6 +221,8 @@ export const adminApi = {
       { method: 'POST' },
     ),
   usdaImportStatus: () => adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
+  products: () => adminFetch<AdminProducts>('/products'),
+  askForProductImport: () => adminFetch<void>('/products/import', { method: 'POST' }),
 
   // Drafts: ingredient-name
   startIngredientNamer: (spec: IngredientNameGenerateSpec) =>
