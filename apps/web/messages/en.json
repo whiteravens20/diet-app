@@ -1807,7 +1807,9 @@
     "planAverageMacros": "The plan's average macronutrients are far from its target.",
     "resizeDayNotePlain": "Gives the meals from recipes not eaten yet other portions, to bring the day as near its target as they can.",
     "eatenAhead": "A meal can be marked as eaten on its day.",
-    "dayIsOver": "This day is over: its dishes stay. You can mark what was eaten, add a meal of your own or remove a meal."
+    "dayIsOver": "This day is over: its dishes stay. You can mark what was eaten, add a meal of your own or remove a meal.",
+    "prepCannotPair": "With these settings no dish can come back the next day, so cooking ahead changes nothing here.",
+    "overlapNote": "Another plan holds some of these days. Both stay, and the diary reads the meals of the newer one."
   },
   "inventory": {
     "title": "Inventory",

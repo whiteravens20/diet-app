@@ -1807,7 +1807,9 @@
     "planAverageMacros": "Średnie makroskładniki tego planu są daleko od celu.",
     "resizeDayNotePlain": "Daje niezjedzonym posiłkom z przepisów inne porcje, żeby dzień jak najbardziej zbliżył się do celu.",
     "eatenAhead": "Posiłek oznaczysz jako zjedzony w jego dniu.",
-    "dayIsOver": "Ten dzień minął: jego dania zostają. Możesz oznaczyć, co zjedzone, dodać własny posiłek albo usunąć posiłek."
+    "dayIsOver": "Ten dzień minął: jego dania zostają. Możesz oznaczyć, co zjedzone, dodać własny posiłek albo usunąć posiłek.",
+    "prepCannotPair": "Przy tych ustawieniach żadne danie nie wróci następnego dnia, więc gotowanie na zapas niczego tu nie zmieni.",
+    "overlapNote": "W wybrane dni jest już inny plan. Oba zostaną, a dziennik będzie czytał posiłki z nowszego."
   },
   "inventory": {
     "title": "Spiżarnia",

@@ -32,7 +32,7 @@ import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
-import { planDates } from '@/lib/plan-dates';
+import { dayAfter, planDates } from '@/lib/plan-dates';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -137,6 +137,7 @@ function MealPlansContent() {
   const [startDate, setStartDate] = useState(() => localDate());
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
+  const [cookAhead, setCookAhead] = useState(false);
   // What this plan is made for where it differs from the profile: empty means "as the profile has it".
   const [diet, setDiet] = useState<DietType | ''>('');
   const [mealCount, setMealCount] = useState<number | ''>('');
@@ -172,6 +173,24 @@ function MealPlansContent() {
     enabled: Boolean(activeId),
   });
   const formOpen = formAsked ?? (plans.data?.total === 0 && !status && !from && !to);
+  // The days the new plan would hold: what is said of them is worked out from them, or asked once the form is open.
+  const newDays = durationDays >= 1 && durationDays <= 28 ? planDates(startDate, durationDays) : [];
+  const newPlainDays = newDays.filter((day) => advanced.days[day]?.dayKind !== 'skip');
+  const cannotPair =
+    cookAhead &&
+    newDays.length > 0 &&
+    (advanced.maxRepeats === 1 ||
+      !newPlainDays.some(
+        (day, index) => index > 0 && dayAfter(newPlainDays[index - 1]!, 1) === day,
+      ));
+  const overThem = useQuery({
+    queryKey: ['meal-plans', activeId, 'over', newDays[0], newDays.at(-1)],
+    queryFn: () =>
+      api.get<MealPlanPage>(
+        `/meal-plans?${new URLSearchParams({ profileId: activeId!, from: newDays[0]!, to: newDays.at(-1)! })}`,
+      ),
+    enabled: Boolean(activeId) && formOpen && newDays.length > 0,
+  });
   const opened = useQuery({
     queryKey: ['meal-plan', openPlan],
     queryFn: () => api.get<MealPlan>(`/meal-plans/${openPlan}`),
@@ -500,7 +519,7 @@ function MealPlansContent() {
       ...(diet ? { dietType: diet } : {}),
       ...(mealCount ? { mealCount } : {}),
       ...(calorieTarget.trim() ? { calorieTargetOverride: Number(calorieTarget) } : {}),
-      mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
+      mealPrepFriendly: cookAhead,
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: f.get('respectInventory') === 'on',
@@ -614,6 +633,8 @@ function MealPlansContent() {
                     type="checkbox"
                     className="h-4 w-4"
                     aria-describedby="meal-prep-hint"
+                    checked={cookAhead}
+                    onChange={(e) => setCookAhead(e.target.checked)}
                   />
                   {t('mealPrepFriendly')}
                 </label>
@@ -622,6 +643,10 @@ function MealPlansContent() {
                 </p>
               </div>
             </div>
+            {cannotPair && <p className="text-xs text-warning">{t('prepCannotPair')}</p>}
+            {(overThem.data?.total ?? 0) > 0 && (
+              <p className="text-xs text-warning">{t('overlapNote')}</p>
+            )}
             {active && (
               <div className="space-y-1">
                 <div className="grid gap-4 sm:grid-cols-3">
