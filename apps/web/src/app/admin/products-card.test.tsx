@@ -87,8 +87,11 @@ describe('the card of products in the panel', () => {
       countries: ['poland', 'czechia'],
       import: { ...IMPORTED.import, perCountry: { poland: 24690, czechia: 0 } },
     });
-    expect(screen.getByText(/czechia brought no product/)).toBeInTheDocument();
-    expect(screen.getByText(/world\.openfoodfacts\.org\/country\/czechia/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'czechia brought no product. Write it as in the address of its page: world.openfoodfacts.org/country/czechia.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/poland brought no product/)).not.toBeInTheDocument();
   });
 
