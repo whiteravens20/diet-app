@@ -202,6 +202,10 @@ export const AdminProducts = z.object({
     lookedUp: z.number().int().min(0),
     /** Codes remembered as ones Open Food Facts does not know. */
     unknownCodes: z.number().int().min(0),
+    /** Written by people and accepted by the instance. */
+    accepted: z.number().int().min(0),
+    /** Sent by people and waiting for review. */
+    waiting: z.number().int().min(0),
   }),
   /** The lookups of the last 24 hours, of every account. */
   lookupsToday: z.number().int().min(0),
