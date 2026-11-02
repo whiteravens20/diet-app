@@ -142,13 +142,17 @@
     "subhead": "Plany dopasowane do celu kalorycznego, dokładne wartości odżywcze i listy zakupów, które piszą się same. AI do wyboru — nigdy obowiązkowe.",
     "getStarted": "Zacznij",
     "signIn": "Zaloguj się",
+    "yours": {
+      "title": "Wymień, co Ci nie pasuje",
+      "body": "To Ty prowadzisz swoją dietę i plan: wymieniasz posiłki i składniki, zmieniasz pojedyncze dni, jesz coś spoza planu. Plan mówi, co to zmienia i dopasowuje porcje reszty dnia."
+    },
     "features": {
       "controlTitle": "Twoja dieta, Twoje zasady",
       "controlBody": "Kontroluj swoją dietę i jej ustawienia: jedna z ośmiu diet lub własny podział makroskładników, od dwóch do pięciu posiłków dziennie, tempo chudnięcia albo własny cel kaloryczny. Wyklucz alergeny i składniki, wskaż ulubione kuchnie, a na pojedynczy dzień nadaj własny cel. Dostosuj wszystko po swojemu.",
       "plansTitle": "Inteligentne plany posiłków",
-      "plansBody": "Plany od jednego dnia do czterech tygodni, dopasowane do celu kalorycznego i rozpisane w kalendarzu. Planer stara się zużyć całe opakowania, żeby mniej się marnowało, a wybrane dni wypełnisz ulubionym zestawem posiłków. Co zjesz poza planem, zapiszesz w dzienniku, a plan policzy to jako zjedzone.",
-      "swapsTitle": "Wymień, co Ci nie pasuje",
-      "swapsBody": "Wymień posiłek na inny albo składnik na zamiennik o tej samej kaloryczności i zobacz, co to zmienia w makroskładnikach. Ułóż na nowo dzień, kilka dni albo cały plan i zachowaj to, co już zjedzone.",
+      "plansBody": "Plany od jednego dnia do czterech tygodni, dopasowane do celu kalorycznego i rozpisane w kalendarzu. Planer stara się zużyć całe opakowania, a wybrane dni wypełnisz ulubionym zestawem posiłków. Wymień posiłek albo składnik i zobacz, co to zmienia w makroskładnikach; ułóż na nowo dzień albo cały plan i zachowaj to, co już zjedzone.",
+      "diaryTitle": "Dziennik i kody kreskowe",
+      "diaryBody": "Co zjesz poza planem, zapiszesz w dzienniku, a plan policzy to jako zjedzone: przepis, składnik, własny posiłek albo produkt po kodzie kreskowym, wpisanym lub zeskanowanym w aplikacji na Androida. Dane produktów pochodzą z Open Food Facts, a czego baza nie zna, spiszesz z etykiety.",
       "listsTitle": "Gotowe listy zakupów",
       "listsBody": "Lista zakupów z planu, scalona, pogrupowana według działów sklepu i policzona tak, jak się kupuje: jajka w sztukach, przy każdej pozycji liczba opakowań. To, co jest w spiżarni, jest odliczane.",
       "nutritionTitle": "Liczone, nie zmyślane",
