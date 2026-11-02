@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest';
 const SOURCE = join(__dirname, '..');
 
 /** The checks a single value of a path or of a query may go through. */
-const NAMED_CHECKS = new Set(['requiredUuid', 'requiredDate']);
+const NAMED_CHECKS = new Set(['requiredUuid', 'requiredDate', 'requiredProductCode']);
 
 interface Entry {
   /** Where: `file:line`, with the name of the parameter. */

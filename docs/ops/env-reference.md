@@ -110,6 +110,17 @@ See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 | `INSTANCE_DATA_DIR` | `instance-data` | Where the instance writes its own files (its library of recipes, the names of ingredients it gave, the version that wrote them) from the database after every ship, restore and update of the catalogue, and what a restore in the admin panel reads back. Keep it on a volume and back it up with the database. |
 | `MIRROR_REPORT_DIR` | `mirror-report` | Where the `mirror` service reports how its copy of those files stands, for the admin panel. With Compose it is the volume `mirror-report`, which the service writes and the API only reads.                                                                                                                      |
 
+## Products with a barcode
+
+Read by the API and the worker; see [deployment](deployment.md#products-with-a-barcode).
+
+| Variable                     | Default                                                                      | Purpose                                                                                                                                                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPEN_FOOD_FACTS_LOOKUPS`    | `true`                                                                       | Whether a code the instance does not hold is asked of Open Food Facts, in the instance's name. `false` leaves what an import brought and what lookups brought before.                                                                                          |
+| `OPEN_FOOD_FACTS_COUNTRIES`  | _(blank)_                                                                    | The countries whose products the worker imports once a week at night, as Open Food Facts writes them in the address of a country's page (`poland,germany,united-kingdom`). Blank: nothing is imported. With lookups off as well, no product is offered at all. |
+| `OPEN_FOOD_FACTS_URL`        | `https://world.openfoodfacts.org`                                            | Where a code is asked about: a mirror of your own.                                                                                                                                                                                                             |
+| `OPEN_FOOD_FACTS_EXPORT_URL` | `https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz` | Where the export lies: the gzipped text file of Open Food Facts, or a copy of it. A redirect is followed.                                                                                                                                                      |
+
 ## A copy of the instance's own files
 
 Read by the Compose service `mirror`, which starts with `COMPOSE_PROFILES=mirror`; see [deployment](deployment.md#a-copy-of-the-instances-own-files).

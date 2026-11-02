@@ -151,6 +151,18 @@ export const DIARY_DAYS_BACK = 366;
  */
 export const DIARY_QUANTITY_LIMITS = { g: 5000, ml: 5000, piece: 50 } as const;
 
+/**
+ * What a search of the products the instance holds takes and answers with: a
+ * word of at least `leastLetters`, of `leastSigns` where its script writes a
+ * word in few signs, and at most `found` products.
+ */
+export const PRODUCT_SEARCH = {
+  leastLetters: 3,
+  leastSigns: 2,
+  longest: 100,
+  found: 20,
+} as const;
+
 /** The most recipes one import looks at: the first of its document. */
 export const MOST_RECIPES_PER_IMPORT = 100;
 

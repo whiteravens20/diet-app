@@ -450,7 +450,8 @@ function namesWhatAnAccountHas(route: Route): boolean {
     schema ? [JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }))] : [],
   );
   return (
-    route.pathValues.length > 0 ||
+    // A barcode is nobody's: it names a product anybody may ask about.
+    route.pathValues.some((value) => value.name !== 'code') ||
     route.queryValues.some((value) => OF_AN_ACCOUNT.includes(value.name)) ||
     OF_AN_ACCOUNT.some((id) => named.some((schema) => schema.includes(`"${id}"`)))
   );

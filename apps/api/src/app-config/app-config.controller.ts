@@ -22,8 +22,8 @@ import { PACKAGE_VERSION } from './package-version.js';
  * non-secret operator choices the front-end needs before sign-in (whether to
  * render Turnstile + the site key, whether email flows are available), what
  * the operator publishes about the instance, which diets the catalogue has
- * recipes for, the limits the operator set for accounts and plans, and how a
- * plan's days are laid out.
+ * recipes for, the limits the operator set for accounts and plans, whether
+ * products with a barcode are offered, and how a plan's days are laid out.
  * Mirrors the unauthenticated HealthController, and is limited like it and
  * every other route.
  */
@@ -56,6 +56,12 @@ export class AppConfigController {
       },
       catalogue: { supply: supplyByMealCount(await this.coverage.recent()) },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
+      products: {
+        offered:
+          this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true }) ||
+          this.config.get('OPEN_FOOD_FACTS_COUNTRIES', { infer: true }).length > 0,
+        lookups: this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true }),
+      },
       plans: {
         maxRepeatsPerRecipe:
           this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }) ?? null,

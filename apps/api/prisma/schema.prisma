@@ -60,6 +60,7 @@ model User {
 
   profiles           Profile[]
   refreshTokens      RefreshToken[]
+  productLookups     ProductLookup[]
   resetTokens        PasswordResetToken[]
   verificationTokens EmailVerificationToken[]
   emailChangeTokens  EmailChangeToken[]
@@ -339,30 +340,112 @@ model DiaryEntry {
   recipeId     String?
   ingredient   Ingredient?    @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
   ingredientId String?
+  product      Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId    String?
   name         String
-  // Servings of a recipe or of a meal of its own; null for an ingredient.
+  // Servings of a recipe or of a meal of its own; null for an ingredient or a product.
   servings     Float?
-  // The amount of an ingredient as it was given; null for the other kinds.
+  // The amount of an ingredient or a product as it was given; null for the other kinds.
   quantity     Float?
   unit         Unit?
   calories     Float
   protein      Float
   fat          Float
   carbs        Float
-  // Its macronutrients were estimated from its energy: a meal of its own
-  // written without them.
+  // What the label of a product says beside them, for the amount: null for
+  // the other kinds and where the label says nothing that can be right.
+  fiber        Float?
+  sugars       Float?
+  salt         Float?
+  saturatedFat Float?
+  // A figure was estimated: of a meal of its own written without them, or of
+  // a product whose label lacks it.
   estimated    Boolean        @default(false)
   createdAt    DateTime       @default(now())
 
   @@index([profileId, date])
   @@index([recipeId])
   @@index([ingredientId])
+  @@index([productId])
 }
 
 enum DiaryEntryKind {
   recipe
   ingredient
+  product
   meal
+}
+
+// ── Products with a barcode ───────────────────────────────────────────────────
+
+// Where a product came from: the weekly import of the countries the operator
+// names, or a lookup of one code no import brings.
+enum ProductOrigin {
+  imported
+  looked_up
+}
+
+// A product with a barcode as Open Food Facts describes it. Its figures are
+// those of its label, a second source beside the curated catalogue, for the
+// diary alone: nothing here enters a recipe or a plan.
+model Product {
+  id              String        @id @default(uuid())
+  code            String        @unique
+  name            String
+  brand           String?
+  // Name and brand in small letters and without diacritics: what a search reads.
+  searchText      String
+  // The pack in the words of its label.
+  pack            String?
+  unit            Unit
+  // How much a pack holds and how much a serving is, in `unit`.
+  packAmount      Float?
+  servingAmount   Float?
+  // In 100 of `unit`: kcal and grams, null where the label says nothing that can be right.
+  calories        Float?
+  protein         Float?
+  fat             Float?
+  carbs           Float?
+  fiber           Float?
+  sugars          Float?
+  salt            Float?
+  saturatedFat    Float?
+  // The label gives no energy: the figure is worked out from its macronutrients.
+  energyWorkedOut Boolean       @default(false)
+  // The label's figures do not add up, or one of them cannot be right.
+  doubtful        Boolean       @default(false)
+  origin          ProductOrigin
+  // When Open Food Facts last changed it, where it says.
+  changedAt       DateTime?
+  // When a lookup last read it: one no import brings is read again after a while.
+  readAt          DateTime      @default(now())
+  // How many people scanned it, by Open Food Facts: a search shows these first.
+  popularity      Int           @default(0)
+  diaryEntries    DiaryEntry[]
+
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([origin])
+}
+
+// A code Open Food Facts did not know when it was asked: not asked again for days.
+model ProductCodeUnknown {
+  code    String   @id
+  askedAt DateTime @default(now())
+
+  @@index([askedAt])
+}
+
+// That an account asked Open Food Facts about a code, and when; which code is
+// not kept. What the limits of a lookup count, and what the worker removes
+// once it no longer counts.
+model ProductLookup {
+  id     String   @id @default(uuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  at     DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([at])
 }
 
 // Device-agnostic notification surface. The web client polls

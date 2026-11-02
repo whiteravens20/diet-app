@@ -97,6 +97,33 @@ export const envSchema = z.object({
   FDC_API_KEY: z.string().default('DEMO_KEY'),
   FDC_DATA_TYPES: FdcDataTypes.default('Foundation'),
 
+  // Whether a barcode the instance does not hold is asked of Open Food Facts,
+  // in the instance's name.
+  OPEN_FOOD_FACTS_LOOKUPS: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  // The countries whose products the worker imports from the export once a
+  // week, as Open Food Facts writes them (`poland,germany`). Unset, nothing is
+  // imported.
+  OPEN_FOOD_FACTS_COUNTRIES: z
+    .string()
+    .regex(
+      /^\s*[a-z-]+\s*(,\s*[a-z-]+\s*)*$/,
+      'names of countries as Open Food Facts writes them, separated by commas: poland,germany',
+    )
+    .optional()
+    .transform((names) =>
+      names === undefined ? [] : [...new Set(names.split(',').map((name) => name.trim()))],
+    ),
+  // Where Open Food Facts answers and where its export lies: a mirror, or a
+  // stand-in for a test.
+  OPEN_FOOD_FACTS_URL: z.string().url().default('https://world.openfoodfacts.org'),
+  OPEN_FOOD_FACTS_EXPORT_URL: z
+    .string()
+    .url()
+    .default('https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz'),
+
   // Override the curated `data/` directory location (tests / non-standard
   // layouts). Read by the non-DI CLI path helper `admin/seed/data-hash.ts`.
   SEED_DATA_DIR: z.string().optional(),
