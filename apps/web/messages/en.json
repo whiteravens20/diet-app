@@ -1474,10 +1474,6 @@
     "outsideLimitHint": "No recipe was left for this meal inside: {limits}.",
     "onlyRecipeChip": "Only recipe",
     "onlyRecipeHint": "For this meal on this diet the profile leaves one recipe to choose from.",
-    "cookOnceChip": "Cook once",
-    "cookedChip": "Cooked ahead",
-    "cookOnceHint": "Planned again right after: cook it once, for both meals.",
-    "cookedHint": "Cooked already, with the same dish before it.",
     "planMayGiveWay": "This plan may go outside: {limits}.",
     "holdLimits": "Make it again inside every limit…",
     "pantryCounted": "The pantry counted in the choice of recipes.",
@@ -1735,7 +1731,69 @@
     "dayUnderDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth under its target.",
     "resizeDay": "Resize the day's meals",
     "resizeDayNote": "Counts the diary's entries as eaten and gives the meals from recipes that are not eaten other portions, so that the day comes as close to its target as it can.",
-    "resizeNothing": "The portions are as close to the target as their limits allow."
+    "resizeNothing": "The portions are as close to the target as their limits allow.",
+    "cooking": {
+      "cookDays": "Cook for 2 days",
+      "cookMeals": "Cook for 2 meals",
+      "cookHint": "You cook once, for {first} and {second}.",
+      "fromHint": "No cooking: this is the rest of the dish {from}.",
+      "notCooked": "If there was no cooking {when}, cook today: the amounts are for this meal.",
+      "cooksSeparately": "{when} you cook this dish separately.",
+      "cooksForOne": "{when} you cook for one meal.",
+      "alsoChanges": "This also changes: {places}.",
+      "only": "This day only",
+      "onlyChosen": "The chosen days only",
+      "staysUnused": "Stays as it is: {places}. The portion cooked for it goes unused.",
+      "same": "The same as {day}",
+      "dayFor": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "dayFrom": {
+        "0": "from Sunday",
+        "1": "from Monday",
+        "2": "from Tuesday",
+        "3": "from Wednesday",
+        "4": "from Thursday",
+        "5": "from Friday",
+        "6": "from Saturday"
+      },
+      "dayOn": {
+        "0": "on Sunday",
+        "1": "on Monday",
+        "2": "on Tuesday",
+        "3": "on Wednesday",
+        "4": "on Thursday",
+        "5": "on Friday",
+        "6": "on Saturday"
+      },
+      "mealFor": {
+        "breakfast": "breakfast",
+        "second_breakfast": "second breakfast",
+        "lunch": "lunch",
+        "snack": "the snack",
+        "dinner": "dinner"
+      },
+      "mealFrom": {
+        "breakfast": "from breakfast",
+        "second_breakfast": "from second breakfast",
+        "lunch": "from lunch",
+        "snack": "from the snack",
+        "dinner": "from dinner"
+      },
+      "mealOn": {
+        "breakfast": "for breakfast",
+        "second_breakfast": "for second breakfast",
+        "lunch": "for lunch",
+        "snack": "for the snack",
+        "dinner": "for dinner"
+      }
+    }
   },
   "inventory": {
     "title": "Inventory",
@@ -2034,7 +2092,9 @@
     "cuisine": "{cuisine} cuisine",
     "source": "From <site></site>",
     "sourceLicence": "Licence: <licence></licence>",
-    "edit": "Edit"
+    "edit": "Edit",
+    "portionFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off} serving} other {{recipe, number, ::group-off} servings}}, your meal is {mine, plural, one {{mine, number, ::group-off} serving} other {{mine, number, ::group-off} servings}}.",
+    "portionWholeFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off} serving} other {{recipe, number, ::group-off} servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off} serving} other {{mine, number, ::group-off} servings}}."
   },
   "ownRecipe": {
     "newTitle": "Write a recipe",
@@ -2104,7 +2164,9 @@
   "recipeModal": {
     "title": "Recipe details",
     "close": "Close",
-    "openPage": "Open original recipe"
+    "openPage": "Open original recipe",
+    "portionMeal": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off} serving} other {{recipe, number, ::group-off} servings}}, your meal is {mine, plural, one {{mine, number, ::group-off} serving} other {{mine, number, ::group-off} servings}}. Below are the amounts for your meal.",
+    "portionWhole": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off} serving} other {{recipe, number, ::group-off} servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off} serving} other {{mine, number, ::group-off} servings}}. Below are the amounts for all of it."
   },
   "macrosLine": {
     "protein": "Protein",

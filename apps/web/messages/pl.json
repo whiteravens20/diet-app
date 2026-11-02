@@ -1474,10 +1474,6 @@
     "outsideLimitHint": "Dla tego posiłku nie było już przepisu mieszczącego się w limicie: {limits}.",
     "onlyRecipeChip": "Jedyny przepis",
     "onlyRecipeHint": "Dla tego posiłku w tej diecie profil zostawia do wyboru jeden przepis.",
-    "cookOnceChip": "Ugotuj raz",
-    "cookedChip": "Ugotowane wcześniej",
-    "cookOnceHint": "Wraca zaraz potem: ugotuj od razu na oba posiłki.",
-    "cookedHint": "Już ugotowane, razem z tym samym daniem wcześniej.",
     "planMayGiveWay": "Ten plan może wychodzić poza limit: {limits}.",
     "holdLimits": "Ułóż ponownie, trzymając wszystkie limity…",
     "pantryCounted": "Przy wyborze przepisów uwzględniono spiżarnię.",
@@ -1735,7 +1731,69 @@
     "dayUnderDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel.",
     "resizeDay": "Dopasuj porcje dnia",
     "resizeDayNote": "Liczy wpisy dziennika jako zjedzone i daje niezjedzonym posiłkom z przepisów inne porcje, żeby dzień jak najbardziej zbliżył się do celu.",
-    "resizeNothing": "Porcje są już tak blisko celu, jak pozwalają ich granice."
+    "resizeNothing": "Porcje są już tak blisko celu, jak pozwalają ich granice.",
+    "cooking": {
+      "cookDays": "Ugotuj na 2 dni",
+      "cookMeals": "Ugotuj na 2 posiłki",
+      "cookHint": "Gotujesz raz, na {first} i {second}.",
+      "fromHint": "Nie gotujesz: to reszta dania {from}.",
+      "notCooked": "Jeśli {when} nie było gotowania, ugotuj dziś: ilości są dla tego posiłku.",
+      "cooksSeparately": "{when} to danie ugotujesz osobno.",
+      "cooksForOne": "{when} gotujesz na jeden posiłek.",
+      "alsoChanges": "Zmieni się też: {places}.",
+      "only": "Tylko ten dzień",
+      "onlyChosen": "Tylko wybrane dni",
+      "staysUnused": "Bez zmian zostaje: {places}. Ugotowana na to porcja zostanie niewykorzystana.",
+      "same": "To samo co {day}",
+      "dayFor": {
+        "0": "niedzielę",
+        "1": "poniedziałek",
+        "2": "wtorek",
+        "3": "środę",
+        "4": "czwartek",
+        "5": "piątek",
+        "6": "sobotę"
+      },
+      "dayFrom": {
+        "0": "z niedzieli",
+        "1": "z poniedziałku",
+        "2": "z wtorku",
+        "3": "ze środy",
+        "4": "z czwartku",
+        "5": "z piątku",
+        "6": "z soboty"
+      },
+      "dayOn": {
+        "0": "w niedzielę",
+        "1": "w poniedziałek",
+        "2": "we wtorek",
+        "3": "w środę",
+        "4": "w czwartek",
+        "5": "w piątek",
+        "6": "w sobotę"
+      },
+      "mealFor": {
+        "breakfast": "śniadanie",
+        "second_breakfast": "drugie śniadanie",
+        "lunch": "obiad",
+        "snack": "przekąskę",
+        "dinner": "kolację"
+      },
+      "mealFrom": {
+        "breakfast": "ze śniadania",
+        "second_breakfast": "z drugiego śniadania",
+        "lunch": "z obiadu",
+        "snack": "z przekąski",
+        "dinner": "z kolacji"
+      },
+      "mealOn": {
+        "breakfast": "na śniadanie",
+        "second_breakfast": "na drugie śniadanie",
+        "lunch": "na obiad",
+        "snack": "na przekąskę",
+        "dinner": "na kolację"
+      }
+    }
   },
   "inventory": {
     "title": "Spiżarnia",
@@ -2034,7 +2092,9 @@
     "cuisine": "Kuchnia: {cuisine}",
     "source": "Źródło: <site></site>",
     "sourceLicence": "Licencja: <licence></licence>",
-    "edit": "Edytuj"
+    "edit": "Edytuj",
+    "portionFromPlan": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off} porcję} few {{recipe, number, ::group-off} porcje} many {{recipe, number, ::group-off} porcji} other {{recipe, number, ::group-off} porcji}}, Twój posiłek to {mine, plural, one {{mine, number, ::group-off} porcja} few {{mine, number, ::group-off} porcje} many {{mine, number, ::group-off} porcji} other {{mine, number, ::group-off} porcji}}.",
+    "portionWholeFromPlan": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off} porcję} few {{recipe, number, ::group-off} porcje} many {{recipe, number, ::group-off} porcji} other {{recipe, number, ::group-off} porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off} porcja} few {{mine, number, ::group-off} porcje} many {{mine, number, ::group-off} porcji} other {{mine, number, ::group-off} porcji}}."
   },
   "ownRecipe": {
     "newTitle": "Napisz przepis",
@@ -2104,7 +2164,9 @@
   "recipeModal": {
     "title": "Szczegóły przepisu",
     "close": "Zamknij",
-    "openPage": "Otwórz oryginalny przepis"
+    "openPage": "Otwórz oryginalny przepis",
+    "portionMeal": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off} porcję} few {{recipe, number, ::group-off} porcje} many {{recipe, number, ::group-off} porcji} other {{recipe, number, ::group-off} porcji}}, Twój posiłek to {mine, plural, one {{mine, number, ::group-off} porcja} few {{mine, number, ::group-off} porcje} many {{mine, number, ::group-off} porcji} other {{mine, number, ::group-off} porcji}}. Poniżej ilości dla Twojego posiłku.",
+    "portionWhole": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off} porcję} few {{recipe, number, ::group-off} porcje} many {{recipe, number, ::group-off} porcji} other {{recipe, number, ::group-off} porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off} porcja} few {{mine, number, ::group-off} porcje} many {{mine, number, ::group-off} porcji} other {{mine, number, ::group-off} porcji}}. Poniżej ilości na całe gotowanie."
   },
   "macrosLine": {
     "protein": "Białko",

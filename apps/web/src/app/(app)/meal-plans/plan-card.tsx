@@ -29,6 +29,7 @@ import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
+import { CookingNote, toCook, useCookingWords, type MealPortion } from './cooking';
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
@@ -195,7 +196,11 @@ export function PlanCard({
     id: string;
     amounts: PlannedIngredient[];
     picked: PlannedMealView['modelPick'];
+    portion: MealPortion;
   } | null>(null);
+  // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
+  const [onlyFor, setOnlyFor] = useState<string | null>(null);
+  const cookWords = useCookingWords();
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
@@ -565,8 +570,8 @@ export function PlanCard({
                               onClick={() =>
                                 setOpenRecipe({
                                   id: m.recipe!.id,
-                                  amounts: m.ingredients,
                                   picked: m.modelPick,
+                                  ...toCook(plan, m),
                                 })
                               }
                               className="text-left font-medium text-primary hover:underline"
@@ -621,7 +626,7 @@ export function PlanCard({
                           )}
                           {m.cookAhead && (
                             <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                              {t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}
+                              {cookWords.chip(m, day.date)}
                             </span>
                           )}
                         </span>
@@ -879,7 +884,12 @@ export function PlanCard({
                     )}
                     {m.cookAhead && (
                       <p className="ml-6 text-xs text-muted-foreground">
-                        {t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}
+                        {cookWords.hint(m, day.date)}
+                      </p>
+                    )}
+                    {cookWords.notCooked(m, day.date, today) && (
+                      <p className="ml-6 text-xs text-warning">
+                        {cookWords.notCooked(m, day.date, today)}
                       </p>
                     )}
                     {isCustom && (
@@ -1217,6 +1227,7 @@ export function PlanCard({
         recipeId={openRecipe?.id ?? null}
         amounts={openRecipe?.amounts}
         picked={openRecipe?.picked ?? null}
+        portion={openRecipe?.portion}
         onClose={() => setOpenRecipe(null)}
       />
     </Card>

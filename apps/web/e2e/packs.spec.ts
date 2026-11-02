@@ -78,10 +78,13 @@ test.describe('a plan made for cooking ahead', () => {
     const folded = page.locator(`[id^="plan-${made.id}-"] > button[aria-expanded="false"]`);
     await expect(folded).not.toHaveCount(0);
     while ((await folded.count()) > 0) await folded.first().click();
-    await expect(page.getByText(plans.cookOnceChip!, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(plans.cookedChip!, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(plans.cookOnceHint!, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(plans.cookedHint!, { exact: true }).first()).toBeVisible();
+    const cooking = (messages.mealPlans as unknown as { cooking: Texts }).cooking;
+    await expect(page.getByText(cooking.cookDays!, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/^From [A-Z]/).first()).toBeVisible();
+    await expect(page.getByText(/^You cook once, for /).first()).toBeVisible();
+    await expect(
+      page.getByText(/^No cooking: this is the rest of the dish from /).first(),
+    ).toBeVisible();
 
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had.
     page.once('dialog', (confirm) => void confirm.accept());

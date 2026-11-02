@@ -5,8 +5,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Pencil } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { Suspense } from 'react';
 import type { Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -15,15 +16,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RecipeView } from '@/components/recipe-view';
 import { buttonVariants } from '@/components/ui/button';
 
+/** The most servings a link from a plan is believed to name: a cooking of the most a meal holds, four times over. */
+const MOST_SERVINGS = 12;
+
 /** The recipes of the shared library: nobody's to edit. */
 const LIBRARY = new Set<Recipe['origin']>(['seed', 'curated']);
 
 /** Thin route wrapper around the shared RecipeView. The same body renders inside
  *  the meal-plan modal — this just adds the back link, the way to edit a recipe
  *  of one's own, and loading/error chrome. */
-export default function RecipeDetailPage() {
+function RecipeDetail() {
   const t = useTranslations('recipeDetail');
   const params = useParams<{ id: string }>();
+  // Opened from a meal of a plan: what the meal takes, which the amounts of the original are not.
+  const search = useSearchParams();
+  const portion = Number(search.get('portion'));
+  const whole = search.get('whole') === '1';
   const recipe = useQuery({
     queryKey: ['recipe', params.id],
     queryFn: () => api.get<Recipe>(`/recipes/${params.id}`),
@@ -65,7 +73,23 @@ export default function RecipeDetailPage() {
           </Link>
         )}
       </div>
+      {portion > 0 && portion <= MOST_SERVINGS && (
+        <p className="text-sm text-muted-foreground">
+          {t(whole ? 'portionWholeFromPlan' : 'portionFromPlan', {
+            recipe: recipe.data!.servings,
+            mine: portion,
+          })}
+        </p>
+      )}
       <RecipeView recipe={recipe.data!} />
     </div>
+  );
+}
+
+export default function RecipeDetailPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-64" />}>
+      <RecipeDetail />
+    </Suspense>
   );
 }
