@@ -16,7 +16,7 @@ import { energyShares, macroSplitOf, splitDistance } from '../src/engine/nutriti
 import { optimisePlan, SCORE_WEIGHTS, uniformDays } from '../src/engine/optimizer.js';
 import { plannable } from './catalogue-plans.js';
 
-const WEIGHTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1];
+const WEIGHTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.25, 1.5, 2];
 const SEEDS = 20;
 const DAYS = 7;
 const TARGET = 2000;
