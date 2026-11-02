@@ -294,6 +294,141 @@ describe('the import of products', () => {
     });
   });
 
+  describe('where accounts wrote a product of their own', () => {
+    /** A product an account wrote of `code`, with the account it belongs to. */
+    const written = async (code: string) => {
+      const user = await aUser(t);
+      await aProfile(t, user);
+      await t
+        .http()
+        .post('/api/products/own')
+        .set(as(user))
+        .send({
+          code,
+          name: 'Mój produkt',
+          brand: null,
+          pack: null,
+          unit: 'g',
+          packAmount: null,
+          servingAmount: null,
+          per100: {
+            calories: 100,
+            protein: null,
+            fat: null,
+            carbs: null,
+            fiber: null,
+            sugars: null,
+            salt: null,
+            saturatedFat: null,
+          },
+        })
+        .expect(201);
+      return user;
+    };
+    const copies = (user: { id: string }) =>
+      t.prisma.ownProduct.findMany({ where: { userId: user.id } });
+    const noticeOf = async (user: { id: string }) =>
+      (
+        await t.prisma.notification.findMany({
+          where: { profile: { userId: user.id }, type: 'product_replaced' },
+        })
+      ).map((row) => row.payload);
+
+    it('leaves what the instance accepted as it is, whatever the export says of its code', async () => {
+      const author = await aUser(t);
+      const accepted = await t.prisma.product.create({
+        data: {
+          code: POLISH,
+          name: 'Przyjęty',
+          searchText: 'przyjety',
+          unit: 'g',
+          origin: 'accepted',
+          calories: 123,
+          authorId: author.id,
+          acceptedBy: 'Anna',
+          acceptedAt: NIGHT,
+        },
+      });
+
+      await products.run(NIGHT);
+
+      expect((await state()).status).toBe('done');
+      expect(await held(POLISH)).toMatchObject({
+        id: accepted.id,
+        origin: 'accepted',
+        name: 'Przyjęty',
+        calories: 123,
+        authorId: author.id,
+      });
+    });
+
+    it('keeps it through the run that follows, as it is no product of the export', async () => {
+      await t.prisma.product.create({
+        data: {
+          code: '4006381333931',
+          name: 'Przyjęty',
+          searchText: 'przyjety',
+          unit: 'g',
+          origin: 'accepted',
+        },
+      });
+
+      await products.run(NIGHT);
+      await products.run(new Date(NIGHT.getTime() + 7 * 24 * HOUR));
+
+      expect(await held('4006381333931')).toMatchObject({ origin: 'accepted' });
+    });
+
+    it('gives what a copy holds way to what the export brings of its code, and tells its author', async () => {
+      const user = await written(POLISH);
+
+      await products.run(NIGHT);
+
+      expect(await held(POLISH)).toMatchObject({ origin: 'imported', name: 'Mleko Łaciate' });
+      expect(await copies(user)).toEqual([]);
+      expect(await noticeOf(user)).toEqual([
+        { name: 'Mój produkt', reason: null, replacedBy: 'open_food_facts' },
+      ]);
+    });
+
+    it('keeps of another country only a code somebody wrote, and the copy gives way to it', async () => {
+      const user = await written(FRENCH);
+
+      await products.run(NIGHT);
+
+      expect(await held(FRENCH)).toMatchObject({ origin: 'looked_up' });
+      expect(await copies(user)).toEqual([]);
+      expect(await noticeOf(user)).toHaveLength(1);
+    });
+
+    it('leaves a copy alone where the export does not know its code', async () => {
+      const user = await written('4006381333931');
+
+      await products.run(NIGHT);
+
+      expect(await held('4006381333931')).toBeNull();
+      expect(await copies(user)).toHaveLength(1);
+      expect(await noticeOf(user)).toEqual([]);
+    });
+
+    it('leaves a copy without a code alone', async () => {
+      const user = await aUser(t);
+      await t.prisma.ownProduct.create({
+        data: {
+          userId: user.id,
+          name: 'Bez kodu',
+          searchText: 'bez kodu',
+          unit: 'g',
+          calories: 90,
+        },
+      });
+
+      await products.run(NIGHT);
+
+      expect(await copies(user)).toHaveLength(1);
+    });
+  });
+
   describe('changes nothing, and says why,', () => {
     let before: { code: string; name: string }[];
 

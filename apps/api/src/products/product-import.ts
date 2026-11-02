@@ -4,12 +4,20 @@ import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 import type { AdminProducts, ProductImportFailure, ProductImportState } from '@diet-app/shared';
+import { productCodeOf } from '@diet-app/shared/product-code';
 import { JobState } from '../admin/job-state.js';
 import type { Env } from '../config/env.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { ExportReadError, figureOf, OpenFoodFacts } from './open-food-facts.js';
-import { productRowOf, type ProductRow } from './product-row.js';
-import { LOOKED_UP_KEPT_DAYS, PRODUCT_MEMORY_DAYS } from './limits.js';
+import { ExportReadError, figureOf, OpenFoodFacts, ProductSourceError } from './open-food-facts.js';
+import { copiesGiveWay } from './own-product-copies.js';
+import { productColumns, productRowOf, type ProductRow } from './product-row.js';
+import {
+  CODE_CHECKED_EVERY_DAYS,
+  CODES_CHECKED_A_PASS,
+  LOOKED_UP_KEPT_DAYS,
+  PRODUCT_MEMORY_DAYS,
+} from './limits.js';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -160,6 +168,7 @@ export class ProductImport {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     private readonly source: OpenFoodFacts,
+    private readonly notifications: NotificationsService,
   ) {
     this.job = new JobState(prisma, 'product import', ProductImport.idle);
   }
@@ -187,18 +196,23 @@ export class ProductImport {
 
   /** What the instance holds of products and how it gets them, for its administrator. */
   async overview(now = new Date()): Promise<AdminProducts> {
-    const [state, asked, imported, lookedUp, unknownCodes, lookupsToday] = await Promise.all([
-      this.job.read(),
-      this.prisma.jobState.findUnique({ where: { name: ASKED } }),
-      this.prisma.product.count({ where: { origin: 'imported' } }),
-      this.prisma.product.count({ where: { origin: 'looked_up' } }),
-      this.prisma.productCodeUnknown.count(),
-      this.prisma.productLookup.count({ where: { at: { gt: new Date(now.getTime() - DAY_MS) } } }),
-    ]);
+    const [state, asked, imported, lookedUp, unknownCodes, lookupsToday, accepted, waiting] =
+      await Promise.all([
+        this.job.read(),
+        this.prisma.jobState.findUnique({ where: { name: ASKED } }),
+        this.prisma.product.count({ where: { origin: 'imported' } }),
+        this.prisma.product.count({ where: { origin: 'looked_up' } }),
+        this.prisma.productCodeUnknown.count(),
+        this.prisma.productLookup.count({
+          where: { at: { gt: new Date(now.getTime() - DAY_MS) } },
+        }),
+        this.prisma.product.count({ where: { origin: 'accepted' } }),
+        this.prisma.ownProduct.count({ where: { state: 'sent' } }),
+      ]);
     return {
       lookups: this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true }),
       countries: this.countries,
-      held: { imported, lookedUp, unknownCodes },
+      held: { imported, lookedUp, unknownCodes, accepted, waiting },
       lookupsToday,
       import: state,
       askedAt: asked?.heartbeatAt.toISOString() ?? null,
@@ -376,7 +390,23 @@ export class ProductImport {
             "changedAt" timestamp(3),
             "popularity" integer NOT NULL
           ) ON COMMIT DROP`);
-        const kept = await this.readExport(countries, (batch) => this.keep(tx, batch));
+        // A code somebody wrote a product of is read whatever country it is of.
+        const written = new Set(
+          (
+            await tx.ownProduct.findMany({
+              where: { code: { not: null } },
+              select: { code: true },
+              distinct: ['code'],
+            })
+          ).map((row) => row.code!),
+        );
+        const foreign: ProductRow[] = [];
+        const kept = await this.readExport(
+          countries,
+          (batch) => this.keep(tx, batch),
+          written,
+          foreign,
+        );
         if (kept === 0) {
           throw new ImportFailure(
             'nothing',
@@ -391,6 +421,8 @@ export class ProductImport {
           );
         }
         await this.merge(tx);
+        await this.keepForeign(tx, foreign);
+        await this.ownCopiesGiveWay(tx);
       },
       { maxWait: 10_000, timeout: LONGEST_RUN_MS },
     );
@@ -400,6 +432,8 @@ export class ProductImport {
   private async readExport(
     countries: string[],
     keep: (batch: ProductRow[]) => Promise<void>,
+    written: ReadonlySet<string>,
+    foreign: ProductRow[],
   ): Promise<number> {
     const tags = countries.map((country) => ({
       country,
@@ -421,7 +455,17 @@ export class ProductImport {
       }
       read += 1;
       // Most rows are of another country, and no more than this is asked of them.
-      if (!tags.some(({ needle }) => line.includes(needle))) return;
+      if (!tags.some(({ needle }) => line.includes(needle))) {
+        // Unless it is a code somebody wrote a product of, which the first column says.
+        if (written.size === 0 || places.code !== 0) return;
+        const code = productCodeOf(line.subarray(0, line.indexOf(9)).toString('latin1'));
+        if (code === null || !written.has(code)) return;
+        const cells = line.toString('utf8').split('\t');
+        if (cells.length !== places.count) return;
+        const row = rowOfLine(cells, places);
+        if (typeof row !== 'string') foreign.push(row);
+        return;
+      }
       const cells = line.toString('utf8').split('\t');
       if (cells.length !== places.count) return;
       const named = cells[places.countries_tags]!.split(',');
@@ -503,6 +547,93 @@ export class ProductImport {
   }
 
   /**
+   * What the export says of codes people wrote, of a country the instance does
+   * not import: kept as a lookup keeps it, and it goes when nobody asks for it.
+   */
+  private async keepForeign(tx: Prisma.TransactionClient, rows: ProductRow[]): Promise<void> {
+    for (const row of rows) {
+      const held = await tx.product.findUnique({
+        where: { code: row.code },
+        select: { origin: true },
+      });
+      if (held && held.origin !== 'looked_up') continue;
+      const columns = { ...productColumns(row), readAt: new Date() };
+      await tx.product.upsert({
+        where: { code: row.code },
+        create: { code: row.code, origin: 'looked_up', ...columns },
+        update: columns,
+      });
+    }
+  }
+
+  /** One code in one place: what accounts wrote of a code the base now has figures of gives way. */
+  private async ownCopiesGiveWay(tx: Prisma.TransactionClient): Promise<void> {
+    const known = await tx.$queryRaw<{ id: string; code: string; origin: string }[]>`
+      SELECT DISTINCT p."id", p."code", p."origin"::text AS "origin"
+      FROM "Product" AS p JOIN "OwnProduct" AS own ON own."code" = p."code"
+      WHERE p."calories" IS NOT NULL`;
+    for (const product of known) {
+      await copiesGiveWay(
+        tx,
+        this.notifications,
+        product,
+        product.origin === 'accepted' ? 'instance' : 'open_food_facts',
+        new Date(),
+      );
+    }
+  }
+
+  /**
+   * Without an import nothing reads the codes people wrote, so a few are asked
+   * of Open Food Facts on each pass of the worker, those not asked about for the
+   * longest first, each at most once in days. Where it answers with figures,
+   * what accounts wrote of the code gives way. An instance that imports reads
+   * them with the export.
+   */
+  async checkWrittenCodes(now = new Date()): Promise<number> {
+    if (!this.config.get('OPEN_FOOD_FACTS_LOOKUPS', { infer: true })) return 0;
+    if (this.countries.length > 0) return 0;
+    const rows = await this.prisma.ownProduct.findMany({
+      where: {
+        code: { not: null },
+        OR: [
+          { checkedAt: null },
+          { checkedAt: { lt: new Date(now.getTime() - CODE_CHECKED_EVERY_DAYS * DAY_MS) } },
+        ],
+      },
+      orderBy: [{ checkedAt: { sort: 'asc', nulls: 'first' } }, { id: 'asc' }],
+      distinct: ['code'],
+      take: CODES_CHECKED_A_PASS,
+      select: { code: true },
+    });
+    let replaced = 0;
+    for (const { code } of rows) {
+      let row: ProductRow | null;
+      try {
+        const said = await this.source.product(code!);
+        const read = said && productRowOf(said);
+        row = read && typeof read === 'object' ? read : null;
+      } catch (err) {
+        // It says nothing just now: the next pass asks again.
+        if (err instanceof ProductSourceError) return replaced;
+        throw err;
+      }
+      await this.prisma.$transaction(async (tx) => {
+        await tx.ownProduct.updateMany({ where: { code }, data: { checkedAt: now } });
+        if (row?.calories == null) return;
+        const columns = { ...productColumns(row), readAt: now };
+        const product = await tx.product.upsert({
+          where: { code: code! },
+          create: { code: code!, origin: 'looked_up', ...columns },
+          update: columns,
+        });
+        replaced += await copiesGiveWay(tx, this.notifications, product, 'open_food_facts', now);
+      });
+    }
+    return replaced;
+  }
+
+  /**
    * Bring the instance's products up to what was read: what the export no
    * longer brings goes, what is new comes, and only what differs is written, so
    * that a week's run leaves the rest of the table and its index alone. An
@@ -521,8 +652,8 @@ export class ProductImport {
         SELECT gen_random_uuid()::text, row."code", 'imported', NOW(), ${columns.map((column) => `row.${column}`).join(', ')}
         FROM product_import AS row
         ON CONFLICT ("code") DO UPDATE SET "origin" = 'imported', "readAt" = NOW(), ${taken}
-        WHERE "Product"."origin" <> 'imported'
-          OR (${columns.map((column) => `"Product".${column}`).join(', ')}) IS DISTINCT FROM (${columns.map((column) => `EXCLUDED.${column}`).join(', ')})
+        WHERE "Product"."origin" = 'looked_up'
+          OR "Product"."origin" = 'imported' AND (${columns.map((column) => `"Product".${column}`).join(', ')}) IS DISTINCT FROM (${columns.map((column) => `EXCLUDED.${column}`).join(', ')})
         RETURNING (xmax = 0) AS fresh
       )
       SELECT COUNT(*) FILTER (WHERE fresh) AS added, COUNT(*) FILTER (WHERE NOT fresh) AS changed FROM written`);

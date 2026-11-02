@@ -72,6 +72,14 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
       },
     ],
     [
+      'a look at the codes of products people wrote',
+      async () => {
+        const replaced = await products.checkWrittenCodes();
+        if (replaced > 0)
+          logger.log(`${replaced} product(s) people wrote gave way to what Open Food Facts says.`);
+      },
+    ],
+    [
       'removal of what no longer counts of the lookups of products',
       async () => {
         const removed = await products.prune();
