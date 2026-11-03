@@ -18,6 +18,8 @@ export interface PlanWord {
   /** The day it changed, as it stands now. */
   day: MealPlanDay | null;
   rebalance: RebalanceResult['rebalance'];
+  /** The recipe a swap of an ingredient made, where no model worded its text: its words can be corrected. */
+  reword?: string | null;
 }
 
 /**
@@ -25,8 +27,9 @@ export interface PlanWord {
  * holds now, what was sized again, and what can be done about it. A swap can
  * be taken back with its portions; any other change, its portions alone.
  * Spreading is offered with what it does said beside it where the day is off
- * its target, as the day itself offers it. Goes by itself after some seconds,
- * and with the next change.
+ * its target, as the day itself offers it. After a swap of an ingredient
+ * whose text no model worded, the recipe's words can be corrected. Goes by
+ * itself after some seconds, and with the next change.
  */
 export function RebalanceToast({
   word,
@@ -34,6 +37,7 @@ export function RebalanceToast({
   onUndo,
   onUndoSwap,
   onRebalanceRest,
+  onReword,
   onDismiss,
 }: {
   word: PlanWord;
@@ -42,6 +46,7 @@ export function RebalanceToast({
   /** Where the card can speak of a swap at all. */
   onUndoSwap?: () => void;
   onRebalanceRest: () => void;
+  onReword?: (recipeId: string) => void;
   onDismiss: () => void;
 }) {
   const t = useTranslations('mealPlans');
@@ -105,6 +110,11 @@ export function RebalanceToast({
           {t('rebalanceRestNote')}
         </p>
       )}
+      {word.reword && onReword && (
+        <p id="reword-note" className="mt-1 text-xs text-muted-foreground">
+          {t('rewordNote')}
+        </p>
+      )}
       {rebalance !== null && rebalance.unabsorbedKcal !== 0 && (
         <p className="mt-1 text-xs text-warning">
           {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', {
@@ -120,6 +130,18 @@ export function RebalanceToast({
         ) : (
           <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={busy}>
             {t('rebalanceUndo')}
+          </Button>
+        )}
+        {word.reword && onReword && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onReword(word.reword!)}
+            disabled={busy}
+            aria-describedby="reword-note"
+          >
+            {t('rewordButton')}
           </Button>
         )}
         {spreadable && (

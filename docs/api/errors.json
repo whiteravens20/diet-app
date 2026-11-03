@@ -1305,6 +1305,15 @@
       "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
     }
   },
+  "RECIPE_WORDS_ONLY_OF_A_SWAP": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version.",
+      "pl": "Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję."
+    }
+  },
   "REFERENCE_CONFLICT": {
     "statuses": [
       409

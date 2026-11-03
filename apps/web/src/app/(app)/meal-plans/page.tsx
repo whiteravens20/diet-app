@@ -63,6 +63,12 @@ const PlanCalendar = dynamic(
   },
 );
 
+/** Fetched when somebody corrects the words of a recipe a swap made, with the form that writes them. */
+const RecipeTextDialog = dynamic(
+  () => import('./recipe-text-dialog').then((dialog) => dialog.RecipeTextDialog),
+  { ssr: false },
+);
+
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
 
@@ -326,11 +332,14 @@ function MealPlansContent() {
 
   // What the last edit came to, surfaced after a swap and after anything that resized a day. It goes with the next change.
   const [rebalanceToast, setRebalanceToast] = useState<PlanWord | null>(null);
+  // The recipe a swap made whose words are being corrected, and the plan that holds it.
+  const [rewording, setRewording] = useState<{ planId: string; recipeId: string } | null>(null);
   const showRebalance = (
     planId: string,
     res: RebalanceResult,
     swapped: string | null = null,
     date: string | null = null,
+    reword: string | null = null,
   ) => {
     void invalidateEdited(planId);
     const resized = res.rebalance && res.rebalance.changes.length > 0;
@@ -346,6 +355,7 @@ function MealPlansContent() {
                 (day) => day.date === date || day.meals.some((meal) => meal.id === about),
               ) ?? null,
             rebalance: res.rebalance,
+            reword,
           }
         : null,
     );
@@ -928,7 +938,12 @@ function MealPlansContent() {
                 toggleEaten.mutate({ planId: plan.id, mealId, eaten });
               }}
               onIngredientSwapped={(res, plannedMealId) => {
-                showRebalance(plan.id, res, plannedMealId);
+                // A recipe whose text no model worded holds the catalogue's name as it is: its words can be corrected.
+                const worded = res.aiMeta !== null && res.aiMeta.fallbackReason === null;
+                const made = res.plan.days
+                  .flatMap((day) => day.meals)
+                  .find((meal) => meal.id === plannedMealId)?.recipe?.id;
+                showRebalance(plan.id, res, plannedMealId, null, worded ? null : (made ?? null));
                 // Set only when a rewording by a model was asked for: say so
                 // when the plain replacement stands instead.
                 if (res.aiMeta)
@@ -1116,7 +1131,21 @@ function MealPlansContent() {
             })
           }
           onRebalanceRest={() => rebalance.mutate({ planId: rebalanceToast.planId, scope: 'plan' })}
+          onReword={(recipeId) => {
+            setRewording({ planId: rebalanceToast.planId, recipeId });
+            setRebalanceToast(null);
+          }}
           onDismiss={() => setRebalanceToast(null)}
+        />
+      )}
+      {rewording && (
+        <RecipeTextDialog
+          recipeId={rewording.recipeId}
+          onClose={() => setRewording(null)}
+          onSaved={() => {
+            void invalidateEdited(rewording.planId);
+            setRewording(null);
+          }}
         />
       )}
     </div>

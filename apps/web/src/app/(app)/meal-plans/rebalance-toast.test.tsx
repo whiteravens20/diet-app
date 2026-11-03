@@ -32,7 +32,7 @@ const aDay = (over: Partial<MealPlanDay> = {}) =>
   }) as MealPlanDay;
 
 function shown(over: Partial<PlanWord> = {}) {
-  const spy = { rest: vi.fn(), undo: vi.fn(), undoSwap: vi.fn() };
+  const spy = { rest: vi.fn(), undo: vi.fn(), undoSwap: vi.fn(), reword: vi.fn() };
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <RebalanceToast
@@ -48,6 +48,7 @@ function shown(over: Partial<PlanWord> = {}) {
         onUndo={spy.undo}
         onUndoSwap={spy.undoSwap}
         onRebalanceRest={spy.rest}
+        onReword={spy.reword}
         onDismiss={() => {}}
       />
     </NextIntlClientProvider>,
@@ -94,6 +95,22 @@ describe('the card that says what a change of a plan came to', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.undoSwap }));
     expect(undoSwap).toHaveBeenCalled();
+  });
+
+  it('offers to correct the words of a recipe a swap of an ingredient made where no model worded them, saying why', async () => {
+    const { reword } = shown({ swap: true, reword: 'recipe-1' });
+
+    const button = screen.getByRole('button', { name: texts.rewordButton });
+    expect(button).toHaveAccessibleDescription(texts.rewordNote);
+    await userEvent.click(button);
+    expect(reword).toHaveBeenCalledWith('recipe-1');
+  });
+
+  it('offers no correction of words after any other swap', () => {
+    shown({ swap: true, reword: null });
+
+    expect(screen.queryByRole('button', { name: texts.rewordButton })).toBeNull();
+    expect(screen.queryByText(texts.rewordNote)).toBeNull();
   });
 
   it('says of a swap that portions changed with it', () => {

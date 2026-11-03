@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 177 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 179 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -153,6 +153,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `RECIPE_NOT_FOUND` | 404 | Recipe not found. | Nie znaleziono przepisu. |
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |
 | `RECIPE_SWAP_NOT_SUBMITTABLE` | 409 | A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library. | Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki. |
+| `RECIPE_WORDS_ONLY_OF_A_SWAP` | 409 | Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version. | Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |
 | `REPLACEMENT_NOT_IN_CATALOGUE` | 422 | Choose another ingredient of the catalogue to replace it with. | Wybierz inny składnik z katalogu, którym go zastąpić. |
 | `REVIEWER_DISABLED` | 401, 403 | Reviewer interface is disabled. | Panel recenzenta jest wyłączony. |

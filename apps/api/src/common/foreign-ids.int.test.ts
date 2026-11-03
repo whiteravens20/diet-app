@@ -442,6 +442,12 @@ const ASKS: Ask[] = [
       ingredients: [{ ingredientId: shared.ingredient, quantity: 80, unit: 'g', note: null }],
     }),
   ],
+  [
+    "write new words into a recipe of somebody's own",
+    'put',
+    (ids) => `/api/recipes/${ids.ownRecipe}/text`,
+    () => ({ title: 'Mine now', description: 'Taken over.', steps: ['Cook.'] }),
+  ],
   ["delete a recipe of somebody's own", 'delete', (ids) => `/api/recipes/${ids.ownRecipe}`],
 
   [

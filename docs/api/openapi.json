@@ -7295,7 +7295,7 @@
           "recipes"
         ],
         "summary": "Edit a recipe of the account's own, whoever wrote it.",
-        "description": "Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "description": "Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted; where only its words change, they are written in it, as `PUT /recipes/:id/text` does.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -7411,6 +7411,70 @@
         "responses": {
           "204": {
             "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/recipes/{id}/text": {
+      "put": {
+        "operationId": "Recipes_reword",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "New words for a recipe of the account's own made by swapping an ingredient, in the language of the request: its title, description and steps, written in that recipe.",
+        "description": "New words for a recipe of the account's own made by swapping an ingredient, in the language of the request: its title, description and steps, written in that recipe. It stays the recipe the plans hold, so they read the new words at once; its nutrition does not change. Any other recipe is edited as a new version (409 `RECIPE_WORDS_ONLY_OF_A_SWAP`).\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Refused"
@@ -20266,6 +20330,33 @@
           "license"
         ],
         "additionalProperties": false
+      },
+      "RecipeTextRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 600
+          },
+          "steps": {
+            "minItems": 1,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "steps"
+        ]
       },
       "RecoveryCodes": {
         "type": "object",

@@ -24,6 +24,7 @@ import {
   Recipe,
   RecipeSearchPage,
   RecipeSearchQuery,
+  RecipeTextRequest,
   type Locale,
 } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
@@ -125,7 +126,8 @@ export class RecipesController {
    * written by hand, in the language of the request, and its id answered:
    * the plans that hold the old version keep it, and the favourites and
    * favourite sets that named it name the new one. A recipe made by swapping
-   * an ingredient stays one, and is still not to be submitted.
+   * an ingredient stays one, and is still not to be submitted; where only its
+   * words change, they are written in it, as `PUT /recipes/:id/text` does.
    */
   @Put(':id')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -137,6 +139,25 @@ export class RecipesController {
     @Body(new ZodValidationPipe(OwnRecipeInput)) dto: OwnRecipeInput,
   ) {
     return this.own.edit(user.id, locale, id, dto);
+  }
+
+  /**
+   * New words for a recipe of the account's own made by swapping an
+   * ingredient, in the language of the request: its title, description and
+   * steps, written in that recipe. It stays the recipe the plans hold, so they
+   * read the new words at once; its nutrition does not change. Any other
+   * recipe is edited as a new version (409 `RECIPE_WORDS_ONLY_OF_A_SWAP`).
+   */
+  @Put(':id/text')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Answers(Recipe)
+  reword(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(RecipeTextRequest)) dto: RecipeTextRequest,
+  ) {
+    return this.own.reword(user.id, locale, id, dto);
   }
 
   /** One recipe, with its ingredients and steps. */
