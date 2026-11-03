@@ -1775,6 +1775,8 @@
     "rebalanceSummaryPlan": "Przeliczono posiłki pozostałych dni planu: {count, number, ::group-off}.",
     "diaryLine": "Dziennik dodaje do tego dnia {kcal, number, ::group-off} kcal ({count, plural, one {{count, number, ::group-off} wpis} few {{count, number, ::group-off} wpisy} many {{count, number, ::group-off} wpisów} other {{count, number, ::group-off} wpisu}}).",
     "openDiary": "Dziennik dnia",
+    "fromDiaryChip": "z dziennika",
+    "openInDiary": "Otwórz w dzienniku: {name}",
     "dayOverDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel.",
     "dayUnderDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel.",
     "resizeDay": "Dopasuj porcje dnia",

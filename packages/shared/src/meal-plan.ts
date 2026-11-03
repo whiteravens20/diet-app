@@ -2,7 +2,8 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
-import { LAST_DAY, OWN_MEAL_LIMITS } from './constants.js';
+import { LAST_DAY, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
+import { DiaryEntry } from './diary.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import {
@@ -461,11 +462,19 @@ export const MealPlanDay = z.object({
   dayNutrition: Nutrition,
   /**
    * What the profile's diary holds for the day besides its meals: how many
-   * entries, and what they come to. They count in `dayNutrition` and in where
-   * the day stands, as eaten, and a rebalance, or filling the day again, leaves
-   * room for them. Null when the diary holds none for the day.
+   * entries, what they come to, and the entries themselves, the first written
+   * first, which a plan shows under the meals they were written for. They count
+   * in `dayNutrition` and in where the day stands, as eaten, and a rebalance,
+   * or filling the day again, leaves room for them. Null when the diary holds
+   * none for the day.
    */
-  diary: z.object({ entries: z.number().int().min(1), nutrition: Nutrition }).nullable(),
+  diary: z
+    .object({
+      entries: z.number().int().min(1),
+      nutrition: Nutrition,
+      items: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
+    })
+    .nullable(),
   calorieTarget: z.number(),
   /** What the day aims at of protein, fat and carbohydrate, in grams: its calorie target split as the plan's diet splits a day. */
   targetMacros: Macros,

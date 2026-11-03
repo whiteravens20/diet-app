@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CatalogueSupply,
+  DiaryEntry,
   FavoriteSet,
   MealPlan,
   MealSwapPreview,
@@ -683,7 +684,11 @@ describe('the plan page, when a plan is made again', () => {
     const plan = threeDays();
     plan.days[1] = {
       ...plan.days[1]!,
-      diary: { entries: 1, nutrition: { calories: 400, protein: 10, fat: 10, carbs: 60 } },
+      diary: {
+        entries: 1,
+        nutrition: { calories: 400, protein: 10, fat: 10, carbs: 60 },
+        items: [],
+      },
     };
     answering(() => aPreview());
     const asked = await forThePlan(plan);
@@ -1472,7 +1477,11 @@ describe('the plan page, on how a day stands against its target', () => {
       aDay({
         date: today,
         offTarget: 'over',
-        diary: { entries: 2, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+        diary: {
+          entries: 2,
+          nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
+          items: [],
+        },
       }),
     );
 
@@ -1496,6 +1505,85 @@ describe('the plan page, on how a day stands against its target', () => {
     });
   });
 
+  it('lists each entry of the diary under the meal it was written for, and one of a meal the day has none of after the meals, in the order of the day', async () => {
+    const today = localDate();
+    const entry = (over: Partial<DiaryEntry>): DiaryEntry => ({
+      id: '77777777-7777-4777-8777-777777777777',
+      profileId: profile.id,
+      date: today,
+      mealType: 'breakfast',
+      kind: 'product',
+      name: 'Natural yoghurt',
+      recipeId: null,
+      ingredientId: null,
+      productId: '88888888-8888-4888-8888-888888888888',
+      productCode: '5900512320359',
+      productSource: 'open_food_facts',
+      servings: null,
+      amount: { quantity: 150, unit: 'g', shown: { quantity: 150, unit: 'g' } },
+      nutrition: { calories: 95, protein: 6, fat: 4, carbs: 8 },
+      label: null,
+      estimated: false,
+      createdAt: `${today}T09:00:00.000Z`,
+      ...over,
+    });
+    const cake = entry({
+      id: '99999999-9999-4999-8999-999999999999',
+      mealType: 'snack',
+      kind: 'meal',
+      name: 'Cake at work',
+      productId: null,
+      productCode: null,
+      productSource: null,
+      servings: 1,
+      amount: null,
+      estimated: true,
+    });
+    const supper = entry({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      mealType: 'dinner',
+      kind: 'meal',
+      name: 'Soup',
+      productId: null,
+      productCode: null,
+      productSource: null,
+      servings: 1,
+      amount: null,
+    });
+    await opened(
+      aDay({
+        date: today,
+        diary: {
+          entries: 3,
+          nutrition: { calories: 795, protein: 26, fat: 34, carbs: 88 },
+          items: [cake, supper, entry({})],
+        },
+      }),
+    );
+
+    const rows = screen
+      .getByRole('button', { name: 'Oat porridge' })
+      .closest('ul')!
+      .querySelectorAll(':scope > li');
+    const named = [...rows].map((row) =>
+      within(row as HTMLElement).queryByText(messages.mealPlans.fromDiaryChip)
+        ? within(row as HTMLElement).getAllByRole('link')[0]!.textContent
+        : 'meal',
+    );
+    // The breakfast, what the diary adds to it, then the meals the day has none of, a snack before a dinner.
+    expect(named).toEqual(['meal', 'Natural yoghurt', 'Cake at work', 'Soup']);
+    const yoghurt = within(rows[1] as HTMLElement);
+    expect(
+      yoghurt.getByRole('link', { name: 'Open in the diary: Natural yoghurt' }),
+    ).toHaveAttribute('href', `/diary?profile=${aPlan().profileId}&date=${today}`);
+    expect(yoghurt.getByText(messages.mealPlans.fromDiaryChip)).toBeVisible();
+    expect(yoghurt.getByText('150 g')).toBeVisible();
+    expect(
+      within(rows[2] as HTMLElement).getByText(messages.mealPlans.estimatedChip),
+    ).toBeVisible();
+    expect(within(rows[2] as HTMLElement).getByText('1 serving')).toBeVisible();
+  });
+
   it('offers no resizing of a day that has no meal from a recipe left to resize', async () => {
     const today = localDate();
     const day = aPlan().days[0]!;
@@ -1503,7 +1591,11 @@ describe('the plan page, on how a day stands against its target', () => {
       aDay({
         date: today,
         offTarget: 'over',
-        diary: { entries: 1, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+        diary: {
+          entries: 1,
+          nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
+          items: [],
+        },
         meals: day.meals.map((meal) => ({ ...meal, eatenAt: `${today}T08:00:00.000Z` })),
       }),
     );
@@ -1530,7 +1622,11 @@ describe('the plan page, on how a day stands against its target', () => {
       aDay({
         date: today,
         offTarget: 'over',
-        diary: { entries: 2, nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 } },
+        diary: {
+          entries: 2,
+          nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
+          items: [],
+        },
       }),
     );
 

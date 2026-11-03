@@ -14,6 +14,7 @@ import {
   PlanOptions,
   type AddCustomMealRequest,
   type CookingChange,
+  type DiaryEntry,
   type Locale,
   type MealPlan,
   type MealPlanDay,
@@ -64,6 +65,7 @@ import {
 } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
+import { entriesOfDays } from '../diary/diary-entries.js';
 import { writePlan } from './plan-write.js';
 import {
   CANDIDATE,
@@ -220,11 +222,12 @@ export class MealPlansService {
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const [restrictions, diary] = await Promise.all([
+    const [restrictions, diary, written] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
+      entriesOfDays(this.prisma, locale, plan.profileId, plan.days),
     ]);
-    return this.toDto(plan, locale, restrictions, diary);
+    return this.toDto(plan, locale, restrictions, diary, written);
   }
 
   /**
@@ -961,6 +964,7 @@ export class MealPlansService {
     locale: Locale,
     restrictions: Restrictions,
     diary: Map<string, DiaryOnDay>,
+    written: Map<string, DiaryEntry[]>,
   ): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     // What a plan on the custom diet aims at is the split it was made with.
@@ -1080,7 +1084,7 @@ export class MealPlansService {
         date: isoDate(day.date),
         meals,
         dayNutrition,
-        diary: entered,
+        diary: entered && { ...entered, items: written.get(isoDate(day.date)) ?? [] },
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),

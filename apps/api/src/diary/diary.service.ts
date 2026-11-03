@@ -51,6 +51,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
+import { entryDto, entryWith, languages } from './diary-entries.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
 type Figures = Macros & { calories: number };
@@ -72,37 +73,8 @@ const PROFILE = {
 } as const;
 type DiaryProfile = Prisma.ProfileGetPayload<{ select: typeof PROFILE }>;
 
-/** The languages a name is read in: the reader's, and English where it has none in it. */
-const languages = (locale: Locale): string[] => (locale === 'en' ? ['en'] : [locale, 'en']);
-
 /** Of the plans that hold a day, the one made last: as the calendar picks it. */
 const MADE_LAST = [{ plan: { createdAt: 'desc' } }, { planId: 'asc' }] as const;
-
-/** What an entry is read with: the recipe or the ingredient it is of, named in the reader's language. */
-const entryWith = (locale: Locale) =>
-  ({
-    recipe: {
-      select: {
-        title: true,
-        deletedAt: true,
-        translations: {
-          where: { locale: { in: languages(locale) } },
-          select: { locale: true, title: true },
-        },
-      },
-    },
-    ingredient: {
-      select: {
-        name: true,
-        displayUnit: true,
-        translations: {
-          where: { locale: { in: languages(locale) } },
-          select: { locale: true, name: true },
-        },
-      },
-    },
-  }) satisfies Prisma.DiaryEntryInclude;
-type EntryRow = Prisma.DiaryEntryGetPayload<{ include: ReturnType<typeof entryWith> }>;
 
 /** What an entry holds besides where it is: what it is of, its name, its amount and its figures. */
 type Written = Pick<
@@ -222,7 +194,7 @@ export class DiaryService {
             ...standingOf(planned.calories, planDay.calorieTarget, skipped),
           }
         : null,
-      entries: rows.map((row) => this.toDto(row, locale)),
+      entries: rows.map((row) => entryDto(row, locale)),
       eaten: sumNutrition([
         ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
         ...entered,
@@ -481,7 +453,7 @@ export class DiaryService {
       include: entryWith(locale),
     });
     if (!row) throw entryNotFound();
-    return this.toDto(row, locale);
+    return entryDto(row, locale);
   }
 
   /**
@@ -716,58 +688,7 @@ export class DiaryService {
       ...scaledFigures({ calories, ...macros }, req.servings),
     };
   }
-
-  private toDto(row: EntryRow, locale: Locale): DiaryEntry {
-    // A recipe its owner deleted is gone for the diary, as it is for the library.
-    const recipe = row.recipe?.deletedAt === null ? row.recipe : null;
-    const name = recipe
-      ? pickTitle(locale, recipe.translations, recipe.title)
-      : row.ingredient
-        ? pickIngredient(locale, row.ingredient.translations, row.ingredient.name)
-        : row.name;
-    return {
-      id: row.id,
-      profileId: row.profileId,
-      date: isoDate(row.date),
-      mealType: row.mealType as MealType,
-      kind: row.kind,
-      name,
-      recipeId: recipe ? row.recipeId : null,
-      ingredientId: row.ingredientId,
-      productId: row.productId ?? row.ownProductId,
-      productSource: row.productSource,
-      servings: row.servings,
-      amount:
-        row.quantity !== null && row.unit !== null
-          ? {
-              quantity: row.quantity,
-              unit: row.unit,
-              // What was written is what was eaten: nothing rounds it, and a piece goes by the ingredient's word for it.
-              shown: {
-                quantity: row.quantity,
-                unit: row.unit === 'piece' ? (row.ingredient?.displayUnit ?? 'piece') : row.unit,
-              },
-            }
-          : null,
-      nutrition: wholeFigures(row),
-      label:
-        row.kind === 'product'
-          ? {
-              fiber: tenths(row.fiber),
-              sugars: tenths(row.sugars),
-              salt: tenths(row.salt),
-              saturatedFat: tenths(row.saturatedFat),
-            }
-          : null,
-      estimated: row.estimated,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
 }
-
-/** A figure of a label as a person reads it: a grain of salt is told by its tenth. */
-const tenths = (grams: number | null): number | null =>
-  grams === null ? null : Math.round(grams * 10) / 10;
 
 /** What an entry's label says for another amount of it. */
 function scaledLabel(

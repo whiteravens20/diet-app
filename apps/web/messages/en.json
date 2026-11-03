@@ -1775,6 +1775,8 @@
     "rebalanceSummaryPlan": "Meals rescaled on the plan's remaining days: {count, number, ::group-off}.",
     "diaryLine": "The diary adds {kcal, number, ::group-off} kcal to this day ({count, plural, one {{count, number, ::group-off} entry} other {{count, number, ::group-off} entries}}).",
     "openDiary": "Diary of the day",
+    "fromDiaryChip": "from the diary",
+    "openInDiary": "Open in the diary: {name}",
     "dayOverDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth over its target.",
     "dayUnderDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth under its target.",
     "resizeDay": "Resize the day's meals",

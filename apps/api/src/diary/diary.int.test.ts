@@ -670,7 +670,7 @@ describe('the diary of a profile', () => {
 
     it('counts the entries in the day of the plan, in where it stands and in the calendar', async () => {
       const before = planDay(plan, day(0));
-      await aMeal(1200);
+      const entry = await aMeal(1200);
 
       const after = planDay(await planOf(plan.id), day(0));
       const calendar = (
@@ -685,6 +685,7 @@ describe('the diary of a profile', () => {
       expect(after.diary).toEqual({
         entries: 1,
         nutrition: { calories: 1200, protein: 0, fat: 0, carbs: 300 },
+        items: [entry],
       });
       expect(after.dayNutrition.calories).toBe(before.dayNutrition.calories + 1200);
       expect(after.calorieDelta).toBe(after.dayNutrition.calories - after.calorieTarget);
@@ -695,6 +696,52 @@ describe('the diary of a profile', () => {
         offTarget: 'over',
       });
       expect(shown.plan).toMatchObject({ calorieDelta: after.calorieDelta, offTarget: 'over' });
+    });
+
+    it('lists the entries of each day in the plan, the first written first, named in the language of whoever reads it', async () => {
+      const lonely = await t.prisma.ingredient.create({
+        data: {
+          slug: 'listed-fruit',
+          name: 'Listed fruit',
+          category: 'fruits',
+          canonicalUnit: 'g',
+          caloriesPer100: 50,
+          proteinPer100: 1,
+          fatPer100: 0,
+          carbsPer100: 12,
+          translations: { create: [{ locale: 'pl', name: 'Owoc z listy' }] },
+        },
+      });
+      const meal = await aMeal(300);
+      const fruit = await written({
+        kind: 'ingredient',
+        ingredientId: lonely.id,
+        mealType: 'dinner',
+        amount: { quantity: 150, unit: 'g' },
+      });
+      const yesterday = await aMeal(200, day(-1));
+
+      const inPolish = (
+        await t
+          .http()
+          .get(`/api/meal-plans/${plan.id}`)
+          .set(as(user))
+          .set('Accept-Language', 'pl')
+          .expect(200)
+      ).body as MealPlan;
+      const today = planDay(inPolish, day(0)).diary!;
+
+      expect(today.items.map((item) => item.id)).toEqual([meal.id, fruit.id]);
+      expect(today.items[1]).toMatchObject({
+        mealType: 'dinner',
+        kind: 'ingredient',
+        name: 'Owoc z listy',
+        amount: { quantity: 150, unit: 'g', shown: { quantity: 150, unit: 'g' } },
+        nutrition: { calories: 75 },
+      });
+      expect(today.entries).toBe(today.items.length);
+      expect(planDay(inPolish, day(-1)).diary!.items).toEqual([yesterday]);
+      expect(planDay(inPolish, day(1)).diary).toBeNull();
     });
 
     it('leaves room for the entries when the day is rebalanced, so that a second rebalance changes nothing', async () => {

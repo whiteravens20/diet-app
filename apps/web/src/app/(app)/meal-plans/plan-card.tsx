@@ -5,11 +5,12 @@
 import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import {
   fitsDiet,
   type AddCustomMealRequest,
+  type DiaryEntry,
   type AiMealSwapPreview,
   type MealPlan,
   type MealPlanDay,
@@ -38,6 +39,8 @@ import { localDate } from '@/lib/http';
 import { saveText } from '@/lib/save-file';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
+import { useEntryAmount } from '@/components/diary-entry-amount';
+import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
 import { UseUp } from './use-up';
@@ -572,483 +575,498 @@ export function PlanCard({
                     (f.recipe.mealTypes.includes(m.mealType) &&
                       fitsDiet(f.recipe.dietTags, plan.dietType)),
                 );
+                // What the diary holds for this meal of the day follows its last meal of that kind.
+                const written =
+                  day.meals.findLast((one) => one.mealType === m.mealType) === m
+                    ? (day.diary?.items ?? []).filter((entry) => entry.mealType === m.mealType)
+                    : [];
                 return (
-                  <li
-                    key={m.id}
-                    id={mealAnchor(m.id)}
-                    tabIndex={-1}
-                    className="space-y-1 py-2 focus:outline-none"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-                      <span className="flex min-w-0 flex-1 basis-64 items-start gap-2 break-words">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-4 w-4 shrink-0"
+                  <Fragment key={m.id}>
+                    <li
+                      id={mealAnchor(m.id)}
+                      tabIndex={-1}
+                      className="space-y-1 py-2 focus:outline-none"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                        <span className="flex min-w-0 flex-1 basis-64 items-start gap-2 break-words">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 shrink-0"
 
-                          checked={eaten}
-                          disabled={busy || (!eaten && day.date > today)}
-                          aria-label={named(t('markEaten'))}
-                          title={!eaten && day.date > today ? t('eatenAhead') : t('markEaten')}
-                          onChange={() => {
-                            changing.current = mealAnchor(m.id);
-                            onToggleEaten(m.id, !m.eatenAt);
-                          }}
-                        />
-                        <span className="min-w-0">
-                          <span className="text-muted-foreground">{mealLabel}</span>{' '}
-                          <span aria-hidden className="hidden sm:inline">
-                            ·{' '}
-                          </span>
-                          {isCustom ? (
-                            <span className="font-medium">{title}</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenRecipe({
-                                  id: m.recipe!.id,
-                                  picked: m.modelPick,
-                                  ...toCook(plan, m),
-                                })
-                              }
-                              className="text-left font-medium text-primary wrap-anywhere hover:underline"
-                            >
-                              {title}
-                            </button>
-                          )}
-                          {isCustom && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
-                              {t('customChip')}
+                            checked={eaten}
+                            disabled={busy || (!eaten && day.date > today)}
+                            aria-label={named(t('markEaten'))}
+                            title={!eaten && day.date > today ? t('eatenAhead') : t('markEaten')}
+                            onChange={() => {
+                              changing.current = mealAnchor(m.id);
+                              onToggleEaten(m.id, !m.eatenAt);
+                            }}
+                          />
+                          <span className="min-w-0">
+                            <span className="text-muted-foreground">{mealLabel}</span>{' '}
+                            <span aria-hidden className="hidden sm:inline">
+                              ·{' '}
                             </span>
-                          )}
-                          {m.estimated && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                              {t('estimatedChip')}
-                            </span>
-                          )}
-                          {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
-                          {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
-                          {m.dietOverride && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                              {t('dietOverrideChip')}
-                            </span>
-                          )}
-                          {m.restrictionConflicts.map((conflict) => (
-                            <span
-                              key={conflict}
-                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive"
-                            >
-                              {t(`conflictChip.${conflict}`)}
-                            </span>
-                          ))}
-                          {disliked.length > 0 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                              {t('dislikedChip')}
-                            </span>
-                          )}
-                          {outside && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                              {t('outsideLimitChip')}
-                            </span>
-                          )}
-                          {onlyRecipe && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                              {t('onlyRecipeChip')}
-                            </span>
-                          )}
-                          {/* A small difference is the sizing of an ordinary day, and says nothing to the reader. */}
-                          {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                              {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
-                            </span>
-                          )}
-                          {m.cookAhead && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                              {cookWords.chip(m, day.date)}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-
-                      <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
-                        {(eaten || isCustom || !changeable) && (
-                          <>
-                            {eaten && (
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {t('eatenBadge')}
+                            {isCustom ? (
+                              <span className="font-medium">{title}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenRecipe({
+                                    id: m.recipe!.id,
+                                    picked: m.modelPick,
+                                    ...toCook(plan, m),
+                                  })
+                                }
+                                className="text-left font-medium text-primary wrap-anywhere hover:underline"
+                              >
+                                {title}
+                              </button>
+                            )}
+                            {isCustom && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
+                                {t('customChip')}
                               </span>
                             )}
+                            {m.estimated && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                                {t('estimatedChip')}
+                              </span>
+                            )}
+                            {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
+                            {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
+                            {m.dietOverride && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                                {t('dietOverrideChip')}
+                              </span>
+                            )}
+                            {m.restrictionConflicts.map((conflict) => (
+                              <span
+                                key={conflict}
+                                className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive"
+                              >
+                                {t(`conflictChip.${conflict}`)}
+                              </span>
+                            ))}
+                            {disliked.length > 0 && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                                {t('dislikedChip')}
+                              </span>
+                            )}
+                            {outside && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                                {t('outsideLimitChip')}
+                              </span>
+                            )}
+                            {onlyRecipe && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                                {t('onlyRecipeChip')}
+                              </span>
+                            )}
+                            {/* A small difference is the sizing of an ordinary day, and says nothing to the reader. */}
+                            {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                                {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
+                              </span>
+                            )}
+                            {m.cookAhead && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                                {cookWords.chip(m, day.date)}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+
+                        <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
+                          {(eaten || isCustom || !changeable) && (
+                            <>
+                              {eaten && (
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {t('eatenBadge')}
+                                </span>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={named(t('remove'))}
+                                aria-expanded={removing === m.id}
+                                onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                                disabled={busy}
+                              >
+                                {t('remove')}
+                              </Button>
+                            </>
+                          )}
+                          {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
+                          {eaten || isCustom || !changeable ? null : (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              aria-label={named(t('remove'))}
-                              aria-expanded={removing === m.id}
-                              onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                              disabled={busy}
+                              aria-label={named(t('changeMeal'))}
+                              aria-expanded={actionsOpen}
+                              aria-controls={`${m.id}-actions`}
+                              onClick={() => setOpenActions(actionsOpen ? null : m.id)}
                             >
-                              {t('remove')}
+                              {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
                             </Button>
-                          </>
-                        )}
-                        {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
-                        {eaten || isCustom || !changeable ? null : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={named(t('changeMeal'))}
-                            aria-expanded={actionsOpen}
-                            aria-controls={`${m.id}-actions`}
-                            onClick={() => setOpenActions(actionsOpen ? null : m.id)}
-                          >
-                            {t('changeMeal')} <span aria-hidden>{actionsOpen ? '▲' : '▾'}</span>
-                          </Button>
-                        )}
-                      </span>
-                    </div>
-                    {!eaten && !isCustom && changeable && (
-                      <div
-                        id={`${m.id}-actions`}
-                        role="group"
-                        aria-label={t('mealActions', { title })}
-                        hidden={!actionsOpen}
-                        className="ml-3 flex flex-wrap items-center gap-x-1"
-                      >
-                        {parted && dayBefore && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onSwapToFavorite(m.id, parted.recipe!.id, false)}
-                            disabled={busy}
-                          >
-                            {t('cooking.same', { day: fmt.weekday(dayBefore.date) })}
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={named(t('swap'))}
-                          onClick={() => onSwapMeal(m.id)}
-                          disabled={busy}
-                        >
-                          {t('swap')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          title={t('tooltipSwapToFav')}
-                          aria-label={named(t('swapToFav'))}
-                          aria-expanded={favOpen}
-                          onClick={() => {
-                            setShowAllFav(false);
-                            setOpenFav(favOpen ? null : m.id);
-                          }}
-                          disabled={busy}
-                        >
-                          {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
-                          aria-label={named(t('aiSwap'))}
-                          onClick={() => onAiSwapMeal?.(m.id)}
-                          disabled={busy || !onAiSwapMeal}
-                          aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
-                          className="text-primary"
-                        >
-                          <Sparkles size={14} aria-hidden />
-                          <span className="ml-1">{t('aiSwap')}</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          title={t('tooltipSwapByFav')}
-                          aria-label={named(t('swapFavIngr'))}
-                          onClick={() => onSwapByFavorites(m.id)}
-                          disabled={busy}
-                        >
-                          {t('swapFavIngr')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          title={t('tooltipSubstitute')}
-                          aria-label={named(t('substituteIngr'))}
-                          onClick={() => {
-                            if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
-                          }}
-                          disabled={busy}
-                        >
-                          {t('substituteIngr')} ⇄
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={named(t('remove'))}
-                          aria-expanded={removing === m.id}
-                          onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                          disabled={busy}
-                        >
-                          {t('remove')}
-                        </Button>
+                          )}
+                        </span>
                       </div>
-                    )}
-                    {removing === m.id && (
-                      <div
-                        className="ml-6 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
-                        role="group"
-                        aria-label={t('removeTitle', { title })}
-                      >
-                        <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
-                        {apart && <p>{apart}</p>}
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setRemoving(null);
-                              changing.current = dayAnchor(plan.id, day.date);
-                              onRemoveMeal(m.id);
-                            }}
-                            disabled={busy}
-                          >
-                            {t('removeConfirm')}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setRemoving(null)}
-                          >
-                            {tCommon('cancel')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {offer?.asked.plannedMealId === m.id && (
-                      <div
-                        className="ml-6 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
-                        role="group"
-                        aria-label={t('offerTitle')}
-                      >
-                        {/* A model's own pick says so, with its reason, before it is taken. */}
-                        {offer.preview.pick && (
-                          <AiMark
-                            part={{
-                              kind: 'picked',
-                              reason: offer.preview.aiMeta?.reason ?? null,
-                            }}
-                            spelledOut
-                          />
-                        )}
-                        <p>
-                          {t.rich('offerLine', {
-                            title: offer.preview.recipe.title,
-                            servings: offer.preview.servings,
-                            after: offer.preview.after.calories,
-                            before: offer.preview.before.calories,
-                            strong: (chunks) => <span className="font-medium">{chunks}</span>,
-                          })}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {t('offerMacros', {
-                            protein: offer.preview.after.protein,
-                            fat: offer.preview.after.fat,
-                            carbs: offer.preview.after.carbs,
-                          })}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {/* The other meals are fitted to the day only where it comes out away from its target. */}
-                          {t(
-                            Math.abs(
-                              offer.preview.dayAfter.calories - offer.preview.calorieTarget,
-                            ) >
-                              offer.preview.calorieTarget * DAY_ON_TARGET
-                              ? 'offerDay'
-                              : 'offerDayAfter',
-                            {
-                              kcal: offer.preview.dayAfter.calories,
-                              target: offer.preview.calorieTarget,
-                            },
-                          )}{' '}
-                          {t('dayMacros', {
-                            protein: offer.preview.dayAfter.protein,
-                            proteinTarget: offer.preview.targetMacros.protein,
-                            fat: offer.preview.dayAfter.fat,
-                            fatTarget: offer.preview.targetMacros.fat,
-                            carbs: offer.preview.dayAfter.carbs,
-                            carbsTarget: offer.preview.targetMacros.carbs,
-                          })}
-                        </p>
-                        <CookingNote
-                          change={offer.preview.cooking}
-                          only={onlyFor === m.id}
-                          onOnly={(only) => setOnlyFor(only ? m.id : null)}
-                          label="only"
-                          mealName={mealName}
-                        />
-                        {offer.preview.outsideLimits.length > 0 && (
-                          <p className="text-warning">
-                            {t('offerOutside', {
-                              limits: limitNames(offer.preview.outsideLimits),
-                            })}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              setOpenActions(null);
-                              changing.current = mealAnchor(m.id);
-                              onTakeOffer(
-                                onlyFor !== m.id &&
-                                  (offer.preview.cooking?.changes.length ?? 0) > 0,
-                              );
-                              setOnlyFor(null);
-                            }}
-                            disabled={busy}
-                          >
-                            {t('offerTake')}
-                          </Button>
-                          {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
-                          {offer.asked.strategy !== 'favorite' && (
+                      {!eaten && !isCustom && changeable && (
+                        <div
+                          id={`${m.id}-actions`}
+                          role="group"
+                          aria-label={t('mealActions', { title })}
+                          hidden={!actionsOpen}
+                          className="ml-3 flex flex-wrap items-center gap-x-1"
+                        >
+                          {parted && dayBefore && (
                             <Button
                               type="button"
+                              variant="ghost"
                               size="sm"
-                              variant="outline"
-                              onClick={onAnotherOffer}
+                              onClick={() => onSwapToFavorite(m.id, parted.recipe!.id, false)}
                               disabled={busy}
                             >
-                              {t('offerAnother')}
+                              {t('cooking.same', { day: fmt.weekday(dayBefore.date) })}
                             </Button>
                           )}
                           <Button
                             type="button"
-                            size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setOnlyFor(null);
-                              onCancelOffer();
-                            }}
+                            size="sm"
+                            aria-label={named(t('swap'))}
+                            onClick={() => onSwapMeal(m.id)}
+                            disabled={busy}
                           >
-                            {tCommon('cancel')}
+                            {t('swap')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSwapToFav')}
+                            aria-label={named(t('swapToFav'))}
+                            aria-expanded={favOpen}
+                            onClick={() => {
+                              setShowAllFav(false);
+                              setOpenFav(favOpen ? null : m.id);
+                            }}
+                            disabled={busy}
+                          >
+                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                            aria-label={named(t('aiSwap'))}
+                            onClick={() => onAiSwapMeal?.(m.id)}
+                            disabled={busy || !onAiSwapMeal}
+                            aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
+                            className="text-primary"
+                          >
+                            <Sparkles size={14} aria-hidden />
+                            <span className="ml-1">{t('aiSwap')}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSwapByFav')}
+                            aria-label={named(t('swapFavIngr'))}
+                            onClick={() => onSwapByFavorites(m.id)}
+                            disabled={busy}
+                          >
+                            {t('swapFavIngr')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSubstitute')}
+                            aria-label={named(t('substituteIngr'))}
+                            onClick={() => {
+                              if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
+                            }}
+                            disabled={busy}
+                          >
+                            {t('substituteIngr')} ⇄
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={named(t('remove'))}
+                            aria-expanded={removing === m.id}
+                            onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                            disabled={busy}
+                          >
+                            {t('remove')}
                           </Button>
                         </div>
-                      </div>
-                    )}
-                    {/* Per-meal macros sit below the title as plain text — the
+                      )}
+                      {removing === m.id && (
+                        <div
+                          className="ml-6 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
+                          role="group"
+                          aria-label={t('removeTitle', { title })}
+                        >
+                          <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
+                          {apart && <p>{apart}</p>}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setRemoving(null);
+                                changing.current = dayAnchor(plan.id, day.date);
+                                onRemoveMeal(m.id);
+                              }}
+                              disabled={busy}
+                            >
+                              {t('removeConfirm')}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setRemoving(null)}
+                            >
+                              {tCommon('cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {offer?.asked.plannedMealId === m.id && (
+                        <div
+                          className="ml-6 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
+                          role="group"
+                          aria-label={t('offerTitle')}
+                        >
+                          {/* A model's own pick says so, with its reason, before it is taken. */}
+                          {offer.preview.pick && (
+                            <AiMark
+                              part={{
+                                kind: 'picked',
+                                reason: offer.preview.aiMeta?.reason ?? null,
+                              }}
+                              spelledOut
+                            />
+                          )}
+                          <p>
+                            {t.rich('offerLine', {
+                              title: offer.preview.recipe.title,
+                              servings: offer.preview.servings,
+                              after: offer.preview.after.calories,
+                              before: offer.preview.before.calories,
+                              strong: (chunks) => <span className="font-medium">{chunks}</span>,
+                            })}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {t('offerMacros', {
+                              protein: offer.preview.after.protein,
+                              fat: offer.preview.after.fat,
+                              carbs: offer.preview.after.carbs,
+                            })}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {/* The other meals are fitted to the day only where it comes out away from its target. */}
+                            {t(
+                              Math.abs(
+                                offer.preview.dayAfter.calories - offer.preview.calorieTarget,
+                              ) >
+                                offer.preview.calorieTarget * DAY_ON_TARGET
+                                ? 'offerDay'
+                                : 'offerDayAfter',
+                              {
+                                kcal: offer.preview.dayAfter.calories,
+                                target: offer.preview.calorieTarget,
+                              },
+                            )}{' '}
+                            {t('dayMacros', {
+                              protein: offer.preview.dayAfter.protein,
+                              proteinTarget: offer.preview.targetMacros.protein,
+                              fat: offer.preview.dayAfter.fat,
+                              fatTarget: offer.preview.targetMacros.fat,
+                              carbs: offer.preview.dayAfter.carbs,
+                              carbsTarget: offer.preview.targetMacros.carbs,
+                            })}
+                          </p>
+                          <CookingNote
+                            change={offer.preview.cooking}
+                            only={onlyFor === m.id}
+                            onOnly={(only) => setOnlyFor(only ? m.id : null)}
+                            label="only"
+                            mealName={mealName}
+                          />
+                          {offer.preview.outsideLimits.length > 0 && (
+                            <p className="text-warning">
+                              {t('offerOutside', {
+                                limits: limitNames(offer.preview.outsideLimits),
+                              })}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                setOpenActions(null);
+                                changing.current = mealAnchor(m.id);
+                                onTakeOffer(
+                                  onlyFor !== m.id &&
+                                    (offer.preview.cooking?.changes.length ?? 0) > 0,
+                                );
+                                setOnlyFor(null);
+                              }}
+                              disabled={busy}
+                            >
+                              {t('offerTake')}
+                            </Button>
+                            {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
+                            {offer.asked.strategy !== 'favorite' && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={onAnotherOffer}
+                                disabled={busy}
+                              >
+                                {t('offerAnother')}
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setOnlyFor(null);
+                                onCancelOffer();
+                              }}
+                            >
+                              {tCommon('cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {/* Per-meal macros sit below the title as plain text — the
                           modal opened from the recipe title carries the full
                           ingredient list scaled for this meal. */}
-                    <MacrosLine nutrition={m.nutrition} />
-                    {/* What the profile has ruled out since the meal was planned comes first: the plan is not rewritten, it says so. */}
-                    {m.restrictionConflicts.map((conflict) => (
-                      <p key={conflict} className="ml-6 text-xs text-destructive">
-                        {t(`conflictHint.${conflict}`)}
-                      </p>
-                    ))}
-                    {m.dietOverride && (
-                      <p className="ml-6 text-xs text-warning">
-                        {t('dietOverrideHint', { diet: dietLabel })}
-                      </p>
-                    )}
-                    {disliked.length > 0 && (
-                      <p className="ml-6 text-xs text-muted-foreground">
-                        {t('dislikedHint', { foods: fmt.list(disliked) })}
-                      </p>
-                    )}
-                    {outside && (
-                      <p className="ml-6 text-xs text-muted-foreground">
-                        {t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
-                      </p>
-                    )}
-                    {onlyRecipe && (
-                      <p className="ml-6 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
-                    )}
-                    {m.cookAhead && (
-                      <p className="ml-6 text-xs text-muted-foreground">
-                        {cookWords.hint(m, day.date)}
-                      </p>
-                    )}
-                    {cookWords.notCooked(m, day.date, today) && (
-                      <p className="ml-6 text-xs text-warning">
-                        {cookWords.notCooked(m, day.date, today)}
-                      </p>
-                    )}
-                    {isCustom && (
-                      <p className="ml-6 text-xs italic text-muted-foreground">
-                        {t(m.estimated ? 'customEstimatedNote' : 'customMacrosNote')}
-                      </p>
-                    )}
-                    {favOpen && !isCustom && (
-                      <div className="ml-6 rounded-md border border-border bg-muted/40 p-2">
-                        <label className="mb-2 flex items-center gap-1 text-xs">
-                          <input
-                            type="checkbox"
-                            className="h-3.5 w-3.5"
-                            checked={showAllFav}
-                            onChange={(e) => setShowAllFav(e.target.checked)}
-                          />
-                          {t('showAllFavorites')}
-                        </label>
-                        {slotFavorites.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            {showAllFav
-                              ? t('noFavorites')
-                              : t('noFavoritesForSlot', { mealType: mealLabel })}
-                          </p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {slotFavorites.map((f) => {
-                              const off = !fitsDiet(f.recipe.dietTags, plan.dietType);
-                              const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
-                              return (
-                                <li key={f.recipe.id}>
-                                  <button
-                                    type="button"
-                                    className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      setOpenFav(null);
-                                      onSwapToFavorite(m.id, f.recipe.id, showAllFav);
-                                    }}
-                                  >
-                                    <span>{f.recipe.title}</span>
-                                    <span className="flex shrink-0 items-center gap-1">
-                                      {crossSlot && (
-                                        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-                                          {f.recipe.mealTypes
-                                            .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
-                                            .join(' · ')}
-                                        </span>
-                                      )}
-                                      {off && (
-                                        <span className="rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
-                                          {t('offDietTag')}
-                                        </span>
-                                      )}
-                                    </span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </li>
+                      <MacrosLine nutrition={m.nutrition} />
+                      {/* What the profile has ruled out since the meal was planned comes first: the plan is not rewritten, it says so. */}
+                      {m.restrictionConflicts.map((conflict) => (
+                        <p key={conflict} className="ml-6 text-xs text-destructive">
+                          {t(`conflictHint.${conflict}`)}
+                        </p>
+                      ))}
+                      {m.dietOverride && (
+                        <p className="ml-6 text-xs text-warning">
+                          {t('dietOverrideHint', { diet: dietLabel })}
+                        </p>
+                      )}
+                      {disliked.length > 0 && (
+                        <p className="ml-6 text-xs text-muted-foreground">
+                          {t('dislikedHint', { foods: fmt.list(disliked) })}
+                        </p>
+                      )}
+                      {outside && (
+                        <p className="ml-6 text-xs text-muted-foreground">
+                          {t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
+                        </p>
+                      )}
+                      {onlyRecipe && (
+                        <p className="ml-6 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
+                      )}
+                      {m.cookAhead && (
+                        <p className="ml-6 text-xs text-muted-foreground">
+                          {cookWords.hint(m, day.date)}
+                        </p>
+                      )}
+                      {cookWords.notCooked(m, day.date, today) && (
+                        <p className="ml-6 text-xs text-warning">
+                          {cookWords.notCooked(m, day.date, today)}
+                        </p>
+                      )}
+                      {isCustom && (
+                        <p className="ml-6 text-xs italic text-muted-foreground">
+                          {t(m.estimated ? 'customEstimatedNote' : 'customMacrosNote')}
+                        </p>
+                      )}
+                      {favOpen && !isCustom && (
+                        <div className="ml-6 rounded-md border border-border bg-muted/40 p-2">
+                          <label className="mb-2 flex items-center gap-1 text-xs">
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5"
+                              checked={showAllFav}
+                              onChange={(e) => setShowAllFav(e.target.checked)}
+                            />
+                            {t('showAllFavorites')}
+                          </label>
+                          {slotFavorites.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              {showAllFav
+                                ? t('noFavorites')
+                                : t('noFavoritesForSlot', { mealType: mealLabel })}
+                            </p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {slotFavorites.map((f) => {
+                                const off = !fitsDiet(f.recipe.dietTags, plan.dietType);
+                                const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
+                                return (
+                                  <li key={f.recipe.id}>
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setOpenFav(null);
+                                        onSwapToFavorite(m.id, f.recipe.id, showAllFav);
+                                      }}
+                                    >
+                                      <span>{f.recipe.title}</span>
+                                      <span className="flex shrink-0 items-center gap-1">
+                                        {crossSlot && (
+                                          <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                                            {f.recipe.mealTypes
+                                              .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
+                                              .join(' · ')}
+                                          </span>
+                                        )}
+                                        {off && (
+                                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
+                                            {t('offDietTag')}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                    <DiaryLines entries={written} profileId={plan.profileId} date={day.date} />
+                  </Fragment>
                 );
               })}
+              {/* What the diary holds for a meal the day has none of, in the order of the day. */}
+              <DiaryLines
+                entries={(day.diary?.items ?? [])
+                  .filter((entry) => !day.meals.some((meal) => meal.mealType === entry.mealType))
+                  .sort((a, b) => DAY_ORDER.indexOf(a.mealType) - DAY_ORDER.indexOf(b.mealType))}
+                profileId={plan.profileId}
+                date={day.date}
+              />
             </ul>
             <Button
               type="button"
@@ -1356,6 +1374,57 @@ function DaySettingsLine({ day }: { day: MealPlanDay }) {
     own.useUpBy ? t('lineUseUp') : null,
   ].filter((line): line is string => line !== null);
   return said.length > 0 ? <p className="text-xs text-muted-foreground">{said.join(' ')}</p> : null;
+}
+
+/** The meals of a day in the order they are eaten. */
+const DAY_ORDER: readonly string[] = MEAL_SLOTS_BY_COUNT[5]!;
+
+/**
+ * Entries of the day's diary in a plan, each under the meal it was written
+ * for: what it is, how much, its figures and that it is the diary's, which
+ * changes and removes it. A press on one opens the diary of that day.
+ */
+function DiaryLines({
+  entries,
+  profileId,
+  date,
+}: {
+  entries: readonly DiaryEntry[];
+  profileId: string;
+  date: string;
+}) {
+  const t = useTranslations('mealPlans');
+  const tMeal = useTranslations('enums.mealType');
+  const amountOf = useEntryAmount();
+  return entries.map((entry) => (
+    <li key={entry.id} className="space-y-1 py-2">
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words pl-6">
+        <span className="text-muted-foreground">
+          {tMeal.has(entry.mealType) ? tMeal(entry.mealType) : entry.mealType.replace('_', ' ')}
+        </span>
+        <span aria-hidden className="hidden sm:inline">
+          ·
+        </span>
+        <Link
+          href={`/diary?profile=${profileId}&date=${date}`}
+          aria-label={t('openInDiary', { name: entry.name })}
+          className="font-medium text-primary wrap-anywhere hover:underline"
+        >
+          {entry.name}
+        </Link>
+        <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+          {t('fromDiaryChip')}
+        </span>
+        {entry.estimated && (
+          <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+            {t('estimatedChip')}
+          </span>
+        )}
+      </p>
+      <p className="ml-6 text-xs text-muted-foreground">{amountOf(entry)}</p>
+      <MacrosLine nutrition={entry.nutrition} />
+    </li>
+  ));
 }
 
 /** Per-meal macros as plain inline text, sitting below the recipe title. Full

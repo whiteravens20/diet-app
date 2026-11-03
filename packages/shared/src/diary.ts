@@ -124,6 +124,8 @@ export const DiaryEntry = z.object({
   ingredientId: z.string().uuid().nullable(),
   /** The product it is of, while the instance holds it. */
   productId: z.string().uuid().nullable(),
+  /** The code of that product, where it has one: what a correction of it is written for. */
+  productCode: z.string().nullable(),
   /** Where the figures of a product came from when it was written; null for the other kinds. */
   productSource: ProductSource.nullable(),
   /** Servings of a recipe or of a meal of one's own; null for an ingredient or a product. */

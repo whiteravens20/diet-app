@@ -12814,6 +12814,12 @@
               }
             ]
           },
+          "productCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "productSource": {
             "anyOf": [
               {
@@ -12888,6 +12894,7 @@
           "recipeId",
           "ingredientId",
           "productId",
+          "productCode",
           "productSource",
           "servings",
           "amount",
@@ -15225,11 +15232,19 @@
                   },
                   "nutrition": {
                     "$ref": "#/components/schemas/Nutrition"
+                  },
+                  "items": {
+                    "maxItems": 40,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DiaryEntry"
+                    }
                   }
                 },
                 "required": [
                   "entries",
-                  "nutrition"
+                  "nutrition",
+                  "items"
                 ],
                 "additionalProperties": false
               },

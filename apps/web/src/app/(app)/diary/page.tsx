@@ -14,7 +14,6 @@ import type {
   DiaryDay,
   DiaryEntry,
   DiaryPlanMeal,
-  DisplayAmount,
   MealType,
   Profile,
   RebalanceRequest,
@@ -32,7 +31,6 @@ import { api } from '@/lib/api';
 import { useConfig } from '@/lib/use-config';
 import { localDate } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
-import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { dayAfter } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -45,7 +43,8 @@ import { LoadFailed } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
-import { EditEntryDialog, shownServings } from './edit-entry-dialog';
+import { EditEntryDialog } from './edit-entry-dialog';
+import { useEntryAmount } from '@/components/diary-entry-amount';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -675,15 +674,8 @@ function MealSection({
 }) {
   const t = useTranslations('diary');
   const tMeal = useTranslations('enums.mealType');
-  const amount = useAmount();
-  const unitName = useUnitName();
-  const fmt = useFormat();
+  const amountOf = useEntryAmount();
   const id = useId();
-  // Weights and volumes as they were written, a part of a gram in the reader's own numbers; what is counted has its plurals.
-  const written = ({ quantity, unit }: DisplayAmount): string =>
-    unit === 'g' || unit === 'ml'
-      ? `${fmt.number(quantity, 2)} ${unitName(unit)}`
-      : amount(quantity, unit);
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
   const entries = day.entries.filter((entry) => entry.mealType === slot);
   return (
@@ -735,9 +727,7 @@ function MealSection({
               <div className="min-w-0 flex-1 basis-48">
                 <p className="break-words text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {entry.amount
-                    ? written(entry.amount.shown)
-                    : t('servingsShown', { count: shownServings(entry.servings) })}
+                  {amountOf(entry)}
                   {' · '}
                   {t('mealKcal', { kcal: entry.nutrition.calories })}
                   {' · '}
