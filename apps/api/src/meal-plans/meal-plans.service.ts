@@ -222,11 +222,15 @@ export class MealPlansService {
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const [restrictions, diary, written] = await Promise.all([
+    const [restrictions, diary] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
-      entriesOfDays(this.prisma, locale, plan.profileId, plan.days),
     ]);
+    // The entries themselves are read only for a plan whose days hold any.
+    const written =
+      diary.size > 0
+        ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
+        : new Map<string, DiaryEntry[]>();
     return this.toDto(plan, locale, restrictions, diary, written);
   }
 
