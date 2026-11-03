@@ -487,7 +487,8 @@ the route's own 30 a minute. A search by name looks at nothing but the instance'
 account can take up to 5 of the instance's 12 a minute, so a few accounts can keep new codes
 waiting for as long as their daily 100 last, which is about 20 minutes each; what the instance
 holds keeps working meanwhile. The instance keeps that an account asked, and when, for a day,
-and never which code.
+and never which code. A code is part of the address of the request, so a reverse proxy that logs
+addresses keeps it with the rest: say so in your terms, as the template does.
 
 **An import of countries.** `OPEN_FOOD_FACTS_COUNTRIES=poland,germany` names the countries, as
 Open Food Facts writes them in the address of a country's page

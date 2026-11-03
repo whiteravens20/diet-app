@@ -10,7 +10,7 @@ Tę instancję Diet App, aplikacji do planowania posiłków, prowadzi [operator:
 
 ## 2. Konta
 
-Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za ich bezpieczeństwo odpowiadasz Ty. [Kto może założyć konto: każdy albo tylko osoby zaproszone przez operatora.] Usunięcie konta jest trwałe: znika każdy związany z nim zapis (profile, plany posiłków, dziennik, ulubione, spiżarnia, zapis użycia AI) bez możliwości odzyskania.
+Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Za ich bezpieczeństwo odpowiadasz Ty. [Kto może założyć konto: każdy albo tylko osoby zaproszone przez operatora.] Usunięcie konta jest trwałe: znika każdy związany z nim zapis (profile, plany posiłków, dziennik, własne produkty, ulubione, spiżarnia, zapis użycia AI) bez możliwości odzyskania.
 
 ## 3. Własne klucze AI i AI instancji
 
@@ -49,7 +49,7 @@ Twoje konto zawiera adres e-mail, który instancja przechowuje zaszyfrowany, ora
 
 ## 9. Produkty z kodem kreskowym
 
-[Usuń tę sekcję, jeśli instancja nie sprawdza kodów ani nie importuje produktów.] Kod kreskowy, który zeskanujesz albo wpiszesz, sprawdza ta instancja: najpierw we własnej tabeli produktów, a jeśli go tam nie ma, pyta Open Food Facts we własnym imieniu. Open Food Facts widzi serwer instancji, nie Ciebie. Instancja nie zapisuje przy Twoim koncie, o jakie kody pytasz, a jedynie to, że pytanie padło, i usuwa ten zapis po dobie. Wpis produktu w dzienniku należy do Twoich danych. Wartości produktów wpisują użytkownicy Open Food Facts i mogą być błędne: aplikacja sprawdza tylko, czy się zgadzają, więc porównaj je z opakowaniem. Dane Open Food Facts są dostępne na licencji Open Database License (ODbL), a tabela produktów tej instancji jest udostępniana na tej samej licencji, jak opisano pod regulaminem.
+[Usuń tę sekcję, jeśli instancja nie sprawdza kodów ani nie importuje produktów.] Kod kreskowy, który zeskanujesz albo wpiszesz, sprawdza ta instancja: najpierw we własnej tabeli produktów, a jeśli go tam nie ma, pyta Open Food Facts we własnym imieniu. Open Food Facts widzi serwer instancji, nie Ciebie. Instancja nie zapisuje przy Twoim koncie, o jakie kody pytasz, a jedynie to, że pytanie padło, i usuwa ten zapis po dobie. Kod jest częścią adresu zapytania, więc trafia do logów serwera pośredniczącego przed instancją, jeśli jakiś je zapisuje. Wpis produktu w dzienniku należy do Twoich danych. Wartości produktów wpisują użytkownicy Open Food Facts i mogą być błędne: aplikacja sprawdza tylko, czy się zgadzają, więc porównaj je z opakowaniem. Dane Open Food Facts są dostępne na licencji Open Database License (ODbL), a tabela produktów tej instancji jest udostępniana na tej samej licencji, jak opisano pod regulaminem.
 
 Produkt, którego nie ma w tabeli, możesz wpisać sam i pozostaje on tylko Twój. Jego kod jest sprawdzany tak samo, od razu i później; gdy Open Food Facts albo ta instancja pozna ten kod, Twoja kopia ustępuje, dostajesz o tym informację, a dziennik zachowuje to, co zapisał. Jeśli wyślesz produkt do bazy, sprawdzający tej instancji czytają go, nie widząc, czyj jest. Przyjęty produkt należy do bazy: każdy na tej instancji może go znaleźć, jest udostępniany na tej samej licencji w pliku bez informacji, kto co dodał, i zostaje po usunięciu Twojego konta. Administrator może go wycofać, podając powód, a wtedy wraca do Ciebie. Produkt niewysłany, czekający i nieprzyjęty znika razem z kontem.
 
