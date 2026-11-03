@@ -35,7 +35,8 @@ export function StepsField({
               maxLength={RECIPE_LIMITS.step}
               rows={2}
               aria-label={t('stepNumber', { n: index + 1 })}
-              className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              // A step is as tall as its words, where the browser can size a field to them; two lines at the least.
+              className="min-h-14 min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm field-sizing-content"
             />
             <div className="flex flex-col">
               <Button
