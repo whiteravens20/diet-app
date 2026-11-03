@@ -2650,7 +2650,7 @@
   },
   "products": {
     "title": "My products",
-    "subhead": "Products with a barcode that the base does not know, written from their labels.",
+    "subhead": "Products with a barcode, written from their labels: new to the base, or your corrections.",
     "notOffered": "This instance has no products with a barcode.",
     "add": "Add a product",
     "addTitle": "Add a product",

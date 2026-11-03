@@ -2650,7 +2650,7 @@
   },
   "products": {
     "title": "Moje produkty",
-    "subhead": "Produkty z kodem kreskowym, których baza nie zna, spisane z etykiet.",
+    "subhead": "Produkty z kodem kreskowym spisane z etykiet: nowe dla bazy albo Twoje poprawki.",
     "notOffered": "Ta instancja nie ma produktów z kodem kreskowym.",
     "add": "Dodaj produkt",
     "addTitle": "Dodaj produkt",
