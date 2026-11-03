@@ -2710,7 +2710,7 @@
     "changeLeavesQueue": "Saving takes it out of the queue: it has to be sent again.",
     "correctionNote": "A correction of the base's data: your scans of this code show this version, and everybody else sees the base's data. Remove it to go back to the base's data. For everybody to have it, <off>correct the product at Open Food Facts</off>.",
     "correctTitle": "Correct the product",
-    "correctIntro": "Copy the figures from the pack. A saved correction is yours alone: your scans of this code show it instead of the base's data, and everybody else still sees the base's data. For everybody to have it, <off>correct the product at Open Food Facts</off>: photos of the label can be added there, and this instance takes the change with its weekly import."
+    "correctIntro": "Copy the figures from the pack. A saved correction is yours alone: your scans of this code show it instead of the base's data, and everybody else still sees the base's data. For everybody to have it, <off>correct the product at Open Food Facts</off>: photos of the label can be added there, and this instance picks up the change by itself in time."
   },
   "productReview": {
     "explain": "Products people of this instance sent to its base. Nothing says whose each one is. An accepted one joins the base and the file shared under the Open Database License; one not accepted goes back to its author with what you write.",

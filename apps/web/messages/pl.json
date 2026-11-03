@@ -2710,7 +2710,7 @@
     "changeLeavesQueue": "Zapisanie wycofa go z kolejki: trzeba będzie wysłać go jeszcze raz.",
     "correctionNote": "Poprawka danych z bazy: Twoje skany tego kodu pokazują tę wersję, a inni widzą dane z bazy. Usuń ją, żeby wrócić do danych z bazy. Żeby poprawka trafiła do wszystkich, <off>popraw produkt w Open Food Facts</off>.",
     "correctTitle": "Popraw dane produktu",
-    "correctIntro": "Przepisz wartości z opakowania. Zapisana poprawka jest tylko Twoja: Twoje skany tego kodu pokażą ją zamiast danych z bazy, a inni dalej będą widzieć dane z bazy. Żeby poprawka trafiła do wszystkich, <off>popraw produkt w Open Food Facts</off>: tam można dodać zdjęcia etykiety, a ta instancja pobierze zmianę przy cotygodniowym imporcie."
+    "correctIntro": "Przepisz wartości z opakowania. Zapisana poprawka jest tylko Twoja: Twoje skany tego kodu pokażą ją zamiast danych z bazy, a inni dalej będą widzieć dane z bazy. Żeby poprawka trafiła do wszystkich, <off>popraw produkt w Open Food Facts</off>: tam można dodać zdjęcia etykiety, a ta instancja z czasem sama pobierze zmianę."
   },
   "productReview": {
     "explain": "Produkty, które użytkownicy tej instancji wysłali do jej bazy. Nie widać, czyj jest który. Przyjęty trafia do bazy i do pliku udostępnianego na licencji Open Database License, a nieprzyjęty wraca do autora z tym, co tu wpiszesz.",
