@@ -283,31 +283,46 @@ test.describe("a product of one's own", () => {
     await theProductsPage(page, products);
   });
 
-  test('does not take a code the base knows: it shows what the base holds, and leads to one without a code', async ({
+  test('corrects a product of the base for its reader alone, who scans the correction from then on and cannot send it', async ({
     session,
     messages,
   }) => {
     test.skip(!process.env.E2E_PRODUCTS, 'needs the products of e2e/products.sql');
     const page = session.page;
     const products = messages.products as unknown as Texts;
+    const states = (messages.products as unknown as { state: Texts }).state;
+    const diary = messages.diary as Texts;
     await theProductsPage(page, products);
 
-    await page.getByRole('button', { name: products.add!, exact: true }).click();
-    const form = page.getByRole('dialog', { name: products.addTitle! });
-    await form.getByLabel(products.code!).fill(MILK.code);
-    await form.getByLabel(products.name!).fill(BREAD.name);
-    await form.getByLabel(products.calories!).fill('245');
-    const refused = answered(page, 'POST', '/api/products/own');
-    await form.getByRole('button', { name: products.save!, exact: true }).click();
-    expect((await refused).status()).toBe(409);
-    await expect(form.getByText(MILK.name)).toBeVisible();
-    expect(await barriers(page), 'a code the base knows').toEqual([]);
-
-    await form.getByRole('button', { name: products.withoutCode!, exact: true }).click();
-    await expect(form.getByLabel(products.code!)).toHaveValue('');
+    // Found by its code, the base's product offers its correction, which starts from its figures and code.
+    const window = await windowOnProducts(page, diary);
+    await window.getByRole('searchbox').fill(MILK.code);
+    const asked = answered(page, 'GET', `/api/products/code/${MILK.code}`);
+    await window.getByRole('button', { name: diary.productCheck!, exact: true }).click();
+    expect((await asked).status()).toBe(200);
+    await window.getByRole('button', { name: diary.productCorrect!, exact: true }).click();
+    await expect(window.getByRole('heading', { name: products.correctTitle! })).toBeVisible();
+    await expect(window.getByLabel(products.code!)).toHaveValue(MILK.code);
+    expect(await barriers(page), 'a correction being written').toEqual([]);
+    await window.getByLabel(products.name!, { exact: true }).fill(BREAD.name);
     const saved = answered(page, 'POST', '/api/products/own');
-    await form.getByRole('button', { name: products.save!, exact: true }).click();
-    expect((await saved).status()).toBe(201);
+    await window.getByRole('button', { name: products.save!, exact: true }).click();
+    const answer = await saved;
+    expect(answer.status()).toBe(201);
+    expect((await answer.json()).correction).toBe(true);
+    // The correction takes the base's place in the window.
+    await expect(window.getByText(BREAD.name)).toBeVisible();
+    await expect(
+      window.getByRole('button', { name: diary.productCorrect!, exact: true }),
+    ).toHaveCount(0);
+
+    // A correction on the page of products: nothing offers to send it.
+    await page.goto('/products');
+    await settled(page);
+    const row = page.getByRole('listitem').filter({ hasText: BREAD.name });
+    await expect(row.getByText(states.correction!, { exact: true })).toBeVisible();
+    await expect(row.getByRole('button', { name: products.send!, exact: true })).toHaveCount(0);
+    expect(await barriers(page), 'a correction on the page of products').toEqual([]);
 
     await theProductsPage(page, products);
   });
