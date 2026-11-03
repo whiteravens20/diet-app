@@ -611,7 +611,7 @@ export function PlanCard({
                                   ...toCook(plan, m),
                                 })
                               }
-                              className="text-left font-medium text-primary hover:underline"
+                              className="text-left font-medium text-primary wrap-anywhere hover:underline"
                             >
                               {title}
                             </button>

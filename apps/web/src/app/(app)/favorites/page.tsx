@@ -269,7 +269,7 @@ export default function FavoritesPage() {
                         <div className="min-w-0">
                           <button
                             type="button"
-                            className="text-left font-medium text-primary hover:underline"
+                            className="text-left font-medium text-primary wrap-anywhere hover:underline"
                             onClick={() => setOpenRecipe(marked.recipe.id)}
                           >
                             {marked.recipe.title}
