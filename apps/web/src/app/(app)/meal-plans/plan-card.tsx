@@ -303,6 +303,15 @@ export function PlanCard({
   // One day of the open plan: what it is and what it comes to stand in its head, which unfolds the rest.
   const dayCard = (plan: MealPlan, day: MealPlanDay) => {
     const dayOpen = toggled[day.date] ?? day.date === firstOpen;
+    // What the diary holds for a meal the day has none of stands where that meal would in the day:
+    // before the first meal that comes after it, or after the last one.
+    const withoutMeal = (day.diary?.items ?? [])
+      .filter((entry) => !day.meals.some((meal) => meal.mealType === entry.mealType))
+      .sort((a, b) => DAY_ORDER.indexOf(a.mealType) - DAY_ORDER.indexOf(b.mealType));
+    const placeOf = (entry: DiaryEntry): number =>
+      day.meals.findIndex(
+        (meal) => DAY_ORDER.indexOf(meal.mealType) > DAY_ORDER.indexOf(entry.mealType),
+      );
     return (
       // A day can be gone to from the calendar: it is named, and can take the focus.
       <div
@@ -516,7 +525,7 @@ export function PlanCard({
             )}
             {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
             <ul className="divide-y divide-border text-sm">
-              {day.meals.map((m) => {
+              {day.meals.map((m, index) => {
                 const eaten = m.eatenAt !== null;
                 const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
                 const title = isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title;
@@ -582,6 +591,11 @@ export function PlanCard({
                     : [];
                 return (
                   <Fragment key={m.id}>
+                    <DiaryLines
+                      entries={withoutMeal.filter((entry) => placeOf(entry) === index)}
+                      profileId={plan.profileId}
+                      date={day.date}
+                    />
                     <li
                       id={mealAnchor(m.id)}
                       tabIndex={-1}
@@ -1059,11 +1073,8 @@ export function PlanCard({
                   </Fragment>
                 );
               })}
-              {/* What the diary holds for a meal the day has none of, in the order of the day. */}
               <DiaryLines
-                entries={(day.diary?.items ?? [])
-                  .filter((entry) => !day.meals.some((meal) => meal.mealType === entry.mealType))
-                  .sort((a, b) => DAY_ORDER.indexOf(a.mealType) - DAY_ORDER.indexOf(b.mealType))}
+                entries={withoutMeal.filter((entry) => placeOf(entry) === -1)}
                 profileId={plan.profileId}
                 date={day.date}
               />

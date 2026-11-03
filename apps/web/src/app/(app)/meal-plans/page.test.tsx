@@ -1505,7 +1505,7 @@ describe('the plan page, on how a day stands against its target', () => {
     });
   });
 
-  it('lists each entry of the diary under the meal it was written for, and one of a meal the day has none of after the meals, in the order of the day', async () => {
+  it('lists each entry of the diary under the meal it was written for, and one of a meal the day has none of where that meal stands in the day', async () => {
     const today = localDate();
     const entry = (over: Partial<DiaryEntry>): DiaryEntry => ({
       id: '77777777-7777-4777-8777-777777777777',
@@ -1550,13 +1550,32 @@ describe('the plan page, on how a day stands against its target', () => {
       servings: 1,
       amount: null,
     });
+    const apple = entry({
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      mealType: 'second_breakfast',
+      name: 'Apple',
+    });
+    const breakfast = aPlan().days[0]!.meals[0]!;
     await opened(
       aDay({
         date: today,
+        meals: [
+          breakfast,
+          {
+            ...breakfast,
+            id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            mealType: 'dinner',
+            recipe: {
+              ...breakfast.recipe!,
+              id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+              title: 'Lentil stew',
+            },
+          },
+        ],
         diary: {
-          entries: 3,
-          nutrition: { calories: 795, protein: 26, fat: 34, carbs: 88 },
-          items: [cake, supper, entry({})],
+          entries: 4,
+          nutrition: { calories: 890, protein: 27, fat: 34, carbs: 110 },
+          items: [cake, supper, apple, entry({})],
         },
       }),
     );
@@ -1568,10 +1587,20 @@ describe('the plan page, on how a day stands against its target', () => {
     const named = [...rows].map((row) =>
       within(row as HTMLElement).queryByText(messages.mealPlans.fromDiaryChip)
         ? within(row as HTMLElement).getAllByRole('link')[0]!.textContent
-        : 'meal',
+        : (within(row as HTMLElement).queryByRole('button', {
+            name: /^(Oat porridge|Lentil stew)$/,
+          })?.textContent ?? 'meal'),
     );
-    // The breakfast, what the diary adds to it, then the meals the day has none of, a snack before a dinner.
-    expect(named).toEqual(['meal', 'Natural yoghurt', 'Cake at work', 'Soup']);
+    // The breakfast and what the diary adds to it; a second breakfast and a snack the day has no meal of, where
+    // they stand in the day, before the dinner; the dinner and its own entry.
+    expect(named).toEqual([
+      'Oat porridge',
+      'Natural yoghurt',
+      'Apple',
+      'Cake at work',
+      'Lentil stew',
+      'Soup',
+    ]);
     const yoghurt = within(rows[1] as HTMLElement);
     expect(
       yoghurt.getByRole('link', { name: 'Open in the diary: Natural yoghurt' }),
@@ -1579,9 +1608,9 @@ describe('the plan page, on how a day stands against its target', () => {
     expect(yoghurt.getByText(messages.mealPlans.fromDiaryChip)).toBeVisible();
     expect(yoghurt.getByText('150 g')).toBeVisible();
     expect(
-      within(rows[2] as HTMLElement).getByText(messages.mealPlans.estimatedChip),
+      within(rows[3] as HTMLElement).getByText(messages.mealPlans.estimatedChip),
     ).toBeVisible();
-    expect(within(rows[2] as HTMLElement).getByText('1 serving')).toBeVisible();
+    expect(within(rows[3] as HTMLElement).getByText('1 serving')).toBeVisible();
   });
 
   it('offers no resizing of a day that has no meal from a recipe left to resize', async () => {
