@@ -82,7 +82,8 @@ export function ConfirmEmailNotice() {
       className="mb-6 flex flex-wrap items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm"
     >
       <Mail size={18} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
-      <div className="min-w-0 flex-1 space-y-1">
+      {/* The words keep a width to be read at: on a narrow screen the buttons go under them. */}
+      <div className="min-w-0 flex-1 basis-64 space-y-1">
         <p>
           {t(config.email.confirmationUnlocksAi ? 'noticeAi' : 'noticePlain', {
             email: me.email,
