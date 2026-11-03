@@ -142,6 +142,7 @@ export class AccountExportService {
         recipeId: entry.recipeId,
         ingredientId: entry.ingredientId,
         productId: entry.productId,
+        productSource: entry.productSource,
         servings: entry.servings,
         quantity: entry.quantity,
         unit: entry.unit,

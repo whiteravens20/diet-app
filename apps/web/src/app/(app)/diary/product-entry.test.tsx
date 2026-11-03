@@ -410,6 +410,19 @@ describe('a product in the window that adds to a diary', () => {
       expect(window.getByText(texts.productLacking)).toBeInTheDocument();
     });
 
+    it("speaks of what was written, not of a label, for a product of one's own", async () => {
+      vi.spyOn(api, 'get').mockResolvedValue({
+        items: [{ ...MILK, source: 'own', per100: { ...MILK.per100, protein: null } }],
+      });
+      const { window, field, user } = await openOnProducts();
+
+      await user.type(field, 'mleko');
+      await user.click(await window.findByRole('button', { name: /Mleko/ }));
+
+      expect(window.getByText(texts.productLackingOwn)).toBeInTheDocument();
+      expect(window.queryByText(texts.productLacking)).not.toBeInTheDocument();
+    });
+
     it('says that an energy worked out is an estimate', async () => {
       const { window } = await picked({ ...MILK, energyWorkedOut: true });
       expect(window.getByText(texts.productEnergyWorkedOut)).toBeInTheDocument();

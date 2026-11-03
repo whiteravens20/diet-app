@@ -4,7 +4,7 @@ import * as z from './zod.js';
 import { DIARY_QUANTITY_LIMITS, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
 import { CalendarDay, DisplayAmount, MealType, Unit } from './enums.js';
 import { EnteredNutrition, Nutrition } from './nutrition.js';
-import { LabelNutrients } from './product.js';
+import { LabelNutrients, ProductSource } from './product.js';
 
 /**
  * The diary of a profile: what it ate on a day, planned or not.
@@ -124,6 +124,8 @@ export const DiaryEntry = z.object({
   ingredientId: z.string().uuid().nullable(),
   /** The product it is of, while the instance holds it. */
   productId: z.string().uuid().nullable(),
+  /** Where the figures of a product came from when it was written; null for the other kinds. */
+  productSource: ProductSource.nullable(),
   /** Servings of a recipe or of a meal of one's own; null for an ingredient or a product. */
   servings: z.number().nullable(),
   /**

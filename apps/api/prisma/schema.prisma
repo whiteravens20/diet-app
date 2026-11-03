@@ -348,6 +348,8 @@ model DiaryEntry {
   productId    String?
   ownProduct   OwnProduct?    @relation(fields: [ownProductId], references: [id], onDelete: SetNull)
   ownProductId String?
+  // Where the figures of a product came from when it was written: they stay, whatever becomes of it.
+  productSource ProductSource?
   name         String
   // Servings of a recipe or of a meal of its own; null for an ingredient or a product.
   servings     Float?
@@ -387,6 +389,12 @@ enum DiaryEntryKind {
 
 // Where a product came from: the weekly import of the countries the operator
 // names, or a lookup of one code no import brings.
+enum ProductSource {
+  open_food_facts
+  instance
+  own
+}
+
 enum ProductOrigin {
   imported
   looked_up

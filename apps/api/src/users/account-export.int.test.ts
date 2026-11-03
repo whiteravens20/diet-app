@@ -229,6 +229,7 @@ describe('everything an account holds, as one file', () => {
         recipeId: null,
         ingredientId: expect.any(String),
         productId: null,
+        productSource: null,
         servings: null,
         quantity: 50,
         unit: 'g',

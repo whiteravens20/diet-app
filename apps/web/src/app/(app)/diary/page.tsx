@@ -753,7 +753,15 @@ function MealSection({
                   {entry.kind === 'product' && (
                     <>
                       {' · '}
-                      <span className="whitespace-nowrap">{t('entrySource')}</span>
+                      <span className="whitespace-nowrap">
+                        {t(
+                          entry.productSource === 'own'
+                            ? 'entrySourceOwn'
+                            : entry.productSource === 'instance'
+                              ? 'entrySourceInstance'
+                              : 'entrySource',
+                        )}
+                      </span>
                     </>
                   )}
                 </p>

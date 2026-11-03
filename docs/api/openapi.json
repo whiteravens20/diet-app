@@ -12814,6 +12814,16 @@
               }
             ]
           },
+          "productSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "servings": {
             "type": [
               "number",
@@ -12878,6 +12888,7 @@
           "recipeId",
           "ingredientId",
           "productId",
+          "productSource",
           "servings",
           "amount",
           "nutrition",

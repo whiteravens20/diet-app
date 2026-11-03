@@ -329,13 +329,32 @@ describe('the products an account writes for itself', () => {
       const product = await written();
 
       const added = (await entry(product.id)).body as DiaryEntry;
-      expect(added).toMatchObject({ kind: 'product', productId: product.id });
+      expect(added).toMatchObject({ kind: 'product', productId: product.id, productSource: 'own' });
       expect(added.nutrition.calories).toBe(120);
 
       await t.http().delete(`/api/products/own/${product.id}`).set(as(user)).expect(204);
       const kept = await t.prisma.diaryEntry.findUniqueOrThrow({ where: { id: added.id } });
       expect(kept.ownProductId).toBeNull();
       expect(kept.calories).toBe(120);
+    });
+
+    it('says on the day it is copied to where its figures came from', async () => {
+      const product = await written();
+      await entry(product.id);
+      const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
+      const before = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
+
+      const copied = await t
+        .http()
+        .post('/api/diary/copy')
+        .set(as(user))
+        .set('X-Client-Date', TODAY)
+        .send({ profileId: profile.id, from: TODAY, to: before })
+        .expect(201);
+
+      expect(copied.body.day.entries).toEqual([
+        expect.objectContaining({ kind: 'product', productSource: 'own' }),
+      ]);
     });
 
     it('is estimated where its figures were left out', async () => {
@@ -468,6 +487,24 @@ describe('the products an account writes for itself', () => {
       const kept = await t.prisma.diaryEntry.findUniqueOrThrow({ where: { id: added.body.id } });
       expect(kept.productId).toBe(answer.body.id);
       expect(kept.calories).toBe(120);
+      // What was written from its own figures still says so; an entry written from now on names the instance.
+      expect(kept.productSource).toBe('own');
+      const reader = await aUser(t);
+      const theirs = await aProfile(t, reader);
+      const later = await t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(reader))
+        .send({
+          profileId: theirs.id,
+          date: TODAY,
+          mealType: 'snack',
+          kind: 'product',
+          productId: answer.body.id,
+          quantity: 50,
+        })
+        .expect(201);
+      expect(later.body.productSource).toBe('instance');
       expect(await noticesOf(user)).toEqual([
         {
           type: 'product_accepted',

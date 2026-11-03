@@ -37,6 +37,7 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   recipeId: null,
   ingredientId: null,
   productId: null,
+  productSource: null,
   servings: 1,
   amount: null,
   nutrition: { calories: 300, protein: 19, fat: 10, carbs: 34 },
@@ -506,11 +507,27 @@ describe('the diary', () => {
     expect(window.getByRole('spinbutton', { name: `${texts.quantity} (slices)` })).toHaveValue(2.5);
   });
 
+  it.each([
+    ['own', 'entrySourceOwn'],
+    ['instance', 'entrySourceInstance'],
+  ] as const)(
+    'says of a product whose figures came from %s that they did not come from Open Food Facts',
+    async (productSource, said) => {
+      const entry = anEntry({ kind: 'product', name: 'Chleb babci', productSource });
+      await renderPage(aDay({ entries: [entry] }));
+
+      const row = screen.getByText('Chleb babci').closest('li')!;
+      expect(within(row).getByText(texts[said])).toBeInTheDocument();
+      expect(within(row).queryByText(texts.entrySource)).not.toBeInTheDocument();
+    },
+  );
+
   it('says where the figures of a product come from, and takes a change of its amount', async () => {
     const entry = anEntry({
       kind: 'product',
       name: 'Mleko, Mlekovita',
       productId: '77777777-7777-4777-8777-777777777777',
+      productSource: 'open_food_facts',
       servings: null,
       amount: { quantity: 250, unit: 'ml', shown: { quantity: 250, unit: 'ml' } },
       label: { fiber: null, sugars: 11.8, salt: 0.3, saturatedFat: 5.3 },

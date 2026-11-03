@@ -230,7 +230,7 @@ export function PickedProduct({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">{product.name}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="break-words text-xs text-muted-foreground">
             {[product.brand, product.pack].filter(Boolean).join(' · ')}
           </p>
         </div>
@@ -271,7 +271,11 @@ export function PickedProduct({
           {t('productDoubtful')}
         </p>
       )}
-      {lacking && <p className="text-xs text-muted-foreground">{t('productLacking')}</p>}
+      {lacking && (
+        <p className="text-xs text-muted-foreground">
+          {t(product.source === 'own' ? 'productLackingOwn' : 'productLacking')}
+        </p>
+      )}
       {product.energyWorkedOut && (
         <p className="text-xs text-muted-foreground">{t('productEnergyWorkedOut')}</p>
       )}

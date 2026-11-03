@@ -112,6 +112,7 @@ type Written = Pick<
   | 'ingredientId'
   | 'productId'
   | 'ownProductId'
+  | 'productSource'
   | 'name'
   | 'servings'
   | 'quantity'
@@ -419,6 +420,7 @@ export class DiaryService {
             ingredientId: entry.ingredientId,
             productId: entry.productId,
             ownProductId: entry.ownProductId,
+            productSource: entry.productSource,
             name: entry.name,
             servings: entry.servings,
             quantity: entry.quantity,
@@ -687,6 +689,7 @@ export class DiaryService {
         kind: 'product',
         productId: base ? req.productId : null,
         ownProductId: own ? req.productId : null,
+        productSource: own ? 'own' : base?.origin === 'accepted' ? 'instance' : 'open_food_facts',
         name: product.brand ? `${product.name}, ${product.brand}` : product.name,
         quantity: req.quantity,
         unit: product.unit,
@@ -732,6 +735,7 @@ export class DiaryService {
       recipeId: recipe ? row.recipeId : null,
       ingredientId: row.ingredientId,
       productId: row.productId ?? row.ownProductId,
+      productSource: row.productSource,
       servings: row.servings,
       amount:
         row.quantity !== null && row.unit !== null
