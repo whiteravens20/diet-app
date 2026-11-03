@@ -107,7 +107,7 @@ function AcceptedProductsList({
         {list.items.map((product) => (
           <li key={product.id} className="space-y-1 rounded-md border border-border p-3">
             <p className="break-words font-medium">{product.name}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="break-words text-xs text-muted-foreground">
               {[
                 product.brand,
                 product.code,
@@ -120,10 +120,12 @@ function AcceptedProductsList({
                 .join(' · ')}
             </p>
             <p className="text-xs text-muted-foreground">
-              {t('acceptedWhen', {
-                when: fmt.moment(product.acceptedAt),
-                by: product.acceptedBy ?? t('acceptedByNobody'),
-              })}
+              {product.acceptedBy
+                ? t('acceptedWhen', {
+                    when: fmt.moment(product.acceptedAt),
+                    by: product.acceptedBy,
+                  })
+                : t('acceptedOn', { when: fmt.moment(product.acceptedAt) })}
               {!product.hasAuthor && ` ${t('acceptedNoAuthor')}`}
             </p>
             {withdrawing === product.id ? (

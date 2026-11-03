@@ -67,7 +67,8 @@ describe('what accounts sent to the base, for whoever reviews it', () => {
     shown(aSource());
 
     expect(await screen.findByText(WAITING.name)).toBeInTheDocument();
-    expect(screen.getByText(/One product waits/)).toBeInTheDocument();
+    expect(screen.getByText('One product waits.')).toBeInTheDocument();
+    expect(screen.getByText(t.explain)).toBeInTheDocument();
     expect(screen.getByText('Babcia · 500 g · 5900512320359')).toBeInTheDocument();
     expect(screen.getByText('245')).toBeInTheDocument();
     expect(screen.getByText('2.5')).toBeInTheDocument();
@@ -78,7 +79,9 @@ describe('what accounts sent to the base, for whoever reviews it', () => {
   it('says in Polish how many wait, of any number', async () => {
     shown(aSource([WAITING, { ...WAITING, id: '99999999-9999-4999-8999-999999999998' }]), pl, 'pl');
 
-    expect(await screen.findByText(/Czekają 2 produkty/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Czekają 2 produkty, posortowane od wysłanych najwcześniej/),
+    ).toBeInTheDocument();
   });
 
   it('warns of figures that do not add up', async () => {

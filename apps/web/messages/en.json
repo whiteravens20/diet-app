@@ -1180,7 +1180,7 @@
       "acceptedLoading": "Reading what was accepted…",
       "acceptedNone": "Nothing accepted yet.",
       "acceptedWhen": "Accepted {when} by {by}.",
-      "acceptedByNobody": "someone no longer named",
+      "acceptedOn": "Accepted {when}.",
       "acceptedNoAuthor": "Its author no longer has an account: a withdrawal removes it.",
       "withdraw": "Withdraw",
       "withdrawReason": "Why it is withdrawn",
@@ -2690,9 +2690,10 @@
     "withoutCode": "Add mine without a code"
   },
   "productReview": {
+    "explain": "Products people of this instance sent to its base. Nothing says whose each one is. An accepted one joins the base and the file shared under the Open Database License; one not accepted goes back to its author with what you write.",
     "loading": "Reading the queue…",
     "nothing": "Nothing waits.",
-    "waiting": "{count, plural, one {One product waits} other {{count, number, ::group-off} products wait}}, the longest first.",
+    "waiting": "{count, plural, one {One product waits.} other {{count, number, ::group-off} products wait, the earliest sent first.}}",
     "doubtful": "These figures do not add up: check them against the label before accepting.",
     "accept": "Accept",
     "reject": "Do not accept",

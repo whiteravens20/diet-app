@@ -1180,7 +1180,7 @@
       "acceptedLoading": "Czytam, co przyjęto…",
       "acceptedNone": "Nic jeszcze nie przyjęto.",
       "acceptedWhen": "Przyjęto {when}, przyjmujący: {by}.",
-      "acceptedByNobody": "nikt już nienazwany",
+      "acceptedOn": "Przyjęto {when}.",
       "acceptedNoAuthor": "Autor nie ma już konta: wycofanie usuwa produkt.",
       "withdraw": "Wycofaj",
       "withdrawReason": "Powód wycofania",
@@ -2690,9 +2690,10 @@
     "withoutCode": "Dodaj mój bez kodu"
   },
   "productReview": {
+    "explain": "Produkty, które użytkownicy tej instancji wysłali do jej bazy. Nie widać, czyj jest który. Przyjęty trafia do bazy i do pliku udostępnianego na licencji Open Database License, a nieprzyjęty wraca do autora z tym, co tu wpiszesz.",
     "loading": "Czytam kolejkę…",
     "nothing": "Nic nie czeka.",
-    "waiting": "{count, plural, one {Czeka jeden produkt} few {Czekają {count, number, ::group-off} produkty} many {Czeka {count, number, ::group-off} produktów} other {Czeka {count, number, ::group-off} produktu}}, od najdłużej czekających.",
+    "waiting": "{count, plural, one {Czeka jeden produkt.} few {Czekają {count, number, ::group-off} produkty, posortowane od wysłanych najwcześniej.} many {Czeka {count, number, ::group-off} produktów, posortowanych od wysłanych najwcześniej.} other {Czeka {count, number, ::group-off} produktu.}}",
     "doubtful": "Te wartości się nie zgadzają: sprawdź je na etykiecie, zanim przyjmiesz.",
     "accept": "Przyjmij",
     "reject": "Nie przyjmuj",

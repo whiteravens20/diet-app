@@ -346,7 +346,8 @@ describe('the card of products in the panel', () => {
 
       expect(await screen.findByText(/by Anna\.$/)).toBeInTheDocument();
       expect(screen.getByText(new RegExp(t.acceptedNoAuthor))).toBeInTheDocument();
-      expect(screen.getByText(new RegExp(t.acceptedByNobody))).toBeInTheDocument();
+      // A product restored from the files names nobody.
+      expect(screen.getByText(/^Accepted [^.]*\.\s*Its author/)).toBeInTheDocument();
     });
 
     it('withdraws an accepted product only with what its author is told', async () => {

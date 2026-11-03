@@ -160,7 +160,7 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
                   key={n.id}
                   className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0"
                 >
-                  <span className="flex-1 text-sm">{renderBody(n)}</span>
+                  <span className="min-w-0 flex-1 break-words text-sm">{renderBody(n)}</span>
                   <button
                     type="button"
                     onClick={() => markRead.mutate(n.id)}

@@ -71,6 +71,7 @@ export function ProductQueuePanel({
   }
   return (
     <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">{t('explain')}</p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -133,7 +134,7 @@ function ProductToReview({
     <li className="space-y-2 rounded-md border border-border p-3 text-sm">
       <div>
         <p className="break-words font-medium">{product.name}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="break-words text-xs text-muted-foreground">
           {[product.brand, product.pack, product.code].filter(Boolean).join(' · ')}
         </p>
         {product.sentAt && (
