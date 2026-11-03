@@ -45,7 +45,8 @@ The companion Android app lives in a separate repository:
   figures go into the diary alone, never into a recipe or a plan. A product the base does not
   know can be written from its label, for the account alone or sent to the instance's reviewers,
   and what they accept joins the base, without its author, in a file of the instance every
-  account can download.
+  account can download. A product the base has wrong can be corrected from its label for the
+  account alone, with a link to correct it at Open Food Facts for everybody.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. A user can also
   write recipes of their own by hand from the catalogue's ingredients, and the engine works

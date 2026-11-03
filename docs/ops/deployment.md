@@ -534,10 +534,15 @@ sent to the base, 10 in 24 hours. The administrator in the panel or a reviewer o
 accepts it or turns it down with a reason, without seeing whose it is, and its author is told. An
 accepted product belongs to the instance: what other accounts wrote of its code gives way to it, no
 import touches it, and it stays when its author's account is deleted. The administrator can withdraw
-it, with a reason: it goes back to its author, or is removed where the author is gone. The worker
-also asks about the codes people wrote, 3 a pass and each at most once in 7 days, and a product gives
-way to what Open Food Facts says of its code, with a notification. Diary entries keep their figures
-through all of this. An instance with neither lookups nor countries has no products at all, these
+it, with a reason: it goes back to its author, as the author's own correction of it where there is
+one, or is removed where the author is gone. The worker also asks about the codes people wrote, 3 a
+pass and each at most once in 7 days, and a product gives way to what Open Food Facts says of its
+code, with a notification. A product the base has can be corrected the same way, from the label and
+under its code: the correction is its writer's alone, who gets it in place of the base's product
+when they scan or search that code. It is never sent to the base, and no import, lookup or accepted
+product replaces it; once Open Food Facts no longer knows the code, or the administrator withdraws
+the product it corrects, it is a product like any other. Diary entries keep their figures through
+all of this. An instance with neither lookups nor countries has no products at all, these
 included.
 
 **The licence.** The database of Open Food Facts is under the
