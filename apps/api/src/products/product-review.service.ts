@@ -22,11 +22,14 @@ const notWaiting = (): ConflictException =>
     message: 'This product is no longer waiting for review.',
   });
 
-/** A product without where it comes from, which what a review reads leaves out. */
-function withoutSource<T extends { source: unknown }>(product: T): Omit<T, 'source'> {
+/** A product without where it comes from and whether it corrects the base's, which what a review reads leaves out. */
+function withoutSource<T extends { source: unknown; correction: unknown }>(
+  product: T,
+): Omit<T, 'source' | 'correction'> {
   const rest: Partial<T> = { ...product };
   delete rest.source;
-  return rest as Omit<T, 'source'>;
+  delete rest.correction;
+  return rest as Omit<T, 'source' | 'correction'>;
 }
 
 /** A product waiting, as a reviewer sees it: its author is not named. */

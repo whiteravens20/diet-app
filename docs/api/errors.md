@@ -115,6 +115,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `ORIGIN_NOT_ALLOWED` | 403 | This request has to come from the application itself. Reload the page and try again. | To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie. |
 | `OUT_OF_COMPLEXITY_BAND` | 400 | Recipe is outside every complexity band — adjust ingredients, steps, or time. | Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas. |
 | `OVERRIDE_DATE_OUT_OF_RANGE` | 400 | An advanced day option falls outside the plan's date range. | Ustawienie dnia wykracza poza zakres dat planu. |
+| `OWN_PRODUCT_CORRECTION` | 409 | A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts. | Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts. |
 | `OWN_PRODUCT_DAILY_LIMIT` | 429 | You can write or change at most 50 products in 24 hours. | W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów. |
 | `OWN_PRODUCT_LIMIT` | 409 | An account holds at most 500 products of its own. | Konto może mieć najwyżej 500 własnych produktów. |
 | `OWN_PRODUCT_NOT_FOUND` | 404 | This product is no longer there. | Nie ma już tego produktu. |
@@ -130,7 +131,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PRODUCTS_NOT_OFFERED` | 404 | This instance offers no products. | Ta instancja nie oferuje produktów. |
 | `PRODUCT_CHANGED` | 409 | This product changed after it was opened. Open it again. | Ten produkt zmienił się po otwarciu. Otwórz go ponownie. |
 | `PRODUCT_CODE_HELD` | 409 | A product of yours has this code already. | Masz już własny produkt o tym kodzie. |
-| `PRODUCT_CODE_KNOWN` | 409 | The base has a product of this code. If you disagree with it, add yours without a code. | Baza ma już produkt o tym kodzie. Jeśli się z nim nie zgadzasz, dodaj swój bez kodu. |
+| `PRODUCT_CODE_KNOWN` | 409 | The base has a product of this code. | Baza ma już produkt o tym kodzie. |
 | `PRODUCT_IMPORT_NO_COUNTRIES` | 409 | The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance. | Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie. |
 | `PRODUCT_IMPORT_RUNNING` | 409 | An import is running. | Import właśnie trwa. |
 | `PRODUCT_IMPORT_TOO_SOON` | 409 | The last import of these countries began less than 24 hours ago. | Ostatni import tych krajów zaczął się mniej niż 24 godziny temu. |

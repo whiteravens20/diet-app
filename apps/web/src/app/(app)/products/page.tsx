@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Barcode } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { OwnProduct, OwnProducts, ProductAdditions } from '@diet-app/shared';
 import { OWN_PRODUCTS } from '@diet-app/shared/constants';
 import { EmptyState } from '@/components/empty-state';
@@ -24,24 +24,7 @@ import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
-
-const OPEN_FOOD_FACTS = 'https://world.openfoodfacts.org';
-const ODBL = 'https://opendatacommons.org/licenses/odbl/1-0/';
-
-function linkTo(href: string) {
-  return function Linked(chunks: ReactNode) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="text-primary underline underline-offset-2"
-      >
-        {chunks}
-      </a>
-    );
-  };
-}
+import { linkTo, ODBL, offProductPage, OPEN_FOOD_FACTS } from '@/components/open-food-facts';
 
 /** A product can go to the base with a code and all four of its figures. */
 const sendable = (product: OwnProduct): boolean =>
@@ -176,7 +159,7 @@ export default function ProductsPage() {
                         : 'bg-muted text-muted-foreground',
                     )}
                   >
-                    {t(`state.${product.state}`)}
+                    {t(product.correction ? 'state.correction' : `state.${product.state}`)}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -197,6 +180,11 @@ export default function ProductsPage() {
                   </p>
                 )}
                 {product.doubtful && <p className="text-xs text-warning">{t('doubtful')}</p>}
+                {product.correction && product.code && (
+                  <p className="text-xs text-muted-foreground">
+                    {t.rich('correctionNote', { off: linkTo(offProductPage(product.code)) })}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-1">
                   <Button
                     type="button"
@@ -207,7 +195,8 @@ export default function ProductsPage() {
                   >
                     {t('edit')}
                   </Button>
-                  {product.state === 'sent' ? (
+                  {/* A correction stays its author's: the base has the product it corrects. */}
+                  {product.correction ? null : product.state === 'sent' ? (
                     <Button
                       type="button"
                       variant="ghost"
@@ -244,7 +233,7 @@ export default function ProductsPage() {
                     {error.text}
                   </p>
                 )}
-                {!sendable(product) && product.state !== 'sent' && (
+                {!sendable(product) && product.state !== 'sent' && !product.correction && (
                   <p id={`${product.id}-needs`} className="text-xs text-muted-foreground">
                     {t('sendNeeds')}
                   </p>

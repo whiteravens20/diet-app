@@ -74,7 +74,11 @@ export class DiaryController {
     return this.diary.create(user.id, locale, dto, key, today);
   }
 
-  /** Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. */
+  /**
+   * Change an entry: the meal it is under, or how much of it there was, which
+   * changes its figures in proportion. An entry of a product can be moved to a
+   * product of the reader's own, whose label then gives its figures.
+   */
   @Patch('entries/:id')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(DiaryEntry)

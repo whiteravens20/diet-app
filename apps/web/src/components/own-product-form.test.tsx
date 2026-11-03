@@ -35,6 +35,7 @@ const BASE: Product = {
   },
   energyWorkedOut: false,
   doubtful: false,
+  correction: false,
   changedAt: null,
 };
 
@@ -205,65 +206,42 @@ describe("the form a product of one's own is written in", () => {
     expect(screen.queryByText(t.changeLeavesQueue)).not.toBeInTheDocument();
   });
 
-  describe('for a code the base knows', () => {
-    const refused = () =>
-      vi
-        .spyOn(api, 'post')
-        .mockRejectedValueOnce(new ApiClientError(409, 'PRODUCT_CODE_KNOWN', 'Known.'));
+  describe('as a correction of a product of the base', () => {
+    it("starts from the base's figures and code, and says where a correction reaches everybody", async () => {
+      const post = vi.spyOn(api, 'post').mockResolvedValue({ ...MINE, correction: true });
+      const { onSaved } = shown({ from: BASE });
 
-    it("shows the base's product, which the place can take", async () => {
-      refused();
-      vi.spyOn(api, 'get').mockResolvedValue(BASE);
-      const onUseBase = vi.fn();
-      shown({ code: BASE.code!, onUseBase });
-
-      await userEvent.type(field(t.name), 'Mleko');
-      await userEvent.type(field(t.calories), '60');
+      expect(field(t.code)).toHaveValue(BASE.code);
+      expect(field(t.name)).toHaveValue(BASE.name);
+      expect(field(t.calories)).toHaveValue('60');
+      expect(field(t.fiber)).toHaveValue('');
+      const off = screen.getByRole('link', { name: 'correct the product at Open Food Facts' });
+      expect(off).toHaveAttribute('href', `https://world.openfoodfacts.org/product/${BASE.code}`);
+      await userEvent.clear(field(t.calories));
+      await userEvent.type(field(t.calories), '64');
       await save();
 
-      expect(await screen.findByText(BASE.name)).toBeInTheDocument();
-      expect(screen.getByRole('alert')).toHaveTextContent(messages.errors.PRODUCT_CODE_KNOWN);
-      await userEvent.click(screen.getByRole('button', { name: t.useBase }));
-      expect(onUseBase).toHaveBeenCalledWith(BASE);
+      expect(post).toHaveBeenCalledWith(
+        '/products/own',
+        expect.objectContaining({
+          code: BASE.code,
+          per100: expect.objectContaining({ calories: 64 }),
+        }),
+      );
+      expect(onSaved).toHaveBeenCalledWith({ ...MINE, correction: true });
     });
 
-    it('offers nothing to take where the place takes nothing', async () => {
-      refused();
-      vi.spyOn(api, 'get').mockResolvedValue(BASE);
+    it('says nothing of Open Food Facts for a product written from nothing', () => {
       shown({ code: BASE.code! });
 
-      await userEvent.type(field(t.name), 'Mleko');
-      await userEvent.type(field(t.calories), '60');
-      await save();
-
-      expect(await screen.findByText(BASE.name)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: t.useBase })).not.toBeInTheDocument();
-    });
-
-    it('leads whoever disagrees to writing theirs without a code', async () => {
-      const post = refused().mockResolvedValue(MINE);
-      vi.spyOn(api, 'get').mockResolvedValue(BASE);
-      const { onSaved } = shown({ code: BASE.code! });
-
-      await userEvent.type(field(t.name), 'Mleko');
-      await userEvent.type(field(t.calories), '60');
-      await save();
-      await userEvent.click(await screen.findByRole('button', { name: t.withoutCode }));
-
-      expect(field(t.code)).toHaveValue('');
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      await save();
-
-      expect(post.mock.calls[1]![1]).toMatchObject({ code: null });
-      expect(onSaved).toHaveBeenCalledWith(MINE);
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
   });
 
-  it('says any other refusal in words, stays open, and offers no base', async () => {
+  it('says a refusal in words and stays open', async () => {
     vi.spyOn(api, 'post').mockRejectedValue(
       new ApiClientError(409, 'OWN_PRODUCT_LIMIT', 'Too many.'),
     );
-    const get = vi.spyOn(api, 'get');
     const { onSaved } = shown();
 
     await userEvent.type(field(t.name), 'Chleb');
@@ -273,8 +251,6 @@ describe("the form a product of one's own is written in", () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.OWN_PRODUCT_LIMIT);
     expect(field(t.name)).toHaveValue('Chleb');
     expect(onSaved).not.toHaveBeenCalled();
-    expect(get).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: t.withoutCode })).not.toBeInTheDocument();
   });
 
   it('can be given up', async () => {

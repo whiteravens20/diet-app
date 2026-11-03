@@ -215,6 +215,7 @@ export function productDto(row: HeldProduct): Product {
     },
     energyWorkedOut: row.energyWorkedOut,
     doubtful: row.doubtful,
+    correction: false,
     changedAt: row.changedAt?.toISOString() ?? null,
   };
 }
@@ -226,6 +227,7 @@ export interface HeldOwnProduct extends Omit<
 > {
   code: string | null;
   calories: number;
+  correction: boolean;
   state: string;
   reason: string | null;
   sentAt: Date | null;
@@ -256,6 +258,7 @@ export function productOfOwn(row: HeldOwnProduct): Product {
     },
     energyWorkedOut: false,
     doubtful: row.doubtful,
+    correction: row.correction,
     changedAt: null,
   };
 }

@@ -158,7 +158,8 @@ export class ProductsService {
 
   /**
    * What the instance holds that has every word of a search in its name or
-   * brand and can be written into a diary, the reader's own products first.
+   * brand and can be written into a diary, the reader's own products first, in
+   * the place of the base's product of the same code, as a scan answers them.
    * What holds them in its name comes before what holds them only in its brand:
    * a search for milk is not for the butter of a brand called after it. Within
    * that, the products people scan most come first. A search looks at nothing
@@ -188,6 +189,10 @@ export class ProductsService {
     const rows = await this.prisma.$queryRaw<HeldProduct[]>`
       SELECT * FROM "Product"
       WHERE "calories" IS NOT NULL AND ${inText}
+        AND NOT EXISTS (
+          SELECT 1 FROM "OwnProduct" AS own
+          WHERE own."userId" = ${userId} AND own."code" = "Product"."code"
+        )
       ORDER BY (${inName}) DESC, "popularity" DESC, "name" ASC, "id" ASC
       LIMIT ${PRODUCT_SEARCH.found - own.length}`;
     return { items: [...own.map(productOfOwn), ...rows.map(productDto)] };

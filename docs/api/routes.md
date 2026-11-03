@@ -126,7 +126,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/diary/day` | an account | A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten. | query `DiaryDayQuery` | 200 `DiaryDay` |  |
 | `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures. What a meal of one's own leaves out, or a product's label lacks, is estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
 | `DELETE /api/diary/entries/:id` | an account | Remove an entry. |  | 204 | 60 in a minute |
-| `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
+| `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. An entry of a product can be moved to a product of the reader's own, whose label then gives its figures. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
 
 ## favorite-sets
 
@@ -215,10 +215,10 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/products/additions` | an account | What people added to the instance's base, without who added it, as a file. |  | 200 `ProductAdditions` | 5 in a minute |
 | `GET /api/products/code/:code` | an account | The product of an EAN or UPC code. A code the instance does not hold is asked of Open Food Facts, in the instance's name, where the instance does that: an account asks at most 5 such codes a minute and 100 in 24 hours, the instance at most 12 a minute, and a code Open Food Facts does not know is not asked again for 7 days. |  | 200 `Product` | 30 in a minute |
 | `GET /api/products/own` | an account | The account's own products, whatever became of them. |  | 200 `OwnProducts` |  |
-| `POST /api/products/own` | an account | Write a product: 500 held, 50 written or changed in 24 hours, and a code the base knows is refused. | `OwnProductBody` | 201 `OwnProduct` | 30 in a minute |
+| `POST /api/products/own` | an account | Write a product: 500 held, 50 written or changed in 24 hours. One of a code the base knows is the account's correction of it, for the account alone. | `OwnProductBody` | 201 `OwnProduct` | 30 in a minute |
 | `DELETE /api/products/own/:id` | an account | Delete a product: what the diary holds of it keeps its figures. |  | 204 | 30 in a minute |
 | `PATCH /api/products/own/:id` | an account | Change a product: one waiting for review leaves the queue, and has to be sent again. | `OwnProductBody` | 200 `OwnProduct` | 30 in a minute |
-| `POST /api/products/own/:id/send` | an account | Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours. |  | 200 `OwnProduct` | 10 in a minute |
+| `POST /api/products/own/:id/send` | an account | Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours. A correction stays its author's (409 `OWN_PRODUCT_CORRECTION`). |  | 200 `OwnProduct` | 10 in a minute |
 | `POST /api/products/own/:id/withdraw` | an account | Take a product back out of the queue. |  | 200 `OwnProduct` | 30 in a minute |
 
 ## profiles

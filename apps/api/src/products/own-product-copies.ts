@@ -8,7 +8,8 @@ import type { NotificationsService } from '../notifications/notifications.servic
  * One code in one place: what accounts wrote of a code the base now holds gives
  * way to what the base holds. Their entries go on to the base's product and keep
  * their figures, each row goes, and whoever wrote one is told. `except` is the
- * account the product came from, which is told otherwise.
+ * account the product came from, which is told otherwise. A correction stays:
+ * it was written against what the base holds.
  */
 export async function copiesGiveWay(
   tx: Prisma.TransactionClient,
@@ -19,7 +20,11 @@ export async function copiesGiveWay(
   except: string | null = null,
 ): Promise<number> {
   const copies = await tx.ownProduct.findMany({
-    where: { code: product.code, ...(except ? { userId: { not: except } } : {}) },
+    where: {
+      code: product.code,
+      correction: false,
+      ...(except ? { userId: { not: except } } : {}),
+    },
     select: { id: true, userId: true, name: true },
   });
   for (const copy of copies) {

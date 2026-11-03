@@ -68,8 +68,8 @@ const held = (): ConflictException =>
 
 /**
  * Products an account writes for itself: what it adds to its diary where the
- * base has nothing, and what it may send to the base for the instance's
- * reviewers. They live in a table of their own, which nothing but these routes,
+ * base has nothing or says otherwise than the label, and what it may send to
+ * the base for the instance's reviewers. They live in a table of their own, which nothing but these routes,
  * a search of their owner and a diary of their owner reads. An instance without
  * Open Food Facts has no products at all, its own included.
  */
@@ -91,10 +91,14 @@ export class OwnProductsService {
     return { items: rows.map(ownProductDto) };
   }
 
+  /**
+   * Write a product. One of a code the base holds is a correction: its
+   * author's own figures for that code, for its author alone.
+   */
   async create(userId: string, body: OwnProductBody, now = new Date()): Promise<OwnProduct> {
     this.assertOffered();
     const code = body.code === null ? null : productCodeOf(body.code);
-    if (code !== null) await this.refuseWhatTheBaseKnows(userId, code, now);
+    const correction = code !== null && (await this.products.knownToTheBase(userId, code, now));
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
       if ((await tx.ownProduct.count({ where: { userId } })) >= OWN_PRODUCTS.held) {
@@ -105,7 +109,7 @@ export class OwnProductsService {
       }
       await this.countWriting(tx, userId, now);
       if (code !== null && (await this.holdsCode(tx, userId, code))) throw held();
-      return tx.ownProduct.create({ data: { userId, ...columnsOf(body, code) } });
+      return tx.ownProduct.create({ data: { userId, ...columnsOf(body, code), correction } });
     });
     return ownProductDto(row);
   }
@@ -121,14 +125,19 @@ export class OwnProductsService {
     const current = await this.own(userId, id);
     const code = body.code === null ? null : productCodeOf(body.code);
     const newCode = code !== null && code !== current.code;
-    if (newCode) await this.refuseWhatTheBaseKnows(userId, code, now);
+    const correction =
+      code === null
+        ? false
+        : newCode
+          ? await this.products.knownToTheBase(userId, code, now)
+          : current.correction;
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
       await this.countWriting(tx, userId, now);
       if (newCode && (await this.holdsCode(tx, userId, code))) throw held();
       return tx.ownProduct.update({
         where: { id },
-        data: { ...columnsOf(body, code), state: 'own', sentAt: null, reason: null },
+        data: { ...columnsOf(body, code), correction, state: 'own', sentAt: null, reason: null },
       });
     });
     return ownProductDto(row);
@@ -146,6 +155,13 @@ export class OwnProductsService {
     this.assertOffered();
     const current = await this.own(userId, id);
     if (current.state === 'sent') return ownProductDto(current);
+    if (current.correction) {
+      throw new ConflictException({
+        error: 'OWN_PRODUCT_CORRECTION',
+        message:
+          "A correction of a product the base holds stays its author's; Open Food Facts takes one for everybody.",
+      });
+    }
     const { code, protein, fat, carbs } = current;
     if (code === null || protein === null || fat === null || carbs === null) {
       throw new ConflictException({
@@ -250,12 +266,12 @@ export class OwnProductsService {
     await tx.ownProductChange.create({ data: { userId, kind: 'written', at: now } });
   }
 
-  /** One code in one place: a code the base knows with figures is not written again. */
+  /** One code in one place: a code the base knows with figures is not sent to it again. */
   private async refuseWhatTheBaseKnows(userId: string, code: string, now: Date): Promise<void> {
     if (await this.products.knownToTheBase(userId, code, now)) {
       throw new ConflictException({
         error: 'PRODUCT_CODE_KNOWN',
-        message: 'The base has a product of this code. Add yours without a code if you disagree.',
+        message: 'The base has a product of this code.',
       });
     }
   }

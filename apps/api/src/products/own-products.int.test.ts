@@ -24,6 +24,17 @@ const JAM = '5900512320359';
 const OTHER = '4001724819806';
 const DAY = 86_400_000;
 const TODAY = new Date().toISOString().slice(0, 10);
+/** What Open Food Facts says of the jam: other figures than the label's. */
+const JAM_ELSEWHERE = {
+  code: JAM,
+  product_name: 'Konfitura ze sklepu',
+  nutriments: {
+    'energy-kcal_100g': 250,
+    proteins_100g: 1,
+    fat_100g: 1,
+    carbohydrates_100g: 60,
+  },
+};
 
 const aBody = (over: Partial<OwnProductBody> = {}): OwnProductBody => ({
   code: JAM,
@@ -208,24 +219,81 @@ describe('the products an account writes for itself', () => {
       await written(aBody(), await aUser(t));
     });
 
-    it('refuses a code the base knows with figures, naming what to do', async () => {
-      off.answers.set(JAM, {
+    it('takes a code the base knows with figures as a correction, which its author alone reads', async () => {
+      off.answers.set(JAM, JAM_ELSEWHERE);
+
+      const correction = await written();
+      const plain = await written(aBody({ code: null, name: 'Bez kodu' }));
+
+      expect(correction).toMatchObject({
         code: JAM,
-        product_name: 'Konfitura ze sklepu',
-        nutriments: {
-          'energy-kcal_100g': 250,
-          proteins_100g: 1,
-          fat_100g: 1,
-          carbohydrates_100g: 60,
-        },
+        source: 'own',
+        state: 'own',
+        correction: true,
       });
-
-      const refused = await write(aBody()).expect(409);
-
-      expect(refused.body.error).toBe('PRODUCT_CODE_KNOWN');
+      expect(plain.correction).toBe(false);
       expect(off.asked.map((one) => one.code)).toEqual([JAM]);
-      // Without a code it is the account's own business.
-      await written(aBody({ code: null }));
+      const mine = await t.http().get(`/api/products/code/${JAM}`).set(as(user)).expect(200);
+      const theirs = await t
+        .http()
+        .get(`/api/products/code/${JAM}`)
+        .set(as(await aUser(t)))
+        .expect(200);
+      expect(mine.body).toMatchObject({
+        id: correction.id,
+        source: 'own',
+        correction: true,
+        per100: { calories: 240 },
+      });
+      expect(theirs.body).toMatchObject({
+        source: 'open_food_facts',
+        correction: false,
+        per100: { calories: 250 },
+      });
+    });
+
+    it('is a correction for as long as its code is one the base knows', async () => {
+      off.answers.set(JAM, JAM_ELSEWHERE);
+      const correction = await written();
+      const change = (body: OwnProductBody) =>
+        t.http().patch(`/api/products/own/${correction.id}`).set(as(user)).send(body).expect(200);
+
+      const renamed = (await change(aBody({ name: 'Konfitura babci' }))).body as OwnProduct;
+      const otherCode = (await change(aBody({ code: OTHER }))).body as OwnProduct;
+      const back = (await change(aBody())).body as OwnProduct;
+
+      expect(renamed.correction).toBe(true);
+      expect(otherCode.correction).toBe(false);
+      expect(back.correction).toBe(true);
+    });
+
+    it('never sends a correction, and keeps it when the base reads its code again', async () => {
+      off.answers.set(JAM, JAM_ELSEWHERE);
+      const correction = await written();
+
+      const refused = await send(correction.id).expect(409);
+      // Read again a month later, by somebody's scan and by the worker's pass over written codes.
+      await t.prisma.product.updateMany({
+        where: { code: JAM },
+        data: { readAt: new Date(Date.now() - 40 * DAY) },
+      });
+      await t
+        .http()
+        .get(`/api/products/code/${JAM}`)
+        .set(as(await aUser(t)))
+        .expect(200);
+      off.asked.length = 0;
+      await t.app.get(ProductImport).checkWrittenCodes(new Date(Date.now() + 8 * DAY));
+
+      expect(refused.body.error).toBe('OWN_PRODUCT_CORRECTION');
+      expect(off.asked).toEqual([]);
+      expect(
+        await t.prisma.ownProduct.findUniqueOrThrow({ where: { id: correction.id } }),
+      ).toMatchObject({
+        correction: true,
+        state: 'own',
+      });
+      expect(await noticesOf(user)).toEqual([]);
     });
 
     it('takes a code the base holds without figures', async () => {
@@ -336,6 +404,32 @@ describe('the products an account writes for itself', () => {
       const kept = await t.prisma.diaryEntry.findUniqueOrThrow({ where: { id: added.id } });
       expect(kept.ownProductId).toBeNull();
       expect(kept.calories).toBe(120);
+    });
+
+    it("takes the place of the base's product in an entry its author moves to it, for the same amount", async () => {
+      off.answers.set(JAM, JAM_ELSEWHERE);
+      const base = (await t.http().get(`/api/products/code/${JAM}`).set(as(user)).expect(200))
+        .body as Product;
+      const added = (await entry(base.id)).body as DiaryEntry;
+      const correction = await written();
+      const theirs = await written(aBody({ name: 'Cudza' }), await aUser(t));
+      const move = (productId: string) =>
+        t.http().patch(`/api/diary/entries/${added.id}`).set(as(user)).send({ productId });
+
+      const moved = (await move(correction.id).expect(200)).body as DiaryEntry;
+      const foreign = await move(theirs.id).expect(404);
+
+      expect(added).toMatchObject({ productId: base.id, productSource: 'open_food_facts' });
+      expect(added.nutrition.calories).toBe(125);
+      expect(moved).toMatchObject({
+        id: added.id,
+        productId: correction.id,
+        productSource: 'own',
+        name: 'Babcina konfitura, Sklep na rogu',
+        amount: { quantity: 50, unit: 'g' },
+      });
+      expect(moved.nutrition.calories).toBe(120);
+      expect(foreign.body.error).toBe('PRODUCT_NOT_FOUND');
     });
 
     it('says on the day it is copied to where its figures came from', async () => {

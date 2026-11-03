@@ -476,6 +476,9 @@ model OwnProduct {
   saturatedFat  Float?
   // Its figures do not add up, which is what a reviewer sees.
   doubtful      Boolean         @default(false)
+  // Written for a code the base holds: the account's own figures in place of
+  // the base's, for it alone. It is never sent, and gives way to nothing.
+  correction    Boolean         @default(false)
   state         OwnProductState @default(own)
   sentAt        DateTime?
   // What its author was told when it was turned down or withdrawn.

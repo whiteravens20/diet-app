@@ -37,6 +37,7 @@ const MILK: Product = {
   },
   energyWorkedOut: false,
   doubtful: false,
+  correction: false,
   changedAt: '2026-08-28T14:32:51.000Z',
 };
 
@@ -226,26 +227,46 @@ describe('a product in the window that adds to a diary', () => {
       );
     });
 
-    it("takes the base's product where the code turned out to be known", async () => {
-      const get = vi
-        .spyOn(api, 'get')
-        .mockRejectedValueOnce(new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'No.'));
-      vi.spyOn(api, 'post').mockRejectedValue(
-        new ApiClientError(409, 'PRODUCT_CODE_KNOWN', 'Known.'),
-      );
-      const { window, field, user } = await openOnProducts();
+    it("writes the reader's correction of a product of the base, which then takes its place with the amount typed", async () => {
+      vi.spyOn(api, 'get').mockResolvedValue(MILK);
+      const correction: Product = {
+        ...MILK,
+        id: '99999999-9999-4999-8999-999999999999',
+        source: 'own',
+        correction: true,
+        per100: { ...MILK.per100, calories: 64 },
+      };
+      const post = vi.spyOn(api, 'post').mockResolvedValue(correction);
+      const { window, field, user, onSubmit } = await openOnProducts();
 
       await user.type(field, MILK.code!);
       await user.click(window.getByRole('button', { name: texts.productCheck }));
-      await user.click(await window.findByRole('button', { name: texts.productAddOwn }));
-      get.mockResolvedValue(MILK);
-      await user.type(await window.findByRole('textbox', { name: en.products.name }), 'Moje mleko');
-      await user.type(window.getByRole('textbox', { name: en.products.calories }), '60');
-      await user.click(window.getByRole('button', { name: en.products.save }));
-      await user.click(await window.findByRole('button', { name: en.products.useBase }));
+      const amount = await window.findByRole('spinbutton', { name: /ml/ });
+      await user.clear(amount);
+      await user.type(amount, '300');
+      expect(window.getByText(texts.productCorrectHint)).toBeInTheDocument();
+      await user.click(window.getByRole('button', { name: texts.productCorrect }));
 
-      expect(window.getByText(texts.labelEnergy)).toBeInTheDocument();
-      expect(window.getByRole('spinbutton', { name: /ml/ })).toHaveValue(250);
+      expect(window.getByRole('heading', { name: en.products.correctTitle })).toBeInTheDocument();
+      const calories = window.getByRole('textbox', { name: en.products.calories });
+      expect(calories).toHaveValue('60');
+      await user.clear(calories);
+      await user.type(calories, '64');
+      await user.click(window.getByRole('button', { name: en.products.save }));
+
+      expect(post).toHaveBeenCalledWith(
+        '/products/own',
+        expect.objectContaining({ code: MILK.code }),
+      );
+      expect(
+        await window.findByText((said) => said.startsWith('Your correction of the base')),
+      ).toBeInTheDocument();
+      expect(window.queryByRole('button', { name: texts.productCorrect })).not.toBeInTheDocument();
+      expect(window.getByRole('spinbutton', { name: /ml/ })).toHaveValue(300);
+      await user.click(window.getByRole('button', { name: texts.submit }));
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: correction.id, quantity: 300 }),
+      );
     });
 
     it('comes back to the search as it was when the writing is given up', async () => {

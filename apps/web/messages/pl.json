@@ -446,12 +446,13 @@
     "PRODUCT_IMPORT_NO_COUNTRIES": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie.",
     "PRODUCT_IMPORT_RUNNING": "Import właśnie trwa.",
     "PRODUCT_IMPORT_TOO_SOON": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu.",
-    "PRODUCT_CODE_KNOWN": "Baza ma już produkt o tym kodzie. Jeśli się z nim nie zgadzasz, dodaj swój bez kodu.",
+    "PRODUCT_CODE_KNOWN": "Baza ma już produkt o tym kodzie.",
     "PRODUCT_CODE_HELD": "Masz już własny produkt o tym kodzie.",
     "OWN_PRODUCT_LIMIT": "Konto może mieć najwyżej 500 własnych produktów.",
     "OWN_PRODUCT_DAILY_LIMIT": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów.",
     "OWN_PRODUCT_SEND_LIMIT": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów.",
     "OWN_PRODUCT_NOT_SENDABLE": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami.",
+    "OWN_PRODUCT_CORRECTION": "Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts.",
     "OWN_PRODUCT_NOT_FOUND": "Nie ma już tego produktu.",
     "PRODUCT_NOT_WAITING": "Ten produkt nie czeka już na sprawdzenie.",
     "PRODUCT_CHANGED": "Ten produkt zmienił się po otwarciu. Otwórz go ponownie.",
@@ -609,7 +610,14 @@
     "productOwnMark": "własny",
     "productWriteTitle": "Własny produkt",
     "productSourceOwn": "Własny produkt: dane są takie, jak je wpisano.",
-    "productSourceInstance": "Dodany przez użytkownika tej instancji i przyjęty po sprawdzeniu. Udostępniany na licencji <odbl>ODbL</odbl>, tak jak dane <off>Open Food Facts</off>."
+    "productSourceCorrection": "Twoja poprawka danych z bazy: dane są takie, jak je wpisano, a inni widzą dane z bazy. Zmienisz ją lub usuniesz w <products>Moich produktach</products>.",
+    "productSourceInstance": "Dodany przez użytkownika tej instancji i przyjęty po sprawdzeniu. Udostępniany na licencji <odbl>ODbL</odbl>, tak jak dane <off>Open Food Facts</off>.",
+    "productCorrect": "Popraw dane",
+    "productCorrectHint": "Wartości nie zgadzają się z opakowaniem?",
+    "entryCorrect": "Popraw dane produktu",
+    "entryCorrectHint": "Wpis dostanie wartości z poprawki dla tej samej ilości. Inne wpisy tego produktu zachowają swoje.",
+    "entryOwnVersion": "Masz już własną wersję tego produktu: {name}.",
+    "entryUseOwnVersion": "Użyj jej w tym wpisie"
   },
   "favoriteSets": {
     "title": "Zestawy ulubionych",
@@ -2644,7 +2652,8 @@
     "state": {
       "own": "Tylko Twój",
       "sent": "Czeka na sprawdzenie",
-      "rejected": "Nieprzyjęty"
+      "rejected": "Nieprzyjęty",
+      "correction": "Poprawka"
     },
     "figures": "{kcal, number, ::group-off} kcal w 100 {unit}",
     "macros": "białko {protein} g, tłuszcz {fat} g, węglowodany {carbs} g",
@@ -2688,8 +2697,9 @@
     "errSugars": "Cukry są częścią węglowodanów: nie może ich być więcej.",
     "errSaturated": "Tłuszcze nasycone są częścią tłuszczu: nie może ich być więcej.",
     "changeLeavesQueue": "Zapisanie wycofa go z kolejki: trzeba będzie wysłać go jeszcze raz.",
-    "useBase": "Użyj tego produktu",
-    "withoutCode": "Dodaj mój bez kodu"
+    "correctionNote": "Poprawka danych z bazy: Twoje skany tego kodu pokazują tę wersję, a inni widzą dane z bazy. Usuń ją, żeby wrócić do danych z bazy. Żeby poprawka trafiła do wszystkich, <off>popraw produkt w Open Food Facts</off>.",
+    "correctTitle": "Popraw dane produktu",
+    "correctIntro": "Przepisz wartości z opakowania. Zapisana poprawka jest tylko Twoja: Twoje skany tego kodu pokażą ją zamiast danych z bazy, a inni dalej będą widzieć dane z bazy. Żeby poprawka trafiła do wszystkich, <off>popraw produkt w Open Food Facts</off>: tam można dodać zdjęcia etykiety, a ta instancja pobierze zmianę przy cotygodniowym imporcie."
   },
   "productReview": {
     "explain": "Produkty, które użytkownicy tej instancji wysłali do jej bazy. Nie widać, czyj jest który. Przyjęty trafia do bazy i do pliku udostępnianego na licencji Open Database License, a nieprzyjęty wraca do autora z tym, co tu wpiszesz.",

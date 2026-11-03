@@ -96,12 +96,19 @@ export const UpdateDiaryEntryRequest = z
     mealType: MealType.optional(),
     servings: Servings.optional(),
     quantity: z.number().gt(0).max(5000).optional(),
+    /**
+     * For an entry of a product: a product of the reader's own it is of from
+     * now on, whose label gives its figures for the same amount, as when its
+     * reader corrects what the base says.
+     */
+    productId: z.string().uuid().optional(),
   })
   .refine(
     (change) =>
       change.mealType !== undefined ||
       change.servings !== undefined ||
-      change.quantity !== undefined,
+      change.quantity !== undefined ||
+      change.productId !== undefined,
     { message: 'Name at least one thing to change.' },
   );
 export type UpdateDiaryEntryRequest = z.infer<typeof UpdateDiaryEntryRequest>;

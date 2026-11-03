@@ -33,7 +33,10 @@ export class OwnProductsController {
     return this.own.list(user.id);
   }
 
-  /** Write a product: 500 held, 50 written or changed in 24 hours, and a code the base knows is refused. */
+  /**
+   * Write a product: 500 held, 50 written or changed in 24 hours. One of a code
+   * the base knows is the account's correction of it, for the account alone.
+   */
   @Post('own')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Answers(OwnProduct)
@@ -64,7 +67,10 @@ export class OwnProductsController {
     await this.own.remove(user.id, id);
   }
 
-  /** Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours. */
+  /**
+   * Send a product with a code and all its figures to the instance's reviewers:
+   * 10 in 24 hours. A correction stays its author's (409 `OWN_PRODUCT_CORRECTION`).
+   */
   @Post('own/:id/send')
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

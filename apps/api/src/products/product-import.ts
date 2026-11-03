@@ -390,11 +390,11 @@ export class ProductImport {
             "changedAt" timestamp(3),
             "popularity" integer NOT NULL
           ) ON COMMIT DROP`);
-        // A code somebody wrote a product of is read whatever country it is of.
+        // A code somebody wrote a product of is read whatever country it is of; a correction was written against the base.
         const written = new Set(
           (
             await tx.ownProduct.findMany({
-              where: { code: { not: null } },
+              where: { code: { not: null }, correction: false },
               select: { code: true },
               distinct: ['code'],
             })
@@ -571,7 +571,7 @@ export class ProductImport {
     const known = await tx.$queryRaw<{ id: string; code: string; origin: string }[]>`
       SELECT DISTINCT p."id", p."code", p."origin"::text AS "origin"
       FROM "Product" AS p JOIN "OwnProduct" AS own ON own."code" = p."code"
-      WHERE p."calories" IS NOT NULL`;
+      WHERE p."calories" IS NOT NULL AND NOT own."correction"`;
     for (const product of known) {
       await copiesGiveWay(
         tx,
@@ -596,6 +596,7 @@ export class ProductImport {
     const rows = await this.prisma.ownProduct.findMany({
       where: {
         code: { not: null },
+        correction: false,
         OR: [
           { checkedAt: null },
           { checkedAt: { lt: new Date(now.getTime() - CODE_CHECKED_EVERY_DAYS * DAY_MS) } },

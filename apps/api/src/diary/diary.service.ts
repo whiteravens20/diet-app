@@ -249,7 +249,8 @@ export class DiaryService {
   /**
    * Change an entry: the meal it is under, and how much of it there was. Its
    * figures change in proportion to the amount, so that what they were worked
-   * out from when it was written still holds.
+   * out from when it was written still holds. An entry of a product can be
+   * moved to a product of the reader's own, whose label then gives its figures.
    */
   async update(
     userId: string,
@@ -259,6 +260,7 @@ export class DiaryService {
   ): Promise<DiaryEntry> {
     const row = await this.prisma.diaryEntry.findFirst({ where: { id, profile: { userId } } });
     if (!row) throw entryNotFound();
+    if (change.productId !== undefined) return this.toOwnProduct(userId, locale, row, change);
     const inAmount = row.kind === 'ingredient' || row.kind === 'product';
     if (change.servings !== undefined && inAmount)
       throw refused(
@@ -287,6 +289,56 @@ export class DiaryService {
     });
     if (changed.count === 0) throw entryNotFound();
     return this.entry(userId, locale, id);
+  }
+
+  /**
+   * An entry of a product goes on to a product of the reader's own, as when its
+   * reader corrects what the base says: the same amount, or the one the change
+   * gives, with the figures of that product's label.
+   */
+  private async toOwnProduct(
+    userId: string,
+    locale: Locale,
+    row: { id: string; profileId: string; date: Date; kind: string; quantity: number | null },
+    change: UpdateDiaryEntryRequest,
+  ): Promise<DiaryEntry> {
+    if (row.kind !== 'product')
+      throw refused('productId', 'Only an entry of a product takes another product.');
+    if (change.servings !== undefined)
+      throw refused('servings', 'An entry of a product takes a quantity, not servings.');
+    const own = await this.prisma.ownProduct.findFirst({ where: { id: change.productId, userId } });
+    if (!own) {
+      throw new NotFoundException({
+        error: 'PRODUCT_NOT_FOUND',
+        message: 'No product with this code is known.',
+      });
+    }
+    const quantity = change.quantity ?? row.quantity!;
+    if (quantity > DIARY_QUANTITY_LIMITS[own.unit])
+      throw refused('quantity', `More than a day holds of one food in ${own.unit}.`);
+    const profile = await this.profile(userId, row.profileId);
+    const figures = labelEntryFigures(
+      { ...own, energyWorkedOut: false },
+      quantity,
+      (await this.aimOfDay(profile, isoDate(row.date))).split,
+    );
+    // A product of one's own always has its energy; the base's would have been refused when it was written.
+    if (!figures) throw entryNotFound();
+    const changed = await this.prisma.diaryEntry.updateMany({
+      where: { id: row.id, profile: { userId } },
+      data: {
+        mealType: change.mealType,
+        productId: null,
+        ownProductId: own.id,
+        productSource: 'own',
+        name: own.brand ? `${own.name}, ${own.brand}` : own.name,
+        quantity,
+        unit: own.unit,
+        ...figures,
+      },
+    });
+    if (changed.count === 0) throw entryNotFound();
+    return this.entry(userId, locale, row.id);
   }
 
   async remove(userId: string, id: string): Promise<void> {

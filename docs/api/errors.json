@@ -963,6 +963,15 @@
       "pl": "Ustawienie dnia wykracza poza zakres dat planu."
     }
   },
+  "OWN_PRODUCT_CORRECTION": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts.",
+      "pl": "Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts."
+    }
+  },
   "OWN_PRODUCT_DAILY_LIMIT": {
     "statuses": [
       429
@@ -1103,8 +1112,8 @@
       409
     ],
     "messages": {
-      "en": "The base has a product of this code. If you disagree with it, add yours without a code.",
-      "pl": "Baza ma już produkt o tym kodzie. Jeśli się z nim nie zgadzasz, dodaj swój bez kodu."
+      "en": "The base has a product of this code.",
+      "pl": "Baza ma już produkt o tym kodzie."
     }
   },
   "PRODUCT_IMPORT_NO_COUNTRIES": {

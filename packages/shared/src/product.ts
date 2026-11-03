@@ -52,6 +52,11 @@ export const Product = z.object({
   energyWorkedOut: z.boolean(),
   /** The label's figures do not add up, or one of them cannot be right. */
   doubtful: z.boolean(),
+  /**
+   * A product of the reader's own for a code the base holds: the reader's
+   * figures in place of the base's, for the reader alone, never sent to the base.
+   */
+  correction: z.boolean(),
   /** When Open Food Facts last changed it, where it says. */
   changedAt: z.string().datetime().nullable(),
 });
@@ -146,7 +151,12 @@ export const OwnProductBody = z
 export type OwnProductBody = z.infer<typeof OwnProductBody>;
 
 /** A product waiting for a reviewer. The account that sent it is not named. */
-export const ProductUnderReview = OwnProduct.omit({ state: true, reason: true, source: true });
+export const ProductUnderReview = OwnProduct.omit({
+  state: true,
+  reason: true,
+  source: true,
+  correction: true,
+});
 export type ProductUnderReview = z.infer<typeof ProductUnderReview>;
 
 /** The products waiting, the longest first. */
@@ -171,7 +181,7 @@ export const WithdrawProductRequest = z.object({ reason: ReasonToTheAuthor });
 export type WithdrawProductRequest = z.infer<typeof WithdrawProductRequest>;
 
 /** A product the instance accepted, for its administrator. */
-export const AcceptedProduct = Product.omit({ source: true }).extend({
+export const AcceptedProduct = Product.omit({ source: true, correction: true }).extend({
   acceptedAt: z.string().datetime(),
   acceptedBy: z.string().nullable(),
   /** Its author still has an account: a withdrawal goes back to them. */

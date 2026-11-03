@@ -4,6 +4,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useId, useState, type ReactNode } from 'react';
 import type { Product, ProductSearchResult } from '@diet-app/shared';
 import { DIARY_QUANTITY_LIMITS, PRODUCT_SEARCH } from '@diet-app/shared/constants';
@@ -17,39 +18,30 @@ import { useSettled } from '@/lib/use-settled';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { FoundList } from './found-list';
-
-const OPEN_FOOD_FACTS = 'https://world.openfoodfacts.org';
-const ODBL = 'https://opendatacommons.org/licenses/odbl/1-0/';
+import { linkTo, ODBL, OPEN_FOOD_FACTS } from '@/components/open-food-facts';
 
 /** What a person types when they type a code: digits, with whatever they read between them. */
 const looksLikeCode = (typed: string): boolean => /^[\d\s-]+$/.test(typed);
 
-function linkTo(href: string) {
-  return function Linked(chunks: ReactNode) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="text-primary underline underline-offset-2"
-      >
-        {chunks}
-      </a>
-    );
-  };
-}
-
 /** Where the figures of a product come from, under the licence they come with. */
-function ProductSource({ source }: { source: Product['source'] }) {
+function ProductSource({ product }: { product: Product }) {
   const t = useTranslations('diary');
   return (
     <p className="text-xs text-muted-foreground">
-      {source === 'own'
-        ? t('productSourceOwn')
-        : t.rich(source === 'instance' ? 'productSourceInstance' : 'productSource', {
-            off: linkTo(OPEN_FOOD_FACTS),
-            odbl: linkTo(ODBL),
-          })}
+      {product.correction
+        ? t.rich('productSourceCorrection', {
+            products: (chunks) => (
+              <Link href="/products" className="text-primary underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+          })
+        : product.source === 'own'
+          ? t('productSourceOwn')
+          : t.rich(product.source === 'instance' ? 'productSourceInstance' : 'productSource', {
+              off: linkTo(OPEN_FOOD_FACTS),
+              odbl: linkTo(ODBL),
+            })}
     </p>
   );
 }
@@ -201,15 +193,22 @@ export function ProductSearch({
   );
 }
 
-/** What was picked: what its label says in 100 of its unit, with what is unknown said to be so, and a way back to the search. */
+/**
+ * What was picked: what its label says in 100 of its unit, with what is
+ * unknown said to be so, a way back to the search, and for a product of the
+ * base a way to correct what it says.
+ */
 export function PickedProduct({
   product,
   onAgain,
   onOwnMeal,
+  onCorrect,
 }: {
   product: Product;
   onAgain: () => void;
   onOwnMeal: () => void;
+  /** Write the reader's correction of a product of the base. */
+  onCorrect?: () => void;
 }) {
   const t = useTranslations('diary');
   const unitName = useUnitName();
@@ -279,7 +278,15 @@ export function PickedProduct({
       {product.energyWorkedOut && (
         <p className="text-xs text-muted-foreground">{t('productEnergyWorkedOut')}</p>
       )}
-      <ProductSource source={product.source} />
+      <ProductSource product={product} />
+      {onCorrect && product.source !== 'own' && product.code !== null && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="text-muted-foreground">{t('productCorrectHint')}</span>
+          <Button type="button" variant="outline" size="sm" onClick={onCorrect}>
+            {t('productCorrect')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

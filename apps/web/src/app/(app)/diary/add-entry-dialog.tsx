@@ -82,6 +82,7 @@ export function AddEntryDialog({
   const t = useTranslations('diary');
   const tCommon = useTranslations('common');
   const tMeal = useTranslations('enums.mealType');
+  const tProducts = useTranslations('products');
   const fmt = useFormat();
   const unitName = useUnitName();
   const id = useId();
@@ -95,7 +96,8 @@ export function AddEntryDialog({
   const [ingredient, setIngredient] = useState<Ingredient | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   // The product of one's own being written, by the code it is written for; the search stays as it was behind it.
-  const [writing, setWriting] = useState<{ code: string } | null>(null);
+  // A product of one's own being written: for a code nobody knows, or as a correction of one of the base.
+  const [writing, setWriting] = useState<{ code: string; from?: Product } | null>(null);
   const [servings, setServings] = useState('1');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
@@ -215,6 +217,11 @@ export function AddEntryDialog({
     setProduct(picked);
     setQuantity(firstAmount(picked));
   };
+  // A correction takes the place of what it corrects: the amount typed for it stays.
+  const corrected = (saved: Product): void => {
+    setWriting(null);
+    setProduct(saved);
+  };
 
   return (
     <Dialog open onClose={onClose} label={t('addTitle')} className="max-w-lg">
@@ -230,11 +237,13 @@ export function AddEntryDialog({
 
       {writing && (
         <div className="space-y-3 p-4">
-          <h3 className="text-sm font-medium">{t('productWriteTitle')}</h3>
+          <h3 className="text-sm font-medium">
+            {writing.from ? tProducts('correctTitle') : t('productWriteTitle')}
+          </h3>
           <OwnProductForm
             code={writing.code}
-            onSaved={pickProduct}
-            onUseBase={pickProduct}
+            from={writing.from ?? null}
+            onSaved={writing.from ? corrected : pickProduct}
             onCancel={() => setWriting(null)}
           />
         </div>
@@ -387,6 +396,7 @@ export function AddEntryDialog({
                 product={product}
                 onAgain={() => setProduct(null)}
                 onOwnMeal={() => asOwnMeal(product.name)}
+                onCorrect={() => setWriting({ code: product.code ?? '', from: product })}
               />
               {productCalories !== null && (
                 <ProductAmount product={product} quantity={quantity} onChange={setQuantity} />

@@ -446,12 +446,13 @@
     "PRODUCT_IMPORT_NO_COUNTRIES": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
     "PRODUCT_IMPORT_RUNNING": "An import is running.",
     "PRODUCT_IMPORT_TOO_SOON": "The last import of these countries began less than 24 hours ago.",
-    "PRODUCT_CODE_KNOWN": "The base has a product of this code. If you disagree with it, add yours without a code.",
+    "PRODUCT_CODE_KNOWN": "The base has a product of this code.",
     "PRODUCT_CODE_HELD": "A product of yours has this code already.",
     "OWN_PRODUCT_LIMIT": "An account holds at most 500 products of its own.",
     "OWN_PRODUCT_DAILY_LIMIT": "You can write or change at most 50 products in 24 hours.",
     "OWN_PRODUCT_SEND_LIMIT": "You can send at most 10 products to the base in 24 hours.",
     "OWN_PRODUCT_NOT_SENDABLE": "A product goes to the base with its code, calories, protein, fat and carbohydrates.",
+    "OWN_PRODUCT_CORRECTION": "A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts.",
     "OWN_PRODUCT_NOT_FOUND": "This product is no longer there.",
     "PRODUCT_NOT_WAITING": "This product is no longer waiting for review.",
     "PRODUCT_CHANGED": "This product changed after it was opened. Open it again.",
@@ -609,7 +610,14 @@
     "productOwnMark": "your own",
     "productWriteTitle": "Your own product",
     "productSourceOwn": "Your own product: its figures are what you wrote.",
-    "productSourceInstance": "Added by a person using this instance and accepted by its reviewers. Shared under the <odbl>ODbL</odbl>, as the data of <off>Open Food Facts</off> are."
+    "productSourceCorrection": "Your correction of the base's data: the figures are as they were written, and everybody else sees the base's data. Change or remove it in <products>My products</products>.",
+    "productSourceInstance": "Added by a person using this instance and accepted by its reviewers. Shared under the <odbl>ODbL</odbl>, as the data of <off>Open Food Facts</off> are.",
+    "productCorrect": "Correct the data",
+    "productCorrectHint": "The figures don't match the pack?",
+    "entryCorrect": "Correct the product",
+    "entryCorrectHint": "The entry takes the correction's figures for the same amount. Other entries of this product keep theirs.",
+    "entryOwnVersion": "You already have a version of this product of your own: {name}.",
+    "entryUseOwnVersion": "Use it in this entry"
   },
   "favoriteSets": {
     "title": "Favourite sets",
@@ -2644,7 +2652,8 @@
     "state": {
       "own": "Only yours",
       "sent": "Waiting for review",
-      "rejected": "Not accepted"
+      "rejected": "Not accepted",
+      "correction": "Correction"
     },
     "figures": "{kcal, number, ::group-off} kcal in 100 {unit}",
     "macros": "protein {protein} g, fat {fat} g, carbohydrates {carbs} g",
@@ -2688,8 +2697,9 @@
     "errSugars": "Sugars are a part of the carbohydrates: they cannot be more.",
     "errSaturated": "Saturated fat is a part of the fat: it cannot be more.",
     "changeLeavesQueue": "Saving takes it out of the queue: it has to be sent again.",
-    "useBase": "Use this product",
-    "withoutCode": "Add mine without a code"
+    "correctionNote": "A correction of the base's data: your scans of this code show this version, and everybody else sees the base's data. Remove it to go back to the base's data. For everybody to have it, <off>correct the product at Open Food Facts</off>.",
+    "correctTitle": "Correct the product",
+    "correctIntro": "Copy the figures from the pack. A saved correction is yours alone: your scans of this code show it instead of the base's data, and everybody else still sees the base's data. For everybody to have it, <off>correct the product at Open Food Facts</off>: photos of the label can be added there, and this instance takes the change with its weekly import."
   },
   "productReview": {
     "explain": "Products people of this instance sent to its base. Nothing says whose each one is. An accepted one joins the base and the file shared under the Open Database License; one not accepted goes back to its author with what you write.",

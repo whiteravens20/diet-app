@@ -2,18 +2,17 @@
 
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { OwnProductBody, type OwnProduct, type Product, type ProductUnit } from '@diet-app/shared';
 import { PRODUCT_TEXT } from '@diet-app/shared/constants';
-import { productCodeOf } from '@diet-app/shared/product-code';
 import { api } from '@/lib/api';
-import { ApiClientError } from '@/lib/http';
 import { useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
+import { linkTo, offProductPage } from '@/components/open-food-facts';
 
 // In the order of a label.
 const FIGURES = ['protein', 'fat', 'saturatedFat', 'carbs', 'sugars', 'fiber', 'salt'] as const;
@@ -34,7 +33,7 @@ interface Draft {
 
 const typed = (value: number | null): string => (value === null ? '' : String(value));
 
-const draftOf = (product: OwnProduct | null, code: string): Draft => ({
+const draftOf = (product: Product | OwnProduct | null, code: string): Draft => ({
   code: product?.code ?? code,
   name: product?.name ?? '',
   brand: product?.brand ?? '',
@@ -58,31 +57,31 @@ const orNull = (text: string): string | null => (text.trim() === '' ? null : tex
 
 /**
  * The form a product of one's own is written in, on its page and in the diary's
- * window. It says of a field what cannot be right before anything is sent. A code
- * the base knows is refused by the API, as a code is in one place: the form then
- * shows the base's product, and leads to writing this one without a code.
+ * window. It says of a field what cannot be right before anything is sent. Given
+ * a product of the base, it writes a correction of it: its figures to start
+ * from, its code, and where a correction reaches everybody.
  */
 export function OwnProductForm({
   product = null,
   code = '',
+  from = null,
   onSaved,
-  onUseBase,
   onCancel,
 }: {
   /** The product being changed; none for a new one. */
   product?: OwnProduct | null;
   /** The code a new one is written for, where it came from a search. */
   code?: string;
+  /** A product of the base its label says otherwise than: the new one is its reader's correction of it. */
+  from?: Product | null;
   onSaved: (product: OwnProduct) => void;
-  /** Takes the base's product of the code, where the base turned out to have one and the place can take it. */
-  onUseBase?: (product: Product) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('products');
   const errorText = useErrorText();
   const unitName = useUnitName();
   const qc = useQueryClient();
-  const [draft, setDraft] = useState<Draft>(() => draftOf(product, code));
+  const [draft, setDraft] = useState<Draft>(() => draftOf(product ?? from, code));
   const [shown, setShown] = useState(false);
   // How often the form was sent with something wrong: each time the first such field comes into view.
   const [refused, setRefused] = useState(0);
@@ -137,15 +136,6 @@ export function OwnProductForm({
     if (save.isError) save.reset();
   };
 
-  // A code the base knows is refused, and the form shows the product it knows it as.
-  const known = save.error instanceof ApiClientError && save.error.code === 'PRODUCT_CODE_KNOWN';
-  const knownCode = known ? productCodeOf(draft.code) : null;
-  const base = useQuery({
-    queryKey: ['products-code', knownCode],
-    queryFn: () => api.get<Product>(`/products/code/${knownCode}`),
-    enabled: knownCode !== null,
-  });
-
   const unit = unitName(draft.unit);
   /** A field of a number or a text with what is wrong with it said under it. */
   const field = (
@@ -180,6 +170,11 @@ export function OwnProductForm({
         else setRefused((count) => count + 1);
       }}
     >
+      {from?.code && (
+        <p className="text-xs text-muted-foreground">
+          {t.rich('correctIntro', { off: linkTo(offProductPage(from.code)) })}
+        </p>
+      )}
       {field(
         t('code'),
         ['code'],
@@ -235,52 +230,9 @@ export function OwnProductForm({
         <p className="text-xs text-warning">{t('changeLeavesQueue')}</p>
       )}
       {save.isError && (
-        <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
-          <p role="alert" className="text-destructive">
-            {errorText(save.error)}
-          </p>
-          {known && (
-            <>
-              {base.data && (
-                <div>
-                  <p className="break-words font-medium">{base.data.name}</p>
-                  <p className="break-words text-xs text-muted-foreground">
-                    {[
-                      base.data.brand,
-                      base.data.pack,
-                      t('figures', {
-                        kcal: Math.round(base.data.per100.calories ?? 0),
-                        unit: unitName(base.data.unit),
-                      }),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {onUseBase && base.data && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onUseBase(base.data)}
-                  >
-                    {t('useBase')}
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => change({ code: '' })}
-                >
-                  {t('withoutCode')}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+        <p role="alert" className="text-sm text-destructive">
+          {errorText(save.error)}
+        </p>
       )}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>

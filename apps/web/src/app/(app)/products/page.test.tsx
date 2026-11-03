@@ -40,6 +40,7 @@ const A_PRODUCT: OwnProduct = {
   },
   energyWorkedOut: false,
   doubtful: false,
+  correction: false,
   changedAt: null,
   state: 'own',
   reason: null,
@@ -107,6 +108,19 @@ describe('the page of the products of an account', () => {
     expect(screen.getByText('Reason: The label says otherwise.')).toBeInTheDocument();
     expect(screen.getByText(t.doubtful)).toBeInTheDocument();
     expect(screen.getByText(/protein 8 g, fat — g/)).toBeInTheDocument();
+  });
+
+  it('says of a correction whose it stays and where it reaches everybody, and offers no sending', async () => {
+    shown([{ ...A_PRODUCT, correction: true }]);
+
+    expect(await screen.findByText(t.state.correction)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'correct the product at Open Food Facts' }),
+    ).toHaveAttribute('href', `https://world.openfoodfacts.org/product/${A_PRODUCT.code}`);
+    expect(screen.queryByRole('button', { name: t.send })).not.toBeInTheDocument();
+    expect(screen.queryByText(t.sendNeeds)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: t.edit })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: t.remove })).toBeInTheDocument();
   });
 
   it('says what sending does before it does it, and sends on that word alone', async () => {
