@@ -180,7 +180,9 @@ describe('the page of the products of an account', () => {
     await userEvent.click(await screen.findByRole('button', { name: t.send }));
     await userEvent.click(screen.getByRole('button', { name: t.sendConfirm }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    // At the product it was asked of, which may be far down the list.
+    const row = screen.getByRole('listitem');
+    expect(await within(row).findByRole('alert')).toHaveTextContent(
       messages.errors.OWN_PRODUCT_SEND_LIMIT,
     );
   });

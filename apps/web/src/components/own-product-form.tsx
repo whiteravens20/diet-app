@@ -4,7 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState, type ComponentProps } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { OwnProductBody, type OwnProduct, type Product, type ProductUnit } from '@diet-app/shared';
 import { PRODUCT_TEXT } from '@diet-app/shared/constants';
 import { productCodeOf } from '@diet-app/shared/product-code';
@@ -84,6 +84,12 @@ export function OwnProductForm({
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => draftOf(product, code));
   const [shown, setShown] = useState(false);
+  // How often the form was sent with something wrong: each time the first such field comes into view.
+  const [refused, setRefused] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (refused > 0) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [refused]);
 
   const asked = OwnProductBody.safeParse({
     code: orNull(draft.code),
@@ -164,12 +170,14 @@ export function OwnProductForm({
   };
   return (
     <form
+      ref={formRef}
       noValidate
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         setShown(true);
         if (asked.success) save.mutate(asked.data);
+        else setRefused((count) => count + 1);
       }}
     >
       {field(
@@ -236,7 +244,7 @@ export function OwnProductForm({
               {base.data && (
                 <div>
                   <p className="break-words font-medium">{base.data.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="break-words text-xs text-muted-foreground">
                     {[
                       base.data.brand,
                       base.data.pack,

@@ -60,7 +60,8 @@ export default function ProductsPage() {
   const [writing, setWriting] = useState<{ product: OwnProduct | null } | null>(null);
   // The product whose sending or removal waits for a word, with what it does said first.
   const [asking, setAsking] = useState<{ id: string; what: 'send' | 'remove' } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // What was refused, said at the product it was asked of; the file's at the top, beside its button.
+  const [error, setError] = useState<{ on: string | null; text: string } | null>(null);
 
   const mine = useQuery({
     queryKey: ['own-products'],
@@ -68,12 +69,15 @@ export default function ProductsPage() {
     enabled: config?.products.offered === true,
   });
   const reread = () => qc.invalidateQueries({ queryKey: ['own-products'] });
-  const fail = (e: unknown) => {
-    setError(errorText(e));
+  const fail = (e: unknown, id: string) => {
+    setError({ on: id, text: errorText(e) });
     void reread();
   };
   const send = useMutation({
-    mutationFn: (id: string) => api.post<OwnProduct>(`/products/own/${id}/send`),
+    mutationFn: (id: string) => {
+      setError(null);
+      return api.post<OwnProduct>(`/products/own/${id}/send`);
+    },
     onSuccess: () => {
       setAsking(null);
       void reread();
@@ -81,12 +85,18 @@ export default function ProductsPage() {
     onError: fail,
   });
   const withdraw = useMutation({
-    mutationFn: (id: string) => api.post<OwnProduct>(`/products/own/${id}/withdraw`),
+    mutationFn: (id: string) => {
+      setError(null);
+      return api.post<OwnProduct>(`/products/own/${id}/withdraw`);
+    },
     onSuccess: () => void reread(),
     onError: fail,
   });
   const remove = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/products/own/${id}`),
+    mutationFn: (id: string) => {
+      setError(null);
+      return api.delete<void>(`/products/own/${id}`);
+    },
     onSuccess: () => {
       setAsking(null);
       void reread();
@@ -97,7 +107,7 @@ export default function ProductsPage() {
     mutationFn: () => api.get<ProductAdditions>('/products/additions'),
     onSuccess: (additions) =>
       saveText(JSON.stringify(additions, null, 2), 'products-added.json', 'application/json'),
-    onError: (e: unknown) => setError(errorText(e)),
+    onError: (e: unknown) => setError({ on: null, text: errorText(e) }),
   });
   const busy = send.isPending || withdraw.isPending || remove.isPending;
   const grams = (value: number | null): string => (value === null ? '—' : fmt.number(value, 1));
@@ -136,9 +146,9 @@ export default function ProductsPage() {
         })}{' '}
         {t.rich('source', { off: linkTo(OPEN_FOOD_FACTS), odbl: linkTo(ODBL) })}
       </p>
-      {error && (
+      {error && error.on === null && (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {error.text}
         </p>
       )}
       {mine.isLoading && <Skeleton className="h-40" />}
@@ -154,7 +164,7 @@ export default function ProductsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="break-words font-medium">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="break-words text-xs text-muted-foreground">
                       {[product.brand, product.pack, product.code].filter(Boolean).join(' · ')}
                     </p>
                   </div>
@@ -182,7 +192,9 @@ export default function ProductsPage() {
                   })}
                 </p>
                 {product.reason && (
-                  <p className="text-xs text-warning">{t('reason', { reason: product.reason })}</p>
+                  <p className="break-words text-xs text-warning">
+                    {t('reason', { reason: product.reason })}
+                  </p>
                 )}
                 {product.doubtful && <p className="text-xs text-warning">{t('doubtful')}</p>}
                 <div className="flex flex-wrap gap-1">
@@ -227,6 +239,11 @@ export default function ProductsPage() {
                     {t('remove')}
                   </Button>
                 </div>
+                {error?.on === product.id && (
+                  <p role="alert" className="break-words text-xs text-destructive">
+                    {error.text}
+                  </p>
+                )}
                 {!sendable(product) && product.state !== 'sent' && (
                   <p id={`${product.id}-needs`} className="text-xs text-muted-foreground">
                     {t('sendNeeds')}

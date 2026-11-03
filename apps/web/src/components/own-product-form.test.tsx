@@ -144,6 +144,17 @@ describe("the form a product of one's own is written in", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it('brings the first field that is wrong into view, wherever the button was pressed from', async () => {
+    shown();
+
+    await userEvent.type(field(t.name), 'Chleb');
+    await userEvent.type(field(t.code), '123');
+    await userEvent.type(field(t.calories), '100');
+    await save();
+
+    expect(field(t.code)).toHaveFocus();
+  });
+
   it('says that a name and the calories are needed', async () => {
     const post = vi.spyOn(api, 'post');
     shown();
