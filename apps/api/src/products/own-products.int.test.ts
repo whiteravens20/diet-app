@@ -296,6 +296,31 @@ describe('the products an account writes for itself', () => {
       expect(await noticesOf(user)).toEqual([]);
     });
 
+    it('is a product of its own like any other once Open Food Facts no longer knows its code', async () => {
+      off.answers.set(JAM, JAM_ELSEWHERE);
+      const correction = await written();
+      // Read again a month later, when Open Food Facts no longer has it.
+      await t.prisma.product.updateMany({
+        where: { code: JAM },
+        data: { readAt: new Date(Date.now() - 40 * DAY) },
+      });
+      off.answers.delete(JAM);
+
+      await t
+        .http()
+        .get(`/api/products/code/${JAM}`)
+        .set(as(await aUser(t)))
+        .expect(404);
+
+      expect(
+        await t.prisma.ownProduct.findUniqueOrThrow({ where: { id: correction.id } }),
+      ).toMatchObject({ correction: false, state: 'own' });
+      expect((await send(correction.id).expect(200)).body).toMatchObject({
+        state: 'sent',
+        correction: false,
+      });
+    });
+
     it('takes a code the base holds without figures', async () => {
       off.answers.set(JAM, { code: JAM, product_name: 'Konfitura bez liczb', nutriments: {} });
 
@@ -771,6 +796,38 @@ describe('the products an account writes for itself', () => {
       expect((await noticesOf(user)).at(-1)).toEqual({
         type: 'product_withdrawn',
         payload: { name: 'Babcina konfitura', reason: 'Błędne dane.', replacedBy: null },
+      });
+    });
+
+    it('gives its author their correction back in its place, and leaves the corrections of others correcting nothing', async () => {
+      expect((await accept(await sent())).status).toBe(204);
+      const row = await t.prisma.product.findUniqueOrThrow({ where: { code: JAM } });
+      const mine = await written(
+        aBody({ name: 'Konfitura poprawiona', per100: { ...aBody().per100, calories: 230 } }),
+      );
+      const other = await aUser(t);
+      await aProfile(t, other);
+      const theirs = await written(aBody({ name: 'Konfitura z etykiety' }), other);
+      expect([mine.correction, theirs.correction]).toEqual([true, true]);
+
+      await withdraw(row.id).expect(204);
+
+      expect(await t.prisma.product.count({ where: { code: JAM } })).toBe(0);
+      const back = (await t.http().get('/api/products/own').set(as(user))).body
+        .items as OwnProduct[];
+      expect(back).toEqual([
+        expect.objectContaining({
+          id: mine.id,
+          name: 'Konfitura poprawiona',
+          per100: expect.objectContaining({ calories: 230 }),
+          state: 'rejected',
+          reason: 'Błędne dane.',
+          correction: false,
+        }),
+      ]);
+      expect((await send(theirs.id, other).expect(200)).body).toMatchObject({
+        state: 'sent',
+        correction: false,
       });
     });
 

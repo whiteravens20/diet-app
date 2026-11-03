@@ -187,8 +187,10 @@ export class ProductReviewService {
 
   /**
    * Withdraw an accepted product from the base. It goes back to its author as
-   * turned down, with the reason; where the author is gone it is removed. What
-   * diaries hold of it keeps its figures.
+   * turned down, with the reason; an author who corrected it since gets the
+   * correction back in its place, and where the author is gone it is removed.
+   * A correction of it corrects nothing once it is gone. What diaries hold of
+   * it keeps its figures.
    */
   async withdraw(id: string, reason: string, now = new Date()): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -200,30 +202,38 @@ export class ProductReviewService {
         });
       }
       if (product.authorId !== null && product.calories !== null) {
-        const own = await tx.ownProduct.create({
-          data: {
-            userId: product.authorId,
-            code: product.code,
-            name: product.name,
-            brand: product.brand,
-            searchText: product.searchText,
-            pack: product.pack,
-            unit: product.unit,
-            packAmount: product.packAmount,
-            servingAmount: product.servingAmount,
-            calories: product.calories,
-            protein: product.protein,
-            fat: product.fat,
-            carbs: product.carbs,
-            fiber: product.fiber,
-            sugars: product.sugars,
-            salt: product.salt,
-            saturatedFat: product.saturatedFat,
-            doubtful: product.doubtful,
-            state: 'rejected',
-            reason,
-          },
+        const corrected = await tx.ownProduct.findUnique({
+          where: { userId_code: { userId: product.authorId, code: product.code } },
         });
+        const own = corrected
+          ? await tx.ownProduct.update({
+              where: { id: corrected.id },
+              data: { state: 'rejected', reason },
+            })
+          : await tx.ownProduct.create({
+              data: {
+                userId: product.authorId,
+                code: product.code,
+                name: product.name,
+                brand: product.brand,
+                searchText: product.searchText,
+                pack: product.pack,
+                unit: product.unit,
+                packAmount: product.packAmount,
+                servingAmount: product.servingAmount,
+                calories: product.calories,
+                protein: product.protein,
+                fat: product.fat,
+                carbs: product.carbs,
+                fiber: product.fiber,
+                sugars: product.sugars,
+                salt: product.salt,
+                saturatedFat: product.saturatedFat,
+                doubtful: product.doubtful,
+                state: 'rejected',
+                reason,
+              },
+            });
         await tx.diaryEntry.updateMany({
           where: { productId: id, profile: { userId: product.authorId } },
           data: { productId: null, ownProductId: own.id },
@@ -236,6 +246,10 @@ export class ProductReviewService {
           now,
         );
       }
+      await tx.ownProduct.updateMany({
+        where: { code: product.code, correction: true },
+        data: { correction: false },
+      });
       await tx.product.delete({ where: { id } });
     });
     await this.writeFiles();

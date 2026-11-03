@@ -137,6 +137,11 @@ export class ProductsService {
           update: { askedAt: now },
         }),
         this.prisma.product.deleteMany({ where: { code, origin: 'looked_up' } }),
+        // A correction of it corrects nothing now: its writer's product like any other.
+        this.prisma.ownProduct.updateMany({
+          where: { code, correction: true },
+          data: { correction: false },
+        }),
       ]);
       throw notFound();
     }
