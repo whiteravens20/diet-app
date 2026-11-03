@@ -65,11 +65,15 @@
     "noAccessTooltip": "The instance's AI is not open to this account. See Settings, on the AI tab."
   },
   "confirmEmail": {
-    "notice": "Confirm your email address {email}: follow the link in the message received at that address. A link lasts an hour.",
+    "noticeAi": "Confirming {email} is optional, but on this instance it unlocks the instance's AI. Open the link in the message sent to this address: it works for an hour.",
+    "noticePlain": "Confirming {email} is optional: every feature works without it. A confirmed address makes sure a link to change your password reaches you. The link in the message works for an hour.",
+    "worthAi": "Confirming is optional, but on this instance it unlocks the instance's AI.",
+    "worthPlain": "Confirming is optional: every feature works without it. A confirmed address makes sure a link to change your password reaches you.",
     "resend": "Send a new link",
     "sending": "Sending…",
     "sent": "A new link is on its way.",
-    "failed": "The link could not be sent."
+    "failed": "The link could not be sent.",
+    "later": "Not now"
   },
   "aiOff": {
     "note": "AI is turned off for this account, so the actions that ask a model are switched off. <settings>Turn AI on in Settings</settings> to use them."
@@ -203,7 +207,8 @@
     "redirecting": "Taking you to sign in…",
     "verifyTitle": "Confirming your email…",
     "verifySuccess": "Email confirmed",
-    "verifySuccessBody": "Your email address is verified. You can keep using Diet App.",
+    "verifySuccessBody": "Your email address is confirmed: a link to change your password will reach you.",
+    "verifySuccessBodyAi": "Your email address is confirmed: your account can use the instance's AI.",
     "verifyFailed": "Confirmation failed",
     "verifyFailedBody": "This confirmation link is invalid or has expired. You can request a new one in your settings, on the Account and data tab.",
     "verifyMissingToken": "This page expects a confirmation token in the URL.",

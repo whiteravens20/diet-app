@@ -65,11 +65,15 @@
     "noAccessTooltip": "AI instancji nie jest dostępne dla tego konta. Szczegóły w Ustawieniach, w zakładce AI."
   },
   "confirmEmail": {
-    "notice": "Potwierdź adres e-mail {email}: kliknij link z wiadomości otrzymanej na podany adres. Link jest ważny godzinę.",
+    "noticeAi": "Potwierdzenie adresu {email} jest nieobowiązkowe, ale na tej instancji odblokowuje AI instancji. Kliknij link z wiadomości wysłanej na ten adres: jest ważny godzinę.",
+    "noticePlain": "Potwierdzenie adresu {email} jest nieobowiązkowe: wszystkie funkcje działają bez niego. Potwierdzony adres daje pewność, że link do zmiany hasła do Ciebie dotrze. Link z wiadomości jest ważny godzinę.",
+    "worthAi": "Potwierdzenie jest nieobowiązkowe, ale na tej instancji odblokowuje AI instancji.",
+    "worthPlain": "Potwierdzenie jest nieobowiązkowe: wszystkie funkcje działają bez niego. Potwierdzony adres daje pewność, że link do zmiany hasła do Ciebie dotrze.",
     "resend": "Wyślij nowy link",
     "sending": "Wysyłanie…",
     "sent": "Nowy link jest w drodze.",
-    "failed": "Nie udało się wysłać linku."
+    "failed": "Nie udało się wysłać linku.",
+    "later": "Nie teraz"
   },
   "aiOff": {
     "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
@@ -203,7 +207,8 @@
     "redirecting": "Przenosimy Cię do logowania…",
     "verifyTitle": "Potwierdzanie adresu e-mail…",
     "verifySuccess": "Adres e-mail potwierdzony",
-    "verifySuccessBody": "Twój adres e-mail został potwierdzony. Możesz dalej korzystać z Diet App.",
+    "verifySuccessBody": "Twój adres e-mail jest potwierdzony: link do zmiany hasła do Ciebie dotrze.",
+    "verifySuccessBodyAi": "Twój adres e-mail jest potwierdzony: konto może korzystać z AI instancji.",
     "verifyFailed": "Potwierdzenie nie powiodło się",
     "verifyFailedBody": "Ten link potwierdzający jest nieprawidłowy lub wygasł. Możesz poprosić o nowy w ustawieniach, w zakładce Konto i dane.",
     "verifyMissingToken": "W adresie tej strony brakuje kodu potwierdzającego. Otwórz jeszcze raz link z wiadomości e-mail.",

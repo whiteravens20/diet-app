@@ -24,7 +24,7 @@ export function aSupply(): CatalogueSupply {
 export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConfig {
   return {
     turnstile: { enabled: false, siteKey: null },
-    email: { enabled: false },
+    email: { enabled: false, confirmationUnlocksAi: false },
     ai: { ollamaUserPolicy: 'off' },
     instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
     catalogue: { supply: aSupply() },

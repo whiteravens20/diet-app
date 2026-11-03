@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Locale } from '@diet-app/shared';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type { SMTPTransportOptions } from 'nodemailer/lib/smtp-transport';
+import { confirmationUnlocksAi } from '../ai/ai-quota.service.js';
 import type { Env } from '../config/env.js';
 import {
   emailChangedEmail,
@@ -96,8 +97,10 @@ export class MailService implements OnApplicationShutdown {
     this.send(to, passwordResetEmail[locale]({ link }), 'password reset', link);
   }
 
+  /** The link that confirms an address, with what confirming it gives on this instance. */
   sendEmailVerification(to: string, link: string, locale: Locale): void {
-    this.send(to, emailVerificationEmail[locale]({ link }), 'email verification', link);
+    const unlocksAi = confirmationUnlocksAi(this.config);
+    this.send(to, emailVerificationEmail[locale]({ link, unlocksAi }), 'email verification', link);
   }
 
   sendEmailChange(to: string, link: string, locale: Locale): void {

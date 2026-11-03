@@ -18874,10 +18874,14 @@
             "properties": {
               "enabled": {
                 "type": "boolean"
+              },
+              "confirmationUnlocksAi": {
+                "type": "boolean"
               }
             },
             "required": [
-              "enabled"
+              "enabled",
+              "confirmationUnlocksAi"
             ],
             "additionalProperties": false
           },

@@ -61,6 +61,12 @@ export const PublicConfig = z.object({
   }),
   email: z.object({
     enabled: z.boolean(),
+    /**
+     * Whether confirming an address lets its account use the instance's AI
+     * (`AI_ADMIN_ACCESS=confirmed`), which is all a confirmation unlocks:
+     * otherwise every feature works without one.
+     */
+    confirmationUnlocksAi: z.boolean(),
   }),
   ai: z.object({
     ollamaUserPolicy: OllamaUserPolicy,

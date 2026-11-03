@@ -10,6 +10,7 @@ import {
   PublicConfig,
   type MealType,
 } from '@diet-app/shared';
+import { confirmationUnlocksAi } from '../ai/ai-quota.service.js';
 import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
@@ -46,7 +47,10 @@ export class AppConfigController {
         enabled: this.turnstile.enabled,
         siteKey: this.config.get('TURNSTILE_SITE_KEY', { infer: true }) ?? null,
       },
-      email: { enabled: this.mail.enabled },
+      email: {
+        enabled: this.mail.enabled,
+        confirmationUnlocksAi: this.mail.enabled && confirmationUnlocksAi(this.config),
+      },
       ai: {
         ollamaUserPolicy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
       },
