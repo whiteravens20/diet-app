@@ -26,6 +26,7 @@ import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { useSettled } from '@/lib/use-settled';
+import { CookingNote } from './cooking';
 
 type Kind = 'normal' | 'training' | 'rest' | 'skip';
 const KINDS: readonly Kind[] = ['normal', 'training', 'rest', 'skip'];
@@ -86,6 +87,7 @@ export function DaySettingsDialog({
   const [error, setError] = useState<string | null>(null);
   // The limits that stood in the way of a save, which the reader may let give way.
   const [inTheWay, setInTheWay] = useState<RelaxationNeeded | null>(null);
+  const [only, setOnly] = useState(false);
 
   // The settings as they are typed: none while a number is no number the API takes, which the field says itself.
   const asked = DaySettings.safeParse({
@@ -113,6 +115,7 @@ export function DaySettingsDialog({
       api.put<MealPlan>(path, {
         ...(JSON.parse(settled!) as DaySettings),
         revision: preview.data!.revision,
+        ...(!only && preview.data!.cooking?.changes.length ? { together: true } : {}),
         ...(allowRelaxations ? { allowRelaxations } : {}),
       }),
     onSuccess: () => {
@@ -246,6 +249,15 @@ export function DaySettingsDialog({
           ) : (
             <div className={current ? undefined : 'opacity-60'}>
               <Outcome preview={shown} skip={kind === 'skip'} mealName={mealName} />
+              {!shown.unchanged && (
+                <CookingNote
+                  change={shown.cooking}
+                  only={only}
+                  onOnly={setOnly}
+                  label="only"
+                  mealName={mealName}
+                />
+              )}
             </div>
           )}
         </div>

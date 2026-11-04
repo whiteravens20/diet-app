@@ -141,6 +141,8 @@ export class AccountExportService {
         name: entry.name,
         recipeId: entry.recipeId,
         ingredientId: entry.ingredientId,
+        productId: entry.productId,
+        productSource: entry.productSource,
         servings: entry.servings,
         quantity: entry.quantity,
         unit: entry.unit,
@@ -151,6 +153,16 @@ export class AccountExportService {
           fat: entry.fat,
           carbs: entry.carbs,
         },
+        // What the label of a product says beside them, for the amount it holds.
+        label:
+          entry.kind === 'product'
+            ? {
+                fiber: entry.fiber,
+                sugars: entry.sugars,
+                salt: entry.salt,
+                saturatedFat: entry.saturatedFat,
+              }
+            : null,
         estimated: entry.estimated,
         createdAt: entry.createdAt.toISOString(),
       }),
@@ -204,6 +216,36 @@ export class AccountExportService {
         slots: set.slots,
         createdAt: set.createdAt.toISOString(),
         updatedAt: set.updatedAt.toISOString(),
+      }),
+    );
+
+    // The products that are the account's own: those it wrote, whatever became of them. What the base accepted is nobody's any more.
+    yield* list(
+      'ownProducts',
+      (page) => this.prisma.ownProduct.findMany({ where: { userId }, ...page }),
+      (product) => ({
+        code: product.code,
+        name: product.name,
+        brand: product.brand,
+        pack: product.pack,
+        unit: product.unit,
+        packAmount: product.packAmount,
+        servingAmount: product.servingAmount,
+        per100: {
+          calories: product.calories,
+          protein: product.protein,
+          fat: product.fat,
+          carbs: product.carbs,
+          fiber: product.fiber,
+          sugars: product.sugars,
+          salt: product.salt,
+          saturatedFat: product.saturatedFat,
+        },
+        state: product.state,
+        reason: product.reason,
+        sentAt: product.sentAt?.toISOString() ?? null,
+        createdAt: product.createdAt.toISOString(),
+        updatedAt: product.updatedAt.toISOString(),
       }),
     );
 
@@ -271,7 +313,10 @@ export class AccountExportService {
         dietType: plan.dietType,
         calorieTarget: plan.calorieTarget,
         macroSplit: plan.macroSplit,
-        generationMode: plan.generationMode,
+        // A plan that holds a model's pick says that a model had a part in it.
+        generationMode: plan.days.some((day) => day.meals.some((meal) => meal.modelPicked))
+          ? 'ai_assisted'
+          : 'deterministic',
         options: plan.options,
         createdAt: plan.createdAt.toISOString(),
         days: plan.days.map((planned) => ({

@@ -13,6 +13,7 @@ import { PasswordsModule } from './common/passwords.js';
 import { Configuration } from './config/configuration.js';
 import type { Env } from './config/env.js';
 import { DiaryModule } from './diary/diary.module.js';
+import { ProductsModule } from './products/products.module.js';
 import { FavoriteSetsModule } from './favorite-sets/favorite-sets.module.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -70,6 +71,7 @@ import { WeightsModule } from './weights/weights.module.js';
     UsersModule,
     WeightsModule,
     DiaryModule,
+    ProductsModule,
     NotificationsModule,
     PolicyReportsModule,
   ],

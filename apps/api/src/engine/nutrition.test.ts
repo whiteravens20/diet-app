@@ -11,6 +11,7 @@ import {
   estimatedMacros,
   macroSplitOf,
   macrosForCalories,
+  safetyFloor,
   scaledFigures,
   sharesOf,
   splitDistance,
@@ -80,6 +81,13 @@ describe('calculateBmr (Mifflin-St Jeor)', () => {
   it('matches the known female reference value', () => {
     // 65 kg, 165 cm, 30 y, female → 650 + 1031.25 - 150 - 161 = 1370.25 → 1370
     expect(calculateBmr({ weightKg: 65, heightCm: 165, age: 30, sex: 'female' })).toBe(1370);
+  });
+
+  it('works out somebody non-binary as where nothing is said, floor and all', () => {
+    const body = { weightKg: 70, heightCm: 170, age: 30 };
+
+    expect(calculateBmr({ ...body, sex: 'non_binary' })).toBe(calculateBmr({ ...body, sex: null }));
+    expect(safetyFloor('non_binary')).toBe(safetyFloor(null));
   });
 
   it('uses the unbiased midpoint offset when sex is unknown', () => {

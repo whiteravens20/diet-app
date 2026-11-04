@@ -14,7 +14,7 @@ import {
 import { UNITS } from './units.js';
 
 /** Biological sex — used only for the BMR formula; optional on profiles. */
-export const Sex = z.enum(['male', 'female']);
+export const Sex = z.enum(['male', 'female', 'non_binary']);
 export type Sex = z.infer<typeof Sex>;
 
 /** Physical Activity Level — maps to a maintenance-calorie multiplier. */

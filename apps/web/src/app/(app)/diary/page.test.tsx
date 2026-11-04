@@ -36,9 +36,13 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   name: 'Soup from the canteen',
   recipeId: null,
   ingredientId: null,
+  productId: null,
+  productCode: null,
+  productSource: null,
   servings: 1,
   amount: null,
   nutrition: { calories: 300, protein: 19, fat: 10, carbs: 34 },
+  label: null,
   estimated: true,
   createdAt: `${TODAY}T12:00:00.000Z`,
   ...over,
@@ -502,6 +506,181 @@ describe('the diary', () => {
 
     const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
     expect(window.getByRole('spinbutton', { name: `${texts.quantity} (slices)` })).toHaveValue(2.5);
+  });
+
+  it.each([
+    ['own', 'entrySourceOwn'],
+    ['instance', 'entrySourceInstance'],
+  ] as const)(
+    'says of a product whose figures came from %s that they did not come from Open Food Facts',
+    async (productSource, said) => {
+      const entry = anEntry({ kind: 'product', name: 'Chleb babci', productSource });
+      await renderPage(aDay({ entries: [entry] }));
+
+      const row = screen.getByText('Chleb babci').closest('li')!;
+      expect(within(row).getByText(texts[said])).toBeInTheDocument();
+      expect(within(row).queryByText(texts.entrySource)).not.toBeInTheDocument();
+    },
+  );
+
+  it('says where the figures of a product come from, and takes a change of its amount', async () => {
+    const entry = anEntry({
+      kind: 'product',
+      name: 'Mleko, Mlekovita',
+      productId: '77777777-7777-4777-8777-777777777777',
+      productCode: null,
+      productSource: 'open_food_facts',
+      servings: null,
+      amount: { quantity: 250, unit: 'ml', shown: { quantity: 250, unit: 'ml' } },
+      label: { fiber: null, sugars: 11.8, salt: 0.3, saturatedFat: 5.3 },
+      estimated: false,
+    });
+    await renderPage(aDay({ entries: [entry] }));
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(entry as never);
+    const user = userEvent.setup();
+
+    const row = screen.getByText('Mleko, Mlekovita').closest('li')!;
+    expect(within(row).getByText(texts.entrySource)).toBeInTheDocument();
+    await user.click(
+      within(row).getByRole('button', {
+        name: texts.editLabel.replace('{name}', 'Mleko, Mlekovita'),
+      }),
+    );
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    const quantity = window.getByRole('spinbutton', { name: /ml/ });
+    expect(quantity).toHaveValue(250);
+    await user.clear(quantity);
+    await user.type(quantity, '300');
+    await user.click(window.getByRole('button', { name: messages.common.save }));
+
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${entry.id}`, {
+      mealType: 'lunch',
+      quantity: 300,
+    });
+  });
+
+  it("moves an entry of a product of the base to its reader's correction, written in its window", async () => {
+    const code = '5900512320359';
+    const entry = anEntry({
+      kind: 'product',
+      name: 'Mleko, Mlekovita',
+      productId: '77777777-7777-4777-8777-777777777777',
+      productCode: code,
+      productSource: 'open_food_facts',
+      servings: null,
+      amount: { quantity: 250, unit: 'ml', shown: { quantity: 250, unit: 'ml' } },
+      label: { fiber: null, sugars: 11.8, salt: 0.3, saturatedFat: 5.3 },
+      estimated: false,
+    });
+    const base = {
+      id: '77777777-7777-4777-8777-777777777777',
+      code,
+      source: 'open_food_facts',
+      name: 'Mleko 3,2%',
+      brand: 'Mlekovita',
+      pack: '1l',
+      unit: 'ml',
+      packAmount: 1000,
+      servingAmount: 250,
+      per100: {
+        calories: 60,
+        protein: 3.2,
+        fat: 3.2,
+        carbs: 4.7,
+        fiber: null,
+        sugars: 4.7,
+        salt: 0.1,
+        saturatedFat: 2.1,
+      },
+      energyWorkedOut: false,
+      doubtful: false,
+      correction: false,
+      changedAt: null,
+    };
+    await renderPage(aDay({ entries: [entry] }));
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === `/products/code/${code}` ? Promise.resolve(base) : answers(path),
+    );
+    const correction = {
+      ...base,
+      id: '99999999-9999-4999-8999-999999999999',
+      source: 'own',
+      correction: true,
+      state: 'own',
+      reason: null,
+      sentAt: null,
+      updatedAt: '2026-11-03T10:00:00.000Z',
+    };
+    const posted = vi.spyOn(api, 'post').mockResolvedValue(correction as never);
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(entry as never);
+    const user = userEvent.setup();
+
+    const row = screen.getByText('Mleko, Mlekovita').closest('li')!;
+    await user.click(
+      within(row).getByRole('button', {
+        name: texts.editLabel.replace('{name}', 'Mleko, Mlekovita'),
+      }),
+    );
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    await user.click(window.getByRole('button', { name: texts.entryCorrect }));
+    const form = within(
+      await screen.findByRole('dialog', { name: messages.products.correctTitle }),
+    );
+    const calories = await form.findByRole('textbox', { name: messages.products.calories });
+    expect(calories).toHaveValue('60');
+    await user.clear(calories);
+    await user.type(calories, '64');
+    await user.click(form.getByRole('button', { name: messages.products.save }));
+
+    expect(posted).toHaveBeenCalledWith(
+      '/products/own',
+      expect.objectContaining({ code, per100: expect.objectContaining({ calories: 64 }) }),
+    );
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${entry.id}`, {
+      mealType: 'lunch',
+      productId: correction.id,
+    });
+  });
+
+  it('offers an entry of a product its reader has a version of already that version, not a second one', async () => {
+    const code = '5900512320359';
+    const entry = anEntry({
+      kind: 'product',
+      name: 'Mleko, Mlekovita',
+      productId: '77777777-7777-4777-8777-777777777777',
+      productCode: code,
+      productSource: 'open_food_facts',
+      servings: null,
+      amount: { quantity: 250, unit: 'ml', shown: { quantity: 250, unit: 'ml' } },
+      estimated: false,
+    });
+    await renderPage(aDay({ entries: [entry] }));
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    const mine = { id: '99999999-9999-4999-8999-999999999999', source: 'own', name: 'Moje mleko' };
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === `/products/code/${code}` ? Promise.resolve(mine) : answers(path),
+    );
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(entry as never);
+    const user = userEvent.setup();
+
+    const row = screen.getByText('Mleko, Mlekovita').closest('li')!;
+    await user.click(
+      within(row).getByRole('button', {
+        name: texts.editLabel.replace('{name}', 'Mleko, Mlekovita'),
+      }),
+    );
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    await user.click(window.getByRole('button', { name: texts.entryCorrect }));
+    expect(
+      await window.findByText(texts.entryOwnVersion.replace('{name}', 'Moje mleko')),
+    ).toBeInTheDocument();
+    await user.click(window.getByRole('button', { name: texts.entryUseOwnVersion }));
+
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${entry.id}`, {
+      mealType: 'lunch',
+      productId: mine.id,
+    });
   });
 
   it('says nothing of what a number that cannot be written would add', async () => {

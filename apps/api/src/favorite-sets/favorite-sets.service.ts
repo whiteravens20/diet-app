@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  PlanOptions,
   type ApplyFavoriteSetRequest,
   type CreateFavoriteSetRequest,
   type FavoriteSet,
@@ -21,7 +22,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { MealPlansService, type CookedMeal } from '../meal-plans/meal-plans.service.js';
 import {
   CANDIDATE,
   restrictionsFor,
@@ -97,7 +98,8 @@ export class FavoriteSetsService {
     userId: string,
     locale: Locale,
     id: string,
-    req: ApplyFavoriteSetRequest,
+    req: Omit<ApplyFavoriteSetRequest, 'together'> & { together?: boolean },
+    clientToday: string | null = null,
   ): Promise<MealPlan> {
     const set = await this.load(userId, id);
     const slots = parseSlots(set.slots);
@@ -120,9 +122,18 @@ export class FavoriteSetsService {
     }
 
     const requested = new Set(req.dayDates);
-    const targetDays = plan.days.filter((d) => requested.has(d.date.toISOString().slice(0, 10)));
-    if (targetDays.length === 0) {
+    const namedDays = plan.days.filter((d) => requested.has(d.date.toISOString().slice(0, 10)));
+    if (namedDays.length === 0) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'No matching day in plan.' });
+    }
+    // A day that has passed keeps what was on it. Dates in this form compare as text.
+    const today = clientToday ?? this.mealPlans.today();
+    const targetDays = namedDays.filter((d) => d.date.toISOString().slice(0, 10) >= today);
+    if (targetDays.length === 0) {
+      throw new ConflictException({
+        error: 'DAY_IN_THE_PAST',
+        message: 'This day is over: its meals stay as they were.',
+      });
     }
 
     // Every recipe of the set passes the same gate as any other way into the
@@ -178,7 +189,12 @@ export class FavoriteSetsService {
       });
     }
 
+    const cookedWith = req.together
+      ? await this.mealPlans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
     await writePlan(this.prisma, plan.id, plan.revision, async (tx) => {
+      const moves: { mealId: string; recipeId: string }[] = [];
+      const written: string[] = [];
       for (const day of targetDays) {
         const existing = await tx.plannedMeal.findMany({
           where: { dayId: day.id },
@@ -203,6 +219,8 @@ export class FavoriteSetsService {
           const servings = fitServings(caloriesById.get(recipeId) ?? 0, budget);
           const current = existingByType.get(mealType);
           if (current) {
+            moves.push({ mealId: current.id, recipeId });
+            written.push(current.id);
             // The same reset as a swap: the new recipe is a new baseline, and
             // nothing of a custom meal that stood here stays behind.
             await tx.plannedMeal.update({
@@ -221,9 +239,11 @@ export class FavoriteSetsService {
               },
             });
           } else {
-            await tx.plannedMeal.create({
+            const created = await tx.plannedMeal.create({
               data: { dayId: day.id, mealType, recipeId, servings, swapHistory: [recipeId] },
+              select: { id: true },
             });
+            written.push(created.id);
           }
         }
 
@@ -243,8 +263,18 @@ export class FavoriteSetsService {
           });
         }
         // The day's total moved: pull it back toward its target, as every edit does.
-        await this.mealPlans.rebalanceDayInternal(day.id, tx);
+        await this.mealPlans.rebalanceDayInternal(day.id, tx, today);
       }
+      await this.mealPlans.carryToOtherDays(
+        tx,
+        plan.id,
+        cookedWith,
+        moves,
+        new Set(targetDays.map((day) => day.id)),
+        today,
+      );
+      // A set is the user's own choice: what it is outside of is said, not refused.
+      await this.mealPlans.noteOutsideLimits(tx, plan.id, written);
     });
 
     return this.mealPlans.get(userId, locale, plan.id);

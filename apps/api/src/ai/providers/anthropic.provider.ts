@@ -10,7 +10,11 @@ import {
   type CompletionResult,
 } from '../provider.interface.js';
 
-/** Anthropic Messages API adapter. */
+/**
+ * Anthropic Messages API adapter. It sends no temperature, which the Messages
+ * API refuses on every model from its version 2026-10-21: the model samples as
+ * it does by default.
+ */
 @Injectable()
 export class AnthropicProvider implements AiProviderAdapter {
   readonly kind = 'anthropic' as const;
@@ -32,7 +36,6 @@ export class AnthropicProvider implements AiProviderAdapter {
       const res = await client.messages.create({
         model: opts.model,
         max_tokens: opts.maxTokens,
-        temperature: opts.temperature,
         ...(system ? { system } : {}),
         messages: turns,
       });

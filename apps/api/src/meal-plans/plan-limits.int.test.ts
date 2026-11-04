@@ -180,13 +180,39 @@ describe('the limits of a plan', () => {
     ).body;
     const sixth = made.days[5]!.meals.find((meal) => meal.mealType === 'breakfast')!;
 
+    const changed: { plan: MealPlan } = (
+      await t
+        .http()
+        .post(`/api/meal-plans/${made.id}/days/${made.days[5]!.date}/custom-meal`)
+        .set(as(user))
+        .send({
+          name: 'Out',
+          mealType: 'breakfast',
+          servings: 1,
+          nutrition: { calories: 500, protein: 20, fat: 20, carbs: 60 },
+          replaces: sixth.id,
+        })
+        .expect(201)
+    ).body;
+
+    expect(changed.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
+  });
+
+  it('says of a recipe swapped in what it is outside of, where nothing else was left', async () => {
+    const made: MealPlan = (
+      await generate({ ...sixBreakfasts, allowRelaxations: ['variety_floor'] }).expect(201)
+    ).body;
+    const sixth = made.days[5]!.meals.find((meal) => meal.mealType === 'breakfast')!;
+
     const swapped = await aSwap(t, user, {
       planId: made.id,
       plannedMealId: sixth.id,
       strategy: 'random',
     });
 
-    expect(swapped.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
+    expect(swapped.plan.report!.relaxations).toEqual([
+      { date: made.days[5]!.date, slot: 'breakfast', gaveWay: ['variety_floor'] },
+    ]);
   });
 
   it('reports the meals for which there was one recipe to choose from', async () => {

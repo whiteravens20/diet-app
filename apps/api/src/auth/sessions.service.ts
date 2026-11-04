@@ -11,7 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
-import { type AccountSession, type AuthResponse, MAX_SESSIONS_LISTED } from '@diet-app/shared';
+import { type AccountSession, type AuthResponse, MAX_OPEN_SESSIONS } from '@diet-app/shared';
 import { holdAccount } from '../common/hold.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -39,6 +39,15 @@ export type OpenedSession = AuthResponse & { tokens: { refreshToken: string } };
  * not for a copy of it.
  */
 const JUST_USED_MS = 10_000;
+
+/**
+ * How many used tokens a session keeps to find out one presented a second
+ * time: five hours of a client that refreshes a quarter-hour token. One older
+ * than them is refused like any token the server does not know, and the session
+ * goes on; without a bound, a session would keep a token for every refresh of
+ * its ninety days.
+ */
+export const USED_TOKENS_KEPT = 20;
 
 const refused = (): UnauthorizedException =>
   new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
@@ -101,6 +110,14 @@ export class SessionsService {
         secondFactorAt: secondFactor ? new Date(now) : null,
       },
     });
+    // The sessions past the most an account keeps open end, the ones used longest ago.
+    await this.prisma.$executeRaw`
+      UPDATE "RefreshToken" SET "revokedAt" = NOW()
+      WHERE "revokedAt" IS NULL AND "familyId" IN (
+        SELECT "familyId" FROM "RefreshToken"
+        WHERE "userId" = ${user.id} AND "rotatedAt" IS NULL AND "revokedAt" IS NULL
+          AND "expiresAt" > NOW() AND "familyExpiresAt" > NOW()
+        ORDER BY "createdAt" DESC OFFSET ${MAX_OPEN_SESSIONS})`;
     return this.answer(user, email, { refreshToken, expiresAt, now }, familyId);
   }
 
@@ -160,6 +177,12 @@ export class SessionsService {
           expiresAt,
         },
       });
+      // The session keeps its newest used tokens, to find one out that is presented again: an older one is refused, and the session goes on.
+      await tx.$executeRaw`
+        DELETE FROM "RefreshToken"
+        WHERE "familyId" = ${stored.familyId} AND "rotatedAt" IS NOT NULL AND "id" NOT IN (
+          SELECT "id" FROM "RefreshToken" WHERE "familyId" = ${stored.familyId} AND "rotatedAt" IS NOT NULL
+          ORDER BY "rotatedAt" DESC LIMIT ${USED_TOKENS_KEPT})`;
       await alongside?.(tx, { userId: stored.userId, sessionId: stored.familyId });
       return true;
     });
@@ -227,7 +250,7 @@ export class SessionsService {
         ...PASSED_THE_SECOND_STEP,
       },
       orderBy: { createdAt: 'desc' },
-      take: MAX_SESSIONS_LISTED,
+      take: MAX_OPEN_SESSIONS,
     });
     const began = await this.prisma.refreshToken.groupBy({
       by: ['familyId'],
@@ -267,8 +290,8 @@ export class SessionsService {
 
   /**
    * Remove the tokens of sessions that have ended: signed out of, run out, or
-   * not used for the refresh lifetime. The used tokens of a session that is
-   * open stay, so that one presented a second time is still found out.
+   * not used for the refresh lifetime. The newest used tokens of a session
+   * that is open stay, so that one presented a second time is still found out.
    * Returns how many were removed.
    */
   async prune(): Promise<number> {

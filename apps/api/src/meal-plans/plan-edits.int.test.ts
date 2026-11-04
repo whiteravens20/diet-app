@@ -102,7 +102,7 @@ describe('editing a plan', () => {
   });
 
   it('ends eaten when two requests to mark a meal eaten overlap', async () => {
-    const meal = plan.days[1]!.meals[0]!;
+    const meal = plan.days[0]!.meals[0]!;
 
     const results = await race(2, () => plans.setEaten(user.id, 'en', plan.id, meal.id, true));
 

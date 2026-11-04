@@ -2,6 +2,7 @@
 
 import { BadRequestException, type ArgumentMetadata, type PipeTransform } from '@nestjs/common';
 import type { ApiErrorIssue } from '@diet-app/shared';
+import { productCodeOf } from '@diet-app/shared/product-code';
 import { z, type ZodType } from 'zod';
 
 /**
@@ -58,3 +59,22 @@ export const requiredUuid = new ZodValidationPipe(z.string().uuid());
  * Usage: `@Param('date', requiredDate) date: string`.
  */
 export const requiredDate = new ZodValidationPipe(z.string().date());
+
+/**
+ * A barcode in a path, in the form Open Food Facts keeps it: whichever way it
+ * was read or typed, and only with a last digit that closes it.
+ * Usage: `@Param('code', requiredProductCode) code: string`.
+ */
+export const requiredProductCode = new ZodValidationPipe(
+  z
+    .string()
+    .max(20)
+    .transform((typed, context) => {
+      const code = productCodeOf(typed);
+      if (code === null) {
+        context.addIssue({ code: 'custom', message: 'Not an EAN or UPC code.' });
+        return z.NEVER;
+      }
+      return code;
+    }),
+);

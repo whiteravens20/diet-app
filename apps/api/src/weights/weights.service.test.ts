@@ -12,6 +12,8 @@ function makePrisma(profileOwner: string | null = 'user-1') {
   const prisma = {
     // A transaction runs on the same double: what it writes is asserted on the double.
     $transaction: vi.fn((write: (tx: unknown) => Promise<unknown>) => write(prisma)),
+    // The profile held while its day's weights are counted.
+    $queryRaw: vi.fn().mockResolvedValue([]),
     profile: {
       findUnique: vi
         .fn()
@@ -33,6 +35,7 @@ function makePrisma(profileOwner: string | null = 'user-1') {
           Promise.resolve({ id: 'w-new', createdAt: new Date(), ...args.data }),
         ),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      count: vi.fn().mockResolvedValue(0),
     },
   };
   return prisma;
@@ -90,12 +93,10 @@ describe('WeightsService happy paths', () => {
 
   it('uses the provided recordedAt when given', async () => {
     const prisma = makePrisma('user-1');
-    await makeService(prisma).create('user-1', 'p1', {
-      kg: 79.5,
-      recordedAt: '2026-06-10T00:00:00.000Z',
-    } as never);
+    const taken = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    await makeService(prisma).create('user-1', 'p1', { kg: 79.5, recordedAt: taken } as never);
     const data = prisma.weightEntry.create.mock.calls[0][0].data;
-    expect((data.recordedAt as Date).toISOString()).toBe('2026-06-10T00:00:00.000Z');
+    expect((data.recordedAt as Date).toISOString()).toBe(taken);
   });
 
   it("throws WEIGHT_ENTRY_NOT_FOUND when no entry of that id is the account's", async () => {

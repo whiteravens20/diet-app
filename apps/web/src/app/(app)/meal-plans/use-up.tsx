@@ -34,7 +34,7 @@ export function UseUp({
   mealName: (mealType: string) => string;
   busy: boolean;
   /** Told what a swap that was made came to. */
-  onSwapped: (result: RebalanceResult) => void;
+  onSwapped: (result: RebalanceResult, plannedMealId: string) => void;
   /** Told when the plan had changed under a suggestion: the page reads it anew. */
   onStale: () => void;
 }) {
@@ -66,13 +66,15 @@ export function UseUp({
         revision: found!.revision,
         strategy: 'random',
         allowOffDiet: false,
+        // A dish cooked for two meals changes on both, as any swap offered with no word against it.
+        together: true,
         // The note of a model's pick, where a model put this swap first: the meal then says who chose its recipe.
         ...(suggestion.pick ? { pick: suggestion.pick } : {}),
       }),
-    onSuccess: (result) => {
+    onSuccess: (result, suggestion) => {
       // The suggestions were for the plan as it was: they go with it.
       setFound(null);
-      onSwapped(result);
+      onSwapped(result, suggestion.plannedMealId);
     },
     onError: (e: unknown) => {
       setFound(null);

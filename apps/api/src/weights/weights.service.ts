@@ -1,12 +1,15 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  MAX_WEIGHTS_A_DAY,
   MAX_WEIGHTS_LISTED,
+  WEIGHT_DAYS_BACK,
   type WeightDay,
   type WeightEntry,
   type WeightEntryInput,
 } from '@diet-app/shared';
+import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { dayIn, weightDays } from './weight-days.js';
@@ -16,6 +19,8 @@ import { dayIn, weightDays } from './weight-days.js';
  * change of the clocks puts their start, and the day itself.
  */
 const WEEK_BEFORE_MS = 8 * 24 * 60 * 60 * 1000;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Per-profile weight log: the entries as they were logged, and by day as the
@@ -71,7 +76,9 @@ export class WeightsService {
   }
 
   /**
-   * Note a weight. Sent again with its key, the request is answered with the
+   * Note a weight, taken at most `WEIGHT_DAYS_BACK` days before now. The day in
+   * UTC it was taken on holds at most `MAX_WEIGHTS_A_DAY`, counted while the
+   * profile is held. Sent again with its key, the request is answered with the
    * entry the first one noted, and notes nothing.
    */
   create(
@@ -87,13 +94,32 @@ export class WeightsService {
       request: { profileId, ...input },
       write: async (keep) => {
         await this.assertProfile(userId, profileId);
+        const recordedAt = input.recordedAt ? new Date(input.recordedAt) : new Date();
+        if (recordedAt.getTime() < Date.now() - WEIGHT_DAYS_BACK * DAY_MS) {
+          throw new ConflictException({
+            error: 'WEIGHT_TOO_OLD',
+            message: 'The weight log takes new entries at most a year back.',
+          });
+        }
         const row = await this.prisma.$transaction(async (tx) => {
+          await holdProfile(tx, profileId);
+          const day = Date.UTC(
+            recordedAt.getUTCFullYear(),
+            recordedAt.getUTCMonth(),
+            recordedAt.getUTCDate(),
+          );
+          const held = await tx.weightEntry.count({
+            where: { profileId, recordedAt: { gte: new Date(day), lt: new Date(day + DAY_MS) } },
+          });
+          if (held >= MAX_WEIGHTS_A_DAY) {
+            throw new ConflictException({
+              error: 'WEIGHT_DAY_FULL',
+              message:
+                'The weight log holds no more entries for this day: remove the last entry to log another.',
+            });
+          }
           const noted = await tx.weightEntry.create({
-            data: {
-              profileId,
-              kg: input.kg,
-              recordedAt: input.recordedAt ? new Date(input.recordedAt) : new Date(),
-            },
+            data: { profileId, kg: input.kg, recordedAt },
           });
           await keep(tx, noted.id);
           return noted;

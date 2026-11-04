@@ -117,7 +117,7 @@ export function rerollOutcome(
   days: readonly RerollDay[],
   asked: RerollAsked,
   today: string,
-): Omit<RerollPreview, 'fromToday'> {
+): Omit<RerollPreview, 'fromToday' | 'cooking'> {
   const kept = { outside: 0, past: 0, skipped: 0, eaten: 0, custom: 0, locked: 0 };
   const couldGo = { past: false, eaten: false, custom: false };
   let changed = 0;

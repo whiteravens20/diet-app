@@ -14,6 +14,7 @@ import { useSettled } from '@/lib/use-settled';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CookingNote } from './cooking';
 import { type Reroll, type RerollScope } from './reroll';
 
 /** What the window opens on: how much of the plan, which day for one day, and whether every limit is to hold. */
@@ -48,6 +49,7 @@ export function RerollDialog({
   title,
   start,
   limitNames,
+  mealName,
   onClose,
   onSubmit,
 }: {
@@ -56,6 +58,7 @@ export function RerollDialog({
   title: string;
   start: RerollStart;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
+  mealName: (mealType: string) => string;
   onClose: () => void;
   onSubmit: (asked: RerollAsked) => void;
 }) {
@@ -84,6 +87,7 @@ export function RerollDialog({
           plan={plan.data}
           start={start}
           limitNames={limitNames}
+          mealName={mealName}
           onClose={onClose}
           onSubmit={onSubmit}
         />
@@ -109,12 +113,14 @@ function RerollForm({
   plan,
   start,
   limitNames,
+  mealName,
   onClose,
   onSubmit,
 }: {
   plan: MealPlan;
   start: RerollStart;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
+  mealName: (mealType: string) => string;
   onClose: () => void;
   onSubmit: (asked: RerollAsked) => void;
 }) {
@@ -142,6 +148,7 @@ function RerollForm({
   const [replaceEaten, setReplaceEaten] = useState(false);
   const [replaceCustom, setReplaceCustom] = useState(false);
   const [holdLimits, setHoldLimits] = useState(start.holdLimits ?? false);
+  const [only, setOnly] = useState(false);
 
   // What the API is asked what a re-roll would do: the days chosen, and what of them may go as well.
   const dayId = days.find((d) => d.date === day)?.id;
@@ -226,6 +233,7 @@ function RerollForm({
           ...(couldGo.eaten && replaceEaten ? { replaceEaten: true } : {}),
           ...(couldGo.custom && replaceCustom ? { replaceCustom: true } : {}),
           ...(holdLimits && mayGiveWay.length > 0 ? { allowRelaxations: [] } : {}),
+          ...(!only && shown.cooking?.changes.length ? { together: true } : {}),
         });
         onClose();
       }}
@@ -400,6 +408,13 @@ function RerollForm({
               <p>{t('keptNothing')}</p>
             )}
             {diaryCounts && <p>{t('diaryCounts')}</p>}
+            <CookingNote
+              change={shown.cooking}
+              only={only}
+              onOnly={setOnly}
+              label={scope === 'day' ? 'only' : 'onlyChosen'}
+              mealName={mealName}
+            />
           </div>
         )}
       </div>

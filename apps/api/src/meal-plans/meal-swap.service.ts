@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 import {
   PlanOptions,
@@ -13,16 +14,22 @@ import {
   type AiSwapMealRequest,
   type ApplyMealSwapRequest,
   type Locale,
+  type Macros,
   type MealSwapPreview,
   type MealType,
+  type PlanRelaxation,
   type RebalanceResult,
   type SwapMealRequest,
 } from '@diet-app/shared';
+import type { Prisma } from '@prisma/client';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
 import { ModelPickService } from '../ai/model-pick.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { MEAL_SWAP } from '../ai/operations.js';
+import type { Env } from '../config/env.js';
+import { diaryDays } from '../diary/diary-days.js';
 import {
+  energyAway,
   fitServings,
   recipeCoverage,
   requirementsPerServing,
@@ -37,11 +44,18 @@ import {
   pickIndex,
   poolWhere,
   restrictionsFor,
+  violations,
   welcome,
-  type Candidate,
   type Waived,
 } from './eligibility.js';
-import { MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  MealPlansService,
+  mayCarry,
+  type CookedMeal,
+} from './meal-plans.service.js';
+import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
 
@@ -51,6 +65,18 @@ const RecipePick = z.object({ recipeId: z.string().min(1), reason: z.unknown() }
 
 /** A recipe offered for a meal holds, at the serving that comes nearest, within this share of what the meal holds now. */
 const SWAP_ENERGY_WINDOW = 0.15;
+
+/** What a recipe has to say to be offered: what it is held to, and what it holds. */
+const OFFERED = {
+  ...CANDIDATE,
+  caloriesPerServing: true,
+  proteinPerServing: true,
+  fatPerServing: true,
+  carbsPerServing: true,
+  prepMinutes: true,
+  cookMinutes: true,
+  ingredients: LINES_OF_KINDS,
+} as const;
 
 /** Whether a recipe, at the serving that comes nearest, holds about what a meal holds: what a swap asks of every recipe it offers. */
 export function holdsAbout(caloriesPerServing: number, held: number): boolean {
@@ -91,12 +117,18 @@ export class MealSwapService {
     private readonly ai: AiRouterService,
     private readonly plans: MealPlansService,
     private readonly picks: ModelPickService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /** A recipe to put in the place of a planned meal, and what that would do. Nothing is written. */
-  async preview(userId: string, locale: Locale, req: SwapMealRequest): Promise<MealSwapPreview> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
-    return this.previewOf(userId, locale, slot, await this.pick(slot, req));
+  async preview(
+    userId: string,
+    locale: Locale,
+    req: SwapMealRequest,
+    clientToday: string | null = null,
+  ): Promise<MealSwapPreview> {
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
+    return this.previewOf(userId, locale, slot, await this.pick(slot, req), waivedBy(req));
   }
 
   /**
@@ -110,8 +142,9 @@ export class MealSwapService {
     userId: string,
     locale: Locale,
     req: AiSwapMealRequest,
+    clientToday: string | null = null,
   ): Promise<AiMealSwapPreview> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
     const { meal, restrictions } = slot;
     const shown = new Set<string>([slot.recipeId, ...slot.history, ...req.skip]);
 
@@ -120,15 +153,16 @@ export class MealSwapService {
       await this.prisma.recipe.findMany({
         where: poolWhere(restrictions, meal.mealType, {}, [slot.recipeId, ...slot.onTheDay]),
         select: {
-          ...CANDIDATE,
+          ...OFFERED,
           title: true,
-          caloriesPerServing: true,
-          proteinPerServing: true,
-          fatPerServing: true,
-          carbsPerServing: true,
           ingredients: {
             orderBy: { position: 'asc' },
-            select: { ingredientId: true, ingredient: { select: { name: true } } },
+            select: {
+              ...LINES_OF_KINDS.select,
+              ingredient: {
+                select: { ...LINES_OF_KINDS.select.ingredient.select, name: true },
+              },
+            },
           },
         },
         orderBy: { id: 'asc' },
@@ -137,9 +171,10 @@ export class MealSwapService {
     if (candidates.length === 0) throw noAlternative();
 
     // What holds nothing the profile would rather not eat comes before what does, for the model as for the engine.
-    const liked = welcome(candidates, restrictions);
+    const liked = welcome(insideLimits(slot, candidates), restrictions);
     const fresh = liked.filter((candidate) => !shown.has(candidate.id));
-    let pool = fresh.length > 0 ? fresh : liked;
+    // Nearest what the day aims at first, so that the cut below keeps those.
+    let pool = byDayMacros(slot, fresh.length > 0 ? fresh : liked);
     // What the pantry covers comes first, for the model and for the engine's own pick alike.
     const coverage = await this.recipeCoverageMap(
       meal.day.plan.profileId,
@@ -147,9 +182,7 @@ export class MealSwapService {
       req.respectInventory !== false,
     );
     if (coverage) {
-      pool = [...pool].sort(
-        (a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id),
-      );
+      pool = [...pool].sort((a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0));
     }
     // Cut after filtering and ordering, so the cut never hides what was not
     // shown yet. Twenty-five keeps the prompt small enough for cheap models.
@@ -160,6 +193,8 @@ export class MealSwapService {
       budget: slot.held,
       currentTitle: slot.current.title,
       currentKcal: Math.round(slot.current.caloriesPerServing),
+      dayWithoutIt: slot.rest,
+      dayAim: slot.aim,
       candidates: pool,
       locale,
     });
@@ -207,8 +242,13 @@ export class MealSwapService {
    * that enters a plan is, and written only onto the plan the offer was made
    * from: a plan that changed since answers `PLAN_CHANGED`.
    */
-  async apply(userId: string, locale: Locale, req: ApplyMealSwapRequest): Promise<RebalanceResult> {
-    const slot = await this.slot(userId, req.planId, req.plannedMealId);
+  async apply(
+    userId: string,
+    locale: Locale,
+    req: Omit<ApplyMealSwapRequest, 'together'> & { together?: boolean },
+    clientToday: string | null = null,
+  ): Promise<RebalanceResult> {
+    const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
     const { meal, restrictions } = slot;
     // A model's pick is taken with the note that came with it, and with no other.
     const picked = this.picks.taken(userId, req.pick, {
@@ -221,7 +261,7 @@ export class MealSwapService {
     const refusal = byHand ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE';
     const replacement = await this.prisma.recipe.findUnique({
       where: { id: req.recipeId },
-      select: { ...CANDIDATE, caloriesPerServing: true },
+      select: OFFERED,
     });
     if (!replacement) {
       throw new BadRequestException({ error: refusal, message: 'That recipe is not available.' });
@@ -251,7 +291,13 @@ export class MealSwapService {
       !slot.history.includes(replacement.id),
     );
     const replacementId = replacement.id;
+    const together = req.together ? takingIt(slot, replacement, waivedBy(req)) : [];
+    const today = slot.today;
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
+      await this.plans.rememberSwap(tx, req.planId, req.revision, [
+        meal.dayId,
+        ...together.map((other) => other.dayId),
+      ]);
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
         // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
@@ -264,14 +310,26 @@ export class MealSwapService {
           modelReason: picked?.reason ?? null,
         },
       });
-      // A plan that holds a model's pick says that a model had a part in it.
-      if (picked !== null)
-        await tx.mealPlan.update({
-          where: { id: req.planId },
-          data: { generationMode: 'ai_assisted' },
-        });
-      // The swap changed the day total — pull it back toward target.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx);
+      const carried = await this.plans.carryDish(tx, together, replacement, today, picked);
+      const otherDays = [...new Set(carried.map((other) => other.dayId))];
+      // What the recipe is outside of the meals say for as long as they hold it.
+      await this.plans.noteOutsideLimits(tx, req.planId, [
+        req.plannedMealId,
+        ...together.map((other) => other.id),
+      ]);
+      // The swap changed the day total — pull it back toward target, on each day it changed.
+      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
+      const others = await Promise.all(
+        otherDays
+          .filter((dayId) => dayId !== meal.dayId)
+          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, today)),
+      );
+      return (
+        summary && {
+          ...summary,
+          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+        }
+      );
     });
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
@@ -280,10 +338,17 @@ export class MealSwapService {
    * The meal a swap is about: its recipe, what it holds, what was offered for
    * it before, what its plan rules out, and the recipes its day holds already.
    */
-  private async slot(userId: string, planId: string, plannedMealId: string) {
+  private async slot(
+    userId: string,
+    planId: string,
+    plannedMealId: string,
+    clientToday: string | null,
+  ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
-    const recipeId = swappableRecipeOf(meal);
-    const [restrictions, current, daySlots] = await Promise.all([
+    const today = clientToday ?? this.plans.today();
+    const recipeId = swappableRecipeOf(meal, today);
+    const options = PlanOptions.parse(meal.day.plan.options);
+    const [restrictions, current, daySlots, limits, diary, cookedWith] = await Promise.all([
       restrictionsFor(this.prisma, meal.day.plan),
       this.prisma.recipe.findUniqueOrThrow({
         where: { id: recipeId },
@@ -291,13 +356,38 @@ export class MealSwapService {
       }),
       this.prisma.plannedMeal.findMany({
         where: { dayId: meal.dayId },
-        select: { id: true, mealType: true, recipeId: true },
+        select: {
+          id: true,
+          mealType: true,
+          recipeId: true,
+          source: true,
+          customMacros: true,
+          servings: true,
+          quantityScale: true,
+          recipe: {
+            select: {
+              caloriesPerServing: true,
+              proteinPerServing: true,
+              fatPerServing: true,
+              carbsPerServing: true,
+            },
+          },
+        },
       }),
+      readPlanLimits(
+        this.prisma,
+        meal.day.plan,
+        this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+      ),
+      diaryDays(this.prisma, meal.day.plan.profileId, meal.day.date, meal.day.date),
+      this.plans.cookedWith(this.prisma, planId, options),
     ]);
+    const dayIndex = await this.prisma.mealPlanDay.count({
+      where: { planId, date: { lt: meal.day.date } },
+    });
     // A day holds a recipe once, as the planner has it: what another meal of
     // the day holds is not offered for this one, unless the plan is for
     // cooking ahead or was let have a recipe twice a day when it was made.
-    const options = PlanOptions.parse(meal.day.plan.options);
     const twiceADay = options.mealPrepFriendly || options.allowRelaxations.includes('same_day');
     const onTheDay = twiceADay
       ? []
@@ -313,6 +403,12 @@ export class MealSwapService {
         meal.day.calorieTarget,
       ).get(meal.mealType as MealType) ?? meal.day.calorieTarget;
     const held = current.caloriesPerServing * meal.servings * meal.quantityScale || share;
+    // What the day holds without this meal: its other meals and what its diary holds as eaten.
+    const entered = diary.get(isoDate(meal.day.date))?.nutrition;
+    const rest = sumNutrition([
+      ...daySlots.filter((other) => other.id !== meal.id).map(mealNutrition),
+      ...(entered ? [entered] : []),
+    ]);
     return {
       meal,
       recipeId,
@@ -321,23 +417,26 @@ export class MealSwapService {
       held,
       onTheDay,
       history: meal.swapHistory ?? [],
+      limits,
+      dayIndex,
+      rest,
+      aim: aimOfDay(meal.day.calorieTarget, meal.day.plan),
+      today,
+      cooking: cookedWith.get(meal.id) ?? [],
     };
   }
 
   /** The recipe to offer for a meal, by the strategy that was asked for. */
-  private async pick(
-    slot: Awaited<ReturnType<MealSwapService['slot']>>,
-    req: SwapMealRequest,
-  ): Promise<Candidate & { caloriesPerServing: number }> {
+  private async pick(slot: Slot, req: SwapMealRequest): Promise<Offered> {
     const { meal, restrictions } = slot;
     const waived = waivedBy(req);
-    let replacement: Candidate & { caloriesPerServing: number };
+    let replacement: Offered;
 
     if (req.strategy === 'favorite') {
       // The contract refuses a favourite without its recipe before it gets here.
       const picked = await this.prisma.recipe.findUnique({
         where: { id: req.favoriteRecipeId! },
-        select: { ...CANDIDATE, caloriesPerServing: true },
+        select: OFFERED,
       });
       if (!picked) {
         throw new BadRequestException({
@@ -349,14 +448,21 @@ export class MealSwapService {
     } else {
       // One pool for both automatic strategies, in a fixed order: what the
       // profile may be given for the meal and the day does not hold already,
-      // of which a serving holds about as much as the meal does now.
-      const pool = (
-        await this.prisma.recipe.findMany({
-          where: poolWhere(restrictions, meal.mealType, waived, [slot.recipeId, ...slot.onTheDay]),
-          select: { ...CANDIDATE, caloriesPerServing: true },
-          orderBy: { id: 'asc' },
-        })
-      ).filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held));
+      // of which a serving holds about as much as the meal does now, inside
+      // the limits of the plan as far as anything is.
+      const pool = insideLimits(
+        slot,
+        (
+          await this.prisma.recipe.findMany({
+            where: poolWhere(restrictions, meal.mealType, waived, [
+              slot.recipeId,
+              ...slot.onTheDay,
+            ]),
+            select: OFFERED,
+            orderBy: { id: 'asc' },
+          })
+        ).filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held)),
+      );
       let ranked = pool;
       if (req.strategy === 'favorite_ingredients') {
         const favIngs = new Set(meal.day.plan.profile.preferences?.favoriteIngredientIds ?? []);
@@ -366,7 +472,7 @@ export class MealSwapService {
             message: 'Add favourite ingredients on the profile before swapping by them.',
           });
         }
-        const hits = (recipe: Candidate): number =>
+        const hits = (recipe: Offered): number =>
           recipe.ingredients.filter((i) => favIngs.has(i.ingredientId)).length;
         const best = Math.max(0, ...pool.map(hits));
         if (best === 0) {
@@ -388,7 +494,10 @@ export class MealSwapService {
       // A recipe with something the profile would rather not eat is offered only when every other has been ruled out: asking again goes round the others first.
       const liked = welcome(ranked, restrictions);
       const fresh = liked.filter((recipe) => !shown.has(recipe.id));
-      let candidates = fresh.length > 0 ? fresh : liked;
+      const offered = fresh.length > 0 ? fresh : liked;
+      // Of those, the third that brings the day nearest what it aims at: the
+      // others come up as these have been shown, so asking again goes round them all.
+      let candidates = byDayMacros(slot, offered).slice(0, Math.ceil(offered.length / 3));
       if (req.strategy === 'random') {
         // What the pantry covers comes first when the user asked for that; the pick below still rotates.
         const coverage = await this.recipeCoverageMap(
@@ -398,8 +507,7 @@ export class MealSwapService {
         );
         if (coverage) {
           candidates = [...candidates].sort(
-            (a, b) =>
-              (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id),
+            (a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0),
           );
         }
       }
@@ -422,9 +530,11 @@ export class MealSwapService {
   private async previewOf(
     userId: string,
     locale: Locale,
-    { meal, held }: Awaited<ReturnType<MealSwapService['slot']>>,
-    replacement: { id: string; caloriesPerServing: number },
+    slot: Slot,
+    replacement: Offered,
+    waived: Waived = {},
   ): Promise<MealSwapPreview> {
+    const { meal, held } = slot;
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
     const [plan, row] = await Promise.all([
       this.plans.get(userId, locale, meal.day.planId),
@@ -463,6 +573,7 @@ export class MealSwapService {
       fat: Math.round(perServing.fat * servings),
       carbs: Math.round(perServing.carbs * servings),
     };
+    const takers = takingIt(slot, replacement, waived);
     return {
       recipe,
       servings,
@@ -476,6 +587,9 @@ export class MealSwapService {
         carbs: day.dayNutrition.carbs - before.carbs + after.carbs,
       },
       calorieTarget: day.calorieTarget,
+      targetMacros: slot.aim,
+      cooking: cookingChange(slot.cooking, slot.today, takers),
+      outsideLimits: outsideLimitsOf(slot, replacement, takers),
       revision: plan.revision,
     };
   }
@@ -513,6 +627,70 @@ export class MealSwapService {
   }
 }
 
+type Slot = Awaited<ReturnType<MealSwapService['slot']>>;
+type Offered = Prisma.RecipeGetPayload<{ select: typeof OFFERED }>;
+
+/**
+ * The limits of the plan a recipe would be outside of in the place of this meal,
+ * and of those of its cooking that would take it too.
+ */
+function outsideLimitsOf(
+  slot: Slot,
+  recipe: LimitedRecipe,
+  together: readonly CookedMeal[] = openCooking(slot),
+): PlanRelaxation[] {
+  return slot.limits.breaks(
+    recipe,
+    slot.dayIndex,
+    new Set([slot.meal.id, ...together.map((meal) => meal.id)]),
+    together.map((meal) => meal.dayIndex),
+  );
+}
+
+/** The other meals of this meal's cooking that can take another dish with it. */
+const openCooking = (slot: Slot): CookedMeal[] =>
+  slot.cooking.filter((meal) => mayCarry(meal, slot.today));
+
+/** Of those, the meals `recipe` may stand on. */
+const takingIt = (slot: Slot, recipe: Offered, waived: Waived): CookedMeal[] =>
+  openCooking(slot).filter(
+    (meal) => violations(recipe, slot.restrictions, meal.mealType, waived).length === 0,
+  );
+
+/** Of the recipes that could be offered, those inside the limits of the plan; all of them where none is. */
+function insideLimits<T extends LimitedRecipe>(slot: Slot, recipes: T[]): T[] {
+  const inside = recipes.filter((recipe) => outsideLimitsOf(slot, recipe).length === 0);
+  return inside.length > 0 ? inside : recipes;
+}
+
+/** The recipes in the order they would bring the day nearest what it aims at, at the serving each would be. */
+function byDayMacros<T extends Macroed>(slot: Slot, recipes: T[]): T[] {
+  const away = (recipe: T): number => {
+    const servings = fitServings(recipe.caloriesPerServing, slot.held);
+    return energyAway(
+      {
+        protein: slot.rest.protein + recipe.proteinPerServing * servings,
+        fat: slot.rest.fat + recipe.fatPerServing * servings,
+        carbs: slot.rest.carbs + recipe.carbsPerServing * servings,
+      },
+      slot.aim,
+    );
+  };
+  return recipes
+    .map((recipe) => ({ recipe, away: away(recipe) }))
+    .sort((a, b) => a.away - b.away || a.recipe.id.localeCompare(b.recipe.id))
+    .map(({ recipe }) => recipe);
+}
+
+/** A recipe as far as what it holds goes. */
+interface Macroed {
+  id: string;
+  caloriesPerServing: number;
+  proteinPerServing: number;
+  fatPerServing: number;
+  carbsPerServing: number;
+}
+
 /**
  * The recipes already shown in a slot, after a swap replaced `leaving`. While
  * the pick came from recipes not shown yet, the one leaving joins the list.
@@ -548,6 +726,8 @@ function buildSwapPrompt(input: {
   budget: number;
   currentTitle: string;
   currentKcal: number;
+  dayWithoutIt: Macros;
+  dayAim: Macros;
   candidates: SwapPromptCandidate[];
   locale: Locale;
 }): { system: string; user: string } {
@@ -572,10 +752,12 @@ function buildSwapPrompt(input: {
     `Slot: ${input.slot}`,
     `Slot calorie budget: ~${Math.round(input.budget)} kcal`,
     `Currently planned: ${input.currentTitle} (${input.currentKcal} kcal per serving)`,
+    `The rest of the day holds ${Math.round(input.dayWithoutIt.protein)}P/${Math.round(input.dayWithoutIt.fat)}F/${Math.round(input.dayWithoutIt.carbs)}C; the whole day aims at ${Math.round(input.dayAim.protein)}P/${Math.round(input.dayAim.fat)}F/${Math.round(input.dayAim.carbs)}C.`,
     '',
     'Pick the candidate that:',
     '1. stays closest to the slot calorie budget at one serving,',
-    '2. is meaningfully different from the currently planned meal.',
+    '2. brings the day nearest what it aims at; the candidates nearest it come first,',
+    '3. is meaningfully different from the currently planned meal.',
     '',
     'Candidates:',
     ...lines,

@@ -59,27 +59,42 @@ export const passwordResetEmail: Builder<{ link: string }> = {
   }),
 };
 
-export const emailVerificationEmail: Builder<{ link: string }> = {
-  en: ({ link }) => ({
-    subject: 'Confirm your Diet App email address',
-    text: `Welcome to Diet App! Please confirm this email address to finish setting up your account.\n\nThis link expires in 1 hour:\n${link}\n\nIf you didn't create an account, you can ignore this email.`,
-    html: shell([
-      'Welcome to Diet App! Please confirm this email address to finish setting up your account.',
-      'This link expires in 1 hour:',
-      linkButton(link, 'Confirm email'),
-      "If you didn't create an account, you can ignore this email.",
-    ]),
-  }),
-  pl: ({ link }) => ({
-    subject: 'Potwierdź swój adres e-mail w Diet App',
-    text: `Witamy w Diet App! Potwierdź ten adres e-mail, aby dokończyć konfigurację konta.\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.`,
-    html: shell([
-      'Witamy w Diet App! Potwierdź ten adres e-mail, aby dokończyć konfigurację konta.',
-      'Link wygasa po 1 godzinie:',
-      linkButton(link, 'Potwierdź e-mail'),
-      'Jeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.',
-    ]),
-  }),
+/**
+ * The link that confirms an address. Confirming is not needed: the mail says
+ * what it gives on this instance, its AI where it lends that only to confirmed
+ * accounts, otherwise a link to a new password that reaches its owner.
+ */
+export const emailVerificationEmail: Builder<{ link: string; unlocksAi: boolean }> = {
+  en: ({ link, unlocksAi }) => {
+    const what = unlocksAi
+      ? "Welcome to Diet App! Confirming this email address is optional: on this instance it lets your account use the instance's AI."
+      : 'Welcome to Diet App! Confirming this email address is optional: every feature works without it. A confirmed address makes sure a link to change your password reaches you.';
+    return {
+      subject: 'Confirm your Diet App email address',
+      text: `${what}\n\nThis link expires in 1 hour:\n${link}\n\nIf you didn't create an account, you can ignore this email.`,
+      html: shell([
+        what,
+        'This link expires in 1 hour:',
+        linkButton(link, 'Confirm email'),
+        "If you didn't create an account, you can ignore this email.",
+      ]),
+    };
+  },
+  pl: ({ link, unlocksAi }) => {
+    const what = unlocksAi
+      ? 'Witamy w Diet App! Potwierdzenie tego adresu e-mail jest nieobowiązkowe: na tej instancji pozwala korzystać z AI instancji.'
+      : 'Witamy w Diet App! Potwierdzenie tego adresu e-mail jest nieobowiązkowe: wszystkie funkcje działają bez niego. Potwierdzony adres daje pewność, że link do zmiany hasła do Ciebie dotrze.';
+    return {
+      subject: 'Potwierdź swój adres e-mail w Diet App',
+      text: `${what}\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.`,
+      html: shell([
+        what,
+        'Link wygasa po 1 godzinie:',
+        linkButton(link, 'Potwierdź e-mail'),
+        'Jeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.',
+      ]),
+    };
+  },
 };
 
 export const emailChangeEmail: Builder<{ link: string }> = {

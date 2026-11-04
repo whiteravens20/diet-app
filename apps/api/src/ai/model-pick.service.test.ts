@@ -167,9 +167,9 @@ describe('the note of a way to fill a day that was offered', () => {
     ...THE_DAY,
     revision: 4,
     meals: [
-      ['breakfast', 'recipe-1', 1],
-      ['lunch', 'recipe-2', 1.25],
-      ['dinner', 'recipe-3', 0.75],
+      ['breakfast', 'recipe-1', 1, 1.1],
+      ['lunch', 'recipe-2', 1.25, 1],
+      ['dinner', 'recipe-3', 0.75, 0.9],
     ],
     reuse: 0.4,
     picked: true,
@@ -263,6 +263,7 @@ describe('the note of a way to fill a day that was offered', () => {
         slot,
         `3333333${index}-3333-4333-8333-333333333333`,
         1.25,
+        1.1,
       ]),
       reason: 'x'.repeat(200),
     };

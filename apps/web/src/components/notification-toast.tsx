@@ -86,7 +86,9 @@ export function NotificationToast() {
     >
       <p className="text-sm font-medium">{t('toastTitle', { count: fresh.length })}</p>
       {fresh.length === 1 && (
-        <p className="mt-1 text-sm text-muted-foreground">{textOf(fresh[0]!)}</p>
+        <p className="mt-1 line-clamp-3 break-words text-sm text-muted-foreground">
+          {textOf(fresh[0]!)}
+        </p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button

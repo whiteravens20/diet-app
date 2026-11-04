@@ -11,8 +11,15 @@ import { recipesPerDietAndMeal } from '../engine/coverage.js';
 import type { MailService } from '../mail/mail.service.js';
 import { AppConfigController } from './app-config.controller.js';
 
+/** What the settings hold when a test says nothing of products: as they are left out. */
+const NO_PRODUCT_SETTINGS: Partial<Env> = {
+  OPEN_FOOD_FACTS_LOOKUPS: true,
+  OPEN_FOOD_FACTS_COUNTRIES: [],
+};
+
 function configOf(env: Partial<Env>) {
-  const config = { get: (key: keyof Env) => env[key] } as unknown as ConfigService<Env, true>;
+  const held = { ...NO_PRODUCT_SETTINGS, ...env };
+  const config = { get: (key: keyof Env) => held[key] } as unknown as ConfigService<Env, true>;
   const controller = new AppConfigController(
     config,
     { enabled: false } as TurnstileService,
@@ -29,6 +36,20 @@ const packageVersion = (
 ).version;
 
 describe('GET /api/config', () => {
+  it.each([
+    ['lookups on', true, [], { offered: true, lookups: true }],
+    ['lookups on and a country', true, ['poland'], { offered: true, lookups: true }],
+    ['a country alone', false, ['poland'], { offered: true, lookups: false }],
+    ['neither', false, [], { offered: false, lookups: false }],
+  ])('says what it offers of products with %s', async (_, lookups, countries, products) => {
+    const answer = await configOf({
+      OLLAMA_USER_POLICY: 'off',
+      OPEN_FOOD_FACTS_LOOKUPS: lookups,
+      OPEN_FOOD_FACTS_COUNTRIES: countries,
+    });
+    expect(answer.products).toEqual(products);
+  });
+
   it('publishes nothing about the operator unless they set it, and the package version', async () => {
     expect((await configOf({ OLLAMA_USER_POLICY: 'allowlist' })).instance).toEqual({
       supportUrl: null,

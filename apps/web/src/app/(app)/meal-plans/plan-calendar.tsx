@@ -72,10 +72,10 @@ export function PlanCalendar({
   }, [at, month]);
 
   const leaf = (months: number): void => setMonth(monthAfter(month, months));
-  const moveTo = (date: string): void => {
+  const moveTo = (date: string, toItsMonth = date < from || date > to): void => {
     follow.current = true;
     setAt(date);
-    if (date < from || date > to) setMonth(monthOf(date));
+    if (toItsMonth) setMonth(monthOf(date));
   };
   const onKey = (date: string, weekday: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
     const step =
@@ -92,11 +92,12 @@ export function PlanCalendar({
     if (step === null) return;
     event.preventDefault();
     if (typeof step === 'number') return moveTo(dayAfter(date, step));
-    // A month back or on, to the same day of it, or to its last day where it is shorter.
+    // A month back or on, to the same day of it, or to its last day where it is shorter. It shows
+    // that month even where the grid of this one holds the day: the first week of a month ends in it.
     const first = monthAfter(date, step === 'before' ? -1 : 1);
     const last = dayAfter(monthAfter(first, 1), -1);
     const same = `${first.slice(0, 8)}${date.slice(8)}`;
-    moveTo(same > last ? last : same);
+    moveTo(same > last ? last : same, true);
   };
 
   /** What a day says to somebody who does not see its cell. */

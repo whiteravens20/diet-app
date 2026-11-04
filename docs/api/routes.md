@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-181 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+202 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -23,6 +23,13 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/admin/ingredients/retired` | the administrator | The retired ingredients that something of the instance still uses, with what uses them. |  | 200 a list of `RetiredIngredient` |  |
 | `GET /api/admin/instance-settings` | the administrator | What an administrator sets for the instance in the panel: whether reviewers may sign in, and whether their password is set. |  | 200 `InstanceSettingsDto` |  |
 | `PATCH /api/admin/instance-settings` | the administrator | Change those settings. | `InstanceSettingsPatchBody` | 200 `InstanceSettingsDto` |  |
+| `GET /api/admin/products` | the administrator | The settings of lookups and of the import, what the instance holds, and how the last import went. |  | 200 `AdminProducts` |  |
+| `GET /api/admin/products/accepted` | the administrator | What the instance accepted, the latest first. | query `AcceptedProductsQuery` | 200 `AcceptedProducts` |  |
+| `POST /api/admin/products/accepted/:id/withdraw` | the administrator | Withdraw an accepted product, with what its author is told. | `WithdrawProductRequest` | 204 | 60 in a minute |
+| `POST /api/admin/products/import` | the administrator | Ask for an import now, instead of at night: the worker begins it within a minute. Refused while one runs, and within 24 hours of the last start unless the settings name other countries now. |  | 204 | 5 in a minute |
+| `GET /api/admin/products/queue` | the administrator | The products accounts sent to the base, the longest waiting first. |  | 200 `ProductQueue` |  |
+| `POST /api/admin/products/queue/:id/accept` | the administrator | Take a product into the base, as it was read. | `AcceptProductRequest` | 204 | 60 in a minute |
+| `POST /api/admin/products/queue/:id/reject` | the administrator | Turn a product down, with what its author is told. | `RejectProductRequest` | 204 | 60 in a minute |
 | `GET /api/admin/session` | anyone | What the admin pages ask first. Says nothing but whether a panel exists, whether this browser is in, and whether signing in takes a code. |  | 200 `AdminSessionState` |  |
 | `POST /api/admin/session` | anyone | Sign the administrator in: the password, and a code where the second factor is on. The session is a cookie. | `AdminSignInRequest` | 204 | 10 in a minute |
 | `DELETE /api/admin/session` | anyone | Sign out of this browser. |  | 204 |  |
@@ -90,7 +97,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/auth/browser-sign-in` | anyone | Sign this browser in with a code from an application: a session of its own for a day, in cookies, which takes the place of the session the browser had. Only the application's own pages may ask. | `BrowserSignInRequest` | 200 `AuthResponse` | 10 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/browser-sign-in/account` | anyone | Whose account a code from an application is for, without using the code. Only the application's own pages may ask. | `BrowserSignInRequest` | 200 `BrowserCodeAccount` | 10 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/confirm-email-change` | anyone | Confirm a new address with the token from the mail that was sent to it. | `ConfirmEmailChangeRequest` | 204 | 10 in a minute; 10 in a minute for what it tries |
-| `POST /api/auth/login` | anyone | Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. | `LoginRequest` | 200 `LoginResponse` | 30 in 15 minutes; 10 in 15 minutes for what it tries; 50 in 15 minutes for what it tries |
+| `POST /api/auth/login` | anyone | Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. An account keeps at most fifty sessions open: a new one ends the one used longest ago. | `LoginRequest` | 200 `LoginResponse` | 30 in 15 minutes; 10 in 15 minutes for what it tries; 50 in 15 minutes for what it tries |
 | `POST /api/auth/login/second-factor` | anyone | The second step of signing in: the challenge of the first, and a code. | `SecondFactorSignInRequest` | 200 `AuthResponse` | 10 in a minute; 10 in 5 minutes for what it tries |
 | `POST /api/auth/logout` | anyone | End the session of the refresh token. | `RefreshRequest` | 204 | 30 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/password-reset/confirm` | anyone | Set a new password with the token from the mail. | `PasswordResetConfirm` | 204 | 10 in a minute; 10 in a minute for what it tries |
@@ -117,9 +124,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 |---|---|---|---|---|---|
 | `POST /api/diary/copy` | an account | Copy what was eaten on one day into another of today or at most a year before it: the entries of the day, and the meals its plan marked as eaten, which come in as entries. Nothing is copied where the day would then hold more than the most. Sent again with the same `Idempotency-Key` within a week, it is answered with the day as it is now and copies nothing. | `CopyDiaryDayRequest` | 201 `DiaryCopyResult` | 20 in a minute |
 | `GET /api/diary/day` | an account | A day of a profile's diary: the entries written for it, the meals of the plan that holds it (the one made last where several do), what was eaten against the day's target, and where the plan's day stands with the entries counted as eaten. | query `DiaryDayQuery` | 200 `DiaryDay` |  |
-| `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, or a meal of one's own by its figures, those of its macronutrients left out estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
+| `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures. What a meal of one's own leaves out, or a product's label lacks, is estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
 | `DELETE /api/diary/entries/:id` | an account | Remove an entry. |  | 204 | 60 in a minute |
-| `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
+| `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. An entry of a product can be moved to a product of the reader's own, whose label then gives its figures. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
 
 ## favorite-sets
 
@@ -167,7 +174,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/meal-plans` | an account | The plans of a profile, a page at a time, narrowed by their days and by whether they are over. | query `PlanListQuery` | 200 `MealPlanPage` |  |
 | `GET /api/meal-plans/:id` | an account | One plan, with its days and their meals. |  | 200 `MealPlan` |  |
 | `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. |  | 204 |  |
-| `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
+| `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. A day takes one while it holds fewer than twenty meals. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate` | an account | Re-roll the meals of a single day. | `RegenerateDayRequest` | 201 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate/preview` | an account | What re-rolling the meals of a single day would do, as the preview of the plan says it of that day. | `RegenerateDayRequest` | 200 `RerollPreview` | 60 in a minute |
 | `PUT /api/meal-plans/:id/days/:dayId/settings` | an account | Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. | `ApplyDaySettingsRequest` | 200 `MealPlan` | 20 in a minute |
@@ -183,13 +190,14 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/:id/use-up` | an account | Swaps that would use up what the plan opens: the engine finds them, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written; a suggestion is taken as any swap is. The limit is that of making a plan: every meal of the plan is looked at. | `WeighRequest` | 200 `UseUpSuggestions` | 20 in a minute |
 | `POST /api/meal-plans/ai-swap-meal/preview` | an account | A recipe to put in the place of a planned meal, as `swap-meal/preview` offers one, with a model asked which of the recipes the engine puts before it to take. `aiMeta` says who picked; nothing is written. | `AiSwapMealRequest` | 201 `AiMealSwapPreview` | 30 in a minute |
 | `GET /api/meal-plans/calendar` | an account | The days of the profile's plans in a span of days, for a calendar. | query `PlanCalendarQuery` | 200 `PlanCalendar` | 60 in a minute |
-| `POST /api/meal-plans/generate` | an account | Make a plan for a profile: the planner fills its days within the limits of the profile. 422 `PLAN_NEEDS_RELAXATION` when it cannot, with the limits that would have to give way. | `GeneratePlanRequest` | 201 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/generate` | an account | Make a plan for a profile: the planner fills its days within the limits of the profile. 422 `PLAN_NEEDS_RELAXATION` when it cannot, with the limits that would have to give way. A profile holds at most a hundred plans. | `GeneratePlanRequest` | 201 `MealPlan` | 20 in a minute |
 | `GET /api/meal-plans/overview` | an account | What the profile's plan of the moment comes to. | query `PlanOverviewQuery` | 200 `PlanOverviewAnswer` |  |
 | `POST /api/meal-plans/swap-ingredient/ai-suggest` | an account | AI-ranked ingredient suggestion. Returns just an `ingredientId`; the caller still runs preview/apply so nutrition is engine-recomputed. | `AiSuggestIngredientRequest` | 201 `AiSuggestIngredientResponse` | 30 in a minute |
 | `POST /api/meal-plans/swap-ingredient/apply` | an account | Make a substitution: the meal gets a recipe of the account's own, the planned one with the ingredient swapped. | `SwapIngredientRequest` | 201 `SwapIngredientResponse` | 30 in a minute |
 | `POST /api/meal-plans/swap-ingredient/preview` | an account | What swapping an ingredient of a meal for another would do to the meal. Nothing is written. | `SwapIngredientRequest` | 201 `SwapPreview` |  |
 | `POST /api/meal-plans/swap-meal` | an account | Make a swap that was offered, on the plan as it was when the offer was made. | `ApplyMealSwapRequest` | 201 `RebalanceResult` |  |
 | `POST /api/meal-plans/swap-meal/preview` | an account | A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. | `SwapMealRequest` | 201 `MealSwapPreview` |  |
+| `POST /api/meal-plans/swap-meal/undo` | an account | Take back the last swap of a meal or of an ingredient, while the plan is as that swap left it: the dishes and the portions of the days it changed. | `UndoSwapRequest` | 200 `RebalanceResult` |  |
 
 ## notifications
 
@@ -198,6 +206,20 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/notifications/:id/read` | an account | Mark a notification as read. |  | 204 |  |
 | `POST /api/notifications/read-all` | an account | Mark every notification of the account as read, and say how many there were. |  | 200 `Updated` |  |
 | `GET /api/notifications/unread` | an account | The notifications of the account that are not read yet. |  | 200 a list of `Notification` |  |
+
+## products
+
+| Route | Asked by | What it does | Takes | Answers | Limit |
+|---|---|---|---|---|---|
+| `GET /api/products` | an account | Search what the instance holds by words of a name or a brand: at most 20 products that can be written into a diary, the reader's own first, then those people scan most. A search never leaves the instance. | query `ProductSearchQuery` | 200 `ProductSearchResult` | 30 in a minute |
+| `GET /api/products/additions` | an account | What people added to the instance's base, without who added it, as a file. |  | 200 `ProductAdditions` | 5 in a minute |
+| `GET /api/products/code/:code` | an account | The product of an EAN or UPC code. A code the instance does not hold is asked of Open Food Facts, in the instance's name, where the instance does that: an account asks at most 5 such codes a minute and 100 in 24 hours, the instance at most 12 a minute, and a code Open Food Facts does not know is not asked again for 7 days. |  | 200 `Product` | 30 in a minute |
+| `GET /api/products/own` | an account | The account's own products, whatever became of them. |  | 200 `OwnProducts` |  |
+| `POST /api/products/own` | an account | Write a product: 500 held, 50 written or changed in 24 hours. One of a code the base knows is the account's correction of it, for the account alone. | `OwnProductBody` | 201 `OwnProduct` | 30 in a minute |
+| `DELETE /api/products/own/:id` | an account | Delete a product: what the diary holds of it keeps its figures. |  | 204 | 30 in a minute |
+| `PATCH /api/products/own/:id` | an account | Change a product: one waiting for review leaves the queue, and has to be sent again. | `OwnProductBody` | 200 `OwnProduct` | 30 in a minute |
+| `POST /api/products/own/:id/send` | an account | Send a product with a code and all its figures to the instance's reviewers: 10 in 24 hours. A correction stays its author's (409 `OWN_PRODUCT_CORRECTION`). |  | 200 `OwnProduct` | 10 in a minute |
+| `POST /api/products/own/:id/withdraw` | an account | Take a product back out of the queue. |  | 200 `OwnProduct` | 30 in a minute |
 
 ## profiles
 
@@ -219,9 +241,10 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/recipes` | an account | The recipe library: the shared recipes and the account's own, narrowed as asked, a page at a time. | query `RecipeSearchQuery` | 200 `RecipeSearchPage` |  |
 | `POST /api/recipes` | an account | Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue. The engine works out its nutrition, allergens and diets. A recipe of the library with the same ingredients does not stand in for it; one of the account's own does (409 `RECIPE_ALREADY_YOURS`, naming it). At most 50 are written or edited by hand in 24 hours (429 `OWN_RECIPE_DAILY_LIMIT`). | `OwnRecipeInput` | 201 `Recipe` | 10 in a minute |
 | `GET /api/recipes/:id` | an account | One recipe, with its ingredients and steps. |  | 200 `Recipe` |  |
-| `PUT /api/recipes/:id` | an account | Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted. | `OwnRecipeInput` | 200 `Recipe` | 10 in a minute |
+| `PUT /api/recipes/:id` | an account | Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted; where only its words change, they are written in it, as `PUT /recipes/:id/text` does. | `OwnRecipeInput` | 200 `Recipe` | 10 in a minute |
 | `DELETE /api/recipes/:id` | an account | Delete a recipe of the account's own. The plans that hold it keep it; a recipe of the shared library cannot be deleted (403). Deleting it again changes nothing. |  | 204 |  |
 | `POST /api/recipes/:id/submit` | an account | Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing. A recipe made by swapping an ingredient stays its owner's (409). |  | 204 | 10 in a minute |
+| `PUT /api/recipes/:id/text` | an account | New words for a recipe of the account's own made by swapping an ingredient, in the language of the request: its title, description and steps, written in that recipe. It stays the recipe the plans hold, so they read the new words at once; its nutrition does not change. Any other recipe is edited as a new version (409 `RECIPE_WORDS_ONLY_OF_A_SWAP`). | `RecipeTextRequest` | 200 `Recipe` | 10 in a minute |
 | `POST /api/recipes/drafts/from-prompt` | an account | Ask a model for a recipe of the account's own, from the choices the request names: the meal, the diet, the cuisine, the energy, the time. There is no text of the user's in the request. The model chooses among the ingredients of the catalogue, the engine works out the nutrition, and the recipe is the account's alone. | `AiDraftRecipeRequest` | 201 `AiDraftRecipeResponse` | 10 in a minute |
 | `GET /api/recipes/mine` | an account | The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand, each saying whether it was put before the curators already. A deleted one is not among them. | query `PageQuery` | 200 `MyRecipesPage` |  |
 | `POST /api/recipes/preview` | an account | What a serving of a recipe being written would hold, and its allergens and diets. Nothing is stored. | `OwnRecipePreviewRequest` | 200 `OwnRecipePreview` | 60 in a minute |
@@ -242,6 +265,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `PATCH /api/review/drafts/recipes/:id` | a reviewer | Change the text of a recipe draft in the language. | `RecipeReviewPatchBody`, query `TargetLocaleQuery` | 200 `RecipeReviewSlice` |  |
 | `POST /api/review/drafts/recipes/:id/approve` | a reviewer | Approve a recipe draft in the language. | `ReviewerReasonBody`, query `TargetLocaleQuery` | 201 `RecipeReviewSlice` |  |
 | `POST /api/review/drafts/recipes/:id/reject` | a reviewer | Reject a recipe draft in the language, with a reason. | `ReviewerReasonBody`, query `TargetLocaleQuery` | 201 `RecipeReviewSlice` |  |
+| `GET /api/review/products` | a reviewer | The products accounts sent to the base, the longest waiting first. Who sent one is not said. |  | 200 `ProductQueue` |  |
+| `POST /api/review/products/:id/accept` | a reviewer | Take a product into the base, as it was read: one changed since is refused. | `AcceptProductRequest` | 204 | 60 in a minute |
+| `POST /api/review/products/:id/reject` | a reviewer | Turn a product down, with what its author is told. | `RejectProductRequest` | 204 | 60 in a minute |
 | `GET /api/review/session` | anyone | The reviewer's session, or none: what the page asks first, to show the queue or the form to sign in. Answers 200 either way. |  | 200 `ReviewerSessionAnswer` |  |
 | `GET /api/review/status` | anyone | Whether reviewers may sign in on this instance, and the languages there are to review. Anyone may ask; the password is no part of the answer. |  | 200 `ReviewStatus` |  |
 
@@ -281,6 +307,6 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/weights` | an account | The weights noted for a profile, the newest first. `?since=` leaves out what is older than a moment: a chart of three months asks for three months. | query `WeightListQuery` | 200 a list of `WeightEntry` |  |
-| `POST /api/weights` | an account | Note a weight of a profile for a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
+| `POST /api/weights` | an account | Note a weight of a profile, taken at most a year before. A day in UTC holds at most ten weights of a profile. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
 | `DELETE /api/weights/:id` | an account | Remove a noted weight. |  | 204 |  |
 | `GET /api/weights/days` | an account | The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first. A day is one of the time zone the client names (`?timeZone=`); `?since=` leaves out the days before the one it falls on. | query `WeightDaysQuery` | 200 a list of `WeightDay` |  |
