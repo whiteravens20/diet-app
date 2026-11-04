@@ -8,10 +8,12 @@ import {
   MAX_PANTRY_ROWS,
   MAX_SESSIONS_LISTED,
   MAX_UNREAD_LISTED,
+  MAX_WEIGHTS_A_DAY,
   MAX_WEIGHTS_LISTED,
   type Notification,
   type Profile,
   type ShoppingList,
+  WEIGHT_DAYS_BACK,
   type WeightDay,
   type WeightEntry,
 } from '@diet-app/shared';
@@ -240,6 +242,53 @@ describe('how much a profile may hold, and how much of a list one answer shows',
           .expect(200)
       ).body;
       expect(lately).toHaveLength(7);
+    });
+
+    it('keeps as many weights for a day as it may and not one more, however many requests arrive together', async () => {
+      // Yesterday in UTC, a day that has passed wherever the test runs.
+      const today = new Date(new Date().toISOString().slice(0, 10)).getTime();
+      const day = today - DAY;
+      await t.prisma.weightEntry.createMany({
+        data: Array.from({ length: MAX_WEIGHTS_A_DAY - 2 }, (_, n) => ({
+          profileId: profile.id,
+          kg: 80,
+          recordedAt: new Date(day + (n + 1) * 3_600_000),
+        })),
+      });
+      const note = (at: number) =>
+        t
+          .http()
+          .post('/api/weights')
+          .set(as(user))
+          .send({ profileId: profile.id, kg: 79, recordedAt: new Date(at).toISOString() });
+
+      const answers = await race(4, (n) => note(day + DAY - (n + 1) * 60_000));
+
+      expect(statuses(answers)).toEqual([201, 201, 409, 409]);
+      expect(new Set(refusals(answers))).toEqual(new Set(['WEIGHT_DAY_FULL']));
+      expect(
+        await t.prisma.weightEntry.count({
+          where: { profileId: profile.id, recordedAt: { gte: new Date(day) } },
+        }),
+      ).toBe(MAX_WEIGHTS_A_DAY);
+      // The days next to it are days of their own: the last moment before it and its next day's first.
+      await note(day - 1).expect(201);
+      await note(today).expect(201);
+    });
+
+    it('takes a weight taken at most a year back', async () => {
+      const yearBack = Date.now() - WEIGHT_DAYS_BACK * DAY;
+      const note = (at: number) =>
+        t
+          .http()
+          .post('/api/weights')
+          .set(as(user))
+          .send({ profileId: profile.id, kg: 79, recordedAt: new Date(at).toISOString() });
+
+      const refused = await note(yearBack - 60_000).expect(409);
+      expect(refused.body.error).toBe('WEIGHT_TOO_OLD');
+      await note(yearBack + 60_000).expect(201);
+      expect(await t.prisma.weightEntry.count({ where: { profileId: profile.id } })).toBe(1);
     });
 
     it('is shown its newest unread notifications, fifty at most, and marks them all as read at once', async () => {

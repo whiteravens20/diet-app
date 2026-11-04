@@ -307,6 +307,6 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/weights` | an account | The weights noted for a profile, the newest first. `?since=` leaves out what is older than a moment: a chart of three months asks for three months. | query `WeightListQuery` | 200 a list of `WeightEntry` |  |
-| `POST /api/weights` | an account | Note a weight of a profile for a day. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
+| `POST /api/weights` | an account | Note a weight of a profile, taken at most a year before. A day in UTC holds at most ten weights of a profile. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing. | `CreateWeightEntryRequest` | 201 `WeightEntry` |  |
 | `DELETE /api/weights/:id` | an account | Remove a noted weight. |  | 204 |  |
 | `GET /api/weights/days` | an account | The weights of a profile by day, as a chart draws them: each day's last entry and the mean of the seven days that end with it, the oldest day first. A day is one of the time zone the client names (`?timeZone=`); `?since=` leaves out the days before the one it falls on. | query `WeightDaysQuery` | 200 a list of `WeightDay` |  |

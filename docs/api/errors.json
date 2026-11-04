@@ -1594,6 +1594,15 @@
       "pl": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
     }
   },
+  "WEIGHT_DAY_FULL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The weight log holds no more entries for this day: remove the last entry to log another.",
+      "pl": "Dziennik wagi nie zmieści więcej wpisów na ten dzień: usuń ostatni wpis, aby zapisać nowy."
+    }
+  },
   "WEIGHT_ENTRY_NOT_FOUND": {
     "statuses": [
       404
@@ -1601,6 +1610,15 @@
     "messages": {
       "en": "Weight entry not found.",
       "pl": "Nie znaleziono wpisu wagi."
+    }
+  },
+  "WEIGHT_TOO_OLD": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The weight log takes new entries at most a year back.",
+      "pl": "Dziennik wagi przyjmuje nowe wpisy najwyżej rok wstecz."
     }
   },
   "WRITE_CONFLICT": {

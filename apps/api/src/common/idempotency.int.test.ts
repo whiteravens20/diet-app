@@ -29,11 +29,14 @@ describe('an addition sent again with its key', () => {
     profile = await aProfile(t, user);
   });
 
+  /** A moment of three days ago, the same in every request of the file: a request sent again is the same request. */
+  const takenAt = new Date(Date.now() - 3 * 86_400_000).toISOString();
+
   /** Note `kg` for the profile as `who`, under `key` where one is given. */
   const weigh = (kg: number, key?: string, who: TestUser = user, profileId = profile.id) => {
     const request = t.http().post('/api/weights').set(as(who));
     if (key !== undefined) request.set('Idempotency-Key', key);
-    return request.send({ profileId, kg, recordedAt: '2026-01-05T08:00:00.000Z' });
+    return request.send({ profileId, kg, recordedAt: takenAt });
   };
 
   const weights = () => t.prisma.weightEntry.count({ where: { profileId: profile.id } });
