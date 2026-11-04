@@ -2,23 +2,21 @@
 
 import { expect, settled, test } from './fixtures';
 
-/** How the template that comes with the application begins, in each language. */
+/** How the template that comes with the application begins: in English, for readers of every language. */
 const TEMPLATE = {
-  en: { title: 'Terms of Service', notice: 'This is a template, not the terms of this instance.' },
-  pl: { title: 'Regulamin', notice: 'To szablon, a nie regulamin tej instancji.' },
+  title: 'Terms of Service',
+  notice: 'This is a template, not the terms of this instance.',
 } as const;
 
-test("the terms of an instance that keeps the template are the template in the reader's language, with what the application says of itself under them", async ({
+test('the terms of an instance that keeps the template are the template, in English whatever the language of the page, with what the application says of itself under them', async ({
   anonymous,
-  appLocale,
   messages,
 }) => {
   await anonymous.goto('/terms');
   await settled(anonymous);
 
-  const template = TEMPLATE[appLocale];
-  await expect(anonymous.getByRole('heading', { level: 1, name: template.title })).toBeVisible();
-  await expect(anonymous.getByText(template.notice)).toBeVisible();
+  await expect(anonymous.getByRole('heading', { level: 1, name: TEMPLATE.title })).toBeVisible();
+  await expect(anonymous.getByText(TEMPLATE.notice)).toBeVisible();
 
   const software = (messages.terms as { software: Record<string, string> }).software;
   const notice = anonymous.getByRole('region', { name: software.title });

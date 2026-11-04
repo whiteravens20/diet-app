@@ -144,8 +144,9 @@ curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.
 #    Generate each secret with: openssl rand -hex 32
 nano .env
 
-# 3. Your terms of service, shown at /terms: start from the template
-#    (and terms/TOS.pl.md beside it for Polish readers).
+# 3. Your terms of service, shown at /terms: start from the template, in
+#    English. A translation goes beside it, named by its language's code
+#    (terms/TOS.pl.md for Polish readers): docs/ops/deployment.md.
 mkdir terms
 curl -o terms/TOS.md https://raw.githubusercontent.com/whiteravens20/diet-app/main/terms/TOS.md
 nano terms/TOS.md

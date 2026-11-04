@@ -454,10 +454,17 @@ service mounts read-only at `/terms`:
 - beside it, a translation for an interface language, named by its code: `TOS.pl.md`.
 
 A reader is shown the translation in the language of the page, and `TOS.md` where there is
-none. Until there is a `TOS.md`, the page shows the template that comes with the image,
-which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) and
-[`terms/TOS.pl.md`](../../terms/TOS.pl.md) put in square brackets what is yours to fill in
-or delete, and have a section on Turnstile to delete when it is off.
+none. Until there is a `TOS.md`, the page shows the template that comes with the image, in
+English, which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) puts
+in square brackets what is yours to fill in or delete, and has a section on Turnstile to
+delete when it is off.
+
+A translation is yours to write, from your own `TOS.md`: copy it, translate it, and save it
+beside it under the code of the interface language it is for, `TOS.pl.md` for Polish, or
+`TOS.en.md` for English when `TOS.md` is in another language. A file for a language the
+interface does not have is never shown, and a name with a region (`TOS.pl-PL.md`) is not
+read. Keep the two in step: a change of `TOS.md` that the translation lacks does not reach
+its readers. Start the web service again after adding one, as after any change.
 
 Make the directory before the first start: Docker makes a missing one itself, empty and
 owned by root. The files have to be readable by the container's user (UID 1000), as files
