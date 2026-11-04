@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { APIRequestContext } from '@playwright/test';
+import { signUp } from './accounts';
 import { expect, test } from './fixtures';
 
 type Texts = Record<string, string>;
@@ -16,10 +17,11 @@ async function aCode(
   locale: string,
 ): Promise<{ email: string; code: string }> {
   const email = `browser-from-the-app-${Date.now().toString(36)}@example.test`;
-  const registered = await request.post('/api/auth/register', {
-    data: { email, password: 'Browser-Test-Passw0rd', displayName: 'From the app' },
-    headers: { 'accept-language': locale },
-  });
+  const registered = await signUp(
+    request,
+    { email, password: 'Browser-Test-Passw0rd', displayName: 'From the app' },
+    locale,
+  );
   expect(registered.ok(), await registered.text()).toBe(true);
   const { refreshToken } = ((await registered.json()) as { tokens: { refreshToken: string } })
     .tokens;

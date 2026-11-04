@@ -242,6 +242,27 @@ describe('the days of the calendar, for somebody who uses the keyboard', () => {
     expect(cell(/^Sun, Dec 28:/)).toHaveFocus();
   });
 
+  it('go to the other month with Page Down and Page Up even to a day the grid of this one shows', async () => {
+    await open();
+    // The grid of January ends with the first of February, and the one of February begins in January.
+    cell(/^Thu, Jan 1:/).focus();
+
+    await userEvent.keyboard('{PageDown}');
+    expect(screen.getByRole('heading', { name: 'February 2026' })).toBeInTheDocument();
+    expect(cell(/^Sun, Feb 1:/)).toHaveFocus();
+
+    await userEvent.keyboard('{PageUp}');
+    expect(screen.getByRole('heading', { name: 'January 2026' })).toBeInTheDocument();
+    expect(cell(/^Thu, Jan 1:/)).toHaveFocus();
+
+    cell(/^Sat, Jan 31:/).focus();
+    await userEvent.keyboard('{PageDown}');
+    expect(screen.getByRole('heading', { name: 'February 2026' })).toBeInTheDocument();
+    cell(/^Thu, Jan 29:/).focus();
+    await userEvent.keyboard('{PageUp}');
+    expect(screen.getByRole('heading', { name: 'December 2025' })).toBeInTheDocument();
+  });
+
   it('are chosen with Enter like any button', async () => {
     const { onOpen } = await open([aDay('2026-01-14')]);
     cell(/^Wed, Jan 14:/).focus();

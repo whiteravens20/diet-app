@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import {
+  Barcode,
   CalendarRange,
   CodeXml,
   Cpu,
   ListChecks,
   Server,
   ShieldCheck,
-  Shuffle,
   SlidersHorizontal,
   Sparkles,
   TriangleAlert,
@@ -23,7 +23,7 @@ import { ThemeChoice } from '@/components/theme-choice';
 const FEATURE_KEYS = [
   { icon: SlidersHorizontal, titleKey: 'controlTitle', bodyKey: 'controlBody' },
   { icon: CalendarRange, titleKey: 'plansTitle', bodyKey: 'plansBody' },
-  { icon: Shuffle, titleKey: 'swapsTitle', bodyKey: 'swapsBody' },
+  { icon: Barcode, titleKey: 'diaryTitle', bodyKey: 'diaryBody' },
   { icon: ListChecks, titleKey: 'listsTitle', bodyKey: 'listsBody' },
   { icon: Utensils, titleKey: 'nutritionTitle', bodyKey: 'nutritionBody' },
   { icon: Sparkles, titleKey: 'aiTitle', bodyKey: 'aiBody' },
@@ -79,16 +79,22 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="mt-20 grid gap-4 sm:grid-cols-2">
-        {FEATURE_KEYS.map((f) => (
-          <Card key={f.titleKey} className="p-6">
-            <span className="inline-flex rounded-md bg-muted p-2 text-primary">
-              <f.icon size={20} />
-            </span>
-            <h3 className="mt-3 font-semibold">{tFeatures(f.titleKey)}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{tFeatures(f.bodyKey)}</p>
-          </Card>
-        ))}
+      <section className="mt-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-balance text-2xl font-semibold tracking-tight">{t('yours.title')}</h2>
+          <p className="mt-2 text-pretty text-muted-foreground">{t('yours.body')}</p>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {FEATURE_KEYS.map((f) => (
+            <Card key={f.titleKey} className="p-6">
+              <span className="inline-flex rounded-md bg-muted p-2 text-primary">
+                <f.icon size={20} />
+              </span>
+              <h3 className="mt-3 font-semibold">{tFeatures(f.titleKey)}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{tFeatures(f.bodyKey)}</p>
+            </Card>
+          ))}
+        </div>
       </section>
     </main>
   );

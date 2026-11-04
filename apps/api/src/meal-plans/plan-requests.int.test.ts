@@ -184,7 +184,7 @@ describe('what a request about a plan may say', () => {
       });
 
       expect(await refusedAt(twice)).toEqual(['restore']);
-      expect(await scaleOf(meal().id)).toBe(1);
+      expect(await scaleOf(meal().id)).toBe(meal().quantityScale);
     });
 
     it('does not take more entries of an undo than a plan has meals', async () => {
@@ -213,7 +213,7 @@ describe('what a request about a plan may say', () => {
           await rebalance({ scope: 'day', restore: [{ mealId: meal().id, scale: 11 }] }),
         ),
       ).toEqual(['restore.0.scale']);
-      expect(await scaleOf(meal().id)).toBe(1);
+      expect(await scaleOf(meal().id)).toBe(meal().quantityScale);
 
       await rebalance({ scope: 'day', restore: [{ mealId: meal().id, scale: 1 }] }).expect(201);
     });

@@ -31,6 +31,7 @@ const DAY: MealPlanDay = {
   targetMacros: { protein: 125, fat: 67, carbs: 225 },
   calorieDelta: 0,
   offTarget: null,
+  macrosOff: false,
   skipped: false,
   belowSafetyFloor: false,
   overrides: null,
@@ -64,6 +65,7 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   dayCalories: 2310,
   fits: true,
   listOutOfDate: false,
+  cooking: null,
   unchanged: false,
   ...over,
 });

@@ -224,6 +224,19 @@
   * {
     border-color: var(--color-border);
   }
+
+  /* A word longer than its place, which anybody can write, breaks instead of sticking out. */
+  body {
+    overflow-wrap: break-word;
+  }
+
+  /* A heading gives way to what stands beside it, though a word of it is long. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    overflow-wrap: anywhere;
+  }
 }
 
 body {

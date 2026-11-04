@@ -34,10 +34,19 @@ The companion Android app lives in a separate repository:
   training or rest day, skipped, another number of meals, a target of its own), with what
   that does to its meals said before it is saved.
 - **A diary of the day** — what was eaten, planned or not: a recipe in servings, an
-  ingredient in an amount, or a meal by its figures, by its calories alone if need be, the
-  rest then estimated and marked as an estimate. An entry keeps the figures it was written
-  with, a day shows what was eaten against its target, and a plan's days count the entries
-  as eaten whenever they are resized or filled again.
+  ingredient in an amount, a product by its barcode or name, or a meal by its figures, by
+  its calories alone if need be, the rest then estimated and marked as an estimate. An entry
+  keeps the figures it was written with, a day shows what was eaten against its target, and
+  a plan's days count the entries as eaten whenever they are resized or filled again.
+- **Products with a barcode** — from [Open Food Facts](https://world.openfoodfacts.org)
+  (ODbL), with their label's figures checked for whether they add up: the countries an
+  operator names are imported once a week, and a code no import brought is asked about
+  through the instance, so that Open Food Facts sees the server and never who asks. Label
+  figures go into the diary alone, never into a recipe or a plan. A product the base does not
+  know can be written from its label, for the account alone or sent to the instance's reviewers,
+  and what they accept joins the base, without its author, in a file of the instance every
+  account can download. A product the base has wrong can be corrected from its label for the
+  account alone, with a link to correct it at Open Food Facts for everybody.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. A user can also
   write recipes of their own by hand from the catalogue's ingredients, and the engine works
@@ -135,8 +144,9 @@ curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.
 #    Generate each secret with: openssl rand -hex 32
 nano .env
 
-# 3. Your terms of service, shown at /terms: start from the template
-#    (and terms/TOS.pl.md beside it for Polish readers).
+# 3. Your terms of service, shown at /terms: start from the template, in
+#    English. A translation goes beside it, named by its language's code
+#    (terms/TOS.pl.md for Polish readers): docs/ops/deployment.md.
 mkdir terms
 curl -o terms/TOS.md https://raw.githubusercontent.com/whiteravens20/diet-app/main/terms/TOS.md
 nano terms/TOS.md

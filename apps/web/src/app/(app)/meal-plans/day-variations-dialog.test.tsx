@@ -48,6 +48,7 @@ const theWays = (
   date: DAY.date,
   calorieTarget: 2000,
   diary: null,
+  cooking: null,
   current: {
     dayNutrition: { calories: 1950, protein: 100, fat: 70, carbs: 220 },
     packs: { bought: 1500, used: 650, wasted: 2 },

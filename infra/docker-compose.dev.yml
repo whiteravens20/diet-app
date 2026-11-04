@@ -12,7 +12,7 @@ name: diet-app-dev
 # (.github/dependabot.yml).
 services:
   postgres:
-    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-diet}
@@ -29,7 +29,7 @@ services:
       retries: 5
 
   ollama:
-    image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
+    image: ollama/ollama:0.40.11@sha256:dea72d1e22270fe095b68fdf756d2b489d615643c5a2eaebbc5f569181e322d8
     profiles: ['ollama']
     restart: unless-stopped
     ports:

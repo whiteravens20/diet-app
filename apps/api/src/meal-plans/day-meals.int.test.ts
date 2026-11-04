@@ -105,4 +105,53 @@ describe("a meal of the user's own in the place of a planned one, and a meal tak
 
     expect(dayOf(after).meals.some((meal) => meal.source === 'USER_CUSTOM')).toBe(false);
   });
+
+  describe('by what is known of it', () => {
+    const ownWith = (nutrition: Record<string, number>) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${DATE}/custom-meal`)
+        .set(as(user))
+        .send({ name: 'Out', mealType: 'snack', nutrition });
+    const theOwn = (of: MealPlan) => dayOf(of).meals.find((meal) => meal.source === 'USER_CUSTOM')!;
+
+    it('estimates the macronutrients of one known by its calories alone, and says that it did', async () => {
+      const { plan: after } = (await ownWith({ calories: 400 }).expect(201))
+        .body as RebalanceResult;
+
+      const own = theOwn(after);
+      expect(own.estimated).toBe(true);
+      expect(own.nutrition.calories).toBe(400);
+      const fromMacros =
+        own.nutrition.protein * 4 + own.nutrition.fat * 9 + own.nutrition.carbs * 4;
+      expect(Math.abs(fromMacros - 400)).toBeLessThanOrEqual(10);
+      expect(own.nutrition.protein).toBeGreaterThan(0);
+    });
+
+    it('keeps what is typed, and estimates only what is left out', async () => {
+      const { plan: after } = (await ownWith({ calories: 400, protein: 30 }).expect(201))
+        .body as RebalanceResult;
+
+      const own = theOwn(after);
+      expect(own.estimated).toBe(true);
+      expect(own.nutrition.protein).toBe(30);
+      expect(own.nutrition.fat + own.nutrition.carbs).toBeGreaterThan(0);
+    });
+
+    it('estimates nothing where all of it is typed', async () => {
+      const { plan: after } = (
+        await ownWith({ calories: 400, protein: 30, fat: 10, carbs: 40 }).expect(201)
+      ).body as RebalanceResult;
+
+      const own = theOwn(after);
+      expect(own.estimated).toBe(false);
+      expect(own.nutrition).toEqual({ calories: 400, protein: 30, fat: 10, carbs: 40 });
+    });
+
+    it('refuses what it is told holds more than its calories, as the diary does', async () => {
+      const refused = await ownWith({ calories: 100, protein: 90 }).expect(400);
+
+      expect(refused.body.error).toBe('DIARY_MACROS_OVER_ENERGY');
+    });
+  });
 });

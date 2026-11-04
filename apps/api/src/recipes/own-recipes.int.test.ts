@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Recipe } from '@diet-app/shared';
+import type { MealPlan, Recipe } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -402,6 +402,152 @@ describe("an edit of a recipe of one's own", () => {
     expect(submitted.status).toBe(409);
     expect(submitted.body.error).toBe('RECIPE_SWAP_NOT_SUBMITTABLE');
     expect(await t.prisma.recipeDraft.count()).toBe(0);
+  });
+
+  describe('of a recipe made by swapping an ingredient, in its words alone', () => {
+    /** A dinner made by a swap, in English and in Polish, held by a dinner of a plan of the user's. */
+    async function swappedInAPlan() {
+      const profile = await aProfile(t, user);
+      const plan = await aPlan(t, user, profile);
+      const id = await personal.save({
+        userId: user.id,
+        origin: 'swap',
+        text: new Map([
+          [
+            'en',
+            { title: 'Bowl (with chicken)', description: 'A bowl.', steps: ['Cook chicken.'] },
+          ],
+          [
+            'pl',
+            {
+              title: 'Miska (zamiennik: kurczak)',
+              description: 'Miska.',
+              steps: ['Usmaż kurczak.'],
+            },
+          ],
+        ]),
+        servings: 1,
+        mealTypes: ['dinner'],
+        prepMinutes: 5,
+        cookMinutes: 10,
+        difficulty: 'easy',
+        ingredients: [
+          {
+            ingredientId: await ingredientId('chicken-breast'),
+            quantity: 100,
+            unit: 'g',
+            note: null,
+          },
+        ],
+        facts: {
+          perServing: { calories: 165, protein: 31, fat: 4, carbs: 0 },
+          allergens: [],
+          dietTags: [],
+        },
+      });
+      const meal = plan.days[0]!.meals.find((m) => m.mealType === 'dinner')!;
+      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: id } });
+      const read = async (locale: string) =>
+        (await t.http().get(`/api/recipes/${id}`).set(as(user)).set('accept-language', locale))
+          .body as Recipe;
+      const dinnerOfThePlan = async () =>
+        (
+          (
+            await t
+              .http()
+              .get(`/api/meal-plans/${plan.id}`)
+              .set(as(user))
+              .set('accept-language', 'pl')
+              .expect(200)
+          ).body as MealPlan
+        ).days[0]!.meals.find((m) => m.id === meal.id)!;
+      return { id, read, dinnerOfThePlan };
+    }
+
+    /** What the edit page sends for `recipe` as it stands, with `over` changed. */
+    const asItStands = (recipe: Recipe, over: Record<string, unknown> = {}) => ({
+      title: recipe.title,
+      description: recipe.description,
+      steps: recipe.steps,
+      servings: recipe.servings,
+      mealTypes: recipe.mealTypes,
+      prepMinutes: recipe.prepMinutes,
+      cookMinutes: recipe.cookMinutes,
+      difficulty: recipe.difficulty,
+      cuisine: recipe.cuisine,
+      ingredients: recipe.ingredients.map((line) => ({
+        ingredientId: line.ingredientId,
+        quantity: line.quantity,
+        unit: line.unit,
+        note: line.note,
+      })),
+      ...over,
+    });
+
+    it('writes them in that recipe, which the plan that holds it reads at once', async () => {
+      const swapped = await swappedInAPlan();
+      const words = {
+        title: 'Miska z kurczakiem',
+        description: 'Miska na obiad.',
+        steps: ['Usmaż kurczaka.'],
+      };
+
+      const answer = await t
+        .http()
+        .put(`/api/recipes/${swapped.id}/text`)
+        .set(as(user))
+        .set('accept-language', 'pl')
+        .send(words)
+        .expect(200);
+
+      expect(answer.body).toMatchObject({ id: swapped.id, origin: 'swap', ...words });
+      expect((await swapped.dinnerOfThePlan()).recipe).toMatchObject({
+        id: swapped.id,
+        title: 'Miska z kurczakiem',
+      });
+      expect(await swapped.read('en')).toMatchObject({
+        title: 'Bowl (with chicken)',
+        steps: ['Cook chicken.'],
+      });
+      expect(await t.prisma.recipe.count({ where: { createdByUserId: user.id } })).toBe(1);
+    });
+
+    it('takes an edit of the words alone in place, and an edit of an amount as a new version', async () => {
+      const swapped = await swappedInAPlan();
+      const before = await swapped.read('pl');
+
+      const worded = (
+        await edit(swapped.id, asItStands(before, { steps: ['Usmaż kurczaka.'] })).expect(200)
+      ).body as Recipe;
+      const more = asItStands(worded);
+      (more.ingredients as { quantity: number }[])[0]!.quantity = 150;
+      const another = (await edit(swapped.id, more).expect(200)).body as Recipe;
+
+      expect(worded).toMatchObject({ id: swapped.id, steps: ['Usmaż kurczaka.'] });
+      expect(another.id).not.toBe(swapped.id);
+      expect(another.origin).toBe('swap');
+      expect((await swapped.dinnerOfThePlan()).recipe).toMatchObject({
+        id: swapped.id,
+        steps: ['Usmaż kurczaka.'],
+      });
+    });
+
+    it("are refused for any other recipe of one's own, for markup, and for a recipe of somebody else", async () => {
+      const swapped = await swappedInAPlan();
+      const handWritten = (await write(await written()).expect(201)).body as Recipe;
+      const words = (id: string, body: Record<string, unknown>, by: TestUser = user) =>
+        t.http().put(`/api/recipes/${id}/text`).set(as(by)).set('accept-language', 'pl').send(body);
+      const plain = { title: 'Nowa nazwa', description: 'Opis.', steps: ['Ugotuj.'] };
+
+      const notASwap = await words(handWritten.id, plain).expect(409);
+      const markup = await words(swapped.id, { ...plain, steps: ['<b>Ugotuj</b>'] }).expect(400);
+      const theirs = await words(swapped.id, plain, await aUser(t)).expect(404);
+
+      expect(notASwap.body.error).toBe('RECIPE_WORDS_ONLY_OF_A_SWAP');
+      expect(markup.body.error).toBe('RECIPE_INVALID');
+      expect(theirs.body.error).toBe('RECIPE_NOT_FOUND');
+      expect((await swapped.read('pl')).title).toBe('Miska (zamiennik: kurczak)');
+    });
   });
 
   it("is refused for another user's recipe, a recipe of the library and a deleted one, as for one that is not there", async () => {

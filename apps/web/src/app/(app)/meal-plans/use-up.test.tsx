@@ -134,9 +134,12 @@ describe('what would use up the packs a plan opens', () => {
         revision: 7,
         strategy: 'random',
         allowOffDiet: false,
+        together: true,
       }),
     );
-    await vi.waitFor(() => expect(onSwapped).toHaveBeenCalledWith({ plan: {}, rebalance: null }));
+    await vi.waitFor(() =>
+      expect(onSwapped).toHaveBeenCalledWith({ plan: {}, rebalance: null }, 'meal-dinner'),
+    );
     // The suggestions were for the plan as it was: they are gone with it.
     expect(screen.queryByRole('list')).toBeNull();
   });

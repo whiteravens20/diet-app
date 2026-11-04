@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { signUp } from './accounts';
 import { expect, signInHere, test } from './fixtures';
 
 const PASSWORD = 'Browser-Test-Passw0rd';
@@ -14,8 +15,10 @@ test("the account's language, theme and palette are there on a browser it signs 
   const other = appLocale === 'en' ? 'pl' : 'en';
   // An account of its own: the shared ones sit near the sign-in limit.
   const email = `browser-looks-${Date.now().toString(36)}@example.test`;
-  const registered = await request.post('/api/auth/register', {
-    data: { email, password: PASSWORD, displayName: 'Browser test' },
+  const registered = await signUp(request, {
+    email,
+    password: PASSWORD,
+    displayName: 'Browser test',
   });
   expect(registered.ok()).toBe(true);
   const token = ((await registered.json()) as { tokens: { accessToken: string } }).tokens

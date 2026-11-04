@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { signUp } from './accounts';
 import { barriers, expect, settled, signInHere, test } from './fixtures';
 
 type Texts = Record<string, string>;
@@ -28,11 +29,12 @@ test.describe('an account that has just been made', () => {
     // An account of its own: the one the other tests share has a profile already.
     const email = `browser-first-${Date.now().toString(36)}@example.test`;
     const password = 'Browser-Test-Passw0rd';
-    const registered = await request.post('/api/auth/register', {
-      data: { email, password, displayName: 'First profile' },
-      // In the language of the project, as the web signs up in the language of its page.
-      headers: { 'accept-language': appLocale },
-    });
+    // In the language of the project, as the web signs up in the language of its page.
+    const registered = await signUp(
+      request,
+      { email, password, displayName: 'First profile' },
+      appLocale,
+    );
     expect(registered.ok(), await registered.text()).toBe(true);
     await page.goto('/login');
     await signInHere(page, { email, password }, messages);

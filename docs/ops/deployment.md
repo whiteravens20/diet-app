@@ -85,6 +85,10 @@ Load them on the first run, in the admin panel:
 3. Click **Update database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 
+Products with a barcode need nothing here: a code is asked about when somebody scans it. To
+have the products of your country at hand, name it: see
+[Products with a barcode](#products-with-a-barcode).
+
 CLI alternative (the image ships no npm, so the seed runs through its binary):
 `docker compose ... exec -w /app/apps/api api /app/node_modules/.bin/tsx prisma/seed.ts`.
 
@@ -213,16 +217,23 @@ end. The limits are part of the application, not settings.
 | Recipes a profile has marked             | 500                   |
 | Favorite sets of a profile               | 50                    |
 | Rows in the pantry of a profile          | 1000                  |
+| Products an account wrote                | 500                   |
 | Diary entries of a profile on one day    | 40                    |
+| Weights of a profile on one day, in UTC  | 10                    |
+| Plans of a profile                       | 100                   |
+| Meals of a day of a plan, for one's own  | 20                    |
 | Shopping lists of a plan                 | 10                    |
+| Open sessions of an account              | 50                    |
 | AI provider configurations of an account | One for each provider |
 
-A request that would go over one is answered `409` with a code that says which. The diary
-takes a new entry for today or a day at most a year back, so once that year is full it grows
-by at most 40 entries a day. Longer lists come a page at a time (recipes, plans, the drafts
-of the admin panel), and three show only their newest entries: the 1000 newest weights of a
-profile, the 50 newest unread notifications, and the 50 sessions of an account that were used
-last. Signing out everywhere ends the sessions the list does not show, too.
+A request that would go over one is answered `409` with a code that says which, except a
+sign-in: a new session ends the one of the account used longest ago. The diary takes a new
+entry for today or a day at most a year back, so once that year is full it grows by at most 40
+entries a day; a weight is taken at most a year before it is noted, so the weights of a profile
+grow the same way, by at most 10 a day. Longer lists come a page at a time (recipes, plans, the
+drafts of the admin panel), and two show only their newest entries: the 1000 newest weights of
+a profile and the 50 newest unread notifications. The calls of models and the writes of
+products that the limits of an account count are removed after a year.
 
 ### What a page may load
 
@@ -443,10 +454,17 @@ service mounts read-only at `/terms`:
 - beside it, a translation for an interface language, named by its code: `TOS.pl.md`.
 
 A reader is shown the translation in the language of the page, and `TOS.md` where there is
-none. Until there is a `TOS.md`, the page shows the template that comes with the image,
-which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) and
-[`terms/TOS.pl.md`](../../terms/TOS.pl.md) put in square brackets what is yours to fill in
-or delete, and have a section on Turnstile to delete when it is off.
+none. Until there is a `TOS.md`, the page shows the template that comes with the image, in
+English, which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) puts
+in square brackets what is yours to fill in or delete, and has a section on Turnstile to
+delete when it is off.
+
+A translation is yours to write, from your own `TOS.md`: copy it, translate it, and save it
+beside it under the code of the interface language it is for, `TOS.pl.md` for Polish, or
+`TOS.en.md` for English when `TOS.md` is in another language. A file for a language the
+interface does not have is never shown, and a name with a region (`TOS.pl-PL.md`) is not
+read. Keep the two in step: a change of `TOS.md` that the translation lacks does not reach
+its readers. Start the web service again after adding one, as after any change.
 
 Make the directory before the first start: Docker makes a missing one itself, empty and
 owned by root. The files have to be readable by the container's user (UID 1000), as files
@@ -456,6 +474,100 @@ mounted directory is `terms/` of the checkout, and you write your terms there.
 
 Raw HTML in the files is shown as text, and a link or a picture keeps its address only when
 it is a web or mail address or a path of the site.
+
+## Products with a barcode
+
+The diary takes products by their barcode or name, with the figures of their label, from
+[Open Food Facts](https://world.openfoodfacts.org). They reach the instance in two ways, and
+both are in the panel's Catalogue tab, with how the last import went, country by country.
+
+**A code asked about alone.** A code the instance does not hold is asked of Open Food Facts when
+somebody scans or types it. The request goes out in the instance's name
+(`DietApp/<version> (<OPERATOR_CONTACT, or the project's page>)`) and carries only the code: Open
+Food Facts sees the server and never who asked. `OPEN_FOOD_FACTS_LOOKUPS=false` turns this off.
+The limits below are part of the application: the instance's stays under the 15 product reads
+a minute Open Food Facts allows one address.
+
+| What is asked of Open Food Facts | The most                                                                             |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| By an account                    | 5 a minute, 100 in 24 hours                                                          |
+| By the whole instance            | 12 a minute                                                                          |
+| The same code, once not known    | Not again for 7 days                                                                 |
+| A product no import brings       | Read again after 30 days, when it is asked for; gone after 90 without anybody asking |
+
+What the instance holds or remembers as not known counts against none of these, only against
+the route's own 30 a minute. A search by name looks at nothing but the instance's own table. An
+account can take up to 5 of the instance's 12 a minute, so a few accounts can keep new codes
+waiting for as long as their daily 100 last, which is about 20 minutes each; what the instance
+holds keeps working meanwhile. The instance keeps that an account asked, and when, for a day,
+and never which code. A code is part of the address of the request, so a reverse proxy that logs
+addresses keeps it with the rest: say so in your terms, as the template does.
+
+**An import of countries.** `OPEN_FOOD_FACTS_COUNTRIES=poland,germany` names the countries, as
+Open Food Facts writes them in the address of a country's page
+(`world.openfoodfacts.org/country/united-kingdom`). The worker reads Open Food Facts' whole export
+once a week, between 2:00 and 5:00 by the server's clock, and the panel's **Import now** starts it
+within a minute, at most once in 24 hours for the same countries. A first import waits for one
+of the two.
+
+The export is streamed and not kept: about 1.5 GB comes in and 14 GB of text goes through the
+worker, whichever countries are named. What the run keeps stays in one transaction until the
+end, so the products change all at once or not at all: a file cut short, columns this version
+does not read, no product of the countries named, or less than half of what the last run of the
+same countries brought, and nothing changes while the panel says why. A country that brought
+nothing is named there; it is usually misspelt (`czech-republic`, not `czechia`). A product
+without a usable code, a name or figures is left out and counted. What leaves the export goes
+from the table, and an entry of a diary keeps the figures it was written with.
+
+What it takes, measured in November 2026 on PostgreSQL's own settings, with all that a country's
+products bring (Germany 239926, France 887023, the United States 778234, Spain about 248000, Italy
+about 217000, the United Kingdom about 152000, Poland 24690):
+
+| Countries             | Products | A first run | In the database |
+| --------------------- | -------- | ----------- | --------------- |
+| Poland, Germany       | 263561   | 1.5 minutes | 127 MB          |
+| France, United States | 1660258  | 5.5 minutes | 746 MB          |
+
+That is about half a gigabyte for a million products, the index of the search included. A run that
+finds nothing new writes nothing and takes as long as reading does, 1.5 minutes on that machine,
+with a fast connection; a slow one takes as long as 1.5 GB takes. The worker holds up to about 350 MB
+while it reads, which it would give back under a smaller heap: it also finished within
+`--max-old-space-size=128`, in twice the time. A search takes a few milliseconds, and up to 200 ms for a
+word that hundreds of thousands of products hold.
+
+**The figures are those of a label.** People write them, so the instance checks whether they can
+be right. A figure that cannot be (over 100 g in 100 g, over 900 kcal) counts as unknown. A product
+whose energy lies more than 40 kcal and a fifth from what its figures come to is shown with a note
+to check the label. They are for the diary alone: nothing enters a recipe or a plan.
+
+**Products people write.** A product the base does not know can be written by an account from
+its label, on its page of products or in the diary's window, for itself alone: at most 500, and 50
+written or changed in 24 hours. With a code, its energy, protein, fat and carbohydrates it can be
+sent to the base, 10 in 24 hours. The administrator in the panel or a reviewer on their page then
+accepts it or turns it down with a reason, without seeing whose it is, and its author is told. An
+accepted product belongs to the instance: what other accounts wrote of its code gives way to it, no
+import touches it, and it stays when its author's account is deleted. The administrator can withdraw
+it, with a reason: it goes back to its author, as the author's own correction of it where there is
+one, or is removed where the author is gone. The worker also asks about the codes people wrote, 3 a
+pass and each at most once in 7 days, and a product gives way to what Open Food Facts says of its
+code, with a notification. A product the base has can be corrected the same way, from the label and
+under its code: the correction is its writer's alone, who gets it in place of the base's product
+when they scan or search that code. It is never sent to the base, and no import, lookup or accepted
+product replaces it; once Open Food Facts no longer knows the code, or the administrator withdraws
+the product it corrects, it is a product like any other. Diary entries keep their figures through
+all of this. An instance with neither lookups nor countries has no products at all, these
+included.
+
+**The licence.** The database of Open Food Facts is under the
+[Open Database License](https://opendatacommons.org/licenses/odbl/1-0/) and its contents under the
+[Database Contents License](https://opendatacommons.org/licenses/dbcl/1-0/). Where a product is
+shown, the application says where it comes from, and the page of the terms says so under what an
+operator writes. The instance's table is a part of that database, offered under the same licence:
+what it holds is what the export holds, and how it is chosen is in this repository
+(`apps/api/src/products`). What the instance accepted from its people is a part of the same table:
+`products.json` among the instance's files holds it without authors, every signed-in account can
+download it from its page of products, five times a minute, and the `mirror` service copies it. That
+follows one reading of the licence, and is not legal advice.
 
 ## A copy of the instance's own files
 
@@ -498,7 +610,7 @@ manifest. The API mounts that volume read-only and sees nothing else of the serv
 the key, not the clone, not the repository's address, which stays in `.env`. The panel
 counts the service as gone after three rounds without a report.
 
-An instance that holds no recipes and no names of its own, as its manifest says, leaves the
+An instance that holds no recipes, no names and no products of its own, as its manifest says, leaves the
 repository as it is: an emptied `instance-data` volume or a new database does not empty the
 copy. Files the instance removed while it still holds something are removed from the copy.
 
@@ -537,11 +649,16 @@ Once when it starts and every hour after that it:
 - removes personal recipes that were deleted, once nothing uses them any more;
 - removes the tokens of sessions that have ended, and links and sign-in challenges that
   were used or have expired;
+- removes what no longer counts of the lookups of products: that an account asked, after a
+  day, and that a code was not known, after a week;
 - seals stored addresses and provider keys for the account each belongs to, which finds
   something to do only after a database from before that was done has been restored.
 
 A job that fails is logged as `<job> failed: <reason>`, does not keep the others from
 running, and is tried again an hour later.
+
+Beside that pass it looks once a minute at whether the [import of products](#products-with-a-barcode)
+is due, on an instance that names countries; however long it reads, the pass goes on without it.
 
 One worker is enough, and a second one does no harm. Each job holds a lock of the
 database's for as long as it runs, so a second worker, or an old one that is still up

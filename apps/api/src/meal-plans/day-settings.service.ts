@@ -27,7 +27,12 @@ import {
 } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StoredReport, withDaysAgain } from './generation-report.js';
-import { mealRank, MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  mealRank,
+  MealPlansService,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import {
   dayMealCount,
   isoDate,
@@ -107,7 +112,7 @@ export class DaySettingsService {
       change.drawn.length > 0
         ? null
         : change.resizes
-          ? this.plans.resizedKcal(left, change.target, entered)
+          ? this.plans.resizedKcal(left, change.target, entered, plan)
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
             (entered?.nutrition.calories ?? 0);
     const changesMeals =
@@ -117,6 +122,11 @@ export class DaySettingsService {
           where: { planId, fromDate: { lte: day.date }, toDate: { gte: day.date } },
         })
       : 0;
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
     return {
       revision: plan.revision,
       date,
@@ -135,6 +145,13 @@ export class DaySettingsService {
           : Math.abs(dayCalories - change.target) <= REBALANCE_TOLERANCE * change.target,
       listOutOfDate: lists > 0,
       unchanged: change.unchanged,
+      cooking: cookingChange(
+        change.fates
+          .filter((fate) => fate.fate === 'redrawn')
+          .flatMap((fate) => cookedWith.get(fate.mealId) ?? [])
+          .filter((meal) => meal.dayId !== dayId),
+        clientToday ?? this.plans.today(),
+      ),
     };
   }
 
@@ -167,8 +184,9 @@ export class DaySettingsService {
           data: { calorieTarget: change.target, overrides: asJson(change.overrides) },
         });
         if (gone.length > 0) await tx.plannedMeal.deleteMany({ where: { id: { in: gone } } });
-        // The dishes that stay, brought to the day's target itself: the target was asked for.
-        if (change.resizes) await this.plans.rebalanceDayInternal(dayId, tx, { exact: true });
+        // The dishes that stay, brought to the day's target.
+        if (change.resizes)
+          await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
       });
       return this.plans.get(userId, locale, planId);
     }
@@ -243,6 +261,10 @@ export class DaySettingsService {
 
     const result = await this.generation.draw(userId, prepared, this.generation.nextSeed());
     const placed = result.assignments.filter((meal) => meal.dayIndex === dayIndex);
+    const today = clientToday ?? this.plans.today();
+    const cookedWith = request.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(prepared.plan.options))
+      : new Map<string, CookedMeal[]>();
     const before = StoredReport.nullable().parse(prepared.plan.report ?? null);
     const report = before ? withDaysAgain(before, result.report, [context.date]) : null;
     await writePlan(this.prisma, planId, request.revision, async (tx) => {
@@ -271,7 +293,20 @@ export class DaySettingsService {
         where: { id: planId },
         data: { reuseScore: result.ingredientReuseScore, ...(report ? { report } : {}) },
       });
-      await this.plans.rebalanceDayInternal(dayId, tx);
+      await this.plans.rebalanceDayInternal(dayId, tx, today);
+      await this.plans.carryToOtherDays(
+        tx,
+        planId,
+        cookedWith,
+        change.fates
+          .filter((fate) => fate.fate === 'redrawn')
+          .flatMap((fate) => {
+            const drawn = placed.find((meal) => meal.slot === fate.mealType);
+            return drawn ? [{ mealId: fate.mealId, recipeId: drawn.recipeId }] : [];
+          }),
+        new Set([dayId]),
+        today,
+      );
     });
     return this.plans.get(userId, locale, planId);
   }

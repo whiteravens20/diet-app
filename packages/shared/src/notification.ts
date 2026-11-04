@@ -21,7 +21,14 @@ import * as z from './zod.js';
 export const MAX_UNREAD_LISTED = 50;
 
 /** Discriminator for `Notification.type`. Extend additively. */
-export const NotificationType = z.enum(['weight_reminder', 'preferences_review']);
+export const NotificationType = z.enum([
+  'weight_reminder',
+  'preferences_review',
+  'product_accepted',
+  'product_rejected',
+  'product_replaced',
+  'product_withdrawn',
+]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
 /**
@@ -34,6 +41,18 @@ export const PreferencesReviewPayload = z.object({
   recipes: z.number().int().min(0),
 });
 export type PreferencesReviewPayload = z.infer<typeof PreferencesReviewPayload>;
+
+/**
+ * Payload of what an author is told of a product: its name, and the reason where
+ * a person gave one. Replaced means that the base has its code from elsewhere:
+ * `replaced` names where, Open Food Facts or an accepted product.
+ */
+export const ProductNoticePayload = z.object({
+  name: z.string(),
+  reason: z.string().nullable(),
+  replacedBy: z.enum(['open_food_facts', 'instance']).nullable(),
+});
+export type ProductNoticePayload = z.infer<typeof ProductNoticePayload>;
 
 /** Payload for `type='weight_reminder'`. */
 export const WeightReminderPayload = z.object({

@@ -44,7 +44,8 @@ model answered, so the cause can be read and need not be guessed.
 
 Every request to a model carries three limits, set per kind of request in
 [apps/api/src/ai/operations.ts](../../apps/api/src/ai/operations.ts). No request
-runs on a provider's defaults.
+runs on a provider's defaults, save the temperature of one made to Anthropic
+directly (below).
 
 | Request                                | Wait           | Output cap                                                                   | Temperature |
 | -------------------------------------- | -------------- | ---------------------------------------------------------------------------- | ----------- |
@@ -67,6 +68,9 @@ runs on a provider's defaults.
   fails at once (a wrong key, a refused connection) costs the next one nothing.
 - **A provider is called once.** The API does not let the provider libraries
   retry on their own; trying the next provider is the router's decision.
+- **A request made to Anthropic directly carries no temperature.** Its
+  Messages API refuses one on every model, so the model samples as it does by
+  default; OpenAI, OpenRouter and Ollama get the temperature of the table.
 - **A wait that runs out is reported as such.** The user sees that the model
   was too slow, and the engine's own pick is used where there is one.
 - **An answer that reaches its cap is treated as cut off.** The caps are about

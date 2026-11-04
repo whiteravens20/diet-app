@@ -32,7 +32,7 @@ import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
-import { planDates } from '@/lib/plan-dates';
+import { dayAfter, planDates } from '@/lib/plan-dates';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +47,7 @@ import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
-import { RebalanceToast } from './rebalance-toast';
+import { RebalanceToast, type PlanWord } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
@@ -61,6 +61,12 @@ const PlanCalendar = dynamic(
     ssr: false,
     loading: () => <Skeleton className="h-96" />,
   },
+);
+
+/** Fetched when somebody corrects the words of a recipe a swap made, with the form that writes them. */
+const RecipeTextDialog = dynamic(
+  () => import('./recipe-text-dialog').then((dialog) => dialog.RecipeTextDialog),
+  { ssr: false },
 );
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
@@ -137,6 +143,7 @@ function MealPlansContent() {
   const [startDate, setStartDate] = useState(() => localDate());
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
+  const [cookAhead, setCookAhead] = useState(false);
   // What this plan is made for where it differs from the profile: empty means "as the profile has it".
   const [diet, setDiet] = useState<DietType | ''>('');
   const [mealCount, setMealCount] = useState<number | ''>('');
@@ -172,6 +179,24 @@ function MealPlansContent() {
     enabled: Boolean(activeId),
   });
   const formOpen = formAsked ?? (plans.data?.total === 0 && !status && !from && !to);
+  // The days the new plan would hold: what is said of them is worked out from them, or asked once the form is open.
+  const newDays = durationDays >= 1 && durationDays <= 28 ? planDates(startDate, durationDays) : [];
+  const newPlainDays = newDays.filter((day) => advanced.days[day]?.dayKind !== 'skip');
+  const cannotPair =
+    cookAhead &&
+    newDays.length > 0 &&
+    (advanced.maxRepeats === 1 ||
+      !newPlainDays.some(
+        (day, index) => index > 0 && dayAfter(newPlainDays[index - 1]!, 1) === day,
+      ));
+  const overThem = useQuery({
+    queryKey: ['meal-plans', activeId, 'over', newDays[0], newDays.at(-1)],
+    queryFn: () =>
+      api.get<MealPlanPage>(
+        `/meal-plans?${new URLSearchParams({ profileId: activeId!, from: newDays[0]!, to: newDays.at(-1)! })}`,
+      ),
+    enabled: Boolean(activeId) && formOpen && newDays.length > 0,
+  });
   const opened = useQuery({
     queryKey: ['meal-plan', openPlan],
     queryFn: () => api.get<MealPlan>(`/meal-plans/${openPlan}`),
@@ -286,6 +311,7 @@ function MealPlansContent() {
     onSuccess: (_plan: MealPlan, v: Reroll) => {
       setRefused(null);
       setInTheWay(null);
+      setRebalanceToast(null);
       void invalidateEdited(v.planId);
     },
     onError: (e: unknown, v: Reroll) => {
@@ -304,17 +330,48 @@ function MealPlansContent() {
   const regenerate = useMutation(reroll(t('errRecalculate')));
   const regenerateDay = useMutation(reroll(t('errChangeDay')));
 
-  // Rebalance toast: surfaced after any edit that changed a day's totals.
-  const [rebalanceToast, setRebalanceToast] = useState<{
-    planId: string;
-    rebalance: NonNullable<RebalanceResult['rebalance']>;
-  } | null>(null);
-  const showRebalance = (planId: string, res: RebalanceResult) => {
+  // What the last edit came to, surfaced after a swap and after anything that resized a day. It goes with the next change.
+  const [rebalanceToast, setRebalanceToast] = useState<PlanWord | null>(null);
+  // The recipe a swap made whose words are being corrected, and the plan that holds it.
+  const [rewording, setRewording] = useState<{ planId: string; recipeId: string } | null>(null);
+  const showRebalance = (
+    planId: string,
+    res: RebalanceResult,
+    swapped: string | null = null,
+    date: string | null = null,
+    reword: string | null = null,
+  ) => {
     void invalidateEdited(planId);
-    if (res.rebalance && res.rebalance.changes.length > 0) {
-      setRebalanceToast({ planId, rebalance: res.rebalance });
-    }
+    const resized = res.rebalance && res.rebalance.changes.length > 0;
+    const about = swapped ?? res.rebalance?.changes[0]?.mealId;
+    setRebalanceToast(
+      swapped || resized
+        ? {
+            planId,
+            revision: res.plan.revision,
+            swap: swapped !== null,
+            day:
+              res.plan.days.find(
+                (day) => day.date === date || day.meals.some((meal) => meal.id === about),
+              ) ?? null,
+            rebalance: res.rebalance,
+            reword,
+          }
+        : null,
+    );
   };
+  const undoSwap = useMutation({
+    mutationFn: (v: { planId: string; revision: number }) =>
+      api.post<RebalanceResult>('/meal-plans/swap-meal/undo', v),
+    onSuccess: (_res, v) => {
+      setRebalanceToast(null);
+      void invalidateEdited(v.planId);
+    },
+    onError: (e: unknown) => {
+      setRebalanceToast(null);
+      fail(t('errUndoSwap'))(e);
+    },
+  });
 
   // A recipe that was offered in the place of a meal, with what the swap
   // would do: nothing is written until the user takes it.
@@ -351,7 +408,7 @@ function MealPlansContent() {
     },
   });
   const takeOffer = useMutation({
-    mutationFn: ({ asked, preview }: SwapOffer) =>
+    mutationFn: ({ asked, preview, together }: SwapOffer & { together: boolean }) =>
       api.post<RebalanceResult>('/meal-plans/swap-meal', {
         planId: asked.planId,
         plannedMealId: asked.plannedMealId,
@@ -360,12 +417,13 @@ function MealPlansContent() {
         // What a model picked is held to what the engine's own pick is.
         strategy: asked.strategy === 'ai' ? 'random' : asked.strategy,
         allowOffDiet: asked.allowOffDiet ?? false,
+        ...(together ? { together: true } : {}),
         // The note that came with a model's own pick: the meal then says who chose its recipe.
         ...(preview.pick ? { pick: preview.pick } : {}),
       }),
     onSuccess: (res, { asked }) => {
       setOffer(null);
-      showRebalance(asked.planId, res);
+      showRebalance(asked.planId, res, asked.plannedMealId);
     },
     onError: (e: unknown) => {
       // The offer was for the plan as it was: it does not outlive a refusal.
@@ -382,7 +440,7 @@ function MealPlansContent() {
   const addCustomMeal = useMutation({
     mutationFn: (v: { planId: string; date: string; body: AddCustomMealRequest }) =>
       api.post<RebalanceResult>(`/meal-plans/${v.planId}/days/${v.date}/custom-meal`, v.body),
-    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onSuccess: (res, v) => showRebalance(v.planId, res, null, v.date),
     onError: fail(t('errCustomMeal')),
   });
 
@@ -449,6 +507,7 @@ function MealPlansContent() {
     regenerateDay.isPending ||
     offerSwap.isPending ||
     takeOffer.isPending ||
+    undoSwap.isPending ||
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
     removeMeal.isPending ||
@@ -470,7 +529,7 @@ function MealPlansContent() {
       ...(diet ? { dietType: diet } : {}),
       ...(mealCount ? { mealCount } : {}),
       ...(calorieTarget.trim() ? { calorieTargetOverride: Number(calorieTarget) } : {}),
-      mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
+      mealPrepFriendly: cookAhead,
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: f.get('respectInventory') === 'on',
@@ -584,6 +643,8 @@ function MealPlansContent() {
                     type="checkbox"
                     className="h-4 w-4"
                     aria-describedby="meal-prep-hint"
+                    checked={cookAhead}
+                    onChange={(e) => setCookAhead(e.target.checked)}
                   />
                   {t('mealPrepFriendly')}
                 </label>
@@ -592,6 +653,10 @@ function MealPlansContent() {
                 </p>
               </div>
             </div>
+            {cannotPair && <p className="text-xs text-warning">{t('prepCannotPair')}</p>}
+            {(overThem.data?.total ?? 0) > 0 && (
+              <p className="text-xs text-warning">{t('overlapNote')}</p>
+            )}
             {active && (
               <div className="space-y-1">
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -865,15 +930,20 @@ function MealPlansContent() {
               }
               aiOffNote={aiOffNote}
               offer={offer?.asked.planId === plan.id ? offer : null}
-              onTakeOffer={() => offer && takeOffer.mutate(offer)}
+              onTakeOffer={(together) => offer && takeOffer.mutate({ ...offer, together })}
               onAnotherOffer={() => offer && askFor(offer.asked, offer.seen)}
               onCancelOffer={() => setOffer(null)}
               onToggleEaten={(mealId, eaten) => {
                 setError(null);
                 toggleEaten.mutate({ planId: plan.id, mealId, eaten });
               }}
-              onIngredientSwapped={(res) => {
-                showRebalance(plan.id, res);
+              onIngredientSwapped={(res, plannedMealId) => {
+                // A recipe whose text no model worded holds the catalogue's name as it is: its words can be corrected.
+                const worded = res.aiMeta !== null && res.aiMeta.fallbackReason === null;
+                const made = res.plan.days
+                  .flatMap((day) => day.meals)
+                  .find((meal) => meal.id === plannedMealId)?.recipe?.id;
+                showRebalance(plan.id, res, plannedMealId, null, worded ? null : (made ?? null));
                 // Set only when a rewording by a model was asked for: say so
                 // when the plain replacement stands instead.
                 if (res.aiMeta)
@@ -899,8 +969,11 @@ function MealPlansContent() {
                 setNotice(null);
                 rebalance.mutate({ planId: plan.id, scope: 'day', date });
               }}
-              onSwapped={(res) => showRebalance(plan.id, res)}
-              onChanged={() => void invalidateEdited(plan.id)}
+              onSwapped={(res, plannedMealId) => showRebalance(plan.id, res, plannedMealId)}
+              onChanged={() => {
+                setRebalanceToast(null);
+                void invalidateEdited(plan.id);
+              }}
               favorites={liked}
               tMeal={tMeal}
             />
@@ -1038,20 +1111,41 @@ function MealPlansContent() {
 
       {rebalanceToast && (
         <RebalanceToast
-          rebalance={rebalanceToast.rebalance}
-          busy={rebalance.isPending}
+          key={rebalanceToast.revision}
+          word={rebalanceToast}
+          busy={rebalance.isPending || undoSwap.isPending}
           onUndo={() =>
             rebalance.mutate({
               planId: rebalanceToast.planId,
               scope: 'day',
-              restore: rebalanceToast.rebalance.changes.map((c) => ({
+              restore: (rebalanceToast.rebalance?.changes ?? []).map((c) => ({
                 mealId: c.mealId,
                 scale: c.before,
               })),
             })
           }
+          onUndoSwap={() =>
+            undoSwap.mutate({
+              planId: rebalanceToast.planId,
+              revision: rebalanceToast.revision,
+            })
+          }
           onRebalanceRest={() => rebalance.mutate({ planId: rebalanceToast.planId, scope: 'plan' })}
+          onReword={(recipeId) => {
+            setRewording({ planId: rebalanceToast.planId, recipeId });
+            setRebalanceToast(null);
+          }}
           onDismiss={() => setRebalanceToast(null)}
+        />
+      )}
+      {rewording && (
+        <RecipeTextDialog
+          recipeId={rewording.recipeId}
+          onClose={() => setRewording(null)}
+          onSaved={() => {
+            void invalidateEdited(rewording.planId);
+            setRewording(null);
+          }}
         />
       )}
     </div>

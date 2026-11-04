@@ -2,11 +2,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  rebalanceDay,
   rebalanceDays,
+  sizeAssignments,
+  sizeDay,
   type RebalanceMeal,
   type DayToRebalance,
 } from './rebalance.js';
+import type { OptimizerAssignment, OptimizerDay, OptimizerRecipe } from './optimizer.js';
 
 function meal(
   id: string,
@@ -19,23 +21,27 @@ function meal(
     servings: opts.servings ?? 1,
     quantityScale: opts.quantityScale ?? 1,
     locked: opts.locked ?? false,
+    ...(opts.macros ? { macros: opts.macros } : {}),
   };
 }
+
+/** A day that aims at nothing in particular: only its energy counts. */
+const NO_AIM = { protein: 0, fat: 0, carbs: 0 };
 
 const dayKcal = (meals: RebalanceMeal[], scales: Map<string, number>) =>
   meals.reduce((s, m) => s + m.calories * m.servings * (scales.get(m.id) ?? m.quantityScale), 0);
 
-describe('rebalanceDay (quantity rebalancer)', () => {
-  it('leaves a day already inside the ±10% window untouched', () => {
+describe('sizing the meals of a day', () => {
+  it('brings a day inside the ±10% window to its target as well', () => {
     const meals = [meal('a', 700), meal('b', 700), meal('c', 650)]; // 2050 vs 2000 → 2.5%
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('in-window');
-    expect([...scales.values()]).toEqual([1, 1, 1]); // no churn
+    expect(dayKcal(meals, scales)).toBeCloseTo(2000, 5);
   });
 
   it('scales unlocked meals down to pull an over-target day back into the window', () => {
     const meals = [meal('a', 1000), meal('b', 1000), meal('c', 1000)]; // 3000 vs 2000 → +50%
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('in-window');
     expect(dayKcal(meals, scales)).toBeCloseTo(2000, 5);
     // uniform factor preserves relative proportions
@@ -45,14 +51,14 @@ describe('rebalanceDay (quantity rebalancer)', () => {
 
   it('scales unlocked meals up to close a deficit (the ±20% case)', () => {
     const meals = [meal('a', 800), meal('b', 800)]; // 1600 vs 2000 → -20%
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('in-window');
     expect(dayKcal(meals, scales)).toBeCloseTo(2000, 5);
   });
 
   it('pins eaten / custom meals and only scales the rest', () => {
     const meals = [meal('eaten', 1300, { locked: true }), meal('flex', 1000)]; // 2300 vs 2000 → +15% (outside): eaten fixed at 1300, flex must become 700
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('in-window');
     expect(scales.get('eaten')).toBe(1); // untouched
     expect(scales.get('flex')).toBeCloseTo(0.7, 5);
@@ -63,7 +69,7 @@ describe('rebalanceDay (quantity rebalancer)', () => {
     // A 2600 kcal locked custom meal already overshoots a 2000 target; the lone
     // flex meal can only scale down to SERVING_MIN (0.5), never below zero.
     const meals = [meal('huge', 2600, { locked: true }), meal('flex', 600)];
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('best-effort');
     expect(scales.get('flex')).toBeCloseTo(0.5, 5); // clamped to the floor
     expect(dayKcal(meals, scales)).toBeGreaterThan(2000 * 1.1);
@@ -71,7 +77,7 @@ describe('rebalanceDay (quantity rebalancer)', () => {
 
   it('is a no-op (best-effort) when every meal on the day is locked', () => {
     const meals = [meal('a', 1500, { locked: true }), meal('b', 1500, { locked: true })];
-    const { scales, feasibility } = rebalanceDay(meals, 2000);
+    const { scales, feasibility } = sizeDay(meals, 2000, NO_AIM);
     expect(feasibility).toBe('best-effort');
     expect([...scales.values()]).toEqual([1, 1]);
   });
@@ -84,12 +90,211 @@ describe('rebalanceDay (quantity rebalancer)', () => {
     // Max achievable = both at 3 servings = 1500 + 1500 = 3000. A 3500 target is
     // out of reach: both clamp to the 3-serving ceiling, landing best-effort.
     const target = 3500;
-    const { scales, feasibility } = rebalanceDay(meals, target);
+    const { scales, feasibility } = sizeDay(meals, target, NO_AIM);
     const bigServings = 2 * scales.get('big')!;
     const smallServings = 0.5 * scales.get('small')!;
     expect(bigServings).toBeCloseTo(3, 5); // clamped to the ceiling
     expect(smallServings).toBeCloseTo(3, 5);
     expect(feasibility).toBe('best-effort'); // can't reach 3500 within the band
+  });
+});
+
+describe('sizing the meals of a day for its macros', () => {
+  // One meal nearly all protein, one nearly all carbohydrate, one nearly all fat, each 600 kcal a serving.
+  const lean = { protein: 130, fat: 3, carbs: 5 };
+  const starch = { protein: 10, fat: 2, carbs: 135 };
+  const rich = { protein: 3, fat: 64, carbs: 3 };
+  const day = () => [
+    meal('lean', 600, { macros: lean }),
+    meal('starch', 600, { macros: starch }),
+    meal('rich', 600, { macros: rich }),
+  ];
+  const held = (meals: RebalanceMeal[], scales: Map<string, number>) =>
+    meals.reduce(
+      (sum, one) => {
+        const amount = one.servings * scales.get(one.id)!;
+        return {
+          protein: sum.protein + one.macros!.protein * amount,
+          fat: sum.fat + one.macros!.fat * amount,
+          carbs: sum.carbs + one.macros!.carbs * amount,
+        };
+      },
+      { protein: 0, fat: 0, carbs: 0 },
+    );
+  // What the day comes to with every meal at the same portion, and a target that wants more protein.
+  const aim = { protein: 190, fat: 55, carbs: 130 };
+  const away = (macros: { protein: number; fat: number; carbs: number }) =>
+    4 * Math.abs(macros.protein - aim.protein) +
+    9 * Math.abs(macros.fat - aim.fat) +
+    4 * Math.abs(macros.carbs - aim.carbs);
+
+  it('gives the meal that holds what the day lacks more of the same energy', () => {
+    const meals = day();
+    const even = sizeDay(
+      meals.map(({ macros: _macros, ...rest }) => rest),
+      1800,
+      aim,
+    ).scales;
+    const { scales } = sizeDay(meals, 1800, aim);
+
+    expect(scales.get('lean')!).toBeGreaterThan(even.get('lean')!);
+    expect(away(held(meals, scales))).toBeLessThan(away(held(meals, even)) - 10);
+    expect(dayKcal(meals, scales)).toBeCloseTo(1800, 5);
+  });
+
+  it('moves no meal more than a quarter from the portion that shares the day evenly', () => {
+    const meals = day();
+    const { scales } = sizeDay(meals, 1800, { protein: 400, fat: 0, carbs: 0 });
+
+    for (const one of meals) {
+      expect(scales.get(one.id)!).toBeGreaterThanOrEqual(0.75 - 1e-9);
+      expect(scales.get(one.id)!).toBeLessThanOrEqual(1.25 + 1e-9);
+    }
+  });
+
+  it('counts what a pinned meal holds, and leaves it alone', () => {
+    const meals = [
+      meal('eaten', 600, { locked: true, macros: rich, quantityScale: 1 }),
+      meal('lean', 600, { macros: lean }),
+      meal('starch', 600, { macros: starch }),
+    ];
+    const { scales } = sizeDay(meals, 1800, { protein: 200, fat: 64, carbs: 100 });
+
+    expect(scales.get('eaten')).toBe(1);
+    expect(scales.get('lean')!).toBeGreaterThan(scales.get('starch')!);
+    expect(dayKcal(meals, scales)).toBeCloseTo(1800, 5);
+  });
+
+  it('stays inside the bounds of a serving', () => {
+    const meals = [
+      meal('lean', 600, { macros: lean, servings: 2.9 }),
+      meal('starch', 600, { macros: starch, servings: 0.55 }),
+    ];
+    const { scales } = sizeDay(meals, 2070, { protein: 900, fat: 0, carbs: 0 });
+
+    expect(2.9 * scales.get('lean')!).toBeLessThanOrEqual(3 + 1e-9);
+    expect(0.55 * scales.get('starch')!).toBeGreaterThanOrEqual(0.5 - 1e-9);
+  });
+
+  it('sizes a day the same however often it is asked, whatever portions it had', () => {
+    const meals = day();
+    const first = sizeDay(meals, 1800, aim).scales;
+    const again = sizeDay(
+      meals.map((one) => ({ ...one, quantityScale: first.get(one.id)! })),
+      1800,
+      aim,
+    ).scales;
+
+    for (const one of meals) expect(again.get(one.id)!).toBeCloseTo(first.get(one.id)!, 9);
+  });
+
+  it('leaves a day on its target as it is where its macros have nothing much to gain', () => {
+    const meals = [
+      meal('a', 600, { macros: lean, quantityScale: 1.01 }),
+      meal('b', 600, { macros: lean, quantityScale: 0.98 }),
+    ];
+    const { scales } = sizeDay(meals, 1200, { protein: 260, fat: 6, carbs: 10 });
+
+    expect(scales.get('a')).toBe(1.01);
+    expect(scales.get('b')).toBe(0.98);
+  });
+
+  it('shares a day evenly where nothing would bring it nearer', () => {
+    const meals = [meal('a', 600, { macros: lean }), meal('b', 600, { macros: lean })];
+    const { scales } = sizeDay(meals, 1200, { protein: 260, fat: 6, carbs: 10 });
+
+    expect(scales.get('a')).toBeCloseTo(1, 9);
+    expect(scales.get('b')).toBeCloseTo(1, 9);
+  });
+
+  it('leaves one meal to what is left of the target', () => {
+    const meals = [meal('only', 600, { macros: lean })];
+    const { scales } = sizeDay(meals, 900, aim);
+
+    expect(scales.get('only')).toBeCloseTo(1.5, 9);
+  });
+});
+
+describe('sizing what a run of the planner placed', () => {
+  const recipe = (id: string, per: { kcal: number; protein: number; fat: number; carbs: number }) =>
+    ({
+      id,
+      caloriesPerServing: per.kcal,
+      proteinPerServing: per.protein,
+      fatPerServing: per.fat,
+      carbsPerServing: per.carbs,
+    }) as OptimizerRecipe;
+  const recipes = [
+    recipe('lean', { kcal: 600, protein: 130, fat: 3, carbs: 5 }),
+    recipe('starch', { kcal: 600, protein: 10, fat: 2, carbs: 135 }),
+  ];
+  const split = { protein: 0.5, fat: 0.05, carbs: 0.45 };
+  const placed: OptimizerAssignment[] = [
+    { dayIndex: 0, slot: 'lunch', recipeId: 'lean', servings: 1.75 },
+    { dayIndex: 0, slot: 'dinner', recipeId: 'starch', servings: 1.75 },
+  ];
+  const day = (over: Partial<OptimizerDay> = {}): OptimizerDay => ({
+    mealSlots: ['lunch', 'dinner'],
+    dailyCalorieTarget: 2200,
+    ...over,
+  });
+
+  it('brings the day to its target with a factor of two places, the servings as they were placed', () => {
+    const sized = sizeAssignments([day()], recipes, placed, split);
+
+    const kcal = sized.reduce((sum, meal) => sum + 600 * meal.servings * meal.quantityScale, 0);
+    expect(Math.abs(kcal - 2200)).toBeLessThanOrEqual(12);
+    expect(sized.map((meal) => meal.servings)).toEqual([1.75, 1.75]);
+    for (const meal of sized)
+      expect(Math.round(meal.quantityScale * 100) / 100).toBe(meal.quantityScale);
+  });
+
+  it('leaves a day it sized as it is when the day is sized again', () => {
+    const sized = sizeAssignments([day()], recipes, placed, split);
+    const meals = sized.map((one) => {
+      const of = recipes.find((recipe) => recipe.id === one.recipeId)!;
+      return meal(one.slot, of.caloriesPerServing, {
+        servings: one.servings,
+        quantityScale: one.quantityScale,
+        macros: { protein: of.proteinPerServing, fat: of.fatPerServing, carbs: of.carbsPerServing },
+      });
+    });
+    const { scales } = sizeDay(meals, 2200, {
+      protein: (2200 * split.protein) / 4,
+      fat: (2200 * split.fat) / 9,
+      carbs: (2200 * split.carbs) / 4,
+    });
+
+    for (const one of sized) expect(scales.get(one.slot)).toBe(one.quantityScale);
+  });
+
+  it('counts the meals that stay on the day', () => {
+    const sized = sizeAssignments(
+      [
+        day({
+          kept: [{ calories: 1000, servings: 1, macros: { protein: 40, fat: 40, carbs: 100 } }],
+        }),
+      ],
+      recipes,
+      placed,
+      split,
+    );
+
+    const kcal = sized.reduce((sum, meal) => sum + 600 * meal.servings * meal.quantityScale, 0);
+    expect(Math.abs(kcal - 1200)).toBeLessThanOrEqual(12);
+  });
+
+  it('sizes each day of the plan by its own target and meals', () => {
+    const sized = sizeAssignments(
+      [day(), day()],
+      recipes,
+      [...placed, { dayIndex: 1, slot: 'lunch', recipeId: 'lean', servings: 3 }],
+      split,
+    );
+
+    expect(sized).toHaveLength(3);
+    expect(sized[2]!.dayIndex).toBe(1);
+    expect(sized[2]!.servings * sized[2]!.quantityScale).toBeLessThanOrEqual(3);
   });
 });
 

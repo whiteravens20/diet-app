@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Plus, Trash } from 'lucide-react';
+import { Plus, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -24,6 +24,7 @@ import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
+import { StepsField } from '@/components/steps-field';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
@@ -222,12 +223,6 @@ export function OwnRecipeForm({
   };
   const changeLine = (key: number, change: Partial<Line>) =>
     setLines((now) => now.map((line) => (line.key === key ? { ...line, ...change } : line)));
-  const moveStep = (index: number, by: -1 | 1) =>
-    setSteps((now) => {
-      const next = [...now];
-      [next[index], next[index + by]] = [next[index + by]!, next[index]!];
-      return next;
-    });
 
   /** Where a problem the API named is, in the words of the form. */
   const placeOf = (path: string): string => {
@@ -466,68 +461,7 @@ export function OwnRecipeForm({
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">{tDetail('steps')}</legend>
         <p className="text-xs text-muted-foreground">{t('allergenHint')}</p>
-        <ol className="space-y-3">
-          {steps.map((step, index) => (
-            <li key={index} className="flex items-start gap-2">
-              <textarea
-                value={step}
-                onChange={(e) =>
-                  setSteps((now) => now.map((s, i) => (i === index ? e.target.value : s)))
-                }
-                maxLength={RECIPE_LIMITS.step}
-                rows={2}
-                aria-label={t('stepNumber', { n: index + 1 })}
-                className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex flex-col">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={index === 0}
-                  onClick={() => moveStep(index, -1)}
-                  aria-label={t('stepUp', { n: index + 1 })}
-                  title={t('stepUp', { n: index + 1 })}
-                >
-                  <ArrowUp size={14} aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={index === steps.length - 1}
-                  onClick={() => moveStep(index, 1)}
-                  aria-label={t('stepDown', { n: index + 1 })}
-                  title={t('stepDown', { n: index + 1 })}
-                >
-                  <ArrowDown size={14} aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={steps.length === 1}
-                  onClick={() => setSteps((now) => now.filter((_, i) => i !== index))}
-                  aria-label={t('removeStep', { n: index + 1 })}
-                  title={t('removeStep', { n: index + 1 })}
-                >
-                  <Trash size={14} aria-hidden />
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ol>
-        {steps.length < RECIPE_LIMITS.steps && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setSteps((now) => [...now, ''])}
-          >
-            <Plus size={14} aria-hidden />
-            <span className="ml-1">{t('addStep')}</span>
-          </Button>
-        )}
+        <StepsField steps={steps} onChange={setSteps} />
       </fieldset>
 
       <section

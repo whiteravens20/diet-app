@@ -25,6 +25,7 @@ export function RecipeModal({
   recipeId,
   amounts,
   picked = null,
+  portion,
   onClose,
 }: {
   recipeId: string | null;
@@ -33,6 +34,8 @@ export function RecipeModal({
   amounts?: PlannedIngredient[];
   /** Set when a model chose this recipe for the meal the modal was opened from: the reason it gave, if any. */
   picked?: { reason: string | null } | null;
+  /** How many servings those lines come to, and whether they are for the whole of a cooking. */
+  portion?: { servings: number; whole: boolean };
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -49,7 +52,17 @@ export function RecipeModal({
     <Dialog open={recipeId !== null} onClose={onClose} label={t('title')}>
       <div className="flex items-center justify-end gap-1 border-b border-border px-3 py-2">
         {recipe.data && (
-          <Link href={`/recipes/${recipe.data.id}`} onClick={onClose}>
+          <Link
+            href={
+              portion
+                ? `/recipes/${recipe.data.id}?${new URLSearchParams({
+                    portion: String(portion.servings),
+                    ...(portion.whole ? { whole: '1' } : {}),
+                  })}`
+                : `/recipes/${recipe.data.id}`
+            }
+            onClick={onClose}
+          >
             <Button type="button" variant="ghost" size="sm" title={t('openPage')}>
               <ExternalLink className="h-4 w-4" aria-hidden />
               <span className="ml-1">{t('openPage')}</span>
@@ -88,6 +101,14 @@ export function RecipeModal({
         )}
         {recipe.data && picked && (
           <AiMark part={{ kind: 'picked', reason: picked.reason }} spelledOut className="mb-4" />
+        )}
+        {recipe.data && portion && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            {t(portion.whole ? 'portionWhole' : 'portionMeal', {
+              recipe: recipe.data.servings,
+              mine: portion.servings,
+            })}
+          </p>
         )}
         {recipe.data && <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition />}
       </div>
