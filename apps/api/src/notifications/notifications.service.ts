@@ -86,6 +86,29 @@ export class NotificationsService {
   }
 
   /**
+   * Tell an account something that belongs to no profile of it. A notification
+   * belongs to a profile, so it goes to the oldest; an account without a profile
+   * is told nothing, and sees it on the page of what it concerns.
+   */
+  async notifyAccount(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    type: NotificationType,
+    payload: Prisma.InputJsonValue,
+    now: Date,
+  ): Promise<void> {
+    const oldest = await tx.profile.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (oldest)
+      await tx.notification.create({
+        data: { profileId: oldest.id, type, payload, createdAt: now },
+      });
+  }
+
+  /**
    * Remove the notifications nobody will look at again: read more than sixty
    * days ago, or unread for a year. Returns how many were removed.
    */

@@ -23,6 +23,7 @@ const ACCOUNT_PAGES = [
   '/meal-plans',
   '/shopping-lists',
   '/inventory',
+  '/products',
   '/settings',
 ];
 

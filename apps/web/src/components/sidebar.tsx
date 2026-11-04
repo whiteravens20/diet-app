@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
+  Barcode,
   Calculator,
   CalendarRange,
   LayoutDashboard,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { session } from '@/lib/session';
+import { useConfig } from '@/lib/use-config';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -40,6 +42,7 @@ const NAV = [
   { href: '/favorites', labelKey: 'favorites', icon: Star },
   { href: '/shopping-lists', labelKey: 'shoppingLists', icon: ShoppingBasket },
   { href: '/inventory', labelKey: 'inventory', icon: Package },
+  { href: '/products', labelKey: 'products', icon: Barcode },
   { href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const;
 
@@ -55,6 +58,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const productsOffered = useConfig().data?.products.offered === true;
   const [drawer, setDrawer] = useState(false);
 
   // The drawer belongs to the narrow layout. A screen that grows past it (a
@@ -77,7 +81,7 @@ export function Sidebar() {
         <AiChip />
       </div>
       <nav className="mt-3 flex flex-1 flex-col gap-1" aria-label={tNav('menu')}>
-        {NAV.map((item) => {
+        {NAV.filter((item) => item.href !== '/products' || productsOffered).map((item) => {
           const active = pathname.startsWith(item.href);
           return (
             <Link

@@ -57,6 +57,20 @@ interface AccessHolder {
   operatorAiApprovedAt: Date | null;
 }
 
+/**
+ * Whether confirming an address lets its account use the instance's AI: the
+ * one thing a confirmation unlocks, where the instance lends a provider to
+ * confirmed accounts and allows them calls.
+ */
+export function confirmationUnlocksAi(config: ConfigService<Env, true>): boolean {
+  return (
+    config.get('AI_DEFAULT_PROVIDER', { infer: true }) !== undefined &&
+    config.get('AI_ADMIN_ACCESS', { infer: true }) === 'confirmed' &&
+    config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }) > 0 &&
+    config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }) > 0
+  );
+}
+
 /** Whether `account` may use the operator's provider under `level`, or what it lacks for it. */
 export function adminAccessOf(level: OperatorAiAccess, account: AccessHolder): AdminAiAccess {
   if (level === 'confirmed' && !account.emailVerified) return 'email_unconfirmed';

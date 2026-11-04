@@ -6,10 +6,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 import {
   fitsDiet,
   Locale as LocaleEnum,
+  PlanOptions,
   SubstitutionViolation,
   type AiGenerationMeta,
   type AiSuggestIngredientRequest,
@@ -17,6 +19,7 @@ import {
   type Locale,
   type MovedNutrient,
   type Nutrition,
+  type PlanRelaxation,
   type PlannedIngredient,
   type SubstituteSuggestion,
   type SwapIngredientRequest,
@@ -43,8 +46,15 @@ import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
 import { toPlannedIngredients } from '../recipes/recipes.service.js';
+import type { Env } from '../config/env.js';
 import { assertMayEnter, pickIndex, restrictionsFor, violations } from './eligibility.js';
-import { MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  MealPlansService,
+  mayCarry,
+  type CookedMeal,
+} from './meal-plans.service.js';
+import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import {
   rewriteSwapModeA,
@@ -75,6 +85,7 @@ export class IngredientSwapService {
     private readonly personalRecipes: PersonalRecipesService,
     private readonly plans: MealPlansService,
     private readonly picks: ModelPickService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /** What a substitution would do to the meal, for the user to decide on. Nothing is written. */
@@ -82,8 +93,9 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: SwapIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<SwapPreview> {
-    const s = await this.substitution(userId, req);
+    const s = await this.substitution(userId, req, clientToday);
     // The servings of the recipe that are on the plate.
     const portion = s.meal.servings * s.meal.quantityScale;
     const held = (perServing: Nutrition): Nutrition => ({
@@ -123,6 +135,8 @@ export class IngredientSwapService {
       merged: s.merged,
       violations: s.violations,
       moved: s.moved,
+      outsideLimits: await this.outsideLimits(s),
+      cooking: cookingChange(s.cooking, s.today),
       valid: s.violations.length === 0,
     };
   }
@@ -136,8 +150,9 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: SwapIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<SwapIngredientResponse> {
-    const s = await this.substitution(userId, req);
+    const s = await this.substitution(userId, req, clientToday);
     const { meal, recipe, facts, lines, restrictions } = s;
     // A substitute a model suggested is taken with the note that came with it, and with no other.
     const picked = this.picks.taken(userId, req.pick, {
@@ -202,15 +217,36 @@ export class IngredientSwapService {
       restrictions.avoidedRecipeIds,
     );
 
+    const together = req.together ? s.cooking.filter((other) => mayCarry(other, s.today)) : [];
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
-      await tx.plannedMeal.update({
-        where: { id: req.plannedMealId },
-        // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+      await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
+        meal.dayId,
+        ...together.map((other) => other.dayId),
+      ]);
+      // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+      await tx.plannedMeal.updateMany({
+        where: { id: { in: [req.plannedMealId, ...together.map((other) => other.id)] } },
         data: { recipeId: variantId, modelPicked: false, modelReason: null },
       });
+      // What the recipe is outside of the meals say for as long as they hold it.
+      await this.plans.noteOutsideLimits(tx, req.planId, [
+        req.plannedMealId,
+        ...together.map((other) => other.id),
+      ]);
       // The substitution changed the meal's macros, so the day total moved —
-      // run the same rebalance pipeline as every other edit.
-      return this.plans.rebalanceDayInternal(meal.dayId, tx);
+      // run the same rebalance pipeline as every other edit, on each day it changed.
+      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, s.today);
+      const others = await Promise.all(
+        [...new Set(together.map((other) => other.dayId))]
+          .filter((dayId) => dayId !== meal.dayId)
+          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, s.today)),
+      );
+      return (
+        summary && {
+          ...summary,
+          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+        }
+      );
     });
     return {
       ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
@@ -229,9 +265,10 @@ export class IngredientSwapService {
     locale: Locale,
     planId: string,
     plannedMealId: string,
+    clientToday: string | null = null,
     only?: string,
   ): Promise<SubstituteSuggestion[]> {
-    const subject = await this.subject(userId, planId, plannedMealId);
+    const subject = await this.subject(userId, planId, plannedMealId, clientToday);
     const sources = [
       ...new Set(subject.recipe.ingredients.map((line) => line.ingredientId)),
     ].filter((source) => only === undefined || source === only);
@@ -297,8 +334,9 @@ export class IngredientSwapService {
     plannedMealId: string,
     fromIngredientId: string,
     toIngredientId: string,
+    clientToday: string | null = null,
   ): Promise<number | null> {
-    const subject = await this.subject(userId, planId, plannedMealId);
+    const subject = await this.subject(userId, planId, plannedMealId, clientToday);
     if (
       fromIngredientId === toIngredientId ||
       !subject.recipe.ingredients.some((line) => line.ingredientId === fromIngredientId)
@@ -326,10 +364,16 @@ export class IngredientSwapService {
   }
 
   /** The planned meal a substitution is made in: its recipe with every line, and what its plan's profile rules out. */
-  private async subject(userId: string, planId: string, plannedMealId: string) {
+  private async subject(
+    userId: string,
+    planId: string,
+    plannedMealId: string,
+    clientToday: string | null,
+  ) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
+    const today = clientToday ?? this.plans.today();
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: swappableRecipeOf(meal) },
+      where: { id: swappableRecipeOf(meal, today) },
       include: {
         ingredients: {
           orderBy: { position: 'asc' },
@@ -338,11 +382,14 @@ export class IngredientSwapService {
         translations: true,
       },
     });
+    const options = PlanOptions.parse(meal.day.plan.options);
     return {
       userId,
       meal,
       recipe,
       restrictions: await restrictionsFor(this.prisma, meal.day.plan),
+      today,
+      cooking: (await this.plans.cookedWith(this.prisma, planId, options)).get(meal.id) ?? [],
     };
   }
 
@@ -351,8 +398,12 @@ export class IngredientSwapService {
    * serving of it holds, and what stands in its way. The preview shows this
    * and the apply writes it, so the two cannot say different things.
    */
-  private async substitution(userId: string, req: SwapIngredientRequest) {
-    const subject = await this.subject(userId, req.planId, req.plannedMealId);
+  private async substitution(
+    userId: string,
+    req: SwapIngredientRequest,
+    clientToday: string | null,
+  ) {
+    const subject = await this.subject(userId, req.planId, req.plannedMealId, clientToday);
     if (req.fromIngredientId === req.toIngredientId) {
       throw new BadRequestException({
         error: 'SAME_INGREDIENT',
@@ -395,7 +446,14 @@ export class IngredientSwapService {
    * on. Throws `UnitConversionError` for a line that cannot be converted.
    */
   private workOut(
-    { userId, meal, recipe, restrictions }: Awaited<ReturnType<IngredientSwapService['subject']>>,
+    {
+      userId,
+      meal,
+      recipe,
+      restrictions,
+      today,
+      cooking,
+    }: Awaited<ReturnType<IngredientSwapService['subject']>>,
     fromIngredientId: string,
     to: (typeof recipe.ingredients)[number]['ingredient'],
   ) {
@@ -442,14 +500,12 @@ export class IngredientSwapService {
       ...recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const),
       [to.id, to] as const,
     ]);
-    const facts: RecipeFacts = recipeFacts(
-      lines.map((line) => ({
-        quantity: line.quantity,
-        unit: line.unit,
-        ingredient: ingredientOf.get(line.ingredientId)!,
-      })),
-      recipe.servings,
-    );
+    const heldLines = lines.map((line) => ({
+      quantity: line.quantity,
+      unit: line.unit,
+      ingredient: ingredientOf.get(line.ingredientId)!,
+    }));
+    const facts: RecipeFacts = recipeFacts(heldLines, recipe.servings);
     const before: Nutrition = {
       calories: recipe.caloriesPerServing,
       protein: recipe.proteinPerServing,
@@ -501,7 +557,48 @@ export class IngredientSwapService {
       candidate,
       waived,
       restrictions,
+      heldLines,
+      today,
+      cooking,
     };
+  }
+
+  /**
+   * The limits of the plan the recipe a substitution leaves is outside of on
+   * its meal: the kind of protein it counts as can change with it.
+   */
+  private async outsideLimits(s: {
+    meal: Awaited<ReturnType<IngredientSwapService['subject']>>['meal'];
+    recipe: Awaited<ReturnType<IngredientSwapService['subject']>>['recipe'];
+    heldLines: LimitedRecipe['ingredients'];
+    cooking: readonly CookedMeal[];
+    today: string;
+    variantId?: string;
+  }): Promise<PlanRelaxation[]> {
+    const { meal, recipe, heldLines, variantId } = s;
+    const together = s.cooking.filter((other) => mayCarry(other, s.today));
+    const [limits, day] = await Promise.all([
+      readPlanLimits(
+        this.prisma,
+        meal.day.plan,
+        this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+      ),
+      this.prisma.mealPlanDay.count({
+        where: { planId: meal.day.planId, date: { lt: meal.day.date } },
+      }),
+    ]);
+    return limits.breaks(
+      {
+        // What a substitution leaves is on no other meal of the plan until it is written.
+        id: variantId ?? 'the recipe it would leave',
+        prepMinutes: recipe.prepMinutes,
+        cookMinutes: recipe.cookMinutes,
+        ingredients: heldLines,
+      },
+      day,
+      new Set([meal.id, ...together.map((other) => other.id)]),
+      together.map((other) => other.dayIndex),
+    );
   }
 
   /**
@@ -630,9 +727,10 @@ export class IngredientSwapService {
     userId: string,
     locale: Locale,
     req: AiSuggestIngredientRequest,
+    clientToday: string | null = null,
   ): Promise<AiSuggestIngredientResponse> {
     const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const mealRecipeId = swappableRecipeOf(meal);
+    const mealRecipeId = swappableRecipeOf(meal, clientToday ?? this.plans.today());
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: mealRecipeId },
       include: { ingredients: { orderBy: { position: 'asc' } } },
@@ -728,6 +826,7 @@ export class IngredientSwapService {
         locale,
         req.planId,
         req.plannedMealId,
+        clientToday,
         req.fromIngredientId,
       );
       return (

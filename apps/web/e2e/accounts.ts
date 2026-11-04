@@ -2,7 +2,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 /** An account with something on every page: a profile, a plan, a shopping list, a pantry row, a weight, a marked recipe. */
 export interface Account {
@@ -40,6 +40,39 @@ async function made<T>(
   return (await res.json()) as T;
 }
 
+/** What an account is opened with. */
+interface SignUp {
+  email: string;
+  password: string;
+  displayName: string;
+}
+
+/**
+ * Open an account through the API, in `locale` where one is named. The projects of a run
+ * open accounts all at once, faster than the API takes them from one address: a refusal
+ * that asks for a moment's wait is waited out, for as long as it says, within the test's
+ * own time. Any other answer, a refusal for the day included, is the answer.
+ */
+export async function signUp(
+  request: APIRequestContext,
+  data: SignUp,
+  locale?: string,
+): Promise<APIResponse> {
+  for (;;) {
+    const answer = await request.post('/api/auth/register', {
+      data,
+      ...(locale ? { headers: { 'accept-language': locale } } : {}),
+    });
+    if (answer.status() !== 429) return answer;
+    const refusal = (await answer.json().catch(() => ({}))) as { error?: string };
+    if (refusal.error !== 'RATE_LIMITED') return answer;
+    const seconds = Number(answer.headers()['retry-after']);
+    await new Promise((waited) =>
+      setTimeout(waited, (Number.isFinite(seconds) && seconds > 0 ? seconds : 5) * 1000),
+    );
+  }
+}
+
 /**
  * Register an account through the API and give it something to show on every page. It signs up
  * in `locale`, as the web asks in the language of its page, and that becomes the account's.
@@ -50,10 +83,11 @@ export async function anAccount(
   locale: string,
 ): Promise<Account> {
   const email = `browser-${name}-${Date.now().toString(36)}@example.test`;
-  const registered = await request.post('/api/auth/register', {
-    data: { email, password: PASSWORD, displayName: 'Browser test' },
-    headers: { 'accept-language': locale },
-  });
+  const registered = await signUp(
+    request,
+    { email, password: PASSWORD, displayName: 'Browser test' },
+    locale,
+  );
   if (!registered.ok())
     throw new Error(`registration answered ${registered.status()}: ${await registered.text()}`);
   const token = ((await registered.json()) as { tokens: { accessToken: string } }).tokens

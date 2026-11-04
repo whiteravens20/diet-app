@@ -29,6 +29,7 @@ import { storedSplit } from '../common/stored-split.js';
 import {
   calculateCalories,
   estimatedMacros,
+  labelEntryFigures,
   macroSplitOf,
   macrosForCalories,
   nutritionFor,
@@ -50,6 +51,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
+import { entryDto, entryWith, languages } from './diary-entries.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
 type Figures = Macros & { calories: number };
@@ -71,42 +73,27 @@ const PROFILE = {
 } as const;
 type DiaryProfile = Prisma.ProfileGetPayload<{ select: typeof PROFILE }>;
 
-/** The languages a name is read in: the reader's, and English where it has none in it. */
-const languages = (locale: Locale): string[] => (locale === 'en' ? ['en'] : [locale, 'en']);
-
 /** Of the plans that hold a day, the one made last: as the calendar picks it. */
 const MADE_LAST = [{ plan: { createdAt: 'desc' } }, { planId: 'asc' }] as const;
-
-/** What an entry is read with: the recipe or the ingredient it is of, named in the reader's language. */
-const entryWith = (locale: Locale) =>
-  ({
-    recipe: {
-      select: {
-        title: true,
-        deletedAt: true,
-        translations: {
-          where: { locale: { in: languages(locale) } },
-          select: { locale: true, title: true },
-        },
-      },
-    },
-    ingredient: {
-      select: {
-        name: true,
-        displayUnit: true,
-        translations: {
-          where: { locale: { in: languages(locale) } },
-          select: { locale: true, name: true },
-        },
-      },
-    },
-  }) satisfies Prisma.DiaryEntryInclude;
-type EntryRow = Prisma.DiaryEntryGetPayload<{ include: ReturnType<typeof entryWith> }>;
 
 /** What an entry holds besides where it is: what it is of, its name, its amount and its figures. */
 type Written = Pick<
   Prisma.DiaryEntryUncheckedCreateInput,
-  'kind' | 'recipeId' | 'ingredientId' | 'name' | 'servings' | 'quantity' | 'unit' | 'estimated'
+  | 'kind'
+  | 'recipeId'
+  | 'ingredientId'
+  | 'productId'
+  | 'ownProductId'
+  | 'productSource'
+  | 'name'
+  | 'servings'
+  | 'quantity'
+  | 'unit'
+  | 'estimated'
+  | 'fiber'
+  | 'sugars'
+  | 'salt'
+  | 'saturatedFat'
 > &
   Figures;
 
@@ -207,7 +194,7 @@ export class DiaryService {
             ...standingOf(planned.calories, planDay.calorieTarget, skipped),
           }
         : null,
-      entries: rows.map((row) => this.toDto(row, locale)),
+      entries: rows.map((row) => entryDto(row, locale)),
       eaten: sumNutrition([
         ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
         ...entered,
@@ -262,7 +249,8 @@ export class DiaryService {
   /**
    * Change an entry: the meal it is under, and how much of it there was. Its
    * figures change in proportion to the amount, so that what they were worked
-   * out from when it was written still holds.
+   * out from when it was written still holds. An entry of a product can be
+   * moved to a product of the reader's own, whose label then gives its figures.
    */
   async update(
     userId: string,
@@ -272,11 +260,15 @@ export class DiaryService {
   ): Promise<DiaryEntry> {
     const row = await this.prisma.diaryEntry.findFirst({ where: { id, profile: { userId } } });
     if (!row) throw entryNotFound();
-    const ingredient = row.kind === 'ingredient';
-    if (change.servings !== undefined && ingredient)
-      throw refused('servings', 'An entry of an ingredient takes a quantity, not servings.');
-    if (change.quantity !== undefined && !ingredient)
-      throw refused('quantity', 'Only an entry of an ingredient takes a quantity.');
+    if (change.productId !== undefined) return this.toOwnProduct(userId, locale, row, change);
+    const inAmount = row.kind === 'ingredient' || row.kind === 'product';
+    if (change.servings !== undefined && inAmount)
+      throw refused(
+        'servings',
+        'An entry of an ingredient or a product takes a quantity, not servings.',
+      );
+    if (change.quantity !== undefined && !inAmount)
+      throw refused('quantity', 'Only an entry of an ingredient or a product takes a quantity.');
     if (change.quantity !== undefined && change.quantity > DIARY_QUANTITY_LIMITS[row.unit!])
       throw refused('quantity', `More than a day holds of one food in ${row.unit}.`);
     const factor =
@@ -292,10 +284,61 @@ export class DiaryService {
         servings: change.servings,
         quantity: change.quantity,
         ...scaledFigures(row, factor),
+        ...scaledLabel(row, factor),
       },
     });
     if (changed.count === 0) throw entryNotFound();
     return this.entry(userId, locale, id);
+  }
+
+  /**
+   * An entry of a product goes on to a product of the reader's own, as when its
+   * reader corrects what the base says: the same amount, or the one the change
+   * gives, with the figures of that product's label.
+   */
+  private async toOwnProduct(
+    userId: string,
+    locale: Locale,
+    row: { id: string; profileId: string; date: Date; kind: string; quantity: number | null },
+    change: UpdateDiaryEntryRequest,
+  ): Promise<DiaryEntry> {
+    if (row.kind !== 'product')
+      throw refused('productId', 'Only an entry of a product takes another product.');
+    if (change.servings !== undefined)
+      throw refused('servings', 'An entry of a product takes a quantity, not servings.');
+    const own = await this.prisma.ownProduct.findFirst({ where: { id: change.productId, userId } });
+    if (!own) {
+      throw new NotFoundException({
+        error: 'PRODUCT_NOT_FOUND',
+        message: 'No product with this code is known.',
+      });
+    }
+    const quantity = change.quantity ?? row.quantity!;
+    if (quantity > DIARY_QUANTITY_LIMITS[own.unit])
+      throw refused('quantity', `More than a day holds of one food in ${own.unit}.`);
+    const profile = await this.profile(userId, row.profileId);
+    const figures = labelEntryFigures(
+      { ...own, energyWorkedOut: false },
+      quantity,
+      (await this.aimOfDay(profile, isoDate(row.date))).split,
+    );
+    // A product of one's own always has its energy; the base's would have been refused when it was written.
+    if (!figures) throw entryNotFound();
+    const changed = await this.prisma.diaryEntry.updateMany({
+      where: { id: row.id, profile: { userId } },
+      data: {
+        mealType: change.mealType,
+        productId: null,
+        ownProductId: own.id,
+        productSource: 'own',
+        name: own.brand ? `${own.name}, ${own.brand}` : own.name,
+        quantity,
+        unit: own.unit,
+        ...figures,
+      },
+    });
+    if (changed.count === 0) throw entryNotFound();
+    return this.entry(userId, locale, row.id);
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -399,6 +442,9 @@ export class DiaryService {
             kind: entry.kind,
             recipeId: entry.recipeId,
             ingredientId: entry.ingredientId,
+            productId: entry.productId,
+            ownProductId: entry.ownProductId,
+            productSource: entry.productSource,
             name: entry.name,
             servings: entry.servings,
             quantity: entry.quantity,
@@ -408,6 +454,10 @@ export class DiaryService {
             protein: entry.protein,
             fat: entry.fat,
             carbs: entry.carbs,
+            fiber: entry.fiber,
+            sugars: entry.sugars,
+            salt: entry.salt,
+            saturatedFat: entry.saturatedFat,
           })),
         ];
         // The copies keep their order: the first of them is the first written.
@@ -455,7 +505,7 @@ export class DiaryService {
       include: entryWith(locale),
     });
     if (!row) throw entryNotFound();
-    return this.toDto(row, locale);
+    return entryDto(row, locale);
   }
 
   /**
@@ -525,6 +575,23 @@ export class DiaryService {
       target: { calories: calculation.dailyTarget, ...calculation.targetMacros, from: 'profile' },
       split: macroSplitOf(input.dietType, input.customMacroSplit),
     };
+  }
+
+  /** What a day aims at and the split an estimate of it goes by, read from the plan that holds it. */
+  private async aimOfDay(
+    profile: DiaryProfile,
+    date: string,
+  ): Promise<ReturnType<DiaryService['aimOf']>> {
+    const planDay = await this.prisma.mealPlanDay.findFirst({
+      where: { date: new Date(date), plan: { profileId: profile.id } },
+      orderBy: [...MADE_LAST],
+      select: {
+        calorieTarget: true,
+        overrides: true,
+        plan: { select: { dietType: true, macroSplit: true } },
+      },
+    });
+    return this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
   }
 
   /** What an entry asked for holds, worked out now from what it is of. */
@@ -616,17 +683,46 @@ export class DiaryService {
       };
     }
 
+    if (req.kind === 'product') {
+      const base = await this.prisma.product.findUnique({ where: { id: req.productId } });
+      // Not the base's: a product of the account's own, which nobody else's request can reach.
+      const own = base
+        ? null
+        : await this.prisma.ownProduct.findFirst({
+            where: { id: req.productId, userId: profile.userId },
+          });
+      const product = base ?? (own && { ...own, energyWorkedOut: false });
+      if (!product) {
+        throw new NotFoundException({
+          error: 'PRODUCT_NOT_FOUND',
+          message: 'No product with this code is known.',
+        });
+      }
+      const figures = labelEntryFigures(
+        product,
+        req.quantity,
+        (await this.aimOfDay(profile, req.date)).split,
+      );
+      if (!figures) {
+        throw new ConflictException({
+          error: 'PRODUCT_WITHOUT_FIGURES',
+          message: 'The label of this product gives no energy: write it as a meal of your own.',
+        });
+      }
+      return {
+        kind: 'product',
+        productId: base ? req.productId : null,
+        ownProductId: own ? req.productId : null,
+        productSource: own ? 'own' : base?.origin === 'accepted' ? 'instance' : 'open_food_facts',
+        name: product.brand ? `${product.name}, ${product.brand}` : product.name,
+        quantity: req.quantity,
+        unit: product.unit,
+        ...figures,
+      };
+    }
+
     const { calories, ...known } = req.nutrition;
-    const planDay = await this.prisma.mealPlanDay.findFirst({
-      where: { date: new Date(req.date), plan: { profileId: profile.id } },
-      orderBy: [...MADE_LAST],
-      select: {
-        calorieTarget: true,
-        overrides: true,
-        plan: { select: { dietType: true, macroSplit: true } },
-      },
-    });
-    const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+    const aim = await this.aimOfDay(profile, req.date);
     const macros = estimatedMacros(calories, known, aim.split);
     if (!macros) {
       throw new BadRequestException({
@@ -644,42 +740,30 @@ export class DiaryService {
       ...scaledFigures({ calories, ...macros }, req.servings),
     };
   }
+}
 
-  private toDto(row: EntryRow, locale: Locale): DiaryEntry {
-    // A recipe its owner deleted is gone for the diary, as it is for the library.
-    const recipe = row.recipe?.deletedAt === null ? row.recipe : null;
-    const name = recipe
-      ? pickTitle(locale, recipe.translations, recipe.title)
-      : row.ingredient
-        ? pickIngredient(locale, row.ingredient.translations, row.ingredient.name)
-        : row.name;
-    return {
-      id: row.id,
-      profileId: row.profileId,
-      date: isoDate(row.date),
-      mealType: row.mealType as MealType,
-      kind: row.kind,
-      name,
-      recipeId: recipe ? row.recipeId : null,
-      ingredientId: row.ingredientId,
-      servings: row.servings,
-      amount:
-        row.quantity !== null && row.unit !== null
-          ? {
-              quantity: row.quantity,
-              unit: row.unit,
-              // What was written is what was eaten: nothing rounds it, and a piece goes by the ingredient's word for it.
-              shown: {
-                quantity: row.quantity,
-                unit: row.unit === 'piece' ? (row.ingredient?.displayUnit ?? 'piece') : row.unit,
-              },
-            }
-          : null,
-      nutrition: wholeFigures(row),
-      estimated: row.estimated,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
+/** What an entry's label says for another amount of it. */
+function scaledLabel(
+  row: {
+    fiber: number | null;
+    sugars: number | null;
+    salt: number | null;
+    saturatedFat: number | null;
+  },
+  factor: number,
+): {
+  fiber: number | null;
+  sugars: number | null;
+  salt: number | null;
+  saturatedFat: number | null;
+} {
+  const scaled = (grams: number | null): number | null => (grams === null ? null : grams * factor);
+  return {
+    fiber: scaled(row.fiber),
+    sugars: scaled(row.sugars),
+    salt: scaled(row.salt),
+    saturatedFat: scaled(row.saturatedFat),
+  };
 }
 
 /** One serving of a recipe, as the engine worked it out when the recipe was saved. */

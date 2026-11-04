@@ -6,11 +6,12 @@ import { useTranslations } from 'next-intl';
 import { ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AdminHealth, AdminOverview, AdminStats } from '@/lib/admin-api';
+import type { AdminHealth, AdminOverview, AdminProducts, AdminStats } from '@/lib/admin-api';
 import { useFormat } from '@/lib/use-format';
 import type { Kind } from './curation/shared';
 import { mirrorNeedsAttention } from './instance-files-card';
 import { InstanceHealthCard } from './instance-health-card';
+import { productImportNeedsAttention } from './products-card';
 
 /** Where a line of what waits leads: a part of the panel, and in the queue a kind of draft. */
 export type OverviewTarget = { tab: 'queue'; kind: Kind } | { tab: 'catalogue' };
@@ -20,6 +21,7 @@ export function OverviewTab({
   stats,
   overview,
   retired,
+  products,
   health,
   healthFailed,
   onRefresh,
@@ -28,6 +30,8 @@ export function OverviewTab({
   stats: AdminStats;
   overview: AdminOverview | null;
   retired: number;
+  /** Null until it is read. */
+  products: AdminProducts | null;
   /** Null until it is read. */
   health: AdminHealth | null;
   healthFailed: boolean;
@@ -62,6 +66,13 @@ export function OverviewTab({
   add('retired', retired, catalogue);
   if (mirrorNeedsAttention(overview?.mirror)) {
     lines.push({ key: 'mirrorProblem', text: tOverview('mirrorProblem'), target: catalogue });
+  }
+  if (productImportNeedsAttention(products)) {
+    lines.push({
+      key: 'productImportProblem',
+      text: tOverview('productImportProblem'),
+      target: catalogue,
+    });
   }
 
   return (

@@ -23,6 +23,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { FavoriteSetsService } from './favorite-sets.service.js';
@@ -78,7 +79,8 @@ export class FavoriteSetsController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(ApplyFavoriteSetRequest)) dto: ApplyFavoriteSetRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.sets.apply(user.id, locale, id, dto);
+    return this.sets.apply(user.id, locale, id, dto, today);
   }
 }

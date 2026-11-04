@@ -11,8 +11,18 @@ const texts = messages.mealPlans;
 
 /** The meals of the day the window is opened for. */
 const MEALS = [
-  { id: '11111111-1111-4111-8111-111111111111', mealType: 'lunch', title: 'Chicken with rice' },
-  { id: '22222222-2222-4222-8222-222222222222', mealType: 'dinner', title: 'Lentil soup' },
+  {
+    id: '11111111-1111-4111-8111-111111111111',
+    mealType: 'lunch',
+    title: 'Chicken with rice',
+    apart: null,
+  },
+  {
+    id: '22222222-2222-4222-8222-222222222222',
+    mealType: 'dinner',
+    title: 'Lentil soup',
+    apart: null,
+  },
 ];
 
 function open() {
@@ -24,6 +34,36 @@ function open() {
   );
   return onSubmit;
 }
+
+describe('the note on the meal it replaces', () => {
+  it('says what follows for the other meal of a cooking when one is chosen', async () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <CustomMealModal
+          date="2026-01-05"
+          meals={[
+            {
+              id: '33333333-3333-4333-8333-333333333333',
+              mealType: 'lunch',
+              title: 'Stew',
+              apart: 'On Tuesday you cook this dish separately.',
+            },
+          ]}
+          onClose={() => {}}
+          onSubmit={() => {}}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText('On Tuesday you cook this dish separately.')).toBeNull();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(texts.customPlace),
+      '33333333-3333-4333-8333-333333333333',
+    );
+
+    expect(screen.getByText('On Tuesday you cook this dish separately.')).toBeVisible();
+  });
+});
 
 /** Type the numbers of one serving, a field with nothing to type being left empty, and how many servings the meal is. */
 async function fill(
@@ -110,17 +150,35 @@ describe("the window a meal of the user's own is added in", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('sends nothing while a number is missing or is more than a serving can hold, and shows no sum for it', async () => {
+  it('takes a meal by its calories alone, says that the rest is estimated, and sends only what was typed', async () => {
     const onSubmit = open();
     await userEvent.type(screen.getByLabelText(texts.customName), 'Soup');
 
-    await fill({ calories: '900', protein: '30', fat: '20', carbs: '' });
+    await fill({ calories: '450', protein: '30', fat: '', carbs: '' }, '2');
+    expect(
+      screen.getByText(
+        "The meal adds to the day: 900 kcal. The macronutrients left out are estimated from the day's target.",
+      ),
+    ).toBeInTheDocument();
+    await add();
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: 'Soup',
+      mealType: 'lunch',
+      nutrition: { calories: 450, protein: 30 },
+      servings: 2,
+    });
+  });
+
+  it('sends nothing without its calories or with more than a serving can hold, and shows no sum for it', async () => {
+    const onSubmit = open();
+    await userEvent.type(screen.getByLabelText(texts.customName), 'Soup');
+
+    await fill({ calories: '', protein: '30', fat: '20', carbs: '110' });
     await add();
     expect(screen.getByText(texts.customTotalPending)).toBeInTheDocument();
 
     // A slip of the keyboard: nine thousand in one serving.
-    await userEvent.type(screen.getByLabelText(texts.customCarbs), '110');
-    await userEvent.clear(screen.getByLabelText(texts.customCalories));
     await userEvent.type(screen.getByLabelText(texts.customCalories), '9000');
     await add();
 

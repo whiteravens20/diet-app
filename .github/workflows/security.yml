@@ -71,8 +71,8 @@ jobs:
             0BSD, AGPL-3.0-only, AGPL-3.0-or-later, Apache-2.0, BlueOak-1.0.0,
             BSD-2-Clause, BSD-3-Clause, BSL-1.0, CC-BY-4.0, CC0-1.0,
             GPL-3.0-only, GPL-3.0-or-later, ISC, LGPL-2.1-or-later,
-            LGPL-3.0-only, LGPL-3.0-or-later, MIT, MIT-0, MPL-2.0, Python-2.0,
-            Unlicense, WTFPL, Zlib
+            LGPL-3.0-only, LGPL-3.0-or-later, MIT, MIT-0, MPL-2.0, PSF-2.0,
+            Python-2.0, Unlicense, WTFPL, Zlib
           # elkjs (EPL-2.0, which names no secondary licence) is part of Prisma
           # Studio inside the Prisma CLI, a program the image runs for its
           # migrations; nothing of the application is combined with it.
@@ -101,7 +101,7 @@ jobs:
           exit-code: '1' # Fail the build on HIGH/CRITICAL vulnerabilities
 
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: always()
         with:
           sarif_file: trivy-fs.sarif
@@ -135,7 +135,7 @@ jobs:
           exit-code: '1' # Fail the build on HIGH/CRITICAL vulnerabilities
 
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: always()
         with:
           sarif_file: trivy-docker.sarif

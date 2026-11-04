@@ -2252,14 +2252,14 @@
     "steps": {
       "en": [
         "Grind the oats into a coarse flour.",
-        "Mash the banana and crumble the tofu, then stir both into the oats with 30 ml water to make a thick batter.",
+        "Mash the banana and crumble the tofu, then stir both into the oats with a splash of water to make a thick batter.",
         "Heat the olive oil in a nonstick pan over medium heat.",
         "Spoon the batter into small pancakes and cook for 3–4 minutes per side, until golden and cooked through.",
         "Warm the blueberries briefly in the pan and serve them over the pancakes."
       ],
       "pl": [
         "Zmiel płatki owsiane na gruboziarnistą mąkę.",
-        "Rozgnieć banana i pokrusz tofu, a następnie wymieszaj oba składniki z płatkami i 30 ml wody, aby powstało gęste ciasto.",
+        "Rozgnieć banana i pokrusz tofu, a następnie wymieszaj oba składniki z płatkami i odrobiną wody, aby powstało gęste ciasto.",
         "Rozgrzej oliwę na nieprzywierającej patelni na średnim ogniu.",
         "Nakładaj niewielkie porcje ciasta i smaż placki po 3–4 minuty z każdej strony, aż się zarumienią i będą gotowe w środku.",
         "Krótko podgrzej borówki na patelni i podawaj je na plackach."
@@ -3268,8 +3268,8 @@
         "Warm the olive oil in a large pot over medium heat.",
         "Add the onion and zucchini and cook, stirring, until the onion softens, about 5 minutes.",
         "Stir in the garlic and paprika and cook for 30 seconds.",
-        "Add the millet, canned tomatoes, kidney beans, and 400 ml water.",
-        "Bring the mixture to a boil, then cover and simmer gently until the millet is tender, about 20 minutes.",
+        "Add the millet, canned tomatoes and kidney beans, then pour in enough water to cover everything by about 2 cm.",
+        "Bring the mixture to a boil, then cover and simmer gently until the millet is tender, about 20 minutes, adding a splash of water if it dries out.",
         "Stir in the pumpkin seeds and serve hot."
       ],
       "pl": [
@@ -3278,8 +3278,8 @@
         "Rozgrzej oliwę w dużym garnku na średnim ogniu.",
         "Dodaj cebulę i cukinię. Smaż, mieszając, aż cebula zmięknie, około 5 minut.",
         "Dodaj czosnek i mieloną paprykę, po czym smaż przez 30 sekund.",
-        "Wsyp kaszę, dodaj pomidory z puszki, czerwoną fasolę i 400 ml wody.",
-        "Doprowadź do wrzenia, przykryj i gotuj na małym ogniu, aż kasza będzie miękka, około 20 minut.",
+        "Wsyp kaszę, dodaj pomidory z puszki i czerwoną fasolę, po czym wlej tyle wody, aby przykryła wszystko na około 2 cm.",
+        "Doprowadź do wrzenia, przykryj i gotuj na małym ogniu, aż kasza będzie miękka, około 20 minut. Gdy zrobi się zbyt sucho, dolej odrobinę wody.",
         "Wsyp pestki dyni, wymieszaj i podawaj na gorąco."
       ]
     }
@@ -3481,8 +3481,8 @@
         "Warm the olive oil in a saucepan over medium heat.",
         "Add the onion and cook for 4 minutes, stirring until softened.",
         "Stir in the garlic and paprika and cook for 30 seconds.",
-        "Add the red lentils, tomato, and 500 ml water, then bring to a gentle boil.",
-        "Lower the heat and simmer for 18–20 minutes, stirring occasionally, until the lentils are tender and the stew is thick.",
+        "Add the red lentils and tomato, pour in enough water to cover everything by about 2 cm, then bring to a gentle boil.",
+        "Lower the heat and simmer for 18–20 minutes, stirring occasionally and adding a splash of water if it dries out, until the lentils are tender and the stew is thick.",
         "Fold in the spinach and cook until wilted, then serve warm."
       ],
       "pl": [
@@ -3490,8 +3490,8 @@
         "Rozgrzej oliwę w rondlu na średnim ogniu.",
         "Dodaj cebulę i smaż przez 4 minuty, mieszając, aż zmięknie.",
         "Dodaj czosnek i mieloną paprykę, po czym smaż przez 30 sekund.",
-        "Wsyp czerwoną soczewicę, dodaj pomidora i 500 ml wody, a następnie zagotuj.",
-        "Zmniejsz ogień i gotuj przez 18–20 minut, od czasu do czasu mieszając, aż soczewica zmięknie, a potrawka zgęstnieje.",
+        "Wsyp czerwoną soczewicę, dodaj pomidora, wlej tyle wody, aby przykryła wszystko na około 2 cm, a następnie zagotuj.",
+        "Zmniejsz ogień i gotuj przez 18–20 minut, od czasu do czasu mieszając, aż soczewica zmięknie, a potrawka zgęstnieje. Gdy zrobi się zbyt sucho, dolej odrobinę wody.",
         "Dodaj szpinak i gotuj, aż zwiędnie. Podawaj na ciepło."
       ]
     }

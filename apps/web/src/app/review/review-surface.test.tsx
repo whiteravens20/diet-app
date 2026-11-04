@@ -1,12 +1,17 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reviewApi } from '@/lib/review-api';
 import messages from '../../../messages/en.json';
 import { ReviewSurface } from './review-surface';
+
+vi.mock('@/lib/use-config', () => ({
+  useConfig: () => ({ data: { products: { offered: productsOffered, lookups: false } } }),
+}));
+let productsOffered = false;
 
 const text = messages.review;
 
@@ -26,6 +31,7 @@ async function renderSignedIn() {
     page: 1,
     pageSize: 25,
   });
+  vi.spyOn(reviewApi, 'productQueue').mockResolvedValue({ items: [], total: 3 });
   const names = vi
     .spyOn(reviewApi, 'listIngredientNameSlices')
     .mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 });
@@ -47,7 +53,8 @@ describe("the reviewer's page", () => {
     const { names } = await renderSignedIn();
 
     expect(screen.getByRole('button', { name: text.kindRecipe })).toBeInTheDocument();
-    expect(names).toHaveBeenCalledWith('pl', { pageSize: 1 });
+    // The totals are asked for one after the other, after the session is shown.
+    await waitFor(() => expect(names).toHaveBeenCalledWith('pl', { pageSize: 1 }));
   });
 
   it('says how many wait of each kind, to the eye and to a screen reader', async () => {
@@ -133,5 +140,30 @@ describe("the reviewer's page", () => {
       'false',
     );
     await vi.waitFor(() => expect(names).toHaveBeenCalledWith('pl', { page: 1, pageSize: 25 }));
+  });
+
+  describe('products sent to the base', () => {
+    afterEach(() => {
+      productsOffered = false;
+    });
+
+    it('are not offered where the instance has no products', async () => {
+      await renderSignedIn();
+
+      expect(screen.queryByRole('button', { name: new RegExp(text.kindProduct) })).toBeNull();
+    });
+
+    it('are a kind beside the others, with how many wait, and open their queue', async () => {
+      productsOffered = true;
+      await renderSignedIn();
+
+      const kind = await screen.findByRole('button', {
+        name: new RegExp(`${text.kindProduct}.*3`),
+      });
+      await userEvent.click(kind);
+
+      expect(kind).toHaveAttribute('aria-pressed', 'true');
+      expect(await screen.findByText(messages.productReview.nothing)).toBeInTheDocument();
+    });
   });
 });

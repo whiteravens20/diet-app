@@ -11,6 +11,7 @@ import { planDates } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { useFormat } from '@/lib/use-format';
+import { localDate } from '@/lib/http';
 
 /**
  * Plan-level "Apply set" action — pick a favourite set + one-or-more days,
@@ -24,11 +25,13 @@ export function ApplyFavoriteSetButton({
   disabled,
 }: {
   /** The plan as a list shows it: its days are worked out from where it begins and how long it is. */
-  plan: Pick<MealPlan, 'id' | 'startDate' | 'durationDays'>;
+  plan: Pick<MealPlan, 'id' | 'startDate' | 'durationDays' | 'options'>;
   profileId: string;
   disabled?: boolean;
 }) {
-  const days = planDates(plan.startDate, plan.durationDays);
+  // A day that is over keeps what was on it: a set is not offered for it.
+  const today = localDate();
+  const days = planDates(plan.startDate, plan.durationDays).filter((date) => date >= today);
   const t = useTranslations('favoriteSets');
   const fmt = useFormat();
   const errorText = useErrorText();
@@ -37,6 +40,7 @@ export function ApplyFavoriteSetButton({
   const [error, setError] = useState<string | null>(null);
   const [pickedSetId, setPickedSetId] = useState<string>('');
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set(days));
+  const [only, setOnly] = useState(false);
 
   const setsQ = useQuery({
     queryKey: ['favorite-sets', profileId],
@@ -46,7 +50,11 @@ export function ApplyFavoriteSetButton({
 
   const apply = useMutation({
     mutationFn: ({ setId, dayDates }: { setId: string; dayDates: string[] }) =>
-      api.post<MealPlan>(`/favorite-sets/${setId}/apply`, { planId: plan.id, dayDates }),
+      api.post<MealPlan>(`/favorite-sets/${setId}/apply`, {
+        planId: plan.id,
+        dayDates,
+        ...(plan.options.mealPrepFriendly && !only ? { together: true } : {}),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plans', profileId] });
       qc.invalidateQueries({ queryKey: ['meal-plan', plan.id] });
@@ -76,7 +84,7 @@ export function ApplyFavoriteSetButton({
       setError(t('applyPickSet'));
       return;
     }
-    const dayDates = Array.from(selectedDays);
+    const dayDates = Array.from(selectedDays).filter((date) => days.includes(date));
     if (dayDates.length === 0) {
       setError(t('applyPickDays'));
       return;
@@ -145,6 +153,22 @@ export function ApplyFavoriteSetButton({
           ))}
         </ul>
       </div>
+      {days.length === 0 && <p className="mt-2 text-sm">{t('applyNoDays')}</p>}
+      <p className="mt-2 text-xs text-muted-foreground">{t('applyOwnMealNote')}</p>
+      {plan.options.mealPrepFriendly && (
+        <div className="mt-2 space-y-1 text-xs">
+          {!only && <p className="text-muted-foreground">{t('applyCookingNote')}</p>}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5"
+              checked={only}
+              onChange={(e) => setOnly(e.target.checked)}
+            />
+            {t('applyOnlyChosen')}
+          </label>
+        </div>
+      )}
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       <div className="mt-3 flex justify-end gap-2">
         <Button
@@ -158,7 +182,12 @@ export function ApplyFavoriteSetButton({
         >
           {t('cancel')}
         </Button>
-        <Button type="button" size="sm" onClick={onApply} disabled={apply.isPending}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={onApply}
+          disabled={apply.isPending || days.length === 0}
+        >
           {t('applyConfirm')}
         </Button>
       </div>

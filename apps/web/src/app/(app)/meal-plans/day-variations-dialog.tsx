@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { CookingNote } from './cooking';
 
 /**
  * The window that offers other ways to fill a day of a plan. The API makes
@@ -47,6 +48,7 @@ export function DayVariationsDialog({
   const [error, setError] = useState<string | null>(null);
   // The ways as a model weighed them, once one was asked: they stand in the place of the ways as they came first.
   const [weighed, setWeighed] = useState<DayVariations | null>(null);
+  const [only, setOnly] = useState(false);
 
   const path = `/meal-plans/${planId}/days/${day.id}/variations`;
   // Drawn anew for every opening: an offer is good for the plan as it stands, and for a sitting.
@@ -67,8 +69,13 @@ export function DayVariationsDialog({
     },
     onError: (e: unknown) => setError(errorText(e, t('errLoad'))),
   });
+  const shown = weighed ?? first.data;
   const take = useMutation({
-    mutationFn: (offer: string) => api.post<MealPlan>(`${path}/take`, { offer }),
+    mutationFn: (offer: string) =>
+      api.post<MealPlan>(`${path}/take`, {
+        offer,
+        ...(!only && shown?.cooking?.changes.length ? { together: true } : {}),
+      }),
     onSuccess: () => {
       onChanged();
       onClose();
@@ -80,7 +87,6 @@ export function DayVariationsDialog({
     },
   });
 
-  const shown = weighed ?? first.data;
   const busy = take.isPending || weigh.isPending;
   const title = t('title', { date: fmt.day(day.date) });
 
@@ -113,6 +119,15 @@ export function DayVariationsDialog({
                 {t('diaryCounted', { kcal: shown.diary.calories })}
               </p>
             )}
+            <div className="text-xs">
+              <CookingNote
+                change={shown.cooking}
+                only={only}
+                onOnly={setOnly}
+                label="only"
+                mealName={mealName}
+              />
+            </div>
             {shown.variations.length === 0 ? (
               <p className="text-sm">{t('none')}</p>
             ) : (

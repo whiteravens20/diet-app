@@ -23,6 +23,10 @@ vi.mock('next/link', () => ({
     />
   ),
 }));
+let productsOffered = false;
+vi.mock('@/lib/use-config', () => ({
+  useConfig: () => ({ data: { products: { offered: productsOffered, lookups: false } } }),
+}));
 // What stands in the bar beside the navigation asks the API, and has tests of its own.
 vi.mock('@/components/ai-chip', () => ({ AiChip: () => null }));
 vi.mock('@/components/notifications-bell', () => ({ NotificationsBell: () => null }));
@@ -63,6 +67,7 @@ describe('the navigation of a signed-in account', () => {
 
   beforeEach(() => {
     pathname = '/meal-plans';
+    productsOffered = false;
     screenOf = aScreen();
   });
 
@@ -105,6 +110,17 @@ describe('the navigation of a signed-in account', () => {
         .filter((link) => link.getAttribute('aria-current') === 'page')
         .map((link) => link.textContent),
     ).toEqual([messages.nav.mealPlans]);
+  });
+
+  it('leads to the products of the account only where the instance has products', () => {
+    productsOffered = true;
+    shown();
+
+    const hrefs = within(screen.getByRole('complementary'))
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'));
+    expect(hrefs).toHaveLength(11);
+    expect(hrefs.indexOf('/products')).toBe(hrefs.indexOf('/inventory') + 1);
   });
 
   it('says so of a page under one of them', () => {

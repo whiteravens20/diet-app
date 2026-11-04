@@ -56,9 +56,9 @@ export class DiaryController {
   /**
    * Write an entry for a day of today or at most a year before it, by the
    * client's day (`X-Client-Date`): a recipe in servings, an ingredient in an
-   * amount, or a meal of one's own by its figures, those of its macronutrients
-   * left out estimated from its energy. Its figures are worked out now and
-   * kept. Sent again with the same `Idempotency-Key` within a week, it is
+   * amount, a product in grams or millilitres, or a meal of one's own by its
+   * figures. What a meal of one's own leaves out, or a product's label lacks, is
+   * estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is
    * answered with the entry the first request wrote and writes nothing.
    */
   @Post('entries')
@@ -74,7 +74,11 @@ export class DiaryController {
     return this.diary.create(user.id, locale, dto, key, today);
   }
 
-  /** Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. */
+  /**
+   * Change an entry: the meal it is under, or how much of it there was, which
+   * changes its figures in proportion. An entry of a product can be moved to a
+   * product of the reader's own, whose label then gives its figures.
+   */
   @Patch('entries/:id')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(DiaryEntry)

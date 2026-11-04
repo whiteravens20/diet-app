@@ -178,6 +178,7 @@ describe('the settings of a day of a running plan', () => {
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`)
         .set(as(user))
+        .set('X-Client-Date', DATE)
         .send({ eaten: true })
         .expect(200);
       const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
@@ -251,6 +252,7 @@ describe('the settings of a day of a running plan', () => {
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${lunch.id}/eaten`)
         .set(as(user))
+        .set('X-Client-Date', DATE)
         .send({ eaten: true })
         .expect(200);
       const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))

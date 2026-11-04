@@ -7,16 +7,19 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Status = 'pending' | 'success' | 'failed' | 'missing';
 
 /**
  * Lands here from the verification email link. POSTs the token once, then shows
- * the outcome. Reachable while signed out, so it lives under the (auth) shell.
+ * the outcome and what it gave on this instance. Reachable while signed out, so
+ * it lives under the (auth) shell.
  */
 function VerifyEmailInner() {
   const t = useTranslations('auth');
+  const { data: config } = useConfig();
   const params = useSearchParams();
   const token = params.get('token') ?? '';
   const [status, setStatus] = useState<Status>(token ? 'pending' : 'missing');
@@ -35,7 +38,11 @@ function VerifyEmailInner() {
 
   const copy: Record<Status, { title: string; body: string }> = {
     pending: { title: t('verifyTitle'), body: '' },
-    success: { title: t('verifySuccess'), body: t('verifySuccessBody') },
+    success: {
+      title: t('verifySuccess'),
+      // What the confirmation gave: the instance's AI where it unlocks it, otherwise a reset that reaches its owner.
+      body: t(config?.email.confirmationUnlocksAi ? 'verifySuccessBodyAi' : 'verifySuccessBody'),
+    },
     failed: { title: t('verifyFailed'), body: t('verifyFailedBody') },
     missing: { title: t('missingTokenTitle'), body: t('verifyMissingToken') },
   };

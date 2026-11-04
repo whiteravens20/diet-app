@@ -12,10 +12,19 @@ import { Field, Input } from '@/components/ui/input';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { reviewApi, type ReviewStatusDto } from '@/lib/review-api';
+import { useConfig } from '@/lib/use-config';
+import { ProductQueuePanel, type ProductQueueApi } from '@/components/product-queue-panel';
 import { ReviewQueue } from './review-queue';
 import { useFormat } from '@/lib/use-format';
 
 type View = 'loading' | 'disabled' | 'login' | 'session' | 'unreachable';
+
+/** What the reviewers do with products sent to the base. */
+const PRODUCT_QUEUE: ProductQueueApi = {
+  queue: () => reviewApi.productQueue(),
+  accept: (id, updatedAt) => reviewApi.acceptProduct(id, updatedAt),
+  reject: (id, updatedAt, reason) => reviewApi.rejectProduct(id, updatedAt, reason),
+};
 
 /**
  * Top-level controller for `/review` — picks between disabled / login /
@@ -180,8 +189,13 @@ function ReviewSession({
   const tLocale = useTranslations('review.locales');
   const fmt = useFormat();
   const [locale, setLocale] = useState<Locale | null>(locales[0] ?? null);
-  const [kind, setKind] = useState<'recipe' | 'ingredient-name'>('recipe');
-  const [waiting, setWaiting] = useState<{ recipes: number; names: number } | null>(null);
+  const [kind, setKind] = useState<'recipe' | 'ingredient-name' | 'product'>('recipe');
+  const [waiting, setWaiting] = useState<{
+    recipes: number;
+    names: number;
+    products: number | undefined;
+  } | null>(null);
+  const productsOffered = useConfig().data?.products.offered === true;
 
   const localeOptions = useMemo(() => locales, [locales]);
 
@@ -191,11 +205,12 @@ function ReviewSession({
     try {
       const recipes = await reviewApi.listRecipeSlices(locale, { pageSize: 1 });
       const names = await reviewApi.listIngredientNameSlices(locale, { pageSize: 1 });
-      setWaiting({ recipes: recipes.total, names: names.total });
+      const products = productsOffered ? await reviewApi.productQueue() : undefined;
+      setWaiting({ recipes: recipes.total, names: names.total, products: products?.total });
     } catch {
       setWaiting(null);
     }
-  }, [locale]);
+  }, [locale, productsOffered]);
 
   useEffect(() => {
     void (async () => {
@@ -266,6 +281,21 @@ function ReviewSession({
                 {t('kindIngredientName')}
                 <WaitingCount count={waiting?.names} />
               </button>
+              {productsOffered && (
+                <button
+                  type="button"
+                  aria-pressed={kind === 'product'}
+                  onClick={() => setKind('product')}
+                  className={`rounded px-3 py-1 text-xs ${
+                    kind === 'product'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('kindProduct')}
+                  <WaitingCount count={waiting?.products} />
+                </button>
+              )}
             </div>
           </div>
           <Button type="button" size="sm" variant="outline" onClick={() => void onLogout()}>
@@ -275,7 +305,15 @@ function ReviewSession({
         </CardContent>
       </Card>
 
-      <ReviewQueue locale={locale} kind={kind} onDecided={loadWaiting} />
+      {kind === 'product' ? (
+        <Card>
+          <CardContent className="pt-6">
+            <ProductQueuePanel source={PRODUCT_QUEUE} onChanged={loadWaiting} />
+          </CardContent>
+        </Card>
+      ) : (
+        <ReviewQueue locale={locale} kind={kind} onDecided={loadWaiting} />
+      )}
     </div>
   );
 }

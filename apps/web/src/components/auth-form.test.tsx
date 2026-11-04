@@ -17,7 +17,10 @@ const at = (address: string): void => window.history.replaceState(null, '', addr
 
 function renderLogin(emailEnabled: boolean) {
   const client = new QueryClient();
-  client.setQueryData(['config'], aPublicConfig({ email: { enabled: emailEnabled } }));
+  client.setQueryData(
+    ['config'],
+    aPublicConfig({ email: { enabled: emailEnabled, confirmationUnlocksAi: false } }),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>

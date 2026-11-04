@@ -242,6 +242,26 @@ describe('favourite sets', () => {
       expect(after.revision).toBe(plan.revision + 1);
     });
 
+    it('says of its meals what they are outside of, and still puts them there', async () => {
+      await t.prisma.profilePreference.update({
+        where: { profileId: profile.id },
+        data: { maxTimesPerWeekSameMeal: 1 },
+      });
+
+      const after = (
+        await apply({ planId: plan.id, dayDates: ['2026-01-06', '2026-01-07'] }).expect(201)
+      ).body as MealPlan;
+
+      expect(recipeOf(after, '2026-01-07', 'dinner')).toBe(slots().dinner);
+      expect(after.report!.relaxations).toContainEqual(
+        expect.objectContaining({
+          date: '2026-01-07',
+          slot: 'dinner',
+          gaveWay: expect.arrayContaining(['weekly_cap']),
+        }),
+      );
+    });
+
     it("leaves a meal it fills no longer a model's pick: the set is the user's own choice", async () => {
       const mealsOf = (p: MealPlan, date: string) =>
         Object.fromEntries(day(p, date).meals.map((meal) => [meal.mealType, meal.modelPick]));

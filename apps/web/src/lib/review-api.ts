@@ -10,6 +10,7 @@
 import type {
   IngredientNameReviewSlice,
   Locale,
+  ProductQueue,
   RecipeReviewSlice,
   ReviewerSessionDto,
 } from '@diet-app/shared';
@@ -37,6 +38,18 @@ export const reviewApi = {
   login: (body: { password: string; label: string }) =>
     reviewFetch<void>('/auth', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => reviewFetch<void>('/auth/logout', { method: 'POST' }),
+
+  productQueue: () => reviewFetch<ProductQueue>('/products'),
+  acceptProduct: (id: string, updatedAt: string) =>
+    reviewFetch<void>(`/products/${id}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ updatedAt }),
+    }),
+  rejectProduct: (id: string, updatedAt: string, reason: string) =>
+    reviewFetch<void>(`/products/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ updatedAt, reason }),
+    }),
 
   listRecipeSlices: (
     locale: Locale,

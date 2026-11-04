@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   PlanOptions,
   type Locale,
@@ -13,6 +14,7 @@ import {
 import { ModelPickService } from '../ai/model-pick.service.js';
 import { USE_UP_SWAPS } from '../ai/operations.js';
 import { WeighService } from '../ai/weigh.service.js';
+import type { Env } from '../config/env.js';
 import {
   amountsPerServing,
   requirementsPerServing,
@@ -24,6 +26,7 @@ import { pickIngredient } from '../recipes/recipes.service.js';
 import { CANDIDATE, poolWhere, restrictionsFor, welcome } from './eligibility.js';
 import { holdsAbout } from './meal-swap.service.js';
 import { isoDate } from './plan-days.js';
+import { readPlanLimits } from './plan-limits.js';
 import { LANGUAGE } from './swap-shared.js';
 
 /** A recipe as this service reads it: what the gate reads, what it is called, what a serving holds and takes. */
@@ -31,6 +34,8 @@ const RECIPE = {
   ...CANDIDATE,
   title: true,
   servings: true,
+  prepMinutes: true,
+  cookMinutes: true,
   caloriesPerServing: true,
   proteinPerServing: true,
   fatPerServing: true,
@@ -49,6 +54,8 @@ const RECIPE = {
           density: true,
           packSize: true,
           perishable: true,
+          proteinPer100: true,
+          proteinKind: true,
           translations: { select: { locale: true, name: true } },
         },
       },
@@ -84,6 +91,7 @@ export class UseUpService {
     private readonly prisma: PrismaService,
     private readonly weigher: WeighService,
     private readonly picks: ModelPickService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /** `clientToday` is the day it is for whoever asks: the meals of days before it are what they were. */
@@ -145,7 +153,12 @@ export class UseUpService {
       string,
       { date: string; mealType: MealType; recipe: Row; before: Nutrition }
     >();
-    for (const day of plan.days) {
+    const limits = await readPlanLimits(
+      this.prisma,
+      plan,
+      this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+    );
+    for (const [dayIndex, day] of plan.days.entries()) {
       const date = isoDate(day.date);
       const onTheDay = day.meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []));
       for (const meal of day.meals) {
@@ -167,12 +180,14 @@ export class UseUpService {
         }
         const held = meal.recipe.caloriesPerServing * factor;
         const others = twiceADay ? [] : onTheDay.filter((recipeId) => recipeId !== meal.recipe!.id);
+        const leaving = new Set([meal.id]);
         const candidates = welcome(
           (await poolFor(meal.mealType)).filter(
             (candidate) =>
               candidate.id !== meal.recipe!.id &&
               !others.includes(candidate.id) &&
-              holdsAbout(candidate.caloriesPerServing, held),
+              holdsAbout(candidate.caloriesPerServing, held) &&
+              limits.breaks(candidate, dayIndex, leaving).length === 0,
           ),
           restrictions,
         );

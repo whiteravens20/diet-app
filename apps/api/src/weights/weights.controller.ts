@@ -69,7 +69,8 @@ export class WeightsController {
   }
 
   /**
-   * Note a weight of a profile for a day. Sent again with the same
+   * Note a weight of a profile, taken at most a year before. A day in UTC holds
+   * at most ten weights of a profile. Sent again with the same
    * `Idempotency-Key` within a week, it is answered with the entry the first
    * request noted and notes nothing.
    */

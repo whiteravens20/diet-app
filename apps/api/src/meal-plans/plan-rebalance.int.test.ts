@@ -1,11 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { MealPlan, RebalanceResult } from '@diet-app/shared';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
 
 const DAY_MS = 86_400_000;
 /** The day `offset` days from today: the API takes a client's date only near its own. */
@@ -176,6 +177,69 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
       const { rebalance } = await rebalanceRest(plan);
 
       expect(rebalance).toMatchObject({ changes: [], unabsorbedKcal: 0 });
+    });
+  });
+
+  describe('what a plan says of its macros', () => {
+    /** Every meal of the first day one recipe nearly all fat: what the day holds cannot be near a balanced split. */
+    let changedRecipe: {
+      id: string;
+      proteinPerServing: number;
+      fatPerServing: number;
+      carbsPerServing: number;
+    } | null = null;
+    afterEach(async () => {
+      if (!changedRecipe) return;
+      const { id, ...figures } = changedRecipe;
+      await t.prisma.recipe.update({ where: { id }, data: figures });
+      changedRecipe = null;
+    });
+    const read = (id: string) => t.app.get(MealPlansService).get(user.id, 'en', id);
+    const allFat = async (plan: MealPlan): Promise<MealPlan> => {
+      const rich = await t.prisma.recipe.findFirstOrThrow({
+        where: { mealTypes: { has: 'lunch' }, createdByUserId: null },
+        select: { id: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true },
+      });
+      changedRecipe = rich;
+      await t.prisma.recipe.update({
+        where: { id: rich.id },
+        data: { proteinPerServing: 2, fatPerServing: 60, carbsPerServing: 2 },
+      });
+      await t.prisma.plannedMeal.updateMany({
+        where: { dayId: plan.days[0]!.id },
+        data: { recipeId: rich.id, servings: 1, quantityScale: 1 },
+      });
+      return read(plan.id);
+    };
+
+    it('says nothing of a day near what it aims at', async () => {
+      const plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 2 });
+
+      expect(plan.days.map((day) => day.macrosOff)).toEqual([false, false]);
+      expect(plan.averageOff).toEqual({ calories: null, macros: false });
+    });
+
+    it('says so of a day far from it, and of a plan whose average is', async () => {
+      const made = await aPlan(t, user, await aProfile(t, user), { durationDays: 1 });
+
+      const plan = await allFat(made);
+
+      expect(plan.days[0]!.macrosOff).toBe(true);
+      expect(plan.averageOff.macros).toBe(true);
+    });
+
+    it('says nothing of a day the user skips', async () => {
+      const made = await aPlan(t, user, await aProfile(t, user), { durationDays: 1 });
+      await allFat(made);
+      await t.prisma.mealPlanDay.update({
+        where: { id: made.days[0]!.id },
+        data: { overrides: { skip: true } },
+      });
+
+      const plan = await read(made.id);
+
+      expect(plan.days[0]!.macrosOff).toBe(false);
+      expect(plan.averageOff).toEqual({ calories: null, macros: false });
     });
   });
 

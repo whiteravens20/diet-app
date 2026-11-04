@@ -108,24 +108,21 @@ describe('the files of the terms', () => {
 describe('the template that comes with the application', () => {
   const template = readTerms(path.resolve(process.cwd(), '..', '..', 'terms'));
 
-  it('is in English and in Polish, with the same sections', () => {
+  it('is in English alone, with its sections', () => {
     expect(template).not.toBeNull();
-    expect(Object.keys(template?.translations ?? {})).toEqual(['pl']);
-    expect(template?.terms.outline).toHaveLength(10);
-    expect(template?.translations.pl.outline).toHaveLength(10);
+    expect(template?.translations).toEqual({});
+    expect(template?.terms.outline).toHaveLength(11);
   });
 
-  it('says in both languages that it is a template, and names the check Cloudflare runs', () => {
+  it('says that it is a template, and names the check Cloudflare runs', () => {
     expect(template?.terms.html).toContain('This is a template, not the terms of this instance.');
-    expect(template?.translations.pl.html).toContain('To szablon, a nie regulamin tej instancji.');
     expect(template?.terms.html).toContain('Cloudflare Turnstile');
-    expect(template?.translations.pl.html).toContain('Cloudflare Turnstile');
   });
 
-  it('is what an instance shows whose operator wrote none, in the language of the page or else in English, said once in the log', () => {
+  it('is what an instance shows whose operator wrote none, in English whatever the language of the page, said once in the log', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(termsFor('pl').html).toContain('<h1>Regulamin</h1>');
+    expect(termsFor('pl').html).toContain('<h1>Terms of Service</h1>');
     expect(termsFor('en').html).toContain('<h1>Terms of Service</h1>');
     expect(termsFor('de').html).toContain('<h1>Terms of Service</h1>');
     expect(warn).toHaveBeenCalledTimes(1);

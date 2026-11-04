@@ -151,6 +151,31 @@ export const DIARY_DAYS_BACK = 366;
  */
 export const DIARY_QUANTITY_LIMITS = { g: 5000, ml: 5000, piece: 50 } as const;
 
+/**
+ * What a search of the products the instance holds takes and answers with: a
+ * word of at least `leastLetters`, of `leastSigns` where its script writes a
+ * word in few signs, and at most `found` products.
+ */
+/** How long a name, a brand and a pack's words may be when a product is kept. */
+export const PRODUCT_TEXT = { name: 160, brand: 80, pack: 40 } as const;
+
+/**
+ * What an account may do with products of its own: how many it holds, how many
+ * times in 24 hours it writes or changes one, and how many it sends to the
+ * instance's base in 24 hours.
+ */
+export const OWN_PRODUCTS = { held: 500, writtenADay: 50, sentADay: 10 } as const;
+
+/** The most a reason given to the author of a product may say. */
+export const PRODUCT_REASON_LONGEST = 500;
+
+export const PRODUCT_SEARCH = {
+  leastLetters: 3,
+  leastSigns: 2,
+  longest: 100,
+  found: 20,
+} as const;
+
 /** The most recipes one import looks at: the first of its document. */
 export const MOST_RECIPES_PER_IMPORT = 100;
 
