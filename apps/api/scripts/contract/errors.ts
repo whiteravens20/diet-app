@@ -16,6 +16,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HttpStatus } from '@nestjs/common';
+import { LOCALES } from '@diet-app/shared';
 import ts from 'typescript';
 import { SOURCE } from './routes.js';
 
@@ -214,13 +215,11 @@ export function errorsDocument(codes: ErrorCode[] = readErrorCodes()): string {
 /**
  * The same codes as data a client copies: each code, in the order of the
  * alphabet, with the statuses it comes with and its sentence in each language
- * of the catalogue.
+ * the application shows.
  */
 export function errorsData(codes: ErrorCode[] = readErrorCodes()): string {
-  const locales = readdirSync(MESSAGES)
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => name.slice(0, -'.json'.length))
-    .sort();
+  // The languages the application shows, not every file of the catalogue: one off the list is a translation still being written.
+  const locales = [...LOCALES].sort();
   const catalogue = Object.fromEntries(locales.map((locale) => [locale, sentences(locale)]));
   const data = Object.fromEntries(
     codes.map(({ code, statuses }) => [

@@ -14,6 +14,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { LOCALES, type Locale } from '@diet-app/shared';
 import { readErrorCodes } from '../../scripts/contract/errors.js';
 
 const API_SRC = resolve(__dirname, '..');
@@ -32,7 +33,7 @@ interface MessagesShape {
   errors?: Record<string, string>;
 }
 
-async function loadLocaleErrors(locale: 'en' | 'pl'): Promise<Set<string>> {
+async function loadLocaleErrors(locale: Locale): Promise<Set<string>> {
   // Skip when running outside the repo (e.g. published packages).
   try {
     await stat(MESSAGES_DIR);
@@ -53,17 +54,18 @@ describe('error-code catalogue', () => {
     thrown = new Set(readErrorCodes().map(({ code }) => code));
   }, 60_000);
 
-  it('every thrown code has a matching key in en.json AND pl.json', async () => {
-    const [en, pl] = await Promise.all([loadLocaleErrors('en'), loadLocaleErrors('pl')]);
+  it.each(LOCALES)(
+    'every thrown code has a sentence in %s, a language the application shows',
+    async (locale) => {
+      const sentences = await loadLocaleErrors(locale);
 
-    // No messages dir found (running outside the repo) — skip gracefully.
-    if (en.size === 0 && pl.size === 0) return;
+      // No messages dir found (running outside the repo) — skip gracefully.
+      if (sentences.size === 0) return;
 
-    const missingEn = [...thrown].filter((c) => !en.has(c)).sort();
-    const missingPl = [...thrown].filter((c) => !pl.has(c)).sort();
-    expect(missingEn, `Missing in en.json#errors: ${missingEn.join(', ')}`).toEqual([]);
-    expect(missingPl, `Missing in pl.json#errors: ${missingPl.join(', ')}`).toEqual([]);
-  });
+      const missing = [...thrown].filter((c) => !sentences.has(c)).sort();
+      expect(missing, `Missing in ${locale}.json#errors: ${missing.join(', ')}`).toEqual([]);
+    },
+  );
 
   it("every sentence is for a code the API can answer with, or for one of the web application's own", async () => {
     const en = await loadLocaleErrors('en');
