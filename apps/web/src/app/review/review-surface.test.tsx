@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -53,7 +53,8 @@ describe("the reviewer's page", () => {
     const { names } = await renderSignedIn();
 
     expect(screen.getByRole('button', { name: text.kindRecipe })).toBeInTheDocument();
-    expect(names).toHaveBeenCalledWith('pl', { pageSize: 1 });
+    // The totals are asked for one after the other, after the session is shown.
+    await waitFor(() => expect(names).toHaveBeenCalledWith('pl', { pageSize: 1 }));
   });
 
   it('says how many wait of each kind, to the eye and to a screen reader', async () => {
