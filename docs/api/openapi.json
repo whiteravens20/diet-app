@@ -2902,7 +2902,7 @@
           "auth"
         ],
         "summary": "Sign in with an address and a password.",
-        "description": "Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session.\n\nAsked by anyone.\n\nLimited to 30 in 15 minutes; 10 in 15 minutes for what it tries; 50 in 15 minutes for what it tries, for each sender.",
+        "description": "Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. An account keeps at most fifty sessions open: a new one ends the one used longest ago.\n\nAsked by anyone.\n\nLimited to 30 in 15 minutes; 10 in 15 minutes for what it tries; 50 in 15 minutes for what it tries, for each sender.",
         "security": [],
         "requestBody": {
           "required": true,

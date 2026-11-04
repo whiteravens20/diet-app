@@ -6,9 +6,9 @@ import {
   MAX_FAVORITES_PER_PROFILE,
   MAX_FAVORITE_SETS_PER_PROFILE,
   MAX_MEALS_ON_A_PLAN_DAY,
+  MAX_OPEN_SESSIONS,
   MAX_PANTRY_ROWS,
   MAX_PLANS_PER_PROFILE,
-  MAX_SESSIONS_LISTED,
   MAX_UNREAD_LISTED,
   MAX_WEIGHTS_A_DAY,
   MAX_WEIGHTS_LISTED,
@@ -488,7 +488,7 @@ describe('how much a profile may hold, and how much of a list one answer shows',
     });
   });
 
-  it('is shown the sessions it used last, fifty at most, and signing out everywhere ends the others too', async () => {
+  it('is shown every session it has open, which a new one past the most ends the one used longest ago of, and signing out everywhere ends them all', async () => {
     const sessions = t.app.get(SessionsService);
     const account = {
       id: user.id,
@@ -496,17 +496,28 @@ describe('how much a profile may hold, and how much of a list one answer shows',
       role: 'user' as const,
       emailVerified: true,
     };
-    const more = MAX_SESSIONS_LISTED + 4;
-    for (let n = 0; n < more; n += 1) await sessions.open(account, user.email, `Device ${n}`);
+    const more = MAX_OPEN_SESSIONS + 4;
+    let latest = await sessions.open(account, user.email, 'Device 0');
+    for (let n = 1; n < more; n += 1)
+      latest = await sessions.open(account, user.email, `Device ${n}`);
+    const asLatest = { Authorization: `Bearer ${latest.tokens.accessToken}` };
 
     const listed: AccountSession[] = (
-      await t.http().get('/api/users/me/sessions').set(as(user)).expect(200)
+      await t.http().get('/api/users/me/sessions').set(asLatest).expect(200)
     ).body;
 
-    expect(listed).toHaveLength(MAX_SESSIONS_LISTED);
-    // The one the account was made with is the oldest of them all: it is among those the list leaves out.
-    expect(listed.every((session) => session.label?.startsWith('Device '))).toBe(true);
-    await t.http().delete('/api/users/me/sessions').set(as(user)).expect(204);
+    expect(listed).toHaveLength(MAX_OPEN_SESSIONS);
+    // The one the account was made with and the first four opened after it were used longest ago: they ended.
+    expect(new Set(listed.map((session) => session.label))).toEqual(
+      new Set(
+        Array.from(
+          { length: MAX_OPEN_SESSIONS },
+          (_, n) => `Device ${n + more - MAX_OPEN_SESSIONS}`,
+        ),
+      ),
+    );
+    await t.http().get('/api/users/me/sessions').set(as(user)).expect(401);
+    await t.http().delete('/api/users/me/sessions').set(asLatest).expect(204);
     expect(await t.prisma.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(
       0,
     );

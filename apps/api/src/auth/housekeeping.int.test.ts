@@ -1,11 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { randomUUID } from 'node:crypto';
+import { MAX_OPEN_SESSIONS } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
 import { aSession, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { pruneLinks } from './one-time-links.js';
-import { SessionsService } from './sessions.service.js';
+import { SessionsService, USED_TOKENS_KEPT } from './sessions.service.js';
 
 const HOUR = 3_600_000;
 
@@ -75,6 +77,57 @@ describe('what the worker clears away of sessions and links', () => {
       await expect(sessions.refresh(second)).rejects.toMatchObject({
         response: { error: 'INVALID_REFRESH' },
       });
+    });
+
+    it('of a session that is open stay the newest used ones: an older one is refused and the session goes on, a newer one presented again ends it', async () => {
+      const open = await signIn();
+      const used: string[] = [];
+      let token = open.tokens.refreshToken;
+      for (let n = 0; n < USED_TOKENS_KEPT + 2; n++) {
+        used.push(token);
+        token = (await sessions.refresh(token)).tokens.refreshToken;
+      }
+      expect(await rowsOf(open.sessionId)).toBe(USED_TOKENS_KEPT + 1);
+      // Out of the ten seconds in which a token used again is taken for a client's second request.
+      await t.prisma
+        .$executeRaw`UPDATE "RefreshToken" SET "rotatedAt" = "rotatedAt" - INTERVAL '11 seconds' WHERE "rotatedAt" IS NOT NULL`;
+
+      await expect(sessions.refresh(used[0]!)).rejects.toMatchObject({
+        response: { error: 'INVALID_REFRESH' },
+      });
+      token = (await sessions.refresh(token)).tokens.refreshToken;
+
+      await expect(sessions.refresh(used.at(-1)!)).rejects.toMatchObject({
+        response: { error: 'INVALID_REFRESH' },
+      });
+      await expect(sessions.refresh(token)).rejects.toMatchObject({
+        response: { error: 'INVALID_REFRESH' },
+      });
+    });
+
+    it('of an account are open in as many sessions as its list holds: one more ends the one used longest ago', async () => {
+      // The session the account was made with is the one used longest ago.
+      const made = await t.prisma.refreshToken.findFirstOrThrow({ where: { userId: user.id } });
+      const day = new Date(Date.now() + 24 * HOUR);
+      await t.prisma.refreshToken.createMany({
+        data: Array.from({ length: MAX_OPEN_SESSIONS - 1 }, (_, n) => ({
+          userId: user.id,
+          tokenHash: `open-${n}`,
+          familyId: randomUUID(),
+          familyExpiresAt: day,
+          expiresAt: day,
+          createdAt: new Date(made.createdAt.getTime() + n + 1),
+        })),
+      });
+
+      const latest = await signIn();
+
+      const open = { userId: user.id, rotatedAt: null, revokedAt: null };
+      expect(await t.prisma.refreshToken.count({ where: open })).toBe(MAX_OPEN_SESSIONS);
+      expect(
+        await t.prisma.refreshToken.count({ where: { ...open, familyId: made.familyId } }),
+      ).toBe(0);
+      await expect(sessions.refresh(latest.tokens.refreshToken)).resolves.toBeDefined();
     });
 
     it('of other accounts are left alone', async () => {
