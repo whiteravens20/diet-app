@@ -46,6 +46,7 @@ import {
   SwapMealRequest,
   SwapPreview,
   TakeDayVariationRequest,
+  UndoSwapRequest,
   UseUpSuggestions,
   WeighRequest,
   type Locale,
@@ -140,7 +141,8 @@ export class MealPlansController {
   /**
    * Make a plan for a profile: the planner fills its days within the limits
    * of the profile. 422 `PLAN_NEEDS_RELAXATION` when it cannot, with the
-   * limits that would have to give way.
+   * limits that would have to give way. A profile holds at most a hundred
+   * plans.
    *
    * Limited more tightly than other routes: choosing the recipes is work of
    * the API process.
@@ -253,8 +255,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('dayId', requiredUuid) dayId: string,
     @Body(new ZodValidationPipe(TakeDayVariationRequest)) dto: TakeDayVariationRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.variations.take(user.id, locale, id, dayId, dto);
+    return this.variations.take(user.id, locale, id, dayId, dto, today);
   }
 
   /**
@@ -306,8 +309,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.preview(user.id, locale, dto);
+    return this.swaps.preview(user.id, locale, dto, today);
   }
 
   /** Make a swap that was offered, on the plan as it was when the offer was made. */
@@ -317,14 +321,31 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(ApplyMealSwapRequest)) dto: ApplyMealSwapRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.apply(user.id, locale, dto);
+    return this.swaps.apply(user.id, locale, dto, today);
   }
 
   /**
-   * Add a user-authored custom meal to a day. Sent again with the same
-   * `Idempotency-Key` within a week, it is answered with the plan as it is now,
-   * without a rebalance, and adds nothing.
+   * Take back the last swap of a meal or of an ingredient, while the plan is as
+   * that swap left it: the dishes and the portions of the days it changed.
+   */
+  @Post('swap-meal/undo')
+  @HttpCode(200)
+  @Answers(RebalanceResult)
+  undoSwap(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(UndoSwapRequest)) dto: UndoSwapRequest,
+  ) {
+    return this.plans.undoSwap(user.id, locale, dto);
+  }
+
+  /**
+   * Add a user-authored custom meal to a day. A day takes one while it holds
+   * fewer than twenty meals. Sent again with the same `Idempotency-Key` within
+   * a week, it is answered with the plan as it is now, without a rebalance, and
+   * adds nothing.
    */
   @Post(':id/days/:date/custom-meal')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
@@ -336,8 +357,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('date', requiredDate) date: string,
     @Body(new ZodValidationPipe(AddCustomMealRequest)) dto: AddCustomMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.addCustomMeal(user.id, locale, id, date, dto, key);
+    return this.plans.addCustomMeal(user.id, locale, id, date, dto, key, today);
   }
 
   /** Take a meal off its day, whichever it is (rebalances the day). */
@@ -348,8 +370,9 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.removeMeal(user.id, locale, id, mealId);
+    return this.plans.removeMeal(user.id, locale, id, mealId, today);
   }
 
   /** Mark a planned meal eaten or not eaten (rebalances the day). */
@@ -361,8 +384,9 @@ export class MealPlansController {
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
     @Body(new ZodValidationPipe(SetMealEatenRequest)) dto: SetMealEatenRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
+    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today);
   }
 
   /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
@@ -391,8 +415,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.swaps.previewWithAi(user.id, locale, dto);
+    return this.swaps.previewWithAi(user.id, locale, dto, today);
   }
 
   /**
@@ -426,8 +451,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSuggestIngredientRequest)) dto: AiSuggestIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.aiSuggestIngredient(user.id, locale, dto);
+    return this.ingredients.aiSuggestIngredient(user.id, locale, dto, today);
   }
 
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
@@ -438,8 +464,9 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.suggestions(user.id, locale, id, mealId);
+    return this.ingredients.suggestions(user.id, locale, id, mealId, today);
   }
 
   /** What swapping an ingredient of a meal for another would do to the meal. Nothing is written. */
@@ -449,8 +476,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.previewIngredientSwap(user.id, locale, dto);
+    return this.ingredients.previewIngredientSwap(user.id, locale, dto, today);
   }
 
   /** Make a substitution: the meal gets a recipe of the account's own, the planned one with the ingredient swapped. */
@@ -461,7 +489,8 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.ingredients.applyIngredientSwap(user.id, locale, dto);
+    return this.ingredients.applyIngredientSwap(user.id, locale, dto, today);
   }
 }

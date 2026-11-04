@@ -53,6 +53,17 @@ export type CreateWeightEntryRequest = z.infer<typeof CreateWeightEntryRequest>;
 /** The most weights one answer holds: the newest. Logged once a day, that is close to three years. */
 export const MAX_WEIGHTS_LISTED = 1000;
 
+/**
+ * The most weights a profile keeps for one day, the day in UTC that each was
+ * taken on: far more than anybody weighs in a day. With `WEIGHT_DAYS_BACK`, it
+ * bounds what a profile's log can pile up at once, however fast its requests
+ * come.
+ */
+export const MAX_WEIGHTS_A_DAY = 10;
+
+/** How many days before the moment it is noted a weight may have been taken: a year, of a leap year too. */
+export const WEIGHT_DAYS_BACK = 366;
+
 /** The weights of a profile, the newest first: the newest of all, or of the ones recorded since a moment. */
 export const WeightListQuery = z.object({
   profileId: z.string().uuid(),

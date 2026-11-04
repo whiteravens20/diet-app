@@ -10,7 +10,10 @@ import ForgotPasswordPage from './page';
 
 function renderPage(emailEnabled: boolean) {
   const client = new QueryClient();
-  client.setQueryData(['config'], aPublicConfig({ email: { enabled: emailEnabled } }));
+  client.setQueryData(
+    ['config'],
+    aPublicConfig({ email: { enabled: emailEnabled, confirmationUnlocksAi: false } }),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>

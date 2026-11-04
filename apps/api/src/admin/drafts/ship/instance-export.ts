@@ -11,8 +11,9 @@
  *    their order;
  *  - `ingredient-overrides.json`: the names of ingredients this instance
  *    gave, without those the catalogue's data gives as they are;
- *  - `manifest.json`: the version of the application, and how many recipes
- *    and names the files hold.
+ *  - `products.json`: what people added to the instance's base of products, without who added it;
+ *  - `manifest.json`: the version of the application, and how many recipes,
+ *    names and products the files hold.
  *
  * They are written again after every ship into the instance, every restore
  * and every update of the catalogue, so they say what the database says, in
@@ -38,6 +39,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import type { ProductAdditions } from '@diet-app/shared';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { buildCurrentIngredientOverrides } from './current-overrides.js';
 import {
@@ -55,6 +57,7 @@ import {
 /** The file of the instance's library, among the recipe files of its directory. */
 const LIBRARY_FILE = 'library.json';
 const MANIFEST_FILE = 'manifest.json';
+export const PRODUCTS_FILE = 'products.json';
 
 /** What the manifest says: which version wrote the files, and how much they hold. */
 export const InstanceManifest = z.object({
@@ -62,6 +65,7 @@ export const InstanceManifest = z.object({
   version: z.string().min(1).max(40),
   recipes: z.number().int().min(0),
   names: z.number().int().min(0),
+  products: z.number().int().min(0).default(0),
 });
 export type InstanceManifest = z.infer<typeof InstanceManifest>;
 
@@ -165,6 +169,37 @@ const LIBRARY = {
   deletedAt: null,
   retiredAt: null,
 } as const;
+
+/** What people added to the base, without who added it. */
+export async function addedProducts(prisma: PrismaService): Promise<ProductAdditions> {
+  const rows = await prisma.product.findMany({
+    where: { origin: 'accepted' },
+    orderBy: { code: 'asc' },
+  });
+  return {
+    license: 'ODbL-1.0',
+    products: rows.map((row) => ({
+      code: row.code,
+      name: row.name,
+      brand: row.brand,
+      pack: row.pack,
+      unit: row.unit as 'g' | 'ml',
+      packAmount: row.packAmount,
+      servingAmount: row.servingAmount,
+      per100: {
+        calories: row.calories,
+        protein: row.protein,
+        fat: row.fat,
+        carbs: row.carbs,
+        fiber: row.fiber,
+        sugars: row.sugars,
+        salt: row.salt,
+        saturatedFat: row.saturatedFat,
+      },
+      acceptedAt: row.acceptedAt?.toISOString() ?? null,
+    })),
+  };
+}
 
 /** Every recipe of the instance's own library, as a row of the catalogue's data files. */
 async function libraryRows(prisma: PrismaService): Promise<ShippedRecipe[]> {
@@ -272,21 +307,29 @@ export async function exportInstanceData(
     // The names of the catalogue's own data are left out: the catalogue gives them.
     readIngredientOverrides(join(seedDataDir, INGREDIENT_OVERRIDES_FILE)),
   );
+  const products = await addedProducts(prisma);
   const manifest: InstanceManifest = {
     app: 'diet-app',
     version,
     recipes: recipes.length,
     names: Object.keys(names).length,
+    products: products.products.length,
   };
 
   mkdirSync(recipeBatchesDir(instanceDataDir), { recursive: true });
   writeWhole(join(recipeBatchesDir(instanceDataDir), LIBRARY_FILE), recipes);
   writeWhole(ingredientOverridesPath(instanceDataDir), names);
+  writeWhole(join(instanceDataDir, PRODUCTS_FILE), products);
   writeWhole(join(instanceDataDir, MANIFEST_FILE), manifest);
   for (const name of earlier) rmSync(join(recipeBatchesDir(instanceDataDir), name));
 
   return {
-    written: [`${RECIPE_BATCHES_DIR}/${LIBRARY_FILE}`, INGREDIENT_OVERRIDES_FILE, MANIFEST_FILE],
+    written: [
+      `${RECIPE_BATCHES_DIR}/${LIBRARY_FILE}`,
+      INGREDIENT_OVERRIDES_FILE,
+      PRODUCTS_FILE,
+      MANIFEST_FILE,
+    ],
     removed: earlier.map((name) => `${RECIPE_BATCHES_DIR}/${name}`),
     notRestored: [],
   };

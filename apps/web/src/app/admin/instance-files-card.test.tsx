@@ -31,7 +31,7 @@ const REPORTED: InstanceMirror = {
   failure: null,
   checkedAt: '2026-10-31T11:30:00Z',
   pushedAt: '2026-10-30T18:02:00Z',
-  copy: { version: '0.150.0', recipes: 183, names: 87 },
+  copy: { version: '0.150.0', recipes: 183, names: 87, products: 4 },
 };
 
 function shown(
@@ -110,7 +110,9 @@ describe('the copy of the files in a repository, in the panel', () => {
     expect(await screen.findByText(mirrorText.state.current)).toBeInTheDocument();
     expect(screen.getByText(mirrorText.checkedAt)).toBeInTheDocument();
     expect(screen.getByText(mirrorText.pushedAt)).toBeInTheDocument();
-    expect(screen.getByText('Recipes: 183 · names: 87 · version 0.150.0')).toBeInTheDocument();
+    expect(
+      screen.getByText('Recipes: 183 · names: 87 · products: 4 · version 0.150.0'),
+    ).toBeInTheDocument();
     expect(mirrorNeedsAttention(REPORTED)).toBe(false);
   });
 
@@ -155,7 +157,9 @@ describe('the copy of the files in a repository, in the panel', () => {
     shown({}, REPORTED, pl as unknown as typeof en);
 
     expect(await screen.findByText(pl.admin.mirror.state.current)).toBeInTheDocument();
-    expect(screen.getByText('Przepisy: 183 · nazwy: 87 · wersja 0.150.0')).toBeInTheDocument();
+    expect(
+      screen.getByText('Przepisy: 183 · nazwy: 87 · produkty: 4 · wersja 0.150.0'),
+    ).toBeInTheDocument();
   });
 
   it('waits to be read: nothing is said of it before that', async () => {

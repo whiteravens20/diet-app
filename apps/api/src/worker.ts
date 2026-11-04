@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { PrismaService } from './prisma/prisma.service.js';
+import { ProductImport } from './products/product-import.js';
 import { runJobs, workerJobs } from './worker.jobs.js';
 import { WorkerModule } from './worker.module.js';
 
@@ -27,8 +28,19 @@ async function bootstrap(): Promise<void> {
   const tick = setInterval(() => void runJobs(prisma, jobs, logger), tickMs);
   logger.log(`Worker started — every 1h: ${jobs.map(([name]) => name).join(', ')}`);
 
+  // The import of products is looked at every minute beside the pass, which it
+  // does not hold up however long it reads; a run the administrator asked for
+  // begins within that minute.
+  const products = app.get(ProductImport);
+  const lookAtImport = (): void =>
+    void products.runIfDue().catch((err: unknown) => {
+      logger.error(`The import of products failed: ${(err as Error).message}`);
+    });
+  const importTick = setInterval(lookAtImport, 60_000);
+
   const shutdown = async (): Promise<void> => {
     clearInterval(tick);
+    clearInterval(importTick);
     await app.close();
     process.exit(0);
   };

@@ -52,5 +52,7 @@ export type UpdateFavoriteSetRequest = z.infer<typeof UpdateFavoriteSetRequest>;
 export const ApplyFavoriteSetRequest = z.object({
   planId: z.string().uuid(),
   dayDates: z.array(CalendarDay).min(1).max(28),
+  /** A recipe of the set goes on the meals cooked with the one it replaces, on days not named here. */
+  together: z.boolean().default(false),
 });
 export type ApplyFavoriteSetRequest = z.infer<typeof ApplyFavoriteSetRequest>;

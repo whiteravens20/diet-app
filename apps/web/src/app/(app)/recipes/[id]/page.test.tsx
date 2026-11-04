@@ -10,7 +10,11 @@ import messages from '../../../../../messages/en.json';
 import RecipeDetailPage from './page';
 
 const ID = '5d0e6f1a-2b3c-4d5e-8f6a-7b8c9d0e1f2a';
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: ID }) }));
+let address = '';
+vi.mock('next/navigation', () => ({
+  useParams: () => ({ id: ID }),
+  useSearchParams: () => new URLSearchParams(address),
+}));
 
 const recipe = (origin: Recipe['origin']): Recipe => ({
   id: ID,
@@ -52,6 +56,39 @@ afterEach(() => {
 });
 
 describe('the page of one recipe', () => {
+  it('says how far the amounts are from the meal of a plan it was opened from', async () => {
+    address = 'portion=1.3';
+    opened('seed');
+
+    expect(
+      await screen.findByText(
+        'The original gives amounts for 2 servings, your meal is 1.3 servings.',
+      ),
+    ).toBeVisible();
+    address = '';
+  });
+
+  it('says it of a whole cooking', async () => {
+    address = 'portion=3.5&whole=1';
+    opened('seed');
+
+    expect(
+      await screen.findByText(
+        'The original gives amounts for 2 servings, this cooking comes to 3.5 servings.',
+      ),
+    ).toBeVisible();
+    address = '';
+  });
+
+  it('believes no address that names what no meal holds', async () => {
+    address = 'portion=1000';
+    opened('seed');
+
+    await screen.findByRole('link', { name: new RegExp(messages.recipeDetail.back) });
+    expect(screen.queryByText(/The original gives/)).toBeNull();
+    address = '';
+  });
+
   it.each(['manual', 'ai', 'swap'] as const)(
     'offers to edit a recipe of one’s own (%s)',
     async (origin) => {

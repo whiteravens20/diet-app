@@ -133,8 +133,8 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
       API_PORT: 4000
-    # Same image, different command: runs scheduled tasks (weight-reminder
-    # scan) on a single instance.
+    # Same image, different command: runs scheduled tasks (the weight-reminder
+    # scan, the weekly import of products) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }
@@ -157,7 +157,8 @@ services:
       TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
     volumes:
       # The terms of service the page shows: terms/ of this checkout, which
-      # holds the template until you write your own there (TOS.md, TOS.pl.md).
+      # holds the template until you write your own there (TOS.md, and a
+      # translation named by its language's code, such as TOS.pl.md).
       # After a change, restart the web service.
       - ../terms:/terms:ro
     depends_on:
@@ -174,7 +175,7 @@ services:
 
   # ── Optional: local self-hosted AI ──────────────────────────────────────────
   ollama:
-    image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
+    image: ollama/ollama:0.40.11@sha256:dea72d1e22270fe095b68fdf756d2b489d615643c5a2eaebbc5f569181e322d8
     profiles: ['ollama']
     restart: unless-stopped
     volumes:

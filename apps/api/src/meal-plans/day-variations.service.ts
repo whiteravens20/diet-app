@@ -7,6 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+  PlanOptions,
   RegenerateDayRequest,
   type DayVariation,
   type DayVariationMeal,
@@ -16,7 +17,6 @@ import {
   type MealType,
   type Nutrition,
   type PackTally,
-  type TakeDayVariationRequest,
   type WeighRequest,
 } from '@diet-app/shared';
 import { ModelPickService } from '../ai/model-pick.service.js';
@@ -26,7 +26,12 @@ import { storedSplit } from '../common/stored-split.js';
 import { macrosForCalories, packUse, sharesOf, tallyOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { assertMayEnter, CANDIDATE, pickIndex, restrictionsFor } from './eligibility.js';
-import { mealRank, MealPlansService } from './meal-plans.service.js';
+import {
+  cookingChange,
+  mealRank,
+  MealPlansService,
+  type CookedMeal,
+} from './meal-plans.service.js';
 import { isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds, type PackedMeal } from './plan-menu.js';
@@ -121,7 +126,7 @@ export class DayVariationsService {
       .map((meal) => ({ slot: meal.mealType, recipeId: meal.recipeId! }));
     const seen = new Set([signature(replaced)]);
     const ways: {
-      placed: { slot: MealType; recipeId: string; servings: number }[];
+      placed: { slot: MealType; recipeId: string; servings: number; quantityScale: number }[];
       reuse: number;
     }[] = [];
     // Each way is filled around what the day holds and what the ways before it hold, so that it is another day and
@@ -152,7 +157,12 @@ export class DayVariationsService {
       if (result.report.relaxations.some((entry) => entry.date === date)) continue;
       const placed = result.assignments
         .filter((meal) => meal.dayIndex === dayIndex)
-        .map(({ slot, recipeId, servings }) => ({ slot, recipeId, servings }));
+        .map(({ slot, recipeId, servings, quantityScale }) => ({
+          slot,
+          recipeId,
+          servings,
+          quantityScale,
+        }));
       const found = signature(placed);
       if (placed.length === 0 || seen.has(found)) continue;
       seen.add(found);
@@ -232,16 +242,17 @@ export class DayVariationsService {
       (way) => {
         const placed: DayVariationMeal[] = way.placed.map((meal) => {
           const recipe = recipeOf.get(meal.recipeId)!;
+          const amount = meal.servings * meal.quantityScale;
           return {
             mealType: meal.slot,
             title: titleOf(recipe, locale),
             recipeId: recipe.id,
-            servings: meal.servings,
+            servings: amount,
             nutrition: {
-              calories: Math.round(recipe.caloriesPerServing * meal.servings),
-              protein: Math.round(recipe.proteinPerServing * meal.servings),
-              fat: Math.round(recipe.fatPerServing * meal.servings),
-              carbs: Math.round(recipe.carbsPerServing * meal.servings),
+              calories: Math.round(recipe.caloriesPerServing * amount),
+              protein: Math.round(recipe.proteinPerServing * amount),
+              fat: Math.round(recipe.fatPerServing * amount),
+              carbs: Math.round(recipe.carbsPerServing * amount),
             },
             stays: false,
           };
@@ -253,7 +264,9 @@ export class DayVariationsService {
           packs: tally([
             ...rest,
             ...way.placed.map((meal) => ({
-              factor: meal.servings / Math.max(1, recipeOf.get(meal.recipeId)!.servings),
+              factor:
+                (meal.servings * meal.quantityScale) /
+                Math.max(1, recipeOf.get(meal.recipeId)!.servings),
               lines: recipeOf.get(meal.recipeId)!.ingredients,
             })),
           ]),
@@ -307,11 +320,23 @@ export class DayVariationsService {
       picked = !weighed.meta.usedDeterministicFallback;
     }
 
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
     return {
       date,
       calorieTarget: day.calorieTarget,
       diary: entered,
       current,
+      cooking: cookingChange(
+        day.meals
+          .filter((meal) => !stays.has(meal.id))
+          .flatMap((meal) => cookedWith.get(meal.id) ?? [])
+          .filter((meal) => meal.dayId !== dayId),
+        clientToday ?? this.plans.today(),
+      ),
       variations: variations.map(({ way, ...variation }, index) => ({
         ...variation,
         // What a model put first is its pick, and is written as one when it is taken.
@@ -320,7 +345,12 @@ export class DayVariationsService {
           plan: planId,
           day: dayId,
           revision: plan.revision,
-          meals: way.placed.map((meal) => [meal.slot, meal.recipeId, meal.servings]),
+          meals: way.placed.map((meal) => [
+            meal.slot,
+            meal.recipeId,
+            meal.servings,
+            meal.quantityScale,
+          ]),
           reuse: way.reuse,
           picked: picked && index === 0,
           reason: picked && index === 0 ? variation.reason : null,
@@ -340,7 +370,8 @@ export class DayVariationsService {
     locale: Locale,
     planId: string,
     dayId: string,
-    req: TakeDayVariationRequest,
+    req: { offer: string; together?: boolean },
+    clientToday: string | null = null,
   ): Promise<MealPlan> {
     await this.dateOf(userId, planId, dayId);
     const offer = this.notes.dayOffered(userId, req.offer, { plan: planId, day: dayId });
@@ -354,7 +385,7 @@ export class DayVariationsService {
     const restrictions = await restrictionsFor(this.prisma, plan);
     const recipes = await this.prisma.recipe.findMany({
       where: { id: { in: offer.meals.map(([, recipeId]) => recipeId) } },
-      select: CANDIDATE,
+      select: { ...CANDIDATE, caloriesPerServing: true },
     });
     for (const [mealType, recipeId] of offer.meals) {
       const recipe = recipes.find((candidate) => candidate.id === recipeId);
@@ -366,34 +397,53 @@ export class DayVariationsService {
       assertMayEnter(recipe, restrictions, mealType, 'RECIPE_NOT_ELIGIBLE');
     }
 
+    const cookedWith = req.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
     await writePlan(this.prisma, planId, offer.revision, async (tx) => {
       // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
       const meals = await tx.plannedMeal.findMany({
         where: { dayId },
-        select: { id: true, eatenAt: true, source: true },
+        select: { id: true, eatenAt: true, source: true, mealType: true },
       });
       const staying = meals
         .filter((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM')
         .map((meal) => meal.id);
       await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
       await tx.plannedMeal.createMany({
-        data: offer.meals.map(([mealType, recipeId, servings]) => ({
+        data: offer.meals.map(([mealType, recipeId, servings, quantityScale]) => ({
           dayId,
           recipeId,
           mealType,
           servings,
+          quantityScale,
           modelPicked: offer.picked,
           modelReason: offer.picked ? offer.reason : null,
         })),
       });
-      // A plan that holds a model's pick says that a model had a part in it.
-      await tx.mealPlan.update({
-        where: { id: planId },
-        data: {
-          reuseScore: offer.reuse,
-          ...(offer.picked ? { generationMode: 'ai_assisted' as const } : {}),
-        },
+      await tx.mealPlan.update({ where: { id: planId }, data: { reuseScore: offer.reuse } });
+      await this.plans.carryToOtherDays(
+        tx,
+        planId,
+        cookedWith,
+        meals
+          .filter((meal) => !staying.includes(meal.id))
+          .flatMap((meal) => {
+            const placed = offer.meals.find(([mealType]) => mealType === meal.mealType);
+            return placed ? [{ mealId: meal.id, recipeId: placed[1] }] : [];
+          }),
+        new Set([dayId]),
+        clientToday ?? this.plans.today(),
+      );
+      const written = await tx.plannedMeal.findMany({
+        where: { dayId, id: { notIn: staying } },
+        select: { id: true },
       });
+      await this.plans.noteOutsideLimits(
+        tx,
+        planId,
+        written.map((meal) => meal.id),
+      );
     });
     return this.plans.get(userId, locale, planId);
   }

@@ -220,7 +220,7 @@ export function uniformDays(
   return Array.from({ length: days }, () => ({ mealSlots, dailyCalorieTarget }));
 }
 
-interface OptimizerAssignment {
+export interface OptimizerAssignment {
   dayIndex: number;
   slot: MealType;
   recipeId: string;
@@ -246,10 +246,10 @@ const SLOT_WEIGHT: Record<MealType, number> = {
 export const SCORE_WEIGHTS = {
   calorieFit: 0.45,
   // How near the day comes to the split it aims at. Chosen with
-  // `scripts/tune-macro-weight.ts`: the least weight at which the days of a
-  // plan stop getting nearer their split, so that it costs variety no more
-  // than it has to.
-  macroFit: 0.6,
+  // `scripts/tune-macro-weight.ts` on a catalogue of 183 recipes: past this
+  // weight the days of a plan still come nearer their split, but a week starts
+  // to lose recipes faster than it gains.
+  macroFit: 1.25,
   reuse: 0.25,
   variety: 0.15,
   favorite: 0.1,
@@ -340,7 +340,7 @@ interface KindMeals {
 }
 
 /** `KindMeals` for `day`, from the day of each meal that holds the kind. */
-function kindMealsAround(days: readonly number[], day: number): KindMeals {
+export function kindMealsAround(days: readonly number[], day: number): KindMeals {
   let onTheDay = 0;
   for (const d of days) if (d === day) onTheDay += 1;
   let inSevenDays = 0;
@@ -685,7 +685,7 @@ function fill(
 
 /** The limits a recipe would break if it were placed at this meal. */
 function broken(
-  recipe: OptimizerRecipe,
+  recipe: Pick<OptimizerRecipe, 'id' | 'totalMinutes' | 'proteinKinds'>,
   at: {
     day: number;
     /** The meals of the plan so far that hold a recipe. */
@@ -747,6 +747,8 @@ function broken(
   }
   return out;
 }
+
+export { broken as limitsBroken };
 
 /** What a recipe inside every limit breaks: the same list for all of them, which nobody adds to. */
 const WITHIN_EVERY_LIMIT: readonly Relaxation[] = [];

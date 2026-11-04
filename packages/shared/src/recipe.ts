@@ -206,6 +206,19 @@ export const OwnRecipeInput = OwnRecipePreviewRequest.extend({
 });
 export type OwnRecipeInput = z.infer<typeof OwnRecipeInput>;
 
+/**
+ * New words for a recipe of one's own made by swapping an ingredient, in the
+ * language of the request: its title, description and steps. They are written
+ * in that recipe, which stays the one the plans hold, as plain as any text of
+ * a recipe.
+ */
+export const RecipeTextRequest = OwnRecipeInput.pick({
+  title: true,
+  description: true,
+  steps: true,
+});
+export type RecipeTextRequest = z.infer<typeof RecipeTextRequest>;
+
 /** Which page of a list, and how long a page is. */
 export const PageQuery = z.object({
   page: z.coerce.number().int().min(1).max(100_000).default(1),

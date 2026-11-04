@@ -48,6 +48,14 @@ export function SoftwareNotice() {
         })}
       </p>
       <p>{t.rich('licence', { gnu: linkTo(LICENCE_URL) })}</p>
+      <p>
+        {t.rich('products', {
+          off: linkTo('https://world.openfoodfacts.org'),
+          odbl: linkTo('https://opendatacommons.org/licenses/odbl/1-0/'),
+          dbcl: linkTo('https://opendatacommons.org/licenses/dbcl/1-0/'),
+          source: linkTo(ATTRIBUTION_URL),
+        })}
+      </p>
       <p>{t('warranty')}</p>
       <p>{t('changed')}</p>
       <p>

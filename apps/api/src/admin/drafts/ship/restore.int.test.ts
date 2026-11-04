@@ -34,6 +34,8 @@ describe('restoring what an instance added to its catalogue', () => {
     await resetUserData(t.prisma);
     await forget();
     rmSync(join(dir, 'recipes'), { recursive: true, force: true });
+    rmSync(join(dir, 'products.json'), { force: true });
+    await t.prisma.product.deleteMany();
     rmSync(join(dir, 'ingredient-overrides.json'), { force: true });
     rmSync(join(dir, 'manifest.json'), { force: true });
   });
@@ -91,6 +93,7 @@ describe('restoring what an instance added to its catalogue', () => {
     expect(res.body).toEqual({
       recipes: { added: 1, rewritten: 0, skipped: [] },
       names: { applied: 1, skippedSlugs: [], refused: [] },
+      products: { added: 0, skipped: 0 },
       unreadable: [],
     });
     const [restored] = await curated();
@@ -267,8 +270,62 @@ describe('restoring what an instance added to its catalogue', () => {
     expect((await restore()).body).toEqual({
       recipes: { added: 0, rewritten: 0, skipped: [] },
       names: { applied: 0, skippedSlugs: [], refused: [] },
+      products: { added: 0, skipped: 0 },
       unreadable: [],
     });
+  });
+
+  it('takes what people added to the base back in, leaving a code an import brought', async () => {
+    const product = (code: string, name: string) => ({
+      code,
+      name,
+      brand: null,
+      pack: null,
+      unit: 'g',
+      packAmount: null,
+      servingAmount: null,
+      per100: {
+        calories: 240,
+        protein: 1,
+        fat: 1,
+        carbs: 58,
+        fiber: null,
+        sugars: null,
+        salt: null,
+        saturatedFat: null,
+      },
+      acceptedAt: '2026-10-01T10:00:00.000Z',
+    });
+    await t.prisma.product.create({
+      data: {
+        code: '4001724819806',
+        name: 'Z importu',
+        searchText: 'z importu',
+        unit: 'g',
+        calories: 100,
+        origin: 'imported',
+      },
+    });
+    writeFileSync(
+      join(dir, 'products.json'),
+      JSON.stringify({
+        license: 'ODbL-1.0',
+        products: [
+          product('5900512320359', 'Konfitura'),
+          product('4001724819806', 'Tego kodu nie bierze'),
+        ],
+      }),
+    );
+
+    const answer = (await restore()).body;
+
+    expect(answer.products).toEqual({ added: 1, skipped: 1 });
+    expect(
+      await t.prisma.product.findUniqueOrThrow({ where: { code: '5900512320359' } }),
+    ).toMatchObject({ origin: 'accepted', authorId: null, name: 'Konfitura' });
+    expect(
+      await t.prisma.product.findUniqueOrThrow({ where: { code: '4001724819806' } }),
+    ).toMatchObject({ origin: 'imported', name: 'Z importu' });
   });
 
   it('tells the panel what the directory holds and whether a ship can still write there', async () => {
@@ -278,6 +335,7 @@ describe('restoring what an instance added to its catalogue', () => {
       recipeFiles: 0,
       recipes: 0,
       names: 0,
+      products: 0,
       version: null,
       notRestored: 0,
     });
@@ -293,6 +351,7 @@ describe('restoring what an instance added to its catalogue', () => {
       recipeFiles: 1,
       recipes: 2,
       names: 1,
+      products: 0,
       version: null,
       // A file of the earlier layout whose recipes the library does not have: it is to be restored first.
       notRestored: 1,
@@ -320,6 +379,7 @@ describe('restoring what an instance added to its catalogue', () => {
       expect(shipped.body.sidecarPaths).toEqual([
         'recipes/library.json',
         'ingredient-overrides.json',
+        'products.json',
         'manifest.json',
       ]);
       expect(recipeFiles()).toEqual(['library.json']);
@@ -342,6 +402,7 @@ describe('restoring what an instance added to its catalogue', () => {
         version: PACKAGE_VERSION,
         recipes: 1,
         names: 1,
+        products: 0,
       });
     });
 

@@ -149,6 +149,74 @@ export type AdminHealth = z.infer<typeof AdminHealth>;
 export const JobStatus = z.enum(['idle', 'running', 'done', 'error']);
 export type JobStatus = z.infer<typeof JobStatus>;
 
+/** Why the import of products from Open Food Facts failed, so that the panel can say what to do about it. */
+export const ProductImportFailure = z.enum([
+  /** The export could not be read to its end. */
+  'source',
+  /** The export does not hold the columns this version reads. */
+  'format',
+  /** Not one product of the countries named. */
+  'nothing',
+  /** Less than half of what the last import brought, so nothing was removed. */
+  'shrunk',
+]);
+export type ProductImportFailure = z.infer<typeof ProductImportFailure>;
+
+/** Where the weekly import of products stands, and what the last run came to. */
+export const ProductImportState = z.object({
+  status: JobStatus,
+  startedAt: z.string().datetime().nullable(),
+  finishedAt: z.string().datetime().nullable(),
+  /** What went wrong, for the log and as detail on the panel. */
+  error: z.string().nullable(),
+  reason: ProductImportFailure.nullable(),
+  /** The countries the run read. */
+  countries: z.array(z.string()),
+  /** How many products each of them brought; one that brought none is probably misspelt. */
+  perCountry: z.record(z.string(), z.number().int().min(0)),
+  /** The rows of the export read so far, whatever their country. */
+  read: z.number().int().min(0),
+  /** The rows of the countries left out: without a usable code, without a name, without figures. */
+  leftOut: z.object({
+    code: z.number().int().min(0),
+    name: z.number().int().min(0),
+    figures: z.number().int().min(0),
+  }),
+  /** What the run did to the instance's products, once it has read the export through. */
+  added: z.number().int().min(0),
+  changed: z.number().int().min(0),
+  removed: z.number().int().min(0),
+});
+export type ProductImportState = z.infer<typeof ProductImportState>;
+
+/** What the instance holds of products and how it gets them, for its administrator. */
+export const AdminProducts = z.object({
+  /** Whether a code the instance does not hold is asked of Open Food Facts. */
+  lookups: z.boolean(),
+  /** The countries the settings name for the import. */
+  countries: z.array(z.string()),
+  held: z.object({
+    /** Brought by the import. */
+    imported: z.number().int().min(0),
+    /** Brought by a lookup, of a code no import brings. */
+    lookedUp: z.number().int().min(0),
+    /** Codes remembered as ones Open Food Facts does not know. */
+    unknownCodes: z.number().int().min(0),
+    /** Written by people and accepted by the instance. */
+    accepted: z.number().int().min(0),
+    /** Sent by people and waiting for review. */
+    waiting: z.number().int().min(0),
+  }),
+  /** The lookups of the last 24 hours, of every account. */
+  lookupsToday: z.number().int().min(0),
+  import: ProductImportState,
+  /** The administrator asked for a run, which the worker has not begun yet. */
+  askedAt: z.string().datetime().nullable(),
+  /** When a run can be asked for again; null when it can be now. */
+  askAgainAt: z.string().datetime().nullable(),
+});
+export type AdminProducts = z.infer<typeof AdminProducts>;
+
 /** Where the catalogue update stands, and what it did once it is done. */
 export const CatalogueUpdateState = z.object({
   status: JobStatus,

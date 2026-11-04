@@ -40,6 +40,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
+  AcceptProductRequest,
   IngredientNameReviewPatchBody,
   IngredientNameReviewSlice,
   IngredientNameReviewSlicePage,
@@ -49,6 +50,8 @@ import {
   RecipeReviewSlicePage,
   ReviewerLoginBody,
   ReviewerReasonBody,
+  ProductQueue,
+  RejectProductRequest,
   ReviewerSessionAnswer,
   ReviewQueueQuery,
   ReviewStatus,
@@ -59,6 +62,7 @@ import {
 import { DraftService, type Actor } from '../admin/drafts/draft.service.js';
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
 import { Answers } from '../common/answers.decorator.js';
+import { ProductReviewService } from '../products/product-review.service.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { Passwords } from '../common/passwords.js';
@@ -84,6 +88,7 @@ export class ReviewController {
     private readonly gate: SignInGate,
     private readonly drafts: DraftService,
     private readonly passwords: Passwords,
+    private readonly productReview: ProductReviewService,
   ) {}
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -193,6 +198,39 @@ export class ReviewController {
   }
 
   // ── Recipe drafts (guarded) ────────────────────────────────────────────────
+
+  /** The products accounts sent to the base, the longest waiting first. Who sent one is not said. */
+  @UseGuards(ReviewerSessionGuard)
+  @Get('products')
+  @Answers(ProductQueue)
+  productQueue() {
+    return this.productReview.queue();
+  }
+
+  /** Take a product into the base, as it was read: one changed since is refused. */
+  @UseGuards(ReviewerSessionGuard)
+  @Post('products/:id/accept')
+  @HttpCode(204)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  async acceptProduct(
+    @Req() req: ReviewerRequest,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(AcceptProductRequest)) body: AcceptProductRequest,
+  ): Promise<void> {
+    await this.productReview.accept(id, body.updatedAt, req.reviewer!.label);
+  }
+
+  /** Turn a product down, with what its author is told. */
+  @UseGuards(ReviewerSessionGuard)
+  @Post('products/:id/reject')
+  @HttpCode(204)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  async rejectProduct(
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(RejectProductRequest)) body: RejectProductRequest,
+  ): Promise<void> {
+    await this.productReview.reject(id, body.updatedAt, body.reason);
+  }
 
   /** The recipe drafts that wait for a review in a language, a page at a time. */
   @Get('drafts/recipes')

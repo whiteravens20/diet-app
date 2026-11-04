@@ -45,6 +45,7 @@ const PAGES = [
   'meal-plans',
   'shopping-lists',
   'inventory',
+  'products',
   'settings',
 ];
 const page = (name: string): string =>

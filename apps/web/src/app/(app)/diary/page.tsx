@@ -14,7 +14,6 @@ import type {
   DiaryDay,
   DiaryEntry,
   DiaryPlanMeal,
-  DisplayAmount,
   MealType,
   Profile,
   RebalanceRequest,
@@ -29,9 +28,9 @@ import {
   MEAL_SLOTS_BY_COUNT,
 } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { localDate } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
-import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { dayAfter } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -42,9 +41,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { LoadFailed } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
-import { RebalanceToast } from '../meal-plans/rebalance-toast';
+import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
-import { EditEntryDialog, shownServings } from './edit-entry-dialog';
+import { EditEntryDialog } from './edit-entry-dialog';
+import { useEntryAmount } from '@/components/diary-entry-amount';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -79,6 +79,7 @@ export default function DiaryPage() {
 
 function DiaryContent() {
   const t = useTranslations('diary');
+  const productsOffered = useConfig().data?.products.offered ?? false;
   const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
@@ -111,10 +112,18 @@ function DiaryContent() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [adding, setAdding] = useState<MealType | null>(null);
   const [editing, setEditing] = useState<DiaryEntry | null>(null);
-  const [toast, setToast] = useState<{
-    planId: string;
-    rebalance: NonNullable<RebalanceResult['rebalance']>;
-  } | null>(null);
+  const [toast, setToast] = useState<PlanWord | null>(null);
+  /** What a change of a plan's meal came to, where it resized the day. */
+  const wordOf = (planId: string, result: RebalanceResult): PlanWord | null =>
+    result.rebalance && result.rebalance.changes.length > 0
+      ? {
+          planId,
+          revision: result.plan.revision,
+          swap: false,
+          day: result.plan.days.find((day) => day.date === date) ?? null,
+          rebalance: result.rebalance,
+        }
+      : null;
 
   /** What a change of the diary or of a plan's day touches: the day, and every view of a plan, which counts the diary. */
   const refresh = () =>
@@ -164,11 +173,7 @@ function DiaryContent() {
       }),
     onMutate: nextStep,
     onSuccess: async (result, { planId }) => {
-      setToast(
-        result.rebalance && result.rebalance.changes.length > 0
-          ? { planId, rebalance: result.rebalance }
-          : null,
-      );
+      setToast(wordOf(planId, result));
       await refresh();
     },
     onError: (e) => setError(errorText(e, t('errEaten'))),
@@ -179,11 +184,7 @@ function DiaryContent() {
     onMutate: nextStep,
     onSuccess: async (result, { planId, body }) => {
       // An undo puts the portions back and has nothing more to say.
-      setToast(
-        !body.restore && result.rebalance && result.rebalance.changes.length > 0
-          ? { planId, rebalance: result.rebalance }
-          : null,
-      );
+      setToast(body.restore ? null : wordOf(planId, result));
       // A press that changes nothing says so, or it looks as if it had not been heard.
       if (!body.restore && result.rebalance?.changes.length === 0) {
         const left = result.rebalance.unabsorbedKcal;
@@ -325,7 +326,11 @@ function DiaryContent() {
             )}
 
             {meals.length === 0 && !ahead && !tooOld && (
-              <EmptyState icon={NotebookPen} title={t('emptyTitle')} description={t('emptyText')} />
+              <EmptyState
+                icon={NotebookPen}
+                title={t('emptyTitle')}
+                description={t(productsOffered ? 'emptyTextProducts' : 'emptyText')}
+              />
             )}
             {meals.map((slot) => (
               <MealSection
@@ -393,14 +398,14 @@ function DiaryContent() {
       )}
       {toast && (
         <RebalanceToast
-          rebalance={toast.rebalance}
+          word={toast}
           busy={rebalance.isPending}
           onUndo={() =>
             rebalance.mutate({
               planId: toast.planId,
               body: {
                 scope: 'day',
-                restore: toast.rebalance.changes.map((change) => ({
+                restore: (toast.rebalance?.changes ?? []).map((change) => ({
                   mealId: change.mealId,
                   scale: change.before,
                 })),
@@ -669,15 +674,8 @@ function MealSection({
 }) {
   const t = useTranslations('diary');
   const tMeal = useTranslations('enums.mealType');
-  const amount = useAmount();
-  const unitName = useUnitName();
-  const fmt = useFormat();
+  const amountOf = useEntryAmount();
   const id = useId();
-  // Weights and volumes as they were written, a part of a gram in the reader's own numbers; what is counted has its plurals.
-  const written = ({ quantity, unit }: DisplayAmount): string =>
-    unit === 'g' || unit === 'ml'
-      ? `${fmt.number(quantity, 2)} ${unitName(unit)}`
-      : amount(quantity, unit);
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
   const entries = day.entries.filter((entry) => entry.mealType === slot);
   return (
@@ -729,9 +727,7 @@ function MealSection({
               <div className="min-w-0 flex-1 basis-48">
                 <p className="break-words text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {entry.amount
-                    ? written(entry.amount.shown)
-                    : t('servingsShown', { count: shownServings(entry.servings) })}
+                  {amountOf(entry)}
                   {' · '}
                   {t('mealKcal', { kcal: entry.nutrition.calories })}
                   {' · '}
@@ -741,6 +737,20 @@ function MealSection({
                       {' · '}
                       <span className="whitespace-nowrap font-medium text-foreground">
                         ≈ {t('estimated')}
+                      </span>
+                    </>
+                  )}
+                  {entry.kind === 'product' && (
+                    <>
+                      {' · '}
+                      <span className="whitespace-nowrap">
+                        {t(
+                          entry.productSource === 'own'
+                            ? 'entrySourceOwn'
+                            : entry.productSource === 'instance'
+                              ? 'entrySourceInstance'
+                              : 'entrySource',
+                        )}
                       </span>
                     </>
                   )}
