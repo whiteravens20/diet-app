@@ -110,6 +110,37 @@ describe('the worker', () => {
     expect((await t.prisma.idempotencyKey.findMany()).map((kept) => kept.key)).toEqual(['new']);
   });
 
+  it('removes the calls of models and the writes of products made more than a year ago, and keeps the newer ones', async () => {
+    const user = await aUser(t);
+    const longAgo = new Date(Date.now() - 367 * 86_400_000);
+    const lately = new Date(Date.now() - 365 * 86_400_000);
+    const call = {
+      userId: user.id,
+      provider: 'openai',
+      operation: 'meal-swap',
+      model: 'some-model',
+      outcome: 'COMPLETED' as const,
+    };
+    await t.prisma.aiUsageLog.createMany({
+      data: [
+        { ...call, model: 'old', createdAt: longAgo },
+        { ...call, model: 'new', createdAt: lately },
+      ],
+    });
+    await t.prisma.ownProductChange.createMany({
+      data: [
+        { userId: user.id, kind: 'written', at: longAgo },
+        { userId: user.id, kind: 'sent', at: lately },
+      ],
+    });
+
+    await runJobs(prisma, jobs, logger);
+
+    expect(log.error).not.toHaveBeenCalled();
+    expect((await t.prisma.aiUsageLog.findMany()).map((kept) => kept.model)).toEqual(['new']);
+    expect((await t.prisma.ownProductChange.findMany()).map((kept) => kept.kind)).toEqual(['sent']);
+  });
+
   it('leaves a job that runs elsewhere to whoever runs it, and runs the others', async () => {
     const ran = vi.fn().mockResolvedValue(undefined);
     const two: Job[] = [
