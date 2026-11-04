@@ -1062,6 +1062,24 @@
       "pl": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie."
     }
   },
+  "PLAN_DAY_FULL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day of the plan already holds as many meals as it can. Remove a meal first.",
+      "pl": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich."
+    }
+  },
+  "PLAN_LIMIT_REACHED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This profile already has as many meal plans as it can hold. Delete an old plan first.",
+      "pl": "Ten profil ma już tyle planów, ile może mieć. Najpierw usuń któryś ze starych planów."
+    }
+  },
   "PLAN_NEEDS_RELAXATION": {
     "statuses": [
       422

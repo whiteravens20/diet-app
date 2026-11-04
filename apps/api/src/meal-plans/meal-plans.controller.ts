@@ -141,7 +141,8 @@ export class MealPlansController {
   /**
    * Make a plan for a profile: the planner fills its days within the limits
    * of the profile. 422 `PLAN_NEEDS_RELAXATION` when it cannot, with the
-   * limits that would have to give way.
+   * limits that would have to give way. A profile holds at most a hundred
+   * plans.
    *
    * Limited more tightly than other routes: choosing the recipes is work of
    * the API process.
@@ -341,9 +342,10 @@ export class MealPlansController {
   }
 
   /**
-   * Add a user-authored custom meal to a day. Sent again with the same
-   * `Idempotency-Key` within a week, it is answered with the plan as it is now,
-   * without a rebalance, and adds nothing.
+   * Add a user-authored custom meal to a day. A day takes one while it holds
+   * fewer than twenty meals. Sent again with the same `Idempotency-Key` within
+   * a week, it is answered with the plan as it is now, without a rebalance, and
+   * adds nothing.
    */
   @Post(':id/days/:date/custom-meal')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })

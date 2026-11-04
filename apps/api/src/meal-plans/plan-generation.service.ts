@@ -12,6 +12,7 @@ import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
   fitsDiet,
+  MAX_PLANS_PER_PROFILE,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
   RegenerateDayRequest,
@@ -46,6 +47,7 @@ import {
   type OptimizerRecipe,
   type SizedAssignment,
 } from '../engine/index.js';
+import { holdProfile } from '../common/hold.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
@@ -80,6 +82,8 @@ export class PlanGenerationService {
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.plans.loadProfile(userId, req.profileId);
+    // A profile that holds the most plans is told so before a plan is worked out for nothing.
+    await refuseFullProfile(this.prisma, profile.id);
     // What was asked for stays with the plan; what was left to the profile is
     // kept as left to the profile.
     const options: PlanOptions = {
@@ -129,6 +133,9 @@ export class PlanGenerationService {
     });
 
     const plan = await this.prisma.$transaction(async (tx) => {
+      // Counted again while the profile is held: plans asked for together do not pass the most between them.
+      await holdProfile(tx, profile.id);
+      await refuseFullProfile(tx, profile.id);
       if (result.pantryRound)
         await tx.profile.update({
           where: { id: profile.id },
@@ -1263,4 +1270,17 @@ function splitFor(
     });
   }
   return split;
+}
+
+/** Refuse a plan more for a profile that holds `MAX_PLANS_PER_PROFILE` already. */
+async function refuseFullProfile(
+  db: Pick<Prisma.TransactionClient, 'mealPlan'>,
+  profileId: string,
+): Promise<void> {
+  if ((await db.mealPlan.count({ where: { profileId } })) >= MAX_PLANS_PER_PROFILE) {
+    throw new ConflictException({
+      error: 'PLAN_LIMIT_REACHED',
+      message: `A profile holds at most ${MAX_PLANS_PER_PROFILE} plans: delete an old one first.`,
+    });
+  }
 }

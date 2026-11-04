@@ -419,6 +419,8 @@
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Those dates are not within the plan. Pick dates the plan covers.",
     "SHOPPING_LIST_LIMIT": "This plan already has as many shopping lists as it can hold. Delete one first.",
     "PANTRY_FULL": "The pantry already holds as many items as it can. Remove one first.",
+    "PLAN_LIMIT_REACHED": "This profile already has as many meal plans as it can hold. Delete an old plan first.",
+    "PLAN_DAY_FULL": "This day of the plan already holds as many meals as it can. Remove a meal first.",
     "QUANTITY_TOO_LARGE": "That quantity is larger than a kitchen holds. Check the number.",
     "TOO_MANY_ATTEMPTS": "Too many failed sign-ins. Wait a moment before you try again.",
     "TOO_MANY_SIGN_UPS": "This address has opened as many accounts as it may in a day. Try again later, at most a day from now.",

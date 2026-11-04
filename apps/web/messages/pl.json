@@ -419,6 +419,8 @@
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje.",
     "SHOPPING_LIST_LIMIT": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich.",
     "PANTRY_FULL": "Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich.",
+    "PLAN_LIMIT_REACHED": "Ten profil ma już tyle planów, ile może mieć. Najpierw usuń któryś ze starych planów.",
+    "PLAN_DAY_FULL": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich.",
     "QUANTITY_TOO_LARGE": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę.",
     "TOO_MANY_ATTEMPTS": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie.",
     "TOO_MANY_SIGN_UPS": "Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę.",

@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
   fitsDiet,
+  MAX_MEALS_ON_A_PLAN_DAY,
   PlanOptions,
   type AddCustomMealRequest,
   type CookingChange,
@@ -306,6 +307,15 @@ export class MealPlansService {
                 error: 'MEAL_NOT_FOUND',
                 message: 'Planned meal not found.',
               });
+          }
+          // Counted once a meal it replaces has left the day.
+          if (
+            (await tx.plannedMeal.count({ where: { dayId: day.id } })) >= MAX_MEALS_ON_A_PLAN_DAY
+          ) {
+            throw new ConflictException({
+              error: 'PLAN_DAY_FULL',
+              message: `A day of a plan holds at most ${MAX_MEALS_ON_A_PLAN_DAY} meals: remove one first.`,
+            });
           }
           await tx.plannedMeal.create({
             data: {
