@@ -23,13 +23,16 @@
  */
 import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { ProductAdditions } from '@diet-app/shared';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
+import { searchTextOf } from '../../../products/product-row.js';
 import { holdCatalogue } from '../../seed/seeder.js';
 import {
   IngredientOverrideFile,
   ingredientOverridesPath,
   INGREDIENT_OVERRIDES_FILE,
 } from './ingredient-overrides.writer.js';
+import { PRODUCTS_FILE } from './instance-export.js';
 import { assessForLibrary, writeToLibrary } from './library.js';
 import { recipeBatchesDir, RECIPE_BATCHES_DIR } from './recipe-batches.writer.js';
 import { recipeOfBatchRow, shippableIngredientName } from './shippable.js';
@@ -41,6 +44,7 @@ export interface DirectoryState {
   recipeFiles: number;
   recipes: number;
   names: number;
+  products: number;
 }
 
 export interface RestoreResult {
@@ -57,6 +61,8 @@ export interface RestoreResult {
     /** Names that break a rule, with the reason. */
     refused: { slug: string; reason: string }[];
   };
+  /** Products people added: taken in, and left where the base has the code from elsewhere. */
+  products: { added: number; skipped: number };
   /** Files that could not be read at all, with the reason. */
   unreadable: { file: string; reason: string }[];
 }
@@ -129,6 +135,7 @@ export function instanceDataState(instanceDataDir: string): DirectoryState {
     recipeFiles: batches.length,
     recipes: batches.reduce((sum, batch) => sum + batch.rows.length, 0),
     names: Object.keys(readNames(instanceDataDir).names).length,
+    products: readProducts(instanceDataDir).products.length,
   };
 }
 
@@ -169,6 +176,8 @@ export async function restoreInstanceData(
 
   const fromFile = readNames(instanceDataDir);
   const applied = await storeNames(prisma, fromFile.names);
+  const fromProducts = readProducts(instanceDataDir);
+  const products = await storeProducts(prisma, fromProducts.products);
   return {
     recipes,
     names: {
@@ -176,8 +185,71 @@ export async function restoreInstanceData(
       skippedSlugs: applied.skippedSlugs,
       refused: applied.refused,
     },
-    unreadable: [...unreadable, ...fromFile.unreadable],
+    products,
+    unreadable: [...unreadable, ...fromFile.unreadable, ...fromProducts.unreadable],
   };
+}
+
+/** What people added to the base, as the instance's files hold it. */
+function readProducts(instanceDataDir: string): {
+  products: ProductAdditions['products'];
+  unreadable: RestoreResult['unreadable'];
+} {
+  const path = join(instanceDataDir, PRODUCTS_FILE);
+  if (!existsSync(path)) return { products: [], unreadable: [] };
+  try {
+    return {
+      products: ProductAdditions.parse(JSON.parse(readFileSync(path, 'utf8'))).products,
+      unreadable: [],
+    };
+  } catch (err) {
+    return {
+      products: [],
+      unreadable: [
+        { file: PRODUCTS_FILE, reason: err instanceof Error ? err.message : String(err) },
+      ],
+    };
+  }
+}
+
+/** Take what people added back into the base. A code the base has from an import is left: it is the same code, in one place. */
+async function storeProducts(
+  prisma: PrismaService,
+  products: ProductAdditions['products'],
+): Promise<RestoreResult['products']> {
+  let added = 0;
+  let skipped = 0;
+  for (const product of products) {
+    const code = product.code;
+    if (code === null) {
+      skipped += 1;
+      continue;
+    }
+    const held = await prisma.product.findUnique({ where: { code }, select: { origin: true } });
+    if (held?.origin === 'imported') {
+      skipped += 1;
+      continue;
+    }
+    const columns = {
+      name: product.name,
+      brand: product.brand,
+      searchText: searchTextOf(product.name, product.brand),
+      pack: product.pack,
+      unit: product.unit,
+      packAmount: product.packAmount,
+      servingAmount: product.servingAmount,
+      ...product.per100,
+      origin: 'accepted' as const,
+      acceptedAt: product.acceptedAt === null ? null : new Date(product.acceptedAt),
+    };
+    await prisma.product.upsert({
+      where: { code },
+      create: { code, ...columns },
+      update: columns,
+    });
+    added += 1;
+  }
+  return { added, skipped };
 }
 
 /**

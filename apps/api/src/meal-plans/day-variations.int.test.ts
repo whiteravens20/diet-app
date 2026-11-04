@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { DayVariationsService } from './day-variations.service.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -121,6 +122,7 @@ describe('other ways to fill a day of a plan', () => {
 
     it("keep on the day what was eaten and what is the user's own, and say so", async () => {
       const lunch = day().meals.find((meal) => meal.mealType === 'lunch')!;
+      plansTodayIs(day().date);
       await t
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${lunch.id}/eaten`)
@@ -179,7 +181,11 @@ describe('other ways to fill a day of a plan', () => {
       const after = await variations.take(user.id, 'en', plan.id, day().id, { offer: way!.offer });
 
       expect(
-        after.days[1]!.meals.map((meal) => [meal.mealType, meal.recipe!.id, meal.servings]),
+        after.days[1]!.meals.map((meal) => [
+          meal.mealType,
+          meal.recipe!.id,
+          meal.servings * meal.quantityScale,
+        ]),
       ).toEqual(way!.meals.map((meal) => [meal.mealType, meal.recipeId, meal.servings]));
       expect(after.days[1]!.dayNutrition).toEqual(way!.dayNutrition);
       expect(after.days[0]).toEqual(plan.days[0]);
@@ -197,6 +203,7 @@ describe('other ways to fill a day of a plan', () => {
 
     it("keeps what was eaten and what is the user's own on the day", async () => {
       const lunch = day().meals.find((meal) => meal.mealType === 'lunch')!;
+      plansTodayIs(day().date);
       await t
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${lunch.id}/eaten`)
@@ -219,6 +226,7 @@ describe('other ways to fill a day of a plan', () => {
     it('is refused on a plan that changed since the offer, and the plan stays as it is', async () => {
       const [way] = (await offered()).variations;
       const breakfast = day(2).meals[0]!;
+      plansTodayIs(day(2).date);
       await t
         .http()
         .patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`)

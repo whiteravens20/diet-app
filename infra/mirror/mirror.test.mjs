@@ -295,6 +295,19 @@ test('goes on copying an instance that holds names and no recipes', () => {
   assert.equal(git(instance.remote, 'rev-list', '--count', 'main'), '1');
 });
 
+test('goes on copying an instance that holds products and nothing else', () => {
+  const instance = anInstance();
+  writeFileSync(
+    join(instance.files, 'manifest.json'),
+    '{\n  "app": "diet-app",\n  "version": "0.150.0",\n  "recipes": 0,\n  "names": 0,\n  "products": 3\n}\n',
+  );
+
+  aRound(instance);
+
+  assert.equal(theReport(instance).result, 'ok');
+  assert.equal(git(instance.remote, 'rev-list', '--count', 'main'), '1');
+});
+
 test('reports a repository it cannot clone, with no time of a push', () => {
   const instance = anInstance();
   instance.remote = join(instance.report, '..', 'no-such-repository.git');

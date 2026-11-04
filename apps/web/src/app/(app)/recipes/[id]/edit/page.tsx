@@ -88,7 +88,9 @@ export default function EditOwnRecipePage() {
         ← {t('backToRecipe')}
       </Link>
       <h1 className="text-2xl font-semibold">{t('editTitle')}</h1>
-      <p className="text-sm text-muted-foreground">{t('editIntro')}</p>
+      <p className="text-sm text-muted-foreground">
+        {t(found.origin === 'swap' ? 'editIntroSwap' : 'editIntro')}
+      </p>
       <OwnRecipeForm initial={initial} editing={found.id} />
     </div>
   );

@@ -1,11 +1,20 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import {
   fitsDiet,
   PlanOptions,
   type AddCustomMealRequest,
+  type CookingChange,
+  type DiaryEntry,
   type Locale,
   type MealPlan,
   type MealPlanDay,
@@ -17,27 +26,35 @@ import {
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
+  type Sex,
+  type UndoSwapRequest,
 } from '@diet-app/shared';
 import {
+  estimatedMacros,
+  fitServings,
+  macroSplitOf,
   safetyFloor,
   macrosForCalories,
   sharesOf,
-  rebalanceDay,
   rebalanceDays,
-  REBALANCE_TOLERANCE,
+  sizeDay,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
+import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
-import { shownReport } from './generation-report.js';
+import { shownReport, StoredReport, withMealOutside } from './generation-report.js';
+import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
   averageDay,
   customMacros,
+  aimOfDay,
   dayMealCount,
+  macrosOff,
   isoDate,
   isSkipped,
   mealNutrition,
@@ -48,8 +65,10 @@ import {
 } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
+import { entriesOfDays } from '../diary/diary-entries.js';
 import { writePlan } from './plan-write.js';
 import {
+  CANDIDATE,
   dislikedIn,
   restrictionsFor,
   violations,
@@ -65,7 +84,13 @@ import {
  */
 @Injectable()
 export class MealPlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  /** The server's own day, for a request that names none; replaceable in a test. */
+  today: () => string = () => isoDate(new Date());
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
   async remove(userId: string, planId: string): Promise<void> {
@@ -143,6 +168,7 @@ export class MealPlansService {
                 quantityScale: true,
                 source: true,
                 customMacros: true,
+                modelPicked: true,
                 recipe: { select: amount },
               },
             },
@@ -200,7 +226,12 @@ export class MealPlansService {
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
     ]);
-    return this.toDto(plan, locale, restrictions, diary);
+    // The entries themselves are read only for a plan whose days hold any.
+    const written =
+      diary.size > 0
+        ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
+        : new Map<string, DiaryEntry[]>();
+    return this.toDto(plan, locale, restrictions, diary, written);
   }
 
   /**
@@ -218,6 +249,7 @@ export class MealPlansService {
     date: string,
     req: AddCustomMealRequest,
     key: string | null = null,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     return writeOnce(this.prisma, {
       userId,
@@ -226,17 +258,28 @@ export class MealPlansService {
       request: req,
       write: async (keep) => {
         const day = await this.loadDay(userId, planId, date);
-        if (
-          ![
-            req.nutrition.calories,
-            req.nutrition.protein,
-            req.nutrition.fat,
-            req.nutrition.carbs,
-          ].every((v) => Number.isFinite(v) && v >= 0)
-        ) {
+        const { calories, ...known } = req.nutrition;
+        const given = Object.values(known).filter((value) => value !== undefined);
+        if (![calories, ...given].every((v) => Number.isFinite(v) && v >= 0)) {
           throw new BadRequestException({
             error: 'CUSTOM_MEAL_INVALID_MACROS',
             message: 'Custom meal macros must be non-negative numbers.',
+          });
+        }
+        // What is typed stands as it is; only what is left out is worked out.
+        const estimated = given.length < 3;
+        const macros = estimated
+          ? estimatedMacros(
+              calories,
+              known,
+              macroSplitOf(day.plan.dietType, sharesOf(storedSplit(day.plan.macroSplit))),
+            )
+          : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
+        if (!macros) {
+          throw new BadRequestException({
+            error: 'DIARY_MACROS_OVER_ENERGY',
+            message:
+              'The protein, fat and carbohydrate given hold more energy than the calories given.',
           });
         }
 
@@ -273,16 +316,12 @@ export class MealPlansService {
               quantityScale: 1,
               source: 'USER_CUSTOM',
               customName: req.name,
-              customMacros: {
-                calories: req.nutrition.calories,
-                protein: req.nutrition.protein,
-                fat: req.nutrition.fat,
-                carbs: req.nutrition.carbs,
-              },
+              customMacros: { calories, ...macros },
+              estimated,
             },
           });
           await keep(tx, planId);
-          return this.rebalanceDayInternal(day.id, tx);
+          return this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today());
         });
         return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
       },
@@ -300,11 +339,12 @@ export class MealPlansService {
     locale: Locale,
     planId: string,
     mealId: string,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
     const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.delete({ where: { id: mealId } });
-      return this.rebalanceDayInternal(meal.dayId, tx);
+      return this.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.today());
     });
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -321,17 +361,26 @@ export class MealPlansService {
     planId: string,
     mealId: string,
     eaten: boolean,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
     if ((meal.eatenAt !== null) === eaten) {
       return this.buildRebalanceResult(userId, locale, planId, 'day', null);
+    }
+    const today = clientToday ?? this.today();
+    // A day still to come is not eaten yet, as the diary holds no day ahead. Dates in this form compare as text.
+    if (eaten && isoDate(meal.day.date) > today) {
+      throw new ConflictException({
+        error: 'MEAL_NOT_EATEN_YET',
+        message: 'A meal of a day still to come cannot be marked as eaten.',
+      });
     }
     const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: mealId },
         data: { eatenAt: eaten ? new Date() : null },
       });
-      return this.rebalanceDayInternal(meal.dayId, tx);
+      return this.rebalanceDayInternal(meal.dayId, tx, today);
     });
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -361,7 +410,7 @@ export class MealPlansService {
     }
 
     if (req.scope === 'plan') {
-      const today = clientToday ?? isoDate(new Date());
+      const today = clientToday ?? this.today();
       const summary = await writePlan(this.prisma, planId, revision, (tx) =>
         this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
       );
@@ -371,7 +420,7 @@ export class MealPlansService {
     // The contract refuses a single day without its date before it gets here.
     const day = await this.loadDay(userId, planId, req.date!);
     const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-      this.rebalanceDayInternal(day.id, tx),
+      this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -441,36 +490,35 @@ export class MealPlansService {
   }
 
   /**
-   * Rebalance one day's unchecked, non-custom meals toward its target and
-   * persist the new quantity scales. What the profile's diary holds for the
+   * Size one day's unchecked, non-custom meals for its target and its macros
+   * and persist the new quantity scales. What the profile's diary holds for the
    * day counts as eaten, as an eaten meal does. Returns the summary the UI
    * toast renders, or null when the day has vanished or is skipped, which has
-   * no target to keep to. Runs inside the transaction of the edit that changed
-   * the day, whichever service made it. `exact` brings the day to its target
-   * itself, not just inside the window around it: for a target that was just
-   * changed.
+   * no target to keep to, or has passed: what was on it is a record, and no
+   * edit of it changes the portions of the rest. Runs inside the transaction
+   * of the edit that changed the day, whichever service made it.
    */
   async rebalanceDayInternal(
     dayId: string,
     tx: Prisma.TransactionClient,
-    { exact = false }: { exact?: boolean } = {},
+    today: string,
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: {
-        plan: { select: { profileId: true } },
+        plan: { select: { profileId: true, dietType: true, macroSplit: true } },
         meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } },
       },
     });
-    if (!day?.plan || isSkipped(day)) return null;
+    if (!day?.plan || isSkipped(day) || isoDate(day.date) < today) return null;
     const rows = day.meals.map(toRebalanceRow);
     const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
     const counted = [...rows, ...diaryRows(diary.get(isoDate(day.date)))];
     const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-    const { scales, feasibility } = rebalanceDay(
+    const { scales, feasibility } = sizeDay(
       counted.map(toEngineMeal),
       day.calorieTarget,
-      exact ? 0 : REBALANCE_TOLERANCE,
+      aimOfDay(day.calorieTarget, day.plan),
     );
     const changes = await this.persistScales(rows, scales, tx);
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
@@ -505,6 +553,7 @@ export class MealPlansService {
     const dayRows = days.map((d) => ({
       target: d.calorieTarget,
       past: isoDate(d.date) < today,
+      aim: aimOfDay(d.calorieTarget, plan),
       rows: d.meals.map(toRebalanceRow),
       // Each day's own row of what its diary holds: the ids of the meals are the plan's.
       diary: diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
@@ -515,6 +564,7 @@ export class MealPlansService {
     const { scales, feasibility, unabsorbed } = rebalanceDays(
       dayRows.map((d) => ({
         target: d.target,
+        aim: d.aim,
         meals: [...d.rows, ...d.diary].map((row) => ({
           ...toEngineMeal(row),
           locked: toEngineMeal(row).locked || d.past,
@@ -553,15 +603,282 @@ export class MealPlansService {
   }
 
   /**
-   * What a day would come to, in kcal, with its meals brought to `target` as
-   * a change of the day's target brings them (`rebalanceDayInternal` with
-   * `exact`): the meals, and what its diary holds as eaten. Nothing is
-   * written.
+   * What a day would come to, in kcal, with its meals sized for `target` as a
+   * change of the day's target sizes them: the meals, and what its diary holds
+   * as eaten. Nothing is written.
    */
-  resizedKcal(meals: RebalanceMealRow[], target: number, diary: DiaryOnDay | null): number {
+  resizedKcal(
+    meals: RebalanceMealRow[],
+    target: number,
+    diary: DiaryOnDay | null,
+    plan: { dietType: string; macroSplit: unknown },
+  ): number {
     const rows = [...meals.map(toRebalanceRow), ...diaryRows(diary)];
-    const { scales } = rebalanceDay(rows.map(toEngineMeal), target, 0);
+    const { scales } = sizeDay(rows.map(toEngineMeal), target, aimOfDay(target, plan));
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
+  }
+
+  /**
+   * For each meal of a plan made for cooking ahead, the other meals of the same
+   * cooking, as the plan stands. Read before a change: the cookings are what the
+   * dishes of the plan make them.
+   */
+  async cookedWith(
+    db: Pick<Prisma.TransactionClient, 'mealPlanDay'>,
+    planId: string,
+    options: PlanOptions,
+  ): Promise<Map<string, CookedMeal[]>> {
+    const found = new Map<string, CookedMeal[]>();
+    if (!options.mealPrepFriendly) return found;
+    const days = await db.mealPlanDay.findMany({
+      where: { planId },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        date: true,
+        overrides: true,
+        meals: {
+          select: {
+            id: true,
+            mealType: true,
+            recipeId: true,
+            source: true,
+            eatenAt: true,
+            servings: true,
+            quantityScale: true,
+            swapHistory: true,
+            recipe: { select: { caloriesPerServing: true } },
+          },
+        },
+      },
+    });
+    const inOrder = days.map((day) =>
+      [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)),
+    );
+    const { cookings } = cookAhead(
+      inOrder.map((meals) =>
+        meals.map((meal) => (meal.source === 'USER_CUSTOM' ? null : meal.recipeId)),
+      ),
+    );
+    for (const places of cookings) {
+      const meals = places.map(({ day, meal }): CookedMeal => {
+        const row = inOrder[day]![meal]!;
+        return {
+          id: row.id,
+          dayId: days[day]!.id,
+          dayIndex: day,
+          date: isoDate(days[day]!.date),
+          mealType: row.mealType as MealType,
+          recipeId: row.recipeId!,
+          eaten: row.eatenAt !== null,
+          skipped: isSkipped(days[day]!),
+          swapHistory: row.swapHistory ?? [],
+          held: row.recipe!.caloriesPerServing * row.servings * row.quantityScale,
+        };
+      });
+      for (const meal of meals)
+        found.set(
+          meal.id,
+          meals.filter((other) => other.id !== meal.id),
+        );
+    }
+    return found;
+  }
+
+  /**
+   * Put a recipe on other meals of a cooking, each sized to what it holds now,
+   * and return those that took it. A meal that was eaten, or of a day that has
+   * passed or is skipped, stays: what was eaten is a record.
+   */
+  async carryDish(
+    tx: Prisma.TransactionClient,
+    meals: readonly CookedMeal[],
+    recipe: { id: string; caloriesPerServing: number },
+    today: string,
+    picked: { reason: string | null } | null = null,
+  ): Promise<CookedMeal[]> {
+    const open = meals.filter((meal) => meal.recipeId !== recipe.id && mayCarry(meal, today));
+    for (const meal of open)
+      await tx.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: fitServings(recipe.caloriesPerServing, meal.held),
+          quantityScale: 1,
+          swapHistory: meal.swapHistory.includes(meal.recipeId)
+            ? meal.swapHistory
+            : [...meal.swapHistory, meal.recipeId],
+          modelPicked: picked !== null,
+          modelReason: picked?.reason ?? null,
+        },
+      });
+    return open;
+  }
+
+  /**
+   * After the dishes of some days changed: put each new dish on the meals cooked
+   * with the one it replaced, on the other days, where it may stand on that meal,
+   * and size those days. `cookedWith` is the cookings as they were before the change.
+   */
+  async carryToOtherDays(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    cookedWith: ReadonlyMap<string, CookedMeal[]>,
+    moves: readonly { mealId: string; recipeId: string }[],
+    changedDays: ReadonlySet<string>,
+    today: string,
+  ): Promise<void> {
+    const places = moves.flatMap(({ mealId, recipeId }) =>
+      (cookedWith.get(mealId) ?? [])
+        .filter((meal) => !changedDays.has(meal.dayId))
+        .map((meal) => ({ meal, recipeId })),
+    );
+    if (places.length === 0) return;
+    const plan = await tx.mealPlan.findUniqueOrThrow({
+      where: { id: planId },
+      include: { profile: { include: { preferences: true } } },
+    });
+    const recipes = await tx.recipe.findMany({
+      where: { id: { in: places.map((place) => place.recipeId) } },
+      select: { ...CANDIDATE, caloriesPerServing: true },
+    });
+    if (!plan.profile) return;
+    const restrictions = await restrictionsFor(tx, { ...plan, profile: plan.profile });
+    const carried: CookedMeal[] = [];
+    for (const { meal, recipeId } of places) {
+      const recipe = recipes.find((one) => one.id === recipeId);
+      if (!recipe || violations(recipe, restrictions, meal.mealType).length > 0) continue;
+      carried.push(...(await this.carryDish(tx, [meal], recipe, today)));
+    }
+    for (const dayId of new Set(carried.map((meal) => meal.dayId)))
+      await this.rebalanceDayInternal(dayId, tx, today);
+    await this.noteOutsideLimits(
+      tx,
+      planId,
+      carried.map((meal) => meal.id),
+    );
+  }
+
+  /**
+   * What the meals named are outside of, as the plan now stands, goes into its
+   * report, and is said for as long as they hold the recipe they hold now.
+   */
+  async noteOutsideLimits(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    mealIds: readonly string[],
+  ): Promise<void> {
+    if (mealIds.length === 0) return;
+    const plan = await tx.mealPlan.findUniqueOrThrow({
+      where: { id: planId },
+      select: {
+        id: true,
+        report: true,
+        options: true,
+        profile: { select: { preferences: true } },
+        days: { orderBy: { date: 'asc' }, select: { id: true, date: true } },
+      },
+    });
+    const kept = StoredReport.nullable().parse(plan.report ?? null);
+    if (!kept || !plan.profile) return;
+    const limits = await readPlanLimits(
+      tx,
+      { ...plan, profile: plan.profile },
+      this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+    );
+    const meals = await tx.plannedMeal.findMany({
+      where: { id: { in: [...mealIds] } },
+      select: {
+        id: true,
+        dayId: true,
+        mealType: true,
+        recipe: {
+          select: {
+            id: true,
+            prepMinutes: true,
+            cookMinutes: true,
+            ingredients: LINES_OF_KINDS,
+          },
+        },
+      },
+    });
+    const report = meals.reduce((sofar, meal) => {
+      if (!meal.recipe) return sofar;
+      const dayIndex = plan.days.findIndex((day) => day.id === meal.dayId);
+      const gaveWay = limits.breaks(meal.recipe, dayIndex, new Set([meal.id]));
+      return gaveWay.length === 0
+        ? sofar
+        : withMealOutside(sofar, {
+            date: isoDate(plan.days[dayIndex]!.date),
+            slot: meal.mealType as MealType,
+            recipeId: meal.recipe.id,
+            gaveWay,
+          });
+    }, kept);
+    if (report !== kept) await tx.mealPlan.update({ where: { id: planId }, data: { report } });
+  }
+
+  /**
+   * Note what the days a swap is about to change hold, for the revision the
+   * swap leaves the plan at. Called inside the swap's transaction, before it
+   * writes anything.
+   */
+  async rememberSwap(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    readAtRevision: number,
+    dayIds: readonly string[],
+  ): Promise<void> {
+    const meals = await tx.plannedMeal.findMany({
+      where: { dayId: { in: [...dayIds] } },
+      select: {
+        id: true,
+        recipeId: true,
+        servings: true,
+        quantityScale: true,
+        swapHistory: true,
+        modelPicked: true,
+        modelReason: true,
+      },
+    });
+    const lastSwap: StoredSwap = { revision: readAtRevision + 1, meals };
+    await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap } });
+  }
+
+  /** Take back the last swap of a plan, on the plan as that swap left it. */
+  async undoSwap(userId: string, locale: Locale, req: UndoSwapRequest): Promise<RebalanceResult> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: req.planId },
+      select: {
+        revision: true,
+        lastSwap: true,
+        profile: { select: { userId: true } },
+      },
+    });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    const swap = StoredSwap.nullable().parse(plan.lastSwap ?? null);
+    if (!swap) {
+      throw new ConflictException({
+        error: 'NOTHING_TO_UNDO',
+        message: 'There is no swap of this plan to take back.',
+      });
+    }
+    if (swap.revision !== plan.revision || req.revision !== plan.revision) {
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed after the swap: it can no longer be taken back.',
+      });
+    }
+    await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
+      for (const { id, ...before } of swap.meals)
+        await tx.plannedMeal.update({ where: { id }, data: before });
+      await tx.mealPlan.update({
+        where: { id: req.planId },
+        data: { lastSwap: Prisma.JsonNull },
+      });
+    });
+    return this.buildRebalanceResult(userId, locale, req.planId, 'day', null);
   }
 
   /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
@@ -639,7 +956,7 @@ export class MealPlansService {
       dietType: plan.dietType,
       averageDailyNutrition: averageDay(plan.days),
       ingredientReuseScore: plan.reuseScore,
-      generationMode: plan.generationMode,
+      generationMode: modelHadAPart(plan.days),
       options: PlanOptions.parse(plan.options),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
@@ -651,6 +968,7 @@ export class MealPlansService {
     locale: Locale,
     restrictions: Restrictions,
     diary: Map<string, DiaryOnDay>,
+    written: Map<string, DiaryEntry[]>,
   ): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     // What a plan on the custom diet aims at is the split it was made with.
@@ -669,6 +987,31 @@ export class MealPlansService {
           ),
         )
       : null;
+    // Each meal of a cooking: the others, and what all of them together take.
+    const cookingOf = new Map<PlannedMeal['id'], NonNullable<PlannedMeal['cooking']>>();
+    for (const places of cookedOnce?.cookings ?? []) {
+      const of = places.map(({ day, meal }) => ({
+        day: plan.days[day]!,
+        meal: inOrder[day]![meal]!,
+      }));
+      const recipe = of[0]!.meal.recipe!;
+      const all =
+        of.reduce((sum, { meal }) => sum + meal.servings * meal.quantityScale, 0) /
+        Math.max(1, recipe.servings);
+      const ingredients = toPlannedIngredients(recipe.ingredients, all, locale);
+      for (const { meal } of of)
+        cookingOf.set(meal.id, {
+          with: of
+            .filter((other) => other.meal.id !== meal.id)
+            .map((other) => ({
+              mealId: other.meal.id,
+              date: isoDate(other.day.date),
+              mealType: other.meal.mealType as MealType,
+              eaten: other.meal.eatenAt !== null,
+            })),
+          ingredients,
+        });
+    }
     // What the meals with a recipe take of it, for the count of the packs the menu opens.
     const packed: PackedMeal[] = [];
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
@@ -685,6 +1028,7 @@ export class MealPlansService {
             recipe: null,
             source: 'USER_CUSTOM' as const,
             customName: m.customName ?? null,
+            estimated: m.estimated,
             ingredients: [],
             servings: m.servings,
             quantityScale: m.quantityScale,
@@ -694,6 +1038,7 @@ export class MealPlansService {
             dislikedIngredientIds: [],
             modelPick: null,
             cookAhead: null,
+            cooking: null,
             nutrition: mealNutrition(m),
           };
         }
@@ -708,6 +1053,7 @@ export class MealPlansService {
           ingredients: toPlannedIngredients(m.recipe.ingredients, ofRecipe, locale),
           source: 'CATALOGUE' as const,
           customName: null,
+          estimated: false,
           servings: m.servings,
           quantityScale: m.quantityScale,
           eatenAt,
@@ -724,7 +1070,8 @@ export class MealPlansService {
           ) as PlannedMeal['restrictionConflicts'],
           dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
-          cookAhead: cookedOnce?.[dayIndex]?.[mealIndex] ?? null,
+          cookAhead: cookedOnce?.marks[dayIndex]?.[mealIndex] ?? null,
+          cooking: cookingOf.get(m.id) ?? null,
           nutrition: mealNutrition(m),
         };
       });
@@ -741,10 +1088,11 @@ export class MealPlansService {
         date: isoDate(day.date),
         meals,
         dayNutrition,
-        diary: entered,
+        diary: entered && { ...entered, items: written.get(isoDate(day.date)) ?? [] },
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
+        macrosOff: !skipped && meals.length > 0 && macrosOff(dayNutrition, plan),
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
@@ -752,6 +1100,11 @@ export class MealPlansService {
       };
     });
 
+    const average = averageDay(plan.days);
+    // What the days the plan eats on aim at, each by its own target.
+    const eaten = plan.days.filter((day) => !isSkipped(day));
+    const meanTarget =
+      eaten.reduce((sum, day) => sum + day.calorieTarget, 0) / Math.max(1, eaten.length);
     return {
       id: plan.id,
       profileId: plan.profileId,
@@ -759,11 +1112,15 @@ export class MealPlansService {
       durationDays: plan.durationDays,
       dietType: plan.dietType,
       days,
-      averageDailyNutrition: averageDay(plan.days),
+      averageDailyNutrition: average,
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
+      averageOff: {
+        calories: standingOf(average.calories, meanTarget, eaten.length === 0).offTarget,
+        macros: eaten.length > 0 && macrosOff(average, plan),
+      },
       ingredientReuseScore: plan.reuseScore,
       packs: planPacks(packed, locale),
-      generationMode: plan.generationMode,
+      generationMode: modelHadAPart(plan.days),
       options,
       report: shownReport(plan.report, days),
       revision: plan.revision,
@@ -779,8 +1136,14 @@ const SCALE_SLACK = 1e-6;
 
 /** A plan as far as its summary takes: the row, and what its meals amount to. */
 type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
-  days: { overrides: unknown; meals: MealAmount[] }[];
+  days: { overrides: unknown; meals: (MealAmount & { modelPicked: boolean })[] }[];
 };
+
+/** A plan that holds a model's pick says that a model had a part in it. */
+const modelHadAPart = (
+  days: readonly { meals: readonly { modelPicked: boolean }[] }[],
+): MealPlan['generationMode'] =>
+  days.some((day) => day.meals.some((meal) => meal.modelPicked)) ? 'ai_assisted' : 'deterministic';
 
 interface PlanWithRelations {
   id: string;
@@ -791,13 +1154,12 @@ interface PlanWithRelations {
   calorieTarget: number;
   macroSplit: unknown;
   reuseScore: number;
-  generationMode: 'deterministic' | 'ai_assisted';
   options: unknown;
   report: unknown;
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
-  profile: { sex: 'male' | 'female' | null; mealCount: number } | null;
+  profile: { sex: Sex | null; mealCount: number } | null;
   days: {
     id: string;
     date: Date;
@@ -810,6 +1172,7 @@ interface PlanWithRelations {
       quantityScale: number;
       source: 'CATALOGUE' | 'USER_CUSTOM';
       customName: string | null;
+      estimated: boolean;
       customMacros: unknown;
       eatenAt: Date | null;
       modelPicked: boolean;
@@ -843,6 +1206,56 @@ interface RebalanceRow {
   servings: number;
   quantityScale: number;
   locked: boolean;
+}
+
+/** What the days a swap changed held before it, for the revision of the plan it left. */
+const StoredSwap = z.object({
+  revision: z.number().int(),
+  meals: z.array(
+    z.object({
+      id: z.string(),
+      recipeId: z.string().nullable(),
+      servings: z.number(),
+      quantityScale: z.number(),
+      swapHistory: z.array(z.string()),
+      modelPicked: z.boolean(),
+      modelReason: z.string().nullable(),
+    }),
+  ),
+});
+type StoredSwap = z.infer<typeof StoredSwap>;
+
+/** A meal of a cooking, as a change of the dish of another of its meals reads it. */
+export interface CookedMeal {
+  id: string;
+  dayId: string;
+  dayIndex: number;
+  date: string;
+  mealType: MealType;
+  recipeId: string;
+  eaten: boolean;
+  skipped: boolean;
+  swapHistory: string[];
+  /** What it holds now, in kcal: what a recipe in its place is sized to. */
+  held: number;
+}
+
+/** Whether a meal of a cooking can take a dish that another of its meals got. Dates in this form compare as text. */
+export const mayCarry = (meal: CookedMeal, today: string): boolean =>
+  !meal.eaten && !meal.skipped && meal.date >= today;
+
+/** What a change of a dish would do to these other meals of its cooking, as an offer says it. */
+export function cookingChange(
+  meals: readonly CookedMeal[],
+  today: string,
+  takers: readonly CookedMeal[] = meals.filter((meal) => mayCarry(meal, today)),
+): CookingChange {
+  if (meals.length === 0) return null;
+  const place = ({ date, mealType }: CookedMeal) => ({ date, mealType });
+  return {
+    changes: takers.map(place),
+    stays: meals.filter((meal) => !takers.includes(meal)).map(place),
+  };
 }
 
 interface RebalanceSummary {
@@ -912,6 +1325,7 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   servings: r.servings,
   quantityScale: r.quantityScale,
   locked: r.locked,
+  macros: { protein: r.per.protein, fat: r.per.fat, carbs: r.per.carbs },
 });
 
 /** Sum the effective macros of meals given a per-meal scale lookup. */

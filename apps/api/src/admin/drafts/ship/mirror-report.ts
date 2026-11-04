@@ -83,7 +83,14 @@ function judgeMirror(
   const known = {
     checkedAt: report.at,
     pushedAt: report.pushedAt,
-    copy: copy ? { version: copy.version, recipes: copy.recipes, names: copy.names } : null,
+    copy: copy
+      ? {
+          version: copy.version,
+          recipes: copy.recipes,
+          names: copy.names,
+          products: copy.products,
+        }
+      : null,
   };
   const at = Date.parse(report.at);
   if (now.getTime() - at > SILENT_AFTER_ROUNDS * report.every * 1000) {

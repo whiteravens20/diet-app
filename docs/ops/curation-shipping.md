@@ -173,8 +173,10 @@ the instance's data directory. Back up both.
   database: `recipes/library.json` (every recipe of the instance's own
   library, by slug, its lines in their order), `ingredient-overrides.json`
   (the names of ingredients the instance gave, without those the catalogue's
-  data gives as they are) and `manifest.json` (the version of the application
-  that wrote them, and how many recipes and names they hold).
+  data gives as they are), `products.json` (the products the instance accepted
+  from its people, without their authors) and `manifest.json` (the version of
+  the application that wrote them, and how many recipes, names and products
+  they hold).
 - With the Compose files the directory is the named volume `instance-data`.
   Copy it out with
   `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - . > instance-data.tar`.
@@ -203,8 +205,10 @@ database:
    from these files**.
 
 The restore reads the files of `recipes/` in the order of their names,
-`library.json` among them, and `ingredient-overrides.json`. A recipe the
-library does not have is added; one it has under the same slug is written over
+`library.json` among them, `ingredient-overrides.json` and `products.json`. A
+product is added or written over from its file, unless an import brought its
+code, which stands; it comes back without an author. A recipe the library does
+not have is added; one it has under the same slug is written over
 from its file and keeps its id. It can be run again at any time, also on the
 instance that wrote the files, for example after correcting a file by hand.
 After a restore the files are written again from the database.

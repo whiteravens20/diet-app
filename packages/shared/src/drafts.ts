@@ -690,6 +690,8 @@ export const InstanceDataState = z.object({
   recipeFiles: z.number().int().min(0),
   recipes: z.number().int().min(0),
   names: z.number().int().min(0),
+  /** What people added to the base of products. */
+  products: z.number().int().min(0),
   /** The version of the application that wrote the files; null before they are first written. */
   version: z.string().nullable(),
   /**
@@ -743,6 +745,7 @@ export const InstanceMirror = z.object({
       version: z.string(),
       recipes: z.number().int().min(0),
       names: z.number().int().min(0),
+      products: z.number().int().min(0),
     })
     .nullable(),
 });
@@ -824,6 +827,8 @@ export const RestoredFromInstanceData = z.object({
     skippedSlugs: z.array(z.string()),
     refused: z.array(z.object({ slug: z.string(), reason: z.string() })),
   }),
+  /** Products people added: taken in, and left where the base has the code from an import. */
+  products: z.object({ added: z.number().int().min(0), skipped: z.number().int().min(0) }),
   /** Files that could not be read at all, with the reason. */
   unreadable: z.array(z.object({ file: z.string(), reason: z.string() })),
 });

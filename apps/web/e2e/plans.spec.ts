@@ -501,18 +501,24 @@ test.describe('a long plan', () => {
       expect(Math.abs(after.scrolled - scrolled)).toBeLessThan(200);
     };
     const row = rows.first();
-    const eaten = row.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) });
     const ways = async (): Promise<void> => {
       await row.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
     };
 
-    // Marked as eaten, and the mark taken back: a meal that is marked offers no other change.
+    // A meal is marked as eaten from its day on: not on this day of next week.
+    await expect(row.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) })).toBeDisabled();
+
+    // Marked as eaten today, and the mark taken back: a meal that is marked offers no other change.
+    await page.getByRole('tab', { name: weekNamed(1) }).click();
+    const todays = dayAt(0).locator('li[id^="meal-"]').first();
     for (let press = 0; press < 2; press += 1)
-      await stays(row, async () => {
+      await stays(todays, async () => {
         const read = readAgain();
-        await eaten.click();
+        await todays.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) }).click();
         await read;
       });
+    await page.getByRole('tab', { name: weekNamed(2) }).click();
+    await expect(row).toBeVisible();
 
     await stays(row, async () => {
       await ways();

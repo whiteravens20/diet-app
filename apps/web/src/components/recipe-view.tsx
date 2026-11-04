@@ -231,6 +231,7 @@ export function RecipeView({
                 variant={saved ? 'primary' : 'outline'}
                 size="sm"
                 disabled={busy}
+                className="h-auto max-w-full py-1 wrap-anywhere"
                 onClick={() => (saved ? removeFav.mutate(p.id) : addFav.mutate(p.id))}
               >
                 {saved ? '★' : '☆'} {p.name}
@@ -303,7 +304,7 @@ export function RecipeView({
               const isExcl = excludedIngredientSet.has(i.ingredientId);
               return (
                 <li key={i.ingredientId} className="flex items-center justify-between gap-4">
-                  <span className="flex-1">
+                  <span className="min-w-0 flex-1 wrap-anywhere">
                     {i.name}
                     {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
                   </span>
@@ -362,7 +363,7 @@ export function RecipeView({
             {recipe.steps.map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="font-medium text-muted-foreground">{i + 1}.</span>
-                <span>{step}</span>
+                <span className="min-w-0 wrap-anywhere">{step}</span>
               </li>
             ))}
           </ol>

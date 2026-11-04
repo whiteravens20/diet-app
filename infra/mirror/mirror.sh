@@ -14,7 +14,7 @@
 # held to after it, and a report of each round for the admin panel, without the
 # repository's address or anything the git server said. A repository that holds
 # files of something else is refused: a wrong address would otherwise have them
-# deleted by the copy. An instance that holds no recipes and no names of its own
+# deleted by the copy. An instance that holds no recipes, names or products of its own
 # leaves the repository alone: an emptied volume or database would otherwise
 # empty the copy too.
 set -u
@@ -61,7 +61,7 @@ report() {
 
 # Whether the instance holds anything of its own, as its manifest says.
 holds_something() {
-  grep -Eq '"(recipes|names)": *[1-9]' "$FILES/manifest.json" 2>/dev/null
+  grep -Eq '"(recipes|names|products)": *[1-9]' "$FILES/manifest.json" 2>/dev/null
 }
 
 # The clone, made in the first round. An empty repository is taken, and so is
@@ -94,17 +94,19 @@ The files the Diet App instance "$MIRROR_NAME" keeps in its directory of its own
 files, copied here by its \`mirror\` service so that they outlive the server.
 
 - \`manifest.json\`: the version of the application that wrote the files, and
-  how many recipes and names they hold.
+  how many recipes, names and products they hold.
 - \`recipes/library.json\`: every recipe of the instance's own library, by
   slug, with its lines in their order.
 - \`ingredient-overrides.json\`: the names of ingredients the instance gave,
   without those the catalogue's own data gives as they are.
+- \`products.json\`: the products the instance accepted from its people,
+  without their authors.
 
 The instance writes these files from its database after every ship into it,
 every restore and every update of the catalogue. Once an hour the service copies
 them here, and commits as \`$WHO\` only when something changed. A file
 removed from the instance is removed here too, unless the instance holds no
-recipes and no names at all: then the copy leaves this repository as it is. This
+recipes, names or products at all: then the copy leaves this repository as it is. This
 README is the one file the copy leaves alone.
 
 ## Restoring
@@ -141,7 +143,7 @@ catch_up() {
 round() {
   STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   if ! holds_something; then
-    say "the instance holds no recipes and no names of its own: the repository stays as it is"
+    say "the instance holds no recipes, names or products of its own: the repository stays as it is"
     report empty
     return 0
   fi

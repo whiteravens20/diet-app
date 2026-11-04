@@ -7,11 +7,13 @@
  * credentials, and nothing here keeps a password.
  */
 import type {
+  AcceptedProducts,
   AdminConnection,
-  AdminOperatorAi,
-  AdminSessionState,
   AdminHealth,
+  AdminOperatorAi,
   AdminOverview,
+  AdminProducts,
+  AdminSessionState,
   AdminStats,
   AdminStatus,
   CatalogueUpdateState,
@@ -29,6 +31,7 @@ import type {
   Macros,
   MealType,
   PastReview,
+  ProductQueue,
   RecipeDraft,
   RecipeDraftIngredientLine,
   RecipeImportResult,
@@ -52,6 +55,7 @@ export type {
   AdminHealth,
   AdminOperatorAi,
   AdminOverview,
+  AdminProducts,
   AdminStats,
   AdminStatus,
   DraftRunnerState,
@@ -219,6 +223,26 @@ export const adminApi = {
       { method: 'POST' },
     ),
   usdaImportStatus: () => adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
+  products: () => adminFetch<AdminProducts>('/products'),
+  askForProductImport: () => adminFetch<void>('/products/import', { method: 'POST' }),
+  productQueue: () => adminFetch<ProductQueue>('/products/queue'),
+  acceptProduct: (id: string, updatedAt: string) =>
+    adminFetch<void>(`/products/queue/${id}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ updatedAt }),
+    }),
+  rejectProduct: (id: string, updatedAt: string, reason: string) =>
+    adminFetch<void>(`/products/queue/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ updatedAt, reason }),
+    }),
+  acceptedProducts: (page: number) =>
+    adminFetch<AcceptedProducts>(`/products/accepted?page=${page}`),
+  withdrawProduct: (id: string, reason: string) =>
+    adminFetch<void>(`/products/accepted/${id}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
 
   // Drafts: ingredient-name
   startIngredientNamer: (spec: IngredientNameGenerateSpec) =>

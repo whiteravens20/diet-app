@@ -80,10 +80,12 @@ export function PasswordCard() {
 
 export function EmailCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
+  const tConfirm = useTranslations('confirmEmail');
   const errorText = useErrorText();
   const tCommon = useTranslations('common');
   const config = useConfig();
   const emailEnabled = config.data?.email.enabled ?? false;
+  const confirmationUnlocksAi = config.data?.email.confirmationUnlocksAi ?? false;
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -126,6 +128,11 @@ export function EmailCard({ me }: { me: SessionUser }) {
           <p className="text-xs text-muted-foreground">
             {me.emailVerified ? t('emailVerified') : t('emailUnverified')} · {t('emailHint')}
           </p>
+          {!me.emailVerified && emailEnabled && (
+            <p className="text-xs text-muted-foreground">
+              {tConfirm(confirmationUnlocksAi ? 'worthAi' : 'worthPlain')}
+            </p>
+          )}
         </div>
 
         {/* Resend verification — only meaningful when unverified AND mail works. */}

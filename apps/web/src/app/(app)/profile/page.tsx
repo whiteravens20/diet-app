@@ -267,7 +267,7 @@ export default function ProfilePage() {
             {list.map((p) => (
               <Card key={p.id} className="flex flex-col gap-3 p-4">
                 <div>
-                  <p className="font-medium">{p.name}</p>
+                  <p className="font-medium wrap-anywhere">{p.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {t('summary', {
                       age: p.age,

@@ -30,6 +30,7 @@ describe("what the instance's data directory holds", () => {
       recipeFiles: 1,
       recipes: 2,
       names: 2,
+      products: 0,
     });
   });
 
@@ -39,6 +40,7 @@ describe("what the instance's data directory holds", () => {
       recipeFiles: 0,
       recipes: 0,
       names: 0,
+      products: 0,
     });
   });
 

@@ -14,7 +14,6 @@ import {
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
-  ProteinKind,
   RegenerateDayRequest,
   RegenerateRequest,
   type DayOverride,
@@ -35,6 +34,7 @@ import {
   effectiveDayTarget,
   macroSplitOf,
   optimisePlan,
+  sizeAssignments,
   sharesOf,
   OptimizerError,
   proteinKindsOf,
@@ -44,16 +44,15 @@ import {
   type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
-  type OptimizerResult,
+  type SizedAssignment,
 } from '../engine/index.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { storedKindLimits } from '../common/stored-kind-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
-import { MealPlansService } from './meal-plans.service.js';
+import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   customMacros,
   isoDate,
@@ -61,6 +60,7 @@ import {
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
+import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import { readReroll, rerollDayOf, rerollOutcome } from './reroll-reading.js';
 
@@ -142,7 +142,6 @@ export class PlanGenerationService {
           dietType,
           calorieTarget: baseCalorieTarget,
           macroSplit: macroSplit ?? Prisma.JsonNull,
-          generationMode: 'deterministic',
           reuseScore: result.ingredientReuseScore,
           options,
           seed,
@@ -208,9 +207,12 @@ export class PlanGenerationService {
         days: {
           orderBy: { date: 'asc' },
           select: {
+            id: true,
             date: true,
             overrides: true,
-            meals: { select: { mealType: true, recipeId: true, source: true, eatenAt: true } },
+            meals: {
+              select: { id: true, mealType: true, recipeId: true, source: true, eatenAt: true },
+            },
           },
         },
       },
@@ -225,8 +227,28 @@ export class PlanGenerationService {
     const days = plan.days.map((day, index) =>
       rerollDayOf(day, dates[index]!, mealCount, profileCount),
     );
+    // What gives place on the days filled again, and the meals cooked with it on the other days.
+    const readings = days.map((day) => readReroll(day, { ...span, ...options }, today));
+    const filled = new Set(
+      plan.days.filter((_, index) => readings[index]!.fate === 'again').map((day) => day.id),
+    );
+    const cookedWith = await this.plans.cookedWith(
+      this.prisma,
+      planId,
+      PlanOptions.parse(plan.options),
+    );
+    const others = days.flatMap((day, index) => {
+      const reading = readings[index]!;
+      if (reading.fate !== 'again') return [];
+      const staying = new Set(reading.staying);
+      return day.meals
+        .filter((meal) => !staying.has(meal))
+        .flatMap((meal) => cookedWith.get(meal.id) ?? [])
+        .filter((meal) => !filled.has(meal.dayId));
+    });
     return {
       ...rerollOutcome(days, { ...span, ...options }, today),
+      cooking: cookingChange(others, today),
       // Dates in this form sort as text.
       fromToday: today <= dates[0]! ? 'not_begun' : today > dates.at(-1)! ? 'over' : null,
     };
@@ -399,12 +421,6 @@ export class PlanGenerationService {
       };
     });
 
-    // Whether a meal a model picked stays in the plan: a plan made again as a whole then still says that a model had a part in it.
-    const stayingOn = new Map(filled.map((entry) => [entry.dayId, new Set(entry.staying)]));
-    const modelsPickStays = plan.days.some((day) =>
-      day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)),
-    );
-
     return {
       plan,
       profile,
@@ -418,7 +434,6 @@ export class PlanGenerationService {
       base,
       dietType,
       macroSplit,
-      modelsPickStays,
       dropIneligibleLocks: options.dropIneligibleLocks,
     };
   }
@@ -460,21 +475,23 @@ export class PlanGenerationService {
           'Every day asked for is skipped or before today. A skipped day is left as it is, and days in the past are made again only when the request says so.',
       });
     }
-    const {
-      plan,
-      made,
-      dates,
-      whole,
-      days,
-      filled,
-      allowRelaxations,
-      base,
-      dietType,
-      macroSplit,
-      modelsPickStays,
-    } = prepared;
+    const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit } =
+      prepared;
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
+    // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
+    const today = clientToday ?? this.today();
+    const cookedWith = options.together
+      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
+      : new Map<string, CookedMeal[]>();
+    const moves = filled.flatMap(({ dayIndex, staying }) =>
+      plan.days[dayIndex]!.meals.filter((meal) => !staying.includes(meal.id)).flatMap((meal) => {
+        const placed = result.assignments.find(
+          (one) => one.dayIndex === dayIndex && one.slot === meal.mealType,
+        );
+        return placed ? [{ mealId: meal.id, recipeId: placed.recipeId }] : [];
+      }),
+    );
 
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
@@ -515,6 +532,7 @@ export class PlanGenerationService {
               recipeId: placed.recipeId,
               mealType: placed.slot,
               servings: placed.servings,
+              quantityScale: placed.quantityScale,
             })),
         });
       }
@@ -531,13 +549,18 @@ export class PlanGenerationService {
                 macroSplit: macroSplit ?? Prisma.JsonNull,
                 options: { ...made, allowRelaxations },
                 seed,
-                generationMode: modelsPickStays
-                  ? ('ai_assisted' as const)
-                  : ('deterministic' as const),
               }
             : {}),
         },
       });
+      await this.plans.carryToOtherDays(
+        tx,
+        planId,
+        cookedWith,
+        moves,
+        new Set(filled.map((entry) => entry.dayId)),
+        today,
+      );
     });
   }
 
@@ -635,7 +658,7 @@ export class PlanGenerationService {
       seed: number;
     },
   ): Promise<{
-    assignments: OptimizerResult['assignments'];
+    assignments: SizedAssignment[];
     ingredientReuseScore: number;
     report: StoredReport;
     pantryRound?: PantryRound;
@@ -702,16 +725,7 @@ export class PlanGenerationService {
       }
     }
 
-    // When mealPrepFriendly is set on the request, relax the profile's caps
-    // up to a generous baseline (4 consecutive days, 5 occurrences/week) —
-    // the user is asking for cook-once-eat-many, so honour their intent even
-    // if their profile defaults skew strict.
-    const profileCons = profile.preferences?.maxConsecutiveDaysSameMeal ?? 2;
-    const profileWeek = profile.preferences?.maxTimesPerWeekSameMeal ?? 3;
-    const maxConsecutiveDaysSameMeal = opts.mealPrepFriendly
-      ? Math.max(profileCons, 4)
-      : profileCons;
-    const maxTimesPerWeekSameMeal = opts.mealPrepFriendly ? Math.max(profileWeek, 5) : profileWeek;
+    const caps = capsOnARecipe(profile.preferences, opts.mealPrepFriendly);
 
     const days: OptimizerDay[] = opts.days.map((d) => ({
       mealSlots: d.mealSlots,
@@ -725,19 +739,20 @@ export class PlanGenerationService {
     }));
 
     const dates = opts.days.map((d) => d.isoDate);
+    const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
     try {
       const result = optimisePlan({
         recipes: optimizerRecipes,
         days,
-        macroSplit: macroSplitOf(opts.dietType, sharesOf(opts.macroSplit)),
+        macroSplit: split,
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
         dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
         preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
         inventoryCoverage,
-        maxConsecutiveDaysSameMeal,
-        maxTimesPerWeekSameMeal,
+        maxConsecutiveDaysSameMeal: caps.consecutive,
+        maxTimesPerWeekSameMeal: caps.perWeek,
         // A plan that names no number is held to the operator's, where one is set.
         maxRepeatsPerRecipe:
           opts.maxRepeatsPerRecipe ??
@@ -748,7 +763,7 @@ export class PlanGenerationService {
         seed: opts.seed,
       });
       return {
-        assignments: result.assignments,
+        assignments: sizeAssignments(days, optimizerRecipes, result.assignments, split),
         ingredientReuseScore: result.ingredientReuseScore,
         report: reportOf(result, dates, pantry.use),
         pantryRound: pantry.round,
@@ -1188,10 +1203,7 @@ function keptOfDiary(diary: DiaryOnDay | undefined): KeptMeal[] {
 }
 
 /** Nested `days.create` payload from resolved days + optimiser assignments. */
-function buildDays(
-  resolved: ResolvedDay[],
-  assignments: { dayIndex: number; slot: string; recipeId: string; servings: number }[],
-) {
+function buildDays(resolved: ResolvedDay[], assignments: SizedAssignment[]) {
   return resolved.map((d, dayIndex) => ({
     date: d.date,
     calorieTarget: d.calorieTarget,
@@ -1199,7 +1211,12 @@ function buildDays(
     meals: {
       create: assignments
         .filter((a) => a.dayIndex === dayIndex)
-        .map((a) => ({ recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
+        .map((a) => ({
+          recipeId: a.recipeId,
+          mealType: a.slot,
+          servings: a.servings,
+          quantityScale: a.quantityScale,
+        })),
     },
   }));
 }
@@ -1224,31 +1241,6 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
   const next: DayOverridesJson = { ...day.overrides, lockedSlots: kept };
   if (kept.length === 0) delete next.lockedSlots;
   day.overrides = Object.keys(next).length > 0 ? next : null;
-}
-
-/**
- * The most meals of a day and of seven days that may hold each kind of
- * protein: a kind's own numbers where the profile gives it some, the
- * profile's two for every kind where it does not. A kind with neither is left
- * out, and with it the limit.
- */
-function mealsPerKind(
-  preferences: {
-    maxMealsPerDaySameKind: number | null;
-    maxMealsPerWeekSameKind: number | null;
-    kindLimits: unknown;
-  } | null,
-): Map<ProteinKind, { perDay?: number; perWeek?: number }> {
-  const own = new Map(
-    storedKindLimits(preferences?.kindLimits).map((limit) => [limit.kind, limit]),
-  );
-  const limits = new Map<ProteinKind, { perDay?: number; perWeek?: number }>();
-  for (const kind of ProteinKind.options) {
-    const perDay = own.get(kind)?.perDay ?? preferences?.maxMealsPerDaySameKind ?? undefined;
-    const perWeek = own.get(kind)?.perWeek ?? preferences?.maxMealsPerWeekSameKind ?? undefined;
-    if (perDay !== undefined || perWeek !== undefined) limits.set(kind, { perDay, perWeek });
-  }
-  return limits;
 }
 
 /**

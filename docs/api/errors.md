@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 156 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 179 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -32,8 +32,9 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `CUSTOM_MEAL_INVALID_MACROS` | 400 | Custom meal macros must be non-negative numbers. | Makroskładniki własnego posiłku muszą być liczbami nieujemnymi. |
 | `CUSTOM_MEAL_NOT_SWAPPABLE` | 400 | Custom meals can't be swapped or have ingredients substituted. | Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika. |
 | `CUSTOM_SPLIT_MISSING` | 400 | The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first. | Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu. |
-| `DAY_IN_THE_PAST` | 409 | This day is over: its settings stay as they were. | Ten dzień już minął: jego ustawienia zostają bez zmian. |
+| `DAY_IN_THE_PAST` | 409 | This day is over: it stays as it was. | Ten dzień już minął: zostaje taki, jaki był. |
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
+| `DAY_SKIPPED` | 409 | This day is skipped: there is no meal on it to change. | Ten dzień jest pominięty: nie ma na nim posiłku do zmiany. |
 | `DIARY_DAY_AHEAD` | 409 | The diary takes today and the year before it, not a day still to come. | Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie. |
 | `DIARY_DAY_FULL` | 409 | The diary holds no more entries for this day: remove some to add others. | Dziennik nie zmieści więcej wpisów na ten dzień: usuń któreś, aby dodać inne. |
 | `DIARY_DAY_TOO_OLD` | 409 | The diary takes new entries at most a year back. | Dziennik przyjmuje nowe wpisy najwyżej rok wstecz. |
@@ -89,12 +90,14 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `LOCALE_NOT_IN_DRAFT` | 400 | This draft wasn't generated for that locale. | Ten szkic nie został przygotowany w wybranym języku. |
 | `LOCKED_RECIPE_INELIGIBLE` | 400 | A locked recipe can't go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out. | Przypiętego przepisu nie można dodać do tego planu: jest niedostępny albo wyklucza go dieta, alergeny, pomijane składniki lub oznaczenie do unikania. |
 | `MEAL_EATEN` | 409 | This meal is marked as eaten and can't be changed. Unmark it first. | Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie. |
+| `MEAL_NOT_EATEN_YET` | 409 | A meal of a day still to come cannot be marked as eaten. | Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego. |
 | `MEAL_NOT_FOUND` | 404 | Meal not found in this plan. | Nie znaleziono posiłku w tym planie. |
 | `MEAL_NOT_REBALANCEABLE` | 400 | Custom and eaten meals are never rebalanced. | Własne i zjedzone posiłki nie są przeliczane. |
 | `METHOD_NOT_ALLOWED` | 405 | That action is not available here. | Ta operacja nie jest tutaj dostępna. |
 | `MODEL_PICK_INVALID` | 400 | This suggestion is no longer good for what it was made for. Ask for another. | Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową. |
 | `NAMER_IN_PROGRESS` | 409 | An ingredient-namer run is already in progress. | Generowanie nazw składników już trwa. |
 | `NOTHING_TO_REGENERATE` | 409 | Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are. | Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian. |
+| `NOTHING_TO_UNDO` | 409 | There is no swap of this plan to take back. | Nie ma już zamiany, którą można cofnąć. |
 | `NOTIFICATION_NOT_FOUND` | 404 | Notification not found. | Nie znaleziono powiadomienia. |
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |
@@ -112,6 +115,12 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `ORIGIN_NOT_ALLOWED` | 403 | This request has to come from the application itself. Reload the page and try again. | To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie. |
 | `OUT_OF_COMPLEXITY_BAND` | 400 | Recipe is outside every complexity band — adjust ingredients, steps, or time. | Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas. |
 | `OVERRIDE_DATE_OUT_OF_RANGE` | 400 | An advanced day option falls outside the plan's date range. | Ustawienie dnia wykracza poza zakres dat planu. |
+| `OWN_PRODUCT_CORRECTION` | 409 | A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts. | Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts. |
+| `OWN_PRODUCT_DAILY_LIMIT` | 429 | You can write or change at most 50 products in 24 hours. | W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów. |
+| `OWN_PRODUCT_LIMIT` | 409 | An account holds at most 500 products of its own. | Konto może mieć najwyżej 500 własnych produktów. |
+| `OWN_PRODUCT_NOT_FOUND` | 404 | This product is no longer there. | Nie ma już tego produktu. |
+| `OWN_PRODUCT_NOT_SENDABLE` | 409 | A product goes to the base with its code, calories, protein, fat and carbohydrates. | Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami. |
+| `OWN_PRODUCT_SEND_LIMIT` | 429 | You can send at most 10 products to the base in 24 hours. | W ciągu doby możesz wysłać do bazy najwyżej 10 produktów. |
 | `OWN_RECIPE_DAILY_LIMIT` | 429 | You have saved as many recipes of your own today as you may. Try again tomorrow. | Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro. |
 | `PANTRY_FULL` | 409 | The pantry already holds as many items as it can. Remove one first. | Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich. |
 | `PAYLOAD_TOO_LARGE` | 413 | The request is too large. | Żądanie jest zbyt duże. |
@@ -119,6 +128,19 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PLAN_CHANGED` | 409 | The plan changed in the meantime. It has been reloaded; try again. | Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie. |
 | `PLAN_NEEDS_RELAXATION` | 422 | The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for. | Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie. |
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |
+| `PRODUCTS_NOT_OFFERED` | 404 | This instance offers no products. | Ta instancja nie oferuje produktów. |
+| `PRODUCT_CHANGED` | 409 | This product changed after it was opened. Open it again. | Ten produkt zmienił się po otwarciu. Otwórz go ponownie. |
+| `PRODUCT_CODE_HELD` | 409 | A product of yours has this code already. | Masz już własny produkt o tym kodzie. |
+| `PRODUCT_CODE_KNOWN` | 409 | The base has a product of this code. | Baza ma już produkt o tym kodzie. |
+| `PRODUCT_IMPORT_NO_COUNTRIES` | 409 | The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance. | Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie. |
+| `PRODUCT_IMPORT_RUNNING` | 409 | An import is running. | Import właśnie trwa. |
+| `PRODUCT_IMPORT_TOO_SOON` | 409 | The last import of these countries began less than 24 hours ago. | Ostatni import tych krajów zaczął się mniej niż 24 godziny temu. |
+| `PRODUCT_LOOKUPS_BUSY` | 429 | Too many new codes at once: try again in a minute. | Za dużo nowych kodów naraz: spróbuj za minutę. |
+| `PRODUCT_LOOKUPS_USED_UP` | 429 | That is all the new codes an account can check in 24 hours. Products this instance knows still work. | Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej. |
+| `PRODUCT_NOT_FOUND` | 404 | No product with this code is known. | Nie znamy produktu o tym kodzie. |
+| `PRODUCT_NOT_WAITING` | 409 | This product is no longer waiting for review. | Ten produkt nie czeka już na sprawdzenie. |
+| `PRODUCT_SOURCE_UNAVAILABLE` | 503 | Open Food Facts is not answering just now: try later, or write it as a meal of your own. | Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek. |
+| `PRODUCT_WITHOUT_FIGURES` | 409 | The label of this product gives no energy: write it as a meal of your own. | Etykieta tego produktu nie podaje energii: wpisz go jako własny posiłek. |
 | `PROFILE_LIMIT_REACHED` | 409 | You've reached the maximum number of profiles. | Osiągnięto maksymalną liczbę profili. |
 | `PROFILE_NOT_FOUND` | 404 | Profile not found. | Nie znaleziono profilu. |
 | `QUANTITY_TOO_LARGE` | 400 | That quantity is larger than a kitchen holds. Check the number. | Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę. |
@@ -131,6 +153,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `RECIPE_NOT_FOUND` | 404 | Recipe not found. | Nie znaleziono przepisu. |
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |
 | `RECIPE_SWAP_NOT_SUBMITTABLE` | 409 | A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library. | Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki. |
+| `RECIPE_WORDS_ONLY_OF_A_SWAP` | 409 | Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version. | Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |
 | `REPLACEMENT_NOT_IN_CATALOGUE` | 422 | Choose another ingredient of the catalogue to replace it with. | Wybierz inny składnik z katalogu, którym go zastąpić. |
 | `REVIEWER_DISABLED` | 401, 403 | Reviewer interface is disabled. | Panel recenzenta jest wyłączony. |

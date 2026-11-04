@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { PlanOverviewService } from './plan-overview.service.js';
 
@@ -124,6 +125,7 @@ describe("what a profile's plan of the moment comes to", () => {
   it('counts what was eaten of the meals of the days that have come', async () => {
     const plan = await planFrom('2026-01-05');
     const [monday, tuesday] = plan.days;
+    plansTodayIs(tuesday!.date);
     for (const meal of [monday!.meals[0]!, monday!.meals[1]!, tuesday!.meals[0]!]) {
       await t
         .http()

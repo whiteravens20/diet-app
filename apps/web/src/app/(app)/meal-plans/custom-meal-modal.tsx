@@ -19,6 +19,8 @@ export interface DayMealOption {
   id: string;
   mealType: string;
   title: string;
+  /** What follows for the other meal of its cooking if this one gives way. */
+  apart: string | null;
 }
 
 /**
@@ -59,11 +61,12 @@ export function CustomMealModal({
   const [replaces, setReplaces] = useState('');
 
   const num = (v: string) => (v.trim() === '' ? NaN : Number(v));
+  // A macronutrient left empty is left out: the API estimates it, as the diary's own meal has it.
   const serving = {
     calories: num(calories),
-    protein: num(protein),
-    fat: num(fat),
-    carbs: num(carbs),
+    ...(protein.trim() ? { protein: Number(protein) } : {}),
+    ...(fat.trim() ? { fat: Number(fat) } : {}),
+    ...(carbs.trim() ? { carbs: Number(carbs) } : {}),
   };
   const asked = AddCustomMealRequest.safeParse({
     name,
@@ -78,14 +81,22 @@ export function CustomMealModal({
     nutrition: serving,
     servings: num(servings),
   });
-  const adds = counted.success
-    ? {
-        calories: Math.round(counted.data.nutrition.calories * counted.data.servings),
-        protein: Math.round(counted.data.nutrition.protein * counted.data.servings),
-        fat: Math.round(counted.data.nutrition.fat * counted.data.servings),
-        carbs: Math.round(counted.data.nutrition.carbs * counted.data.servings),
-      }
-    : null;
+  const counts = counted.success ? counted.data : null;
+  const inFull = counts ? (value: number): number => Math.round(value * counts.servings) : () => 0;
+  const adds = counts
+    ? counts.nutrition.protein !== undefined &&
+      counts.nutrition.fat !== undefined &&
+      counts.nutrition.carbs !== undefined
+      ? t('customTotal', {
+          calories: inFull(counts.nutrition.calories),
+          protein: inFull(counts.nutrition.protein),
+          fat: inFull(counts.nutrition.fat),
+          carbs: inFull(counts.nutrition.carbs),
+        })
+      : t('customTotalEstimated', { calories: inFull(counts.nutrition.calories) })
+    : t('customTotalPending');
+
+  const apart = meals.find((meal) => meal.id === replaces)?.apart;
 
   return (
     <Dialog open onClose={onClose} label={t('customModalTitle')} className="max-w-md">
@@ -152,6 +163,7 @@ export function CustomMealModal({
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t('customPerServing')}</legend>
+          <p className="text-xs text-muted-foreground">{t('customMacrosOptional')}</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('customCalories')}>
               <Input
@@ -169,7 +181,6 @@ export function CustomMealModal({
               <Input
                 type="number"
                 inputMode="decimal"
-                required
                 min={0}
                 max={most('protein')}
                 step="any"
@@ -181,7 +192,6 @@ export function CustomMealModal({
               <Input
                 type="number"
                 inputMode="decimal"
-                required
                 min={0}
                 max={most('fat')}
                 step="any"
@@ -193,7 +203,6 @@ export function CustomMealModal({
               <Input
                 type="number"
                 inputMode="decimal"
-                required
                 min={0}
                 max={most('carbs')}
                 step="any"
@@ -221,11 +230,12 @@ export function CustomMealModal({
           aria-live="polite"
           className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
         >
-          <p>{adds ? t('customTotal', adds) : t('customTotalPending')}</p>
+          <p>{adds}</p>
           {/* What adding it does to the day, said before it is added. */}
           <p className="text-muted-foreground">
             {t(replaces ? 'customInsteadNote' : 'customBesideNote')}
           </p>
+          {apart && <p className="text-muted-foreground">{apart}</p>}
         </div>
 
         <div className="flex justify-end gap-2">

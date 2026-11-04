@@ -220,8 +220,8 @@
       409
     ],
     "messages": {
-      "en": "This day is over: its settings stay as they were.",
-      "pl": "Ten dzień już minął: jego ustawienia zostają bez zmian."
+      "en": "This day is over: it stays as it was.",
+      "pl": "Ten dzień już minął: zostaje taki, jaki był."
     }
   },
   "DAY_NOT_FOUND": {
@@ -231,6 +231,15 @@
     "messages": {
       "en": "Day not found in this plan.",
       "pl": "Nie znaleziono dnia w tym planie."
+    }
+  },
+  "DAY_SKIPPED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day is skipped: there is no meal on it to change.",
+      "pl": "Ten dzień jest pominięty: nie ma na nim posiłku do zmiany."
     }
   },
   "DIARY_DAY_AHEAD": {
@@ -729,6 +738,15 @@
       "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
     }
   },
+  "MEAL_NOT_EATEN_YET": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A meal of a day still to come cannot be marked as eaten.",
+      "pl": "Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego."
+    }
+  },
   "MEAL_NOT_FOUND": {
     "statuses": [
       404
@@ -781,6 +799,15 @@
     "messages": {
       "en": "Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are.",
       "pl": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian."
+    }
+  },
+  "NOTHING_TO_UNDO": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "There is no swap of this plan to take back.",
+      "pl": "Nie ma już zamiany, którą można cofnąć."
     }
   },
   "NOTIFICATION_NOT_FOUND": {
@@ -936,6 +963,60 @@
       "pl": "Ustawienie dnia wykracza poza zakres dat planu."
     }
   },
+  "OWN_PRODUCT_CORRECTION": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts.",
+      "pl": "Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts."
+    }
+  },
+  "OWN_PRODUCT_DAILY_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You can write or change at most 50 products in 24 hours.",
+      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
+    }
+  },
+  "OWN_PRODUCT_LIMIT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "An account holds at most 500 products of its own.",
+      "pl": "Konto może mieć najwyżej 500 własnych produktów."
+    }
+  },
+  "OWN_PRODUCT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "This product is no longer there.",
+      "pl": "Nie ma już tego produktu."
+    }
+  },
+  "OWN_PRODUCT_NOT_SENDABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A product goes to the base with its code, calories, protein, fat and carbohydrates.",
+      "pl": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami."
+    }
+  },
+  "OWN_PRODUCT_SEND_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You can send at most 10 products to the base in 24 hours.",
+      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
+    }
+  },
   "OWN_RECIPE_DAILY_LIMIT": {
     "statuses": [
       429
@@ -997,6 +1078,123 @@
     "messages": {
       "en": "Meal plan not found.",
       "pl": "Nie znaleziono planu posiłków."
+    }
+  },
+  "PRODUCTS_NOT_OFFERED": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "This instance offers no products.",
+      "pl": "Ta instancja nie oferuje produktów."
+    }
+  },
+  "PRODUCT_CHANGED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This product changed after it was opened. Open it again.",
+      "pl": "Ten produkt zmienił się po otwarciu. Otwórz go ponownie."
+    }
+  },
+  "PRODUCT_CODE_HELD": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A product of yours has this code already.",
+      "pl": "Masz już własny produkt o tym kodzie."
+    }
+  },
+  "PRODUCT_CODE_KNOWN": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The base has a product of this code.",
+      "pl": "Baza ma już produkt o tym kodzie."
+    }
+  },
+  "PRODUCT_IMPORT_NO_COUNTRIES": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
+      "pl": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie."
+    }
+  },
+  "PRODUCT_IMPORT_RUNNING": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "An import is running.",
+      "pl": "Import właśnie trwa."
+    }
+  },
+  "PRODUCT_IMPORT_TOO_SOON": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The last import of these countries began less than 24 hours ago.",
+      "pl": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
+    }
+  },
+  "PRODUCT_LOOKUPS_BUSY": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "Too many new codes at once: try again in a minute.",
+      "pl": "Za dużo nowych kodów naraz: spróbuj za minutę."
+    }
+  },
+  "PRODUCT_LOOKUPS_USED_UP": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
+      "pl": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej."
+    }
+  },
+  "PRODUCT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "No product with this code is known.",
+      "pl": "Nie znamy produktu o tym kodzie."
+    }
+  },
+  "PRODUCT_NOT_WAITING": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This product is no longer waiting for review.",
+      "pl": "Ten produkt nie czeka już na sprawdzenie."
+    }
+  },
+  "PRODUCT_SOURCE_UNAVAILABLE": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "Open Food Facts is not answering just now: try later, or write it as a meal of your own.",
+      "pl": "Open Food Facts teraz nie odpowiada: spróbuj później albo wpisz własny posiłek."
+    }
+  },
+  "PRODUCT_WITHOUT_FIGURES": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The label of this product gives no energy: write it as a meal of your own.",
+      "pl": "Etykieta tego produktu nie podaje energii: wpisz go jako własny posiłek."
     }
   },
   "PROFILE_LIMIT_REACHED": {
@@ -1105,6 +1303,15 @@
     "messages": {
       "en": "A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library.",
       "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
+    }
+  },
+  "RECIPE_WORDS_ONLY_OF_A_SWAP": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version.",
+      "pl": "Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję."
     }
   },
   "REFERENCE_CONFLICT": {

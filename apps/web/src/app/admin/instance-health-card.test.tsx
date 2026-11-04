@@ -27,7 +27,7 @@ const COPIED: InstanceMirror = {
   failure: null,
   checkedAt: '2026-10-31T09:30:00Z',
   pushedAt: '2026-10-30T18:02:00Z',
-  copy: { version: '0.150.0', recipes: 183, names: 87 },
+  copy: { version: '0.150.0', recipes: 183, names: 87, products: 4 },
 };
 
 function shown(

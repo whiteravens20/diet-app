@@ -51,8 +51,8 @@ export type CatalogueSupply = z.infer<typeof CatalogueSupply>;
  * (no `NEXT_PUBLIC_*` rebuild): whether to render the Turnstile widget and which
  * site key to use, whether email-driven flows (verification, email change) are
  * available, whether users may bring their own Ollama host, what the
- * operator publishes about the instance, and which diets the recipe catalogue
- * can serve.
+ * operator publishes about the instance, which diets the recipe catalogue can
+ * serve, and whether products with a barcode are offered.
  */
 export const PublicConfig = z.object({
   turnstile: z.object({
@@ -61,6 +61,12 @@ export const PublicConfig = z.object({
   }),
   email: z.object({
     enabled: z.boolean(),
+    /**
+     * Whether confirming an address lets its account use the instance's AI
+     * (`AI_ADMIN_ACCESS=confirmed`), which is all a confirmation unlocks:
+     * otherwise every feature works without one.
+     */
+    confirmationUnlocksAi: z.boolean(),
   }),
   ai: z.object({
     ollamaUserPolicy: OllamaUserPolicy,
@@ -80,6 +86,12 @@ export const PublicConfig = z.object({
     /** How many profiles an account may hold on this instance. */
     maxProfiles: z.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT),
   }),
+  /**
+   * What the instance offers of products with a barcode: `offered` whether it
+   * has any way to know one, and `lookups` whether a code it does not hold is
+   * asked of Open Food Facts.
+   */
+  products: z.object({ offered: z.boolean(), lookups: z.boolean() }),
   plans: z.object({
     /**
      * The most times one recipe appears in a plan whose request names no

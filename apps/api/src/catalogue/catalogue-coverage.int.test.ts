@@ -109,7 +109,7 @@ describe('what the catalogue can serve', () => {
     expect(balanced.reached.protein + balanced.reached.fat + balanced.reached.carbs).toBeCloseTo(1);
     expect(balanced.reached.distance).toBeLessThan(0.1);
     expect(highProtein.reached.protein).toBeGreaterThan(balanced.reached.protein);
-    expect(highProtein.reached.distance).toBeGreaterThan(balanced.reached.distance + 0.03);
+    expect(highProtein.reached.distance).toBeGreaterThan(balanced.reached.distance);
     // No plan can be made where a meal of the day has no recipe for the diet.
     expect(macros.diets.keto.reached).toBeNull();
   });

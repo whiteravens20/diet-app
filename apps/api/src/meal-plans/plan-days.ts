@@ -1,7 +1,15 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
-import type { MealType } from '@diet-app/shared';
+import type { DietType, Macros, MealType } from '@diet-app/shared';
+import { storedSplit } from '../common/stored-split.js';
+import {
+  energyShares,
+  macroSplitOf,
+  macrosForCalories,
+  sharesOf,
+  splitDistance,
+} from '../engine/nutrition.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 
 /**
@@ -97,6 +105,10 @@ export function sumNutrition(items: Amounts[]): Amounts {
   );
 }
 
+/** What a day of a plan aims at of protein, fat and carbohydrate, in grams, as the plan says it. */
+export const aimOfDay = (target: number, plan: { dietType: string; macroSplit: unknown }): Macros =>
+  macrosForCalories(target, plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
+
 /** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */
 export function isSkipped(day: { overrides: unknown }): boolean {
   return parseDayOverrides(day.overrides)?.skip === true;
@@ -140,6 +152,20 @@ export function standingOf(
           ? 'over'
           : 'under',
   };
+}
+
+/**
+ * How far what a day holds may lie from the split it aims at, as the share of
+ * its energy that would have to move, before it is said: more than a new plan
+ * comes to on all but about one day in thirty.
+ */
+const MACROS_OFF = 0.12;
+
+/** What a day of a plan holds of protein, fat and carbohydrate is far from what the plan aims at. */
+export function macrosOff(held: Macros, plan: { dietType: string; macroSplit: unknown }): boolean {
+  const shares = energyShares(held);
+  const split = macroSplitOf(plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
+  return shares !== null && splitDistance(shares, split) > MACROS_OFF;
 }
 
 /** What a day of a plan holds on average, over the days that are not skipped. */

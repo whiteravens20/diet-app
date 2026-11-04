@@ -194,7 +194,7 @@ export class ProfilesService {
     userId: string;
     name: string;
     age: number;
-    sex: 'male' | 'female' | null;
+    sex: Profile['sex'];
     heightCm: number;
     weightKg: number;
     targetWeightKg: number | null;

@@ -168,7 +168,7 @@ function InstanceData({
     }
   };
 
-  const nothingToRestore = state.recipes === 0 && state.names === 0;
+  const nothingToRestore = state.recipes === 0 && state.names === 0 && state.products === 0;
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -177,6 +177,7 @@ function InstanceData({
             recipes: state.recipes,
             files: state.recipeFiles,
             names: state.names,
+            products: state.products,
           })}
         </span>
         <Button
@@ -224,8 +225,14 @@ function InstanceData({
               added: result.recipes.added,
               rewritten: result.recipes.rewritten,
               names: result.names.applied,
+              products: result.products.added,
             })}
           </p>
+          {result.products.skipped > 0 && (
+            <p className="mt-1 text-warning">
+              {t('restoreProductsSkipped', { count: result.products.skipped })}
+            </p>
+          )}
           {result.recipes.skipped.length > 0 && (
             <div className="mt-1 text-warning">
               <p>{t('restoreSkipped', { count: result.recipes.skipped.length })}</p>

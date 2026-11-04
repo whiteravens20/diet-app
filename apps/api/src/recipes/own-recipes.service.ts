@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   Allergen,
   DietType,
@@ -10,12 +15,13 @@ import type {
   OwnRecipePreview,
   OwnRecipePreviewRequest,
   Recipe,
+  RecipeTextRequest,
 } from '@diet-app/shared';
 import type { Ingredient } from '@prisma/client';
 import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PersonalRecipesService, type PersonalRecipe } from './personal-recipes.service.js';
-import { checkRecipe, type RecipeProblem } from './recipe-rules.js';
+import { checkRecipe, checkRecipeText, type RecipeProblem } from './recipe-rules.js';
 import { RecipesService } from './recipes.service.js';
 
 /**
@@ -62,15 +68,35 @@ export class OwnRecipesService {
   /**
    * Edit a recipe of the user's own, whoever wrote it: the new version is
    * written by hand. One made by swapping an ingredient stays one, and so
-   * stays its owner's; one a model had a part in keeps the mark of it.
+   * stays its owner's; one a model had a part in keeps the mark of it. Where
+   * only the words of one made by swapping an ingredient change, they are
+   * written in it, as `reword` does.
    */
   async edit(userId: string, locale: Locale, id: string, input: OwnRecipeInput): Promise<Recipe> {
     const old = await this.prisma.recipe.findUnique({
       where: { id },
-      select: { createdByUserId: true, deletedAt: true, origin: true, modelAssisted: true },
+      select: {
+        createdByUserId: true,
+        deletedAt: true,
+        origin: true,
+        modelAssisted: true,
+        servings: true,
+        mealTypes: true,
+        prepMinutes: true,
+        cookMinutes: true,
+        difficulty: true,
+        cuisine: true,
+        ingredients: {
+          orderBy: { position: 'asc' },
+          select: { ingredientId: true, quantity: true, unit: true, note: true },
+        },
+      },
     });
     if (!old || old.deletedAt || old.createdByUserId !== userId) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    }
+    if (old.origin === 'swap' && onlyWordsDiffer(old, input)) {
+      return this.reword(userId, locale, id, input);
     }
     const recipe = await this.recipeOf(userId, locale, input, {
       origin: old.origin === 'swap' ? 'swap' : 'manual',
@@ -78,6 +104,62 @@ export class OwnRecipesService {
       modelAssisted: old.modelAssisted || old.origin === 'ai',
     });
     return this.recipes.get(userId, locale, await this.personal.saveOwn(recipe, id));
+  }
+
+  /**
+   * New words for a recipe of the user's own made by swapping an ingredient,
+   * in the language of the request: written in that recipe, which stays the
+   * one the plans hold, so that they read them at once. Nothing else of it
+   * changes, its nutrition included. Any other recipe of one's own is edited
+   * as a new version.
+   */
+  async reword(
+    userId: string,
+    locale: Locale,
+    id: string,
+    input: RecipeTextRequest,
+  ): Promise<Recipe> {
+    const recipe = await this.prisma.recipe.findUnique({
+      where: { id },
+      select: { createdByUserId: true, deletedAt: true, origin: true },
+    });
+    if (!recipe || recipe.deletedAt || recipe.createdByUserId !== userId) {
+      throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    }
+    if (recipe.origin !== 'swap') {
+      throw new ConflictException({
+        error: 'RECIPE_WORDS_ONLY_OF_A_SWAP',
+        message:
+          'Only a recipe made by swapping an ingredient takes new words in place; any other is edited as a new version.',
+      });
+    }
+    const checked = checkRecipeText(
+      {
+        titles: { [locale]: input.title },
+        descriptions: { [locale]: input.description },
+        steps: { [locale]: input.steps },
+      },
+      [locale],
+    );
+    if (!checked.ok) throw invalid(checked.problems);
+    const text = {
+      title: checked.text.titles[locale]!,
+      description: checked.text.descriptions[locale]!,
+      steps: checked.text.steps[locale]!,
+    };
+    await this.prisma.$transaction(async (tx) => {
+      await tx.recipeTranslation.upsert({
+        where: { recipeId_locale: { recipeId: id, locale } },
+        create: { recipeId: id, locale, ...text, source: 'MANUAL' },
+        update: { ...text, source: 'MANUAL' },
+      });
+      // The recipe's own text is its English, or its one language where it has no English.
+      const english =
+        locale === 'en' ||
+        (await tx.recipeTranslation.count({ where: { recipeId: id, locale: 'en' } })) === 0;
+      if (english) await tx.recipe.update({ where: { id }, data: text });
+    });
+    return this.recipes.get(userId, locale, id);
   }
 
   /** The recipe to store: the input held to the rules of every recipe, with what the engine works out. */
@@ -165,6 +247,40 @@ export class OwnRecipesService {
       return row;
     });
   }
+}
+
+/** Whether `input` says of a recipe what `stored` holds, its words aside. */
+function onlyWordsDiffer(
+  stored: {
+    servings: number;
+    mealTypes: string[];
+    prepMinutes: number;
+    cookMinutes: number;
+    difficulty: string;
+    cuisine: string | null;
+    ingredients: { ingredientId: string; quantity: number; unit: string; note: string | null }[];
+  },
+  input: OwnRecipeInput,
+): boolean {
+  const meals = (list: readonly string[]) => [...list].sort().join(',');
+  return (
+    stored.servings === input.servings &&
+    meals(stored.mealTypes) === meals(input.mealTypes) &&
+    stored.prepMinutes === input.prepMinutes &&
+    stored.cookMinutes === input.cookMinutes &&
+    stored.difficulty === input.difficulty &&
+    stored.cuisine === input.cuisine &&
+    stored.ingredients.length === input.ingredients.length &&
+    stored.ingredients.every((line, index) => {
+      const given = input.ingredients[index]!;
+      return (
+        line.ingredientId === given.ingredientId &&
+        line.quantity === given.quantity &&
+        line.unit === given.unit &&
+        (line.note ?? null) === (given.note ?? null)
+      );
+    })
+  );
 }
 
 /** What the engine works out for these lines; a unit an ingredient cannot be measured in is refused. */

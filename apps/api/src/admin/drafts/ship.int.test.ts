@@ -91,6 +91,7 @@ describe('shipping approved drafts', () => {
       expect(res.body.sidecarPaths).toEqual([
         'recipes/library.json',
         'ingredient-overrides.json',
+        'products.json',
         'manifest.json',
       ]);
       const library = JSON.parse(
