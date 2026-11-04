@@ -157,7 +157,8 @@ services:
       TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
     volumes:
       # The terms of service the page shows: terms/ of this checkout, which
-      # holds the template until you write your own there (TOS.md, TOS.pl.md).
+      # holds the template until you write your own there (TOS.md, and a
+      # translation named by its language's code, such as TOS.pl.md).
       # After a change, restart the web service.
       - ../terms:/terms:ro
     depends_on:

@@ -5,13 +5,17 @@ import {
   type InventoryItem,
   MAX_FAVORITES_PER_PROFILE,
   MAX_FAVORITE_SETS_PER_PROFILE,
+  MAX_MEALS_ON_A_PLAN_DAY,
+  MAX_OPEN_SESSIONS,
   MAX_PANTRY_ROWS,
-  MAX_SESSIONS_LISTED,
+  MAX_PLANS_PER_PROFILE,
   MAX_UNREAD_LISTED,
+  MAX_WEIGHTS_A_DAY,
   MAX_WEIGHTS_LISTED,
   type Notification,
   type Profile,
   type ShoppingList,
+  WEIGHT_DAYS_BACK,
   type WeightDay,
   type WeightEntry,
 } from '@diet-app/shared';
@@ -242,6 +246,119 @@ describe('how much a profile may hold, and how much of a list one answer shows',
       expect(lately).toHaveLength(7);
     });
 
+    it('keeps as many weights for a day as it may and not one more, however many requests arrive together', async () => {
+      // Yesterday in UTC, a day that has passed wherever the test runs.
+      const today = new Date(new Date().toISOString().slice(0, 10)).getTime();
+      const day = today - DAY;
+      await t.prisma.weightEntry.createMany({
+        data: Array.from({ length: MAX_WEIGHTS_A_DAY - 2 }, (_, n) => ({
+          profileId: profile.id,
+          kg: 80,
+          recordedAt: new Date(day + (n + 1) * 3_600_000),
+        })),
+      });
+      const note = (at: number) =>
+        t
+          .http()
+          .post('/api/weights')
+          .set(as(user))
+          .send({ profileId: profile.id, kg: 79, recordedAt: new Date(at).toISOString() });
+
+      const answers = await race(4, (n) => note(day + DAY - (n + 1) * 60_000));
+
+      expect(statuses(answers)).toEqual([201, 201, 409, 409]);
+      expect(new Set(refusals(answers))).toEqual(new Set(['WEIGHT_DAY_FULL']));
+      expect(
+        await t.prisma.weightEntry.count({
+          where: { profileId: profile.id, recordedAt: { gte: new Date(day) } },
+        }),
+      ).toBe(MAX_WEIGHTS_A_DAY);
+      // The days next to it are days of their own: the last moment before it and its next day's first.
+      await note(day - 1).expect(201);
+      await note(today).expect(201);
+    });
+
+    it('takes a weight taken at most a year back', async () => {
+      const yearBack = Date.now() - WEIGHT_DAYS_BACK * DAY;
+      const note = (at: number) =>
+        t
+          .http()
+          .post('/api/weights')
+          .set(as(user))
+          .send({ profileId: profile.id, kg: 79, recordedAt: new Date(at).toISOString() });
+
+      const refused = await note(yearBack - 60_000).expect(409);
+      expect(refused.body.error).toBe('WEIGHT_TOO_OLD');
+      await note(yearBack + 60_000).expect(201);
+      expect(await t.prisma.weightEntry.count({ where: { profileId: profile.id } })).toBe(1);
+    });
+
+    it('makes as many plans as it may and not one more, however many are asked for together', async () => {
+      await t.prisma.mealPlan.createMany({
+        data: Array.from({ length: MAX_PLANS_PER_PROFILE - 1 }, () => ({
+          profileId: profile.id,
+          startDate: new Date('2026-01-05'),
+          durationDays: 1,
+          dietType: 'balanced' as const,
+          calorieTarget: 2000,
+          options: {},
+          seed: 1,
+        })),
+      });
+
+      const answers = await race(3, () =>
+        t
+          .http()
+          .post('/api/meal-plans/generate')
+          .set(as(user))
+          .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 1 }),
+      );
+
+      expect(statuses(answers)).toEqual([201, 409, 409]);
+      expect(new Set(refusals(answers))).toEqual(new Set(['PLAN_LIMIT_REACHED']));
+      expect(await t.prisma.mealPlan.count({ where: { profileId: profile.id } })).toBe(
+        MAX_PLANS_PER_PROFILE,
+      );
+    });
+
+    it('takes a meal of its own on a day of a plan only while the day holds fewer than the most', async () => {
+      const plan = await aPlan(t, user, profile, { durationDays: 1 });
+      const day = plan.days[0]!;
+      const held = await t.prisma.plannedMeal.count({ where: { dayId: day.id } });
+      await t.prisma.plannedMeal.createMany({
+        data: Array.from({ length: MAX_MEALS_ON_A_PLAN_DAY - held }, (_, n) => ({
+          dayId: day.id,
+          mealType: 'snack' as const,
+          servings: 1,
+          source: 'USER_CUSTOM' as const,
+          customName: `Own ${n}`,
+          customMacros: { calories: 100, protein: 5, fat: 3, carbs: 12 },
+        })),
+      });
+      const own = (replaces?: string) =>
+        t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${day.date}/custom-meal`)
+          .set(as(user))
+          .send({
+            name: 'One more',
+            mealType: 'snack',
+            nutrition: { calories: 200 },
+            ...(replaces ? { replaces } : {}),
+          });
+
+      const refused = await own().expect(409);
+      expect(refused.body.error).toBe('PLAN_DAY_FULL');
+      // One in the place of another leaves the day as full as it was.
+      const one = await t.prisma.plannedMeal.findFirstOrThrow({
+        where: { dayId: day.id, source: 'USER_CUSTOM' },
+      });
+      await own(one.id).expect(201);
+      expect(await t.prisma.plannedMeal.count({ where: { dayId: day.id } })).toBe(
+        MAX_MEALS_ON_A_PLAN_DAY,
+      );
+    });
+
     it('is shown its newest unread notifications, fifty at most, and marks them all as read at once', async () => {
       const now = Date.now();
       await t.prisma.notification.createMany({
@@ -371,7 +488,7 @@ describe('how much a profile may hold, and how much of a list one answer shows',
     });
   });
 
-  it('is shown the sessions it used last, fifty at most, and signing out everywhere ends the others too', async () => {
+  it('is shown every session it has open, which a new one past the most ends the one used longest ago of, and signing out everywhere ends them all', async () => {
     const sessions = t.app.get(SessionsService);
     const account = {
       id: user.id,
@@ -379,17 +496,28 @@ describe('how much a profile may hold, and how much of a list one answer shows',
       role: 'user' as const,
       emailVerified: true,
     };
-    const more = MAX_SESSIONS_LISTED + 4;
-    for (let n = 0; n < more; n += 1) await sessions.open(account, user.email, `Device ${n}`);
+    const more = MAX_OPEN_SESSIONS + 4;
+    let latest = await sessions.open(account, user.email, 'Device 0');
+    for (let n = 1; n < more; n += 1)
+      latest = await sessions.open(account, user.email, `Device ${n}`);
+    const asLatest = { Authorization: `Bearer ${latest.tokens.accessToken}` };
 
     const listed: AccountSession[] = (
-      await t.http().get('/api/users/me/sessions').set(as(user)).expect(200)
+      await t.http().get('/api/users/me/sessions').set(asLatest).expect(200)
     ).body;
 
-    expect(listed).toHaveLength(MAX_SESSIONS_LISTED);
-    // The one the account was made with is the oldest of them all: it is among those the list leaves out.
-    expect(listed.every((session) => session.label?.startsWith('Device '))).toBe(true);
-    await t.http().delete('/api/users/me/sessions').set(as(user)).expect(204);
+    expect(listed).toHaveLength(MAX_OPEN_SESSIONS);
+    // The one the account was made with and the first four opened after it were used longest ago: they ended.
+    expect(new Set(listed.map((session) => session.label))).toEqual(
+      new Set(
+        Array.from(
+          { length: MAX_OPEN_SESSIONS },
+          (_, n) => `Device ${n + more - MAX_OPEN_SESSIONS}`,
+        ),
+      ),
+    );
+    await t.http().get('/api/users/me/sessions').set(as(user)).expect(401);
+    await t.http().delete('/api/users/me/sessions').set(asLatest).expect(204);
     expect(await t.prisma.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(
       0,
     );

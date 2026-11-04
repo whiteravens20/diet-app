@@ -52,6 +52,8 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 
 function makeDeps(user: ReturnType<typeof makeUser> | null) {
   const prisma = {
+    // The sessions an account has open past the most are ended in one statement.
+    $executeRaw: vi.fn().mockResolvedValue(0),
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
       create: vi

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page } from '@playwright/test';
+import { signUp } from './accounts';
 import { expect, settled, signInHere, test } from './fixtures';
 
 const PASSWORD = 'Browser-Test-Passw0rd';
@@ -42,8 +43,10 @@ test('a word as long as a name can be sticks out of nothing', async ({
   );
   // An account of its own: its names would stand in the way of the other tests.
   const email = `browser-long-${Date.now().toString(36)}@example.test`;
-  const registered = await request.post('/api/auth/register', {
-    data: { email, password: PASSWORD, displayName: aWord('Name', 80) },
+  const registered = await signUp(request, {
+    email,
+    password: PASSWORD,
+    displayName: aWord('Name', 80),
   });
   expect(registered.ok()).toBe(true);
   const token = ((await registered.json()) as { tokens: { accessToken: string } }).tokens

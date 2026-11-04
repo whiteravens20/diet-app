@@ -6,6 +6,7 @@ import { BrowserSignIn } from './auth/browser-sign-in.service.js';
 import { pruneLinks } from './auth/one-time-links.js';
 import { SessionsService } from './auth/sessions.service.js';
 import { pruneIdempotencyKeys } from './common/idempotency.js';
+import { pruneLimitLogs } from './common/limit-logs.js';
 import { runAlone } from './common/job-lock.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
@@ -69,6 +70,16 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
         const removed = await pruneIdempotencyKeys(prisma);
         if (removed > 0)
           logger.log(`Removed ${removed} key(s) of additions sent more than a week ago.`);
+      },
+    ],
+    [
+      'removal of the calls of models and the writes of products made more than a year ago',
+      async () => {
+        const removed = await pruneLimitLogs(prisma);
+        if (removed > 0)
+          logger.log(
+            `Removed ${removed} call(s) of models and write(s) of products older than a year.`,
+          );
       },
     ],
     [

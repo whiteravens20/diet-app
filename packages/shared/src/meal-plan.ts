@@ -103,6 +103,12 @@ export type RelaxationNeeded = z.infer<typeof RelaxationNeeded>;
 
 /** The longest a plan may be, in days, and the most meals such a plan holds. */
 export const MAX_PLAN_DAYS = 28;
+
+/** The most plans a profile keeps: two years of a plan a week. A new one is made once an old one is deleted. */
+export const MAX_PLANS_PER_PROFILE = 100;
+
+/** The most meals a day of a plan holds when one of the user's own is added: a day the planner makes holds at most five. */
+export const MAX_MEALS_ON_A_PLAN_DAY = 20;
 export const MAX_PLAN_MEALS = MAX_PLAN_DAYS * MealType.options.length;
 
 /** Request to generate a meal plan. */

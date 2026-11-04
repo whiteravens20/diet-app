@@ -68,6 +68,8 @@ interface Case {
   url: string;
   /** The field of the request that carries the token cap. */
   capField: string;
+  /** The temperature the request carries: none where the provider refuses one. */
+  temperature: number | undefined;
   answer: (text: string) => unknown;
   cutOff: (text: string) => unknown;
 }
@@ -77,6 +79,7 @@ const cases: Record<string, Case> = {
     adapter: new OpenAiProvider(),
     url: 'https://api.openai.com/v1/chat/completions',
     capField: 'max_completion_tokens',
+    temperature: 0.2,
     answer: (text) => openAiAnswer(text),
     cutOff: (text) => openAiAnswer(text, 'length'),
   },
@@ -84,6 +87,7 @@ const cases: Record<string, Case> = {
     adapter: new OpenRouterProvider(),
     url: 'https://openrouter.ai/api/v1/chat/completions',
     capField: 'max_tokens',
+    temperature: 0.2,
     answer: (text) => openAiAnswer(text),
     cutOff: (text) => openAiAnswer(text, 'length'),
   },
@@ -91,6 +95,7 @@ const cases: Record<string, Case> = {
     adapter: new AnthropicProvider(),
     url: 'https://api.anthropic.com/v1/messages',
     capField: 'max_tokens',
+    temperature: undefined,
     answer: (text) => anthropicAnswer(text),
     cutOff: (text) => anthropicAnswer(text, 'max_tokens'),
   },
@@ -116,7 +121,7 @@ afterEach(() => {
 
 describe.each(Object.entries(cases))(
   'the %s adapter',
-  (_name, { adapter, url, capField, answer, cutOff }) => {
+  (_name, { adapter, url, capField, temperature, answer, cutOff }) => {
     it('sends the model, the limits and the messages, and returns the reply with its token counts', async () => {
       transport(() => json(200, answer('hi there')));
 
@@ -128,11 +133,8 @@ describe.each(Object.entries(cases))(
       });
       expect(sent).toHaveLength(1);
       expect(sent[0]!.url).toBe(url);
-      expect(sent[0]!.body).toMatchObject({
-        model: 'some-model',
-        temperature: 0.2,
-        [capField]: 321,
-      });
+      expect(sent[0]!.body).toMatchObject({ model: 'some-model', [capField]: 321 });
+      expect(sent[0]!.body.temperature).toBe(temperature);
       expect(JSON.stringify(sent[0]!.body)).toContain('answer briefly');
       expect(JSON.stringify(sent[0]!.body)).toContain('hello');
     });

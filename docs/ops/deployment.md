@@ -219,15 +219,21 @@ end. The limits are part of the application, not settings.
 | Rows in the pantry of a profile          | 1000                  |
 | Products an account wrote                | 500                   |
 | Diary entries of a profile on one day    | 40                    |
+| Weights of a profile on one day, in UTC  | 10                    |
+| Plans of a profile                       | 100                   |
+| Meals of a day of a plan, for one's own  | 20                    |
 | Shopping lists of a plan                 | 10                    |
+| Open sessions of an account              | 50                    |
 | AI provider configurations of an account | One for each provider |
 
-A request that would go over one is answered `409` with a code that says which. The diary
-takes a new entry for today or a day at most a year back, so once that year is full it grows
-by at most 40 entries a day. Longer lists come a page at a time (recipes, plans, the drafts
-of the admin panel), and three show only their newest entries: the 1000 newest weights of a
-profile, the 50 newest unread notifications, and the 50 sessions of an account that were used
-last. Signing out everywhere ends the sessions the list does not show, too.
+A request that would go over one is answered `409` with a code that says which, except a
+sign-in: a new session ends the one of the account used longest ago. The diary takes a new
+entry for today or a day at most a year back, so once that year is full it grows by at most 40
+entries a day; a weight is taken at most a year before it is noted, so the weights of a profile
+grow the same way, by at most 10 a day. Longer lists come a page at a time (recipes, plans, the
+drafts of the admin panel), and two show only their newest entries: the 1000 newest weights of
+a profile and the 50 newest unread notifications. The calls of models and the writes of
+products that the limits of an account count are removed after a year.
 
 ### What a page may load
 
@@ -448,10 +454,17 @@ service mounts read-only at `/terms`:
 - beside it, a translation for an interface language, named by its code: `TOS.pl.md`.
 
 A reader is shown the translation in the language of the page, and `TOS.md` where there is
-none. Until there is a `TOS.md`, the page shows the template that comes with the image,
-which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) and
-[`terms/TOS.pl.md`](../../terms/TOS.pl.md) put in square brackets what is yours to fill in
-or delete, and have a section on Turnstile to delete when it is off.
+none. Until there is a `TOS.md`, the page shows the template that comes with the image, in
+English, which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) puts
+in square brackets what is yours to fill in or delete, and has a section on Turnstile to
+delete when it is off.
+
+A translation is yours to write, from your own `TOS.md`: copy it, translate it, and save it
+beside it under the code of the interface language it is for, `TOS.pl.md` for Polish, or
+`TOS.en.md` for English when `TOS.md` is in another language. A file for a language the
+interface does not have is never shown, and a name with a region (`TOS.pl-PL.md`) is not
+read. Keep the two in step: a change of `TOS.md` that the translation lacks does not reach
+its readers. Start the web service again after adding one, as after any change.
 
 Make the directory before the first start: Docker makes a missing one itself, empty and
 owned by root. The files have to be readable by the container's user (UID 1000), as files

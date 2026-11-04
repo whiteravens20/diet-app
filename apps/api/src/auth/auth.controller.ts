@@ -125,7 +125,11 @@ export class AuthController {
     }
   }
 
-  /** Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. */
+  /**
+   * Sign in with an address and a password. An account with a second factor
+   * gets a challenge in the place of a session. An account keeps at most fifty
+   * sessions open: a new one ends the one used longest ago.
+   */
   // Ten tries in a quarter of an hour at one account from one address: whoever
   // guesses uses up their own tries, not those of the owner at another
   // address. Fifty from everywhere together, so that changing address does not
