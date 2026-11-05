@@ -18,6 +18,8 @@
  * where the record names none.
  */
 
+import { PART_SLACK } from '@diet-app/shared';
+
 /** One nutrient of a food, in any of the shapes the source's endpoints use. */
 export interface SourceNutrient {
   nutrientNumber?: string;
@@ -99,4 +101,48 @@ export function macrosOf(nutrients: readonly SourceNutrient[]): Macros | { refus
     };
   }
   return { caloriesPer100: energy, proteinPer100: protein, fatPer100: fat, carbsPer100: carbs };
+}
+
+/** What a label gives besides, in 100 g: each left out where the source does not report it. */
+export interface LabelFigures {
+  fiberPer100?: number;
+  sugarsPer100?: number;
+  saltPer100?: number;
+  saturatedFatPer100?: number;
+}
+
+/** The numbers each of them may be reported under, in order of preference. */
+const LABEL_NUMBERS = {
+  // total dietary fibre
+  fiber: ['291'],
+  // total sugars, under either of the source's numbers for them
+  sugars: ['269', '269.3'],
+  // sodium in milligrams: a label gives salt, 2.5 times its weight
+  sodium: ['307'],
+  // total saturated fatty acids
+  saturatedFat: ['606'],
+} as const;
+
+/**
+ * The fibre, sugars, salt and saturated fat of a food that is imported, per 100 g. A figure that
+ * contradicts the macronutrients (more sugars than carbohydrate, more saturated fat than fat) is
+ * left out like one the source does not report: the food itself is still taken.
+ */
+export function labelOf(nutrients: readonly SourceNutrient[], macros: Macros): LabelFigures {
+  const fiber = read(nutrients, LABEL_NUMBERS.fiber);
+  const sugars = read(nutrients, LABEL_NUMBERS.sugars);
+  const sodium = read(nutrients, LABEL_NUMBERS.sodium);
+  const saturatedFat = read(nutrients, LABEL_NUMBERS.saturatedFat);
+  // Salt in grams to two places, from sodium in milligrams.
+  const salt = sodium === null ? null : Math.round((sodium * 2.5) / 10) / 100;
+  return {
+    ...(fiber !== null && fiber <= 100 ? { fiberPer100: fiber } : {}),
+    ...(sugars !== null && sugars <= macros.carbsPer100 + PART_SLACK
+      ? { sugarsPer100: sugars }
+      : {}),
+    ...(salt !== null && salt <= 100 ? { saltPer100: salt } : {}),
+    ...(saturatedFat !== null && saturatedFat <= macros.fatPer100 + PART_SLACK
+      ? { saturatedFatPer100: saturatedFat }
+      : {}),
+  };
 }

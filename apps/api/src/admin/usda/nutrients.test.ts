@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { macrosOf, type SourceNutrient } from './nutrients.js';
+import { labelOf, macrosOf, type SourceNutrient } from './nutrients.js';
 
 const foods = JSON.parse(readFileSync(join(__dirname, 'fixtures/fdc-foods.json'), 'utf8')) as {
   description: string;
@@ -158,5 +158,34 @@ describe('the energy and macronutrients of an imported food', () => {
     expect(macrosOf([nutrient('203', 0), nutrient('204', 0), nutrient('205', 0)])).toEqual({
       refused: 'no energy',
     });
+  });
+});
+
+describe('what a label gives besides, of an imported food', () => {
+  const macros = { caloriesPer100: 160, proteinPer100: 5, fatPer100: 10, carbsPer100: 20 };
+
+  it('reads fibre, sugars and saturated fat, and works salt out of sodium, 2.5 times its weight', () => {
+    expect(
+      labelOf(
+        [nutrient('291', 3.14), nutrient('269', 12), nutrient('307', 400), nutrient('606', 4.2)],
+        macros,
+      ),
+    ).toEqual({ fiberPer100: 3.1, sugarsPer100: 12, saltPer100: 1, saturatedFatPer100: 4.2 });
+  });
+
+  it('reads sugars under the other number the source reports them under', () => {
+    expect(labelOf([nutrient('269.3', 7)], macros)).toEqual({ sugarsPer100: 7 });
+  });
+
+  it('leaves out what the record does not report', () => {
+    expect(labelOf([], macros)).toEqual({});
+  });
+
+  it('leaves out sugars above the carbohydrate and saturated fat above the fat, and keeps the rest', () => {
+    expect(labelOf([nutrient('269', 25), nutrient('606', 11), nutrient('291', 2)], macros)).toEqual(
+      {
+        fiberPer100: 2,
+      },
+    );
   });
 });

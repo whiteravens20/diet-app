@@ -25,7 +25,7 @@ import {
 import { join } from 'node:path';
 import { FdcDataTypes } from '@diet-app/shared';
 import { classify } from './classify.js';
-import { macrosOf, type SourceNutrient } from './nutrients.js';
+import { labelOf, macrosOf, type SourceNutrient } from './nutrients.js';
 
 type Category =
   | 'vegetables'
@@ -258,7 +258,7 @@ export function pageFetcher(options: {
  * The version of this importer. Raised when what it writes changes, so that the panel offers a
  * new import over foods an older one wrote.
  */
-const IMPORTER_VERSION = 1;
+const IMPORTER_VERSION = 2;
 
 /** The record beside the imported foods: which version of the importer wrote them, and when. */
 const IMPORT_RECORD = 'ingredients.generated.record.json';
@@ -337,6 +337,11 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
         continue;
       }
       const { allergens, diets } = classify(name, sourceCategory);
+      const label = labelOf(food.foodNutrients, macros);
+      // Meat and fish have no fibre: a blank there is a zero.
+      if (label.fiberPer100 === undefined && (category === 'meat' || category === 'fish')) {
+        label.fiberPer100 = 0;
+      }
 
       ingredients.push({
         slug: slugify(name),
@@ -344,6 +349,7 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
         category,
         canonicalUnit: 'g',
         ...macros,
+        ...label,
         allergens,
         dietCompatibility: dietCompatibility(diets, macros),
         tags: ['usda-imported', `fdc:${food.fdcId}`],

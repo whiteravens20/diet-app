@@ -74,6 +74,44 @@ describe('importing foods', () => {
     ]);
   });
 
+  it('writes what a label gives besides where the source reports it, and no fibre for meat', async () => {
+    const withLabel = (description: string, nutrients: [string, number][]) => {
+      const food = foods.find((f) => f.description === description)!;
+      return {
+        ...food,
+        foodNutrients: [
+          ...food.foodNutrients,
+          ...nutrients.map(([nutrientNumber, value]) => ({ nutrientNumber, value })),
+        ],
+      };
+    };
+    const { row } = await imported([
+      withLabel('Nuts, almonds, whole, raw', [
+        ['291', 12.5],
+        ['269', 4.35],
+        ['307', 1],
+        ['606', 3.8],
+      ]),
+      withLabel('Chicken, breast, boneless, skinless, raw', [['307', 45]]),
+      withLabel('Lentils, dry', []),
+    ]);
+
+    expect(row('Nuts, almonds, whole, raw')).toMatchObject({
+      fiberPer100: 12.5,
+      sugarsPer100: 4.4,
+      saltPer100: 0,
+      saturatedFatPer100: 3.8,
+    });
+    expect(row('Chicken, breast, boneless, skinless, raw')).toMatchObject({
+      fiberPer100: 0,
+      saltPer100: 0.11,
+    });
+    expect(row('Chicken, breast, boneless, skinless, raw')).not.toHaveProperty('sugarsPer100');
+    const lentils = row('Lentils, dry')!;
+    for (const key of ['fiberPer100', 'sugarsPer100', 'saltPer100', 'saturatedFatPer100'])
+      expect(lentils).not.toHaveProperty(key);
+  });
+
   it('leaves out a food that lacks a macronutrient, and says which and why', async () => {
     const { result, row } = await imported();
 
