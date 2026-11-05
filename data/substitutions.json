@@ -1,34 +1,65 @@
 [
-  {
-    "from": "white-rice",
-    "to": "pasta"
-  },
-  {
-    "from": "white-rice",
-    "to": "potato"
-  },
-  {
-    "from": "white-rice",
-    "to": "quinoa"
-  },
-  {
-    "from": "pasta",
-    "to": "quinoa"
-  },
-  {
-    "from": "chicken-breast",
-    "to": "tofu"
-  },
-  {
-    "from": "ground-beef",
-    "to": "red-lentils"
-  },
-  {
-    "from": "whole-milk",
-    "to": "greek-yogurt"
-  },
-  {
-    "from": "peanut-butter",
-    "to": "almonds"
-  }
+  { "from": "white-rice", "to": "brown-rice" },
+  { "from": "brown-rice", "to": "white-rice" },
+  { "from": "white-rice", "to": "buckwheat-groats" },
+  { "from": "buckwheat-groats", "to": "white-rice" },
+  { "from": "white-rice", "to": "millet" },
+  { "from": "millet", "to": "white-rice" },
+  { "from": "white-rice", "to": "quinoa" },
+  { "from": "quinoa", "to": "white-rice" },
+  { "from": "quinoa", "to": "couscous" },
+  { "from": "couscous", "to": "quinoa" },
+  { "from": "buckwheat-groats", "to": "millet" },
+  { "from": "millet", "to": "buckwheat-groats" },
+  { "from": "white-rice", "to": "pasta" },
+  { "from": "pasta", "to": "quinoa" },
+  { "from": "whole-grain-bread", "to": "rye-bread" },
+  { "from": "rye-bread", "to": "whole-grain-bread" },
+  { "from": "potato", "to": "sweet-potato" },
+  { "from": "sweet-potato", "to": "potato" },
+  { "from": "white-rice", "to": "potato" },
+  { "from": "chicken-breast", "to": "turkey-breast" },
+  { "from": "turkey-breast", "to": "chicken-breast" },
+  { "from": "chicken-breast", "to": "pork-tenderloin" },
+  { "from": "pork-tenderloin", "to": "chicken-breast" },
+  { "from": "turkey-breast", "to": "pork-tenderloin" },
+  { "from": "pork-tenderloin", "to": "turkey-breast" },
+  { "from": "chicken-breast", "to": "chicken-thigh" },
+  { "from": "chicken-thigh", "to": "chicken-breast" },
+  { "from": "chicken-breast", "to": "tofu" },
+  { "from": "tofu", "to": "chicken-breast" },
+  { "from": "ground-beef", "to": "red-lentils" },
+  { "from": "salmon-fillet", "to": "trout-fillet" },
+  { "from": "trout-fillet", "to": "salmon-fillet" },
+  { "from": "salmon-fillet", "to": "mackerel-fillet" },
+  { "from": "mackerel-fillet", "to": "salmon-fillet" },
+  { "from": "black-beans", "to": "kidney-beans" },
+  { "from": "kidney-beans", "to": "black-beans" },
+  { "from": "chickpeas", "to": "kidney-beans" },
+  { "from": "kidney-beans", "to": "chickpeas" },
+  { "from": "sour-cream", "to": "greek-yogurt" },
+  { "from": "heavy-cream", "to": "coconut-milk" },
+  { "from": "coconut-milk", "to": "heavy-cream" },
+  { "from": "curd-cheese", "to": "cottage-cheese" },
+  { "from": "cottage-cheese", "to": "curd-cheese" },
+  { "from": "cheddar-cheese", "to": "gouda-cheese" },
+  { "from": "gouda-cheese", "to": "cheddar-cheese" },
+  { "from": "olive-oil", "to": "rapeseed-oil" },
+  { "from": "rapeseed-oil", "to": "olive-oil" },
+  { "from": "sunflower-oil", "to": "rapeseed-oil" },
+  { "from": "rapeseed-oil", "to": "sunflower-oil" },
+  { "from": "coconut-oil", "to": "rapeseed-oil" },
+  { "from": "almonds", "to": "walnuts" },
+  { "from": "walnuts", "to": "almonds" },
+  { "from": "broccoli", "to": "cauliflower" },
+  { "from": "cauliflower", "to": "broccoli" },
+  { "from": "tomato", "to": "cherry-tomatoes" },
+  { "from": "cherry-tomatoes", "to": "tomato" },
+  { "from": "canned-tomatoes", "to": "tomato" },
+  { "from": "lemon", "to": "lime" },
+  { "from": "lime", "to": "lemon" },
+  { "from": "lemon-juice", "to": "lime-juice" },
+  { "from": "lime-juice", "to": "lemon-juice" },
+  { "from": "strawberries", "to": "blueberries" },
+  { "from": "blueberries", "to": "strawberries" }
 ]
