@@ -60,8 +60,8 @@ describe('the ingredient catalogue, as a client asks it', () => {
       return { recipe: found[0]!.recipeUnits, pantry: found[0]!.pantryUnits };
     };
 
-    // Counted: the pantry keeps it in its pieces alone.
-    expect(await units('Large egg')).toEqual({ recipe: ['g', 'piece'], pantry: ['piece'] });
+    // Counted: the pantry offers its pieces first, and grams, which it keeps in pieces as well.
+    expect(await units('Large egg')).toEqual({ recipe: ['g', 'piece'], pantry: ['piece', 'g'] });
     // Measured in millilitres, and weighed through its density.
     expect(await units('Whole milk')).toEqual({ recipe: ['ml', 'g'], pantry: ['ml', 'g'] });
     // Weighed by the piece, and not counted.

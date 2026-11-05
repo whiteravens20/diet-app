@@ -102,7 +102,7 @@ describe('the units an amount of an ingredient is given in', () => {
 });
 
 describe('the units a pantry keeps an ingredient in', () => {
-  it('are the ones this converts into the unit the ingredient is measured in, and pieces alone for what is counted', () => {
+  it('are the ones this converts into the unit the ingredient is measured in, pieces first for what is counted', () => {
     for (const canonicalUnit of Unit.options) {
       for (const gramsPerPiece of [null, 0, 55]) {
         for (const density of [null, 0, 1.03]) {
@@ -119,9 +119,7 @@ describe('the units a pantry keeps an ingredient in', () => {
             });
 
             const offered = pantryUnitsOf(ingredient);
-            expect(new Set(offered), JSON.stringify(ingredient)).toEqual(
-              new Set(isCounted(ingredient) ? ['piece'] : converted),
-            );
+            expect(new Set(offered), JSON.stringify(ingredient)).toEqual(new Set(converted));
             expect(offered[0], JSON.stringify(ingredient)).toBe(
               isCounted(ingredient) ? 'piece' : canonicalUnit,
             );

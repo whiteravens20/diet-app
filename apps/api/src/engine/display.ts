@@ -90,11 +90,13 @@ export function isCounted(
 
 /**
  * The units the pantry takes an ingredient in, the one to offer first first:
- * pieces alone for what is counted, so that it is never in the pantry twice;
+ * pieces first for what is counted, and the others it converts from, which the
+ * pantry keeps in pieces all the same, so that it is never there twice;
  * otherwise every unit an amount of it converts from.
  */
 export function pantryUnitsOf(ingredient: DisplayedIngredient): Unit[] {
-  return isCounted(ingredient) ? ['piece'] : unitsOf(ingredient);
+  const units = unitsOf(ingredient);
+  return isCounted(ingredient) ? ['piece', ...units.filter((unit) => unit !== 'piece')] : units;
 }
 
 /** A quantity of at least one step: what is there is never shown as nothing. */
