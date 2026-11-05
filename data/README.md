@@ -12,7 +12,7 @@ the files the same way ([`apps/api/src/admin/seed/`](../apps/api/src/admin/seed/
 | `recipes.json`               | Hand-curated "anchor" recipes.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `recipes/*.json`             | Batches of recipes that were approved in the curation queue and shipped, one file a batch.                                                                                                                                                                                                                                                                                                                                                                             |
 | `ingredient-overrides.json`  | Names of ingredients in other languages that were approved in the curation queue: the Polish names of the foods a `Foundation` import brings. An instance without those foods leaves them unused.                                                                                                                                                                                                                                                                      |
-| `substitutions.json`         | Ingredient substitution rules.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `substitutions.json`         | Substitutes for an ingredient: see [Substitutes](#substitutes).                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `import-aliases.json`        | Other names of the ingredients, for recipes taken in from elsewhere. No part of the catalogue: see "Recipes from elsewhere".                                                                                                                                                                                                                                                                                                                                           |
 
 Run `npm run data:lint` to validate every row against the Zod schemas in
@@ -333,6 +333,40 @@ of the plans of every diet; run it again when the catalogue has grown.
 
 See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
 curation queue ships its batches.
+
+## Substitutes
+
+`substitutions.json` names, for an ingredient, another that can take its place
+in a recipe:
+
+```json
+{ "from": "white-rice", "to": "buckwheat-groats" }
+```
+
+A rule goes one way: a pair that works both ways is two rules. Both are
+ingredients of `ingredients.json`, as a food of an import is not in the
+catalogue of every instance, and the lint refuses a name it does not know.
+Every update of the catalogue makes the rules in the database those of the
+file, so an instance keeps none of its own.
+
+The engine uses them in two places:
+
+- The window that swaps an ingredient of a planned meal says what the catalogue
+  suggests, with no model asked. Of the substitutes the rules name for the
+  ingredient, it is the one the profile's diet, allergens and excluded
+  ingredients allow that moves a serving least; one the profile dislikes only
+  where the rules name nothing else. Its amount holds the same energy as what it
+  replaces, and is three times that amount at most.
+- The proposals of a shopping list offer one ingredient in place of another
+  where a rule joins two of its rows, at most two meals of the list's days use
+  the first, and the list would then buy fewer packs.
+
+Name a substitute a cook would use in most recipes of the ingredient, within
+its kind: grains and groats for each other, lean meats, oily fish, beans,
+yellow cheeses, cooking oils. The engine checks the diet, the allergens and the
+amount, but it cannot tell a salad from a sauce: a swap that works in one and
+not in the other goes one way only, or not at all. Fresh tomatoes take the
+place of canned ones, and canned ones never that of fresh.
 
 ## Recipes from elsewhere
 
