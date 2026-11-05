@@ -26,7 +26,9 @@
  * recipes never carry hand-authored values.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { allergensOf, recipeFacts } from '../../engine/recipe-facts.js';
+import type { LabelTotals } from '@diet-app/shared';
+import { sameTotals, storedTotals } from '../../engine/label-totals.js';
+import { allergensOf, recipeFacts, servingColumns } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
@@ -294,6 +296,10 @@ async function applyIngredients(
       proteinPer100: ing.proteinPer100,
       fatPer100: ing.fatPer100,
       carbsPer100: ing.carbsPer100,
+      fiberPer100: ing.fiberPer100 ?? null,
+      sugarsPer100: ing.sugarsPer100 ?? null,
+      saltPer100: ing.saltPer100 ?? null,
+      saturatedFatPer100: ing.saturatedFatPer100 ?? null,
       gramsPerPiece: ing.gramsPerPiece ?? null,
       density: ing.density ?? null,
       displayUnit: ing.displayUnit ?? null,
@@ -447,6 +453,7 @@ async function applyRecipes(
       proteinPerServing: recipe.nutrition.protein,
       fatPerServing: recipe.nutrition.fat,
       carbsPerServing: recipe.nutrition.carbs,
+      labelPerServing: recipe.labelPerServing,
       retiredAt: null,
     };
     const lines = recipe.lines.map((line) => ({
@@ -730,14 +737,12 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
       | 'carbsPerServing'
       | 'allergens'
       | 'dietTags'
-    >;
+    > & { labelPerServing?: LabelTotals };
+    const storedLabel = storedTotals(recipe.labelPerServing);
     try {
       const facts = recipeFacts(lines, servings);
       next = {
-        caloriesPerServing: facts.perServing.calories,
-        proteinPerServing: facts.perServing.protein,
-        fatPerServing: facts.perServing.fat,
-        carbsPerServing: facts.perServing.carbs,
+        ...servingColumns(facts),
         allergens: facts.allergens,
         dietTags: facts.dietTags,
       };
@@ -752,11 +757,13 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
         proteinPerServing: recipe.proteinPerServing,
         fatPerServing: recipe.fatPerServing,
         carbsPerServing: recipe.carbsPerServing,
+        ...(storedLabel ? { labelPerServing: storedLabel } : {}),
         allergens: allergensOf(lines),
         dietTags: [],
       };
     }
     const same =
+      sameTotals(next.labelPerServing ?? null, storedLabel) &&
       next.caloriesPerServing === recipe.caloriesPerServing &&
       next.proteinPerServing === recipe.proteinPerServing &&
       next.fatPerServing === recipe.fatPerServing &&

@@ -20,6 +20,7 @@ import {
   ProteinKind,
   Unit,
   WebAddress,
+  type LabelTotals,
   type RecipeDietTag,
 } from '@diet-app/shared';
 import { z } from 'zod';
@@ -127,6 +128,8 @@ interface CatalogueRecipe {
   lines: { slug: string; quantity: number; unit: Unit; note?: string }[];
   /** Per serving, computed from the ingredient table: never authored. */
   nutrition: { calories: number; protein: number; fat: number; carbs: number };
+  /** Fibre, sugars, salt and saturated fat of a serving, computed the same way. */
+  labelPerServing: LabelTotals;
   allergens: string[];
   /** The diets the recipe qualifies for, worked out from its ingredients. */
   dietTags: RecipeDietTag[];
@@ -409,6 +412,10 @@ export function readCatalogue(dir: string = resolveDataDir()): {
             ...ingredient,
             gramsPerPiece: ingredient.gramsPerPiece ?? null,
             density: ingredient.density ?? null,
+            fiberPer100: ingredient.fiberPer100 ?? null,
+            sugarsPer100: ingredient.sugarsPer100 ?? null,
+            saltPer100: ingredient.saltPer100 ?? null,
+            saturatedFatPer100: ingredient.saturatedFatPer100 ?? null,
           },
         };
         try {
@@ -456,6 +463,7 @@ export function readCatalogue(dir: string = resolveDataDir()): {
         seed,
         lines,
         nutrition: facts.perServing,
+        labelPerServing: facts.labelPerServing,
         allergens: facts.allergens,
         dietTags: facts.dietTags,
       });

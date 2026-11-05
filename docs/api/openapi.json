@@ -14617,6 +14617,23 @@
           "perWeek"
         ]
       },
+      "LabelFigure": {
+        "type": "object",
+        "properties": {
+          "grams": {
+            "type": "number",
+            "minimum": 0
+          },
+          "atLeast": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "grams",
+          "atLeast"
+        ],
+        "additionalProperties": false
+      },
       "LabelNutrients": {
         "type": "object",
         "properties": {
@@ -14642,6 +14659,58 @@
             "type": [
               "number",
               "null"
+            ]
+          }
+        },
+        "required": [
+          "fiber",
+          "sugars",
+          "salt",
+          "saturatedFat"
+        ],
+        "additionalProperties": false
+      },
+      "LabelTotals": {
+        "type": "object",
+        "properties": {
+          "fiber": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelFigure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sugars": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelFigure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "salt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelFigure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "saturatedFat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelFigure"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -15711,6 +15780,9 @@
           "nutritionPerServing": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "labelPerServing": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
           "origin": {
             "type": "string",
             "enum": [
@@ -15764,6 +15836,7 @@
           "cuisine",
           "allergens",
           "nutritionPerServing",
+          "labelPerServing",
           "origin",
           "byModel",
           "source",
@@ -16432,6 +16505,9 @@
           "nutritionPerServing": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "labelPerServing": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
           "allergens": {
             "type": "array",
             "items": {
@@ -16447,6 +16523,7 @@
         },
         "required": [
           "nutritionPerServing",
+          "labelPerServing",
           "allergens",
           "dietTags"
         ],
@@ -19278,6 +19355,9 @@
           "nutritionPerServing": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "labelPerServing": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
           "origin": {
             "type": "string",
             "enum": [
@@ -19328,6 +19408,7 @@
           "cuisine",
           "allergens",
           "nutritionPerServing",
+          "labelPerServing",
           "origin",
           "byModel",
           "source"

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, type Difficulty, type Unit } from '@prisma/client';
 import { computeFingerprint } from '../admin/drafts/fingerprint.js';
-import type { RecipeFacts } from '../engine/recipe-facts.js';
+import { servingColumns, type RecipeFacts } from '../engine/recipe-facts.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** The most recipes of their own one account may hold at a time. */
@@ -422,10 +422,7 @@ export class PersonalRecipesService {
         edited: recipe.edited ?? false,
         createdByUserId: recipe.userId,
         fingerprint,
-        caloriesPerServing: recipe.facts.perServing.calories,
-        proteinPerServing: recipe.facts.perServing.protein,
-        fatPerServing: recipe.facts.perServing.fat,
-        carbsPerServing: recipe.facts.perServing.carbs,
+        ...servingColumns(recipe.facts),
         ingredients: {
           create: recipe.ingredients.map((line, position) => ({ ...line, position })),
         },

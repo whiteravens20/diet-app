@@ -23,6 +23,8 @@ interface FixtureIngredient {
   canonicalUnit: Unit;
   /** Energy, protein, fat and carbohydrate per 100 canonical units. */
   per100: [kcal: number, protein: number, fat: number, carbs: number];
+  /** Fibre, sugars, salt and saturated fat per 100 canonical units, for the few that give them. */
+  label?: [fiber: number, sugars: number, salt: number, saturatedFat: number];
   allergens: string[];
   diets: string[];
   gramsPerPiece?: number;
@@ -50,6 +52,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     category: 'grains',
     canonicalUnit: 'g',
     per100: [379, 13, 7, 68],
+    label: [10, 1, 0.02, 1.2],
     allergens: ['gluten'],
     diets: VEGAN,
   },
@@ -60,6 +63,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     proteinKind: 'dairy',
     canonicalUnit: 'ml',
     per100: [61, 3.2, 3.3, 4.8],
+    label: [0, 5, 0.1, 1.9],
     allergens: ['dairy'],
     diets: VEGETARIAN,
     density: 1.03,
@@ -83,6 +87,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     proteinKind: 'eggs',
     canonicalUnit: 'g',
     per100: [143, 13, 9.5, 1.1],
+    label: [0, 0.4, 0.36, 3.1],
     allergens: ['eggs'],
     diets: [...VEGETARIAN, 'high_protein'],
     gramsPerPiece: 55,
@@ -451,6 +456,14 @@ export function catalogueDirectory(): string {
     proteinPer100: i.per100[1],
     fatPer100: i.per100[2],
     carbsPer100: i.per100[3],
+    ...(i.label
+      ? {
+          fiberPer100: i.label[0],
+          sugarsPer100: i.label[1],
+          saltPer100: i.label[2],
+          saturatedFatPer100: i.label[3],
+        }
+      : {}),
     ...(i.gramsPerPiece ? { gramsPerPiece: i.gramsPerPiece } : {}),
     ...(i.displayUnit ? { displayUnit: i.displayUnit } : {}),
     ...(i.density ? { density: i.density } : {}),

@@ -6,11 +6,18 @@
  * those three are worked out. Nobody types them: not the data files, not a
  * model, not an admin.
  */
-import type { RecipeDietTag, Unit } from '@diet-app/shared';
+import type { LabelTotals, RecipeDietTag, Unit } from '@diet-app/shared';
+import {
+  labelOfAmount,
+  roundLabel,
+  scaleLabel,
+  sumLabels,
+  type LabelPer100,
+} from './label-totals.js';
 import { nutritionFor, toCanonical, type ConvertibleIngredient } from './units.js';
 
 /** The part of an ingredient the facts of a recipe depend on. */
-export interface FactsIngredient extends ConvertibleIngredient {
+export interface FactsIngredient extends ConvertibleIngredient, LabelPer100 {
   caloriesPer100: number;
   proteinPer100: number;
   fatPer100: number;
@@ -28,6 +35,8 @@ export interface FactsLine {
 export interface RecipeFacts {
   /** Per serving, rounded to whole kilocalories and grams. */
   perServing: { calories: number; protein: number; fat: number; carbs: number };
+  /** Fibre, sugars, salt and saturated fat of a serving, to hundredths of a gram. */
+  labelPerServing: LabelTotals;
   allergens: string[];
   dietTags: RecipeDietTag[];
 }
@@ -37,8 +46,8 @@ export interface RecipeFacts {
  * recipe to count as ketogenic or as low-carbohydrate: under about 50 g and
  * 130 g a day at 2,000 kcal, the definitions used in the nutrition literature.
  * A share of energy stays the same when a serving is scaled to a calorie
- * budget, which a number of grams would not. Fibre is not in the data, so all
- * carbohydrate counts.
+ * budget, which a number of grams would not. All carbohydrate counts, fibre
+ * included.
  */
 const KETO_BELOW_CARB_ENERGY = 0.1;
 const LOW_CARB_BELOW_CARB_ENERGY = 0.26;
@@ -59,8 +68,11 @@ export function allergensOf(lines: readonly Pick<FactsLine, 'ingredient'>[]): st
  */
 export function recipeFacts(lines: readonly FactsLine[], servings: number): RecipeFacts {
   const total = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+  const labels: LabelTotals[] = [];
   for (const { quantity, unit, ingredient } of lines) {
-    const n = nutritionFor(toCanonical(quantity, unit, ingredient), {
+    const canonical = toCanonical(quantity, unit, ingredient);
+    labels.push(labelOfAmount(ingredient, canonical));
+    const n = nutritionFor(canonical, {
       calories: ingredient.caloriesPer100,
       protein: ingredient.proteinPer100,
       fat: ingredient.fatPer100,
@@ -92,7 +104,19 @@ export function recipeFacts(lines: readonly FactsLine[], servings: number): Reci
       fat: perServing(total.fat),
       carbs: perServing(total.carbs),
     },
+    labelPerServing: roundLabel(scaleLabel(sumLabels(labels), 1 / servings), 2),
     allergens: allergensOf(lines),
     dietTags,
+  };
+}
+
+/** What a recipe row keeps of its facts: the figures of a serving. */
+export function servingColumns(facts: RecipeFacts) {
+  return {
+    caloriesPerServing: facts.perServing.calories,
+    proteinPerServing: facts.perServing.protein,
+    fatPerServing: facts.perServing.fat,
+    carbsPerServing: facts.perServing.carbs,
+    labelPerServing: facts.labelPerServing,
   };
 }

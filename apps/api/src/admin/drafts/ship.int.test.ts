@@ -8,6 +8,7 @@ import { resetDatabase, resetUserData } from '../../testing/database.js';
 import { PersonalRecipesService } from '../../recipes/personal-recipes.service.js';
 import { aRecipeDraft, aUser, anIngredientNameDraft, asAdmin } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
+import { UNKNOWN_LABEL } from '../../engine/label-totals.js';
 
 describe('shipping approved drafts', () => {
   let t: TestApp;
@@ -480,6 +481,7 @@ describe('shipping approved drafts', () => {
         })),
         facts: {
           perServing: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+          labelPerServing: UNKNOWN_LABEL,
           allergens: [],
           dietTags: [],
         },

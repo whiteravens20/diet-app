@@ -12,6 +12,7 @@ import {
   MAX_PERSONAL_RECIPES,
   PersonalRecipesService,
 } from './personal-recipes.service.js';
+import { roundLabel, UNKNOWN_LABEL } from '../engine/label-totals.js';
 
 let t: TestApp;
 let personal: PersonalRecipesService;
@@ -279,6 +280,7 @@ describe('the preview of a recipe being written', () => {
     const facts = await factsOf(body);
     expect(res.body).toEqual({
       nutritionPerServing: facts.perServing,
+      labelPerServing: roundLabel(facts.labelPerServing),
       allergens: facts.allergens,
       dietTags: facts.dietTags,
     });
@@ -360,6 +362,7 @@ describe("an edit of a recipe of one's own", () => {
       ],
       facts: {
         perServing: { calories: 165, protein: 31, fat: 4, carbs: 0 },
+        labelPerServing: UNKNOWN_LABEL,
         allergens: [],
         dietTags: [],
       },
@@ -390,6 +393,7 @@ describe("an edit of a recipe of one's own", () => {
       ],
       facts: {
         perServing: { calories: 165, protein: 31, fat: 4, carbs: 0 },
+        labelPerServing: UNKNOWN_LABEL,
         allergens: [],
         dietTags: [],
       },
@@ -441,6 +445,7 @@ describe("an edit of a recipe of one's own", () => {
         ],
         facts: {
           perServing: { calories: 165, protein: 31, fat: 4, carbs: 0 },
+          labelPerServing: UNKNOWN_LABEL,
           allergens: [],
           dietTags: [],
         },

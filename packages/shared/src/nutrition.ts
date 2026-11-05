@@ -56,6 +56,30 @@ export const Nutrition = Macros.extend({
 });
 export type Nutrition = z.infer<typeof Nutrition>;
 
+/** What a label gives besides energy and the macronutrients, in the order they are shown. */
+export const LabelNutrient = z.enum(['fiber', 'sugars', 'salt', 'saturatedFat']);
+export type LabelNutrient = z.infer<typeof LabelNutrient>;
+
+/**
+ * One of them as a sum, in grams: what its known parts add up to, and whether a part of it is not
+ * known (a meal of one's own, an ingredient its source gives no figure for), so that there is at
+ * least this much.
+ */
+export const LabelFigure = z.object({
+  grams: z.number().min(0),
+  atLeast: z.boolean(),
+});
+export type LabelFigure = z.infer<typeof LabelFigure>;
+
+/** The fibre, sugars, salt and saturated fat of a serving, a meal or a day: null where nothing of it is known. */
+export const LabelTotals = z.object({
+  fiber: LabelFigure.nullable(),
+  sugars: LabelFigure.nullable(),
+  salt: LabelFigure.nullable(),
+  saturatedFat: LabelFigure.nullable(),
+});
+export type LabelTotals = z.infer<typeof LabelTotals>;
+
 /** The nutrition of one serving as somebody types it for a meal of their own, at most `OWN_MEAL_LIMITS.perServing`. */
 export const EnteredNutrition = z.object({
   calories: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.calories),

@@ -30,6 +30,7 @@
  * the catalogue without a live DB.
  */
 import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
+import { NO_LABEL_PER_100 } from '../../engine/label-totals.js';
 import { recipeFacts } from '../../engine/recipe-facts.js';
 import {
   classifyComplexity,
@@ -480,10 +481,11 @@ export function validateRecipeBatch(opts: ValidateRecipeBatchOptions): RecipeVal
     // Nutrition, allergens and diets are worked out by the engine from the
     // ingredient table. A line is checked on its own first, so that a unit
     // that cannot be converted is reported where it is written.
+    // A draft keeps no fibre, sugars, salt or saturated fat: they are worked out once it is a recipe.
     const factLines = ingredients.map((line, li) => ({
       quantity: line.quantity,
       unit: line.unit,
-      ingredient: resolved[li]!,
+      ingredient: { ...resolved[li]!, ...NO_LABEL_PER_100 },
     }));
     for (const [li, line] of factLines.entries()) {
       try {

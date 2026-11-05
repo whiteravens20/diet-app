@@ -19,6 +19,10 @@ function ingredient(
     proteinPer100: per100[1],
     fatPer100: per100[2],
     carbsPer100: per100[3],
+    fiberPer100: null,
+    sugarsPer100: null,
+    saltPer100: null,
+    saturatedFatPer100: null,
     allergens: [],
     dietCompatibility: PLANT,
     ...rest,
@@ -62,6 +66,32 @@ describe('the nutrition of a recipe', () => {
   it('converts a line written in pieces', () => {
     const facts = recipeFacts([{ quantity: 2, unit: 'piece', ingredient: egg }], 1);
     expect(facts.perServing.calories).toBe(Math.round((2 * 55 * 143) / 100));
+  });
+
+  it('gives the fibre, sugars, salt and saturated fat of a serving, at least so much where a line lacks one', () => {
+    const labelled = {
+      ...oats,
+      fiberPer100: 10,
+      sugarsPer100: 1,
+      saltPer100: 0.02,
+      saturatedFatPer100: 1.2,
+    };
+    const lines: FactsLine[] = [
+      { quantity: 60, unit: 'g', ingredient: labelled },
+      { quantity: 120, unit: 'g', ingredient: banana },
+    ];
+    expect(recipeFacts(lines.slice(0, 1), 2).labelPerServing).toEqual({
+      fiber: { grams: 3, atLeast: false },
+      sugars: { grams: 0.3, atLeast: false },
+      salt: { grams: 0.01, atLeast: false },
+      saturatedFat: { grams: 0.36, atLeast: false },
+    });
+    expect(recipeFacts(lines, 2).labelPerServing).toEqual({
+      fiber: { grams: 3, atLeast: true },
+      sugars: { grams: 0.3, atLeast: true },
+      salt: { grams: 0.01, atLeast: true },
+      saturatedFat: { grams: 0.36, atLeast: true },
+    });
   });
 
   it('refuses a unit the ingredient cannot be converted from', () => {

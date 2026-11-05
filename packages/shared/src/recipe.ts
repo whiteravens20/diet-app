@@ -14,7 +14,7 @@ import {
   MealType,
   Unit,
 } from './enums.js';
-import { Nutrition } from './nutrition.js';
+import { LabelTotals, Nutrition } from './nutrition.js';
 
 /** One ingredient line in a recipe, with an exact quantity. */
 export const RecipeIngredient = z.object({
@@ -71,6 +71,8 @@ export const Recipe = z.object({
   allergens: z.array(Allergen),
   /** Per-serving nutrition, recomputed deterministically from the database. */
   nutritionPerServing: Nutrition,
+  /** Fibre, sugars, salt and saturated fat of a serving, worked out the same way. */
+  labelPerServing: LabelTotals,
   /**
    * Where the recipe came from. Shared with everybody: `seed`, from the
    * catalogue's data files, and `curated`, approved in this instance's
@@ -181,6 +183,7 @@ export type OwnRecipePreviewRequest = z.infer<typeof OwnRecipePreviewRequest>;
 /** The nutrition of a serving, the allergens and the diets the engine works out for a recipe's ingredients. */
 export const OwnRecipePreview = z.object({
   nutritionPerServing: Nutrition,
+  labelPerServing: LabelTotals,
   allergens: z.array(Allergen),
   dietTags: z.array(DietType),
 });

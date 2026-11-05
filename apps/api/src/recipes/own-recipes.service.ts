@@ -19,6 +19,7 @@ import type {
 } from '@diet-app/shared';
 import type { Ingredient } from '@prisma/client';
 import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
+import { roundLabel } from '../engine/label-totals.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PersonalRecipesService, type PersonalRecipe } from './personal-recipes.service.js';
 import { checkRecipe, checkRecipeText, type RecipeProblem } from './recipe-rules.js';
@@ -50,6 +51,7 @@ export class OwnRecipesService {
     );
     return {
       nutritionPerServing: facts.perServing,
+      labelPerServing: roundLabel(facts.labelPerServing),
       allergens: facts.allergens as Allergen[],
       dietTags: facts.dietTags as DietType[],
     };

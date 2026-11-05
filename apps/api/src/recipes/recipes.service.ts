@@ -13,6 +13,7 @@ import {
 } from '@diet-app/shared';
 import { collatedFor } from '../common/collation.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
+import { roundLabel, storedTotals, UNKNOWN_LABEL } from '../engine/label-totals.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recipesForDiet } from './diet-where.js';
 
@@ -365,6 +366,7 @@ export function toRecipeDto(
     proteinPerServing: number;
     fatPerServing: number;
     carbsPerServing: number;
+    labelPerServing: unknown;
     translations?: { locale: string; title: string; description: string; steps: string[] }[];
     ingredients: RecipeLine[];
   },
@@ -402,6 +404,7 @@ export function toRecipeDto(
       fat: row.fatPerServing,
       carbs: row.carbsPerServing,
     },
+    labelPerServing: roundLabel(storedTotals(row.labelPerServing) ?? UNKNOWN_LABEL),
     origin: row.origin,
     // A recipe a model wrote says so by its origin; one of the user's that a model had a part in, by its flag.
     byModel: row.origin === 'ai' ? 'written' : row.modelAssisted ? 'changed' : null,

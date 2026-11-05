@@ -656,6 +656,11 @@ model Ingredient {
   proteinPer100     Float
   fatPer100         Float
   carbsPer100       Float
+  // What a label gives besides, in 100 canonical units: null where the source gives no figure.
+  fiberPer100        Float?
+  sugarsPer100       Float?
+  saltPer100         Float?
+  saturatedFatPer100 Float?
   gramsPerPiece     Float?
   density           Float?
   // Set for an ingredient that is counted, not weighed (eggs, slices of bread,
@@ -787,6 +792,9 @@ model Recipe {
   proteinPerServing  Float        @default(0)
   fatPerServing      Float        @default(0)
   carbsPerServing    Float        @default(0)
+  // Fibre, sugars, salt and saturated fat of a serving (`LabelTotals` of the shared contract),
+  // DERIVED from the ingredients like the figures above; null until it is first worked out.
+  labelPerServing    Json?
   // The account a personal recipe belongs to; null for a recipe of the shared
   // library. A personal recipe goes with its account.
   createdBy          User?        @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)

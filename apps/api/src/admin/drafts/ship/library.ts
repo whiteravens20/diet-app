@@ -21,7 +21,7 @@
  * and the slug, title or figures it is about.
  */
 import type { Prisma } from '@prisma/client';
-import { recipeFacts, type RecipeFacts } from '../../../engine/recipe-facts.js';
+import { recipeFacts, servingColumns, type RecipeFacts } from '../../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../../engine/units.js';
 import { computeFingerprint } from '../fingerprint.js';
 import type { ShippedRecipe } from './recipe-batches.writer.js';
@@ -102,6 +102,10 @@ export async function assessForLibrary(
       proteinPer100: true,
       fatPer100: true,
       carbsPer100: true,
+      fiberPer100: true,
+      sugarsPer100: true,
+      saltPer100: true,
+      saturatedFatPer100: true,
       allergens: true,
       dietCompatibility: true,
     },
@@ -227,10 +231,7 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
     // What a personal recipe is compared with: one that turns out to be this
     // recipe is not written a second time.
     fingerprint: recipe.fingerprint,
-    caloriesPerServing: facts.perServing.calories,
-    proteinPerServing: facts.perServing.protein,
-    fatPerServing: facts.perServing.fat,
-    carbsPerServing: facts.perServing.carbs,
+    ...servingColumns(facts),
   };
   const id = own
     ? (
