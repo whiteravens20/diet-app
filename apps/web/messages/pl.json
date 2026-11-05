@@ -2442,6 +2442,7 @@
     "ingredientSearch": "Szukaj składników…",
     "noneYet": "Jeszcze nic.",
     "noMatches": "Brak wyników.",
+    "addTicked": "Dodaj zaznaczone ({count})",
     "remove": "Usuń {name}",
     "allergensPlaceholder": "Wybierz alergeny…",
     "allergensSelected": "Wybrano: {count}"

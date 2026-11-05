@@ -116,7 +116,8 @@ describe('the recipe library, narrowed', () => {
     const ingredients = within(screen.getByRole('group', { name: texts.withIngredients }));
 
     await userEvent.type(ingredients.getByRole('textbox'), 'tofu');
-    await userEvent.click(await ingredients.findByRole('button', { name: 'Firm tofu' }));
+    await userEvent.click(await ingredients.findByRole('checkbox', { name: 'Firm tofu' }));
+    await userEvent.click(ingredients.getByRole('button', { name: 'Add the ticked (1)' }));
     expect(await askedWith('ingredientIds', TOFU)).not.toHaveProperty('profileId');
 
     await userEvent.click(

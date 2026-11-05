@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 
 /**
  * A typeahead-style picker for ingredient ids — a chip list of the saved
- * entries plus a search box that suggests matches from the curated database.
+ * entries plus a search box that suggests matches from the curated database,
+ * each with a box to tick, and the ticked ones added at once.
  * The parent owns the ids; the picker only reads/writes that array.
  */
 export function IngredientPicker({
@@ -47,6 +48,9 @@ export function IngredientPicker({
 
   const idSet = new Set(ids);
   const available = (results.data ?? []).filter((i) => !idSet.has(i.id)).slice(0, 20);
+  // Several are ticked and added at once; what a new search no longer offers is not added.
+  const [ticked, setTicked] = useState<string[]>([]);
+  const chosen = ticked.filter((id) => available.some((i) => i.id === id));
 
   return (
     // A page holds several of these, each with the same search field: the heading names the group and its field.
@@ -96,25 +100,43 @@ export function IngredientPicker({
           disabled={disabled}
         />
         {search.trim().length >= 2 && available.length > 0 && (
-          <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md">
-            {available.map((i) => (
-              <li key={i.id}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start rounded-none"
-                  disabled={disabled}
-                  onClick={() => {
-                    onChange([...ids, i.id]);
-                    setSearch('');
-                  }}
-                >
-                  {i.name}
-                </Button>
-              </li>
-            ))}
-          </ul>
+          // In the page's flow, not over it: ticking several takes a while, and nothing may cover the button.
+          <div className="mt-1 w-full rounded-md border border-border bg-background shadow-sm">
+            <ul className="max-h-60 overflow-y-auto py-1">
+              {available.map((i) => (
+                <li key={i.id}>
+                  <label className="flex min-h-9 cursor-pointer items-center gap-2 px-3 text-sm hover:bg-muted">
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0 accent-primary"
+                      checked={ticked.includes(i.id)}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        setTicked(
+                          e.target.checked ? [...ticked, i.id] : ticked.filter((id) => id !== i.id),
+                        )
+                      }
+                    />
+                    <span className="wrap-anywhere">{i.name}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end border-t border-border p-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={disabled || chosen.length === 0}
+                onClick={() => {
+                  onChange([...ids, ...chosen]);
+                  setTicked([]);
+                  setSearch('');
+                }}
+              >
+                {t('addTicked', { count: chosen.length })}
+              </Button>
+            </div>
+          </div>
         )}
         {search.trim().length >= 2 && available.length === 0 && !results.isLoading && (
           <p className="mt-1 text-xs text-muted-foreground">{t('noMatches')}</p>

@@ -466,7 +466,8 @@ describe('the profile page, on the foods a profile has an opinion of', () => {
     const list = within(await screen.findByRole('group', { name: messages.profile.dislikedLabel }));
 
     await userEvent.type(list.getByRole('textbox'), 'tofu');
-    await userEvent.click(await list.findByRole('button', { name: 'Firm tofu' }));
+    await userEvent.click(await list.findByRole('checkbox', { name: 'Firm tofu' }));
+    await userEvent.click(list.getByRole('button', { name: 'Add the ticked (1)' }));
 
     expect(patch).toHaveBeenCalledWith(`/profiles/${profile.id}/preferences`, {
       dislikedIngredientIds: ['7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d'],
