@@ -15,6 +15,7 @@ import {
   DietType,
   MealType,
   NaturalUnit,
+  PART_SLACK,
   ProductCategory,
   ProteinKind,
   Unit,
@@ -47,6 +48,12 @@ const IngredientSeed = z.object({
   proteinPer100: z.number().min(0),
   fatPer100: z.number().min(0),
   carbsPer100: z.number().min(0),
+  // What a label gives besides, in 100 canonical units: left out where the source says nothing,
+  // and a sum with such a part is shown as at least what the others add up to.
+  fiberPer100: z.number().min(0).max(100).optional(),
+  sugarsPer100: z.number().min(0).max(100).optional(),
+  saltPer100: z.number().min(0).max(100).optional(),
+  saturatedFatPer100: z.number().min(0).max(100).optional(),
   // A zero factor would turn every converted quantity into zero or infinity.
   gramsPerPiece: z.number().positive().optional(),
   density: z.number().positive().optional(),
@@ -267,6 +274,24 @@ export function readCatalogue(dir: string = resolveDataDir()): {
           file,
           path: `[${i}].perTeaspoon`,
           message: `"${identity(row)}" is measured with a teaspoon but is ${row.displayUnit ? `counted in ${row.displayUnit}s` : 'kept in pieces'}`,
+        });
+      }
+      // Sugars are a part of the carbohydrate, and saturated fat of the fat.
+      if (row.sugarsPer100 !== undefined && row.sugarsPer100 > row.carbsPer100 + PART_SLACK) {
+        problems.push({
+          file,
+          path: `[${i}].sugarsPer100`,
+          message: `"${identity(row)}" has more sugars than carbohydrate`,
+        });
+      }
+      if (
+        row.saturatedFatPer100 !== undefined &&
+        row.saturatedFatPer100 > row.fatPer100 + PART_SLACK
+      ) {
+        problems.push({
+          file,
+          path: `[${i}].saturatedFatPer100`,
+          message: `"${identity(row)}" has more saturated fat than fat`,
         });
       }
       // It is the pack that is opened and left: an ingredient without one has nothing to leave.

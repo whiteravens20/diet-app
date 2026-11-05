@@ -176,4 +176,26 @@ if (outOfReach.length > 0) {
   );
 }
 
+// What a label gives besides the macronutrients and the source does not say: a sum with such a part
+// is shown as "at least". Listed so that a gap is seen, not refused.
+const LABEL_FIGURES = [
+  ['fiberPer100', 'fibre'],
+  ['sugarsPer100', 'sugars'],
+  ['saltPer100', 'salt'],
+  ['saturatedFatPer100', 'saturated fat'],
+] as const;
+const withoutLabelFigures = catalogue.ingredients
+  .map((ingredient) => ({
+    slug: ingredient.slug,
+    missing: LABEL_FIGURES.filter(([key]) => ingredient[key] === undefined).map(([, name]) => name),
+  }))
+  .filter(({ missing }) => missing.length > 0);
+if (withoutLabelFigures.length > 0) {
+  console.log(
+    `\n  ${withoutLabelFigures.length} ingredient(s) without a figure of the label, shown as "at least" in a sum:`,
+  );
+  for (const { slug, missing } of withoutLabelFigures)
+    console.log(`    ${slug}: ${missing.join(', ')}`);
+}
+
 console.log('\n✓ Curated data is valid.');

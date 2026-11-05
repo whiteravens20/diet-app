@@ -113,57 +113,106 @@ out from the figures of 100 g and from what the database says a cup of the food
 weighs; the weight of a lemon, of a lime and of a slice of rye bread are the
 database's as well.
 
-| Ingredient            | FDC id  | The food in the database                                                      |
-| --------------------- | ------- | ----------------------------------------------------------------------------- |
-| `chicken-breast`      | 171077  | Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw        |
-| `turkey-breast`       | 174515  | Turkey, retail parts, breast, meat only, raw                                  |
-| `ground-beef`         | 171796  | Beef, ground, 85% lean meat / 15% fat, raw                                    |
-| `shrimp`              | 175179  | Crustaceans, shrimp, raw                                                      |
-| `canned-tuna`         | 173709  | Fish, tuna, light, canned in water, drained solids                            |
-| `chickpeas`           | 173800  | Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids |
-| `kidney-beans`        | 174285  | Beans, kidney, red, mature seeds, canned, drained solids                      |
-| `black-beans`         | 2644285 | Beans, black, canned, sodium added, drained and rinsed                        |
-| `edamame`             | 168410  | Edamame, frozen, unprepared                                                   |
-| `tofu`                | 172475  | Tofu, raw, firm, prepared with calcium sulfate                                |
-| `whole-milk`          | 171265  | Milk, whole, 3.25% milkfat, with added vitamin D                              |
-| `olive-oil`           | 171413  | Oil, olive, salad or cooking                                                  |
-| `coconut-oil`         | 171412  | Oil, coconut                                                                  |
-| `lemon`               | 167746  | Lemons, raw, without peel                                                     |
-| `lime`                | 168155  | Limes, raw                                                                    |
-| `salt`                | 173468  | Salt, table                                                                   |
-| `black-pepper`        | 170931  | Spices, pepper, black                                                         |
-| `apple-cider-vinegar` | 173469  | Vinegar, cider                                                                |
-| `soy-sauce`           | 174277  | Soy sauce made from soy and wheat (shoyu)                                     |
-| `parsley`             | 170416  | Parsley, fresh                                                                |
-| `basil`               | 172232  | Basil, fresh                                                                  |
-| `dill`                | 172233  | Dill weed, fresh                                                              |
-| `dried-oregano`       | 171328  | Spices, oregano, dried                                                        |
-| `paprika`             | 171329  | Spices, paprika                                                               |
-| `cinnamon`            | 171320  | Spices, cinnamon, ground                                                      |
-| `ginger`              | 169231  | Ginger root, raw                                                              |
-| `sour-cream`          | 171257  | Cream, sour, cultured                                                         |
-| `heavy-cream`         | 170859  | Cream, fluid, heavy whipping                                                  |
-| `kefir`               | 170904  | Kefir, lowfat, plain, LIFEWAY                                                 |
-| `gouda-cheese`        | 171241  | Cheese, gouda                                                                 |
-| `rapeseed-oil`        | 172336  | Oil, canola                                                                   |
-| `sunflower-oil`       | 171025  | Oil, sunflower, linoleic, (approx. 65%)                                       |
-| `cocoa-powder`        | 169593  | Cocoa, dry powder, unsweetened                                                |
-| `coconut-milk`        | 170173  | Nuts, coconut milk, canned (liquid expressed from grated meat and water)      |
-| `rye-bread`           | 172684  | Bread, rye                                                                    |
-| `buckwheat-groats`    | 170685  | Buckwheat groats, roasted, dry                                                |
-| `millet`              | 169702  | Millet, raw                                                                   |
-| `raisins`             | 168165  | Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program) |
-| `herring-fillet`      | 175116  | Fish, herring, Atlantic, raw                                                  |
-| `mackerel-fillet`     | 175119  | Fish, mackerel, Atlantic, raw                                                 |
-| `trout-fillet`        | 173717  | Fish, trout, rainbow, farmed, raw                                             |
-| `smoked-salmon`       | 173687  | Fish, salmon, chinook, smoked                                                 |
-| `pork-tenderloin`     | 168249  | Pork, fresh, loin, tenderloin, separable lean only, raw                       |
-| `chicken-thigh`       | 172385  | Chicken, broilers or fryers, thigh, meat and skin, raw                        |
-| `bacon`               | 168277  | Pork, cured, bacon, unprepared                                                |
-| `black-olives`        | 169094  | Olives, ripe, canned (small-extra large)                                      |
-| `romaine-lettuce`     | 169247  | Lettuce, cos or romaine, raw                                                  |
-| `canned-tomatoes`     | 170051  | Tomatoes, red, ripe, canned, packed in tomato juice                           |
-| `pumpkin-seeds`       | 170556  | Seeds, pumpkin and squash seed kernels, dried                                 |
+| Ingredient            | FDC id  | The food in the database                                                            |
+| --------------------- | ------- | ----------------------------------------------------------------------------------- |
+| `chicken-breast`      | 171077  | Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw              |
+| `turkey-breast`       | 174515  | Turkey, retail parts, breast, meat only, raw                                        |
+| `ground-beef`         | 171796  | Beef, ground, 85% lean meat / 15% fat, raw                                          |
+| `shrimp`              | 175179  | Crustaceans, shrimp, raw                                                            |
+| `canned-tuna`         | 173709  | Fish, tuna, light, canned in water, drained solids                                  |
+| `chickpeas`           | 173800  | Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids       |
+| `kidney-beans`        | 174285  | Beans, kidney, red, mature seeds, canned, drained solids                            |
+| `black-beans`         | 2644285 | Beans, black, canned, sodium added, drained and rinsed                              |
+| `edamame`             | 168410  | Edamame, frozen, unprepared                                                         |
+| `tofu`                | 172475  | Tofu, raw, firm, prepared with calcium sulfate                                      |
+| `whole-milk`          | 171265  | Milk, whole, 3.25% milkfat, with added vitamin D                                    |
+| `olive-oil`           | 171413  | Oil, olive, salad or cooking                                                        |
+| `coconut-oil`         | 171412  | Oil, coconut                                                                        |
+| `lemon`               | 167746  | Lemons, raw, without peel                                                           |
+| `lime`                | 168155  | Limes, raw                                                                          |
+| `salt`                | 173468  | Salt, table                                                                         |
+| `black-pepper`        | 170931  | Spices, pepper, black                                                               |
+| `apple-cider-vinegar` | 173469  | Vinegar, cider                                                                      |
+| `soy-sauce`           | 174277  | Soy sauce made from soy and wheat (shoyu)                                           |
+| `parsley`             | 170416  | Parsley, fresh                                                                      |
+| `basil`               | 172232  | Basil, fresh                                                                        |
+| `dill`                | 172233  | Dill weed, fresh                                                                    |
+| `dried-oregano`       | 171328  | Spices, oregano, dried                                                              |
+| `paprika`             | 171329  | Spices, paprika                                                                     |
+| `cinnamon`            | 171320  | Spices, cinnamon, ground                                                            |
+| `ginger`              | 169231  | Ginger root, raw                                                                    |
+| `sour-cream`          | 171257  | Cream, sour, cultured                                                               |
+| `heavy-cream`         | 170859  | Cream, fluid, heavy whipping                                                        |
+| `kefir`               | 170904  | Kefir, lowfat, plain, LIFEWAY                                                       |
+| `gouda-cheese`        | 171241  | Cheese, gouda                                                                       |
+| `rapeseed-oil`        | 172336  | Oil, canola                                                                         |
+| `sunflower-oil`       | 171025  | Oil, sunflower, linoleic, (approx. 65%)                                             |
+| `cocoa-powder`        | 169593  | Cocoa, dry powder, unsweetened                                                      |
+| `coconut-milk`        | 170173  | Nuts, coconut milk, canned (liquid expressed from grated meat and water)            |
+| `rye-bread`           | 172684  | Bread, rye                                                                          |
+| `buckwheat-groats`    | 170685  | Buckwheat groats, roasted, dry                                                      |
+| `millet`              | 169702  | Millet, raw                                                                         |
+| `raisins`             | 168165  | Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)       |
+| `herring-fillet`      | 175116  | Fish, herring, Atlantic, raw                                                        |
+| `mackerel-fillet`     | 175119  | Fish, mackerel, Atlantic, raw                                                       |
+| `trout-fillet`        | 173717  | Fish, trout, rainbow, farmed, raw                                                   |
+| `smoked-salmon`       | 173687  | Fish, salmon, chinook, smoked                                                       |
+| `pork-tenderloin`     | 168249  | Pork, fresh, loin, tenderloin, separable lean only, raw                             |
+| `chicken-thigh`       | 172385  | Chicken, broilers or fryers, thigh, meat and skin, raw                              |
+| `bacon`               | 168277  | Pork, cured, bacon, unprepared                                                      |
+| `black-olives`        | 169094  | Olives, ripe, canned (small-extra large)                                            |
+| `romaine-lettuce`     | 169247  | Lettuce, cos or romaine, raw                                                        |
+| `canned-tomatoes`     | 170051  | Tomatoes, red, ripe, canned, packed in tomato juice                                 |
+| `pumpkin-seeds`       | 170556  | Seeds, pumpkin and squash seed kernels, dried                                       |
+| `salmon-fillet`       | 175167  | Fish, salmon, Atlantic, farmed, raw                                                 |
+| `large-egg`           | 171287  | Egg, whole, raw, fresh                                                              |
+| `greek-yogurt`        | 170894  | Yogurt, Greek, plain, nonfat (Includes foods for USDA's Food Distribution Program)  |
+| `cheddar-cheese`      | 173414  | Cheese, cheddar (Includes foods for USDA's Food Distribution Program)               |
+| `white-rice`          | 168877  | Rice, white, long-grain, regular, raw, enriched                                     |
+| `pasta`               | 169736  | Pasta, dry, enriched                                                                |
+| `rolled-oats`         | 173904  | Cereals, oats, regular and quick, not fortified, dry                                |
+| `whole-grain-bread`   | 172688  | Bread, whole-wheat, commercially prepared                                           |
+| `potato`              | 170026  | Potatoes, flesh and skin, raw                                                       |
+| `broccoli`            | 170379  | Broccoli, raw                                                                       |
+| `spinach`             | 168462  | Spinach, raw                                                                        |
+| `tomato`              | 170457  | Tomatoes, red, ripe, raw, year round average                                        |
+| `onion`               | 170000  | Onions, raw                                                                         |
+| `bell-pepper`         | 170108  | Peppers, sweet, red, raw                                                            |
+| `carrot`              | 170393  | Carrots, raw                                                                        |
+| `avocado`             | 171705  | Avocados, raw, all commercial varieties                                             |
+| `banana`              | 173944  | Bananas, raw                                                                        |
+| `blueberries`         | 171711  | Blueberries, raw                                                                    |
+| `red-lentils`         | 174284  | Lentils, pink or red, raw                                                           |
+| `almonds`             | 170567  | Nuts, almonds                                                                       |
+| `peanut-butter`       | 172470  | Peanut butter, smooth style, without salt                                           |
+| `quinoa`              | 168874  | Quinoa, uncooked                                                                    |
+| `honey`               | 169640  | Honey                                                                               |
+| `cod-fillet`          | 171955  | Fish, cod, Atlantic, raw                                                            |
+| `cottage-cheese`      | 172179  | Cheese, cottage, creamed, large or small curd                                       |
+| `mozzarella`          | 170845  | Cheese, mozzarella, whole milk                                                      |
+| `butter`              | 173430  | Butter, without salt                                                                |
+| `brown-rice`          | 169703  | Rice, brown, long-grain, raw (Includes foods for USDA's Food Distribution Program)  |
+| `couscous`            | 169699  | Couscous, dry                                                                       |
+| `tortilla-wrap`       | 175037  | Tortillas, ready-to-bake or -fry, flour, refrigerated                               |
+| `sweet-potato`        | 168482  | Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program) |
+| `zucchini`            | 169291  | Squash, summer, zucchini, includes skin, raw                                        |
+| `cucumber`            | 168409  | Cucumber, with peel, raw                                                            |
+| `mushrooms`           | 169251  | Mushrooms, white, raw                                                               |
+| `green-beans`         | 169961  | Beans, snap, green, raw                                                             |
+| `cauliflower`         | 169986  | Cauliflower, raw                                                                    |
+| `garlic`              | 169230  | Garlic, raw                                                                         |
+| `apple`               | 171688  | Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)        |
+| `orange`              | 169097  | Oranges, raw, all commercial varieties                                              |
+| `strawberries`        | 167762  | Strawberries, raw                                                                   |
+| `walnuts`             | 170187  | Nuts, walnuts, english                                                              |
+| `chia-seeds`          | 170554  | Seeds, chia seeds, dried                                                            |
+| `feta-cheese`         | 173420  | Cheese, feta                                                                        |
+| `lemon-juice`         | 167747  | Lemon juice, raw                                                                    |
+| `lime-juice`          | 168156  | Lime juice, raw                                                                     |
+
+The figures of five of them differ from those of their food in the database more than rounding
+explains, as it is the nearest food of the same kind there: `cheddar-cheese`, `whole-grain-bread`,
+`bell-pepper`, `peanut-butter` and `tortilla-wrap`.
 
 Curd cheese (`curd-cheese`, twaróg półtłusty) is not in that database. Its
 figures are those of the Polish tables of the composition of food, as the
@@ -171,6 +220,21 @@ National Centre for Nutrition Education prints them
 ([Przetwory mleczne](https://ncez.pzh.gov.pl/abc-zywienia/przetwory-mleczne-co-wybierac-czego-unikac/);
 Kunachowicz H., Nadolna I., Przygoda B., Iwanow K., _Wartość odżywcza wybranych
 produktów spożywczych i typowych potraw_, PZWL, Warszawa 2012).
+
+## Fibre, sugars, salt and saturated fat
+
+Beside its energy and macronutrients an ingredient gives what a label gives besides, in 100 g or
+100 ml of it: `fiberPer100`, `sugarsPer100`, `saltPer100` and `saturatedFatPer100`. They are those
+of its food in the table above, and salt is the food's sodium times 2.5, as a label works it out.
+
+What the database does not give is left out, and a sum with such a part is shown as at least what
+the rest add up to: `npm run data:lint` lists those ingredients (the sugars of several grains and
+pulses, for one). Meat and fish have no fibre, and a blank there is written as zero. Curd cheese,
+whose figures are from the Polish tables, has none of the four.
+
+The foods of a USDA import have them from the import, which reads them from version 2 of the
+importer on. Foods an older importer wrote are loaded without them, and the administrator's panel
+offers the import again.
 
 ## Ingredients that are counted, not weighed
 

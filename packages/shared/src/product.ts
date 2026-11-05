@@ -86,7 +86,7 @@ const GramsIn100 = z.number().min(0).max(100).nullable().default(null);
 /** The three macronutrients in 100 g, with what the rounding of a label can add. */
 const MOST_MACROS_IN_100 = 105;
 /** What the rounding of a label can put between a part and the whole it is a part of. */
-const PART_SLACK = 0.5;
+export const PART_SLACK = 0.5;
 
 /**
  * What a person writes of a product of their own. Its energy is needed, and

@@ -226,6 +226,12 @@ export function referenceIngredients(dataDir: string): DataIngredient[] {
     ...Array.from({ length: ofEachKind - 1 }, (_, index): DataIngredient => {
       const share = 0.875 + next() * 0.25;
       const held = (amount: number): number => Math.round(amount * share * 10) / 10;
+      // Fibre, sugars, salt and saturated fat to the hundredth, as salt is a few hundredths of a
+      // gram, and never more than the 100 g a hundred grams can hold: salt itself is all salt.
+      const heldPart = (amount: unknown): number | undefined =>
+        typeof amount === 'number'
+          ? Math.min(100, Math.round(amount * share * 100) / 100)
+          : undefined;
       return {
         ...ingredient,
         // Another food of the kind is not the food an import brings.
@@ -239,6 +245,10 @@ export function referenceIngredients(dataDir: string): DataIngredient[] {
         proteinPer100: held(ingredient.proteinPer100),
         fatPer100: held(ingredient.fatPer100),
         carbsPer100: held(ingredient.carbsPer100),
+        fiberPer100: heldPart(ingredient.fiberPer100),
+        sugarsPer100: heldPart(ingredient.sugarsPer100),
+        saltPer100: heldPart(ingredient.saltPer100),
+        saturatedFatPer100: heldPart(ingredient.saturatedFatPer100),
       };
     }),
   ]);
