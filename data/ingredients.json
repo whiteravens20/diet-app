@@ -289,7 +289,7 @@
     "tags": ["green", "leafy"],
     "packSize": 200,
     "perishable": true,
-    "importedAs": ["spinach-mature"]
+    "importedAs": ["spinach-mature", "spinach-baby"]
   },
   {
     "slug": "tomato",
@@ -365,7 +365,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
-    "importedAs": ["carrots-mature-raw"]
+    "importedAs": ["carrots-mature-raw", "carrots-baby-raw"]
   },
   {
     "slug": "avocado",
@@ -405,7 +405,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": ["fruit"],
-    "importedAs": ["bananas-ripe-and-slightly-ripe-raw"]
+    "importedAs": ["bananas-ripe-and-slightly-ripe-raw", "bananas-overripe-raw"]
   },
   {
     "slug": "blueberries",

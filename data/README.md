@@ -409,11 +409,12 @@ by their slugs:
 
 The catalogue leaves those rows out, and a recipe that names one of them means
 the curated ingredient. Name a food only when it is the same in the form the
-curated row describes: raw for raw, canned for canned. A variety (Fuji apples),
-another cut (a chicken breast with its skin) or another fat level (milk at 2 %)
-is a food of its own. `npm run data:lint` says how many foods of an import were
-left out so, and refuses a name that is an ingredient of the curated file or
-that two of them claim.
+curated row describes: raw for raw, canned for canned. A stage of ripeness or of
+harvest is the same food (overripe bananas, baby spinach). A variety (Fuji
+apples), another cut (a chicken breast with its skin) or another fat level (milk
+at 2 %) is a food of its own. `npm run data:lint` says how many foods of an
+import were left out so, and refuses a name that is an ingredient of the curated
+file or that two of them claim.
 
 If a specific worldwide staple is missing (miso, tahini, plantain, kefir,
 specific European fish), add it to `ingredients.json` rather than enabling

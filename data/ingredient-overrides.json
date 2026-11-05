@@ -77,11 +77,6 @@
       "pl": "Szparagi zielone"
     }
   },
-  "bananas-overripe-raw": {
-    "name": {
-      "pl": "Banany bardzo dojrzałe"
-    }
-  },
   "beans-cannellini-canned-sodium-added-drained-and-rinsed": {
     "name": {
       "pl": "Fasola cannellini z puszki"
@@ -245,11 +240,6 @@
   "cabbage-red-raw": {
     "name": {
       "pl": "Kapusta czerwona"
-    }
-  },
-  "carrots-baby-raw": {
-    "name": {
-      "pl": "Marchewki baby"
     }
   },
   "carrots-frozen-unprepared": {
@@ -1303,11 +1293,6 @@
   "soy-milk-unsweetened-plain-shelf-stable": {
     "name": {
       "pl": "Napój sojowy niesłodzony"
-    }
-  },
-  "spinach-baby": {
-    "name": {
-      "pl": "Szpinak baby"
     }
   },
   "squash-summer-yellow-includes-skin-raw": {
