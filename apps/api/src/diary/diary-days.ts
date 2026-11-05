@@ -35,8 +35,10 @@ export function wholeFigures(figures: Amounts): Amounts {
 
 /**
  * What the diary of a profile holds for each day from `from` to `to` that
- * holds an entry, by date: one statement for all of them. A day of a plan
- * counts it as eaten, wherever the day is worked out.
+ * holds an entry, by date: one statement for all of them, whose rows are added
+ * up here, as a sum of fibre, sugars, salt and saturated fat has to say what part
+ * of it an entry does not know. A day holds `MAX_DIARY_ENTRIES_A_DAY` entries at
+ * most. A day of a plan counts it as eaten, wherever the day is worked out.
  */
 export async function diaryDays(
   db: Pick<Prisma.TransactionClient, 'diaryEntry'>,
@@ -44,42 +46,44 @@ export async function diaryDays(
   from: Date,
   to: Date,
 ): Promise<Map<string, DiaryOnDay>> {
-  const where = { profileId, date: { gte: from, lte: to } };
-  const days = await db.diaryEntry.groupBy({
-    by: ['date'],
-    where,
-    _count: { _all: true },
-    _sum: { calories: true, protein: true, fat: true, carbs: true },
-  });
-  // A sum leaves out what an entry does not know, and a day has to say that it does not: the four
-  // of every entry, which a day holds at most `MAX_DIARY_ENTRIES_A_DAY` of.
-  const labels = new Map<string, LabelTotals[]>();
-  for (const entry of await db.diaryEntry.findMany({
-    where,
+  const entries = await db.diaryEntry.findMany({
+    where: { profileId, date: { gte: from, lte: to } },
     select: {
       date: true,
+      calories: true,
+      protein: true,
+      fat: true,
+      carbs: true,
       fiber: true,
       sugars: true,
       salt: true,
       saturatedFat: true,
       labelAtLeast: true,
     },
-  })) {
+  });
+  const days = new Map<string, { entries: number; nutrition: Amounts; labels: LabelTotals[] }>();
+  for (const entry of entries) {
     const date = isoDate(entry.date);
-    labels.set(date, [...(labels.get(date) ?? []), fromStoredLabel(entry)]);
+    const day = days.get(date) ?? {
+      entries: 0,
+      nutrition: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+      labels: [],
+    };
+    day.entries += 1;
+    day.nutrition.calories += entry.calories;
+    day.nutrition.protein += entry.protein;
+    day.nutrition.fat += entry.fat;
+    day.nutrition.carbs += entry.carbs;
+    day.labels.push(fromStoredLabel(entry));
+    days.set(date, day);
   }
   return new Map(
-    days.map((day) => [
-      isoDate(day.date),
+    [...days].map(([date, day]) => [
+      date,
       {
-        entries: day._count._all,
-        nutrition: wholeFigures({
-          calories: day._sum.calories ?? 0,
-          protein: day._sum.protein ?? 0,
-          fat: day._sum.fat ?? 0,
-          carbs: day._sum.carbs ?? 0,
-        }),
-        label: roundLabel(sumLabels(labels.get(isoDate(day.date)) ?? [])),
+        entries: day.entries,
+        nutrition: wholeFigures(day.nutrition),
+        label: roundLabel(sumLabels(day.labels)),
       },
     ]),
   );
