@@ -735,7 +735,6 @@ model SubstitutionRule {
   fromIngredientId String
   toIngredient     Ingredient @relation("SubTo", fields: [toIngredientId], references: [id], onDelete: Cascade)
   toIngredientId   String
-  note             String?
 
   @@unique([fromIngredientId, toIngredientId])
   @@index([toIngredientId])

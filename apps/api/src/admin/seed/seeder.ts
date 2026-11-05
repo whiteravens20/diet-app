@@ -252,8 +252,8 @@ async function applyCatalogue(
     const toIngredientId = ingredientIds.get(sub.to)!;
     const rule = await db.substitutionRule.upsert({
       where: { fromIngredientId_toIngredientId: { fromIngredientId, toIngredientId } },
-      create: { fromIngredientId, toIngredientId, note: sub.note },
-      update: { note: sub.note },
+      create: { fromIngredientId, toIngredientId },
+      update: {},
     });
     kept.push(rule.id);
   }

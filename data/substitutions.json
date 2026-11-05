@@ -1,63 +1,34 @@
 [
   {
     "from": "white-rice",
-    "to": "pasta",
-    "note": {
-      "en": "Swap within the grains category; preserves calories when scaled.",
-      "pl": "Zamiana w ramach zbóż; po przeskalowaniu zachowuje kalorie."
-    }
+    "to": "pasta"
   },
   {
     "from": "white-rice",
-    "to": "potato",
-    "note": {
-      "en": "Lower energy density — quantity is scaled up to match calories.",
-      "pl": "Niższa gęstość energetyczna — ilość jest skalowana w górę, by dopasować kalorie."
-    }
+    "to": "potato"
   },
   {
     "from": "white-rice",
-    "to": "quinoa",
-    "note": {
-      "en": "Adds protein; quinoa is gluten-free.",
-      "pl": "Dodaje białko; komosa ryżowa jest bezglutenowa."
-    }
+    "to": "quinoa"
   },
   {
     "from": "pasta",
-    "to": "quinoa",
-    "note": { "en": "Gluten-free substitute for pasta.", "pl": "Bezglutenowy zamiennik makaronu." }
+    "to": "quinoa"
   },
   {
     "from": "chicken-breast",
-    "to": "tofu",
-    "note": {
-      "en": "Plant-based protein swap for vegetarian/vegan plans.",
-      "pl": "Roślinna zamiana białka dla planów wegetariańskich/wegańskich."
-    }
+    "to": "tofu"
   },
   {
     "from": "ground-beef",
-    "to": "red-lentils",
-    "note": {
-      "en": "Plant-based protein swap; reduces saturated fat.",
-      "pl": "Roślinna zamiana białka; obniża tłuszcze nasycone."
-    }
+    "to": "red-lentils"
   },
   {
     "from": "whole-milk",
-    "to": "greek-yogurt",
-    "note": {
-      "en": "Higher protein dairy alternative.",
-      "pl": "Nabiałowa alternatywa z wyższą zawartością białka."
-    }
+    "to": "greek-yogurt"
   },
   {
     "from": "peanut-butter",
-    "to": "almonds",
-    "note": {
-      "en": "Nut swap for peanut-allergy avoidance.",
-      "pl": "Zamiana orzechów dla uniknięcia alergii na orzeszki ziemne."
-    }
+    "to": "almonds"
   }
 ]

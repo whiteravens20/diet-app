@@ -67,16 +67,6 @@ export const Ingredient = z.object({
 });
 export type Ingredient = z.infer<typeof Ingredient>;
 
-/** A substitution rule between two ingredients within a category. */
-export const SubstitutionRule = z.object({
-  id: z.string().uuid(),
-  fromIngredientId: z.string().uuid(),
-  toIngredientId: z.string().uuid(),
-  /** Notes shown to the user explaining the swap. */
-  note: z.string().nullable().default(null),
-});
-export type SubstitutionRule = z.infer<typeof SubstitutionRule>;
-
 /** The most ingredients that can be asked for by id at once. */
 export const MAX_INGREDIENT_IDS = 200;
 

@@ -112,7 +112,6 @@ type RecipeSeed = z.infer<typeof RecipeSeed>;
 const SubstitutionSeed = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
-  note: localisedString.optional(),
 });
 
 /** An ingredient of the data, with the identity the database row is matched by. */
@@ -140,7 +139,7 @@ export interface Catalogue {
   recipes: CatalogueRecipe[];
   /** How many of `recipes` come from `recipes.json`; the rest are shipped batches. */
   anchorRecipes: number;
-  substitutions: { from: string; to: string; note: string | null }[];
+  substitutions: { from: string; to: string }[];
   /** How many foods of an import were left out because a curated ingredient is that food. */
   importedLeftOut: number;
   /** The curated ingredient that is a food of an import (its `importedAs`), by the food's slug. */
@@ -491,8 +490,7 @@ export function readCatalogue(dir: string = resolveDataDir()): {
         path: `[${i}].to`,
         message: `unknown ingredient "${sub.to}"`,
       });
-    if (from && to)
-      substitutions.push({ from: from.slug, to: to.slug, note: sub.note ? en(sub.note) : null });
+    if (from && to) substitutions.push({ from: from.slug, to: to.slug });
   });
 
   let overrides: IngredientOverrideFile = {};
