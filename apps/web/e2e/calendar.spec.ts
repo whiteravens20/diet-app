@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, settled, test, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
@@ -14,6 +14,24 @@ async function theCalendar(page: Page) {
   await expect(grid).toBeVisible();
   await expect(grid).toHaveAttribute('aria-busy', 'false');
   return grid;
+}
+
+/** What the cells of the calendar draw outside themselves: a line of a day that runs into the next. */
+async function outsideTheirCells(grid: Locator): Promise<string[]> {
+  return grid.locator('tbody td').evaluateAll((days) =>
+    days.flatMap((day) => {
+      const { left, right } = day.getBoundingClientRect();
+      return [...day.querySelectorAll('span, svg')]
+        .filter((part) => {
+          const box = part.getBoundingClientRect();
+          return box.width > 0 && (box.left < left - 0.5 || box.right > right + 0.5);
+        })
+        .map(
+          (part) =>
+            `${day.querySelector('button')?.getAttribute('aria-label')}: ${part.textContent}`,
+        );
+    }),
+  );
 }
 
 test.describe('the calendar of plans', () => {
@@ -42,6 +60,38 @@ test.describe('the calendar of plans', () => {
       .locator('button')
       .evaluateAll((week) => week.map((cell) => cell.getBoundingClientRect().width));
     expect(Math.min(...cells)).toBeGreaterThanOrEqual(36);
+    // What a day's cell draws stays inside it: the date, the kilocalories and the marks beside them.
+    expect(await outsideTheirCells(grid)).toEqual([]);
+  });
+
+  test('keeps the most a day can say inside its cell, on the narrowest screen too', async ({
+    session,
+  }) => {
+    const page = session.page;
+    // Every day of the account's plan as full as a day gets: four figures off its target, the meals
+    // eaten and two more plans. The answer is changed on its way to the page, nothing on the server.
+    await page.route('**/api/meal-plans/calendar?*', async (route) => {
+      const answer = await route.fetch();
+      const { days } = (await answer.json()) as { days: Record<string, unknown>[] };
+      await route.fulfill({
+        response: answer,
+        json: {
+          days: days.map((day) => ({
+            ...day,
+            calories: 3542,
+            offTarget: 'over',
+            plans: 3,
+            eaten: { meals: 4, of: 5 },
+            skipped: false,
+          })),
+        },
+      });
+    });
+    const grid = await theCalendar(page);
+
+    const today = grid.locator('button[aria-current="date"]').locator('xpath=..');
+    await expect(today).toContainText('3542');
+    expect(await outsideTheirCells(grid)).toEqual([]);
   });
 
   test('opens the plan of a day that is chosen, at that day', async ({

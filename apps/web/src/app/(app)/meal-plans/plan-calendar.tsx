@@ -4,7 +4,7 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { dayAfter, type PlanCalendar as Calendar, type PlanCalendarDay } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -201,9 +201,12 @@ export function PlanCalendar({
                         onKeyDown={onKey(date, weekday)}
                         className={cn(
                           'flex h-16 w-full flex-col items-start gap-0.5 rounded-md border p-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          day
-                            ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
-                            : 'border-border/60 hover:bg-muted',
+                          // A day off its target is set apart by its frame and ground: they take no room from what it says.
+                          day && day.offTarget && !day.skipped
+                            ? 'border-warning/60 bg-warning/10 hover:bg-warning/15'
+                            : day
+                              ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                              : 'border-border/60 hover:bg-muted',
                           // A day of the month before or after is told apart by its frame and a quieter colour that can still be read: a faded day could not.
                           monthOf(date) !== month && 'border-dashed text-muted-foreground',
                         )}
@@ -236,11 +239,10 @@ export function PlanCalendar({
                           {!day.skipped && (
                             <span
                               className={cn(
-                                'flex items-center gap-0.5 tabular-nums',
+                                'tabular-nums',
                                 day.offTarget && 'font-medium text-warning',
                               )}
                             >
-                              {day.offTarget && <TriangleAlert size={10} />}
                               {fmt.number(day.calories)}
                             </span>
                           )}
@@ -252,7 +254,10 @@ export function PlanCalendar({
                                   {day.eaten.meals}/{day.eaten.of}
                                 </span>
                               )}
-                              {day.plans > 1 && <span>+{day.plans - 1}</span>}
+                              {/* A phone's cell has no room for it beside the meals eaten: the day's name says it. */}
+                              {day.plans > 1 && (
+                                <span className="hidden sm:inline">+{day.plans - 1}</span>
+                              )}
                             </span>
                           )}
                         </span>
@@ -270,14 +275,17 @@ export function PlanCalendar({
       <ul className="space-y-0.5 text-xs text-muted-foreground">
         <li>{t('legendDay')}</li>
         <li className="flex items-center gap-1">
-          <TriangleAlert size={10} aria-hidden className="shrink-0 text-warning" />
+          <span
+            aria-hidden
+            className="size-2.5 shrink-0 rounded-sm border border-warning/60 bg-warning/10"
+          />
           {t('legendOff')}
         </li>
         <li className="flex items-center gap-1">
           <Check size={10} aria-hidden className="shrink-0" />
           {t('legendEaten')}
         </li>
-        <li>{t('legendMore')}</li>
+        <li className="hidden sm:list-item">{t('legendMore')}</li>
         <li>{t('legendKeys')}</li>
       </ul>
     </div>

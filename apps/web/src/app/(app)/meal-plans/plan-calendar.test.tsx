@@ -127,6 +127,10 @@ describe("the calendar of a profile's plans", () => {
       'Tue, Jan 13: 1500 of 2200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
     );
     expect(cell(/^Tue, Jan 13:/).closest('td')).toHaveTextContent('131500+2');
+    // A day off its target, over or under, is set apart by its frame and ground; a skipped day is not.
+    expect(cell(/^Mon, Jan 12:/)).toHaveClass('border-warning/60');
+    expect(cell(/^Tue, Jan 13:/)).toHaveClass('border-warning/60');
+    expect(cell(/^Wed, Jan 14:/)).not.toHaveClass('border-warning/60');
     expect(cell(/^Wed, Jan 14:/)).toHaveAccessibleName(
       'Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.',
     );
