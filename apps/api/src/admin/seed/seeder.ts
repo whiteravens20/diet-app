@@ -32,6 +32,7 @@ import { allergensOf, recipeFacts, servingColumns } from '../../engine/recipe-fa
 import { UnitConversionError } from '../../engine/units.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
+import { fillEntryLabels } from './entry-labels.js';
 import { resolveDataDir } from './data-hash.js';
 import { MOVABLE, moveUses, UnitsStandInTheWay, type MovedUses } from './move-uses.js';
 
@@ -193,6 +194,12 @@ export async function updateDatabase(
     if (recomputed > 0)
       log(
         `Recomputed what is derived from the ingredients of ${recomputed} recipe(s) outside the seed.`,
+      );
+
+    const filledEntries = await fillEntryLabels(tx);
+    if (filledEntries > 0)
+      log(
+        `Filled in the fibre, sugars, salt and saturated fat of ${filledEntries} diary entr${filledEntries === 1 ? 'y' : 'ies'} written before the catalogue held them.`,
       );
 
     const repairedProfiles = await repairDanglingReferences(tx);

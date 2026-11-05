@@ -830,6 +830,78 @@ describe('updating the curated database', () => {
     });
   });
 
+  describe('the fibre, sugars, salt and saturated fat of a diary entry written before the catalogue held them', () => {
+    it('are filled in from its recipe or its ingredient, and nothing else of it or of another entry changes', async () => {
+      const user = await aUser(t);
+      const profile = await aProfile(t, user);
+      const milk = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'milk-porridge' } });
+      const oats = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'rolled-oats' } });
+      const at = { profileId: profile.id, date: new Date('2026-11-01'), mealType: 'breakfast' };
+      const figures = { calories: 999, protein: 9, fat: 9, carbs: 9 };
+      const write = (data: Record<string, unknown>) =>
+        t.prisma.diaryEntry.create({
+          data: { ...at, ...figures, ...data } as Parameters<
+            typeof t.prisma.diaryEntry.create
+          >[0]['data'],
+        });
+      const fromRecipe = await write({
+        kind: 'recipe',
+        recipeId: milk.id,
+        name: 'Milk porridge',
+        servings: 2,
+      });
+      const fromIngredient = await write({
+        kind: 'ingredient',
+        ingredientId: oats.id,
+        name: 'Rolled oats',
+        quantity: 50,
+        unit: 'g',
+      });
+      const ofOnesOwn = await write({ kind: 'meal', name: 'Lunch out', servings: 1 });
+      const withThem = await write({
+        kind: 'recipe',
+        recipeId: milk.id,
+        name: 'Milk porridge',
+        servings: 1,
+        fiber: 1,
+        sugars: 2,
+        salt: 3,
+        saturatedFat: 4,
+      });
+
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+
+      const entry = (id: string) => t.prisma.diaryEntry.findUniqueOrThrow({ where: { id } });
+      expect(await entry(fromRecipe.id)).toMatchObject({
+        ...figures,
+        fiber: expect.closeTo(12, 5),
+        sugars: expect.closeTo(26.2, 5),
+        salt: expect.closeTo(0.52, 5),
+        saturatedFat: expect.closeTo(10.94, 5),
+        labelAtLeast: [],
+      });
+      expect(await entry(fromIngredient.id)).toMatchObject({
+        ...figures,
+        fiber: expect.closeTo(5, 5),
+        sugars: expect.closeTo(0.5, 5),
+        salt: expect.closeTo(0.01, 5),
+        saturatedFat: expect.closeTo(0.6, 5),
+      });
+      expect(await entry(ofOnesOwn.id)).toMatchObject({
+        fiber: null,
+        sugars: null,
+        salt: null,
+        saturatedFat: null,
+      });
+      expect(await entry(withThem.id)).toMatchObject({
+        fiber: 1,
+        sugars: 2,
+        salt: 3,
+        saturatedFat: 4,
+      });
+    });
+  });
+
   it('retires an ingredient the data dropped that only a draft names, rather than deleting it', async () => {
     const data = editableData();
     data.edit<Row>('ingredients.json', (rows) => [
