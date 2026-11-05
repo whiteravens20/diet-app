@@ -2263,6 +2263,17 @@
     "carbs": "Carbs",
     "kcal": "kcal"
   },
+  "labelFigures": {
+    "fiber": "Fibre",
+    "sugars": "Sugars",
+    "salt": "Salt",
+    "saturatedFat": "Saturated fat",
+    "legendAtLeast": "≥ at least: an ingredient or a meal of it gives no figure for it.",
+    "legendUnknown": "— not known: none of it gives a figure.",
+    "noteAtMost": "{name}: {value}, more than the {limit} the profile allows",
+    "noteAtLeast": "{name}: {value}, less than the {limit} the profile aims at",
+    "thisMeal": "This meal"
+  },
   "catalogue": {
     "none": "The catalogue has no recipe on the \"{diet}\" diet for at least one of the {count} meals a day. Without a recipe of your own for that meal no plan can be made: choose another diet{advice, select, fewer {, or no more than {fewer} meals a day} other {}}.",
     "thin": "On the \"{diet}\" diet, one of the {count} meals a day has only {recipes, plural, one {{recipes, number, ::group-off} recipe} other {{recipes, number, ::group-off} recipes}} to choose from: plans will repeat the same dish often.",

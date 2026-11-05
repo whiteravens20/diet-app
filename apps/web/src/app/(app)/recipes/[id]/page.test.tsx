@@ -31,6 +31,7 @@ const recipe = (origin: Recipe['origin']): Recipe => ({
   cuisine: null,
   allergens: [],
   nutritionPerServing: { calories: 350, protein: 20, fat: 5, carbs: 50 },
+  labelPerServing: { fiber: null, sugars: null, salt: null, saturatedFat: null },
   origin,
   byModel: null,
   source: null,

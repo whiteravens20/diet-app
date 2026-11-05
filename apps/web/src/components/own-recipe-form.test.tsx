@@ -36,6 +36,7 @@ const milk = {
 } as Ingredient;
 const serving: OwnRecipePreview = {
   nutritionPerServing: { calories: 412, protein: 20, fat: 11, carbs: 58 },
+  labelPerServing: { fiber: null, sugars: null, salt: null, saturatedFat: null },
   allergens: ['eggs'],
   dietTags: ['vegetarian'],
 };

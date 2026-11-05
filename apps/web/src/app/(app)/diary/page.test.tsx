@@ -43,6 +43,7 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   amount: null,
   nutrition: { calories: 300, protein: 19, fat: 10, carbs: 34 },
   label: null,
+  labelAtLeast: [],
   estimated: true,
   createdAt: `${TODAY}T12:00:00.000Z`,
   ...over,
@@ -64,6 +65,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
         recipeId: RECIPE,
         eaten: true,
         nutrition: { calories: 450, protein: 15, fat: 9, carbs: 75 },
+        label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
       },
       {
         id: SOUP,
@@ -72,6 +74,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
         recipeId: RECIPE,
         eaten: false,
         nutrition: { calories: 600, protein: 25, fat: 20, carbs: 80 },
+        label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
       },
     ],
     calorieDelta: 150,
@@ -79,6 +82,8 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
   },
   entries: [anEntry()],
   eaten: { calories: 750, protein: 34, fat: 19, carbs: 109 },
+  eatenLabel: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+  labelNotes: [],
   estimated: true,
   ...over,
 });
@@ -195,6 +200,8 @@ describe('the diary', () => {
     plan: null,
     entries: [],
     eaten: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+    eatenLabel: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+    labelNotes: [],
     estimated: false,
   };
 
@@ -764,6 +771,8 @@ describe('the diary', () => {
         entries: [],
         target: { ...aDay().target, from: 'profile' },
         eaten: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+        eatenLabel: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+        labelNotes: [],
         estimated: false,
       }),
     );

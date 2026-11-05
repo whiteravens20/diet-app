@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 import {
   DEFAULT_PROFILES_PER_ACCOUNT,
+  NO_LABEL_LIMITS,
   type Profile,
   type ProfileInput,
   type ProfilePreferencesPatch,
@@ -219,6 +220,7 @@ export default function ProfilePage() {
           maxMealsPerWeekSameKind: null,
           kindLimits: [],
           inventoryBiasResetEvery: 5,
+          labelLimits: NO_LABEL_LIMITS,
         }),
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,

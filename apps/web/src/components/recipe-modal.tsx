@@ -7,7 +7,7 @@ import { ExternalLink, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import type { PlannedIngredient, Recipe } from '@diet-app/shared';
+import type { LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
@@ -26,6 +26,7 @@ export function RecipeModal({
   amounts,
   picked = null,
   portion,
+  label,
   onClose,
 }: {
   recipeId: string | null;
@@ -36,6 +37,8 @@ export function RecipeModal({
   picked?: { reason: string | null } | null;
   /** How many servings those lines come to, and whether they are for the whole of a cooking. */
   portion?: { servings: number; whole: boolean };
+  /** Fibre, sugars, salt and saturated fat of the planned meal the modal was opened from. */
+  label?: LabelTotals;
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -110,7 +113,9 @@ export function RecipeModal({
             })}
           </p>
         )}
-        {recipe.data && <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition />}
+        {recipe.data && (
+          <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition mealLabel={label} />
+        )}
       </div>
     </Dialog>
   );

@@ -2263,6 +2263,17 @@
     "carbs": "Węglowodany",
     "kcal": "kcal"
   },
+  "labelFigures": {
+    "fiber": "Błonnik",
+    "sugars": "Cukry",
+    "salt": "Sól",
+    "saturatedFat": "Tłuszcze nasycone",
+    "legendAtLeast": "≥ co najmniej: część składników lub posiłków nie podaje tej wartości.",
+    "legendUnknown": "— brak danych: żaden składnik ani posiłek jej nie podaje.",
+    "noteAtMost": "{name}: {value}, więcej niż {limit} z ustawień profilu",
+    "noteAtLeast": "{name}: {value}, mniej niż {limit} z ustawień profilu",
+    "thisMeal": "Ten posiłek"
+  },
   "catalogue": {
     "none": "W katalogu nie ma przepisu w diecie „{diet}” na co najmniej jeden z {count} posiłków dziennie. Bez własnego przepisu na ten posiłek planu nie da się ułożyć: wybierz inną dietę{advice, select, fewer { albo najwyżej {fewer} posiłki dziennie} other {}}.",
     "thin": "W diecie „{diet}” na jeden z {count} posiłków dziennie {recipes, plural, one {jest tylko {recipes, number, ::group-off} przepis} few {są tylko {recipes, number, ::group-off} przepisy} many {jest tylko {recipes, number, ::group-off} przepisów} other {jest tylko {recipes, number, ::group-off} przepisu}}: plany będą często powtarzać to samo danie.",

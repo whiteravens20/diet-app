@@ -46,6 +46,7 @@ const recipe = (origin: Recipe['origin']): Recipe => ({
   cuisine: 'polish',
   allergens: ['eggs'],
   nutritionPerServing: { calories: 150, protein: 12, fat: 10, carbs: 1 },
+  labelPerServing: { fiber: null, sugars: null, salt: null, saturatedFat: null },
   origin,
   byModel: null,
   source: null,
@@ -63,6 +64,7 @@ function opened(origin: Recipe['origin']) {
   );
   vi.spyOn(api, 'post').mockResolvedValue({
     nutritionPerServing: { calories: 150, protein: 12, fat: 10, carbs: 1 },
+    labelPerServing: { fiber: null, sugars: null, salt: null, saturatedFat: null },
     allergens: ['eggs'],
     dietTags: [],
   } as never);

@@ -26,6 +26,7 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   totalQuantity: 200,
   unit: 'g',
   displayUnit: 'g',
+  gramsPerPiece: null,
   alreadyHaveQuantity: 0,
   toBuyQuantity: 200,
   purchasedQuantity: null,

@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
+import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import { CookingNote, toCook, useCookingWords, type MealPortion } from './cooking';
@@ -207,6 +208,7 @@ export function PlanCard({
     amounts: PlannedIngredient[];
     picked: PlannedMealView['modelPick'];
     portion: MealPortion;
+    label: PlannedMealView['label'];
   } | null>(null);
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
@@ -523,6 +525,13 @@ export function PlanCard({
             {!day.skipped && day.macrosOff && (
               <p className="text-xs text-warning">{t('macrosOffHint')}</p>
             )}
+            {!day.skipped && (
+              <>
+                <LabelLine totals={day.dayLabel} />
+                <LabelLegend totals={day.dayLabel} className="mt-0" />
+                <LabelNotes notes={day.labelNotes} />
+              </>
+            )}
             {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
             <ul className="divide-y divide-border text-sm">
               {day.meals.map((m, index) => {
@@ -630,6 +639,7 @@ export function PlanCard({
                                   setOpenRecipe({
                                     id: m.recipe!.id,
                                     picked: m.modelPick,
+                                    label: m.label,
                                     ...toCook(plan, m),
                                   })
                                 }
@@ -1359,6 +1369,7 @@ export function PlanCard({
         amounts={openRecipe?.amounts}
         picked={openRecipe?.picked ?? null}
         portion={openRecipe?.portion}
+        label={openRecipe?.label}
         onClose={() => setOpenRecipe(null)}
       />
     </Card>

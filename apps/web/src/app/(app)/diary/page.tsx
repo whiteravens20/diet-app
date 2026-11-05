@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
+import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { LoadFailed } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
@@ -576,6 +577,11 @@ function DaySummary({
             carbsTarget: day.target.carbs,
           })}
         </p>
+        <div>
+          <LabelLine totals={day.eatenLabel} className="text-sm" />
+          <LabelLegend totals={day.eatenLabel} className="mt-1" />
+          <LabelNotes notes={day.labelNotes} className="mt-1" />
+        </div>
         <p className="text-xs text-muted-foreground">
           {t(
             plan?.skipped

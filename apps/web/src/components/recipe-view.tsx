@@ -6,10 +6,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { PlannedIngredient, Profile, ProfilePreferencesPatch, Recipe } from '@diet-app/shared';
+import type {
+  LabelTotals,
+  PlannedIngredient,
+  Profile,
+  ProfilePreferencesPatch,
+  Recipe,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LabelGrid, LabelLegend, LabelLine } from '@/components/label-figures';
 import { useAmount } from '@/lib/ingredient-format';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { useErrorText } from '@/lib/use-error-text';
@@ -84,9 +91,12 @@ export function RecipeView({
   recipe,
   amounts,
   hideNutrition = false,
+  mealLabel,
 }: {
   recipe: Recipe;
   amounts?: PlannedIngredient[];
+  /** Fibre, sugars, salt and saturated fat of the planned meal the view was opened from. */
+  mealLabel?: LabelTotals;
   /** Meal-plan modal hides the per-serving nutrition card — those numbers
    *  apply to one default serving and would mislead next to ingredient
    *  quantities already scaled to the planned meal. Prep/cook time is still
@@ -94,6 +104,7 @@ export function RecipeView({
   hideNutrition?: boolean;
 }) {
   const t = useTranslations('recipeDetail');
+  const tLabel = useTranslations('labelFigures');
   const tDifficulty = useTranslations('enums.difficulty');
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
@@ -242,9 +253,18 @@ export function RecipeView({
       )}
 
       {hideNutrition ? (
-        <p className="text-sm text-muted-foreground">
-          {t('timeOnly', { prep: recipe.prepMinutes, cook: recipe.cookMinutes })}
-        </p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            {t('timeOnly', { prep: recipe.prepMinutes, cook: recipe.cookMinutes })}
+          </p>
+          {mealLabel && (
+            <>
+              <p className="text-sm font-medium">{tLabel('thisMeal')}</p>
+              <LabelLine totals={mealLabel} />
+              <LabelLegend totals={mealLabel} className="mt-0" />
+            </>
+          )}
+        </div>
       ) : (
         <Card>
           <CardHeader>
@@ -264,6 +284,7 @@ export function RecipeView({
                 </div>
               ))}
             </div>
+            <LabelGrid totals={recipe.labelPerServing} />
             <p className="mt-3 text-sm text-muted-foreground">
               {t('servingMeta', {
                 servings: recipe.servings,
