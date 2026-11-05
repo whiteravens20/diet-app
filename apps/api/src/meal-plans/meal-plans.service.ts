@@ -50,6 +50,7 @@ import { shownReport, StoredReport, withMealOutside } from './generation-report.
 import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
+import { roundLabel, sumLabels } from '../engine/label-totals.js';
 import {
   averageDay,
   customMacros,
@@ -58,6 +59,7 @@ import {
   macrosOff,
   isoDate,
   isSkipped,
+  mealLabel,
   mealNutrition,
   parseDayOverrides,
   standingOf,
@@ -1050,6 +1052,7 @@ export class MealPlansService {
             cookAhead: null,
             cooking: null,
             nutrition: mealNutrition(m),
+            label: mealLabel(m),
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
@@ -1083,6 +1086,7 @@ export class MealPlansService {
           cookAhead: cookedOnce?.marks[dayIndex]?.[mealIndex] ?? null,
           cooking: cookingOf.get(m.id) ?? null,
           nutrition: mealNutrition(m),
+          label: mealLabel(m),
         };
       });
       // What the diary holds for the day is eaten, beside the meals.
@@ -1091,6 +1095,9 @@ export class MealPlansService {
         ...meals.map((m) => m.nutrition),
         ...(entered ? [entered.nutrition] : []),
       ]);
+      const dayLabel = roundLabel(
+        sumLabels([...meals.map((m) => m.label), ...(entered ? [entered.label] : [])]),
+      );
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
       return {
@@ -1098,7 +1105,12 @@ export class MealPlansService {
         date: isoDate(day.date),
         meals,
         dayNutrition,
-        diary: entered && { ...entered, items: written.get(isoDate(day.date)) ?? [] },
+        dayLabel,
+        diary: entered && {
+          entries: entered.entries,
+          nutrition: entered.nutrition,
+          items: written.get(isoDate(day.date)) ?? [],
+        },
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),

@@ -235,6 +235,7 @@ describe('everything an account holds, as one file', () => {
         unit: 'g',
         nutrition: { calories: 180, protein: 3.5, fat: 0.3, carbs: 39.5 },
         label: null,
+        labelAtLeast: [],
         estimated: false,
         createdAt: expect.any(String),
       },
@@ -287,6 +288,51 @@ describe('everything an account holds, as one file', () => {
     });
     expect(exported!.shoppingLists).toHaveLength(1);
     expect(exported!.shoppingLists[0]!.items.length).toBeGreaterThan(0);
+  });
+
+  it('holds the fibre, sugars, salt and saturated fat of what was logged, and which of them are only a part', async () => {
+    const profile = await aProfile(t, user);
+    const today = new Date().toISOString().slice(0, 10);
+    const log = (entry: Record<string, unknown>) =>
+      t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({ profileId: profile.id, date: today, mealType: 'breakfast', ...entry })
+        .expect(201);
+    const oats = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'rolled-oats' } });
+    const porridge = await t.prisma.recipe.findUniqueOrThrow({
+      where: { slug: 'oat-porridge-with-banana' },
+    });
+    await log({
+      kind: 'ingredient',
+      ingredientId: oats.id,
+      amount: { quantity: 50, unit: 'g' },
+    });
+    // The oat drink and the banana of this porridge give none of the four.
+    await log({ kind: 'recipe', recipeId: porridge.id, servings: 1 });
+
+    const { file } = await fileOf();
+
+    expect(file.diary.find((entry) => entry.ingredientId === oats.id)).toMatchObject({
+      label: {
+        fiber: expect.closeTo(5, 5),
+        sugars: expect.closeTo(0.5, 5),
+        salt: expect.closeTo(0.01, 5),
+        saturatedFat: expect.closeTo(0.6, 5),
+      },
+      labelAtLeast: [],
+    });
+    expect(file.diary.find((entry) => entry.recipeId === porridge.id)).toMatchObject({
+      label: {
+        fiber: expect.any(Number),
+        sugars: expect.any(Number),
+        salt: expect.any(Number),
+        saturatedFat: expect.any(Number),
+      },
+      labelAtLeast: ['fiber', 'sugars', 'salt', 'saturatedFat'],
+    });
   });
 
   it("holds the products the account wrote, with what became of them, and no one else's", async () => {

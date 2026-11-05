@@ -2,7 +2,15 @@
 
 import type { LabelTotals } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
-import { labelOfAmount, roundLabel, scaleLabel, sumLabels, UNKNOWN_LABEL } from './label-totals.js';
+import {
+  fromStoredLabel,
+  labelOfAmount,
+  roundLabel,
+  scaleLabel,
+  sumLabels,
+  toStoredLabel,
+  UNKNOWN_LABEL,
+} from './label-totals.js';
 
 const known = (grams: number) => ({ grams, atLeast: false });
 const atLeast = (grams: number) => ({ grams, atLeast: true });
@@ -63,5 +71,23 @@ describe('fibre, sugars, salt and saturated fat as sums', () => {
       salt: null,
       saturatedFat: known(1.5),
     });
+  });
+
+  it('keeps what a diary entry holds as four numbers and the names of those that are only a part', () => {
+    const totals: LabelTotals = {
+      fiber: atLeast(6.4),
+      sugars: known(3),
+      salt: null,
+      saturatedFat: known(0.2),
+    };
+    const stored = toStoredLabel(totals);
+    expect(stored).toEqual({
+      fiber: 6.4,
+      sugars: 3,
+      salt: null,
+      saturatedFat: 0.2,
+      labelAtLeast: ['fiber'],
+    });
+    expect(fromStoredLabel(stored)).toEqual(totals);
   });
 });

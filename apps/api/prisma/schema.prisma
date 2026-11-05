@@ -360,12 +360,17 @@ model DiaryEntry {
   protein      Float
   fat          Float
   carbs        Float
-  // What the label of a product says beside them, for the amount: null for
-  // the other kinds and where the label says nothing that can be right.
+  // Fibre, sugars, salt and saturated fat of the amount: a product's from its
+  // label, a recipe's or an ingredient's from the catalogue; null where
+  // nothing of it is known (a meal of its own, a label that says nothing that
+  // can be right).
   fiber        Float?
   sugars       Float?
   salt         Float?
   saturatedFat Float?
+  // Which of those four are only a part of what the entry holds (`LabelNutrient`s of the shared
+  // contract): a recipe of which an ingredient has no figure for it.
+  labelAtLeast String[]       @default([])
   // A figure was estimated: of a meal of its own written without them, or of
   // a product whose label lacks it.
   estimated    Boolean        @default(false)

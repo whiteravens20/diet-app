@@ -153,9 +153,11 @@ export class AccountExportService {
           fat: entry.fat,
           carbs: entry.carbs,
         },
-        // What the label of a product says beside them, for the amount it holds.
+        // Fibre, sugars, salt and saturated fat of the amount: a product's from its label, a
+        // recipe's or an ingredient's from the catalogue; null where nothing of them is known.
         label:
-          entry.kind === 'product'
+          entry.kind === 'product' ||
+          [entry.fiber, entry.sugars, entry.salt, entry.saturatedFat].some((g) => g !== null)
             ? {
                 fiber: entry.fiber,
                 sugars: entry.sugars,
@@ -163,6 +165,8 @@ export class AccountExportService {
                 saturatedFat: entry.saturatedFat,
               }
             : null,
+        // Those of them that are only a part of what it holds.
+        labelAtLeast: entry.labelAtLeast,
         estimated: entry.estimated,
         createdAt: entry.createdAt.toISOString(),
       }),

@@ -96,6 +96,13 @@ describe('the diary of a profile', () => {
         plan: null,
         entries: [],
         eaten: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+        // Nothing eaten holds nothing of them, and that is known.
+        eatenLabel: {
+          fiber: { grams: 0, atLeast: false },
+          sugars: { grams: 0, atLeast: false },
+          salt: { grams: 0, atLeast: false },
+          saturatedFat: { grams: 0, atLeast: false },
+        },
         estimated: false,
       });
     });

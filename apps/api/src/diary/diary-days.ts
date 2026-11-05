@@ -1,6 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Prisma } from '@prisma/client';
+import type { LabelTotals } from '@diet-app/shared';
+import { fromStoredLabel, roundLabel, sumLabels } from '../engine/label-totals.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
@@ -11,10 +13,14 @@ interface Amounts {
   carbs: number;
 }
 
-/** What a profile's diary holds for a day: how many entries, and what they come to, in whole kcal and grams. */
+/**
+ * What a profile's diary holds for a day: how many entries, what they come to, in whole kcal and
+ * grams, and their fibre, sugars, salt and saturated fat, to a tenth of a gram.
+ */
 export interface DiaryOnDay {
   entries: number;
   nutrition: Amounts;
+  label: LabelTotals;
 }
 
 /** Figures as a person reads them: whole kilocalories and grams. */
@@ -38,12 +44,30 @@ export async function diaryDays(
   from: Date,
   to: Date,
 ): Promise<Map<string, DiaryOnDay>> {
+  const where = { profileId, date: { gte: from, lte: to } };
   const days = await db.diaryEntry.groupBy({
     by: ['date'],
-    where: { profileId, date: { gte: from, lte: to } },
+    where,
     _count: { _all: true },
     _sum: { calories: true, protein: true, fat: true, carbs: true },
   });
+  // A sum leaves out what an entry does not know, and a day has to say that it does not: the four
+  // of every entry, which a day holds at most `MAX_DIARY_ENTRIES_A_DAY` of.
+  const labels = new Map<string, LabelTotals[]>();
+  for (const entry of await db.diaryEntry.findMany({
+    where,
+    select: {
+      date: true,
+      fiber: true,
+      sugars: true,
+      salt: true,
+      saturatedFat: true,
+      labelAtLeast: true,
+    },
+  })) {
+    const date = isoDate(entry.date);
+    labels.set(date, [...(labels.get(date) ?? []), fromStoredLabel(entry)]);
+  }
   return new Map(
     days.map((day) => [
       isoDate(day.date),
@@ -55,6 +79,7 @@ export async function diaryDays(
           fat: day._sum.fat ?? 0,
           carbs: day._sum.carbs ?? 0,
         }),
+        label: roundLabel(sumLabels(labels.get(isoDate(day.date)) ?? [])),
       },
     ]),
   );

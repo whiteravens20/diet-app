@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
-import type { DietType, Macros, MealType } from '@diet-app/shared';
+import type { DietType, LabelTotals, Macros, MealType } from '@diet-app/shared';
 import { storedSplit } from '../common/stored-split.js';
 import {
   energyShares,
@@ -10,6 +10,7 @@ import {
   sharesOf,
   splitDistance,
 } from '../engine/nutrition.js';
+import { roundLabel, scaleLabel, storedTotals, UNKNOWN_LABEL } from '../engine/label-totals.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 
 /**
@@ -86,6 +87,27 @@ export function mealNutrition(meal: MealAmount): Amounts {
     fat: Math.round(per.fat * factor),
     carbs: Math.round(per.carbs * factor),
   };
+}
+
+/** As much of a planned meal as says what it holds of fibre, sugars, salt and saturated fat. */
+export interface MealLabelAmount {
+  servings: number;
+  quantityScale: number;
+  source: string;
+  recipe: { labelPerServing: unknown } | null;
+}
+
+/**
+ * What a planned meal holds of fibre, sugars, salt and saturated fat: a serving of its recipe
+ * times its servings and the factor a rebalance left on it, to a tenth of a gram. Nothing of them
+ * is known of a meal of one's own, nor of a recipe they were not worked out for yet.
+ */
+export function mealLabel(meal: MealLabelAmount): LabelTotals {
+  if (meal.source === 'USER_CUSTOM' || !meal.recipe) return UNKNOWN_LABEL;
+  const serving = storedTotals(meal.recipe.labelPerServing);
+  return serving
+    ? roundLabel(scaleLabel(serving, meal.servings * meal.quantityScale))
+    : UNKNOWN_LABEL;
 }
 
 export function sumNutrition(items: Amounts[]): Amounts {

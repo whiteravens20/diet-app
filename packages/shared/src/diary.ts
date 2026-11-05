@@ -3,7 +3,7 @@
 import * as z from './zod.js';
 import { DIARY_QUANTITY_LIMITS, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
 import { CalendarDay, DisplayAmount, MealType, Unit } from './enums.js';
-import { EnteredNutrition, Nutrition } from './nutrition.js';
+import { EnteredNutrition, LabelNutrient, LabelTotals, Nutrition } from './nutrition.js';
 import { LabelNutrients, ProductSource } from './product.js';
 
 /**
@@ -145,8 +145,15 @@ export const DiaryEntry = z.object({
   amount: z.object({ quantity: z.number(), unit: Unit, shown: DisplayAmount }).nullable(),
   /** What it comes to, as it was worked out when it was written. */
   nutrition: Nutrition,
-  /** What the label of a product says beside them, for the amount; null for the other kinds. */
+  /**
+   * Fibre, sugars, salt and saturated fat of the amount, as they were worked out when it was
+   * written: a product's from its label, a recipe's or an ingredient's from the catalogue. Null for
+   * a meal of one's own, and for an entry written before the catalogue held them that its recipe
+   * or ingredient no longer gives them for.
+   */
   label: LabelNutrients.nullable(),
+  /** Those of them that are only a part of what it holds: of a recipe one of whose ingredients lacks it. */
+  labelAtLeast: z.array(LabelNutrient).max(LabelNutrient.options.length),
   /** A figure was estimated: of a meal written by its energy, or of a product whose label lacks it. */
   estimated: z.boolean(),
   createdAt: z.string().datetime(),
@@ -167,6 +174,8 @@ export const DiaryPlanMeal = z.object({
   recipeId: z.string().uuid().nullable(),
   eaten: z.boolean(),
   nutrition: Nutrition,
+  /** Fibre, sugars, salt and saturated fat of the meal. */
+  label: LabelTotals,
 });
 export type DiaryPlanMeal = z.infer<typeof DiaryPlanMeal>;
 
@@ -198,6 +207,8 @@ export const DiaryDay = z.object({
   entries: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
   /** What was eaten: the plan's meals marked as eaten, and every entry. */
   eaten: Nutrition,
+  /** Fibre, sugars, salt and saturated fat of the same. */
+  eatenLabel: LabelTotals,
   /** A figure of what was eaten is estimated. */
   estimated: z.boolean(),
 });

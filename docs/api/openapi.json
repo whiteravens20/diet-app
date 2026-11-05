@@ -12806,6 +12806,9 @@
           "eaten": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "eatenLabel": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
           "estimated": {
             "type": "boolean"
           }
@@ -12817,6 +12820,7 @@
           "plan",
           "entries",
           "eaten",
+          "eatenLabel",
           "estimated"
         ],
         "additionalProperties": false
@@ -12940,6 +12944,13 @@
               }
             ]
           },
+          "labelAtLeast": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelNutrient"
+            }
+          },
           "estimated": {
             "type": "boolean"
           },
@@ -12964,6 +12975,7 @@
           "amount",
           "nutrition",
           "label",
+          "labelAtLeast",
           "estimated",
           "createdAt"
         ],
@@ -13035,6 +13047,9 @@
           },
           "nutrition": {
             "$ref": "#/components/schemas/Nutrition"
+          },
+          "label": {
+            "$ref": "#/components/schemas/LabelTotals"
           }
         },
         "required": [
@@ -13043,7 +13058,8 @@
           "name",
           "recipeId",
           "eaten",
-          "nutrition"
+          "nutrition",
+          "label"
         ],
         "additionalProperties": false
       },
@@ -14634,6 +14650,15 @@
         ],
         "additionalProperties": false
       },
+      "LabelNutrient": {
+        "type": "string",
+        "enum": [
+          "fiber",
+          "sugars",
+          "salt",
+          "saturatedFat"
+        ]
+      },
       "LabelNutrients": {
         "type": "object",
         "properties": {
@@ -15354,6 +15379,9 @@
           "dayNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
+          "dayLabel": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
           "diary": {
             "anyOf": [
               {
@@ -15439,6 +15467,7 @@
           "date",
           "meals",
           "dayNutrition",
+          "dayLabel",
           "diary",
           "calorieTarget",
           "targetMacros",
@@ -17372,6 +17401,9 @@
           },
           "nutrition": {
             "$ref": "#/components/schemas/Nutrition"
+          },
+          "label": {
+            "$ref": "#/components/schemas/LabelTotals"
           }
         },
         "required": [
@@ -17391,7 +17423,8 @@
           "modelPick",
           "cookAhead",
           "cooking",
-          "nutrition"
+          "nutrition",
+          "label"
         ],
         "additionalProperties": false
       },

@@ -27,6 +27,17 @@ import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
+  fromStoredLabel,
+  labelOfAmount,
+  roundLabel,
+  scaleLabel,
+  storedTotals,
+  sumLabels,
+  toStoredLabel,
+  UNKNOWN_LABEL,
+  type StoredLabel,
+} from '../engine/label-totals.js';
+import {
   calculateCalories,
   estimatedMacros,
   labelEntryFigures,
@@ -43,6 +54,7 @@ import {
   customMacros,
   isoDate,
   isSkipped,
+  mealLabel,
   mealNutrition,
   standingOf,
   sumNutrition,
@@ -94,6 +106,7 @@ type Written = Pick<
   | 'sugars'
   | 'salt'
   | 'saturatedFat'
+  | 'labelAtLeast'
 > &
   Figures;
 
@@ -137,6 +150,7 @@ export class DiaryService {
                   proteinPerServing: true,
                   fatPerServing: true,
                   carbsPerServing: true,
+                  labelPerServing: true,
                   translations: {
                     where: { locale: { in: languages(locale) } },
                     select: { locale: true, title: true },
@@ -178,8 +192,15 @@ export class DiaryService {
         recipeId: meal.source === 'USER_CUSTOM' ? null : (meal.recipe?.id ?? null),
         eaten: meal.eatenAt !== null,
         nutrition: mealNutrition(meal),
+        label: mealLabel(meal),
       }));
     const skipped = planDay ? isSkipped(planDay) : false;
+    const eatenLabel = roundLabel(
+      sumLabels([
+        ...meals.filter((meal) => meal.eaten).map((meal) => meal.label),
+        ...rows.map(fromStoredLabel),
+      ]),
+    );
     // Where the plan's day stands is where its view says it stands: its meals, and the entries as eaten.
     const planned = sumNutrition([...meals.map((meal) => meal.nutrition), ...entered]);
     return {
@@ -199,6 +220,7 @@ export class DiaryService {
         ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
         ...entered,
       ]),
+      eatenLabel,
       estimated: rows.some((row) => row.estimated),
     };
   }
@@ -399,6 +421,7 @@ export class DiaryService {
                       proteinPerServing: true,
                       fatPerServing: true,
                       carbsPerServing: true,
+                      labelPerServing: true,
                       translations: {
                         where: { locale: { in: languages(locale) } },
                         select: { locale: true, title: true },
@@ -433,6 +456,7 @@ export class DiaryService {
               servings,
               estimated: false,
               ...scaledFigures(perServing(recipe), servings),
+              ...recipeLabel(recipe.labelPerServing, servings),
             };
           });
         const copies = [
@@ -458,6 +482,7 @@ export class DiaryService {
             sugars: entry.sugars,
             salt: entry.salt,
             saturatedFat: entry.saturatedFat,
+            labelAtLeast: entry.labelAtLeast,
           })),
         ];
         // The copies keep their order: the first of them is the first written.
@@ -615,6 +640,7 @@ export class DiaryService {
           proteinPerServing: true,
           fatPerServing: true,
           carbsPerServing: true,
+          labelPerServing: true,
           translations: {
             where: { locale: { in: languages(locale) } },
             select: { locale: true, title: true },
@@ -630,6 +656,7 @@ export class DiaryService {
         servings: req.servings,
         estimated: false,
         ...scaledFigures(perServing(recipe), req.servings),
+        ...recipeLabel(recipe.labelPerServing, req.servings),
       };
     }
 
@@ -645,6 +672,10 @@ export class DiaryService {
           proteinPer100: true,
           fatPer100: true,
           carbsPer100: true,
+          fiberPer100: true,
+          sugarsPer100: true,
+          saltPer100: true,
+          saturatedFatPer100: true,
           translations: {
             where: { locale: { in: languages(locale) } },
             select: { locale: true, name: true },
@@ -680,6 +711,7 @@ export class DiaryService {
           fat: ingredient.fatPer100,
           carbs: ingredient.carbsPer100,
         }),
+        ...toStoredLabel(labelOfAmount(ingredient, canonical)),
       };
     }
 
@@ -764,6 +796,11 @@ function scaledLabel(
     salt: scaled(row.salt),
     saturatedFat: scaled(row.saturatedFat),
   };
+}
+
+/** What servings of a recipe hold of fibre, sugars, salt and saturated fat, as an entry keeps it. */
+function recipeLabel(labelPerServing: unknown, servings: number): StoredLabel {
+  return toStoredLabel(scaleLabel(storedTotals(labelPerServing) ?? UNKNOWN_LABEL, servings));
 }
 
 /** One serving of a recipe, as the engine worked it out when the recipe was saved. */

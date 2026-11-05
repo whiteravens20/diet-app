@@ -8,10 +8,11 @@ import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from '
 import { Ingredient } from './ingredient.js';
 import {
   EnteredNutrition,
-  MAX_CALORIE_TARGET,
-  MIN_CALORIE_TARGET,
+  LabelTotals,
   MacroChange,
   Macros,
+  MAX_CALORIE_TARGET,
+  MIN_CALORIE_TARGET,
   Nutrition,
 } from './nutrition.js';
 import { Recipe } from './recipe.js';
@@ -349,6 +350,8 @@ export const PlannedMeal = z.object({
     })
     .nullable(),
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
+  /** Fibre, sugars, salt and saturated fat of the meal: nothing of them is known of a meal of one's own. */
+  label: LabelTotals,
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
@@ -466,6 +469,8 @@ export const MealPlanDay = z.object({
   meals: z.array(PlannedMeal),
   /** What the day comes to: its meals, and the entries of the profile's diary for its date. */
   dayNutrition: Nutrition,
+  /** Fibre, sugars, salt and saturated fat of the same. */
+  dayLabel: LabelTotals,
   /**
    * What the profile's diary holds for the day besides its meals: how many
    * entries, what they come to, and the entries themselves, the first written

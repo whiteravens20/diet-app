@@ -117,3 +117,31 @@ export function sameTotals(a: LabelTotals | null, b: LabelTotals | null): boolea
     return x === null || y === null ? x === y : x.grams === y.grams && x.atLeast === y.atLeast;
   });
 }
+
+/** What a diary entry keeps of them: four numbers, and which of them are only a part. */
+export interface StoredLabel {
+  fiber: number | null;
+  sugars: number | null;
+  salt: number | null;
+  saturatedFat: number | null;
+  labelAtLeast: string[];
+}
+
+/** The totals as a diary entry keeps them. */
+export function toStoredLabel(totals: LabelTotals): StoredLabel {
+  return {
+    fiber: totals.fiber?.grams ?? null,
+    sugars: totals.sugars?.grams ?? null,
+    salt: totals.salt?.grams ?? null,
+    saturatedFat: totals.saturatedFat?.grams ?? null,
+    labelAtLeast: LABEL_NUTRIENTS.filter((nutrient) => totals[nutrient]?.atLeast),
+  };
+}
+
+/** The totals of what a diary entry keeps. */
+export function fromStoredLabel(stored: StoredLabel): LabelTotals {
+  return each((nutrient) => {
+    const grams = stored[nutrient];
+    return grams === null ? null : { grams, atLeast: stored.labelAtLeast.includes(nutrient) };
+  });
+}
