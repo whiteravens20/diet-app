@@ -101,6 +101,22 @@ export function pantryUnitsOf(ingredient: DisplayedIngredient): Unit[] {
 const shown = (value: number, rounded: number, step: number): number =>
   value > EPSILON && rounded < step ? step : rounded;
 
+/**
+ * The weight of an amount shown in pieces, rounded as an amount to cook with is (to 5 g above
+ * 10 g) or, for what a pantry holds, to the gram; nothing where a piece of it has no weight.
+ */
+function weightOf(
+  quantity: number,
+  unit: Unit,
+  ingredient: ConvertibleIngredient,
+  stock = false,
+): { grams?: number } {
+  const grams = converted(quantity, unit, 'g', ingredient);
+  if (grams === null || grams <= EPSILON) return {};
+  const step = stock ? 1 : massStep(grams);
+  return { grams: shown(grams, nearest(grams, step), 1) };
+}
+
 /** An amount to cook with: a line of a recipe, or what a planned meal takes. */
 export function displayAmount(
   quantity: number,
@@ -110,7 +126,11 @@ export function displayAmount(
   if (isCounted(ingredient)) {
     const pieces = converted(quantity, unit, 'piece', ingredient);
     if (pieces !== null && pieces >= SMALLEST_PIECE) {
-      return { quantity: nearest(pieces, 0.5), unit: ingredient.displayUnit };
+      return {
+        quantity: nearest(pieces, 0.5),
+        unit: ingredient.displayUnit,
+        ...weightOf(quantity, unit, ingredient),
+      };
     }
   }
   const amount = converted(quantity, unit, ingredient.canonicalUnit, ingredient);
@@ -121,7 +141,11 @@ export function displayAmount(
   // What cannot be converted is shown as it was written.
   const [value, inUnit] = amount === null ? [quantity, unit] : [amount, ingredient.canonicalUnit];
   if (inUnit === 'piece')
-    return { quantity: shown(value, nearest(value, 0.5), 0.5), unit: 'piece' };
+    return {
+      quantity: shown(value, nearest(value, 0.5), 0.5),
+      unit: 'piece',
+      ...weightOf(value, 'piece', ingredient),
+    };
   const step = massStep(value);
   return { quantity: shown(value, nearest(value, step), 1), unit: inUnit };
 }
@@ -134,7 +158,11 @@ export function displayStock(
 ): DisplayAmount {
   if (unit === 'piece') {
     const name: DisplayUnit = isCounted(ingredient) ? ingredient.displayUnit : 'piece';
-    return { quantity: shown(quantity, nearest(quantity, 0.5), 0.5), unit: name };
+    return {
+      quantity: shown(quantity, nearest(quantity, 0.5), 0.5),
+      unit: name,
+      ...weightOf(quantity, 'piece', ingredient, true),
+    };
   }
   return { quantity: shown(quantity, nearest(quantity, 1), 1), unit };
 }

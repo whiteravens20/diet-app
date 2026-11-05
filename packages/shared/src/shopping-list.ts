@@ -62,6 +62,12 @@ export const ShoppingListItem = z.object({
   /** What to call `unit` when showing the row: `slice` for bread, `clove` for garlic. */
   displayUnit: DisplayUnit,
   /**
+   * For a row in pieces: what a piece is taken to weigh, in grams, so that each quantity of the
+   * row is shown with its weight beside it. A piece is an average. Null for a row by weight or
+   * volume, and for an ingredient whose piece has no weight.
+   */
+  gramsPerPiece: z.number().positive().nullable(),
+  /**
    * What is already at home for the row. The list takes it from the pantry
    * when it is made: the pantry's stock, less what the profile's other lists
    * had already claimed and not yet ticked off, rounded down to what one

@@ -166,8 +166,9 @@ describe('the pantry', () => {
       const eggs = await add('large-egg', 6.5454, 'piece');
       const oats = await add('rolled-oats', 213.4, 'g');
 
-      expect(bread.body.display).toEqual({ quantity: 4, unit: 'slice' });
-      expect(eggs.body.display).toEqual({ quantity: 6.5, unit: 'piece' });
+      // With what they weigh, a piece taken at its average.
+      expect(bread.body.display).toEqual({ quantity: 4, unit: 'slice', grams: 140 });
+      expect(eggs.body.display).toEqual({ quantity: 6.5, unit: 'piece', grams: 360 });
       expect(oats.body.display).toEqual({ quantity: 213, unit: 'g' });
       // The exact number stays what the row holds.
       expect(oats.body.quantity).toBe(213.4);

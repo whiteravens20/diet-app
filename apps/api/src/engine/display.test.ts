@@ -109,23 +109,23 @@ describe('an amount to cook with', () => {
   });
 
   it('shows eggs, bread, garlic and spinach in pieces of their own, whatever the line is in', () => {
-    expect(displayAmount(110, 'g', EGG)).toEqual({ quantity: 2, unit: 'piece' });
-    expect(displayAmount(3, 'piece', EGG)).toEqual({ quantity: 3, unit: 'piece' });
-    expect(displayAmount(80, 'g', BREAD)).toEqual({ quantity: 2, unit: 'slice' });
-    expect(displayAmount(10, 'g', GARLIC)).toEqual({ quantity: 2, unit: 'clove' });
-    expect(displayAmount(30, 'g', SPINACH)).toEqual({ quantity: 1, unit: 'handful' });
+    expect(displayAmount(110, 'g', EGG)).toEqual({ quantity: 2, unit: 'piece', grams: 110 });
+    expect(displayAmount(3, 'piece', EGG)).toEqual({ quantity: 3, unit: 'piece', grams: 165 });
+    expect(displayAmount(80, 'g', BREAD)).toEqual({ quantity: 2, unit: 'slice', grams: 80 });
+    expect(displayAmount(10, 'g', GARLIC)).toEqual({ quantity: 2, unit: 'clove', grams: 10 });
+    expect(displayAmount(30, 'g', SPINACH)).toEqual({ quantity: 1, unit: 'handful', grams: 30 });
   });
 
   it('rounds pieces to halves', () => {
-    expect(displayAmount(176, 'g', EGG)).toEqual({ quantity: 3, unit: 'piece' });
-    expect(displayAmount(140, 'g', EGG)).toEqual({ quantity: 2.5, unit: 'piece' });
-    expect(displayAmount(20, 'g', EGG)).toEqual({ quantity: 0.5, unit: 'piece' });
+    expect(displayAmount(176, 'g', EGG)).toEqual({ quantity: 3, unit: 'piece', grams: 175 });
+    expect(displayAmount(140, 'g', EGG)).toEqual({ quantity: 2.5, unit: 'piece', grams: 140 });
+    expect(displayAmount(20, 'g', EGG)).toEqual({ quantity: 0.5, unit: 'piece', grams: 20 });
   });
 
   it('shows an amount too small to be half a piece by weight', () => {
     expect(displayAmount(5, 'g', ONION)).toEqual({ quantity: 5, unit: 'g' });
     expect(displayAmount(27, 'g', ONION)).toEqual({ quantity: 25, unit: 'g' });
-    expect(displayAmount(28, 'g', ONION)).toEqual({ quantity: 0.5, unit: 'piece' });
+    expect(displayAmount(28, 'g', ONION)).toEqual({ quantity: 0.5, unit: 'piece', grams: 30 });
   });
 
   it('shows an ingredient that is weighed in grams even where a recipe counts it', () => {
@@ -186,16 +186,20 @@ describe('an ingredient that is counted', () => {
 
 describe('what a pantry row holds', () => {
   it('is shown in the unit of the row, a piece called what the ingredient calls it', () => {
-    expect(displayStock(6, 'piece', EGG)).toEqual({ quantity: 6, unit: 'piece' });
-    expect(displayStock(4, 'piece', BREAD)).toEqual({ quantity: 4, unit: 'slice' });
+    expect(displayStock(6, 'piece', EGG)).toEqual({ quantity: 6, unit: 'piece', grams: 330 });
+    expect(displayStock(4, 'piece', BREAD)).toEqual({ quantity: 4, unit: 'slice', grams: 160 });
     expect(displayStock(220, 'g', EGG)).toEqual({ quantity: 220, unit: 'g' });
-    expect(displayStock(2, 'piece', TOMATO)).toEqual({ quantity: 2, unit: 'piece' });
+    expect(displayStock(2, 'piece', TOMATO)).toEqual({ quantity: 2, unit: 'piece', grams: 240 });
   });
 
   it('is rounded to the gram and to half a piece, not to 5 g: it is a count of what is there', () => {
     expect(displayStock(213.4, 'g', CHICKEN)).toEqual({ quantity: 213, unit: 'g' });
-    expect(displayStock(6.5454, 'piece', EGG)).toEqual({ quantity: 6.5, unit: 'piece' });
-    expect(displayStock(0.1, 'piece', EGG)).toEqual({ quantity: 0.5, unit: 'piece' });
+    expect(displayStock(6.5454, 'piece', EGG)).toEqual({
+      quantity: 6.5,
+      unit: 'piece',
+      grams: 360,
+    });
+    expect(displayStock(0.1, 'piece', EGG)).toEqual({ quantity: 0.5, unit: 'piece', grams: 6 });
     expect(displayStock(0, 'g', CHICKEN)).toEqual({ quantity: 0, unit: 'g' });
   });
 });

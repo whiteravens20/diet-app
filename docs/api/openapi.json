@@ -13101,6 +13101,10 @@
           },
           "unit": {
             "$ref": "#/components/schemas/DisplayUnit"
+          },
+          "grams": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
@@ -21858,6 +21862,17 @@
           "displayUnit": {
             "$ref": "#/components/schemas/DisplayUnit"
           },
+          "gramsPerPiece": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "alreadyHaveQuantity": {
             "default": 0,
             "type": "number",
@@ -21942,6 +21957,7 @@
           "totalQuantity",
           "unit",
           "displayUnit",
+          "gramsPerPiece",
           "alreadyHaveQuantity",
           "toBuyQuantity",
           "purchasedQuantity",

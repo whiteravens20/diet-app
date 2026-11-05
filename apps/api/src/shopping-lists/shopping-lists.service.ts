@@ -357,6 +357,8 @@ export class ShoppingListsService {
           totalQuantity: item.totalQuantity,
           unit: item.unit,
           displayUnit,
+          gramsPerPiece:
+            item.unit === 'piece' && ingredient?.gramsPerPiece ? ingredient.gramsPerPiece : null,
           alreadyHaveQuantity: item.alreadyHaveQuantity,
           toBuyQuantity: toBuy,
           purchasedQuantity: item.purchasedQuantity,

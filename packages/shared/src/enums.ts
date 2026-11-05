@@ -146,6 +146,12 @@ export type DisplayUnit = z.infer<typeof DisplayUnit>;
 export const DisplayAmount = z.object({
   quantity: z.number().min(0),
   unit: DisplayUnit,
+  /**
+   * Its weight, for an amount shown in the pieces of what is counted: what a piece is taken to
+   * weigh times as many, rounded as grams are. A piece is an average, and one who weighs knows how
+   * much it stands for.
+   */
+  grams: z.number().min(0).optional(),
 });
 export type DisplayAmount = z.infer<typeof DisplayAmount>;
 
