@@ -2402,7 +2402,17 @@
       "acknowledge": "Rozumiem ryzyko i chcę, aby plany były układane pod ten cel.",
       "heldHere": "Dopóki pole poniżej nie jest zaznaczone, liczby pokazują zapotrzebowanie: tego trzymałyby się plany.",
       "acknowledgeHere": "Rozumiem ryzyko: pokaż, co wynika z tego celu."
-    }
+    },
+    "labelLimits": "Limity z etykiet",
+    "labelLimitsHint": "Dzień planu lub dziennika, który przekroczy limit, dostaje notatkę. Planer ich nie bierze pod uwagę.",
+    "labelLimit": {
+      "saltAtMost": "Sól najwyżej",
+      "fiberAtLeast": "Błonnik co najmniej",
+      "saturatedFatAtMost": "Tłuszcze nasycone najwyżej",
+      "sugarsAtMost": "Cukry najwyżej"
+    },
+    "labelLimitUnit": "g dziennie",
+    "labelLimitStarts": "Po włączeniu limit startuje od 5 g soli (WHO), 25 g błonnika (EFSA), 20 g tłuszczów nasyconych i 90 g cukrów (wartości referencyjne z etykiet w UE)."
   },
   "caloriePreview": {
     "title": "Co z tego wynika",

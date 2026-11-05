@@ -2402,7 +2402,17 @@
       "acknowledge": "I understand the risk and want plans made for this goal.",
       "heldHere": "Until the box below is ticked, the figures show maintenance: that is what plans would follow.",
       "acknowledgeHere": "I understand the risk: show what this goal comes to."
-    }
+    },
+    "labelLimits": "Limits from labels",
+    "labelLimitsHint": "A day of a plan or of the diary that crosses one gets a note. The planner does not follow them.",
+    "labelLimit": {
+      "saltAtMost": "Salt at most",
+      "fiberAtLeast": "Fibre at least",
+      "saturatedFatAtMost": "Saturated fat at most",
+      "sugarsAtMost": "Sugars at most"
+    },
+    "labelLimitUnit": "g a day",
+    "labelLimitStarts": "Turned on, a limit starts at 5 g of salt (WHO), 25 g of fibre (EFSA), 20 g of saturated fat and 90 g of sugars (the reference intakes on EU labels)."
   },
   "caloriePreview": {
     "title": "What this comes to",

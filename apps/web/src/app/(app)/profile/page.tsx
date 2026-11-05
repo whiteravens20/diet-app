@@ -41,6 +41,7 @@ import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
+import { LabelLimitFields, labelLimitsIn } from './label-limit-fields';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 
@@ -225,6 +226,7 @@ export default function ProfilePage() {
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
         ...kindLimitsIn(f),
+        labelLimits: labelLimitsIn(f),
         inventoryBiasResetEvery: Math.max(
           0,
           Math.min(20, Number(f.get('inventoryBiasResetEvery')) || 0),
@@ -478,6 +480,9 @@ export default function ProfilePage() {
                     defaultValue={editing?.preferences.inventoryBiasResetEvery ?? 5}
                   />
                 </Field>
+              </FormSection>
+              <FormSection title={t('labelLimits')}>
+                <LabelLimitFields initial={editing?.preferences.labelLimits ?? NO_LABEL_LIMITS} />
               </FormSection>
               <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
               <div className="flex items-center gap-3 sm:col-span-2">
