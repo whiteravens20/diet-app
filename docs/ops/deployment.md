@@ -81,7 +81,9 @@ Load them on the first run, in the admin panel:
    cannot write, and asks nothing of the food database until it can. Without
    `FDC_API_KEY` the import uses the public demonstration key, which allows
    only a few requests an hour; when that is used up the panel says when to
-   try again.
+   try again. Foods an older version of the importer wrote are loaded as they
+   are, without their fibre, sugars, salt and saturated fat: the panel says so
+   and offers the import again.
 3. Click **Update database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 

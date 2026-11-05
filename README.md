@@ -38,6 +38,10 @@ The companion Android app lives in a separate repository:
   its calories alone if need be, the rest then estimated and marked as an estimate. An entry
   keeps the figures it was written with, a day shows what was eaten against its target, and
   a plan's days count the entries as eaten whenever they are resized or filled again.
+- **Fibre, sugars, salt and saturated fat** — of every serving, planned meal and day, from
+  the catalogue's figures (USDA FoodData Central) and a product's label; a sum a part of
+  which gives no figure says that it is at least so much. A profile may set a limit of
+  each, and a day that crosses one says so: the planner does not follow them.
 - **Products with a barcode** — from [Open Food Facts](https://world.openfoodfacts.org)
   (ODbL), with their label's figures checked for whether they add up: the countries an
   operator names are imported once a week, and a code no import brought is asked about
@@ -55,8 +59,8 @@ The companion Android app lives in a separate repository:
   of an ingredient the catalogue knows, a person approves every draft, and the recipe says
   where it is from and under which licence.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
-  shops (eggs and slices of bread in pieces, weights rounded up to 5 g, the packs a row
-  takes), with what the pantry already holds taken off, what was bought beyond the need
+  shops (eggs and slices of bread in pieces, with what they weigh beside them, weights
+  rounded up to 5 g, the packs a row takes), with what the pantry already holds taken off, what was bought beyond the need
   put into it, and a way out of the application: a PDF, a table for a spreadsheet, a text
   to send.
 - **Your data leaves with you** — a plan as a table or on paper, and everything an account
