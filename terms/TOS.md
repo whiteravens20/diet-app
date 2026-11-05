@@ -18,9 +18,11 @@ When you add a key of an AI provider in Settings, the instance stores it encrypt
 
 ## 4. Not medical advice
 
-Every calorie and macronutrient value of a recipe and a meal plan is computed from a curated ingredient database; a meal of your own carries the values you typed in, and a product with a barcode the values of its label, as the users of Open Food Facts give them. The values are estimates and have not been checked for any medical or therapeutic purpose.
+Every value of calories, macronutrients, fibre, sugars, salt and saturated fat of a recipe and a meal plan is computed from a curated ingredient database; a meal of your own carries the values you typed in, and a product with a barcode the values of its label, as the users of Open Food Facts give them. The values are estimates and have not been checked for any medical or therapeutic purpose. Where some ingredients give no figure of fibre, sugars, salt or saturated fat, a total counts only the ingredients that do and is marked "≥".
 
 A profile's calorie target and pace of weight loss are worked out from an equation for adults, from age, sex, height, weight and activity. They are an approximation for a healthy adult: the application knows nothing of your health, does not diagnose or treat anything and does not replace a doctor or a dietitian.
+
+The limits from labels are a setting of your profile; the values they start at are general reference values, not advice for you, and the planner does not follow them. A day of a plan or of the diary gets a note only where the figures it knows cross a limit: where some ingredients give no figure, a day may cross a limit without a note.
 
 Before you start losing weight or change your diet, ask a doctor or a dietitian if:
 
