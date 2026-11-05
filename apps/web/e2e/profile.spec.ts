@@ -116,15 +116,18 @@ test.describe('what a profile says of how it eats', () => {
   }) => {
     const page = session.page;
     const profile = textsOf(messages, 'profile');
-    const remove = new RegExp(`^${textsOf(messages, 'pickers').remove!.replace('{name}', '')}`);
+    const pickers = textsOf(messages, 'pickers');
+    const remove = new RegExp(`^${pickers.remove!.replace('{name}', '')}`);
     // Three lists of ingredients stand on the page, each named by its heading, each with a search field of its own.
     const list = page.getByRole('group', { name: profile.dislikedLabel!, exact: true });
     await page.goto('/profile');
     await settled(page);
 
     await list.getByRole('textbox').fill(appLocale === 'pl' ? 'ryż' : 'rice');
+    // A result is ticked, and the ticked ones go to the list together.
+    await list.getByRole('checkbox').first().check();
     const picked = changed(page, 'PATCH');
-    await list.getByRole('listitem').getByRole('button').first().click();
+    await list.getByRole('button', { name: pickers.addTicked!.replace('{count}', '1') }).click();
     const ids = (
       (await (await picked).json()) as { preferences: { dislikedIngredientIds: string[] } }
     ).preferences.dislikedIngredientIds;
