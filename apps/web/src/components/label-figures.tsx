@@ -3,6 +3,7 @@
 
 import type { LabelFigure, LabelLimitNote, LabelNutrient, LabelTotals } from '@diet-app/shared';
 import { useTranslations } from 'next-intl';
+import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/use-format';
 
@@ -38,17 +39,23 @@ export function LabelGrid({ totals }: { totals: LabelTotals }) {
   );
 }
 
-/** The same in one line, for a day or a meal: "Fibre 12 g · Sugars ≥ 26.2 g · …". */
+/**
+ * The same in one line, for a day or a meal: "Fibre 12 g · Sugars ≥ 26.2 g · …". A name keeps
+ * its figure on its line; the line breaks at the dots between them, which stand outside, as
+ * WebKit breaks at no space a `nowrap` holds.
+ */
 export function LabelLine({ totals, className }: { totals: LabelTotals; className?: string }) {
   const t = useTranslations('labelFigures');
   const figure = useFigure();
   return (
     <p className={cn('text-xs text-muted-foreground', className)}>
       {NUTRIENTS.map((nutrient, index) => (
-        <span key={nutrient} className="whitespace-nowrap">
+        <Fragment key={nutrient}>
           {index > 0 && ' · '}
-          {t(nutrient)} <span className="tabular-nums">{figure(totals[nutrient])}</span>
-        </span>
+          <span className="whitespace-nowrap">
+            {t(nutrient)} <span className="tabular-nums">{figure(totals[nutrient])}</span>
+          </span>
+        </Fragment>
       ))}
     </p>
   );
