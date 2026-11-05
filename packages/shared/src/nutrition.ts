@@ -80,6 +80,64 @@ export const LabelTotals = z.object({
 });
 export type LabelTotals = z.infer<typeof LabelTotals>;
 
+/**
+ * What a limit of a profile starts at when it is switched on: salt as the WHO advises, fibre as
+ * EFSA finds adequate for an adult, saturated fat and sugars as the reference intakes of the EU's
+ * labels give them (Regulation 1169/2011, Annex XIII), which count total sugars.
+ */
+export const LABEL_LIMIT_STARTS = {
+  saltAtMost: 5,
+  fiberAtLeast: 25,
+  saturatedFatAtMost: 20,
+  sugarsAtMost: 90,
+} as const;
+
+/** The least and the most each limit may be set to, in grams a day. */
+export const LABEL_LIMIT_BOUNDS = {
+  saltAtMost: { min: 1, max: 20 },
+  fiberAtLeast: { min: 5, max: 80 },
+  saturatedFatAtMost: { min: 5, max: 100 },
+  sugarsAtMost: { min: 10, max: 300 },
+} as const;
+
+const labelLimit = (key: keyof typeof LABEL_LIMIT_BOUNDS) =>
+  z.number().min(LABEL_LIMIT_BOUNDS[key].min).max(LABEL_LIMIT_BOUNDS[key].max).nullable();
+
+/**
+ * The limits a profile sets on a day's salt, sugars and saturated fat (at most) and fibre (at
+ * least), each off (null) until it is set. A day that crosses one gets a note; the planner never
+ * reads them.
+ */
+export const LabelLimits = z.object({
+  saltAtMost: labelLimit('saltAtMost'),
+  fiberAtLeast: labelLimit('fiberAtLeast'),
+  saturatedFatAtMost: labelLimit('saturatedFatAtMost'),
+  sugarsAtMost: labelLimit('sugarsAtMost'),
+});
+export type LabelLimits = z.infer<typeof LabelLimits>;
+
+/** Every limit off: what a profile starts with. */
+export const NO_LABEL_LIMITS: LabelLimits = {
+  saltAtMost: null,
+  fiberAtLeast: null,
+  saturatedFatAtMost: null,
+  sugarsAtMost: null,
+};
+
+/**
+ * A limit of the profile that a day crossed: more than its most, or, with every part of the day
+ * known, less than its least.
+ */
+export const LabelLimitNote = z.object({
+  nutrient: LabelNutrient,
+  kind: z.enum(['atMost', 'atLeast']),
+  /** The limit as the profile sets it, in grams. */
+  limit: z.number().min(0),
+  /** What the day holds of it. */
+  figure: LabelFigure,
+});
+export type LabelLimitNote = z.infer<typeof LabelLimitNote>;
+
 /** The nutrition of one serving as somebody types it for a meal of their own, at most `OWN_MEAL_LIMITS.perServing`. */
 export const EnteredNutrition = z.object({
   calories: z.number().min(0).max(OWN_MEAL_LIMITS.perServing.calories),

@@ -10,6 +10,7 @@ import {
   type Profile,
   type ProfileInput,
   ProfilePreferences,
+  type LabelLimits,
   type ProfilePreferencesPatch,
   type ProfileUpdate,
   riskOfLosingWeight,
@@ -19,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { holdAccount } from '../common/hold.js';
 import { storedKindLimits } from '../common/stored-kind-limits.js';
+import { labelLimitsOf } from '../common/label-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
 import { calculateCalories, sharesOf } from '../engine/index.js';
@@ -88,7 +90,7 @@ export class ProfilesService {
           customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
           mealCount: input.mealCount,
           weightReminderCadence: input.weightReminderCadence,
-          preferences: { create: input.preferences },
+          preferences: { create: preferenceColumns(input.preferences) },
         },
         include: { preferences: true },
       });
@@ -109,7 +111,14 @@ export class ProfilesService {
     await this.load(userId, id);
     const row = await this.prisma.profile.update({
       where: { id },
-      data: { preferences: { upsert: { create: ProfilePreferences.parse(patch), update: patch } } },
+      data: {
+        preferences: {
+          upsert: {
+            create: preferenceColumns(ProfilePreferences.parse(patch)),
+            update: preferenceColumns(patch),
+          },
+        },
+      },
       include: { preferences: true },
     });
     return this.toDto(row);
@@ -134,7 +143,12 @@ export class ProfilesService {
         customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
-        preferences: { upsert: { create: input.preferences, update: input.preferences } },
+        preferences: {
+          upsert: {
+            create: preferenceColumns(input.preferences),
+            update: preferenceColumns(input.preferences),
+          },
+        },
       },
       include: { preferences: true },
     });
@@ -220,6 +234,10 @@ export class ProfilesService {
       maxMealsPerWeekSameKind: number | null;
       kindLimits: unknown;
       inventoryBiasResetEvery: number;
+      saltAtMost: number | null;
+      fiberAtLeast: number | null;
+      saturatedFatAtMost: number | null;
+      sugarsAtMost: number | null;
     } | null;
   }): Profile {
     return {
@@ -253,9 +271,21 @@ export class ProfilesService {
         maxMealsPerWeekSameKind: row.preferences?.maxMealsPerWeekSameKind ?? null,
         kindLimits: storedKindLimits(row.preferences?.kindLimits),
         inventoryBiasResetEvery: row.preferences?.inventoryBiasResetEvery ?? 5,
+        labelLimits: labelLimitsOf(row.preferences),
       },
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
+}
+
+/**
+ * Preferences as their row keeps them: the limits of a label in columns of their own. Limits that
+ * are left out are left as they are.
+ */
+function preferenceColumns<T extends { labelLimits?: LabelLimits }>(
+  preferences: T,
+): Omit<T, 'labelLimits'> & Partial<LabelLimits> {
+  const { labelLimits, ...rest } = preferences;
+  return { ...rest, ...labelLimits };
 }

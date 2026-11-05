@@ -65,6 +65,8 @@ describe('fibre, sugars, salt and saturated fat', () => {
     ).body;
   const aMealOfOnesOwn = () =>
     write({ kind: 'meal', name: 'Lunch out', servings: 1, nutrition: { calories: 600 } });
+  const setLimits = (labelLimits: Record<string, number | null>) =>
+    t.http().patch(`/api/profiles/${profile.id}/preferences`).set(as(user)).send({ labelLimits });
 
   it('of a recipe are those of a serving, and at least so much where an ingredient lacks one', async () => {
     // Oats and milk give all four.
@@ -115,6 +117,24 @@ describe('fibre, sugars, salt and saturated fat', () => {
     });
   });
 
+  it("notes the limits of the profile that the day's eating crosses, and none it cannot know to be crossed", async () => {
+    await setLimits({
+      saltAtMost: null,
+      fiberAtLeast: 25,
+      saturatedFatAtMost: null,
+      sugarsAtMost: 10,
+    }).expect(200);
+    await write({ kind: 'recipe', recipeId: await recipeId('milk-porridge'), servings: 2 });
+    expect((await diaryDay()).labelNotes).toEqual([
+      { nutrient: 'fiber', kind: 'atLeast', limit: 25, figure: known(12) },
+      { nutrient: 'sugars', kind: 'atMost', limit: 10, figure: known(26.2) },
+    ]);
+
+    // A meal of one's own may hold the fibre that is missing: the day is no longer known to be short of it.
+    await aMealOfOnesOwn();
+    expect((await diaryDay()).labelNotes.map((note) => note.nutrient)).toEqual(['sugars']);
+  });
+
   it('of a planned meal are its recipe’s for its servings, and its day sums its meals', async () => {
     const generated = await aPlan(t, user, profile);
     const plan: MealPlan = (
@@ -130,5 +150,31 @@ describe('fibre, sugars, salt and saturated fat', () => {
       );
     }
     expect(first.dayLabel).toEqual(roundLabel(sumLabels(first.meals.map((meal) => meal.label))));
+    // The profile sets no limits.
+    expect(first.labelNotes).toEqual([]);
+  });
+
+  it('limits of a profile are set alone, kept by a whole profile that leaves them out, and refused outside their range', async () => {
+    const limits = { saltAtMost: 5, fiberAtLeast: 25, saturatedFatAtMost: 20, sugarsAtMost: 90 };
+    const set: Profile = (await setLimits(limits).expect(200)).body;
+    expect(set.preferences.labelLimits).toEqual(limits);
+
+    // A whole profile as a client from before the limits sends it.
+    const { id, userId, riskAcknowledgedAt, createdAt, updatedAt, ...rest } = set;
+    const { labelLimits, ...preferences } = rest.preferences;
+    expect([id, userId, riskAcknowledgedAt, createdAt, updatedAt, labelLimits]).toBeDefined();
+    const saved: Profile = (
+      await t
+        .http()
+        .put(`/api/profiles/${profile.id}`)
+        .set(as(user))
+        .send({ ...rest, name: 'Me again', preferences })
+        .expect(200)
+    ).body;
+    expect(saved.name).toBe('Me again');
+    expect(saved.preferences.labelLimits).toEqual(limits);
+
+    await setLimits({ ...limits, saltAtMost: 0.5 }).expect(400);
+    await setLimits({ ...limits, fiberAtLeast: 200 }).expect(400);
   });
 });

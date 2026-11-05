@@ -1,9 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { LabelTotals } from '@diet-app/shared';
+import { NO_LABEL_LIMITS, type LabelTotals } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import {
   fromStoredLabel,
+  labelNotes,
   labelOfAmount,
   roundLabel,
   scaleLabel,
@@ -89,5 +90,42 @@ describe('fibre, sugars, salt and saturated fat as sums', () => {
       labelAtLeast: ['fiber'],
     });
     expect(fromStoredLabel(stored)).toEqual(totals);
+  });
+});
+
+describe('the notes of the limits a day crossed', () => {
+  const limits = { saltAtMost: 5, fiberAtLeast: 25, saturatedFatAtMost: 20, sugarsAtMost: 90 };
+
+  it('notes more than a most, a part of the day already being more', () => {
+    const day: LabelTotals = {
+      fiber: known(30),
+      sugars: atLeast(91),
+      salt: known(6.2),
+      saturatedFat: known(20),
+    };
+    expect(labelNotes(day, limits)).toEqual([
+      { nutrient: 'sugars', kind: 'atMost', limit: 90, figure: atLeast(91) },
+      { nutrient: 'salt', kind: 'atMost', limit: 5, figure: known(6.2) },
+    ]);
+  });
+
+  it('notes less than a least only where every part of the day is known', () => {
+    expect(labelNotes({ ...UNKNOWN_LABEL, fiber: known(18) }, limits)).toEqual([
+      { nutrient: 'fiber', kind: 'atLeast', limit: 25, figure: known(18) },
+    ]);
+    expect(labelNotes({ ...UNKNOWN_LABEL, fiber: atLeast(18) }, limits)).toEqual([]);
+  });
+
+  it('says nothing of a limit that is not set, or of a figure nothing of which is known', () => {
+    const day: LabelTotals = {
+      fiber: known(5),
+      sugars: known(200),
+      salt: null,
+      saturatedFat: known(50),
+    };
+    expect(labelNotes(day, NO_LABEL_LIMITS)).toEqual([]);
+    expect(labelNotes({ ...day, sugars: null, saturatedFat: null, fiber: null }, limits)).toEqual(
+      [],
+    );
   });
 });

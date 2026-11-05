@@ -12809,6 +12809,13 @@
           "eatenLabel": {
             "$ref": "#/components/schemas/LabelTotals"
           },
+          "labelNotes": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelLimitNote"
+            }
+          },
           "estimated": {
             "type": "boolean"
           }
@@ -12821,6 +12828,7 @@
           "entries",
           "eaten",
           "eatenLabel",
+          "labelNotes",
           "estimated"
         ],
         "additionalProperties": false
@@ -14650,6 +14658,154 @@
         ],
         "additionalProperties": false
       },
+      "LabelLimitNote": {
+        "type": "object",
+        "properties": {
+          "nutrient": {
+            "$ref": "#/components/schemas/LabelNutrient"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "atMost",
+              "atLeast"
+            ]
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 0
+          },
+          "figure": {
+            "$ref": "#/components/schemas/LabelFigure"
+          }
+        },
+        "required": [
+          "nutrient",
+          "kind",
+          "limit",
+          "figure"
+        ],
+        "additionalProperties": false
+      },
+      "LabelLimits": {
+        "type": "object",
+        "properties": {
+          "saltAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiberAtLeast": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "saturatedFatAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sugarsAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "saltAtMost",
+          "fiberAtLeast",
+          "saturatedFatAtMost",
+          "sugarsAtMost"
+        ],
+        "additionalProperties": false
+      },
+      "LabelLimitsInput": {
+        "type": "object",
+        "properties": {
+          "saltAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiberAtLeast": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "saturatedFatAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sugarsAtMost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "saltAtMost",
+          "fiberAtLeast",
+          "saturatedFatAtMost",
+          "sugarsAtMost"
+        ]
+      },
       "LabelNutrient": {
         "type": "string",
         "enum": [
@@ -15382,6 +15538,13 @@
           "dayLabel": {
             "$ref": "#/components/schemas/LabelTotals"
           },
+          "labelNotes": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelLimitNote"
+            }
+          },
           "diary": {
             "anyOf": [
               {
@@ -15468,6 +15631,7 @@
           "meals",
           "dayNutrition",
           "dayLabel",
+          "labelNotes",
           "diary",
           "calorieTarget",
           "targetMacros",
@@ -18243,7 +18407,13 @@
               "maxMealsPerDaySameKind": null,
               "maxMealsPerWeekSameKind": null,
               "kindLimits": [],
-              "inventoryBiasResetEvery": 5
+              "inventoryBiasResetEvery": 5,
+              "labelLimits": {
+                "saltAtMost": null,
+                "fiberAtLeast": null,
+                "saturatedFatAtMost": null,
+                "sugarsAtMost": null
+              }
             },
             "$ref": "#/components/schemas/ProfilePreferences"
           },
@@ -18413,7 +18583,13 @@
               "maxMealsPerDaySameKind": null,
               "maxMealsPerWeekSameKind": null,
               "kindLimits": [],
-              "inventoryBiasResetEvery": 5
+              "inventoryBiasResetEvery": 5,
+              "labelLimits": {
+                "saltAtMost": null,
+                "fiberAtLeast": null,
+                "saturatedFatAtMost": null,
+                "sugarsAtMost": null
+              }
             },
             "$ref": "#/components/schemas/ProfilePreferencesInput"
           }
@@ -18522,6 +18698,15 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 20
+          },
+          "labelLimits": {
+            "default": {
+              "saltAtMost": null,
+              "fiberAtLeast": null,
+              "saturatedFatAtMost": null,
+              "sugarsAtMost": null
+            },
+            "$ref": "#/components/schemas/LabelLimits"
           }
         },
         "required": [
@@ -18535,7 +18720,8 @@
           "maxMealsPerDaySameKind",
           "maxMealsPerWeekSameKind",
           "kindLimits",
-          "inventoryBiasResetEvery"
+          "inventoryBiasResetEvery",
+          "labelLimits"
         ],
         "additionalProperties": false
       },
@@ -18636,6 +18822,15 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 20
+          },
+          "labelLimits": {
+            "default": {
+              "saltAtMost": null,
+              "fiberAtLeast": null,
+              "saturatedFatAtMost": null,
+              "sugarsAtMost": null
+            },
+            "$ref": "#/components/schemas/LabelLimitsInput"
           }
         }
       },
@@ -18725,6 +18920,9 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 20
+          },
+          "labelLimits": {
+            "$ref": "#/components/schemas/LabelLimitsInput"
           }
         },
         "additionalProperties": false
@@ -18909,6 +19107,9 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 20
+              },
+              "labelLimits": {
+                "$ref": "#/components/schemas/LabelLimitsInput"
               }
             },
             "required": [

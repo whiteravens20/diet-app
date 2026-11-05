@@ -8,6 +8,8 @@ import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from '
 import { Ingredient } from './ingredient.js';
 import {
   EnteredNutrition,
+  LabelLimitNote,
+  LabelNutrient,
   LabelTotals,
   MacroChange,
   Macros,
@@ -471,6 +473,8 @@ export const MealPlanDay = z.object({
   dayNutrition: Nutrition,
   /** Fibre, sugars, salt and saturated fat of the same. */
   dayLabel: LabelTotals,
+  /** The limits of the profile the day crosses; none for a skipped day. */
+  labelNotes: z.array(LabelLimitNote).max(LabelNutrient.options.length),
   /**
    * What the profile's diary holds for the day besides its meals: how many
    * entries, what they come to, and the entries themselves, the first written

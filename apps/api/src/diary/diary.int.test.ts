@@ -103,6 +103,7 @@ describe('the diary of a profile', () => {
           salt: { grams: 0, atLeast: false },
           saturatedFat: { grams: 0, atLeast: false },
         },
+        labelNotes: [],
         estimated: false,
       });
     });

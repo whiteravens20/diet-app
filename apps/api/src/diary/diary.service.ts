@@ -25,9 +25,11 @@ import {
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
+import { labelLimitsOf } from '../common/label-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import {
   fromStoredLabel,
+  labelNotes,
   labelOfAmount,
   roundLabel,
   scaleLabel,
@@ -82,6 +84,9 @@ const PROFILE = {
   weeklyLossTarget: true,
   manualCalorieTarget: true,
   riskAcknowledgedAt: true,
+  preferences: {
+    select: { saltAtMost: true, fiberAtLeast: true, saturatedFatAtMost: true, sugarsAtMost: true },
+  },
 } as const;
 type DiaryProfile = Prisma.ProfileGetPayload<{ select: typeof PROFILE }>;
 
@@ -221,6 +226,7 @@ export class DiaryService {
         ...entered,
       ]),
       eatenLabel,
+      labelNotes: labelNotes(eatenLabel, labelLimitsOf(profile.preferences)),
       estimated: rows.some((row) => row.estimated),
     };
   }

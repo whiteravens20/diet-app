@@ -589,6 +589,12 @@ model ProfilePreference {
   // resets the counter, so a long run of leftover-heavy weeks can't lock the
   // user into one recipe corridor. 0 disables the reset entirely.
   inventoryBiasResetEvery    Int      @default(5)
+  // The limits of a label the profile sets, in grams a day (null: not set). A day that crosses
+  // one gets a note; the planner never reads them.
+  saltAtMost                 Float?
+  fiberAtLeast               Float?
+  saturatedFatAtMost         Float?
+  sugarsAtMost               Float?
 }
 
 // ── Curated product database (SEED DATA — source of truth) ────────────────────

@@ -49,8 +49,9 @@ import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-m
 import { shownReport, StoredReport, withMealOutside } from './generation-report.js';
 import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
+import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js';
 import { storedSplit } from '../common/stored-split.js';
-import { roundLabel, sumLabels } from '../engine/label-totals.js';
+import { labelNotes, roundLabel, sumLabels } from '../engine/label-totals.js';
 import {
   averageDay,
   customMacros,
@@ -983,6 +984,7 @@ export class MealPlansService {
     written: Map<string, DiaryEntry[]>,
   ): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
+    const labelLimits = labelLimitsOf(plan.profile?.preferences);
     // What a plan on the custom diet aims at is the split it was made with.
     const ownSplit = sharesOf(storedSplit(plan.macroSplit));
     const options = PlanOptions.parse(plan.options);
@@ -1106,6 +1108,8 @@ export class MealPlansService {
         meals,
         dayNutrition,
         dayLabel,
+        labelNotes:
+          !skipped && (meals.length > 0 || entered) ? labelNotes(dayLabel, labelLimits) : [],
         diary: entered && {
           entries: entered.entries,
           nutrition: entered.nutrition,
@@ -1181,7 +1185,11 @@ interface PlanWithRelations {
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
-  profile: { sex: Sex | null; mealCount: number } | null;
+  profile: {
+    sex: Sex | null;
+    mealCount: number;
+    preferences: LabelLimitColumns | null;
+  } | null;
   days: {
     id: string;
     date: Date;

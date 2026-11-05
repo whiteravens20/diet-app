@@ -2,6 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { SessionsService } from '../auth/sessions.service.js';
+import { labelLimitsOf } from '../common/label-limits.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from './users.service.js';
@@ -114,6 +115,7 @@ export class AccountExportService {
                 maxMealsPerWeekSameKind: preferences.maxMealsPerWeekSameKind,
                 kindLimits: preferences.kindLimits,
                 inventoryBiasResetEvery: preferences.inventoryBiasResetEvery,
+                labelLimits: labelLimitsOf(preferences),
               }
             : null,
         }),

@@ -3,7 +3,13 @@
 import * as z from './zod.js';
 import { DIARY_QUANTITY_LIMITS, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
 import { CalendarDay, DisplayAmount, MealType, Unit } from './enums.js';
-import { EnteredNutrition, LabelNutrient, LabelTotals, Nutrition } from './nutrition.js';
+import {
+  EnteredNutrition,
+  LabelLimitNote,
+  LabelNutrient,
+  LabelTotals,
+  Nutrition,
+} from './nutrition.js';
 import { LabelNutrients, ProductSource } from './product.js';
 
 /**
@@ -209,6 +215,8 @@ export const DiaryDay = z.object({
   eaten: Nutrition,
   /** Fibre, sugars, salt and saturated fat of the same. */
   eatenLabel: LabelTotals,
+  /** The limits of the profile that what was eaten crosses. */
+  labelNotes: z.array(LabelLimitNote).max(LabelNutrient.options.length),
   /** A figure of what was eaten is estimated. */
   estimated: z.boolean(),
 });

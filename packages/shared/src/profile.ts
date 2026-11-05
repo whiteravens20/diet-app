@@ -13,9 +13,11 @@ import {
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import {
   CalorieCalculation,
+  LabelLimits,
   MacroSplit,
   MAX_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
+  NO_LABEL_LIMITS,
 } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
@@ -101,6 +103,8 @@ const preferenceFields = {
    * `0` disables the rotation entirely (bias every round, no cap).
    */
   inventoryBiasResetEvery: z.number().int().min(0).max(20),
+  /** At most so much salt, sugars and saturated fat and at least so much fibre a day: notes on a day. */
+  labelLimits: LabelLimits,
 };
 
 /** What a new profile prefers until it says otherwise. */
@@ -116,6 +120,7 @@ const PREFERENCE_DEFAULTS = {
   maxMealsPerWeekSameKind: null,
   kindLimits: [],
   inventoryBiasResetEvery: 5,
+  labelLimits: NO_LABEL_LIMITS,
 } satisfies { [Key in keyof typeof preferenceFields]: z.infer<(typeof preferenceFields)[Key]> };
 
 /** Free-form preference bundle attached to a profile. A part that a new profile leaves out starts at its default. */
@@ -149,6 +154,7 @@ export const ProfilePreferences = z.object({
   inventoryBiasResetEvery: preferenceFields.inventoryBiasResetEvery.default(
     PREFERENCE_DEFAULTS.inventoryBiasResetEvery,
   ),
+  labelLimits: preferenceFields.labelLimits.default(PREFERENCE_DEFAULTS.labelLimits),
 });
 export type ProfilePreferences = z.infer<typeof ProfilePreferences>;
 
@@ -241,7 +247,9 @@ export const ProfileUpdate = z
   .object({
     ...profileFields,
     acknowledgeRisk,
-    preferences: z.object(preferenceFields),
+    // The limits of a label came after the clients that send every other part: left out, they
+    // stay as they are.
+    preferences: z.object({ ...preferenceFields, labelLimits: LabelLimits.optional() }),
   })
   .refine(hasItsSplit, SPLIT_MISSING);
 export type ProfileUpdate = z.infer<typeof ProfileUpdate>;

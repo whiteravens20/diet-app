@@ -6,7 +6,13 @@
  * an ingredient its source gives no figure for), and null where no part of it is known at all.
  * The sum of no parts is nothing: zero, and known.
  */
-import { LabelTotals, type LabelFigure, type LabelNutrient } from '@diet-app/shared';
+import {
+  LabelTotals,
+  type LabelFigure,
+  type LabelLimitNote,
+  type LabelLimits,
+  type LabelNutrient,
+} from '@diet-app/shared';
 
 /** The four, in the order they are shown. */
 const LABEL_NUTRIENTS: readonly LabelNutrient[] = ['fiber', 'sugars', 'salt', 'saturatedFat'];
@@ -144,4 +150,33 @@ export function fromStoredLabel(stored: StoredLabel): LabelTotals {
     const grams = stored[nutrient];
     return grams === null ? null : { grams, atLeast: stored.labelAtLeast.includes(nutrient) };
   });
+}
+
+const LIMITS: readonly {
+  nutrient: LabelNutrient;
+  key: keyof LabelLimits;
+  kind: LabelLimitNote['kind'];
+}[] = [
+  { nutrient: 'fiber', key: 'fiberAtLeast', kind: 'atLeast' },
+  { nutrient: 'sugars', key: 'sugarsAtMost', kind: 'atMost' },
+  { nutrient: 'salt', key: 'saltAtMost', kind: 'atMost' },
+  { nutrient: 'saturatedFat', key: 'saturatedFatAtMost', kind: 'atMost' },
+];
+
+/**
+ * The limits a day crossed: more than a most (a sum that is only a part of the day is over all the
+ * more), or less than a least where every part of the day is known (a part that is not known may
+ * make up the rest).
+ */
+export function labelNotes(totals: LabelTotals, limits: LabelLimits): LabelLimitNote[] {
+  const notes: LabelLimitNote[] = [];
+  for (const { nutrient, key, kind } of LIMITS) {
+    const limit = limits[key];
+    const figure = totals[nutrient];
+    if (limit === null || figure === null) continue;
+    const crossed =
+      kind === 'atMost' ? figure.grams > limit : !figure.atLeast && figure.grams < limit;
+    if (crossed) notes.push({ nutrient, kind, limit, figure });
+  }
+  return notes;
 }
