@@ -231,7 +231,12 @@
     "gramsPerPiece": 150,
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["staple"]
+    "tags": ["staple"],
+    "importedAs": [
+      "potatoes-gold-without-skin-raw",
+      "potatoes-red-without-skin-raw",
+      "potatoes-russet-without-skin-raw"
+    ]
   },
   {
     "slug": "broccoli",
@@ -307,7 +312,8 @@
     "gramsPerPiece": 120,
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": []
+    "tags": [],
+    "importedAs": ["tomato-roma", "tomatoes-grape-raw"]
   },
   {
     "slug": "onion",
@@ -875,7 +881,7 @@
     "tags": [],
     "packSize": 250,
     "perishable": true,
-    "importedAs": ["mushrooms-white-button"]
+    "importedAs": ["mushrooms-white-button", "mushroom-crimini", "mushroom-portabella"]
   },
   {
     "slug": "green-beans",
@@ -954,7 +960,14 @@
     "displayUnit": "piece",
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["fruit"]
+    "tags": ["fruit"],
+    "importedAs": [
+      "apples-fuji-with-skin-raw",
+      "apples-gala-with-skin-raw",
+      "apples-granny-smith-with-skin-raw",
+      "apples-honeycrisp-with-skin-raw",
+      "apples-red-delicious-with-skin-raw"
+    ]
   },
   {
     "slug": "orange",

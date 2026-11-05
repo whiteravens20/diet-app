@@ -32,31 +32,6 @@
       "pl": "Sok jabłkowy z witaminą C"
     }
   },
-  "apples-fuji-with-skin-raw": {
-    "name": {
-      "pl": "Jabłka fuji ze skórką"
-    }
-  },
-  "apples-gala-with-skin-raw": {
-    "name": {
-      "pl": "Jabłka gala ze skórką"
-    }
-  },
-  "apples-granny-smith-with-skin-raw": {
-    "name": {
-      "pl": "Jabłka granny smith ze skórką"
-    }
-  },
-  "apples-honeycrisp-with-skin-raw": {
-    "name": {
-      "pl": "Jabłka honeycrisp ze skórką"
-    }
-  },
-  "apples-red-delicious-with-skin-raw": {
-    "name": {
-      "pl": "Jabłka red delicious ze skórką"
-    }
-  },
   "applesauce-unsweetened-with-added-vitamin-c": {
     "name": {
       "pl": "Mus jabłkowy niesłodzony z witaminą C"
@@ -845,11 +820,6 @@
       "pl": "Grzyby shimeji"
     }
   },
-  "mushroom-crimini": {
-    "name": {
-      "pl": "Pieczarki brązowe"
-    }
-  },
   "mushroom-enoki": {
     "name": {
       "pl": "Grzyby enoki"
@@ -878,11 +848,6 @@
   "mushroom-pioppini": {
     "name": {
       "pl": "Grzyby pioppini"
-    }
-  },
-  "mushroom-portabella": {
-    "name": {
-      "pl": "Pieczarka portobello"
     }
   },
   "mushrooms-shiitake": {
@@ -1137,21 +1102,6 @@
       "pl": "Schab wieprzowy bez kości"
     }
   },
-  "potatoes-gold-without-skin-raw": {
-    "name": {
-      "pl": "Ziemniaki żółte obrane"
-    }
-  },
-  "potatoes-red-without-skin-raw": {
-    "name": {
-      "pl": "Ziemniaki czerwone obrane"
-    }
-  },
-  "potatoes-russet-without-skin-raw": {
-    "name": {
-      "pl": "Ziemniaki typu russet obrane"
-    }
-  },
   "radicchio-raw": {
     "name": {
       "pl": "Radicchio"
@@ -1346,11 +1296,6 @@
       "pl": "Przecier pomidorowy"
     }
   },
-  "tomato-roma": {
-    "name": {
-      "pl": "Pomidor śliwkowy (Roma)"
-    }
-  },
   "tomato-sauce-canned-with-salt-added": {
     "name": {
       "pl": "Sos pomidorowy w puszce"
@@ -1359,11 +1304,6 @@
   "tomatoes-crushed-canned": {
     "name": {
       "pl": "Pomidory rozdrobnione z puszki"
-    }
-  },
-  "tomatoes-grape-raw": {
-    "name": {
-      "pl": "Pomidorki daktylowe"
     }
   },
   "tuna-ahi-or-yellowfin-frozen-wild-caught": {
