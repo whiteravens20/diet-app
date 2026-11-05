@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { MealPlan } from '@diet-app/shared';
-import { useAmount } from '@/lib/ingredient-format';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { dishOf, lastDayOf, servingsOf, type PlanWords } from './plan-export';
 
@@ -34,7 +34,7 @@ export function PlanPrintSheet({
 }) {
   const t = useTranslations('mealPlans.export');
   const fmt = useFormat();
-  const amount = useAmount();
+  const shownAmount = useShownAmount();
 
   useEffect(() => {
     window.addEventListener('afterprint', onDone);
@@ -104,8 +104,7 @@ export function PlanPrintSheet({
                         <span className="block text-2xs leading-snug">
                           {fmt.list(
                             planned.ingredients.map(
-                              (line) =>
-                                `${line.name} ${amount(line.display.quantity, line.display.unit)}`,
+                              (line) => `${line.name} ${shownAmount(line.display)}`,
                             ),
                           )}
                         </span>

@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
-import { useUnitName } from '@/lib/ingredient-format';
+import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { LoadFailed } from '@/components/load-failed';
 
@@ -47,6 +47,7 @@ export default function InventoryPage() {
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
   const unitName = useUnitName();
+  const amount = useAmount();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
@@ -217,8 +218,11 @@ export default function InventoryPage() {
                             patch.mutate({ id: item.id, quantity: next });
                           }}
                         />
-                        <span className="w-14 text-xs text-muted-foreground">
+                        <span className="min-w-14 text-xs text-muted-foreground">
                           {unitName(item.display.unit)}
+                          {/* What the pieces weigh, a piece taken at its average. */}
+                          {item.display.grams !== undefined &&
+                            ` (${amount(item.display.grams, 'g')})`}
                         </span>
                       </span>
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">

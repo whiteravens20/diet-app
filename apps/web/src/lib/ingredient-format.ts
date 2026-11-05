@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { useTranslations } from 'next-intl';
-import type { DisplayUnit } from '@diet-app/shared';
+import type { DisplayAmount, DisplayUnit } from '@diet-app/shared';
 
 /**
  * Spell a quantity in the reader's language: "215 g", "2 slices", "1 handful".
@@ -21,6 +21,18 @@ export function useAmount(): (quantity: number, unit: DisplayUnit) => string {
           form: quantity < 1 ? 'part' : 'whole',
         })
       : t(`amount.${unit}`, { count: quantity });
+}
+
+/**
+ * An amount as the API shows it, with what its pieces weigh beside it where it is in pieces of
+ * what is counted: "2 eggs (110 g)". A piece is an average: one who weighs knows how much.
+ */
+export function useShownAmount(): (shown: DisplayAmount) => string {
+  const amount = useAmount();
+  return (shown) =>
+    shown.grams === undefined
+      ? amount(shown.quantity, shown.unit)
+      : `${amount(shown.quantity, shown.unit)} (${amount(shown.grams, 'g')})`;
 }
 
 /** A number of teaspoons as a cook writes it: ¼, ½, 1½, 2. */

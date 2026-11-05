@@ -17,7 +17,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LabelGrid, LabelLegend, LabelLine } from '@/components/label-figures';
-import { useAmount } from '@/lib/ingredient-format';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -112,7 +112,7 @@ export function RecipeView({
   const tCuisine = useTranslations('enums.cuisine');
   const fmt = useFormat();
   const errorText = useErrorText();
-  const amount = useAmount();
+  const shownAmount = useShownAmount();
   const qc = useQueryClient();
 
   const profiles = useQuery({
@@ -330,7 +330,7 @@ export function RecipeView({
                     {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {amount(i.display.quantity, i.display.unit)}
+                    {shownAmount(i.display)}
                   </span>
                   {activePrefsProfile && (
                     <span className="flex items-center gap-1">

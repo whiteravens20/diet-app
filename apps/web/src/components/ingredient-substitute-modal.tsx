@@ -21,7 +21,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { AiOffNote } from '@/components/ai-off-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAmount } from '@/lib/ingredient-format';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { Dialog } from '@/components/ui/dialog';
 import { CookingNote } from '@/app/(app)/meal-plans/cooking';
@@ -65,7 +65,7 @@ export function IngredientSubstituteModal({
   const tPickers = useTranslations('pickers');
   const tProf = useTranslations('profileSummary');
   const tFallback = useTranslations('aiFallback');
-  const amount = useAmount();
+  const shownAmount = useShownAmount();
   const [fromId, setFromId] = useState<string | null>(null);
   const [toId, setToId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -222,7 +222,7 @@ export function IngredientSubstituteModal({
                   >
                     <span>{i.name}</span>
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {amount(i.display.quantity, i.display.unit)}
+                      {shownAmount(i.display)}
                     </span>
                   </button>
                 </li>
@@ -347,15 +347,9 @@ export function IngredientSubstituteModal({
               <>
                 <p className="text-xs text-muted-foreground">
                   {t(`sizing.${preview.data.sizing}`, {
-                    fromAmount: amount(
-                      preview.data.from.display.quantity,
-                      preview.data.from.display.unit,
-                    ),
+                    fromAmount: shownAmount(preview.data.from.display),
                     fromName: preview.data.from.name,
-                    toAmount: amount(
-                      preview.data.to.display.quantity,
-                      preview.data.to.display.unit,
-                    ),
+                    toAmount: shownAmount(preview.data.to.display),
                     toName: preview.data.to.name,
                   })}
                 </p>

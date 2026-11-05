@@ -3,10 +3,10 @@
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
-import type { DisplayUnit } from '@diet-app/shared';
+import type { DisplayAmount, DisplayUnit } from '@diet-app/shared';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
-import { useAmount } from './ingredient-format';
+import { useAmount, useShownAmount } from './ingredient-format';
 
 function Shown({ quantity, unit }: { quantity: number; unit: DisplayUnit }) {
   return <p>{useAmount()(quantity, unit)}</p>;
@@ -40,5 +40,32 @@ describe('an amount measured with a spoon', () => {
     expect(shown(1, 'pinch', 'pl')).toBe('1 szczypta');
     expect(shown(3, 'pinch', 'pl')).toBe('3 szczypty');
     expect(shown(2, 'pinch', 'en')).toBe('2 pinches');
+  });
+});
+
+function WithWeight({ amount }: { amount: DisplayAmount }) {
+  return <p>{useShownAmount()(amount)}</p>;
+}
+
+describe('an amount shown in pieces', () => {
+  const read = (amount: DisplayAmount, locale: 'en' | 'pl'): string => {
+    const { unmount } = render(
+      <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pl}>
+        <WithWeight amount={amount} />
+      </NextIntlClientProvider>,
+    );
+    const text = screen.getByRole('paragraph').textContent ?? '';
+    unmount();
+    return text;
+  };
+
+  it('has what its pieces weigh beside it, where the API gives it', () => {
+    expect(read({ quantity: 2, unit: 'piece', grams: 110 }, 'pl')).toBe('2 sztuki (110 g)');
+    expect(read({ quantity: 2, unit: 'slice', grams: 80 }, 'en')).toBe('2 slices (80 g)');
+  });
+
+  it('stays as it is by weight, and where a piece has no weight', () => {
+    expect(read({ quantity: 120, unit: 'g' }, 'en')).toBe('120 g');
+    expect(read({ quantity: 1, unit: 'piece' }, 'en')).toBe('1 piece');
   });
 });

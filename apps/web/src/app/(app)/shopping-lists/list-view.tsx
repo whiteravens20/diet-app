@@ -19,6 +19,7 @@ import { useFormat } from '@/lib/use-format';
 import { AiOffNote } from '@/components/ai-off-note';
 import { ListProposals } from './list-proposals';
 import { packsStand, packsText } from './packs';
+import { rowAmount } from './row-amount';
 
 export function ListView({
   profileId,
@@ -130,7 +131,7 @@ export function ListView({
           // What is sold in packs says how many, for whoever stands at the shelf.
           ...left.map(
             (item) =>
-              `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`,
+              `- ${item.name}: ${rowAmount(stillToBuy(item), item, formatQty)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`,
           ),
         ]),
     ].join('\n');
@@ -486,7 +487,7 @@ function ItemRow({
         )}
       </span>
       <span className="tabular-nums text-muted-foreground">
-        {formatQty(remainingToBuy, item.displayUnit)}
+        {rowAmount(remainingToBuy, item, formatQty)}
         {showOfTotal && (
           <span className="ml-1 text-xs">
             {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
