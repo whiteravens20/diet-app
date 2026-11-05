@@ -206,7 +206,7 @@ is something an administrator does, in the panel:
 3. (Optional) Add public-domain whole foods with the panel's **USDA importer**:
    choose the data sets and click **Run import**. **Foundation** brings about 330
    clean generic foods, some 260 of which the catalogue does not hold already.
-   Without an import, only the hand-curated baseline (95 ingredients) seeds. The
+   Without an import, only the hand-curated baseline (96 ingredients) seeds. The
    public demonstration key allows a few requests an hour, enough for Foundation
    at most; a free key of your own goes in `FDC_API_KEY` in `.env`. See
    [data/README.md](data/README.md#choosing-fdc_data_types) before adding

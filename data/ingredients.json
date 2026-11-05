@@ -313,7 +313,28 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
-    "importedAs": ["tomato-roma", "tomatoes-grape-raw"]
+    "importedAs": ["tomato-roma"]
+  },
+  {
+    "slug": "cherry-tomatoes",
+    "name": { "en": "Cherry tomatoes", "pl": "Pomidorki koktajlowe" },
+    "category": "vegetables",
+    "canonicalUnit": "g",
+    "caloriesPer100": 18,
+    "proteinPer100": 0.9,
+    "fatPer100": 0.2,
+    "carbsPer100": 3.9,
+    "fiberPer100": 1.2,
+    "sugarsPer100": 2.6,
+    "saltPer100": 0.01,
+    "saturatedFatPer100": 0,
+    "gramsPerPiece": 17,
+    "allergens": [],
+    "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
+    "tags": [],
+    "packSize": 250,
+    "perishable": true,
+    "importedAs": ["tomatoes-grape-raw"]
   },
   {
     "slug": "onion",

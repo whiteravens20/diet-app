@@ -110,8 +110,8 @@ The figures of the ingredients below are those of
 (canned black beans of its Foundation set, which has them drained), each by the
 id of its food there. What is measured in millilitres was worked
 out from the figures of 100 g and from what the database says a cup of the food
-weighs; the weight of a lemon, of a lime and of a slice of rye bread are the
-database's as well.
+weighs; the weight of a lemon, of a lime, of a cherry tomato and of a slice of
+rye bread are the database's as well.
 
 | Ingredient            | FDC id  | The food in the database                                                            |
 | --------------------- | ------- | ----------------------------------------------------------------------------------- |
@@ -176,6 +176,7 @@ database's as well.
 | `broccoli`            | 170379  | Broccoli, raw                                                                       |
 | `spinach`             | 168462  | Spinach, raw                                                                        |
 | `tomato`              | 170457  | Tomatoes, red, ripe, raw, year round average                                        |
+| `cherry-tomatoes`     | 170457  | Tomatoes, red, ripe, raw, year round average                                        |
 | `onion`               | 170000  | Onions, raw                                                                         |
 | `bell-pepper`         | 170108  | Peppers, sweet, red, raw                                                            |
 | `carrot`              | 170393  | Carrots, raw                                                                        |
@@ -212,7 +213,9 @@ database's as well.
 
 The figures of five of them differ from those of their food in the database more than rounding
 explains, as it is the nearest food of the same kind there: `cheddar-cheese`, `whole-grain-bread`,
-`bell-pepper`, `peanut-butter` and `tortilla-wrap`.
+`bell-pepper`, `peanut-butter` and `tortilla-wrap`. SR Legacy has no food of cherry tomatoes of
+their own: it gives them as a portion of red tomatoes (`1 cherry`, 17 g), so `cherry-tomatoes` has
+the figures of that food.
 
 Curd cheese (`curd-cheese`, twaróg półtłusty) is not in that database. Its
 figures are those of the Polish tables of the composition of food, as the
@@ -411,12 +414,13 @@ The catalogue leaves those rows out, and a recipe that names one of them means
 the curated ingredient. Name a food only when it is the same in the form the
 curated row describes: raw for raw, canned for canned. A stage of ripeness or of
 harvest is the same food (overripe bananas, baby spinach), and so is a variety
-of a fruit or a vegetable whose plain kind the catalogue holds: Fuji apples,
-russet potatoes, Roma tomatoes, crimini mushrooms. Onions and peppers of another
-colour stay foods of their own, as do another cut (a chicken breast with its
-skin) and another fat level (milk at 2 %). `npm run data:lint` says how many
-foods of an import were left out so, and refuses a name that is an ingredient of
-the curated file or that two of them claim.
+of a fruit or a vegetable, named by the nearest kind the catalogue holds: Fuji
+apples by apples, grape tomatoes by cherry tomatoes, crimini mushrooms by
+mushrooms. Onions and peppers of another colour stay foods of their own, as do
+another cut (a chicken breast with its skin) and another fat level
+(milk at 2 %). `npm run data:lint` says how many foods of an import were left
+out so, and refuses a name that is an ingredient of the curated file or that two
+of them claim.
 
 If a specific worldwide staple is missing (miso, tahini, plantain, kefir,
 specific European fish), add it to `ingredients.json` rather than enabling
