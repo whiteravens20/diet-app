@@ -52,7 +52,7 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
   };
 
   describe('somebody whose calculated target is the floor', () => {
-    // 70 years, 155 cm, 55 kg, sedentary: maintenance 1210, the floor for a woman 1200.
+    // 70 years, 155 cm, 55 kg, sedentary: maintenance 1411; a kilogram a week, capped at a quarter of it, would leave 1058, under the floor for a woman, 1200.
     const onTheFloor = () =>
       aProfile(t, user, {
         age: 70,
@@ -65,10 +65,10 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
 
     it('is told the real deficit, that the pace was slowed and that the floor was applied', async () => {
       expect(await calories(await onTheFloor())).toMatchObject({
-        maintenance: 1210,
+        maintenance: 1411,
         dailyTarget: 1200,
         requestedDeficit: 1100,
-        dailyDeficit: 10,
+        dailyDeficit: 211,
         safetyFloor: 1200,
         deficitCapped: true,
         safetyFloorApplied: true,

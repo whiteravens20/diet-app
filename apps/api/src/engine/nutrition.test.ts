@@ -100,8 +100,9 @@ describe('calculateBmr (Mifflin-St Jeor)', () => {
 
 describe('calculateMaintenance', () => {
   it('applies the activity multiplier', () => {
-    expect(calculateMaintenance(1780, 'moderate')).toBe(2759); // 1780 * 1.55
-    expect(calculateMaintenance(1780, 'sedentary')).toBe(2136); // 1780 * 1.2
+    // EFSA's levels of physical activity: a sedentary life 1.4, a moderately active one 1.6.
+    expect(calculateMaintenance(1780, 'moderate')).toBe(2848); // 1780 * 1.6
+    expect(calculateMaintenance(1780, 'sedentary')).toBe(2492); // 1780 * 1.4
   });
 });
 
@@ -145,12 +146,12 @@ describe('calculateCalories', () => {
     const balanced = calculateCalories(person()).targetMacros;
 
     expect(calculateCalories(person({ dietType: 'custom' })).targetMacros).toEqual(balanced);
-    // 2,209 kcal: 30 % and 30 % at four a gram, 40 % at nine.
+    // 2,298 kcal: 30 % and 30 % at four a gram, 40 % at nine.
     expect(
       calculateCalories(
         person({ dietType: 'custom', customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }),
       ).targetMacros,
-    ).toEqual({ protein: 166, fat: 98, carbs: 166 });
+    ).toEqual({ protein: 172, fat: 102, carbs: 172 });
     // The split is the custom diet's: it changes nothing for somebody on another.
     expect(
       calculateCalories(person({ customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }))
@@ -162,10 +163,10 @@ describe('calculateCalories', () => {
     const r = calculateCalories(person());
 
     expect(r).toMatchObject({
-      maintenance: 2759,
+      maintenance: 2848,
       requestedDeficit: 550,
       dailyDeficit: 550,
-      dailyTarget: 2209,
+      dailyTarget: 2298,
       source: 'calculated',
       safetyFloor: 1500,
       deficitCapped: false,
@@ -177,7 +178,7 @@ describe('calculateCalories', () => {
   });
 
   it('slows a pace that asks for more than a quarter of maintenance, and says so', () => {
-    // 190 cm, 113 kg, sedentary, sex not given: BMR 2090, maintenance 2508. A kilogram a week asks for 1100.
+    // 190 cm, 113 kg, sedentary, sex not given: BMR 2090, maintenance 2926. A kilogram a week asks for 1100.
     const r = calculateCalories(
       person({
         sex: null,
@@ -189,33 +190,34 @@ describe('calculateCalories', () => {
     );
 
     expect(r).toMatchObject({
-      maintenance: 2508,
+      maintenance: 2926,
       requestedDeficit: 1100,
-      dailyDeficit: 627,
-      dailyTarget: 1881,
+      dailyDeficit: 732,
+      dailyTarget: 2194,
       deficitCapped: true,
       safetyFloorApplied: false,
     });
-    // Without the limit the target would have been 56 % of maintenance.
+    // Without the limit the target would have been 62 % of maintenance.
     expect(r.dailyTarget / r.maintenance).toBeCloseTo(0.75, 2);
   });
 
   it('never goes under the floor, and the deficit it reports is the real one', () => {
-    // BMR 1239, maintenance 1487; a quarter of it would leave 1115.
+    // 60 years, 150 cm, 50 kg: BMR 977, maintenance 1368; a quarter of it would leave 1026.
     const r = calculateCalories(
       person({
+        age: 60,
         sex: 'female',
-        heightCm: 160,
-        weightKg: 55,
+        heightCm: 150,
+        weightKg: 50,
         activityLevel: 'sedentary',
         weeklyLossTarget: '1.0',
       }),
     );
 
     expect(r).toMatchObject({
-      maintenance: 1487,
+      maintenance: 1368,
       dailyTarget: 1200,
-      dailyDeficit: 287,
+      dailyDeficit: 168,
       requestedDeficit: 1100,
       safetyFloor: 1200,
       safetyFloorApplied: true,
@@ -225,7 +227,7 @@ describe('calculateCalories', () => {
   });
 
   it('never goes above maintenance: where maintenance is under the floor, no loss is planned', () => {
-    // BMR 827, maintenance 992.
+    // BMR 827, maintenance 1158.
     for (const weeklyLossTarget of [null, '0.25', '0.5'] as const) {
       const r = calculateCalories(
         person({
@@ -239,8 +241,8 @@ describe('calculateCalories', () => {
       );
 
       expect(r).toMatchObject({
-        maintenance: 992,
-        dailyTarget: 992,
+        maintenance: 1158,
+        dailyTarget: 1158,
         dailyDeficit: 0,
         maintenanceUnderFloor: true,
         safetyFloorApplied: false,
@@ -252,10 +254,40 @@ describe('calculateCalories', () => {
     expect(calculateCalories(person({ manualCalorieTarget: 1800 }))).toMatchObject({
       dailyTarget: 1800,
       source: 'manual_override',
-      dailyDeficit: 959,
+      dailyDeficit: 1048,
       warnings: [],
     });
-    expect(calculateCalories(person({ manualCalorieTarget: 3000 })).dailyDeficit).toBe(-241);
+    expect(calculateCalories(person({ manualCalorieTarget: 3000 })).dailyDeficit).toBe(-152);
+  });
+
+  it('never calculates a target under what the body uses at rest, however fast the pace', () => {
+    // A sedentary life is maintenance 1.4 times the resting figure, and a pace takes at most a quarter of it.
+    for (const sex of ['male', 'female', null] as const)
+      for (const weeklyLossTarget of ['0.25', '0.5', '0.75', '1.0'] as const)
+        for (const [heightCm, weightKg] of [
+          [160, 55],
+          [175, 80],
+          [190, 91],
+          [190, 130],
+        ] as const) {
+          const r = calculateCalories(
+            person({ sex, heightCm, weightKg, activityLevel: 'sedentary', weeklyLossTarget }),
+          );
+          expect(
+            r.dailyTarget,
+            `${sex} ${heightCm} cm ${weightKg} kg ${weeklyLossTarget}`,
+          ).toBeGreaterThanOrEqual(r.bmr);
+          expect(r.warnings).not.toContain('below_bmr');
+        }
+  });
+
+  it('plans a sedentary man of 190 cm and 91 kg losing half a kilogram a week on 2135 kcal', () => {
+    // Told 1752 kcal under the old factor of 1.2, under his resting 1918.
+    expect(
+      calculateCalories(
+        person({ age: 37, heightCm: 190, weightKg: 91, activityLevel: 'sedentary' }),
+      ),
+    ).toMatchObject({ bmr: 1918, maintenance: 2685, dailyTarget: 2135, dailyDeficit: 550 });
   });
 
   it('flags a typed target under the floor or under what the body uses at rest', () => {

@@ -19,11 +19,11 @@ export type Sex = z.infer<typeof Sex>;
 
 /** Physical Activity Level — maps to a maintenance-calorie multiplier. */
 export const ActivityLevel = z.enum([
-  'sedentary', // 1.2  — little/no exercise
-  'light', // 1.375 — 1-3 days/week
-  'moderate', // 1.55  — 3-5 days/week
-  'active', // 1.725 — 6-7 days/week
-  'very_active', // 1.9   — hard daily training / physical job
+  'sedentary', // 1.4 — a desk and little movement besides
+  'light', // 1.5 — light exercise or long walks 1-3 days a week
+  'moderate', // 1.6 — exercise 3-5 days a week
+  'active', // 1.8 — hard exercise 6-7 days a week
+  'very_active', // 2.0 — a physical job or training twice a day
 ]);
 export type ActivityLevel = z.infer<typeof ActivityLevel>;
 

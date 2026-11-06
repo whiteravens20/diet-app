@@ -411,18 +411,18 @@ describe('the calorie target that figures somebody typed would come to', () => {
   it('is worked out as a profile with them would have it, and nothing is kept', async () => {
     const answer = (await preview(TYPED).expect(200)).body.calculation;
 
-    // A basal rate of 1,780 kcal, half as much again and a little more for moderate activity, less the 550 a day that half a kilogram a week takes.
+    // A basal rate of 1,780 kcal, three fifths more for moderate activity, less the 550 a day that half a kilogram a week takes.
     expect(answer).toMatchObject({
       bmr: 1780,
-      maintenance: 2759,
+      maintenance: 2848,
       requestedDeficit: 550,
-      dailyTarget: 2209,
+      dailyTarget: 2298,
       source: 'calculated',
       goalHeld: false,
       warnings: [],
     });
-    // A quarter, three tenths and the rest of 2,209 kcal: the balanced diet, which a new profile begins with.
-    expect(answer.targetMacros).toEqual({ protein: 138, fat: 74, carbs: 249 });
+    // A quarter, three tenths and the rest of 2,298 kcal: the balanced diet, which a new profile begins with.
+    expect(answer.targetMacros).toEqual({ protein: 144, fat: 77, carbs: 259 });
     expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(0);
 
     const made: Profile = (
@@ -447,9 +447,9 @@ describe('the calorie target that figures somebody typed would come to', () => {
     expect(
       answer.paces.map((pace: { weeklyLossTarget: string | null }) => pace.weeklyLossTarget),
     ).toEqual([null, '0.25', '0.5', '0.75', '1.0']);
-    // 275 kcal a day for each quarter of a kilogram a week, and never more than a quarter of maintenance: 690 kcal.
+    // 275 kcal a day for each quarter of a kilogram a week, and never more than a quarter of maintenance: 712 kcal.
     expect(answer.paces.map((pace: { dailyTarget: number }) => pace.dailyTarget)).toEqual([
-      2759, 2484, 2209, 2069, 2069,
+      2848, 2573, 2298, 2136, 2136,
     ]);
     expect(answer.paces.map((pace: { deficitCapped: boolean }) => pace.deficitCapped)).toEqual([
       false,
@@ -476,12 +476,12 @@ describe('the calorie target that figures somebody typed would come to', () => {
     const own = (await preview({ ...TYPED, manualCalorieTarget: 1900 }).expect(200)).body
       .calculation;
 
-    // Sedentary: 1,780 kcal and a fifth. No pace: nothing is taken away.
+    // Sedentary: 1,780 kcal and two fifths. No pace: nothing is taken away.
     expect(paced).toMatchObject({
-      maintenance: 2136,
+      maintenance: 2492,
       dailyDeficit: 0,
-      dailyTarget: 2136,
-      targetMacros: { protein: 160, fat: 95, carbs: 160 },
+      dailyTarget: 2492,
+      targetMacros: { protein: 187, fat: 111, carbs: 187 },
     });
     expect(own).toMatchObject({ dailyTarget: 1900, source: 'manual_override' });
   });

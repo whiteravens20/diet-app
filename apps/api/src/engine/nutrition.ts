@@ -18,13 +18,21 @@ import {
   type Sex,
 } from '@diet-app/shared';
 
-/** Mifflin-St Jeor activity multipliers (BMR → TDEE / maintenance). */
+/**
+ * The physical activity levels that turn the resting figure into maintenance:
+ * those of EFSA's reference values for energy (2013), resting energy times
+ * 1.4 for a sedentary (low active) life, 1.6 moderately active, 1.8 active and
+ * 2.0 very active, with light activity between the first two. FAO/WHO/UNU
+ * (2004) give 1.40–1.69 for a sedentary or light lifestyle. The old
+ * calculators' 1.2 describes somebody who hardly moves at all, and planned a
+ * sedentary person's loss on a maintenance a seventh too low.
+ */
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  very_active: 1.9,
+  sedentary: 1.4,
+  light: 1.5,
+  moderate: 1.6,
+  active: 1.8,
+  very_active: 2.0,
 };
 
 /** Energy density of body fat — 1 kg ≈ 7700 kcal. */
