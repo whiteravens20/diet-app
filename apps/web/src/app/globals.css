@@ -247,6 +247,17 @@ body {
 }
 
 /*
+ * A box to tick and its words take a finger on a touch screen, however short the words: 44 px, the
+ * least a finger hits at the first try. The rule stands outside the layers on purpose, so that a
+ * row's own smaller height (`min-h-6`) gives way to it where there is no mouse.
+ */
+@media (pointer: coarse) {
+  label:has(input[type='checkbox']) {
+    min-height: 2.75rem;
+  }
+}
+
+/*
  * A window over the page comes in with a short fade, for those who have not
  * asked their system for less motion.
  */

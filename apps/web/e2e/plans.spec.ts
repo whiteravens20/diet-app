@@ -582,3 +582,28 @@ test.describe('a long plan', () => {
     expect((await gone).status()).toBe(204);
   });
 });
+
+test.describe('a box to tick on a touch screen', () => {
+  test('takes a finger with its words, however short they are', async ({
+    session,
+    messages,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.use.hasTouch,
+      'A row is held to a finger only where there is no mouse.',
+    );
+    const page = session.page;
+    await page.goto('/meal-plans');
+    await settled(page);
+    await theFormForAPlan(page, messages);
+
+    const rows = page.locator('label:has(input[type="checkbox"])');
+    await expect(rows.first()).toBeVisible();
+    const short: string[] = [];
+    for (const row of await rows.all()) {
+      const box = (await row.isVisible()) ? await row.boundingBox() : null;
+      if (box && box.height < 44) short.push(`${(await row.innerText()).trim()}: ${box.height} px`);
+    }
+    expect(short).toEqual([]);
+  });
+});

@@ -465,27 +465,30 @@ function ItemRow({
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
-      {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
-      <input
-        type="checkbox"
-        aria-label={item.name}
-        className="h-4 w-4 shrink-0"
-        checked={item.checked}
-        disabled={locked}
-        onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
-      />
-      <span
-        className={
-          item.checked ? 'min-w-32 flex-1 text-muted-foreground line-through' : 'min-w-32 flex-1'
-        }
-      >
-        {item.name}
-        {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
-          <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
-            {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
-          </span>
-        )}
-      </span>
+      {/* The name ticks the row as the box does, as a row of a list is ticked on a phone. */}
+      <label className="flex min-w-32 flex-1 items-center gap-x-3">
+        {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
+        <input
+          type="checkbox"
+          aria-label={item.name}
+          className="h-4 w-4 shrink-0"
+          checked={item.checked}
+          disabled={locked}
+          onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
+        />
+        <span
+          className={
+            item.checked ? 'min-w-0 flex-1 text-muted-foreground line-through' : 'min-w-0 flex-1'
+          }
+        >
+          {item.name}
+          {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
+            <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
+              {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+            </span>
+          )}
+        </span>
+      </label>
       <span className="tabular-nums text-muted-foreground">
         {rowAmount(remainingToBuy, item, formatQty)}
         {showOfTotal && (

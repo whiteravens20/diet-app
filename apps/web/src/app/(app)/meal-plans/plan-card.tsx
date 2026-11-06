@@ -624,19 +624,22 @@ export function PlanCard({
                     >
                       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
                         <span className="flex min-w-0 flex-1 basis-64 items-start gap-2 break-words">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 h-4 w-4 shrink-0"
+                          {/* The box takes a finger beyond its edge, without moving what stands beside it. */}
+                          <label className="-m-2.5 flex shrink-0 p-2.5">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 shrink-0"
 
-                            checked={eaten}
-                            disabled={busy || (!eaten && day.date > today)}
-                            aria-label={named(t('markEaten'))}
-                            title={!eaten && day.date > today ? t('eatenAhead') : t('markEaten')}
-                            onChange={() => {
-                              changing.current = mealAnchor(m.id);
-                              onToggleEaten(m.id, !m.eatenAt);
-                            }}
-                          />
+                              checked={eaten}
+                              disabled={busy || (!eaten && day.date > today)}
+                              aria-label={named(t('markEaten'))}
+                              title={!eaten && day.date > today ? t('eatenAhead') : t('markEaten')}
+                              onChange={() => {
+                                changing.current = mealAnchor(m.id);
+                                onToggleEaten(m.id, !m.eatenAt);
+                              }}
+                            />
+                          </label>
                           <span className="min-w-0">
                             <span className="text-muted-foreground">{mealLabel}</span>
                             <span aria-hidden className="hidden sm:inline">
