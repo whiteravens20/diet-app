@@ -8,11 +8,11 @@ import { FIRST_DAY } from './constants.js';
  *
  * The entries are listed as they were logged, and by day as a chart draws
  * them (`WeightDay`): each day's weight and the mean of the seven days that
- * end with it, worked out by the API for the client's time zone. The delta
- * against `Profile.weightKg` is the client's to show. `Profile.weightKg` is the weight the profile registered:
- * the calorie calculation takes it as the current body weight, and it is not
- * a target. Nothing is precomputed server-side, so an edit / delete is
- * visible immediately.
+ * end with it, worked out by the API for the client's time zone. The newest
+ * entry is the profile's weight (`Profile.weightKg`), which the calorie
+ * calculation takes as the current body weight; removing it gives the profile
+ * the entry before it. Nothing is precomputed server-side, so an edit / delete
+ * is visible immediately.
  */
 
 /**

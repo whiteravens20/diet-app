@@ -9377,7 +9377,7 @@
           "weights"
         ],
         "summary": "Note a weight of a profile, taken at most a year before.",
-        "description": "Note a weight of a profile, taken at most a year before. A day in UTC holds at most ten weights of a profile. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing.\n\nAsked by an account.",
+        "description": "Note a weight of a profile, taken at most a year before. The newest weight noted is the profile's weight, which its calorie target is worked out from. A day in UTC holds at most ten weights of a profile. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request noted and notes nothing.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -9430,7 +9430,7 @@
           "weights"
         ],
         "summary": "Remove a noted weight.",
-        "description": "Remove a noted weight.\n\nAsked by an account.",
+        "description": "Remove a noted weight. Removing the newest gives the profile the weight noted before it, where there is one.\n\nAsked by an account.",
         "security": [
           {
             "account": []

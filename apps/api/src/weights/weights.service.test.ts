@@ -18,6 +18,7 @@ function makePrisma(profileOwner: string | null = 'user-1') {
       findUnique: vi
         .fn()
         .mockResolvedValue(profileOwner === null ? null : { userId: profileOwner }),
+      update: vi.fn().mockResolvedValue({}),
     },
     weightEntry: {
       findMany: vi.fn().mockResolvedValue([
@@ -36,6 +37,9 @@ function makePrisma(profileOwner: string | null = 'user-1') {
         ),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       count: vi.fn().mockResolvedValue(0),
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({ profileId: 'p1', recordedAt: new Date('2026-06-01'), kg: 80 }),
     },
   };
   return prisma;

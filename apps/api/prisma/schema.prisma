@@ -311,10 +311,10 @@ model Profile {
   @@index([userId])
 }
 
-// Raw weight log. The dashboard chart, 7-day moving average and the
-// reference line against Profile.weightKg are all derived from these rows
-// client-side — no precomputed aggregates so a corrected entry is
-// instantly reflected.
+// Raw weight log. The dashboard chart and its 7-day moving average are
+// derived from these rows — no precomputed aggregates so a corrected entry is
+// instantly reflected. The newest row is the profile's weight
+// (Profile.weightKg).
 model WeightEntry {
   id         String   @id @default(uuid())
   profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)

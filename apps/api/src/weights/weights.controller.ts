@@ -69,10 +69,11 @@ export class WeightsController {
   }
 
   /**
-   * Note a weight of a profile, taken at most a year before. A day in UTC holds
-   * at most ten weights of a profile. Sent again with the same
-   * `Idempotency-Key` within a week, it is answered with the entry the first
-   * request noted and notes nothing.
+   * Note a weight of a profile, taken at most a year before. The newest weight
+   * noted is the profile's weight, which its calorie target is worked out
+   * from. A day in UTC holds at most ten weights of a profile. Sent again with
+   * the same `Idempotency-Key` within a week, it is answered with the entry
+   * the first request noted and notes nothing.
    */
   @Post()
   @Answers(WeightEntry)
@@ -85,7 +86,7 @@ export class WeightsController {
     return this.weights.create(user.id, profileId, body, key);
   }
 
-  /** Remove a noted weight. */
+  /** Remove a noted weight. Removing the newest gives the profile the weight noted before it, where there is one. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {

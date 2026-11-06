@@ -26,7 +26,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Per-profile weight log: the entries as they were logged, and by day as the
  * dashboard's chart draws them with the mean of each seven days. Nothing is
  * kept of the days: they are worked out from the entries at every request,
- * so a corrected entry shows at once.
+ * so a corrected entry shows at once. The newest entry is the profile's
+ * weight, which its calorie target is worked out from: a loss is planned on
+ * the body as it is now, not as it was when the profile was made.
  */
 @Injectable()
 export class WeightsService {
@@ -121,6 +123,12 @@ export class WeightsService {
           const noted = await tx.weightEntry.create({
             data: { profileId, kg: input.kg, recordedAt },
           });
+          // The newest weight is the profile's; one logged for an earlier day changes nothing of it.
+          const newer = await tx.weightEntry.count({
+            where: { profileId, recordedAt: { gt: recordedAt } },
+          });
+          if (newer === 0)
+            await tx.profile.update({ where: { id: profileId }, data: { weightKg: input.kg } });
           await keep(tx, noted.id);
           return noted;
         });
@@ -130,16 +138,35 @@ export class WeightsService {
     });
   }
 
+  /**
+   * Remove an entry. Removing the newest gives the profile the weight of the
+   * one before it, where there is one; with none left the profile keeps the
+   * weight it has.
+   */
   async remove(userId: string, id: string): Promise<void> {
-    // An entry of somebody else's profile is answered as one that is not there.
-    const removed = await this.prisma.weightEntry.deleteMany({
-      where: { id, profile: { userId } },
-    });
-    if (removed.count === 0)
-      throw new NotFoundException({
+    const notFound = () =>
+      new NotFoundException({
         error: 'WEIGHT_ENTRY_NOT_FOUND',
         message: 'Weight entry not found.',
       });
+    await this.prisma.$transaction(async (tx) => {
+      // An entry of somebody else's profile is answered as one that is not there.
+      const entry = await tx.weightEntry.findFirst({
+        where: { id, profile: { userId } },
+        select: { profileId: true, recordedAt: true },
+      });
+      if (!entry) throw notFound();
+      await holdProfile(tx, entry.profileId);
+      const removed = await tx.weightEntry.deleteMany({ where: { id, profile: { userId } } });
+      if (removed.count === 0) throw notFound();
+      const newest = await tx.weightEntry.findFirst({
+        where: { profileId: entry.profileId },
+        orderBy: { recordedAt: 'desc' },
+        select: { kg: true, recordedAt: true },
+      });
+      if (newest && newest.recordedAt <= entry.recordedAt)
+        await tx.profile.update({ where: { id: entry.profileId }, data: { weightKg: newest.kg } });
+    });
   }
 
   /** A noted weight of one of the user's profiles, as it is now. */
