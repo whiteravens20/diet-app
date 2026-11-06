@@ -14,11 +14,6 @@ import {
   readImportAliases,
 } from '../src/admin/drafts/external/import-aliases.js';
 import { en, readCatalogue } from '../src/admin/seed/catalogue.js';
-import {
-  listedButNotUsed,
-  namedButNotListed,
-  namedByOneWord,
-} from '../src/admin/drafts/recipe-generator.validate.js';
 import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
 import { givenAsCookedMeat, MOST_PROTEIN_OF_RAW_MEAT } from '../src/admin/seed/raw-meat.js';
 import {
@@ -28,6 +23,11 @@ import {
   recipesPerDietAndMeal,
 } from '../src/engine/coverage.js';
 import { macroSplitOf } from '../src/engine/nutrition.js';
+import {
+  listedButNotUsed,
+  namedButNotListed,
+  namedByOneWord,
+} from '../src/recipes/model-recipe-rules.js';
 import { plannable } from './catalogue-plans.js';
 
 const dataDir = join(__dirname, '../../../data');
