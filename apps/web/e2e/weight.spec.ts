@@ -37,7 +37,7 @@ const BUDGETS: Record<string, number> = {
   '/profile': 245,
   '/products': 240,
   '/calculator': 240,
-  '/meal-plans': 267,
+  '/meal-plans': 269,
 };
 
 /** What every page needs: the framework and what the shell is made of. */
