@@ -64,6 +64,26 @@ function draft(
   return recipe;
 }
 
+/** A draft of three offered ingredients weighed in grams, as much of each, holding `kcal` in all. */
+function withCalories(request: ModelRequest, kcal: number): Record<string, unknown> {
+  const weighed = offeredLines(request)
+    .map((line) => ({
+      slug: line.slice(2, line.indexOf(':')),
+      per100: /per 100 g: (\d+) kcal/.exec(line),
+    }))
+    .filter((line) => line.per100 !== null && Number(line.per100[1]) > 0)
+    .slice(0, 3);
+  const grams = kcal / weighed.reduce((sum, line) => sum + Number(line.per100![1]) / 100, 0);
+  return draft(request, {
+    ingredients: weighed.map((line) => ({
+      slug: line.slug,
+      quantity: grams,
+      unit: 'g',
+      note: null,
+    })),
+  });
+}
+
 /** Every line of a draft with another quantity. */
 const withQuantity = (request: ModelRequest, quantity: number): Record<string, unknown> =>
   draft(request, {
@@ -548,6 +568,20 @@ describe('drafting a recipe with a model', () => {
       expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_TARGET' });
     });
 
+    it('refuses a draft more than a fifth away from the calories asked for, and keeps one within it', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(withCalories(request, 650)) });
+      expect(await refusal(ask({ kcalTarget: 500 }))).toMatchObject({
+        status: 400,
+        error: 'AI_DRAFT_OFF_TARGET',
+      });
+      expect(await stored()).toBe(0);
+
+      t.model.reply({ text: (request) => JSON.stringify(withCalories(request, 580)) });
+      const { recipe } = await ask({ kcalTarget: 500 });
+      expect(recipe.nutritionPerServing.calories).toBeGreaterThan(560);
+      expect(recipe.nutritionPerServing.calories).toBeLessThan(600);
+    });
+
     it('takes a pot for six with more of an ingredient than one serving could hold', async () => {
       // 3 kg of one thing is 500 g a head: a line is judged by the serving, not by the pot.
       t.model.reply({
@@ -612,6 +646,109 @@ describe('drafting a recipe with a model', () => {
 
       expect(recipe.title).toBe('Two line title');
       expect(recipe.ingredients.map((line) => line.note)).toEqual([null, null, null]);
+    });
+  });
+
+  describe('a draft that does not keep to what was asked, or to the rules of a recipe a model writes', () => {
+    /** An ingredient of the catalogue called by one word that the draft does not list. */
+    const notListed = (request: ModelRequest): string =>
+      ['salmon', 'broccoli', 'banana', 'tomato', 'chickpeas'].find(
+        (slug) => !offered(request).slice(0, 3).includes(slug),
+      )!;
+
+    it.each<
+      [
+        string,
+        Partial<AiDraftRecipeRequest>,
+        Locale,
+        (request: ModelRequest) => Record<string, unknown>,
+      ]
+    >([
+      [
+        'is for another meal than the one asked for',
+        { mealType: 'dinner' },
+        'en',
+        (r) => draft(r, { mealTypes: ['breakfast'] }),
+      ],
+      [
+        'is a main dish and a small one at once',
+        {},
+        'en',
+        (r) => draft(r, { mealTypes: ['lunch', 'snack'] }),
+      ],
+      ['names a diet in its title', {}, 'en', (r) => draft(r, { title: 'Healthy scripted bowl' })],
+      [
+        'names an ingredient its list does not hold',
+        {},
+        'en',
+        (r) => draft(r, { description: `A bowl to have with ${notListed(r)}.` }),
+      ],
+      [
+        'lists an ingredient no step uses',
+        {},
+        'en',
+        (r) =>
+          draft(r, {
+            steps: [`Cook the ${englishName(r, offered(r)[0]!).toLowerCase()}.`, 'Serve.'],
+          }),
+      ],
+      [
+        'takes longer than was asked for',
+        { prepTimeMaxMinutes: 20 },
+        'en',
+        (r) => draft(r, { prepMinutes: 10, cookMinutes: 15 }),
+      ],
+      [
+        'has more steps in one language than in another',
+        {},
+        'pl',
+        (r) => {
+          const one = draft(r);
+          return {
+            ...one,
+            title: undefined,
+            description: undefined,
+            titles: { en: 'Scripted bowl', pl: 'Miska ze skryptu' },
+            descriptions: { en: 'A bowl.', pl: 'Miska.' },
+            steps: {
+              en: [...(one.steps as string[]), 'Garnish and serve.'],
+              pl: ['Przygotuj.', 'Podaj.'],
+            },
+          };
+        },
+      ],
+    ])('refuses a draft that %s, and stores nothing', async (_name, request, locale, answer) => {
+      t.model.reply({ text: (r) => JSON.stringify(answer(r)) });
+
+      expect(await refusal(ask(request, locale))).toMatchObject({
+        status: 400,
+        error: 'AI_DRAFT_INVALID',
+      });
+      expect(await stored()).toBe(0);
+    });
+
+    it('refuses a draft whose text names an ingredient the profile does not eat, which it was never offered', async () => {
+      const broccoli = (
+        await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'broccoli' } })
+      ).id;
+      await t.prisma.profilePreference.upsert({
+        where: { profileId: profile.id },
+        update: { excludedIngredientIds: [broccoli] },
+        create: { profileId: profile.id, excludedIngredientIds: [broccoli] },
+      });
+      t.model.reply({
+        text: (r) => JSON.stringify(draft(r, { description: 'Lovely with broccoli on the side.' })),
+      });
+
+      expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_INVALID' });
+    });
+
+    it('keeps a draft that keeps to the meal, the time and the calories asked for', async () => {
+      t.model.reply({ text: (r) => JSON.stringify(withCalories(r, 520)) });
+
+      const { recipe } = await ask({ mealType: 'lunch', prepTimeMaxMinutes: 15, kcalTarget: 500 });
+
+      expect(recipe.mealTypes).toContain('lunch');
     });
   });
 

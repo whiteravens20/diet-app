@@ -113,9 +113,11 @@ async function aRecipeOfTheirOwn(account: Account): Promise<string> {
   });
 }
 
-/** A draft a model writes the same way every time it is asked. */
+/** A draft a model writes the same way every time it is asked: three offered ingredients, each used in a step. */
 const sameDraft = (request: ModelRequest): string => {
-  const offered = [...request.prompt.matchAll(/^- ([a-z0-9-]+): /gm)].map((match) => match[1]!);
+  const offered = [...request.prompt.matchAll(/^- ([a-z0-9-]+): (.+?)(?: \/ .+?)? \(/gm)]
+    .map((match) => ({ slug: match[1]!, name: match[2]! }))
+    .slice(0, 3);
   return JSON.stringify({
     title: 'The usual bowl',
     description: 'What this model always writes.',
@@ -124,10 +126,11 @@ const sameDraft = (request: ModelRequest): string => {
     prepMinutes: 5,
     cookMinutes: 10,
     difficulty: 'easy',
-    ingredients: offered
-      .slice(0, 3)
-      .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
-    steps: ['Prepare.', 'Cook and serve.'],
+    ingredients: offered.map(({ slug }) => ({ slug, quantity: 100, unit: 'g', note: null })),
+    steps: [
+      `Prepare the ${offered.map(({ name }) => name.toLowerCase()).join(', ')}.`,
+      'Cook and serve.',
+    ],
   });
 };
 

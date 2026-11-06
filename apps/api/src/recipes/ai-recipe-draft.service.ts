@@ -25,6 +25,14 @@ import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildDraftPrompt } from './ai-recipe-draft.prompt.js';
 import { draftCatalogue } from './draft-catalogue.js';
+import {
+  listedButNotUsed,
+  mealsOfTwoKinds,
+  namedButNotListed,
+  namedByOneWord,
+  stepsDiffer,
+  titleSaysMore,
+} from './model-recipe-rules.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
 import { checkRecipe, type CheckedRecipe } from './recipe-rules.js';
 import { toRecipeDto } from './recipes.service.js';
@@ -34,7 +42,9 @@ const ALLOWED_MEALS = MealType.options as readonly string[];
 /**
  * Drafts a brand-new recipe from the choices a user made. The model picks the
  * ingredients from the curated catalogue and writes the title, description
- * and steps; the engine works out the nutrition before the row is stored.
+ * and steps; the engine works out the nutrition before the row is stored, and
+ * the draft is held to what was asked (the meal, the time, the calories) and
+ * to the rules every recipe a model writes keeps (`model-recipe-rules.ts`).
  * The recipe is private to the requester (`origin='ai'` + `createdByUserId`)
  * and lives in the database only: nothing about a user is written to the
  * instance's data files. It is stored the way `PersonalRecipesService`
@@ -212,6 +222,18 @@ export class AiRecipeDraftService {
     }
     const payload = draft.recipe;
 
+    // What every recipe a model writes keeps, and what this request asked for.
+    const broken = await this.brokenRule(payload, req, catalogue);
+    if (broken) {
+      this.logger.warn(
+        `AI_DRAFT_INVALID (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${broken}`,
+      );
+      throw new BadRequestException({
+        error: 'AI_DRAFT_INVALID',
+        message: 'AI returned a malformed draft.',
+      });
+    }
+
     const resolved = payload.ingredients.map((line) => ({
       ingredientId: offered.get(line.slug)!.id,
       quantity: line.quantity,
@@ -248,12 +270,12 @@ export class AiRecipeDraftService {
 
     // Whether this is a serving is judged by the engine's number, not by what
     // the model meant: a draft that is no meal at all is refused, and so is one
-    // far from the calories the user asked for.
+    // more than a fifth away from the calories the user asked for.
     const asked = req.kcalTarget;
     if (
       perServing.calories < SERVING_KCAL.min ||
       perServing.calories > SERVING_KCAL.max ||
-      (asked !== undefined && (perServing.calories < asked / 2 || perServing.calories > asked * 2))
+      (asked !== undefined && Math.abs(perServing.calories - asked) > asked * KCAL_TOLERANCE)
     ) {
       this.logger.warn(
         `AI_DRAFT_OFF_TARGET (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${perServing.calories} kcal per serving, asked for ${asked ?? 'no target'}`,
@@ -339,6 +361,52 @@ export class AiRecipeDraftService {
     return { recipe: toRecipeDto(created, locale), aiMeta: meta };
   }
 
+  /**
+   * The first rule the draft breaks, said for the log, or null: those of every
+   * recipe a model writes, and the meal and the time the request asked for.
+   * A text is held to the English one, the language every draft is written in.
+   */
+  private async brokenRule(
+    recipe: CheckedRecipe,
+    req: AiDraftRecipeRequest,
+    offered: readonly { slug: string; names: { en: string } }[],
+  ): Promise<string | null> {
+    const steps = stepsDiffer(recipe.steps);
+    if (steps) return `steps differ between languages (${steps})`;
+    if (req.mealType && !recipe.mealTypes.includes(req.mealType))
+      return `not for the meal asked for (${recipe.mealTypes.join(', ')}, asked ${req.mealType})`;
+    if (mealsOfTwoKinds(recipe.mealTypes))
+      return `a main dish and a small one (${recipe.mealTypes.join(', ')})`;
+    if (titleSaysMore(recipe.titles.en ?? '')) return 'the title names a diet, a band or praise';
+
+    // Held to every curated ingredient's name, not only to those offered: a
+    // text that names one the profile does not eat describes another dish.
+    const curated = await this.prisma.ingredient.findMany({
+      where: { slug: { not: null }, retiredAt: null, NOT: { tags: { has: IMPORTED } } },
+      select: { slug: true, name: true },
+    });
+    const names = [
+      ...curated.map((row) => ({ slug: row.slug!, name: row.name })),
+      ...offered.map((row) => ({ slug: row.slug, name: row.names.en })),
+    ];
+    const nameOf = new Map(names.map(({ slug, name }) => [slug, name]));
+    const listed = recipe.ingredients.map((line) => line.slug);
+    const lacking = namedButNotListed(
+      [recipe.titles.en ?? '', recipe.descriptions.en ?? '', ...(recipe.steps.en ?? [])].join(' '),
+      listed,
+      namedByOneWord(names),
+      nameOf,
+    );
+    if (lacking) return `names ${lacking}, which its list does not hold`;
+    const unused = listedButNotUsed((recipe.steps.en ?? []).join(' '), listed, nameOf);
+    if (unused) return `lists ${unused}, which no step uses`;
+
+    const minutes = recipe.prepMinutes + recipe.cookMinutes;
+    if (req.prepTimeMaxMinutes !== undefined && minutes > req.prepTimeMaxMinutes)
+      return `takes ${minutes} minutes, asked at most ${req.prepTimeMaxMinutes}`;
+    return null;
+  }
+
   private translationsInclude(locale: Locale) {
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
     return { translations: { where: { locale: { in: locales } } } } as const;
@@ -347,6 +415,9 @@ export class AiRecipeDraftService {
 
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
+
+/** How far a draft may be from the calories asked for, as a share of them. */
+const KCAL_TOLERANCE = 0.2;
 
 /** The tag a food of a USDA import carries (`admin/usda/importer.ts`). */
 const IMPORTED = 'usda-imported';

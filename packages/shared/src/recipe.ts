@@ -106,33 +106,34 @@ export type Recipe = z.infer<typeof Recipe>;
  * so the model can't be prompt-injected, and the catalogue slug-resolution
  * invariant stays intact.
  *
- * The filters are **soft preferences**, not hard constraints. The backend
- * builds the prompt to bias the model toward the chosen cuisine / cooking
- * method / favourite ingredients / etc., but the model is always allowed
- * to fall back to the broader eligible catalogue when the filter
- * intersection is too narrow. The only hard rules are: allergens are
- * always excluded, every returned ingredient slug must resolve against the
- * live `Ingredient` table, the engine recomputes nutrition.
+ * What is chosen is asked of the model as a requirement, and the answer is
+ * held to what can be checked: the meal, the time and the calories (within a
+ * fifth of the target), besides the diet and the allergens, which the
+ * ingredients offered keep. The cuisine, the cooking method and the
+ * complexity are asked for and not checked; the recipe is tagged with the
+ * cuisine asked for. Every ingredient comes from the curated catalogue the
+ * profile may eat, and the engine works out the nutrition.
  */
 export const AiDraftRecipeRequest = z.object({
   profileId: z.string().uuid(),
-  /** Optional bias toward a specific meal slot. */
+  /** The meal the dish is for: a draft that is not for it is refused. */
   mealType: MealType.optional(),
   /** Optional bias toward a diet type. Defaults to the profile's dietType. */
   dietType: DietType.optional(),
-  /** Optional cuisine hint. */
+  /** The cuisine the dish is asked to be of, which the recipe is tagged with. */
   cuisine: Cuisine.optional(),
-  /** Optional cooking-method hint. */
+  /** How the main ingredient is asked to be cooked. */
   cookingMethod: CookingMethod.optional(),
   /** Optional complexity band. */
   complexity: Complexity.optional(),
-  /** Optional per-serving kcal target (200-1200). */
+  /** Optional per-serving kcal target (200-1200): a draft more than a fifth away from it is refused. */
   kcalTarget: z.number().int().min(200).max(1200).optional(),
-  /** Optional cap on prep + cook minutes (5-120). */
+  /** Optional cap on prep + cook minutes (5-120): a draft that takes longer is refused. */
   prepTimeMaxMinutes: z.number().int().min(5).max(120).optional(),
   /**
-   * When true, the prompt highlights the profile's `favoriteIngredientIds`
-   * as preferred picks (soft bias — not a hard constraint).
+   * When true, the prompt marks the profile's `favoriteIngredientIds` and asks
+   * the model to build on them where they fit; a favourite food of an import
+   * is offered then as well.
    */
   useFavoriteIngredients: z.boolean().default(false),
   /**
