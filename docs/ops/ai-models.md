@@ -220,7 +220,18 @@ draft. 181 calls cost $0.13.
 - **Without the account's recipes in the prompt, one request gives one dish.**
   Of eight drafts of "Obiad, włoska" all eight were pasta with chicken and
   tomato. The prompt now lists, by their ingredients alone, the recipes the
-  account and the library have for the meal and the cuisine asked for.
+  account and the library have for the meal and the cuisine asked for: five
+  drafts in a row of one request then gave five dishes.
+- **A spice rests after a dish it seasoned.** With the kitchens' spices in the
+  catalogue, cumin seasoned four of every five Indian, Mexican and Middle
+  Eastern dishes in a row, the account's recipes in the prompt
+  notwithstanding. A dry spice or blend the account's newest recipe of the
+  meal and cuisine was seasoned with (salt, pepper and a favourite aside) is
+  therefore left out of the next draft's catalogue, and the prompt says so: a
+  model not told listed the spice all the same, which the app refuses. Cumin
+  then seasoned three of five, every other dish, and all twenty drafts were
+  kept. The rotation goes by the account's recipes, so drafts asked one at a
+  time, days apart, rotate alike.
 
 #### Measured for the admin recipe batch
 

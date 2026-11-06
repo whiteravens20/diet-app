@@ -852,6 +852,109 @@ describe('drafting a recipe with a model', () => {
       }
     });
 
+    it("rest a spice the account's last dish of that meal and cuisine was seasoned with, and offer it again after a dish without it", async () => {
+      const spice = (slug: string, name: string, perTeaspoon: number) =>
+        t.prisma.ingredient.create({
+          data: {
+            slug,
+            name,
+            category: 'spices',
+            canonicalUnit: 'g',
+            caloriesPer100: 300,
+            proteinPer100: 10,
+            fatPer100: 10,
+            carbsPer100: 50,
+            perTeaspoon,
+            dietCompatibility: ['balanced', 'vegetarian', 'vegan'],
+            tags: ['seasoning'],
+          },
+        });
+      const spices = [await spice('cumin', 'Cumin', 2.1), await spice('salt', 'Salt', 6)];
+      const planted: string[] = [];
+      try {
+        const older = await plant({
+          owner: user.id,
+          mealTypes: ['lunch'],
+          cuisine: 'mexican',
+          slugs: ['chicken-breast', 'cumin', 'salt'],
+        });
+        planted.push(older.id);
+        t.model.reply({ text: (r) => JSON.stringify(draft(r)), times: 3 });
+
+        await ask({ mealType: 'lunch', cuisine: 'mexican' });
+        // Another cuisine is a rotation of its own.
+        await ask({ mealType: 'lunch', cuisine: 'indian' });
+        const newer = await plant({
+          owner: user.id,
+          mealTypes: ['lunch'],
+          cuisine: 'mexican',
+          slugs: ['white-rice', 'tomato', 'salt'],
+        });
+        planted.push(newer.id);
+        await t.prisma.recipe.update({
+          where: { id: newer.id },
+          data: { createdAt: new Date(Date.now() + 60_000) },
+        });
+        await ask({ mealType: 'lunch', cuisine: 'mexican' });
+
+        const [rested, otherKitchen, again] = t.model.requests.map(offered);
+        expect(rested).not.toContain('cumin');
+        expect(t.model.requests[0]!.prompt).toContain(
+          'was seasoned with cumin, which the catalogue leaves out',
+        );
+        expect(t.model.requests[2]!.prompt).not.toContain('leaves out this time');
+        expect(rested).toContain('salt');
+        expect(otherKitchen).toContain('cumin');
+        expect(again).toContain('cumin');
+      } finally {
+        await t.prisma.recipe.deleteMany({ where: { createdByUserId: user.id } });
+        await t.prisma.ingredient.deleteMany({
+          where: { id: { in: spices.map((one) => one.id) } },
+        });
+      }
+    });
+
+    it('offer a favourite spice whatever the last dish was seasoned with', async () => {
+      const cumin = await t.prisma.ingredient.create({
+        data: {
+          slug: 'cumin',
+          name: 'Cumin',
+          category: 'spices',
+          canonicalUnit: 'g',
+          caloriesPer100: 375,
+          proteinPer100: 17.8,
+          fatPer100: 22.3,
+          carbsPer100: 44.2,
+          perTeaspoon: 2.1,
+          dietCompatibility: ['balanced', 'vegetarian', 'vegan'],
+          tags: ['seasoning'],
+        },
+      });
+      try {
+        await plant({
+          owner: user.id,
+          mealTypes: ['dinner'],
+          cuisine: 'indian',
+          slugs: ['chickpeas', 'tomato', 'cumin'],
+        });
+        await t.prisma.profilePreference.upsert({
+          where: { profileId: profile.id },
+          update: { favoriteIngredientIds: [cumin.id] },
+          create: { profileId: profile.id, favoriteIngredientIds: [cumin.id] },
+        });
+        t.model.reply({
+          text: (r) => JSON.stringify(draft(r, { mealTypes: ['dinner'] })),
+        });
+
+        await ask({ mealType: 'dinner', cuisine: 'indian', useFavoriteIngredients: true });
+
+        expect(offered(t.model.requests[0]!)).toContain('cumin');
+      } finally {
+        await t.prisma.recipe.deleteMany({ where: { createdByUserId: user.id } });
+        await t.prisma.ingredient.delete({ where: { id: cumin.id } });
+      }
+    });
+
     it('are not mentioned when there are none', async () => {
       t.model.reply({ text: (r) => JSON.stringify(draft(r, { mealTypes: ['snack'] })) });
 

@@ -126,6 +126,7 @@ export class AiRecipeDraftService {
         caloriesPer100: true,
         proteinPer100: true,
         gramsPerPiece: true,
+        perTeaspoon: true,
         translations: {
           where: { locale: { in: targetLocales } },
           select: { locale: true, name: true },
@@ -138,22 +139,36 @@ export class AiRecipeDraftService {
         message: 'No ingredients are eligible for this profile.',
       });
     }
+    // A dry spice the account's last dish of this meal and cuisine was
+    // seasoned with is not offered again, so that the dishes of one kitchen do
+    // not all taste of it; salt, pepper and the favourites stay.
+    const already = await this.recipesAlready(userId, dietType, req);
+    const lastDish = new Set(already.own[0] ?? []);
+    const rested = (row: (typeof eligible)[number]): boolean =>
+      row.category === 'spices' &&
+      row.perTeaspoon !== null &&
+      !ALWAYS_OFFERED.has(row.slug!) &&
+      lastDish.has(row.slug!) &&
+      !favouriteIds.has(row.id);
+
     // What the model is offered: the same list for the same request, with the
     // favourites in it and something of every category.
     const catalogue = draftCatalogue(
-      eligible.map((row) => ({
-        id: row.id,
-        slug: row.slug!,
-        names: {
-          ...Object.fromEntries(row.translations.map((t) => [t.locale, t.name])),
-          en: row.name,
-        },
-        category: row.category,
-        canonicalUnit: row.canonicalUnit,
-        caloriesPer100: row.caloriesPer100,
-        proteinPer100: row.proteinPer100,
-        gramsPerPiece: row.gramsPerPiece,
-      })),
+      eligible
+        .filter((row) => !rested(row))
+        .map((row) => ({
+          id: row.id,
+          slug: row.slug!,
+          names: {
+            ...Object.fromEntries(row.translations.map((t) => [t.locale, t.name])),
+            en: row.name,
+          },
+          category: row.category,
+          canonicalUnit: row.canonicalUnit,
+          caloriesPer100: row.caloriesPer100,
+          proteinPer100: row.proteinPer100,
+          gramsPerPiece: row.gramsPerPiece,
+        })),
       favouriteIds,
       [profile.id, dietType, req.mealType, req.cuisine, req.cookingMethod, req.complexity].join(
         ':',
@@ -171,7 +186,8 @@ export class AiRecipeDraftService {
       catalogue,
       favouriteIds,
       targetLocales,
-      existing: await this.recipesAlready(userId, dietType, req),
+      existing: [...already.own, ...already.library],
+      rested: eligible.filter(rested).map((row) => row.name),
     });
     const { text, meta, owner } = await this.ai.chat(
       userId,
@@ -367,13 +383,13 @@ export class AiRecipeDraftService {
   /**
    * The recipes the account has already for the meal and the cuisine asked
    * for, and the library's the profile's diet takes, each by the slugs of its
-   * ingredients: the newest first, the account's own before the library's.
+   * ingredients, the newest first.
    */
   private async recipesAlready(
     userId: string,
     dietType: DietType,
     req: AiDraftRecipeRequest,
-  ): Promise<string[][]> {
+  ): Promise<{ own: string[][]; library: string[][] }> {
     const alike = {
       deletedAt: null,
       ...(req.mealType ? { mealTypes: { has: req.mealType } } : {}),
@@ -406,9 +422,11 @@ export class AiRecipeDraftService {
         take: LIBRARY_RECIPES_SHOWN,
       }),
     ]);
-    return [...own, ...library].map((recipe) =>
-      recipe.ingredients.flatMap((line) => (line.ingredient.slug ? [line.ingredient.slug] : [])),
-    );
+    const slugs = (recipes: typeof own): string[][] =>
+      recipes.map((recipe) =>
+        recipe.ingredients.flatMap((line) => (line.ingredient.slug ? [line.ingredient.slug] : [])),
+      );
+    return { own: slugs(own), library: slugs(library) };
   }
 
   /**
@@ -475,6 +493,9 @@ const IMPORTED = 'usda-imported';
 /** How many of the account's own recipes, and of the library's, a prompt lists for the draft to be another dish. */
 const OWN_RECIPES_SHOWN = 10;
 const LIBRARY_RECIPES_SHOWN = 20;
+
+/** The seasonings of nearly every dish, which are never rested. */
+const ALWAYS_OFFERED: ReadonlySet<string> = new Set(['salt', 'black-pepper']);
 
 function draftUnavailable(reason: AiFallbackReason | null): HttpException {
   switch (reason) {

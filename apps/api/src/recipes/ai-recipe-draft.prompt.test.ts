@@ -45,6 +45,7 @@ const prompt = (input: Partial<DraftPromptInput> = {}) =>
     favouriteIds: new Set(),
     targetLocales: ['en', 'pl'],
     existing: [],
+    rested: [],
     ...input,
   });
 
@@ -123,6 +124,13 @@ describe('the prompt of a recipe a user asks a model for', () => {
     );
     expect(user).toContain('["pasta","chicken-breast","canned-tomatoes"]\n["pasta","mozzarella"]');
     expect(prompt().user).not.toContain('already has');
+  });
+
+  it('names the spices left out this time, and says nothing of them when none is', () => {
+    expect(prompt({ rested: ['Cumin', 'Ground coriander'] }).user).toContain(
+      "- Seasoning: the person's last dish of this kind was seasoned with cumin and ground coriander, which the catalogue leaves out this time.",
+    );
+    expect(prompt().user).not.toContain('Seasoning:');
   });
 
   it('asks for the text in every language of the draft, in the shape the reader of the answer takes', () => {

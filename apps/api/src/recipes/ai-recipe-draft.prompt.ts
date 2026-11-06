@@ -44,6 +44,12 @@ export interface DraftPromptInput {
    * and text in a prompt is read as instructions.
    */
   existing: readonly (readonly string[])[];
+  /**
+   * The English names of the spices the account's last dish of this meal and
+   * cuisine was seasoned with, which the catalogue leaves out this time: a
+   * model that is not told reaches for them all the same.
+   */
+  rested: readonly string[];
 }
 
 /** How many ingredients and steps a draft has when no complexity was asked for. */
@@ -170,6 +176,15 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
   if (input.prepTimeMaxMinutes) {
     asks.push(
       `- Time: preparing and cooking together take at most ${input.prepTimeMaxMinutes} minutes.`,
+    );
+  }
+  if (input.rested.length > 0) {
+    const names = new Intl.ListFormat('en', { type: 'conjunction' }).format(
+      input.rested.map((name) => name.toLowerCase()),
+    );
+    asks.push(
+      `- Seasoning: the person's last dish of this kind was seasoned with ${names}, which the ` +
+        'catalogue leaves out this time. Season this one otherwise, and never name them.',
     );
   }
   if (input.favouriteIds.size > 0) {
