@@ -88,11 +88,15 @@ export class AiRecipeDraftService {
       req.useFavoriteIngredients ? (profile.preferences?.favoriteIngredientIds ?? []) : [],
     );
 
-    // Every ingredient the profile may eat: the hard constraints (diet,
+    // Every curated ingredient the profile may eat, and the favourites the
+    // request asks for whatever they are: the hard constraints (diet,
     // allergens, exclusions) are applied in the query, so nothing eligible is
-    // lost to a cut made before them. Cuisine / cooking method / complexity
-    // are NOT hard-filtered here — they're rendered into the prompt as
-    // preferences and the model is free to broaden.
+    // lost to a cut made before them. The foods of a USDA import are left out
+    // as the panel's batches leave them out: their names are the import's,
+    // and among hundreds of them the model misses the staples a dish needs.
+    // Cuisine / cooking method / complexity are NOT hard-filtered here —
+    // they're rendered into the prompt as preferences and the model is free
+    // to broaden.
     const eligible = await this.prisma.ingredient.findMany({
       where: {
         // The model names its picks by slug, and a recipe is recognised by them.
@@ -102,6 +106,7 @@ export class AiRecipeDraftService {
         // A custom diet filters nothing.
         ...(dietType === 'custom' ? {} : { dietCompatibility: { has: dietType } }),
         NOT: { allergens: { hasSome: allergens } },
+        OR: [{ NOT: { tags: { has: IMPORTED } } }, { id: { in: [...favouriteIds] } }],
       },
       select: {
         id: true,
@@ -455,6 +460,9 @@ function buildDraftPrompt(input: {
 
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
+
+/** The tag a food of a USDA import carries (`admin/usda/importer.ts`). */
+const IMPORTED = 'usda-imported';
 
 function draftUnavailable(reason: AiFallbackReason | null): HttpException {
   switch (reason) {

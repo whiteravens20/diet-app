@@ -2,12 +2,17 @@
 
 import { createHash } from 'node:crypto';
 
-/** How many ingredients one draft prompt offers: enough to cook from, small enough to read. */
-export const DRAFT_CATALOGUE_SIZE = 60;
+/**
+ * How many ingredients one draft prompt offers at most: the whole curated
+ * catalogue, with room to grow and for the favourites of an import beside it.
+ * A model offered a part of it misses the staples a dish needs (2026-11-06:
+ * 60 dealt from 367 held no onion, garlic, tomato, rice or salt).
+ */
+export const DRAFT_CATALOGUE_SIZE = 150;
 
 /**
  * The ingredients a model is offered for one draft, out of all that the
- * profile may eat.
+ * profile may eat: all of them while they fit.
  *
  * The profile's favourites come first, so asking for them cannot be defeated
  * by the cut. The places left are dealt out one category at a time, so that

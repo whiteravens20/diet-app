@@ -1,5 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DRAFT_CATALOGUE_SIZE, draftCatalogue } from './draft-catalogue.js';
 
@@ -38,6 +40,16 @@ describe('the ingredients offered for a draft', () => {
     expect(slugs(draftCatalogue(rows, new Set(), 'profile-1:lunch'))).not.toEqual(
       slugs(draftCatalogue(rows, new Set(), 'profile-1:dinner')),
     );
+  });
+
+  it('are the whole curated catalogue, which a prompt holds with room to spare', () => {
+    const curated = (
+      JSON.parse(
+        readFileSync(join(__dirname, '../../../../data/ingredients.json'), 'utf8'),
+      ) as unknown[]
+    ).length;
+
+    expect(curated).toBeLessThanOrEqual(DRAFT_CATALOGUE_SIZE - 20);
   });
 
   it('never exceed the size of a prompt, and are the whole catalogue when it is small', () => {

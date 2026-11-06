@@ -614,6 +614,37 @@ describe('drafting a recipe with a model', () => {
         create: { profileId: profile.id, ...data },
       });
 
+    it("leave out the foods of an import, but offer the profile's favourite among them when the favourites are asked for", async () => {
+      const kale = await t.prisma.ingredient.create({
+        data: {
+          slug: 'kale-raw',
+          name: 'Kale, raw',
+          category: 'vegetables',
+          canonicalUnit: 'g',
+          caloriesPer100: 35,
+          proteinPer100: 2.9,
+          fatPer100: 1.5,
+          carbsPer100: 4.4,
+          dietCompatibility: ['balanced', 'vegetarian', 'vegan'],
+          tags: ['usda-imported', 'fdc:1'],
+        },
+      });
+      try {
+        await prefer({ favoriteIngredientIds: [kale.id] });
+        t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+        await ask();
+        await ask({ useFavoriteIngredients: true });
+
+        expect(offered(t.model.requests[0]!)).not.toContain('kale-raw');
+        expect(
+          offeredLines(t.model.requests[1]!).find((line) => line.startsWith('- kale-raw: ')),
+        ).toMatch(/⭐$/);
+      } finally {
+        await t.prisma.ingredient.delete({ where: { id: kale.id } });
+      }
+    });
+
     it('are the same every time the same request is made', async () => {
       t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
 
@@ -626,7 +657,9 @@ describe('drafting a recipe with a model', () => {
 
     it('are every ingredient the profile may eat when its diet is a custom one', async () => {
       t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
-      const all = await t.prisma.ingredient.count();
+      const all = await t.prisma.ingredient.count({
+        where: { NOT: { tags: { has: 'usda-imported' } } },
+      });
 
       const { recipe } = await ask({ dietType: 'custom' });
 
