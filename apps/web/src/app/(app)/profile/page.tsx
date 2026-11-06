@@ -396,7 +396,7 @@ export default function ProfilePage() {
                   unit={unit}
                   className="sm:col-span-2"
                 />
-                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
+                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')} optional>
                   <Input
                     key={unit}
                     name="targetWeight"

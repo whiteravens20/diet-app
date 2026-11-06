@@ -204,7 +204,7 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <PaceChoice initial="0.5" paces={shown.preview?.paces} unit={unit} />
               <RiskBox reasons={risk} acknowledged={false} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
+                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')} optional>
                   <Input
                     key={unit}
                     name="targetWeight"

@@ -12,6 +12,7 @@ import {
 } from '@diet-app/shared';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { useFormat } from '@/lib/use-format';
+import { OptionalFrame } from '@/components/ui/input';
 
 /** A favourite recipe usable as a lock target. */
 export interface LockableRecipe {
@@ -158,21 +159,23 @@ export function AdvancedOptions({
           <label className="block text-sm font-medium" htmlFor="adv-maxRepeats">
             {t('varietyFloor')}
           </label>
-          <input
-            id="adv-maxRepeats"
-            type="number"
-            min={1}
-            max={28}
-            className={`${inputCls} mt-1 w-24`}
-            placeholder={defaultMaxRepeats === null ? undefined : String(defaultMaxRepeats)}
-            value={value.maxRepeats ?? ''}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                maxRepeats: e.target.value ? Number(e.target.value) : undefined,
-              })
-            }
-          />
+          <OptionalFrame className="mt-1 w-28">
+            <input
+              id="adv-maxRepeats"
+              type="number"
+              min={1}
+              max={28}
+              className={`${inputCls} w-full`}
+              placeholder={defaultMaxRepeats === null ? undefined : String(defaultMaxRepeats)}
+              value={value.maxRepeats ?? ''}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  maxRepeats: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+            />
+          </OptionalFrame>
           <p className="mt-1 text-xs text-muted-foreground">{t('varietyFloorHint', { most })}</p>
         </div>
 

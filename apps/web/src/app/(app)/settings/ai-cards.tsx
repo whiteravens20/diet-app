@@ -451,7 +451,7 @@ function ProviderForm({
           />
         </Field>
       )}
-      <Field label={t('aiPriority')}>
+      <Field label={t('aiPriority')} optional>
         <Input
           name="priority"
           type="number"

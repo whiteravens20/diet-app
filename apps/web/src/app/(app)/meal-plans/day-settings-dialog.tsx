@@ -239,7 +239,7 @@ export function DaySettingsDialog({
                 ))}
               </select>
             </Field>
-            <Field label={t('ownTarget')} hint={t('ownTargetHint')}>
+            <Field label={t('ownTarget')} hint={t('ownTargetHint')} optional>
               <Input
                 type="number"
                 inputMode="numeric"
@@ -250,7 +250,7 @@ export function DaySettingsDialog({
                 onChange={(e) => setTarget(e.target.value)}
               />
             </Field>
-            <Field label={t('cookTime')} hint={t('cookTimeHint')}>
+            <Field label={t('cookTime')} hint={t('cookTimeHint')} optional>
               <Input
                 type="number"
                 inputMode="numeric"

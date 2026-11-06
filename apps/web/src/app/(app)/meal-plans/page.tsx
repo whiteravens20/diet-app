@@ -702,7 +702,7 @@ function MealPlansContent() {
                       ))}
                     </select>
                   </Field>
-                  <Field label={t('calorieTarget')}>
+                  <Field label={t('calorieTarget')} optional>
                     <Input
                       type="number"
                       inputMode="numeric"

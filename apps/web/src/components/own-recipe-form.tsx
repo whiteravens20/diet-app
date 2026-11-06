@@ -402,7 +402,7 @@ export function OwnRecipeForm({
                   ))}
                 </select>
               </Field>
-              <Field label={t('fieldNote')}>
+              <Field label={t('fieldNote')} optional>
                 <Input
                   value={line.note}
                   onChange={(e) => changeLine(line.key, { note: e.target.value })}

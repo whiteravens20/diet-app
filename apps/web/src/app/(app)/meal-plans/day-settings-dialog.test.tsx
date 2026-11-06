@@ -163,6 +163,21 @@ describe('the window in which the settings of a day are changed', () => {
     expect(save(dialog)).toBeEnabled();
   });
 
+  it('says of its own target and its cooking time that they may stay empty', async () => {
+    const { dialog } = await opened(() => aPreview({ unchanged: true }));
+
+    const optional = (field: HTMLElement) => field.closest('[data-optional]') !== null;
+    expect(
+      optional(
+        dialog.getByRole('spinbutton', { name: (name) => name.startsWith(texts.ownTarget) }),
+      ),
+    ).toBe(true);
+    expect(
+      optional(dialog.getByRole('spinbutton', { name: (name) => name.startsWith(texts.cookTime) })),
+    ).toBe(true);
+    expect(optional(kindField(dialog))).toBe(false);
+  });
+
   it('keeps saving off while nothing would change', async () => {
     const { dialog } = await opened(() =>
       aPreview({ unchanged: true, calorieTarget: { now: 2000, then: 2000 } }),

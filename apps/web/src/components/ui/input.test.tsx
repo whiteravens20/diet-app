@@ -2,6 +2,7 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { Field, Input } from './input';
@@ -114,5 +115,25 @@ describe('Field', () => {
     );
 
     expect(container.querySelectorAll('label > span')).toHaveLength(1);
+  });
+});
+
+describe('Field', () => {
+  it('says in the top edge of its frame that it may stay empty, and nothing where it may not', () => {
+    render(
+      <NextIntlClientProvider locale="pl" messages={{ common: { optional: 'opcjonalnie' } }}>
+        <Field label="Waga docelowa" optional>
+          <Input aria-label="Waga docelowa" />
+        </Field>
+        <Field label="Imię">
+          <Input aria-label="Imię" />
+        </Field>
+      </NextIntlClientProvider>,
+    );
+
+    const frame = screen.getByRole('textbox', { name: 'Waga docelowa' }).parentElement;
+    expect(frame).toHaveAttribute('data-optional', 'opcjonalnie');
+    expect(frame?.className).toContain('after:content-[attr(data-optional)]');
+    expect(screen.getByRole('textbox', { name: 'Imię' }).closest('[data-optional]')).toBeNull();
   });
 });

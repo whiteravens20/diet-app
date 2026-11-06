@@ -75,6 +75,16 @@ const save = (): Promise<void> => userEvent.click(screen.getByRole('button', { n
 describe("the form a product of one's own is written in", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it('says of every field but the name and the calories that it may stay empty', () => {
+    shown();
+
+    const optional = (name: string) => field(name).closest('[data-optional]') !== null;
+    expect(optional(t.name)).toBe(false);
+    expect(optional(t.calories)).toBe(false);
+    for (const name of [t.code, t.brand, t.pack, t.protein, t.fat, t.carbs, t.salt])
+      expect(optional(name)).toBe(true);
+  });
+
   it('needs no more than a name and the calories: what is left empty goes as nothing, a comma as a point', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue(MINE);
     const { onSaved } = shown();

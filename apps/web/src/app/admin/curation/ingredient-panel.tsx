@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { LoaderCircle, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, OptionalFrame } from '@/components/ui/input';
 import {
   adminApi,
   type AdminOverview,
@@ -223,14 +223,16 @@ export function IngredientPanel({
         <label htmlFor={bulkReasonId} className="text-muted-foreground">
           {t('bulkReason')}
         </label>
-        <Input
-          id={bulkReasonId}
-          value={bulkReason}
-          onChange={(e) => setBulkReason(e.target.value)}
-          maxLength={500}
-          placeholder={t('decisionReasonHint')}
-          className="h-8 w-full sm:w-80"
-        />
+        <OptionalFrame className="w-full sm:w-80">
+          <Input
+            id={bulkReasonId}
+            value={bulkReason}
+            onChange={(e) => setBulkReason(e.target.value)}
+            maxLength={500}
+            placeholder={t('decisionReasonHint')}
+            className="h-8 w-full"
+          />
+        </OptionalFrame>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 empty:hidden" role="status">
@@ -514,14 +516,16 @@ function IngredientDraftRow({
           <label htmlFor={reasonId} className="text-muted-foreground">
             {t('decisionReason')}
           </label>
-          <Input
-            id={reasonId}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            maxLength={500}
-            placeholder={t('decisionReasonHint')}
-            className="h-8 w-full sm:w-80"
-          />
+          <OptionalFrame className="w-full sm:w-80">
+            <Input
+              id={reasonId}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              placeholder={t('decisionReasonHint')}
+              className="h-8 w-full"
+            />
+          </OptionalFrame>
         </div>
       )}
 

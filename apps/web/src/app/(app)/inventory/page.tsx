@@ -11,7 +11,7 @@ import { UNITS } from '@diet-app/shared/units';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Input, OptionalFrame } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
@@ -426,13 +426,15 @@ function AddInventoryForm({
             >
               {t('bestBeforeLabel')}
             </label>
-            <Input
-              id={ids.bestBefore}
-              type="date"
-              value={bestBefore}
-              onChange={(e) => setBestBefore(e.target.value)}
-              className="w-40"
-            />
+            <OptionalFrame className="w-40">
+              <Input
+                id={ids.bestBefore}
+                type="date"
+                value={bestBefore}
+                onChange={(e) => setBestBefore(e.target.value)}
+                className="w-full"
+              />
+            </OptionalFrame>
           </div>
           <Button type="submit" disabled={!pickedIngredient || submitting}>
             {t('addButton')}

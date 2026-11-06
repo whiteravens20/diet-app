@@ -196,7 +196,7 @@ export function PaceChoice({
 export function OwnTargetField({ initial }: { initial: number | null }) {
   const t = useTranslations('profile');
   return (
-    <Field label={t('manualKcalOverride')} hint={t('manualKcalHint')}>
+    <Field label={t('manualKcalOverride')} hint={t('manualKcalHint')} optional>
       <Input
         name="manualCalorieTarget"
         type="number"

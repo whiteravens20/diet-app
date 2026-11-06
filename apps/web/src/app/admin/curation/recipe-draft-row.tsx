@@ -8,7 +8,7 @@ import { useId, useState } from 'react';
 import type { Cuisine } from '@diet-app/shared';
 import { CUISINES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, OptionalFrame } from '@/components/ui/input';
 import {
   adminApi,
   type RecipeDraft,
@@ -283,13 +283,15 @@ export function RecipeDraftRow({
               <label htmlFor={reasonId} className="text-muted-foreground">
                 {t('rejectReason')}
               </label>
-              <Input
-                id={reasonId}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                maxLength={500}
-                className="h-8 w-full sm:w-80"
-              />
+              <OptionalFrame className="w-full sm:w-80">
+                <Input
+                  id={reasonId}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={500}
+                  className="h-8 w-full"
+                />
+              </OptionalFrame>
             </div>
           )}
 

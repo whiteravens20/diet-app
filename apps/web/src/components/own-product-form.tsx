@@ -147,8 +147,10 @@ export function OwnProductForm({
     hint?: string,
   ) => {
     const error = problem(...path);
+    // The name and the energy are what a product needs; everything else of it may stay empty.
+    const optional = path[0] !== 'name' && path.join('.') !== 'per100.calories';
     return (
-      <Field key={path.join('.')} label={label} hint={hint} error={error}>
+      <Field key={path.join('.')} label={label} hint={hint} error={error} optional={optional}>
         <Input
           aria-invalid={error !== undefined}
           value={value}

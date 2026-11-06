@@ -21,6 +21,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { useReviewKeys, useReviewKeysWanted } from './review-keys';
+import { OptionalFrame } from '@/components/ui/input';
 
 interface QueueProps {
   locale: Locale;
@@ -313,15 +314,17 @@ function Decide({
   const busy = saving || acting !== null;
   return (
     <>
-      <textarea
-        aria-label={reasonHint ?? t('rejectReasonPlaceholder')}
-        placeholder={reasonHint ?? t('rejectReasonPlaceholder')}
-        value={reason}
-        onChange={(e) => onReason(e.target.value)}
-        rows={2}
-        className="w-full rounded-md border bg-background px-2 py-1 text-sm"
-        maxLength={500}
-      />
+      <OptionalFrame>
+        <textarea
+          aria-label={reasonHint ?? t('rejectReasonPlaceholder')}
+          placeholder={reasonHint ?? t('rejectReasonPlaceholder')}
+          value={reason}
+          onChange={(e) => onReason(e.target.value)}
+          rows={2}
+          className="block w-full rounded-md border bg-background px-2 py-1 text-sm"
+          maxLength={500}
+        />
+      </OptionalFrame>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button

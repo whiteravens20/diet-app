@@ -12,7 +12,7 @@ import {
   type ProfilePreferences,
 } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
-import { Field, Input } from '@/components/ui/input';
+import { Field, Input, OptionalFrame } from '@/components/ui/input';
 
 type KindLimits = Pick<
   ProfilePreferences,
@@ -66,7 +66,7 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
 
   return (
     <>
-      <Field label={t('maxMealsPerDaySameKind')}>
+      <Field label={t('maxMealsPerDaySameKind')} optional>
         <Input
           name="maxMealsPerDaySameKind"
           type="number"
@@ -76,7 +76,7 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
           defaultValue={initial.maxMealsPerDaySameKind ?? ''}
         />
       </Field>
-      <Field label={t('maxMealsPerWeekSameKind')}>
+      <Field label={t('maxMealsPerWeekSameKind')} optional>
         <Input
           name="maxMealsPerWeekSameKind"
           type="number"
@@ -127,27 +127,31 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
             </label>
             <label className="space-y-1">
               <span className="block text-xs">{t('kindLimitPerDay')}</span>
-              <Input
-                name="kindLimitPerDay"
-                type="number"
-                min={1}
-                max={MAX_MEALS_PER_DAY_SAME_KIND}
-                placeholder={t('sameAsAbove')}
-                defaultValue={row.initial?.perDay ?? ''}
-                className="w-32"
-              />
+              <OptionalFrame className="w-32">
+                <Input
+                  name="kindLimitPerDay"
+                  type="number"
+                  min={1}
+                  max={MAX_MEALS_PER_DAY_SAME_KIND}
+                  placeholder={t('sameAsAbove')}
+                  defaultValue={row.initial?.perDay ?? ''}
+                  className="w-full"
+                />
+              </OptionalFrame>
             </label>
             <label className="space-y-1">
               <span className="block text-xs">{t('kindLimitPerWeek')}</span>
-              <Input
-                name="kindLimitPerWeek"
-                type="number"
-                min={1}
-                max={MAX_MEALS_PER_WEEK_SAME_KIND}
-                placeholder={t('sameAsAbove')}
-                defaultValue={row.initial?.perWeek ?? ''}
-                className="w-32"
-              />
+              <OptionalFrame className="w-32">
+                <Input
+                  name="kindLimitPerWeek"
+                  type="number"
+                  min={1}
+                  max={MAX_MEALS_PER_WEEK_SAME_KIND}
+                  placeholder={t('sameAsAbove')}
+                  defaultValue={row.initial?.perWeek ?? ''}
+                  className="w-full"
+                />
+              </OptionalFrame>
             </label>
             <Button
               type="button"

@@ -438,7 +438,7 @@ export function AddEntryDialog({
                     onChange={(e) => setCalories(e.target.value)}
                   />
                 </Field>
-                <Field label={`${t('protein')} · ${tCommon('optional')}`}>
+                <Field label={t('protein')} optional>
                   <Input
                     type="number"
                     inputMode="decimal"
@@ -449,7 +449,7 @@ export function AddEntryDialog({
                     onChange={(e) => setProtein(e.target.value)}
                   />
                 </Field>
-                <Field label={`${t('fat')} · ${tCommon('optional')}`}>
+                <Field label={t('fat')} optional>
                   <Input
                     type="number"
                     inputMode="decimal"
@@ -460,7 +460,7 @@ export function AddEntryDialog({
                     onChange={(e) => setFat(e.target.value)}
                   />
                 </Field>
-                <Field label={`${t('carbs')} · ${tCommon('optional')}`}>
+                <Field label={t('carbs')} optional>
                   <Input
                     type="number"
                     inputMode="decimal"

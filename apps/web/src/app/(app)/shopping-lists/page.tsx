@@ -284,10 +284,10 @@ export default function ShoppingListsPage() {
                   ))}
                 </select>
               </Field>
-              <Field label={t('fromDate')}>
+              <Field label={t('fromDate')} optional>
                 <Input name="fromDate" type="date" defaultValue={activePlan?.startDate ?? ''} />
               </Field>
-              <Field label={t('toDate')}>
+              <Field label={t('toDate')} optional>
                 <Input
                   name="toDate"
                   type="date"
