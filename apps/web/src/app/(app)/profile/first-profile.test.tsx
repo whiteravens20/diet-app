@@ -174,7 +174,15 @@ describe('the figures beside the steps of a first profile', () => {
 
     await aBody();
 
+    // The step of the body chooses no pace: maintenance and the figure at rest, the target with the pace.
+    expect(await screen.findByText('2759 kcal')).toBeInTheDocument();
+    expect(screen.getByText('1780 kcal')).toBeInTheDocument();
+    expect(screen.getByText(messages.caloriePreview.targetNext)).toBeInTheDocument();
+    expect(screen.queryByText('2209 kcal')).not.toBeInTheDocument();
+    expect(screen.queryByText(messages.caloriePreview.dailyTarget)).not.toBeInTheDocument();
+    await next();
     expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
+    expect(screen.queryByText(messages.caloriePreview.targetNext)).not.toBeInTheDocument();
     expect(asked()).toEqual({
       age: 30,
       sex: null,

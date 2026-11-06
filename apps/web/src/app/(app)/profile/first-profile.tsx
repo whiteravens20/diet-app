@@ -265,7 +265,12 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
             </div>
           </form>
 
-          <CaloriePreviewPanel {...shown} className="lg:sticky lg:top-6" />
+          {/* The first step chooses no pace: it shows what the body comes to, the target follows with the pace. */}
+          <CaloriePreviewPanel
+            {...shown}
+            withoutTarget={step === 0}
+            className="lg:sticky lg:top-6"
+          />
         </div>
       </CardContent>
     </Card>

@@ -2429,6 +2429,8 @@
     "over": "{kcal, number, ::group-off} kcal dziennie powyżej Twojego zapotrzebowania.",
     "macros": "Białko {protein, number, ::group-off} g · tłuszcz {fat, number, ::group-off} g · węglowodany {carbs, number, ::group-off} g dziennie.",
     "said": "Cel dzienny: {kcal, number, ::group-off} kcal.",
+    "saidMaintenance": "Zapotrzebowanie: {kcal, number, ::group-off} kcal.",
+    "targetNext": "Cel dzienny zobaczysz w następnym kroku, gdy wybierzesz tempo.",
     "notAdvice": "To przybliżenie dla zdrowej osoby dorosłej, a nie porada medyczna. Więcej w <link>regulaminie</link>."
   },
   "calculator": {

@@ -2429,6 +2429,8 @@
     "over": "{kcal, number, ::group-off} kcal a day over your maintenance.",
     "macros": "Protein {protein, number, ::group-off} g · fat {fat, number, ::group-off} g · carbohydrate {carbs, number, ::group-off} g a day.",
     "said": "Daily target: {kcal, number, ::group-off} kcal.",
+    "saidMaintenance": "Maintenance: {kcal, number, ::group-off} kcal.",
+    "targetNext": "You will see the daily target on the next step, once you choose a pace.",
     "notAdvice": "An approximation for a healthy adult, not medical advice. More in the <link>terms</link>."
   },
   "calculator": {

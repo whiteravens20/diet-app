@@ -60,6 +60,8 @@ export function useCaloriePreview(asked: CaloriePreviewRequest | null): {
  * maintenance less the pace, and that the figures are no medical advice,
  * with the terms that say more. The warnings for somebody under 18 or
  * underweight are the form's own to give, with the box that answers them.
+ * On a step that asks for no pace yet it shows only what the body and its
+ * activity come to: maintenance and the figure at rest.
  */
 export function CaloriePreviewPanel({
   preview,
@@ -68,6 +70,7 @@ export function CaloriePreviewPanel({
   failed,
   heading: Heading = 'h4',
   className,
+  withoutTarget = false,
 }: {
   preview: CaloriePreview | undefined;
   behind: boolean;
@@ -76,6 +79,8 @@ export function CaloriePreviewPanel({
   /** The level of the panel's heading: one under that of what it stands in, which is a card unless it is said. */
   heading?: 'h2' | 'h4';
   className?: string;
+  /** Maintenance and the figure at rest alone, without a target: no pace has been chosen yet. */
+  withoutTarget?: boolean;
 }) {
   const t = useTranslations('caloriePreview');
   const title = useId();
@@ -93,36 +98,60 @@ export function CaloriePreviewPanel({
           className={cn('space-y-3 transition-opacity', behind && 'opacity-60')}
           aria-busy={behind}
         >
-          {/* The target has a line of its own: beside the two it is worked out from, a narrow panel would break it in two. */}
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
-            <div className="col-span-2">
-              <dt className="text-xs text-muted-foreground">{t('dailyTarget')}</dt>
-              <dd className="text-2xl font-semibold tracking-tight tabular-nums">
-                {t('kcal', { value: c.dailyTarget })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">{t('maintenance')}</dt>
-              <dd className="text-sm font-medium tabular-nums">
-                {t('kcal', { value: c.maintenance })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">{t('atRest')}</dt>
-              <dd className="text-sm font-medium tabular-nums">{t('kcal', { value: c.bmr })}</dd>
-            </div>
-          </dl>
-          <p className="text-xs text-muted-foreground">
-            {c.goalHeld
-              ? t('held')
-              : c.dailyDeficit === 0
-                ? t('atMaintenance')
-                : c.dailyDeficit > 0
-                  ? t('under', { kcal: c.dailyDeficit })
-                  : t('over', { kcal: -c.dailyDeficit })}
-          </p>
-          <p className="text-sm">{t('macros', c.targetMacros)}</p>
-          <TargetNotices calories={c} risk={false} />
+          {withoutTarget ? (
+            <>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('maintenance')}</dt>
+                  <dd className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {t('kcal', { value: c.maintenance })}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('atRest')}</dt>
+                  <dd className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {t('kcal', { value: c.bmr })}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted-foreground">{t('targetNext')}</p>
+            </>
+          ) : (
+            <>
+              {/* The target has a line of its own: beside the two it is worked out from, a narrow panel would break it in two. */}
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                <div className="col-span-2">
+                  <dt className="text-xs text-muted-foreground">{t('dailyTarget')}</dt>
+                  <dd className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {t('kcal', { value: c.dailyTarget })}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('maintenance')}</dt>
+                  <dd className="text-sm font-medium tabular-nums">
+                    {t('kcal', { value: c.maintenance })}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('atRest')}</dt>
+                  <dd className="text-sm font-medium tabular-nums">
+                    {t('kcal', { value: c.bmr })}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted-foreground">
+                {c.goalHeld
+                  ? t('held')
+                  : c.dailyDeficit === 0
+                    ? t('atMaintenance')
+                    : c.dailyDeficit > 0
+                      ? t('under', { kcal: c.dailyDeficit })
+                      : t('over', { kcal: -c.dailyDeficit })}
+              </p>
+              <p className="text-sm">{t('macros', c.targetMacros)}</p>
+              <TargetNotices calories={c} risk={false} />
+            </>
+          )}
           <p className="text-xs text-muted-foreground">
             {t.rich('notAdvice', {
               link: (chunks) => (
@@ -146,7 +175,11 @@ export function CaloriePreviewPanel({
       )}
       {/* The target is read out when it changes, the rest is there to be read. */}
       <p className="sr-only" aria-live="polite">
-        {c && !behind ? t('said', { kcal: c.dailyTarget }) : ''}
+        {c && !behind
+          ? withoutTarget
+            ? t('saidMaintenance', { kcal: c.maintenance })
+            : t('said', { kcal: c.dailyTarget })
+          : ''}
       </p>
     </section>
   );
