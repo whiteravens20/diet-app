@@ -45,6 +45,7 @@ import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
 import { UseUp } from './use-up';
+import { WeekLine } from './week-line';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
@@ -1278,6 +1279,12 @@ export function PlanCard({
                   title: t('planWeek', { week: index + 1 }),
                   content: () => (
                     <div className="space-y-3">
+                      <WeekLine
+                        planId={plan.id}
+                        revision={plan.revision}
+                        week={plan.weeks[index]}
+                        onEvened={onChanged}
+                      />
                       {plan.days
                         .slice(index * DAYS_A_WEEK, (index + 1) * DAYS_A_WEEK)
                         .map((day) => dayCard(plan, day))}
@@ -1289,7 +1296,15 @@ export function PlanCard({
               onSelect={(week) => setChosenWeek(Number(week))}
             />
           ) : (
-            <div className="space-y-3">{plan.days.map((day) => dayCard(plan, day))}</div>
+            <div className="space-y-3">
+              <WeekLine
+                planId={plan.id}
+                revision={plan.revision}
+                week={plan.weeks[0]}
+                onEvened={onChanged}
+              />
+              {plan.days.map((day) => dayCard(plan, day))}
+            </div>
           )}
         </CardContent>
       )}
@@ -1311,6 +1326,9 @@ export function PlanCard({
         <DaySettingsDialog
           planId={summary.id}
           day={settingsFor}
+          week={plan?.weeks.find(
+            (week) => week.from <= settingsFor.date && settingsFor.date <= week.to,
+          )}
           mealName={mealName}
           limitNames={limitNames}
           onClose={() => setSettingsFor(null)}

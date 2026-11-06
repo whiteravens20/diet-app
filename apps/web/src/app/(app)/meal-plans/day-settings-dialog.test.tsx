@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DaySettingsPreview, MealPlanDay } from '@diet-app/shared';
+import type { DaySettingsPreview, MealPlanDay, PlanWeek } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
@@ -73,14 +73,31 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   ...over,
 });
 
-/** The window, open on the day, with the API answering every preview with `preview`. */
-async function opened(preview: (asked: Record<string, unknown>) => DaySettingsPreview) {
+/** The week of the day, as a training day changed alone leaves it: off the plan's target, which evening it out brings back. */
+const UNEVEN: NonNullable<DaySettingsPreview['week']> = {
+  target: 2000,
+  average: { now: 2000, alone: 2043, evened: 2001 },
+  pace: { now: 0.5, alone: 0.46, evened: 0.5 },
+  unevenAlone: true,
+  evenedTarget: 2240,
+  otherDays: 4,
+};
+
+/** The window, open on the day of a week as the plan says it stands, with the API answering every preview with `preview`. */
+async function opened(
+  preview: (asked: Record<string, unknown>) => DaySettingsPreview,
+  week?: PlanWeek,
+) {
   const post = vi
     .spyOn(api, 'post')
     .mockImplementation((_path: string, body?: unknown) =>
       Promise.resolve(preview(body as Record<string, unknown>) as never),
     );
   const put = vi.spyOn(api, 'put').mockResolvedValue({} as never);
+  // An account that weighs in kilograms: the pace of a week is said in them.
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve((path === '/users/me' ? { weightUnit: 'kg' } : {}) as never),
+  );
   const onClose = vi.fn();
   const onSaved = vi.fn();
   render(
@@ -91,6 +108,7 @@ async function opened(preview: (asked: Record<string, unknown>) => DaySettingsPr
         <DaySettingsDialog
           planId={PLAN}
           day={DAY}
+          week={week}
           mealName={(type) => type}
           limitNames={(kinds) => kinds.join(', ')}
           onClose={onClose}
@@ -189,6 +207,75 @@ describe('the window in which the settings of a day are changed', () => {
     );
     expect(onSaved).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("says how the change moves the week's average and its pace, and offers to even the week out with it", async () => {
+    const { dialog, put } = await opened(() => aPreview({ week: UNEVEN }));
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    expect(
+      await dialog.findByText(
+        /^The week's average: 2000 → 2043 kcal, at a plan target of 2000 kcal\. At this average weight falls by about 0\.46 kg a week\.$/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      dialog.getByText(/gives this day 2240 kcal and changes the targets of 4 other days/),
+    ).toBeInTheDocument();
+    expect(dialog.queryByText(texts.otherDays)).not.toBeInTheDocument();
+    const alone = await dialog.findByRole('button', { name: texts.saveDay });
+    await vi.waitFor(() => expect(alone).toBeEnabled());
+
+    await userEvent.click(dialog.getByRole('button', { name: texts.saveAndEven }));
+
+    await vi.waitFor(() =>
+      expect(put).toHaveBeenCalledWith(PATH, {
+        ...AS_IT_IS,
+        dayType: 'training',
+        revision: 7,
+        evenWeek: true,
+      }),
+    );
+  });
+
+  it('saves the day alone with the other button, and has one button where the week stays even', async () => {
+    const first = await opened(() => aPreview({ week: UNEVEN }));
+    await userEvent.selectOptions(kindField(first.dialog), texts.kinds.training);
+    const alone = await first.dialog.findByRole('button', { name: texts.saveDay });
+    await vi.waitFor(() => expect(alone).toBeEnabled());
+
+    await userEvent.click(alone);
+
+    await vi.waitFor(() =>
+      expect(first.put).toHaveBeenCalledWith(PATH, {
+        ...AS_IT_IS,
+        dayType: 'training',
+        revision: 7,
+      }),
+    );
+  });
+
+  it('evens out a week that stands off its target while nothing of the day changes', async () => {
+    const week: PlanWeek = {
+      from: '2026-01-05',
+      to: '2026-01-11',
+      target: 2000,
+      average: 2043,
+      uneven: true,
+    };
+    const { dialog, post, onSaved } = await opened(() => aPreview({ unchanged: true }), week);
+
+    expect(
+      await dialog.findByText(/^This week's average is 2043 kcal, at a plan target of 2000 kcal\./),
+    ).toBeInTheDocument();
+    await userEvent.click(dialog.getByRole('button', { name: texts.evenWeek }));
+
+    await vi.waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`/meal-plans/${PLAN}/weeks/even`, {
+        date: DAY.date,
+        revision: 7,
+      }),
+    );
+    expect(onSaved).toHaveBeenCalled();
   });
 
   it('lets the limits that stand in the way give way when the reader says so', async () => {

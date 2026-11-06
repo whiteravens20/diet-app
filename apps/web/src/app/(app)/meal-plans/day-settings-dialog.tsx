@@ -16,6 +16,7 @@ import {
   type MealPlanDay,
   type MealType,
   type PlanRelaxation,
+  type PlanWeek,
 } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -26,6 +27,8 @@ import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { useSettled } from '@/lib/use-settled';
+import { cn } from '@/lib/utils';
+import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 import { CookingNote } from './cooking';
 
 type Kind = 'normal' | 'training' | 'rest' | 'skip';
@@ -59,6 +62,7 @@ const typed = (value: string): number | null => (value.trim() === '' ? null : Nu
 export function DaySettingsDialog({
   planId,
   day,
+  week,
   mealName,
   limitNames,
   onClose,
@@ -66,6 +70,8 @@ export function DaySettingsDialog({
 }: {
   planId: string;
   day: MealPlanDay;
+  /** The week of the plan the day is in, as the plan says it stands. */
+  week: PlanWeek | undefined;
   mealName: (mealType: string) => string;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   onClose: () => void;
@@ -110,13 +116,22 @@ export function DaySettingsDialog({
     gcTime: 0,
     retry: false,
   });
+  // Whether the save asked for evens the week out too: a retry with the limits let go asks the same.
+  const [evenWeek, setEvenWeek] = useState(false);
   const save = useMutation({
-    mutationFn: (allowRelaxations: PlanRelaxation[] | undefined) =>
+    mutationFn: ({
+      allowRelaxations,
+      even,
+    }: {
+      allowRelaxations?: PlanRelaxation[];
+      even: boolean;
+    }) =>
       api.put<MealPlan>(path, {
         ...(JSON.parse(settled!) as DaySettings),
         revision: preview.data!.revision,
         ...(!only && preview.data!.cooking?.changes.length ? { together: true } : {}),
         ...(allowRelaxations ? { allowRelaxations } : {}),
+        ...(even ? { evenWeek: true } : {}),
       }),
     onSuccess: () => {
       onSaved();
@@ -141,13 +156,37 @@ export function DaySettingsDialog({
     },
   });
 
+  // The week evened out on its own, with nothing of the day changed.
+  const even = useMutation({
+    mutationFn: () =>
+      api.post<MealPlan>(`/meal-plans/${planId}/weeks/even`, {
+        date: day.date,
+        revision: preview.data!.revision,
+      }),
+    onSuccess: () => {
+      onSaved();
+      onClose();
+    },
+    onError: (e: unknown) => {
+      if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') {
+        onSaved();
+        void preview.refetch();
+      }
+      setError(errorText(e, t('errEven')));
+    },
+  });
+
   // What is shown is for the settings on the screen only: while a newer question is on its way, the older answer is greyed.
   const shown = preview.data;
   const current =
     shown !== undefined &&
     !preview.isPlaceholderData &&
     settled === (asked.success ? JSON.stringify(asked.data) : null);
-  const busy = save.isPending;
+  const busy = save.isPending || even.isPending;
+  // The change alone leaves the week off the plan's target: the week can be evened out with it.
+  const twoWays = current && shown?.unchanged === false && shown.week?.unevenAlone === true;
+  // Nothing of the day changes, and the week stands off its target: it can be evened out as it is.
+  const evenAlone = current && shown?.unchanged === true && week?.uneven === true;
 
   return (
     <Dialog open onClose={onClose} label={t('title')} className="max-w-lg">
@@ -165,7 +204,10 @@ export function DaySettingsDialog({
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
-          if (current && shown?.unchanged === false) save.mutate(undefined);
+          if (current && shown?.unchanged === false) {
+            setEvenWeek(false);
+            save.mutate({ even: false });
+          }
         }}
       >
         <Field label={t('kind')} hint={t('kindHint')}>
@@ -248,7 +290,12 @@ export function DaySettingsDialog({
             )
           ) : (
             <div className={current ? undefined : 'opacity-60'}>
-              <Outcome preview={shown} skip={kind === 'skip'} mealName={mealName} />
+              <Outcome
+                preview={shown}
+                skip={kind === 'skip'}
+                mealName={mealName}
+                weekOff={week?.uneven === true ? week : null}
+              />
               {!shown.unchanged && (
                 <CookingNote
                   change={shown.cooking}
@@ -285,7 +332,7 @@ export function DaySettingsDialog({
               size="sm"
               variant="outline"
               disabled={busy || !current}
-              onClick={() => save.mutate(inTheWay.needs)}
+              onClick={() => save.mutate({ allowRelaxations: inTheWay.needs, even: evenWeek })}
             >
               {tPlans('letGiveWay', { count: inTheWay.needs.length })}
             </Button>
@@ -297,12 +344,44 @@ export function DaySettingsDialog({
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
+        {/* Three buttons do not fit a phone's width in a row: there they stand one under another, saving on top. */}
+        <div
+          className={cn(
+            'flex gap-2',
+            evenAlone || twoWays ? 'flex-col-reverse sm:flex-row sm:justify-end' : 'justify-end',
+          )}
+        >
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             {tCommon('cancel')}
           </Button>
+          {evenAlone && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => even.mutate()}
+            >
+              {t('evenWeek')}
+            </Button>
+          )}
+          {twoWays && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setEvenWeek(true);
+                save.mutate({ even: true });
+              }}
+            >
+              {t('saveAndEven')}
+            </Button>
+          )}
           <Button type="submit" size="sm" disabled={busy || !current || shown?.unchanged !== false}>
-            {t('save')}
+            {t(twoWays ? 'saveDay' : 'save')}
           </Button>
         </div>
       </form>
@@ -315,14 +394,30 @@ function Outcome({
   preview,
   skip,
   mealName,
+  weekOff,
 }: {
   preview: DaySettingsPreview;
   skip: boolean;
   mealName: (mealType: string) => string;
+  /** The week of the day, where it stands off the plan's target as the plan is. */
+  weekOff: PlanWeek | null;
 }) {
   const t = useTranslations('mealPlans.daySettings');
   const fmt = useFormat();
-  if (preview.unchanged) return <p>{t('unchanged')}</p>;
+  if (preview.unchanged)
+    return (
+      <>
+        <p>{t('unchanged')}</p>
+        {weekOff && weekOff.average !== null && (
+          <p className="text-muted-foreground">
+            {t('evenWeekNote', {
+              average: fmt.number(weekOff.average),
+              target: fmt.number(weekOff.target),
+            })}
+          </p>
+        )}
+      </>
+    );
   const { now, then } = preview.calorieTarget;
   const drawn = preview.added.length > 0 || preview.meals.some((meal) => meal.fate === 'redrawn');
   return (
@@ -368,7 +463,50 @@ function Outcome({
         </p>
       )}
       {preview.listOutOfDate && <p className="text-muted-foreground">{t('listOutOfDate')}</p>}
-      <p className="text-muted-foreground">{t('otherDays')}</p>
+      {preview.week && <WeekOutcome week={preview.week} />}
+      {!preview.week?.unevenAlone && <p className="text-muted-foreground">{t('otherDays')}</p>}
+    </>
+  );
+}
+
+/**
+ * What the change does to the week of the day: its average against the plan's
+ * target and the pace that comes to, and what evening the week out would do.
+ */
+function WeekOutcome({ week }: { week: NonNullable<DaySettingsPreview['week']> }) {
+  const t = useTranslations('mealPlans.daySettings');
+  const fmt = useFormat();
+  const unit = useWeightUnit();
+  const { now, alone, evened } = week.average;
+  const pace = week.pace.alone;
+  const weight = fmt.unit(
+    Math.abs(shownWeight(pace, unit)),
+    unit === 'lb' ? 'pound' : 'kilogram',
+    2,
+  );
+  return (
+    <>
+      <p>
+        {now === alone
+          ? t('weekAverage', { kcal: fmt.number(now), target: fmt.number(week.target) })
+          : t('weekAverageChange', {
+              from: fmt.number(now),
+              to: fmt.number(alone),
+              target: fmt.number(week.target),
+            })}{' '}
+        {Math.abs(pace) < 0.05
+          ? t('weekPaceKeep')
+          : t(pace > 0 ? 'weekPaceLoss' : 'weekPaceGain', { weight })}
+      </p>
+      {week.unevenAlone && (
+        <p className="text-muted-foreground">
+          {t('weekEvenNote', {
+            dayTarget: fmt.number(week.evenedTarget),
+            days: week.otherDays,
+            evened: fmt.number(evened),
+          })}
+        </p>
+      )}
     </>
   );
 }

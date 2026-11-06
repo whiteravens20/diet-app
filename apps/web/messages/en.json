@@ -1787,7 +1787,18 @@
       "lineRest": "A rest day: its target is about 15% less than the plan's base.",
       "lineOwnTarget": "The day's own target: {kcal} kcal.",
       "lineCookTime": "Recipes of {minutes} min at most.",
-      "lineUseUp": "Recipes that use up what is about to expire come first."
+      "lineUseUp": "Recipes that use up what is about to expire come first.",
+      "weekAverage": "The week's average: {kcal} kcal, at a plan target of {target} kcal.",
+      "weekAverageChange": "The week's average: {from} → {to} kcal, at a plan target of {target} kcal.",
+      "weekPaceLoss": "At this average weight falls by about {weight} a week.",
+      "weekPaceGain": "At this average weight rises by about {weight} a week.",
+      "weekPaceKeep": "At this average weight stays about the same.",
+      "weekEvenNote": "“Save and even out the week” gives this day {dayTarget} kcal and changes the {days, plural, one {target of {days, number, ::group-off} other day} other {targets of {days, number, ::group-off} other days}} of this week from today: the same dishes in other portions. The week's average comes to {evened} kcal.",
+      "saveDay": "Save this day",
+      "saveAndEven": "Save and even out the week",
+      "evenWeek": "Even out the week",
+      "evenWeekNote": "This week's average is {average} kcal, at a plan target of {target} kcal. “Even out the week” changes the targets of this week's days from today: the same dishes in other portions.",
+      "errEven": "Could not even out the week."
     },
     "rebalanceTitlePlan": "Spread over the rest of the plan",
     "rebalanceSummaryPlan": "Meals rescaled on the plan's remaining days: {count, number, ::group-off}.",
@@ -1881,7 +1892,11 @@
     "eatenAhead": "A meal can be marked as eaten on its day.",
     "dayIsOver": "This day is over: its dishes stay. You can mark what was eaten, add a meal of your own or remove a meal.",
     "prepCannotPair": "With these settings no dish can come back the next day, so cooking ahead changes nothing here.",
-    "overlapNote": "Another plan holds some of these days. Both stay, and the diary reads the meals of the newer one."
+    "overlapNote": "Another plan holds some of these days. Both stay, and the diary reads the meals of the newer one.",
+    "weekUneven": "This week's average: {average} kcal, the plan's target: {target} kcal.",
+    "evenWeek": "Even out the week",
+    "evenWeekNote": "This week's days from today get new targets: the same dishes in other portions.",
+    "errEvenWeek": "Could not even out the week."
   },
   "inventory": {
     "title": "Inventory",

@@ -1787,7 +1787,18 @@
       "lineRest": "Dzień odpoczynku: cel około 15% niższy niż baza planu.",
       "lineOwnTarget": "Własny cel dnia: {kcal} kcal.",
       "lineCookTime": "Przepisy do {minutes} min.",
-      "lineUseUp": "Najpierw przepisy zużywające żywność z krótką datą."
+      "lineUseUp": "Najpierw przepisy zużywające żywność z krótką datą.",
+      "weekAverage": "Średnia tygodnia: {kcal} kcal przy celu planu {target} kcal.",
+      "weekAverageChange": "Średnia tygodnia: {from} → {to} kcal przy celu planu {target} kcal.",
+      "weekPaceLoss": "Przy takiej średniej waga spada o około {weight} na tydzień.",
+      "weekPaceGain": "Przy takiej średniej waga rośnie o około {weight} na tydzień.",
+      "weekPaceKeep": "Przy takiej średniej waga zostaje mniej więcej bez zmian.",
+      "weekEvenNote": "„Zapisz i wyrównaj tydzień” da temu dniu {dayTarget} kcal i {days, plural, one {zmieni cel {days, number, ::group-off} innego dnia} few {zmieni cele {days, number, ::group-off} innych dni} many {zmieni cele {days, number, ::group-off} innych dni} other {zmieni cele {days, number, ::group-off} innego dnia}} tego tygodnia od dziś: te same dania w innych porcjach. Średnia tygodnia wyniesie {evened} kcal.",
+      "saveDay": "Zapisz ten dzień",
+      "saveAndEven": "Zapisz i wyrównaj tydzień",
+      "evenWeek": "Wyrównaj tydzień",
+      "evenWeekNote": "Średnia tego tygodnia to {average} kcal przy celu planu {target} kcal. „Wyrównaj tydzień” zmieni cele dni tego tygodnia od dziś: te same dania w innych porcjach.",
+      "errEven": "Nie udało się wyrównać tygodnia."
     },
     "rebalanceTitlePlan": "Rozłożono na resztę planu",
     "rebalanceSummaryPlan": "Przeliczono posiłki pozostałych dni planu: {count, number, ::group-off}.",
@@ -1881,7 +1892,11 @@
     "eatenAhead": "Posiłek oznaczysz jako zjedzony w jego dniu.",
     "dayIsOver": "Ten dzień minął: jego dania zostają. Możesz oznaczyć, co zjedzone, dodać własny posiłek albo usunąć posiłek.",
     "prepCannotPair": "Przy tych ustawieniach żadne danie nie wróci następnego dnia, więc gotowanie na zapas niczego tu nie zmieni.",
-    "overlapNote": "W wybrane dni jest już inny plan. Oba zostaną, a dziennik będzie czytał posiłki z nowszego."
+    "overlapNote": "W wybrane dni jest już inny plan. Oba zostaną, a dziennik będzie czytał posiłki z nowszego.",
+    "weekUneven": "Średnia tego tygodnia: {average} kcal, cel planu: {target} kcal.",
+    "evenWeek": "Wyrównaj tydzień",
+    "evenWeekNote": "Dni tego tygodnia od dziś dostaną nowe cele: te same dania w innych porcjach.",
+    "errEvenWeek": "Nie udało się wyrównać tygodnia."
   },
   "inventory": {
     "title": "Spiżarnia",
