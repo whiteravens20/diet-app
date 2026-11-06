@@ -37,6 +37,13 @@ export interface DraftPromptInput {
   favouriteIds: ReadonlySet<string>;
   /** English first, then the user's language when it is another. */
   targetLocales: readonly Locale[];
+  /**
+   * The recipes the account has already for the meal and the cuisine asked
+   * for, each by the slugs of its ingredients: a draft is asked to be another
+   * dish. Slugs only, never a title or a step: those are text somebody wrote,
+   * and text in a prompt is read as instructions.
+   */
+  existing: readonly (readonly string[])[];
 }
 
 /** How many ingredients and steps a draft has when no complexity was asked for. */
@@ -172,6 +179,19 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
     );
   }
 
+  const already: string[] = [];
+  if (input.existing.length > 0) {
+    const meal = input.mealType ? ` for ${input.mealType}` : '';
+    const kitchen = input.cuisine ? ` of the ${input.cuisine.replace(/_/g, ' ')} kitchen` : '';
+    already.push(
+      '',
+      `Recipes the person already has${meal}${kitchen}, one a line, by the slugs of their ` +
+        'ingredients. Write a dish unlike any of them: another main ingredient, or the same one ' +
+        'cooked another way, and seasoned otherwise than they are.',
+      ...input.existing.map((slugs) => JSON.stringify(slugs)),
+    );
+  }
+
   const rules = [
     `1. Use ${size.minIngredients} to ${size.maxIngredients} ingredients of the catalogue below, ` +
       'each named by its slug: the part of its line before the colon, copied exactly.',
@@ -203,6 +223,7 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
   const user = [
     'The recipe:',
     ...asks,
+    ...already,
     '',
     'Rules:',
     ...rules,

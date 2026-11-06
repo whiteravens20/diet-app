@@ -11,8 +11,10 @@ import {
   type HttpException,
 } from '@nestjs/common';
 import {
+  type DietType,
   fitsDiet,
   MealType,
+  RecipeDietTag,
   type AiDraftRecipeRequest,
   type AiDraftRecipeResponse,
   type AiFallbackReason,
@@ -169,6 +171,7 @@ export class AiRecipeDraftService {
       catalogue,
       favouriteIds,
       targetLocales,
+      existing: await this.recipesAlready(userId, dietType, req),
     });
     const { text, meta, owner } = await this.ai.chat(
       userId,
@@ -362,6 +365,53 @@ export class AiRecipeDraftService {
   }
 
   /**
+   * The recipes the account has already for the meal and the cuisine asked
+   * for, and the library's the profile's diet takes, each by the slugs of its
+   * ingredients: the newest first, the account's own before the library's.
+   */
+  private async recipesAlready(
+    userId: string,
+    dietType: DietType,
+    req: AiDraftRecipeRequest,
+  ): Promise<string[][]> {
+    const alike = {
+      deletedAt: null,
+      ...(req.mealType ? { mealTypes: { has: req.mealType } } : {}),
+      ...(req.cuisine ? { cuisine: req.cuisine } : {}),
+    };
+    const ofEach = {
+      orderBy: [{ createdAt: 'desc' as const }, { id: 'asc' as const }],
+      select: {
+        ingredients: {
+          orderBy: { position: 'asc' as const },
+          select: { ingredient: { select: { slug: true } } },
+        },
+      },
+    };
+    const [own, library] = await Promise.all([
+      this.prisma.recipe.findMany({
+        ...ofEach,
+        where: { ...alike, createdByUserId: userId },
+        take: OWN_RECIPES_SHOWN,
+      }),
+      this.prisma.recipe.findMany({
+        ...ofEach,
+        where: {
+          ...alike,
+          createdByUserId: null,
+          retiredAt: null,
+          // Balanced, high-protein and custom take any recipe.
+          ...(RecipeDietTag.safeParse(dietType).success ? { dietTags: { has: dietType } } : {}),
+        },
+        take: LIBRARY_RECIPES_SHOWN,
+      }),
+    ]);
+    return [...own, ...library].map((recipe) =>
+      recipe.ingredients.flatMap((line) => (line.ingredient.slug ? [line.ingredient.slug] : [])),
+    );
+  }
+
+  /**
    * The first rule the draft breaks, said for the log, or null: those of every
    * recipe a model writes, and the meal and the time the request asked for.
    * A text is held to the English one, the language every draft is written in.
@@ -423,6 +473,8 @@ const KCAL_TOLERANCE = 0.2;
 const IMPORTED = 'usda-imported';
 
 /** How many of the account's own recipes, and of the library's, a prompt lists for the draft to be another dish. */
+const OWN_RECIPES_SHOWN = 10;
+const LIBRARY_RECIPES_SHOWN = 20;
 
 function draftUnavailable(reason: AiFallbackReason | null): HttpException {
   switch (reason) {

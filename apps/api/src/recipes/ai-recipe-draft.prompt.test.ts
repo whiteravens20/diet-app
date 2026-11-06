@@ -44,6 +44,7 @@ const prompt = (input: Partial<DraftPromptInput> = {}) =>
     catalogue: [EGG, OIL, CHICKEN],
     favouriteIds: new Set(),
     targetLocales: ['en', 'pl'],
+    existing: [],
     ...input,
   });
 
@@ -105,6 +106,23 @@ describe('the prompt of a recipe a user asks a model for', () => {
     expect(user).toContain('- Calories: about 500 kcal in the serving.');
     expect(user).toContain('- Time: preparing and cooking together take at most 30 minutes.');
     expect(user).toContain('- Cooking method: pan fried:');
+  });
+
+  it("lists the person's recipes by their ingredients and asks for another dish, only when there are some", () => {
+    const { user } = prompt({
+      mealType: 'lunch',
+      cuisine: 'italian',
+      existing: [
+        ['pasta', 'chicken-breast', 'canned-tomatoes'],
+        ['pasta', 'mozzarella'],
+      ],
+    });
+
+    expect(user).toContain(
+      'Recipes the person already has for lunch of the italian kitchen, one a line, by the slugs of their ingredients.',
+    );
+    expect(user).toContain('["pasta","chicken-breast","canned-tomatoes"]\n["pasta","mozzarella"]');
+    expect(prompt().user).not.toContain('already has');
   });
 
   it('asks for the text in every language of the draft, in the shape the reader of the answer takes', () => {
