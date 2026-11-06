@@ -2240,7 +2240,6 @@
     "rangeError": "Enter a weight between {min} and {max}.",
     "referenceHint": "Registered weight: {registered}",
     "targetHint": "Registered weight: {registered} · working towards {target}",
-    "referenceLabel": "registered",
     "targetLabel": "target",
     "seriesEntry": "Logged",
     "seriesMa7": "7-day average",

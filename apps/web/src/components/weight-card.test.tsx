@@ -10,8 +10,18 @@ import { api } from '@/lib/api';
 import messages from '../../messages/en.json';
 import { WeightCard } from './weight-card';
 
-// The chart is fetched on demand and draws nothing in a DOM without a size: what stands beside it is what is tested.
-vi.mock('next/dynamic', () => ({ default: () => () => null }));
+// The chart is fetched on demand and draws nothing in a DOM without a size: a stand-in says which line it was given.
+vi.mock('next/dynamic', async () => {
+  const { createElement } = await import('react');
+  return {
+    default: () => (props: { target: { value: number; label: string } | null }) =>
+      createElement(
+        'p',
+        { 'data-testid': 'weight-chart' },
+        props.target ? `A line at ${props.target.value}: ${props.target.label}` : 'No line',
+      ),
+  };
+});
 
 const aProfile = (over: Partial<Profile> = {}): Profile =>
   ({
@@ -163,6 +173,22 @@ describe('the weights a profile logs', () => {
 
     expect(remove).toHaveBeenCalledWith(`/weights/${entry.id}`);
     await waitFor(() => expect(reads).toEqual({ profiles: 2, calories: 2, diary: 2 }));
+  });
+
+  it('are drawn with a line at the weight the profile works towards', async () => {
+    await shown(aProfile({ targetWeightKg: 72 }), 'kg', {
+      days: [{ date: '2026-11-05', kg: 79, mean: 79 }],
+    });
+
+    expect(await screen.findByTestId('weight-chart')).toHaveTextContent(
+      `A line at 72: ${messages.weightCard.targetLabel}`,
+    );
+  });
+
+  it('are drawn with no line while the profile names no weight to work towards, its own weight being the newest logged', async () => {
+    await shown(aProfile(), 'kg', { days: [{ date: '2026-11-05', kg: 79, mean: 79 }] });
+
+    expect(await screen.findByTestId('weight-chart')).toHaveTextContent('No line');
   });
 
   it('go by where the reader is until the account chooses: kilograms outside the countries that weigh in pounds', async () => {

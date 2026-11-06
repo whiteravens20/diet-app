@@ -2240,7 +2240,6 @@
     "rangeError": "Podaj wagę między {min} a {max}.",
     "referenceHint": "Waga z profilu: {registered}",
     "targetHint": "Waga z profilu: {registered} · cel: {target}",
-    "referenceLabel": "z profilu",
     "targetLabel": "cel",
     "seriesEntry": "Wpis",
     "seriesMa7": "Średnia 7 dni",

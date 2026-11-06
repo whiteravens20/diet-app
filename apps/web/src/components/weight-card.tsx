@@ -30,10 +30,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The weights a profile logged: ninety days of them as a chart, with the mean
- * of each seven days and a line at the weight the profile is working towards
- * (at the weight it registered with while it has named none). Everything is
- * shown and typed in the unit of the account, kilograms or pounds; the API
- * keeps kilograms. The chart is drawn once there is something to draw.
+ * of each seven days and a line at the weight the profile is working towards,
+ * where it names one. Everything is shown and typed in the unit of the
+ * account, kilograms or pounds; the API keeps kilograms. The chart is drawn
+ * once there is something to draw.
  */
 export function WeightCard({ profile }: { profile: Profile }) {
   const t = useTranslations('weightCard');
@@ -115,11 +115,11 @@ export function WeightCard({ profile }: { profile: Profile }) {
     mean: shownWeight(day.mean, unit),
   }));
   const hasData = points.length > 0;
-  // The line across the chart: where the profile wants to be, or where it began.
-  const reference =
+  // The line across the chart: where the profile wants to be, where it says.
+  const target =
     profile.targetWeightKg !== null
       ? { value: shownWeight(profile.targetWeightKg, unit), label: t('targetLabel') }
-      : { value: shownWeight(profile.weightKg, unit), label: t('referenceLabel') };
+      : null;
   // Entries arrive newest-first (`recordedAt: desc`), so [0] is the last one
   // logged — what we want to peel back on click.
   const latest = entries.data?.[0] ?? null;
@@ -188,7 +188,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
           <div className="min-h-[200px]">
             {hasData ? (
-              <WeightChart points={points} reference={reference} unit={unit} />
+              <WeightChart points={points} target={target} unit={unit} />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
                 {t('emptyState')}
