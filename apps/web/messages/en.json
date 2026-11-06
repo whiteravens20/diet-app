@@ -143,24 +143,24 @@
       "body": "This is pre-release software under active development. Things may break, data may be wiped between updates, and it might just blow up in your face. Don't rely on it for anything important yet."
     },
     "headline": "Meal planning that actually adds up.",
-    "subhead": "Calorie-targeted plans, accurate nutrition and shopping lists that write themselves. AI optional — never required.",
+    "subhead": "Calorie-targeted plans, nutrition worked out from an ingredient database and shopping lists that write themselves.",
     "getStarted": "Get started",
     "signIn": "Sign in",
     "yours": {
-      "title": "Swap what you don't fancy",
+      "title": "Your diet, on your terms",
       "body": "You run your diet and your plan: swap meals and ingredients, change a single day, eat something off the plan. The plan says what that changes and fits the portions of the rest of the day."
     },
     "features": {
-      "controlTitle": "Your diet, your rules",
-      "controlBody": "Control your diet and its settings: one of eight diets or your own macro split, two to five meals a day, the pace you lose weight at or a calorie target of your own. Rule out allergens and ingredients, lean towards the cuisines you like and give a single day its own target. Adjust it all your way.",
+      "controlTitle": "Settings that fit you",
+      "controlBody": "One of seven diets or your own macro split, two to five meals a day, the pace you lose weight at or a calorie target of your own. Rule out allergens and ingredients, lean towards the cuisines you like and give a single day its own target. The calorie target is worked out from the newest weight you log.",
       "plansTitle": "Smart meal plans",
-      "plansBody": "Plans of one day to four weeks that hit your calorie target, laid out on a calendar. The planner tries to use up whole packs, and you can fill chosen days with a favourite set of meals. Swap a meal or an ingredient and see what it does to the macros; make a day or the whole plan again and keep what you have already eaten.",
+      "plansBody": "Plans of one day to four weeks, laid out on a calendar. The planner tries to use up whole packs, and you can fill chosen days with a favourite set of meals. When things change, make a day or the whole plan again and keep what you have already eaten.",
       "diaryTitle": "Diary and barcodes",
       "diaryBody": "What you eat beside the plan goes into the diary, and the plan counts it as eaten: a recipe, an ingredient, a meal of your own or a product by its barcode, typed or scanned in the Android app. Product figures come from Open Food Facts, and what the base does not know you write from the label.",
       "listsTitle": "Consolidated lists",
       "listsBody": "A shopping list made from your plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, with the packs each row takes. What your pantry holds is taken off.",
       "nutritionTitle": "Worked out, not made up",
-      "nutritionBody": "Every calorie and macro of a plan and a recipe comes from a curated ingredient database and is worked out by the app itself: the same inputs always give the same numbers, never invented ones.",
+      "nutritionBody": "The calories and macros of a plan and a recipe, and their fibre, sugars, salt and saturated fat, come from a curated ingredient database and are worked out by the app itself: the same inputs always give the same numbers.",
       "aiTitle": "AI only if you want it",
       "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
     }
