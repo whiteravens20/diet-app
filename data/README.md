@@ -411,11 +411,12 @@ are documented here mostly so the choice doesn't get re-litigated:
 | `Branded`                  | ~1.5 M | Entirely brand-name packaged products.                                                                                                                                                                                                                                                                    | No — not a whole-food source.     |
 | `Survey (FNDDS)`           | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients.                                                                                                                                                                                                                                | No.                               |
 
-The reason `SR Legacy` is the trap to avoid: the catalogue is rendered into the
-recipe-draft AI prompt as the allowed-ingredient whitelist, so every brand SKU and
-hyper-specific cut becomes a candidate the model has to filter past. The number
-of ingredients also drives seed time — Foundation seeds in seconds, the full
-SR Legacy corpus takes ~11 minutes.
+The reason `SR Legacy` is the trap to avoid: every brand SKU and hyper-specific
+cut becomes an ingredient a user searches past and the naming run has to name.
+The recipes a model writes are drawn from the curated catalogue alone, whatever
+an import brings, unless a run of the panel is asked for the whole catalogue.
+The number of ingredients also drives seed time — Foundation seeds in seconds,
+the full SR Legacy corpus takes ~11 minutes.
 
 ### What an import leaves out
 

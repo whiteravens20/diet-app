@@ -18,16 +18,16 @@ models" — they are picks that fit _this_ app.
 Different AI surfaces stress the model differently. Pick the cheapest
 provider/model that clears the demand bar for the surface you actually use.
 
-| Surface                                | Endpoint / file                                                                                                                                                                                                                                  | Input                                                                                           | Output                                              | JSON strictness                                    | Locale-keyed                         |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
-| **Recipe draft from prompt**           | `POST /api/recipes/drafts/from-prompt` ([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts))                                                                                                                     | ~2.5k tok (up to 60 ingredients, named by slug, + rules)                                        | ~1.5k tok per locale                                | strict, nested                                     | yes                                  |
-| **Admin recipe batch**                 | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts))                                                                                                             | ~9k tok a call (the rules, six examples, the curated catalogue with its names in each language) | ~1.5k tok per locale                                | strict, nested                                     | yes                                  |
-| **AI meal swap**                       | `POST /api/meal-plans/ai-swap-meal`                                                                                                                                                                                                              | ~1k tok (candidate pool)                                                                        | ~100 tok (pick + reason)                            | lenient                                            | no                                   |
-| **AI ingredient swap suggest**         | `POST /api/meal-plans/swap-ingredient/ai-suggest`                                                                                                                                                                                                | ~800 tok                                                                                        | ~100 tok                                            | lenient                                            | no                                   |
-| **Swap rewrite**                       | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it                                                                                                                                             | ~500 tok (sentences only)                                                                       | ~500 tok                                            | strict (two keys)                                  | no: one call, in the user's language |
-| **Weighing what the planner proposes** | `POST /api/meal-plans/:id/days/:dayId/variations`, `POST /api/meal-plans/:id/use-up` and `POST /api/shopping-lists/:id/proposals`, each with `weigh: true`, only when the user asks ([weigh.service.ts](../../apps/api/src/ai/weigh.service.ts)) | ~300–700 tok (up to eight options, a line each)                                                 | ~200 tok (an order, and a sentence for each option) | lenient                                            | no: one call, in the user's language |
-| **Admin missing language**             | `POST /api/admin/drafts/translations/generate` ([translation.runner.ts](../../apps/api/src/admin/drafts/translation.runner.ts))                                                                                                                  | one recipe a call, ~600 tok (the title, the description and the steps, with two examples)       | ~300 tok                                            | strict (three keys, as many steps as it was given) | no: one call, one language           |
-| **Admin ingredient-name draft**        | `POST /api/admin/drafts/ingredient-names/generate` and `.../regenerate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts))                                                                               | per-row, ~150 tok                                                                               | ~80 tok                                             | strict                                             | yes                                  |
+| Surface                                | Endpoint / file                                                                                                                                                                                                                                  | Input                                                                                                                          | Output                                              | JSON strictness                                    | Locale-keyed                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
+| **Recipe draft from prompt**           | `POST /api/recipes/drafts/from-prompt` ([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts))                                                                                                                     | ~3.5k tok (the curated catalogue in English and the user's language, the account's recipes of the meal and cuisine, the rules) | ~1.5k tok per locale                                | strict, nested                                     | yes                                  |
+| **Admin recipe batch**                 | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts))                                                                                                             | ~9k tok a call (the rules, six examples, the curated catalogue with its names in each language)                                | ~1.5k tok per locale                                | strict, nested                                     | yes                                  |
+| **AI meal swap**                       | `POST /api/meal-plans/ai-swap-meal`                                                                                                                                                                                                              | ~1k tok (candidate pool)                                                                                                       | ~100 tok (pick + reason)                            | lenient                                            | no                                   |
+| **AI ingredient swap suggest**         | `POST /api/meal-plans/swap-ingredient/ai-suggest`                                                                                                                                                                                                | ~800 tok                                                                                                                       | ~100 tok                                            | lenient                                            | no                                   |
+| **Swap rewrite**                       | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it                                                                                                                                             | ~500 tok (sentences only)                                                                                                      | ~500 tok                                            | strict (two keys)                                  | no: one call, in the user's language |
+| **Weighing what the planner proposes** | `POST /api/meal-plans/:id/days/:dayId/variations`, `POST /api/meal-plans/:id/use-up` and `POST /api/shopping-lists/:id/proposals`, each with `weigh: true`, only when the user asks ([weigh.service.ts](../../apps/api/src/ai/weigh.service.ts)) | ~300–700 tok (up to eight options, a line each)                                                                                | ~200 tok (an order, and a sentence for each option) | lenient                                            | no: one call, in the user's language |
+| **Admin missing language**             | `POST /api/admin/drafts/translations/generate` ([translation.runner.ts](../../apps/api/src/admin/drafts/translation.runner.ts))                                                                                                                  | one recipe a call, ~600 tok (the title, the description and the steps, with two examples)                                      | ~300 tok                                            | strict (three keys, as many steps as it was given) | no: one call, one language           |
+| **Admin ingredient-name draft**        | `POST /api/admin/drafts/ingredient-names/generate` and `.../regenerate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts))                                                                               | per-row, ~150 tok                                                                                                              | ~80 tok                                             | strict                                             | yes                                  |
 
 "Strict JSON" means: locale-keyed nested shape, every required key present,
 every required locale populated, no markdown fences, no prose preamble. Small
@@ -51,7 +51,7 @@ directly (below).
 | -------------------------------------- | -------------- | ---------------------------------------------------------------------------- | ----------- |
 | AI meal swap, AI ingredient suggestion | 60 s           | 400 tokens                                                                   | 0.2         |
 | Weighing what the planner proposes     | 60 s           | 700 tokens                                                                   | 0.2         |
-| Recipe draft from prompt               | 60 s           | 1,800 tokens for one language, 1,200 more for each further one               | 0.7         |
+| Recipe draft from prompt               | 60 s           | 2,800 tokens for one language, 1,200 more for each further one               | 0.7         |
 | Swap rewrite                           | 20 s           | 3,000 tokens                                                                 | 0.3         |
 | Admin recipe batch                     | 180 s per call | about 1,100 tokens per recipe in one language, 700 more for each further one | 0.2         |
 | Admin ingredient names                 | 180 s per call | about 80 tokens per name in one language                                     | 0.2         |
@@ -75,18 +75,21 @@ directly (below).
   was too slow, and the engine's own pick is used where there is one.
 - **An answer that reaches its cap is treated as cut off.** The caps are about
   twice a typical answer. Admin runs ask again and show `answer-cut-off`.
-- **What a user waits for is asked for without thinking.** A model that thinks
-  before it answers is billed for the thinking as output, and the thinking
-  counts against the cap: asked to weigh three options, `openai/gpt-6-luna`
-  spent all 700 tokens on it and answered nothing. The requests an account
-  makes (a swap, a substitute, a rewording, a recipe, a weighing) therefore
-  carry OpenRouter's setting for no thinking (`reasoning.effort: "none"`),
-  which it turns into each vendor's own and leaves out for a model that does
-  not think. A model whose thinking cannot be turned off refuses such a
-  request at once and unbilled; it is asked once more without the setting, in
-  the time that is left. The runs of the administrator's panel carry no such
-  setting, and neither do requests made to OpenAI, Anthropic or Ollama
-  directly: what a setting does there was not measured.
+- **What a user waits for is asked for without thinking, a recipe draft with
+  a little.** A model that thinks before it answers is billed for the thinking
+  as output, and the thinking counts against the cap: asked to weigh three
+  options, `openai/gpt-6-luna` spent all 700 tokens on it and answered
+  nothing. The short requests an account makes (a swap, a substitute, a
+  rewording, a weighing) therefore carry OpenRouter's setting for no thinking
+  (`reasoning.effort: "none"`), which it turns into each vendor's own and
+  leaves out for a model that does not think. A model whose thinking cannot
+  be turned off refuses such a request at once and unbilled; it is asked once
+  more without the setting, in the time that is left. A recipe draft carries
+  `reasoning.effort: "low"`: a little thinking keeps it to what was asked
+  (measured below), and its cap holds a thousand tokens more than the answer
+  needs. The runs of the administrator's panel carry no such setting, and
+  neither do requests made to OpenAI, Anthropic or Ollama directly: what a
+  setting does there was not measured.
 - **A model that translates writes words and nothing else.** The run that
   fills a language recipes lack sends the title, the description and the steps
   of one recipe, and no ingredient, amount or figure. What comes back has to
@@ -147,11 +150,11 @@ An instance has one operator model (`AI_DEFAULT_MODEL`), and the project is
 developed and checked against one: `openai/gpt-6-luna` through OpenRouter, for
 what an account asks and for the runs of the administrator's panel alike.
 
-| For                                                                                      | What was measured of it                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | Every call answered whole in one to five seconds, the seven of them for a tenth of a cent. It needs the setting for no thinking that these requests carry (see [Limits on every request](#limits-on-every-request)): without it every weighing was cut off.                                                                                               |
-| The admin recipe batch, which writes the drafts of the shared catalogue                  | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried.                                                                                                                                                                                                   |
-| The admin naming run, which names imported ingredients in a language                     | What it does least well. On a sample of 25 it kept the qualifiers of the description ("Kotlet schabowy ze środkowej części schabu") where `google/gemini-3.1-flash-lite` gave the name a shop shelf has ("Kotlet schabowy"). A name is a draft either way, and is shortened in the queue; of the other model's, about one in fifteen needed that as well. |
+| For                                                                                      | What was measured of it                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | Every call answered whole in one to five seconds, the seven of them for a tenth of a cent. It needs the setting for no thinking that the short requests carry (see [Limits on every request](#limits-on-every-request)): without it every weighing was cut off. A recipe of its own is asked with a little thinking, which kept it to what was asked (below). |
+| The admin recipe batch, which writes the drafts of the shared catalogue                  | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried.                                                                                                                                                                                                       |
+| The admin naming run, which names imported ingredients in a language                     | What it does least well. On a sample of 25 it kept the qualifiers of the description ("Kotlet schabowy ze środkowej części schabu") where `google/gemini-3.1-flash-lite` gave the name a shop shelf has ("Kotlet schabowy"). A name is a draft either way, and is shortened in the queue; of the other model's, about one in fifteen needed that as well.     |
 
 A draft for the shared catalogue is held to the rules by the validator, and
 approved by a person in each language before it ships.
@@ -183,6 +186,41 @@ batch by thinking:
 On an instance with `openai/gpt-6-luna` as its model, the same calls and a
 rewording made through the application all completed, in 1.2 to 5.4 seconds
 each and none at its cap.
+
+#### Measured for a recipe a user drafts
+
+On 2026-11-06, through OpenRouter, for one profile of a live instance
+(balanced diet, fish and shellfish left out, seven ingredients skipped): the
+prompt that instance sent for "Obiad" + "Amerykańska" replayed exactly (2,313
+tokens, as the instance logged), then ten requests (cuisines, meals, one with
+500 kcal and 30 minutes) asked twice in each way. A dish counts as one of its
+cuisine when a cook of that kitchen would call it theirs, judged draft by
+draft. 181 calls cost $0.13.
+
+| How it was asked                                                         | Kept by the app's rules | And by the panel's batch rules | A dish of the cuisine | Calories against 500 asked | Time a call |
+| ------------------------------------------------------------------------ | ----------------------- | ------------------------------ | --------------------- | -------------------------- | ----------- |
+| As before: 60 ingredients dealt from the whole catalogue, the old prompt | 15 of 20                | 12 of 20                       | 0 of 20               | about 10 % off             | 5.0 s       |
+| The curated catalogue whole, the old prompt                              | 20 of 20                | 20 of 20                       | 7 of 20               | about 2 % off              | 5.6 s       |
+| The curated catalogue, the prompt of today, no thinking                  | 38 of 40                | 27 of 40                       | 22 of 40              | about 20 % off             | 5.1 s       |
+| The curated catalogue, the prompt of today, a little thinking            | 40 of 40                | 39 of 40                       | 26 of 40              | within 1 %                 | 6.5 s       |
+| The same with `deepseek/deepseek-v4-flash`, no thinking                  | 35 of 40                | 34 of 40                       | 23 of 40              | about 10 % off             | 8.2 s       |
+| The same with `qwen/qwen3.7-plus`, no thinking                           | 19 of 20                | 17 of 20                       | 12 of 20              | within 1 %                 | 16.1 s      |
+
+- **The ingredients offered decide most.** Of 60 dealt from the whole
+  catalogue, 41 were foods of the USDA import with the import's names, and no
+  onion, garlic, tomato, rice, olive oil or salt among them: the dish was
+  built from the few plain names left. A draft is therefore offered every
+  curated ingredient the profile may eat, as the panel's batch is.
+- **A little thinking keeps a draft to what was asked,** for about 1.5 seconds
+  and $0.0001 more a draft. Its thinking took at most 564 tokens.
+- **The other models were not better.** One reached for ingredients the
+  catalogue lacks (cumin, ketchup, red onion), which the app refuses; the
+  other was three times slower and four times dearer, and wrote dumplings
+  without dough.
+- **Without the account's recipes in the prompt, one request gives one dish.**
+  Of eight drafts of "Obiad, włoska" all eight were pasta with chicken and
+  tomato. The prompt now lists, by their ingredients alone, the recipes the
+  account and the library have for the meal and the cuisine asked for.
 
 #### Measured for the admin recipe batch
 

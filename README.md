@@ -211,8 +211,8 @@ is something an administrator does, in the panel:
    at most; a free key of your own goes in `FDC_API_KEY` in `.env`. See
    [data/README.md](data/README.md#choosing-fdc_data_types) before adding
    `SR Legacy`: it adds ~7 k entries, but most are brand names or cuts of one
-   animal; every one of them is put before the model that drafts recipes, and
-   the catalogue update takes minutes where it took seconds.
+   animal; they crowd the search, each needs a name in your language, and the
+   catalogue update takes minutes where it took seconds.
 4. Click **Update database**.
 
 The admin panel surfaces ingredient/recipe/substitution counts and a
