@@ -95,7 +95,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           defaultValue={initial ? shownToOne(initial.weightKg, unit) : ''}
         />
       </Field>
-      <Field label={t('activityLevel')}>
+      <Field label={t('activityLevel')} hint={t('activityWeek')}>
         <select
           name="activityLevel"
           className={selectClass}

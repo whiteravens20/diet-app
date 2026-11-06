@@ -1614,9 +1614,9 @@
       "legendTitle": "What these do",
       "legendSet": "Favourite set: fill the meals of the day from one of your sets; the rest of the day is built around them, and a meal locked by hand goes before the set’s.",
       "legendVariety": "Max repeats: caps how many times one recipe can appear across the whole plan — added on top of your profile's variety limits, not instead of them. {most, select, none {Blank = no extra limit.} other {Blank = {most}, the number set for this instance.}}",
-      "legendDayKind": "Day: Rest targets ~15% fewer calories, Training ~15% more, Skip leaves the day empty (and off the shopping list).",
+      "legendDayKind": "Day: Training has about 15% more calories than a usual day of its week, Rest about 15% less, and the week's average stays on the plan's target. Skip leaves the day empty (and off the shopping list).",
       "legendMeals": "Meals: how many meals that day, overriding the plan default.",
-      "legendCalories": "Calories: an exact target for that day — overrides the rest/training adjustment.",
+      "legendCalories": "Calories: an exact target for that day. It takes the kind's place and moves no calories of other days.",
       "legendCookTime": "Max cook time: only pick recipes whose prep + cook time fits the limit.",
       "legendUseUpBy": "Use up expiring food: prefer recipes using ingredients that expire by that date.",
       "legendLock": "Lock a meal: pin one of your favourites to a slot; the rest of the day is built around it.",
@@ -1744,7 +1744,7 @@
     "daySettings": {
       "title": "Day settings",
       "kind": "Kind of day",
-      "kindHint": "A training day aims at about 15% more calories, a rest day at about 15% less. A skipped day counts neither as a shortfall nor in the plan's averages.",
+      "kindHint": "A usual day is a typical one, at work for example. A training day has about 15% more calories than a usual day of its week, and a rest day, at home with little movement, about 15% less. The week's average stays on the plan's target. A skipped day counts neither as a shortfall nor in the plan's averages.",
       "kinds": {
         "normal": "Normal",
         "training": "Training",
@@ -1754,7 +1754,7 @@
       "mealCount": "Meals",
       "mealCountOption": "{count, plural, one {{count, number, ::group-off} meal} other {{count, number, ::group-off} meals}}",
       "ownTarget": "Own calorie target (kcal)",
-      "ownTargetHint": "Empty: the target follows from the kind of day. A typed one takes the place of the change for a training or rest day.",
+      "ownTargetHint": "Empty: the kind of day sets the target. A typed one takes the kind's place and moves no calories of other days.",
       "cookTime": "Most cooking time (min)",
       "cookTimeHint": "Empty: no limit. Dishes that take longer than a new limit are drawn anew.",
       "useUp": "Use up what is about to expire",
@@ -1783,8 +1783,8 @@
       "listOutOfDate": "The shopping list that covers this day will need to be made again.",
       "otherDays": "The plan's other days stay as they are.",
       "save": "Save",
-      "lineTraining": "A training day: its target is about 15% more than the plan's base.",
-      "lineRest": "A rest day: its target is about 15% less than the plan's base.",
+      "lineTraining": "A training day: its target is about 15% more than a usual day of its week.",
+      "lineRest": "A rest day: its target is about 15% less than a usual day of its week.",
       "lineOwnTarget": "The day's own target: {kcal} kcal.",
       "lineCookTime": "Recipes of {minutes} min at most.",
       "lineUseUp": "Recipes that use up what is about to expire come first.",
@@ -2426,7 +2426,8 @@
       "sugarsAtMost": "Sugars at most"
     },
     "labelLimitUnit": "g a day",
-    "labelLimitStarts": "Turned on, a limit starts at 5 g of salt (WHO), 25 g of fibre (EFSA), 20 g of saturated fat and 90 g of sugars (the reference intakes on EU labels)."
+    "labelLimitStarts": "Turned on, a limit starts at 5 g of salt (WHO), 25 g of fibre (EFSA), 20 g of saturated fat and 90 g of sugars (the reference intakes on EU labels).",
+    "activityWeek": "Choose by an average week, training included. Training and rest days of a plan only move calories between the days of a week."
   },
   "caloriePreview": {
     "title": "What this comes to",
