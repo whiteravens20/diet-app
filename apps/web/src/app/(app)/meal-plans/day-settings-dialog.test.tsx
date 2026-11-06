@@ -217,7 +217,7 @@ describe('the window in which the settings of a day are changed', () => {
 
     expect(
       await dialog.findByText(
-        /^The week's average: 2000 → 2043 kcal, at a plan target of 2000 kcal\. At this average weight falls by about 0\.46 kg a week\.$/,
+        /^The week's average daily target: 2000 → 2043 kcal, at a plan target of 2000 kcal\. At this average target, weight falls by about 0\.46 kg a week\.$/,
       ),
     ).toBeInTheDocument();
     expect(
@@ -275,7 +275,9 @@ describe('the window in which the settings of a day are changed', () => {
     const { dialog, post, onSaved } = await opened(() => aPreview({ unchanged: true }), week);
 
     expect(
-      await dialog.findByText(/^This week's average is 2043 kcal, at a plan target of 2000 kcal\./),
+      await dialog.findByText(
+        /^This week's average daily target is 2043 kcal, at a plan target of 2000 kcal\./,
+      ),
     ).toBeInTheDocument();
     await userEvent.click(dialog.getByRole('button', { name: texts.evenWeek }));
 

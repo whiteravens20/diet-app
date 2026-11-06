@@ -51,7 +51,9 @@ describe('the line of a week of a plan', () => {
     shown(UNEVEN);
 
     expect(
-      screen.getByText("This week's average: 2181 kcal, the plan's target: 2135 kcal."),
+      screen.getByText(
+        "This week's average daily target: 2181 kcal, the plan's target: 2135 kcal.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(texts.evenWeekNote)).toBeInTheDocument();
   });
