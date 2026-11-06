@@ -1,11 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Profile, WeightUnit } from '@diet-app/shared';
+import type { Profile, WeightDay, WeightEntry, WeightUnit } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../messages/en.json';
 import { WeightCard } from './weight-card';
@@ -22,28 +22,68 @@ const aProfile = (over: Partial<Profile> = {}): Profile =>
     ...over,
   }) as Profile;
 
-/** The card of `profile` for an account that weighs in `unit`; null leaves it to where the reader is. */
-async function shown(profile: Profile, unit: WeightUnit | null) {
+/** What the pages beside the card show of the profile, each counting how often it was read. */
+function Beside({ profileId, reads }: { profileId: string; reads: Record<string, number> }) {
+  const counted = (what: string) => () => {
+    reads[what] = (reads[what] ?? 0) + 1;
+    return Promise.resolve(null);
+  };
+  useQuery({ queryKey: ['profiles'], queryFn: counted('profiles') });
+  useQuery({ queryKey: ['calories', profileId], queryFn: counted('calories') });
+  useQuery({ queryKey: ['diary', profileId, '2026-11-06'], queryFn: counted('diary') });
+  return null;
+}
+
+/**
+ * The card of `profile` for an account that weighs in `unit` (null leaves it to where the reader
+ * is), with the weights it logged and their days, beside what other pages show of the profile.
+ */
+async function shown(
+  profile: Profile,
+  unit: WeightUnit | null,
+  logged: { entries?: WeightEntry[]; days?: WeightDay[] } = {},
+) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
-    Promise.resolve((path === '/users/me' ? { weightUnit: unit } : []) as never),
+    Promise.resolve(
+      (path === '/users/me'
+        ? { weightUnit: unit }
+        : path.startsWith('/weights/days?')
+          ? (logged.days ?? [])
+          : path.startsWith('/weights?')
+            ? (logged.entries ?? [])
+            : []) as never,
+    ),
   );
   const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+  const reads: Record<string, number> = {};
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
         <WeightCard profile={profile} />
+        <Beside profileId={profile.id} reads={reads} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
   const field = await screen.findByLabelText(`Today's weight (${unit ?? 'kg'})`);
+  await waitFor(() => expect(reads).toEqual({ profiles: 1, calories: 1, diary: 1 }));
   return {
     post,
     field,
+    reads,
     log: () => userEvent.click(screen.getByRole('button', { name: messages.weightCard.log })),
   };
 }
+
+const anEntry = (over: Partial<WeightEntry> = {}): WeightEntry => ({
+  id: '0b8f5d0e-3c1a-4f7e-9a51-2d6c7e8f9a0b',
+  profileId: aProfile().id,
+  kg: 79,
+  recordedAt: '2026-11-05T07:00:00.000Z',
+  createdAt: '2026-11-05T07:00:00.000Z',
+  ...over,
+});
 
 describe('the weights a profile logs', () => {
   const languages = Object.getOwnPropertyDescriptor(window.navigator, 'languages');
@@ -100,6 +140,29 @@ describe('the weights a profile logs', () => {
 
     expect(field).toBeInvalid();
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("have the profile, its calorie target and its diary read again once one is logged: the newest weight is the profile's", async () => {
+    const { field, log, reads } = await shown(aProfile(), 'kg');
+
+    await userEvent.type(field, '79.4');
+    await log();
+
+    await waitFor(() => expect(reads).toEqual({ profiles: 2, calories: 2, diary: 2 }));
+  });
+
+  it("have them read again once the newest is removed, as the one before it becomes the profile's", async () => {
+    const entry = anEntry();
+    const { reads } = await shown(aProfile(), 'kg', { entries: [entry] });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: new RegExp(messages.weightCard.removeLatest) }),
+    );
+
+    expect(remove).toHaveBeenCalledWith(`/weights/${entry.id}`);
+    await waitFor(() => expect(reads).toEqual({ profiles: 2, calories: 2, diary: 2 }));
   });
 
   it('go by where the reader is until the account chooses: kilograms outside the countries that weigh in pounds', async () => {

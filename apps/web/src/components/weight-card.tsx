@@ -68,12 +68,21 @@ export function WeightCard({ profile }: { profile: Profile }) {
     },
   });
 
+  // The newest weight logged is the profile's: its calorie target, and the target of a diary day
+  // that no plan holds, are worked out from it, so they are read again with the weights.
+  function readAgain(): void {
+    qc.invalidateQueries({ queryKey: ['weights', profile.id] });
+    qc.invalidateQueries({ queryKey: ['profiles'] });
+    qc.invalidateQueries({ queryKey: ['calories', profile.id] });
+    qc.invalidateQueries({ queryKey: ['diary', profile.id] });
+  }
+
   const log = useMutation({
     mutationFn: (v: number) => api.post<WeightEntry>('/weights', { profileId: profile.id, kg: v }),
     onSuccess: () => {
       setTyped('');
       setError(null);
-      qc.invalidateQueries({ queryKey: ['weights', profile.id] });
+      readAgain();
     },
     onError: (e) => setError(errorText(e, t('logFailed'))),
   });
@@ -85,7 +94,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
     mutationFn: (id: string) => api.delete(`/weights/${id}`),
     onSuccess: () => {
       setError(null);
-      qc.invalidateQueries({ queryKey: ['weights', profile.id] });
+      readAgain();
     },
     onError: (e) => setError(errorText(e, t('removeFailed'))),
   });
