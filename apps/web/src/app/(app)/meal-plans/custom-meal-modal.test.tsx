@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import messages from '../../../../messages/en.json';
 import { CustomMealModal } from './custom-meal-modal';
+import { spaced } from '@/testing/spaces';
 
 const texts = messages.mealPlans;
 
@@ -150,7 +151,7 @@ describe("the window a meal of the user's own is added in", () => {
 
     await userEvent.selectOptions(
       screen.getByLabelText(texts.customPlace),
-      'Instead of: Dinner · Lentil soup',
+      screen.getByRole('option', { name: spaced('Instead of: Dinner · Lentil soup') }),
     );
     expect(screen.getByText(texts.customInsteadNote)).toBeInTheDocument();
     expect(screen.queryByText(texts.customBesideNote)).toBeNull();

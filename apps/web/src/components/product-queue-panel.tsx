@@ -11,6 +11,7 @@ import { Field, Input } from '@/components/ui/input';
 import { useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { DOT } from '@/lib/figure-line';
 
 /** The way to what accounts sent to the base: the panel's or the reviewers'. */
 export interface ProductQueueApi {
@@ -135,7 +136,7 @@ function ProductToReview({
       <div>
         <p className="break-words font-medium">{product.name}</p>
         <p className="break-words text-xs text-muted-foreground">
-          {[product.brand, product.pack, product.code].filter(Boolean).join(' · ')}
+          {[product.brand, product.pack, product.code].filter(Boolean).join(DOT)}
         </p>
         {product.sentAt && (
           <p className="text-xs text-muted-foreground">{fmt.moment(product.sentAt)}</p>

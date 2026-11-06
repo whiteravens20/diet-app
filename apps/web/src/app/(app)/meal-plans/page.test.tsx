@@ -25,6 +25,7 @@ import { aPublicConfig, aSupply } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 import { dayAnchor } from './plan-card';
+import { plain } from '@/testing/spaces';
 
 /** What the address of the page says after its question mark: empty unless a test is about a link that leads here. */
 const address = vi.hoisted(() => ({ search: '' }));
@@ -458,7 +459,9 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
     expect(notice.textContent).toContain(
       'This plan cannot be filled inside its limits. One meal would go outside: times a week for one recipe.',
     );
-    expect(notice.textContent).toContain('Sat, Jan 10 · Breakfast: times a week for one recipe');
+    expect(plain(notice.textContent)).toContain(
+      'Sat, Jan 10 · Breakfast: times a week for one recipe',
+    );
     expect(
       (post.mock.calls[0]![1] as { allowRelaxations?: string[] }).allowRelaxations,
     ).toBeUndefined();
@@ -1008,11 +1011,11 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
 
     const offered = await theOffer();
-    expect(offered.textContent).toContain(
+    expect(plain(offered.textContent)).toContain(
       'Instead: Tofu scramble, 1.5 servings: 240 kcal in place of 230.',
     );
-    expect(offered.textContent).toContain('Protein 14 g · fat 9 g · carbohydrate 26 g');
-    expect(offered.textContent).toContain(
+    expect(plain(offered.textContent)).toContain('Protein 14 g · fat 9 g · carbohydrate 26 g');
+    expect(plain(offered.textContent)).toContain(
       'The day would hold 240 of 2000 kcal before its other meals are balanced around this one.',
     );
     expect(post.mock.calls[0]).toEqual([
@@ -1474,6 +1477,14 @@ describe('the plan page, on how a day stands against its target', () => {
         'A day of this plan holds on average: protein 8 of 100 g · fat 4 of 62 g · carbs 40 of 260 g.',
       ),
     ).toBeInTheDocument();
+    // A meal's own line keeps each name with its figure and unit, and breaks only after a dot.
+    const meal = screen.getByText('Protein 8 g · Fat 4 g · Carbs 40 g · 230 kcal');
+    expect(meal.textContent!.split(' ').map(plain)).toEqual([
+      'Protein 8 g ·',
+      'Fat 4 g ·',
+      'Carbs 40 g ·',
+      '230 kcal',
+    ]);
   });
 
   it.each([
@@ -2857,8 +2868,8 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
     const offered = await askForASwap();
 
-    expect(offered.textContent).toContain('This also changes: Tue breakfast.');
-    expect(offered.textContent).toContain('Protein 94 of 130 g');
+    expect(plain(offered.textContent)).toContain('This also changes: Tue breakfast.');
+    expect(plain(offered.textContent)).toContain('Protein 94 of 130 g');
     await userEvent.click(
       within(offered).getByRole('button', { name: messages.mealPlans.offerTake }),
     );
@@ -2874,7 +2885,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     await userEvent.click(
       within(offered).getByRole('checkbox', { name: messages.mealPlans.cooking.only }),
     );
-    expect(offered.textContent).not.toContain('This also changes');
+    expect(plain(offered.textContent)).not.toContain('This also changes');
     await userEvent.click(
       within(offered).getByRole('button', { name: messages.mealPlans.offerTake }),
     );
@@ -2892,7 +2903,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
     const offered = await askForASwap();
 
-    expect(offered.textContent).toContain(
+    expect(plain(offered.textContent)).toContain(
       `This recipe is outside a limit: ${messages.mealPlans.limit.cook_time}.`,
     );
   });

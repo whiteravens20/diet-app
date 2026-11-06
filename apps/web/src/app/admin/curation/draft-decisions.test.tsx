@@ -10,6 +10,7 @@ import messages from '../../../../messages/en.json';
 import { IngredientPanel } from './ingredient-panel';
 import { RecipeDraftRow } from './recipe-draft-row';
 import { ReviewSignature, SignatureField } from './review-signature';
+import { spaced } from '@/testing/spaces';
 
 const texts = messages.admin.curation;
 
@@ -135,7 +136,7 @@ const signed = async (name = 'Admin') =>
 
 /** The approve and reject buttons of a language, as the row names them. */
 const decision = (action: string, locale: string) =>
-  screen.getByRole('button', { name: `${action} · ${locale}` });
+  screen.getByRole('button', { name: spaced(`${action} · ${locale}`) });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -165,7 +166,9 @@ describe('the decisions of a draft in the administrator’s panel', () => {
 
     shown(<IngredientPanel queue={QUEUE} />);
 
-    expect(await screen.findByRole('button', { name: `${texts.approve} · en` })).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: spaced(`${texts.approve} · en`) }),
+    ).toBeDisabled();
     expect(decision(texts.reject, 'en')).toBeEnabled();
     expect(decision(texts.approve, 'pl')).toBeEnabled();
     expect(decision(texts.reject, 'pl')).toBeDisabled();
@@ -220,7 +223,9 @@ describe('a decision in the administrator’s panel', () => {
     panelOver([waiting()]);
     const approve = vi.spyOn(adminApi, 'approveIngredientNameDraft');
 
-    await userEvent.click(await screen.findByRole('button', { name: `${texts.approve} · pl` }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: spaced(`${texts.approve} · pl`) }),
+    );
 
     expect(approve).not.toHaveBeenCalled();
     expect(await screen.findByRole('alert')).toHaveTextContent(texts.signatureNeeded);
@@ -231,7 +236,7 @@ describe('a decision in the administrator’s panel', () => {
     panelOver([waiting()]);
     const approve = vi.spyOn(adminApi, 'approveIngredientNameDraft').mockResolvedValue(waiting());
 
-    const press = await screen.findByRole('button', { name: `${texts.approve} · pl` });
+    const press = await screen.findByRole('button', { name: spaced(`${texts.approve} · pl`) });
     await signed('Pavlo');
     await userEvent.click(press);
 
@@ -263,7 +268,7 @@ describe('a decision in the administrator’s panel', () => {
     const prompt = vi.spyOn(window, 'prompt');
     const reject = vi.spyOn(adminApi, 'rejectIngredientNameDraft').mockResolvedValue(waiting());
 
-    const press = await screen.findByRole('button', { name: `${texts.reject} · pl` });
+    const press = await screen.findByRole('button', { name: spaced(`${texts.reject} · pl`) });
     await signed();
     await userEvent.type(
       screen.getByRole('textbox', { name: texts.decisionReason }),
@@ -291,12 +296,14 @@ describe('writing names again in the administrator’s panel', () => {
     const again = vi.spyOn(adminApi, 'regenerateIngredientNames').mockResolvedValue(running);
     await signed();
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Generate the missing · 12' }));
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Generate the rejected again · 5' }),
+      await screen.findByRole('button', { name: spaced('Generate the missing · 12') }),
     );
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Generate the unapproved again · 230' }),
+      await screen.findByRole('button', { name: spaced('Generate the rejected again · 5') }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: spaced('Generate the unapproved again · 230') }),
     );
 
     expect(confirm.mock.calls.map(([question]) => question)).toEqual([
@@ -316,9 +323,17 @@ describe('writing names again in the administrator’s panel', () => {
     await signed();
     await userEvent.type(screen.getByRole('textbox', { name: texts.bulkReason }), 'Too literal');
 
-    await userEvent.click(await screen.findByRole('button', { name: /^Generate the missing/ }));
-    await userEvent.click(await screen.findByRole('button', { name: /^Generate the rejected/ }));
-    await userEvent.click(await screen.findByRole('button', { name: /^Generate the unapproved/ }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: spaced('Generate the missing', { start: true }) }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: spaced('Generate the rejected', { start: true }) }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: spaced('Generate the unapproved', { start: true }),
+      }),
+    );
 
     expect(start.mock.calls.map(([spec]) => spec)).toEqual([
       { scope: 'all-usda-missing' },
@@ -336,7 +351,11 @@ describe('writing names again in the administrator’s panel', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const again = vi.spyOn(adminApi, 'regenerateIngredientNames');
 
-    await userEvent.click(await screen.findByRole('button', { name: /^Generate the unapproved/ }));
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: spaced('Generate the unapproved', { start: true }),
+      }),
+    );
 
     expect(confirm).not.toHaveBeenCalled();
     expect(again).not.toHaveBeenCalled();
@@ -346,9 +365,15 @@ describe('writing names again in the administrator’s panel', () => {
   it('has nothing to press where there is nothing to write', async () => {
     panelOver([], { missing: 0, rejected: 0, pending: 0, unapproved: 0, approved: 0 });
 
-    expect(await screen.findByRole('button', { name: /^Generate the missing/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Generate the rejected/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Generate the unapproved/ })).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: spaced('Generate the missing', { start: true }) }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: spaced('Generate the rejected', { start: true }) }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: spaced('Generate the unapproved', { start: true }) }),
+    ).toBeDisabled();
   });
 
   it('writes a row that waits anew with its reason, asking nothing when no person touched it', async () => {
@@ -440,7 +465,7 @@ describe('writing names again in the administrator’s panel', () => {
 
     expect(await screen.findByText(texts.replacedMark)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: texts.regenerate })).toBeNull();
-    expect(screen.queryByRole('button', { name: `${texts.approve} · pl` })).toBeNull();
+    expect(screen.queryByRole('button', { name: spaced(`${texts.approve} · pl`) })).toBeNull();
     expect(screen.queryByRole('button', { name: texts.deleteAction })).toBeNull();
   });
 
@@ -461,7 +486,9 @@ describe('writing names again in the administrator’s panel', () => {
     shown(<IngredientPanel queue={QUEUE} />);
 
     expect(await screen.findByRole('button', { name: texts.regenerate })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Generate the missing/ })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: spaced('Generate the missing', { start: true }) }),
+    ).toBeDisabled();
     await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(1), { timeout: 3000 });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: texts.regenerate })).toBeEnabled(),

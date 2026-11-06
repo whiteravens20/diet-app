@@ -13,6 +13,7 @@ import { api } from '@/lib/api';
 import { useAmount } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { DOT } from '@/lib/figure-line';
 
 /**
  * What a shopping list could do without, asked for on the list: rows that
@@ -104,7 +105,9 @@ export function ListProposals({
                 <ul className="text-xs text-muted-foreground">
                   {proposal.meals.map((meal) => (
                     <li key={meal.plannedMealId}>
-                      {fmt.day(meal.date)} · {meal.title}
+                      {fmt.day(meal.date)}
+                      {DOT}
+                      {meal.title}
                     </li>
                   ))}
                 </ul>

@@ -25,6 +25,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { linkTo, ODBL, offProductPage, OPEN_FOOD_FACTS } from '@/components/open-food-facts';
+import { DOT, held } from '@/lib/figure-line';
 
 /** A product can go to the base with a code and all four of its figures. */
 const sendable = (product: OwnProduct): boolean =>
@@ -148,7 +149,7 @@ export default function ProductsPage() {
                   <div className="min-w-0">
                     <p className="break-words font-medium">{product.name}</p>
                     <p className="break-words text-xs text-muted-foreground">
-                      {[product.brand, product.pack, product.code].filter(Boolean).join(' · ')}
+                      {[product.brand, product.pack, product.code].filter(Boolean).join(DOT)}
                     </p>
                   </div>
                   <span
@@ -163,11 +164,13 @@ export default function ProductsPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {t('figures', {
-                    kcal: Math.round(product.per100.calories ?? 0),
-                    unit: unitName(product.unit),
-                  })}
-                  {' · '}
+                  {held(
+                    t('figures', {
+                      kcal: Math.round(product.per100.calories ?? 0),
+                      unit: unitName(product.unit),
+                    }),
+                  )}
+                  {DOT}
                   {t('macros', {
                     protein: grams(product.per100.protein),
                     fat: grams(product.per100.fat),

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { DOT } from '@/lib/figure-line';
 
 export function PasswordCard() {
   const t = useTranslations('settings');
@@ -126,7 +127,9 @@ export function EmailCard({ me }: { me: SessionUser }) {
         <div className="flex flex-col gap-1">
           <p className="font-mono text-sm">{me.email}</p>
           <p className="text-xs text-muted-foreground">
-            {me.emailVerified ? t('emailVerified') : t('emailUnverified')} · {t('emailHint')}
+            {me.emailVerified ? t('emailVerified') : t('emailUnverified')}
+            {DOT}
+            {t('emailHint')}
           </p>
           {!me.emailVerified && emailEnabled && (
             <p className="text-xs text-muted-foreground">

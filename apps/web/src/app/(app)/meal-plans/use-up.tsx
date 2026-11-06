@@ -13,6 +13,7 @@ import { useAmount } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { ListNote } from './list-note';
+import { DOT } from '@/lib/figure-line';
 
 /**
  * The swaps that would use up what a plan opens, asked for under the plan's
@@ -126,7 +127,9 @@ export function UseUp({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="text-foreground">
                   <span className="text-muted-foreground">
-                    {fmt.day(suggestion.date)} · {mealName(suggestion.mealType)}:
+                    {fmt.day(suggestion.date)}
+                    {DOT}
+                    {mealName(suggestion.mealType)}:
                   </span>{' '}
                   {t.rich('swap', {
                     to: suggestion.to.title,
@@ -154,7 +157,7 @@ export function UseUp({
                       left: amount(taken.left, taken.unit),
                     }),
                   )
-                  .join(' · ')}
+                  .join(DOT)}
               </p>
               <p>
                 {t('energy', {

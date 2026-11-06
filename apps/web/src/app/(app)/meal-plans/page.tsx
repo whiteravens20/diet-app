@@ -53,6 +53,7 @@ import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './adv
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { LoadFailed } from '@/components/load-failed';
+import { DOT } from '@/lib/figure-line';
 
 /** Fetched once the page is drawn: nobody waits for the calendar to read the page above it. */
 const PlanCalendar = dynamic(
@@ -1058,7 +1059,9 @@ function MealPlansContent() {
               <ul className="list-disc pl-5 text-xs">
                 {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
                   <li key={`${meal.date} ${meal.slot}`}>
-                    {fmt.day(meal.date)} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
+                    {fmt.day(meal.date)}
+                    {DOT}
+                    {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
                   </li>
                 ))}
                 {inTheWay.needed.meals.length > MEALS_NAMED && (

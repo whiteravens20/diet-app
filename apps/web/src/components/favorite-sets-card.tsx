@@ -17,6 +17,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { DOT } from '@/lib/figure-line';
 
 const SLOTS: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
 
@@ -138,7 +139,7 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
                         ([slot, recipeId]) =>
                           `${tMeal.has(slot) ? tMeal(slot as MealType) : slot}: ${recipeTitle(recipeId)}`,
                       )
-                      .join(' · ')}
+                      .join(DOT)}
                   </p>
                 </div>
                 <Button

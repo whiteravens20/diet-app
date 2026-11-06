@@ -11,6 +11,7 @@ import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import { FirstProfile } from './first-profile';
+import { plain } from '@/testing/spaces';
 
 const texts = messages.profile;
 const steps = texts.wizard.steps;
@@ -205,7 +206,7 @@ describe('the figures beside the steps of a first profile', () => {
 
     const paces = within(screen.getByRole('group', { name: texts.pace })).getAllByRole('radio');
 
-    expect(paces.map((pace) => pace.closest('label')!.textContent)).toEqual([
+    expect(paces.map((pace) => plain(pace.closest('label')!.textContent))).toEqual([
       'Keep my weight2759 kcal a day',
       'Lose 0.25 kg a week2484 kcal a day',
       'Lose 0.5 kg a week2209 kcal a day',

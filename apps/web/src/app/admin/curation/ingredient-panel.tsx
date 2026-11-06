@@ -22,6 +22,7 @@ import { LocaleReviewMatrix } from './locale-review-matrix';
 import { useReviewSignature } from './review-signature';
 import { PAGE_SIZE, POLL_INTERVAL_MS, type StatusFilter } from './shared';
 import { ShipBar } from './ship-bar';
+import { DOT } from '@/lib/figure-line';
 
 export function IngredientPanel({
   queue,
@@ -438,7 +439,8 @@ function IngredientDraftRow({
   );
   const source = (
     <p className="mt-1 break-words text-xs text-muted-foreground">
-      {t('rawDescription')}: <code className="break-words">{draft.rawDescription}</code> ·{' '}
+      {t('rawDescription')}: <code className="break-words">{draft.rawDescription}</code>
+      {DOT}
       {draft.ingredientSlug}
     </p>
   );
@@ -474,7 +476,9 @@ function IngredientDraftRow({
             {draft.locales.map((locale) => (
               <label key={locale} className="block space-y-1">
                 <span className="text-xs text-muted-foreground">
-                  {t('suggested')} · {locale}
+                  {t('suggested')}
+                  {DOT}
+                  {locale}
                 </span>
                 <Input
                   value={draftSuggestions.name[locale] ?? ''}
@@ -541,7 +545,9 @@ function IngredientDraftRow({
                     disabled={working || decided.get(locale) === 'APPROVE'}
                     onClick={() => onApprove(locale)}
                   >
-                    {t('approve')} · {locale}
+                    {t('approve')}
+                    {DOT}
+                    {locale}
                   </Button>
                   <Button
                     size="sm"
@@ -549,7 +555,9 @@ function IngredientDraftRow({
                     disabled={working || decided.get(locale) === 'REJECT'}
                     onClick={() => onReject(locale)}
                   >
-                    {t('reject')} · {locale}
+                    {t('reject')}
+                    {DOT}
+                    {locale}
                   </Button>
                 </span>
               ))}

@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { FoundList } from './found-list';
 import { linkTo, ODBL, OPEN_FOOD_FACTS } from '@/components/open-food-facts';
+import { DOT, held } from '@/lib/figure-line';
 
 /** What a person types when they type a code: digits, with whatever they read between them. */
 const looksLikeCode = (typed: string): boolean => /^[\d\s-]+$/.test(typed);
@@ -173,12 +174,14 @@ export function ProductSearch({
               id: product.id,
               name: product.brand ? `${product.name}, ${product.brand}` : product.name,
               about: [
-                t('per100', {
-                  kcal: Math.round(product.per100.calories ?? 0),
-                  unit: unitName(product.unit),
-                }),
+                held(
+                  t('per100', {
+                    kcal: Math.round(product.per100.calories ?? 0),
+                    unit: unitName(product.unit),
+                  }),
+                ),
                 ...(product.source === 'own' ? [t('productOwnMark')] : []),
-              ].join(' · '),
+              ].join(DOT),
               pick: () => onPick(product),
             }))}
           />
@@ -230,7 +233,7 @@ export function PickedProduct({
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">{product.name}</p>
           <p className="break-words text-xs text-muted-foreground">
-            {[product.brand, product.pack].filter(Boolean).join(' · ')}
+            {[product.brand, product.pack].filter(Boolean).join(DOT)}
           </p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onAgain}>

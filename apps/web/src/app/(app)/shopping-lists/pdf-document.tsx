@@ -19,6 +19,7 @@ import type { DisplayUnit, ShoppingList } from '@diet-app/shared';
 import { saveFile } from '@/lib/save-file';
 import { packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
+import { DOT } from '@/lib/figure-line';
 
 /*
  * Self-hosted PDF generator for the shopping list. The default @react-pdf
@@ -302,7 +303,10 @@ function buildPretty(opts: BuildOpts) {
               </Text>
             )}
             {packsStand(i) && (
-              <Text style={prettyStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>
+              <Text style={prettyStyles.qtyOf}>
+                {DOT}
+                {packsText(i.packs, formatQty)}
+              </Text>
             )}
           </Text>
         </View>
@@ -389,7 +393,10 @@ function buildFoldable(opts: BuildOpts) {
             </Text>
           )}
           {packsStand(i) && (
-            <Text style={foldableStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>
+            <Text style={foldableStyles.qtyOf}>
+              {DOT}
+              {packsText(i.packs, formatQty)}
+            </Text>
           )}
         </Text>
       </View>

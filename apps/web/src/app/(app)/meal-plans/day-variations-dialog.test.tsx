@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
 import { DayVariationsDialog } from './day-variations-dialog';
+import { plain } from '@/testing/spaces';
 
 const texts = messages.mealPlans.variations;
 const PLAN = '11111111-1111-4111-8111-111111111111';
@@ -161,7 +162,7 @@ describe('the window that offers other ways to fill a day', () => {
     expect(
       within(first!)
         .getAllByRole('listitem')
-        .map((meal) => meal.textContent),
+        .map((meal) => plain(meal.textContent)),
     ).toEqual([
       'breakfast · Oat porridge · 450 kcal',
       'lunch · A slice of cake · 250 kcalstays',

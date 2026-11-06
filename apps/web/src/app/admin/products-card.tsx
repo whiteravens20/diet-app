@@ -16,6 +16,7 @@ import { useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { Explain } from './explain';
+import { DOT, held } from '@/lib/figure-line';
 
 /** How often the card reads the state while the worker is at it, or about to be. */
 const READ_EVERY_MS = 5_000;
@@ -111,13 +112,15 @@ function AcceptedProductsList({
               {[
                 product.brand,
                 product.code,
-                tFigure('figures', {
-                  kcal: Math.round(product.per100.calories ?? 0),
-                  unit: unitName(product.unit),
-                }),
+                held(
+                  tFigure('figures', {
+                    kcal: Math.round(product.per100.calories ?? 0),
+                    unit: unitName(product.unit),
+                  }),
+                ),
               ]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(DOT)}
             </p>
             <p className="text-xs text-muted-foreground">
               {product.acceptedBy

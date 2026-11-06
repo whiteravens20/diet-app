@@ -47,6 +47,7 @@ import { PlanPacksLine } from './plan-packs';
 import { ListNote } from './list-note';
 import { UseUp } from './use-up';
 import { WeekLine } from './week-line';
+import { DOT, held } from '@/lib/figure-line';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
@@ -637,10 +638,10 @@ export function PlanCard({
                             }}
                           />
                           <span className="min-w-0">
-                            <span className="text-muted-foreground">{mealLabel}</span>{' '}
+                            <span className="text-muted-foreground">{mealLabel}</span>
                             <span aria-hidden className="hidden sm:inline">
-                              ·{' '}
-                            </span>
+                              {'\u00a0·'}
+                            </span>{' '}
                             {isCustom ? (
                               <span className="font-medium">{title}</span>
                             ) : (
@@ -1088,7 +1089,7 @@ export function PlanCard({
                                           <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
                                             {f.recipe.mealTypes
                                               .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
-                                              .join(' · ')}
+                                              .join(DOT)}
                                           </span>
                                         )}
                                         {off && (
@@ -1506,7 +1507,7 @@ function DiaryLines({
 
 /** Per-meal macros as plain inline text, sitting below the recipe title. Full
  *  macro nouns (Protein / Białko) so it reads as a sentence, not a sticker
- *  strip. Mirrors the layout the ingredient list used to occupy. */
+ *  strip. Each name keeps its figure on its line; the line breaks only after a dot. */
 function MacrosLine({
   nutrition,
 }: {
@@ -1516,9 +1517,14 @@ function MacrosLine({
   const fmt = useFormat();
   return (
     <p className="ml-6 text-xs text-muted-foreground">
-      {t('protein')} {fmt.unit(nutrition.protein, 'gram')} · {t('fat')}{' '}
-      {fmt.unit(nutrition.fat, 'gram')} · {t('carbs')} {fmt.unit(nutrition.carbs, 'gram')} ·{' '}
-      {fmt.number(nutrition.calories)} {t('kcal')}
+      {[
+        `${t('protein')} ${fmt.unit(nutrition.protein, 'gram')}`,
+        `${t('fat')} ${fmt.unit(nutrition.fat, 'gram')}`,
+        `${t('carbs')} ${fmt.unit(nutrition.carbs, 'gram')}`,
+        `${fmt.number(nutrition.calories)} ${t('kcal')}`,
+      ]
+        .map(held)
+        .join(DOT)}
     </p>
   );
 }

@@ -19,6 +19,7 @@ import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
 import { LocaleReviewMatrix } from './locale-review-matrix';
 import { useReviewSignature } from './review-signature';
+import { DOT } from '@/lib/figure-line';
 
 export function RecipeDraftRow({
   draft,
@@ -320,7 +321,9 @@ export function RecipeDraftRow({
                         disabled={working || decided.get(locale) === 'APPROVE'}
                         onClick={() => onApprove(locale)}
                       >
-                        {t('approve')} · {locale}
+                        {t('approve')}
+                        {DOT}
+                        {locale}
                       </Button>
                       <Button
                         size="sm"
@@ -328,7 +331,9 @@ export function RecipeDraftRow({
                         disabled={working || decided.get(locale) === 'REJECT'}
                         onClick={() => onReject(locale)}
                       >
-                        {t('reject')} · {locale}
+                        {t('reject')}
+                        {DOT}
+                        {locale}
                       </Button>
                     </span>
                   ))}
@@ -468,21 +473,27 @@ function RecipeEditor({
         {locales.map((locale) => (
           <div key={locale} className="space-y-1">
             <label className="text-xs text-muted-foreground">
-              {t('title')} · {locale}
+              {t('title')}
+              {DOT}
+              {locale}
             </label>
             <Input
               value={edit.titles[locale] ?? ''}
               onChange={(e) => updateTitle(locale, e.target.value)}
             />
             <label className="text-xs text-muted-foreground">
-              {t('descriptionLabel')} · {locale}
+              {t('descriptionLabel')}
+              {DOT}
+              {locale}
             </label>
             <Input
               value={edit.descriptions[locale] ?? ''}
               onChange={(e) => updateDescription(locale, e.target.value)}
             />
             <label className="text-xs text-muted-foreground">
-              {t('stepsLabel')} · {locale}
+              {t('stepsLabel')}
+              {DOT}
+              {locale}
             </label>
             {(edit.steps[locale] ?? []).map((step, i) => (
               <Input key={i} value={step} onChange={(e) => updateStep(locale, i, e.target.value)} />

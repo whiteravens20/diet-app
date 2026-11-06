@@ -46,6 +46,7 @@ import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
+import { DOT, held } from '@/lib/figure-line';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -712,7 +713,9 @@ function MealSection({
                   {meal.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {t('fromPlan')} · {t('mealKcal', { kcal: meal.nutrition.calories })}
+                  {t('fromPlan')}
+                  {DOT}
+                  {t('mealKcal', { kcal: meal.nutrition.calories })}
                 </p>
               </div>
               <label className="flex min-h-6 items-center gap-2 text-sm">
@@ -733,14 +736,14 @@ function MealSection({
               <div className="min-w-0 flex-1 basis-48">
                 <p className="break-words text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {amountOf(entry)}
-                  {' · '}
-                  {t('mealKcal', { kcal: entry.nutrition.calories })}
-                  {' · '}
+                  {held(amountOf(entry))}
+                  {DOT}
+                  {held(t('mealKcal', { kcal: entry.nutrition.calories }))}
+                  {DOT}
                   {t('entryMacros', entry.nutrition)}
                   {entry.estimated && (
                     <>
-                      {' · '}
+                      {DOT}
                       <span className="whitespace-nowrap font-medium text-foreground">
                         ≈ {t('estimated')}
                       </span>
@@ -748,7 +751,7 @@ function MealSection({
                   )}
                   {entry.kind === 'product' && (
                     <>
-                      {' · '}
+                      {DOT}
                       <span className="whitespace-nowrap">
                         {t(
                           entry.productSource === 'own'

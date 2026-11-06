@@ -239,8 +239,9 @@ test.describe('a meal of a plan', () => {
       .getByRole('spinbutton', { name: new RegExp(`^${plans.customServings!}`) })
       .fill('2');
 
-    // Two servings of 900 kcal: the day gets 1800, and the window says so before anything is sent.
-    await expect(dialog.getByText(/1800 kcal/)).toBeVisible();
+    // Two servings of 900 kcal: the day gets 1800, and the window says so before anything is sent. A
+    // figure keeps its unit with a no-break space, which a pattern meets as any space.
+    await expect(dialog.getByText(/1800\skcal/)).toBeVisible();
     await expect(dialog.getByText(plans.customTotalPending!)).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

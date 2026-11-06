@@ -15,6 +15,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { CookingNote } from './cooking';
 import { ListNote } from './list-note';
+import { DOT } from '@/lib/figure-line';
 
 /**
  * The window that offers other ways to fill a day of a plan. The API makes
@@ -152,11 +153,12 @@ export function DayVariationsDialog({
                     <ul className="space-y-0.5 text-sm">
                       {way.meals.map((meal) => (
                         <li key={`${meal.mealType}-${meal.recipeId ?? meal.title}`}>
-                          <span className="text-muted-foreground">{mealName(meal.mealType)}</span> ·{' '}
+                          <span className="text-muted-foreground">{mealName(meal.mealType)}</span>
+                          {DOT}
                           {meal.title}
                           <span className="text-muted-foreground">
-                            {' '}
-                            · {t('mealEnergy', { kcal: meal.nutrition.calories })}
+                            {DOT}
+                            {t('mealEnergy', { kcal: meal.nutrition.calories })}
                           </span>
                           {meal.stays && (
                             <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">

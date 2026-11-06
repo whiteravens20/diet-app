@@ -23,6 +23,7 @@ import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight } from '@/lib/weight-unit';
 import { Field, Input } from '@/components/ui/input';
 import { SupplyNote } from '@/components/supply-note';
+import { DOT } from '@/lib/figure-line';
 
 /*
  * The fields a profile is made of, as every form that asks for them shows
@@ -174,9 +175,9 @@ export function PaceChoice({
                 <span className="col-start-2 text-muted-foreground tabular-nums sm:col-start-3 sm:text-right">
                   {t('paceComesTo', { kcal: at.dailyTarget })}
                   {pace !== null && at.goalHeld
-                    ? ` · ${t('paceHeld')}`
+                    ? `${DOT}${t('paceHeld')}`
                     : pace !== null && slowed(at)
-                      ? ` · ${t('paceSlowed')}`
+                      ? `${DOT}${t('paceSlowed')}`
                       : ''}
                 </span>
               )}

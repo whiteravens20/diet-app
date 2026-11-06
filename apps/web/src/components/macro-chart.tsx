@@ -8,6 +8,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, type PieLabelRenderProps } fr
 import type { Macros } from '@diet-app/shared';
 import { energySplit, type EnergyPart } from '@/lib/energy-split';
 import { useFormat } from '@/lib/use-format';
+import { DOT } from '@/lib/figure-line';
 
 const MACRO_COLORS: Record<EnergyPart['key'], string> = {
   protein: 'var(--color-primary)',
@@ -83,7 +84,9 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
             />
             <span className="font-medium tabular-nums">{fmt.unit(part.grams, 'gram')}</span>
             <span className="text-muted-foreground">
-              {part.name} · {part.share}
+              {part.name}
+              {DOT}
+              {part.share}
             </span>
           </li>
         ))}

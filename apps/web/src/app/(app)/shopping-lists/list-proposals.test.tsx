@@ -15,6 +15,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
 import { ListProposals } from './list-proposals';
+import { plain } from '@/testing/spaces';
 
 const texts = messages.shoppingLists.proposals;
 const PLAN = '11111111-1111-4111-8111-111111111111';
@@ -106,7 +107,7 @@ describe('what a shopping list could do without', () => {
     expect(proposal.getByText('Pasta').parentElement).toHaveTextContent(
       'Pasta in place of White rice in 2 meals: 1 pack fewer to buy',
     );
-    expect(proposal.getAllByRole('listitem').map((meal) => meal.textContent)).toEqual([
+    expect(proposal.getAllByRole('listitem').map((meal) => plain(meal.textContent))).toEqual([
       'Tue, Jan 6 · Chicken with rice',
       'Wed, Jan 7 · Tofu rice bowl',
     ]);

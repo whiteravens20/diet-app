@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/use-format';
+import { DOT } from '@/lib/figure-line';
 
 /** The four, in the order they are shown. */
 const NUTRIENTS: readonly LabelNutrient[] = ['fiber', 'sugars', 'salt', 'saturatedFat'];
@@ -51,7 +52,7 @@ export function LabelLine({ totals, className }: { totals: LabelTotals; classNam
     <p className={cn('text-xs text-muted-foreground', className)}>
       {NUTRIENTS.map((nutrient, index) => (
         <Fragment key={nutrient}>
-          {index > 0 && ' · '}
+          {index > 0 && DOT}
           <span className="whitespace-nowrap">
             {t(nutrient)} <span className="tabular-nums">{figure(totals[nutrient])}</span>
           </span>

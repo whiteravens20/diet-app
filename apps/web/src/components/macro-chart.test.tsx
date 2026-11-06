@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { MacroChart } from './macro-chart';
+import { plain } from '@/testing/spaces';
 
 const shown = (locale: 'en' | 'pl' = 'en') =>
   render(
@@ -20,7 +21,7 @@ describe("the ring of a day's macronutrients", () => {
 
     const items = within(screen.getByRole('list'))
       .getAllByRole('listitem')
-      .map((item) => item.textContent);
+      .map((item) => plain(item.textContent));
     expect(items).toEqual(['150 gProtein · 30%', '70 gFat · 31%', '200 gCarbs · 39%']);
   });
 

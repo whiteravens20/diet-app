@@ -21,6 +21,7 @@ import { useShownAmount } from '@/lib/ingredient-format';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { DOT } from '@/lib/figure-line';
 
 /** An address of the web, and nothing else: only such a one is made a link. */
 const onTheWeb = (address: string | null): address is string =>
@@ -54,7 +55,7 @@ function RecipeSourceLine({ source }: { source: NonNullable<Recipe['source']> })
               </a>
             ),
           })}
-          {' · '}
+          {DOT}
         </>
       )}
       {t.rich('sourceLicence', {
