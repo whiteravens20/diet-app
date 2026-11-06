@@ -44,6 +44,7 @@ import { useEntryAmount } from '@/components/diary-entry-amount';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
+import { ListNote } from './list-note';
 import { UseUp } from './use-up';
 import { WeekLine } from './week-line';
 
@@ -507,6 +508,15 @@ export function PlanCard({
                     <span id={`${day.id}-spread`} className="text-muted-foreground">
                       {t(day.offTarget === 'over' ? 'spreadNoteOver' : 'spreadNoteUnder')}
                     </span>
+                    <ListNote
+                      days="several"
+                      listed={plan.days.some(
+                        (other) =>
+                          other.listed &&
+                          !other.skipped &&
+                          other.date >= (day.date < today ? day.date : today),
+                      )}
+                    />
                   </div>
                 )}
               </div>
@@ -843,6 +853,7 @@ export function PlanCard({
                         >
                           <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
                           {apart && <p>{apart}</p>}
+                          <ListNote listed={day.listed} />
                           <div className="flex flex-wrap gap-2 pt-1">
                             <Button
                               type="button"
@@ -937,6 +948,21 @@ export function PlanCard({
                               })}
                             </p>
                           )}
+                          <ListNote
+                            days={
+                              onlyFor === m.id || !offer.preview.cooking?.changes.length
+                                ? 'one'
+                                : 'several'
+                            }
+                            listed={
+                              day.listed ||
+                              (onlyFor !== m.id &&
+                                (offer.preview.cooking?.changes ?? []).some(
+                                  (change) =>
+                                    plan.days.find((other) => other.date === change.date)?.listed,
+                                ))
+                            }
+                          />
                           <div className="flex flex-wrap gap-2 pt-1">
                             <Button
                               type="button"
@@ -1140,7 +1166,12 @@ export function PlanCard({
           </span>
         </button>
         <div className="flex flex-wrap items-center gap-2">
-          <ApplyFavoriteSetButton plan={summary} profileId={summary.profileId} disabled={busy} />
+          <ApplyFavoriteSetButton
+            plan={summary}
+            profileId={summary.profileId}
+            disabled={busy}
+            listedDates={plan?.days.filter((day) => day.listed).map((day) => day.date)}
+          />
           <Button
             type="button"
             variant="outline"
@@ -1225,6 +1256,7 @@ export function PlanCard({
                 {plan.packs.open.some((pack) => pack.wasted) && (
                   <UseUp
                     planId={plan.id}
+                    listedDates={plan.days.filter((day) => day.listed).map((day) => day.date)}
                     aiEnabled={aiEnabled}
                     aiOffNote={aiOffNote}
                     mealName={mealName}
@@ -1361,6 +1393,7 @@ export function PlanCard({
             title: meal.recipe?.title ?? meal.customName ?? t('customMeal'),
             apart: cookWords.apart(meal, customDay, today),
           }))}
+          listed={plan?.days.find((day) => day.date === customDay)?.listed ?? false}
           onClose={() => setCustomDay(null)}
           onSubmit={(body) => {
             changing.current = dayAnchor(summary.id, customDay);
@@ -1373,6 +1406,10 @@ export function PlanCard({
         <IngredientSubstituteModal
           meal={openSub}
           planId={summary.id}
+          listed={
+            plan?.days.find((day) => day.meals.some((meal) => meal.id === openSub.id))?.listed ??
+            false
+          }
           onClose={() => setOpenSub(null)}
           mealName={mealName}
           onApplied={(result) => {

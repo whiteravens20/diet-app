@@ -68,7 +68,11 @@ const answered: AiGenerationMeta = {
 /** The window, open on a day, with the API answering `first` to the first request and `weighed` to the one that asks a model. */
 async function opened(
   first: DayVariations | ApiClientError,
-  { weighed, aiEnabled = true }: { weighed?: DayVariations; aiEnabled?: boolean } = {},
+  {
+    weighed,
+    aiEnabled = true,
+    listed = false,
+  }: { weighed?: DayVariations; aiEnabled?: boolean; listed?: boolean } = {},
 ) {
   const post = vi.spyOn(api, 'post').mockImplementation((path: string, body?: unknown) => {
     if (path === `${PATH}/take`) return Promise.resolve({} as never);
@@ -86,7 +90,7 @@ async function opened(
       >
         <DayVariationsDialog
           planId={PLAN}
-          day={DAY}
+          day={{ ...DAY, listed }}
           aiEnabled={aiEnabled}
           aiOffNote="why-off"
           mealName={(type) => type}
@@ -110,6 +114,16 @@ const ways = (dialog: Awaited<ReturnType<typeof opened>>['dialog']) =>
 describe('the window that offers other ways to fill a day', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('says that the shopping list of the day goes out of date where one covers it, and nothing where none does', async () => {
+    const listed = await opened(theWays([aWay('one', 'Soup')]), { listed: true });
+    expect(await listed.dialog.findByText(messages.mealPlans.listOutOfDateDay)).toBeInTheDocument();
+    cleanup();
+
+    const unlisted = await opened(theWays([aWay('one', 'Soup')]));
+    await unlisted.dialog.findByText(/Soup/);
+    expect(unlisted.dialog.queryByText(messages.mealPlans.listOutOfDateDay)).toBeNull();
   });
 
   it('says that its figures count what the diary holds for the day, and says nothing of it where it holds nothing', async () => {

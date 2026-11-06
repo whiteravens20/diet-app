@@ -1898,7 +1898,9 @@
     "weekUneven": "This week's average: {average} kcal, the plan's target: {target} kcal.",
     "evenWeek": "Even out the week",
     "evenWeekNote": "This week's days from today get new targets: the same dishes in other portions.",
-    "errEvenWeek": "Could not even out the week."
+    "errEvenWeek": "Could not even out the week.",
+    "listOutOfDateDay": "The shopping list that covers this day will need to be made again.",
+    "listOutOfDateDays": "The shopping list that covers these days will need to be made again."
   },
   "inventory": {
     "title": "Inventory",

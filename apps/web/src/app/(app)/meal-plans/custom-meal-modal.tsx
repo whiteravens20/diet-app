@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
 import { Dialog } from '@/components/ui/dialog';
+import { ListNote } from './list-note';
 
 /** The most one serving may hold of each, as the API has it. */
 const most = (of: keyof EnteredNutrition) => EnteredNutrition.shape[of].maxValue ?? undefined;
@@ -35,12 +36,15 @@ export interface DayMealOption {
 export function CustomMealModal({
   date,
   meals,
+  listed = false,
   onClose,
   onSubmit,
 }: {
   date: string;
   /** The meals the day has. */
   meals: readonly DayMealOption[];
+  /** A shopping list covers the day. */
+  listed?: boolean;
   onClose: () => void;
   onSubmit: (body: AddCustomMealRequest) => void;
 }) {
@@ -236,6 +240,7 @@ export function CustomMealModal({
             {t(replaces ? 'customInsteadNote' : 'customBesideNote')}
           </p>
           {apart && <p className="text-muted-foreground">{apart}</p>}
+          <ListNote listed={listed} />
         </div>
 
         <div className="flex justify-end gap-2">

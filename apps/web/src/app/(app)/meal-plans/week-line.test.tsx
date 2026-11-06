@@ -56,6 +56,18 @@ describe('the line of a week of a plan', () => {
     expect(screen.getByText(texts.evenWeekNote)).toBeInTheDocument();
   });
 
+  it('says that the shopping list of its days goes out of date, where one covers them', async () => {
+    shown({ ...UNEVEN, listOutOfDate: true });
+
+    expect(screen.getByText(texts.listOutOfDateDays)).toBeInTheDocument();
+  });
+
+  it('says nothing of a list where none covers its days', () => {
+    shown(UNEVEN);
+
+    expect(screen.queryByText(texts.listOutOfDateDays)).not.toBeInTheDocument();
+  });
+
   it('evens the week out on the plan as the page read it, and tells the page', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
     const { onEvened } = shown(UNEVEN);

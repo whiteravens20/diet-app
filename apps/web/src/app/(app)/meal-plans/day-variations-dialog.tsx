@@ -14,6 +14,7 @@ import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { CookingNote } from './cooking';
+import { ListNote } from './list-note';
 
 /**
  * The window that offers other ways to fill a day of a plan. The API makes
@@ -31,7 +32,8 @@ export function DayVariationsDialog({
   onChanged,
 }: {
   planId: string;
-  day: { id: string; date: string };
+  /** The day, and whether a shopping list covers it. */
+  day: { id: string; date: string; listed?: boolean };
   aiEnabled: boolean;
   /** The line that says why what asks a model is off, for the button that is. */
   aiOffNote?: string;
@@ -119,6 +121,7 @@ export function DayVariationsDialog({
                 {t('diaryCounted', { kcal: shown.diary.calories })}
               </p>
             )}
+            <ListNote listed={day.listed === true} />
             <div className="text-xs">
               <CookingNote
                 change={shown.cooking}

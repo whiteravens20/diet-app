@@ -239,6 +239,13 @@ describe('the window in which the settings of a day are changed', () => {
     );
   });
 
+  it('says before the week is evened out that the shopping list of its days goes out of date', async () => {
+    const { dialog } = await opened(() => aPreview({ week: { ...UNEVEN, listOutOfDate: true } }));
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    expect(await dialog.findByText(messages.mealPlans.listOutOfDateDays)).toBeInTheDocument();
+  });
+
   it('saves the day alone with the other button, and has one button where the week stays even', async () => {
     const first = await opened(() => aPreview({ week: UNEVEN }));
     await userEvent.selectOptions(kindField(first.dialog), texts.kinds.training);

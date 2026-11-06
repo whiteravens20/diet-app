@@ -35,6 +35,30 @@ function open() {
   return onSubmit;
 }
 
+describe('the shopping list of the day', () => {
+  it('is said to go out of date where one covers the day, and nothing is said where none does', () => {
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <CustomMealModal
+          date="2026-01-05"
+          meals={MEALS}
+          listed
+          onClose={() => {}}
+          onSubmit={vi.fn()}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText(messages.mealPlans.listOutOfDateDay)).toBeInTheDocument();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <CustomMealModal date="2026-01-05" meals={MEALS} onClose={() => {}} onSubmit={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText(messages.mealPlans.listOutOfDateDay)).not.toBeInTheDocument();
+  });
+});
+
 describe('the note on the meal it replaces', () => {
   it('says what follows for the other meal of a cooking when one is chosen', async () => {
     render(

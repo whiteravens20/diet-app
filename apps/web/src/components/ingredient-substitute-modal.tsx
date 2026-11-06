@@ -25,6 +25,7 @@ import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { Dialog } from '@/components/ui/dialog';
 import { CookingNote } from '@/app/(app)/meal-plans/cooking';
+import { ListNote } from '@/app/(app)/meal-plans/list-note';
 
 interface PlannedMealLike {
   id: string;
@@ -47,12 +48,15 @@ interface PlannedMealLike {
 export function IngredientSubstituteModal({
   meal,
   planId,
+  listed = false,
   mealName,
   onClose,
   onApplied,
 }: {
   meal: PlannedMealLike;
   planId: string;
+  /** A shopping list covers the meal's day. */
+  listed?: boolean;
   mealName: (mealType: string) => string;
   onClose: () => void;
   onApplied: (result: SwapIngredientResponse) => void;
@@ -446,6 +450,7 @@ export function IngredientSubstituteModal({
                 <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
               </span>
             </label>
+            <ListNote listed={listed} className="mt-3" />
             <div className="mt-3 flex items-center justify-end gap-2">
               {error && <span className="text-xs text-destructive">{error}</span>}
               <Button

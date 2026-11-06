@@ -16,6 +16,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CookingNote } from './cooking';
 import { type Reroll, type RerollScope } from './reroll';
+import { ListNote } from './list-note';
 
 /** What the window opens on: how much of the plan, which day for one day, and whether every limit is to hold. */
 export interface RerollStart {
@@ -408,6 +409,24 @@ function RerollForm({
               <p>{t('keptNothing')}</p>
             )}
             {diaryCounts && <p>{t('diaryCounts')}</p>}
+            {shown.days > 0 && (
+              <ListNote
+                days={scope === 'day' ? 'one' : 'several'}
+                listed={days.some(
+                  (one) =>
+                    one.listed &&
+                    !one.skipped &&
+                    (includePast || one.date >= today) &&
+                    (scope === 'day'
+                      ? one.date === day
+                      : scope === 'range'
+                        ? one.date >= from && one.date <= to
+                        : scope === 'from_today'
+                          ? one.date >= today
+                          : true),
+                )}
+              />
+            )}
             <CookingNote
               change={shown.cooking}
               only={only}

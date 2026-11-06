@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { ListNote } from './list-note';
 
 /**
  * A week of a plan whose days aim off the plan's target on average, as a
@@ -65,6 +66,7 @@ export function WeekLine({
         </Button>
         <span className="text-xs text-muted-foreground">{t('evenWeekNote')}</span>
       </div>
+      <ListNote days="several" listed={week.listOutOfDate} />
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {error}

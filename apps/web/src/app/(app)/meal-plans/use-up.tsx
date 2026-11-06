@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useAmount } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { ListNote } from './list-note';
 
 /**
  * The swaps that would use up what a plan opens, asked for under the plan's
@@ -21,6 +22,7 @@ import { useFormat } from '@/lib/use-format';
  */
 export function UseUp({
   planId,
+  listedDates = [],
   aiEnabled,
   aiOffNote,
   mealName,
@@ -29,6 +31,8 @@ export function UseUp({
   onStale,
 }: {
   planId: string;
+  /** The days a shopping list of the plan covers. */
+  listedDates?: readonly string[];
   aiEnabled: boolean;
   aiOffNote?: string;
   mealName: (mealType: string) => string;
@@ -140,6 +144,7 @@ export function UseUp({
                 </Button>
               </div>
               <ModelSays reason={suggestion.reason} />
+              <ListNote listed={listedDates.includes(suggestion.date)} />
               <p>
                 {suggestion.takes
                   .map((taken) =>

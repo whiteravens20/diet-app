@@ -1898,7 +1898,9 @@
     "weekUneven": "Średnia tego tygodnia: {average} kcal, cel planu: {target} kcal.",
     "evenWeek": "Wyrównaj tydzień",
     "evenWeekNote": "Dni tego tygodnia od dziś dostaną nowe cele: te same dania w innych porcjach.",
-    "errEvenWeek": "Nie udało się wyrównać tygodnia."
+    "errEvenWeek": "Nie udało się wyrównać tygodnia.",
+    "listOutOfDateDay": "Lista zakupów obejmująca ten dzień będzie do odświeżenia.",
+    "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia."
   },
   "inventory": {
     "title": "Spiżarnia",

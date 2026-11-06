@@ -30,6 +30,7 @@ import { useSettled } from '@/lib/use-settled';
 import { cn } from '@/lib/utils';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 import { CookingNote } from './cooking';
+import { ListNote } from './list-note';
 
 type Kind = 'normal' | 'training' | 'rest' | 'skip';
 const KINDS: readonly Kind[] = ['normal', 'training', 'rest', 'skip'];
@@ -416,6 +417,7 @@ function Outcome({
             })}
           </p>
         )}
+        <ListNote days="several" listed={weekOff?.listOutOfDate === true} />
       </>
     );
   const { now, then } = preview.calorieTarget;
@@ -507,6 +509,7 @@ function WeekOutcome({ week }: { week: NonNullable<DaySettingsPreview['week']> }
           })}
         </p>
       )}
+      <ListNote days="several" listed={week.unevenAlone && week.listOutOfDate} />
     </>
   );
 }

@@ -2968,6 +2968,21 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     expect(screen.getByText('On Tuesday you cook this dish separately.')).toBeVisible();
   });
 
+  it('says before a meal is taken off that the shopping list of its day goes out of date, where one covers it', async () => {
+    const plan = aPairOfDays();
+    await opened({
+      ...plan,
+      days: plan.days.map((day, index) => ({ ...day, listed: index === 0 })),
+    });
+
+    await userEvent.click(screen.getAllByRole('button', { name: ofAMeal('Change') })[0]!);
+    await userEvent.click(
+      screen.getAllByRole('button', { name: ofAMeal(messages.mealPlans.remove) })[0]!,
+    );
+
+    expect(screen.getByText(messages.mealPlans.listOutOfDateDay)).toBeVisible();
+  });
+
   it('brings a meal back to the dish of the day before it was parted from', async () => {
     const plan = aPairOfDays();
     const other = {

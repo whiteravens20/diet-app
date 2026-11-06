@@ -12,6 +12,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { useFormat } from '@/lib/use-format';
 import { localDate } from '@/lib/http';
+import { ListNote } from '@/app/(app)/meal-plans/list-note';
 
 /**
  * Plan-level "Apply set" action — pick a favourite set + one-or-more days,
@@ -23,11 +24,14 @@ export function ApplyFavoriteSetButton({
   plan,
   profileId,
   disabled,
+  listedDates,
 }: {
   /** The plan as a list shows it: its days are worked out from where it begins and how long it is. */
   plan: Pick<MealPlan, 'id' | 'startDate' | 'durationDays' | 'options'>;
   profileId: string;
   disabled?: boolean;
+  /** The days a shopping list covers, where the plan's days are read. */
+  listedDates?: readonly string[];
 }) {
   // A day that is over keeps what was on it: a set is not offered for it.
   const today = localDate();
@@ -155,6 +159,11 @@ export function ApplyFavoriteSetButton({
       </div>
       {days.length === 0 && <p className="mt-2 text-sm">{t('applyNoDays')}</p>}
       <p className="mt-2 text-xs text-muted-foreground">{t('applyOwnMealNote')}</p>
+      <ListNote
+        className="mt-2"
+        days={selectedDays.size > 1 ? 'several' : 'one'}
+        listed={[...selectedDays].some((date) => listedDates?.includes(date))}
+      />
       {plan.options.mealPrepFriendly && (
         <div className="mt-2 space-y-1 text-xs">
           {!only && <p className="text-muted-foreground">{t('applyCookingNote')}</p>}
