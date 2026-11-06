@@ -44,7 +44,6 @@ import {
   estimatedMacros,
   labelEntryFigures,
   macroSplitOf,
-  macrosForCalories,
   nutritionFor,
   scaledFigures,
   sharesOf,
@@ -53,6 +52,7 @@ import {
 } from '../engine/index.js';
 import { mealRank } from '../meal-plans/meal-plans.service.js';
 import {
+  aimOfDay as aimOfPlanDay,
   customMacros,
   isoDate,
   isSkipped,
@@ -136,7 +136,7 @@ export class DiaryService {
           planId: true,
           calorieTarget: true,
           overrides: true,
-          plan: { select: { dietType: true, macroSplit: true } },
+          plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
           meals: {
             select: {
               id: true,
@@ -586,7 +586,8 @@ export class DiaryService {
     profile: DiaryProfile,
     planDay: {
       calorieTarget: number;
-      plan: { dietType: DiaryProfile['dietType']; macroSplit: unknown };
+      overrides: unknown;
+      plan: { dietType: DiaryProfile['dietType']; macroSplit: unknown; calorieTarget: number };
     } | null,
   ): { target: DiaryDay['target']; split: Macros } {
     if (planDay) {
@@ -594,7 +595,7 @@ export class DiaryService {
       return {
         target: {
           calories: planDay.calorieTarget,
-          ...macrosForCalories(planDay.calorieTarget, planDay.plan.dietType, own),
+          ...aimOfPlanDay(planDay, planDay.plan),
           from: 'plan',
         },
         split: macroSplitOf(planDay.plan.dietType, own),
@@ -619,7 +620,7 @@ export class DiaryService {
       select: {
         calorieTarget: true,
         overrides: true,
-        plan: { select: { dietType: true, macroSplit: true } },
+        plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
       },
     });
     return this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);

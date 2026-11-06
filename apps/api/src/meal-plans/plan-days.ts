@@ -4,9 +4,9 @@
 import type { DietType, LabelTotals, Macros, MealType } from '@diet-app/shared';
 import { storedSplit } from '../common/stored-split.js';
 import {
+  dayMacros,
   energyShares,
   macroSplitOf,
-  macrosForCalories,
   sharesOf,
   splitDistance,
 } from '../engine/nutrition.js';
@@ -127,9 +127,24 @@ export function sumNutrition(items: Amounts[]): Amounts {
   );
 }
 
-/** What a day of a plan aims at of protein, fat and carbohydrate, in grams, as the plan says it. */
-export const aimOfDay = (target: number, plan: { dietType: string; macroSplit: unknown }): Macros =>
-  macrosForCalories(target, plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
+/**
+ * What a day of a plan aims at of protein, fat and carbohydrate, in grams: the
+ * protein of the plan's target, whatever the kind of day, and its own
+ * calories in carbohydrate and fat (`dayMacros`).
+ */
+export const aimOfDay = (
+  day: { calorieTarget: number; overrides: unknown },
+  plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
+): Macros =>
+  dayMacros(
+    {
+      target: day.calorieTarget,
+      base: plan.calorieTarget,
+      ownTarget: parseDayOverrides(day.overrides)?.calorieTarget ?? null,
+    },
+    plan.dietType as DietType,
+    sharesOf(storedSplit(plan.macroSplit)),
+  );
 
 /** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */
 export function isSkipped(day: { overrides: unknown }): boolean {
@@ -183,10 +198,19 @@ export function standingOf(
  */
 const MACROS_OFF = 0.12;
 
-/** What a day of a plan holds of protein, fat and carbohydrate is far from what the plan aims at. */
-export function macrosOff(held: Macros, plan: { dietType: string; macroSplit: unknown }): boolean {
+/**
+ * What a day of a plan holds of protein, fat and carbohydrate is far from what
+ * it aims at: `aim`, the grams of a day (`aimOfDay`), or else the plan's split.
+ */
+export function macrosOff(
+  held: Macros,
+  plan: { dietType: string; macroSplit: unknown },
+  aim?: Macros,
+): boolean {
   const shares = energyShares(held);
-  const split = macroSplitOf(plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
+  const split =
+    (aim && energyShares(aim)) ??
+    macroSplitOf(plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
   return shares !== null && splitDistance(shares, split) > MACROS_OFF;
 }
 

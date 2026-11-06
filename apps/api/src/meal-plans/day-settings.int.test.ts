@@ -196,6 +196,15 @@ describe('the settings of a day of a running plan', () => {
       const again = (await even(evened, DATE).expect(200)).body as MealPlan;
       expect(again.revision).toBe(evened.revision);
     });
+
+    it('keeps the protein of the usual days of the week on a training day, which gains carbohydrate', async () => {
+      const after = await apply(plan, { dayType: 'training' });
+
+      expect(dayOf(after).targetMacros.protein).toBe(dayOf(after, day(2)).targetMacros.protein);
+      expect(dayOf(after).targetMacros.carbs).toBeGreaterThan(
+        dayOf(after, day(2)).targetMacros.carbs,
+      );
+    });
   });
 
   describe('another number of meals', () => {

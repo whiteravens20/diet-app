@@ -81,6 +81,13 @@ export interface OptimizerRecipe {
 export interface OptimizerDay {
   mealSlots: MealType[];
   dailyCalorieTarget: number;
+  /**
+   * What the day aims at of protein, fat and carbohydrate, in grams, where it
+   * is not its target split as the plan's split splits it: a training or rest
+   * day keeps the protein of a usual day (`dayMacros`). The choice of its
+   * recipes and their portions go by it.
+   */
+  macroAim?: Macros;
   /** The most minutes of preparing and cooking a recipe of this day may take. */
   cookTimeBudgetMinutes?: number;
   /** Recipes pinned to slots before the greedy fill (the rest fills around them). */
@@ -648,7 +655,7 @@ function fill(
             daysToCome,
             heldOf,
             dayMacros,
-            macroSplit: input.macroSplit,
+            macroSplit: (spec.macroAim && energyShares(spec.macroAim)) ?? input.macroSplit,
             weights,
             mealPrepFriendly: input.mealPrepFriendly,
             favoriteIngredientIds: input.favoriteIngredientIds,

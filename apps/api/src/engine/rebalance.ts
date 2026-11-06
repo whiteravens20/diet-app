@@ -281,11 +281,15 @@ export function sizeAssignments(
         };
       }),
     ];
-    const { scales } = sizeDay(meals, target, {
-      protein: (target * split.protein) / KCAL_PER_GRAM.protein,
-      fat: (target * split.fat) / KCAL_PER_GRAM.fat,
-      carbs: (target * split.carbs) / KCAL_PER_GRAM.carbs,
-    });
+    const { scales } = sizeDay(
+      meals,
+      target,
+      day.macroAim ?? {
+        protein: (target * split.protein) / KCAL_PER_GRAM.protein,
+        fat: (target * split.fat) / KCAL_PER_GRAM.fat,
+        carbs: (target * split.carbs) / KCAL_PER_GRAM.carbs,
+      },
+    );
     for (const meal of placed) sized.set(meal, scales.get(meal.slot)!);
   });
   // To two places: nobody weighs out the third, and what a meal shows is rounded anyway.

@@ -22,8 +22,7 @@ import {
 import { ModelPickService } from '../ai/model-pick.service.js';
 import { DAY_VARIATIONS } from '../ai/operations.js';
 import { WeighService } from '../ai/weigh.service.js';
-import { storedSplit } from '../common/stored-split.js';
-import { macrosForCalories, packUse, sharesOf, tallyOf } from '../engine/index.js';
+import { packUse, tallyOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { assertMayEnter, CANDIDATE, pickIndex, restrictionsFor } from './eligibility.js';
 import {
@@ -32,7 +31,7 @@ import {
   MealPlansService,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds, type PackedMeal } from './plan-menu.js';
 import { writePlan } from './plan-write.js';
@@ -283,11 +282,7 @@ export class DayVariationsService {
     let aiMeta: DayVariations['aiMeta'] = null;
     let picked = false;
     if (req.weigh && variations.length > 0) {
-      const aims = macrosForCalories(
-        day.calorieTarget,
-        plan.dietType,
-        sharesOf(storedSplit(plan.macroSplit)),
-      );
+      const aims = aimOfDay(day, plan);
       const letter = (index: number): string => String.fromCharCode(97 + index);
       const weighed = await this.weigher.weigh(userId, DAY_VARIATIONS, {
         choice:

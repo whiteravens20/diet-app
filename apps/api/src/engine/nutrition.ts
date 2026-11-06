@@ -380,3 +380,33 @@ export function effectiveDayTarget(day: {
   const target = Math.max(shaped, least);
   return { target, belowFloor: !day.baseIsCalculated && target < day.floor };
 }
+
+/**
+ * What a day of a plan aims at of protein, fat and carbohydrate, in grams.
+ * Every day keeps the protein of a day at the plan's own target (`base`,
+ * rounded to ten as a day's target is): the kinds of day move carbohydrate and
+ * fat between the days of a week, and protein stays put, so that a usual day
+ * of a week without other kinds is its target split as the diet splits a day.
+ * The carbohydrates keep their share of the day's energy, so a diet that holds
+ * them under a share of it (keto, low-carb) holds them there on every day, and
+ * fat takes what is left. A day with a target of its own splits it as the diet
+ * splits a day.
+ */
+export function dayMacros(
+  day: { target: number; base: number; ownTarget?: number | null },
+  dietType: DietType,
+  own?: Macros | null,
+): Macros {
+  if ((day.ownTarget ?? null) !== null) return macrosForCalories(day.target, dietType, own);
+  const split = macroSplitOf(dietType, own);
+  const usual = Math.round(day.base / 10) * 10;
+  const protein = (usual * split.protein) / KCAL_PER_GRAM.protein;
+  const carbs = (day.target * split.carbs) / KCAL_PER_GRAM.carbs;
+  // What is left, of the figures before they are rounded: on a usual day, the diet's own share of fat.
+  const left = day.target - protein * KCAL_PER_GRAM.protein - carbs * KCAL_PER_GRAM.carbs;
+  return {
+    protein: round(protein),
+    fat: round(Math.max(0, left) / KCAL_PER_GRAM.fat),
+    carbs: round(carbs),
+  };
+}

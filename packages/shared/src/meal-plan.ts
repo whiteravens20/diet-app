@@ -495,7 +495,12 @@ export const MealPlanDay = z.object({
     })
     .nullable(),
   calorieTarget: z.number(),
-  /** What the day aims at of protein, fat and carbohydrate, in grams: its calorie target split as the plan's diet splits a day. */
+  /**
+   * What the day aims at of protein, fat and carbohydrate, in grams: its
+   * calorie target split as the plan's diet splits a day. A training or rest
+   * day keeps the protein of a usual day of its week, and its carbohydrates
+   * their share of its energy; fat takes what is left.
+   */
   targetMacros: Macros,
   /** Signed delta vs. target — positive means over budget. Zero for a skipped day. */
   calorieDelta: z.number(),

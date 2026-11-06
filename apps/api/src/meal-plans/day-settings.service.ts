@@ -15,17 +15,14 @@ import {
   type MealPlan,
   type MealType,
 } from '@diet-app/shared';
-import { storedSplit } from '../common/stored-split.js';
 import { diaryDays } from '../diary/diary-days.js';
 import {
   calculateCalories,
   DAY_KIND_FACTOR,
   fitServings,
   KCAL_PER_KG_FAT,
-  macrosForCalories,
   REBALANCE_TOLERANCE,
   safetyFloor,
-  sharesOf,
   sharesTheWeek,
   slotBudgets,
   weekOfDay,
@@ -42,6 +39,7 @@ import {
   type CookedMeal,
 } from './meal-plans.service.js';
 import {
+  aimOfDay,
   dayMealCount,
   isoDate,
   mealNutrition,
@@ -118,7 +116,6 @@ export class DaySettingsService {
     const context = await this.read(userId, planId, dayId, clientToday);
     const { plan, day, date } = context;
     const change = this.change(context, settings);
-    const split = sharesOf(storedSplit(plan.macroSplit));
     const fateOf = new Map(change.fates.map((fate) => [fate.mealId, fate]));
     const left = day.meals.filter((meal) => fateOf.get(meal.id)!.fate !== 'removed');
     // What the diary holds for the day is eaten, and counts as the day's view counts it.
@@ -129,7 +126,12 @@ export class DaySettingsService {
       change.drawn.length > 0
         ? null
         : change.resizes
-          ? this.plans.resizedKcal(left, change.target, entered, plan)
+          ? this.plans.resizedKcal(
+              left,
+              { calorieTarget: change.target, overrides: change.overrides },
+              entered,
+              plan,
+            )
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
             (entered?.nutrition.calories ?? 0);
     const changesMeals =
@@ -149,8 +151,8 @@ export class DaySettingsService {
       date,
       calorieTarget: { now: day.calorieTarget, then: change.target },
       targetMacros: {
-        now: macrosForCalories(day.calorieTarget, plan.dietType, split),
-        then: macrosForCalories(change.target, plan.dietType, split),
+        now: aimOfDay(day, plan),
+        then: aimOfDay({ calorieTarget: change.target, overrides: change.overrides }, plan),
       },
       belowSafetyFloor: !settings.skip && change.target < safetyFloor(context.profile.sex),
       meals: change.fates,

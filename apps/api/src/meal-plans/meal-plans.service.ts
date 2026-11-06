@@ -530,7 +530,9 @@ export class MealPlansService {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: {
-        plan: { select: { profileId: true, dietType: true, macroSplit: true } },
+        plan: {
+          select: { profileId: true, dietType: true, macroSplit: true, calorieTarget: true },
+        },
         meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } },
       },
     });
@@ -542,7 +544,7 @@ export class MealPlansService {
     const { scales, feasibility } = sizeDay(
       counted.map(toEngineMeal),
       day.calorieTarget,
-      aimOfDay(day.calorieTarget, day.plan),
+      aimOfDay(day, day.plan),
     );
     const changes = await this.persistScales(rows, scales, tx);
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
@@ -577,7 +579,7 @@ export class MealPlansService {
     const dayRows = days.map((d) => ({
       target: d.calorieTarget,
       past: isoDate(d.date) < today,
-      aim: aimOfDay(d.calorieTarget, plan),
+      aim: aimOfDay(d, plan),
       rows: d.meals.map(toRebalanceRow),
       // Each day's own row of what its diary holds: the ids of the meals are the plan's.
       diary: diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
@@ -627,18 +629,18 @@ export class MealPlansService {
   }
 
   /**
-   * What a day would come to, in kcal, with its meals sized for `target` as a
-   * change of the day's target sizes them: the meals, and what its diary holds
-   * as eaten. Nothing is written.
+   * What a day would come to, in kcal, with its meals sized for the target and
+   * kind `day` gives it, as a change of the day's settings sizes them: the
+   * meals, and what its diary holds as eaten. Nothing is written.
    */
   resizedKcal(
     meals: RebalanceMealRow[],
-    target: number,
+    day: { calorieTarget: number; overrides: unknown },
     diary: DiaryOnDay | null,
-    plan: { dietType: string; macroSplit: unknown },
+    plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
   ): number {
     const rows = [...meals.map(toRebalanceRow), ...diaryRows(diary)];
-    const { scales } = sizeDay(rows.map(toEngineMeal), target, aimOfDay(target, plan));
+    const { scales } = sizeDay(rows.map(toEngineMeal), day.calorieTarget, aimOfDay(day, plan));
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
 
@@ -1129,9 +1131,10 @@ export class MealPlansService {
           items: written.get(isoDate(day.date)) ?? [],
         },
         calorieTarget: day.calorieTarget,
-        targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
+        targetMacros: aimOfDay(day, plan),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
-        macrosOff: !skipped && meals.length > 0 && macrosOff(dayNutrition, plan),
+        macrosOff:
+          !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan)),
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,

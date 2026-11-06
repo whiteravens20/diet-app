@@ -5,6 +5,7 @@ import {
   calculateBmr,
   calculateCalories,
   calculateMaintenance,
+  dayMacros,
   deficitForWeeklyTarget,
   effectiveDayTarget,
   energyShares,
@@ -136,6 +137,52 @@ describe('the kinds of day of a week', () => {
 
     expect(scales.slice(0, 7)).toEqual(Array(7).fill(1));
     expect(scales.slice(7)).toEqual(Array(3).fill(3 / 3.15));
+  });
+});
+
+describe('what a day of a plan aims at of protein, fat and carbohydrate', () => {
+  it("is its target split as the diet splits a day, on a day at the plan's target and on one with a target of its own", () => {
+    expect(dayMacros({ target: 2000, base: 2000 }, 'balanced')).toEqual(
+      macrosForCalories(2000, 'balanced'),
+    );
+    expect(dayMacros({ target: 2600, base: 2000, ownTarget: 2600 }, 'balanced')).toEqual(
+      macrosForCalories(2600, 'balanced'),
+    );
+  });
+
+  it("keeps the protein of the plan's target on every kind of day, and moves carbohydrate and fat", () => {
+    // A week of a plan of 2135 kcal with three training days: usual days 2010 kcal, training days 2310.
+    const usual = dayMacros({ target: 2010, base: 2135 }, 'balanced');
+    const training = dayMacros({ target: 2310, base: 2135 }, 'balanced');
+    const rest = dayMacros({ target: 1710, base: 2135 }, 'balanced');
+
+    // The protein of a day at the plan's target, 2140 kcal as a day's target is rounded: 134 g.
+    expect([usual.protein, training.protein, rest.protein]).toEqual([134, 134, 134]);
+    expect(training).toEqual({ protein: 134, fat: 82, carbs: 260 });
+    expect(rest).toEqual({ protein: 134, fat: 45, carbs: 192 });
+  });
+
+  it("is a usual day's target split as the diet splits a day, where the plan's target is not a round ten", () => {
+    // A plan of 2297 kcal plans its usual days at 2300.
+    expect(dayMacros({ target: 2300, base: 2297 }, 'balanced')).toEqual(
+      macrosForCalories(2300, 'balanced'),
+    );
+  });
+
+  it("holds the carbohydrates of keto and low-carb at their share of the day's energy on every kind of day", () => {
+    for (const diet of ['keto', 'low_carb'] as const) {
+      const limit = macroSplitOf(diet).carbs;
+      for (const target of [2310, 1710]) {
+        const aimed = dayMacros({ target, base: 2135 }, diet);
+        expect((aimed.carbs * 4) / target).toBeLessThanOrEqual(limit + 0.005);
+      }
+    }
+  });
+
+  it('gives fat nothing rather than less than nothing, for a split of its own heavy in protein', () => {
+    const own = { protein: 0.6, fat: 0.1, carbs: 0.3 };
+
+    expect(dayMacros({ target: 1700, base: 2000 }, 'custom', own).fat).toBe(0);
   });
 });
 

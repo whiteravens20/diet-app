@@ -297,6 +297,24 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       ]);
     });
 
+    it('keep the protein of a usual day on a training day, which gains carbohydrate and fat', async () => {
+      const plan = await aPlan(t, user, await losing(), {
+        startDate: '2026-01-05',
+        durationDays: 7,
+        dayOverrides: [
+          { date: '2026-01-05', dayType: 'training' },
+          { date: '2026-01-06', dayType: 'rest' },
+        ],
+      });
+      const [training, rest, usual] = plan.days.map((day) => day.targetMacros);
+
+      expect(training!.protein).toBe(usual!.protein);
+      expect(rest!.protein).toBe(usual!.protein);
+      expect(training!.carbs).toBeGreaterThan(usual!.carbs);
+      expect(training!.fat).toBeGreaterThan(usual!.fat);
+      expect(rest!.carbs).toBeLessThan(usual!.carbs);
+    });
+
     it('move nothing in a plan of one day, which has no other day to take from', async () => {
       const plan = await aPlan(t, user, await losing(), {
         durationDays: 1,

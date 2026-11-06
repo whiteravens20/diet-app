@@ -420,7 +420,7 @@ export class MealSwapService {
       limits,
       dayIndex,
       rest,
-      aim: aimOfDay(meal.day.calorieTarget, meal.day.plan),
+      aim: aimOfDay(meal.day, meal.day.plan),
       today,
       cooking: cookedWith.get(meal.id) ?? [],
     };

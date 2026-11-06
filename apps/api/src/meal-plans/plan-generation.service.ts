@@ -32,8 +32,10 @@ import {
 import {
   amountsPerServing,
   calculateCalories,
+  dayMacros,
   effectiveDayTarget,
   macroSplitOf,
+  macrosForCalories,
   optimisePlan,
   weekScales,
   sizeAssignments,
@@ -123,6 +125,7 @@ export class PlanGenerationService {
     const seed = this.nextSeed();
     const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
+      planTarget: baseCalorieTarget,
       dietType,
       macroSplit,
       mealPrepFriendly: req.mealPrepFriendly,
@@ -457,6 +460,7 @@ export class PlanGenerationService {
   ) {
     return this.optimiseFor(userId, prepared.profile, {
       days: prepared.days,
+      planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
       dietType: prepared.dietType,
       macroSplit: prepared.macroSplit,
       mealPrepFriendly: prepared.made.mealPrepFriendly,
@@ -650,6 +654,8 @@ export class PlanGenerationService {
     },
     opts: {
       days: ResolvedDay[];
+      /** The plan's own calorie target, whose protein every day keeps. */
+      planTarget: number;
       dietType: MealPlan['dietType'];
       /** The split a plan on the custom diet aims at; null on every other diet. */
       macroSplit: MacroSplit | null;
@@ -741,16 +747,35 @@ export class PlanGenerationService {
 
     const caps = capsOnARecipe(profile.preferences, opts.mealPrepFriendly);
 
-    const days: OptimizerDay[] = opts.days.map((d) => ({
-      mealSlots: d.mealSlots,
-      dailyCalorieTarget: d.calorieTarget,
-      cookTimeBudgetMinutes: d.cookTimeBudgetMinutes,
-      lockedSlots: d.lockedSlots,
-      inventoryCoverage: d.useUpBy ? expiringByDate.get(d.isoDate) : undefined,
-      skip: d.skip,
-      kept: d.kept,
-      avoid: d.avoid,
-    }));
+    const own = sharesOf(opts.macroSplit);
+    const days: OptimizerDay[] = opts.days.map((d) => {
+      // Every day keeps the protein of the plan's target: a day the kinds took off it aims at its own grams.
+      const aimed = dayMacros(
+        {
+          target: d.calorieTarget,
+          base: opts.planTarget,
+          ownTarget: d.overrides?.calorieTarget ?? null,
+        },
+        opts.dietType,
+        own,
+      );
+      const plain = macrosForCalories(d.calorieTarget, opts.dietType, own);
+      const macroAim =
+        aimed.protein === plain.protein && aimed.fat === plain.fat && aimed.carbs === plain.carbs
+          ? undefined
+          : aimed;
+      return {
+        mealSlots: d.mealSlots,
+        dailyCalorieTarget: d.calorieTarget,
+        ...(macroAim ? { macroAim } : {}),
+        cookTimeBudgetMinutes: d.cookTimeBudgetMinutes,
+        lockedSlots: d.lockedSlots,
+        inventoryCoverage: d.useUpBy ? expiringByDate.get(d.isoDate) : undefined,
+        skip: d.skip,
+        kept: d.kept,
+        avoid: d.avoid,
+      };
+    });
 
     const dates = opts.days.map((d) => d.isoDate);
     const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
