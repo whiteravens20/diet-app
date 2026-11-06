@@ -258,7 +258,9 @@
     "switchOffBody": "Do zalogowania znów wystarczy samo hasło.",
     "newCodes": "Nowe kody zapasowe",
     "newCodesBody": "Obecne kody zapasowe przestaną działać.",
-    "codeOrRecovery": "Kod z aplikacji albo kod zapasowy",
+    "recoveryCode": "Kod zapasowy",
+    "useRecoveryCode": "Użyj kodu zapasowego",
+    "useAppCode": "Użyj kodu z aplikacji",
     "failed": "Nie udało się. Spróbuj ponownie.",
     "signInBody": "Wpisz sześciocyfrowy kod z aplikacji uwierzytelniającej. Jeśli nie masz telefonu, wpisz jeden z kodów zapasowych.",
     "signInBack": "Wróć do hasła"

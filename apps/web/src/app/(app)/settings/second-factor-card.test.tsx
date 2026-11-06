@@ -204,7 +204,11 @@ describe('two-step sign-in in the settings of an account', () => {
     await userEvent.click(await screen.findByRole('button', { name: m.switchOff }));
     expect(screen.getByText(m.switchOffBody)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
-    await userEvent.type(screen.getByLabelText(m.codeOrRecovery), 'AAAAA-11111');
+    // The code from the app opens a number pad; a recovery code of letters and digits is a press away.
+    expect(screen.getByLabelText(m.code)).toHaveAttribute('inputmode', 'numeric');
+    await userEvent.click(screen.getByRole('button', { name: m.useRecoveryCode }));
+    expect(screen.getByLabelText(m.recoveryCode)).toHaveAttribute('inputmode', 'text');
+    await userEvent.type(screen.getByLabelText(m.recoveryCode), 'AAAAA-11111');
     await userEvent.click(screen.getByRole('button', { name: m.switchOff }));
 
     expect(remove).toHaveBeenCalledWith('/users/me/second-factor', {
@@ -221,7 +225,7 @@ describe('two-step sign-in in the settings of an account', () => {
     await userEvent.click(await screen.findByRole('button', { name: m.newCodes }));
     expect(screen.getByText(m.newCodesBody)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
-    await userEvent.type(screen.getByLabelText(m.codeOrRecovery), '123456');
+    await userEvent.type(screen.getByLabelText(m.code), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.newCodes }));
 
     expect(post).toHaveBeenCalledWith('/users/me/second-factor/recovery-codes', {
@@ -241,7 +245,7 @@ describe('two-step sign-in in the settings of an account', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: m.switchOff }));
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
-    await userEvent.type(screen.getByLabelText(m.codeOrRecovery), '000000');
+    await userEvent.type(screen.getByLabelText(m.code), '000000');
     await userEvent.click(screen.getByRole('button', { name: m.switchOff }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

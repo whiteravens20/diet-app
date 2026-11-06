@@ -126,7 +126,7 @@ describe('signing in to an account with two-step sign-in', () => {
     await userEvent.type(screen.getByLabelText('Email'), 'holder@example.test');
     await userEvent.type(screen.getByLabelText('Password'), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    const code = await screen.findByLabelText(messages.secondFactor.codeOrRecovery);
+    const code = await screen.findByLabelText(messages.secondFactor.code);
     return { post, begin, load, code };
   }
 
@@ -138,6 +138,33 @@ describe('signing in to an account with two-step sign-in', () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(begin).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();
+  });
+
+  it('opens a number pad for the code from the app, and takes a recovery code of letters a press away, and back', async () => {
+    const { post, code } = await atTheSecondStep();
+    post.mockResolvedValueOnce(aSession as never);
+    expect(code).toHaveAttribute('inputmode', 'numeric');
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.secondFactor.useRecoveryCode }),
+    );
+    const recovery = screen.getByLabelText(messages.secondFactor.recoveryCode);
+    expect(recovery).toHaveAttribute('inputmode', 'text');
+    expect(recovery).toHaveFocus();
+    await userEvent.type(recovery, 'abcde-12345');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(post).toHaveBeenLastCalledWith(
+      '/auth/login/second-factor',
+      { challenge: 'the-challenge', code: 'abcde-12345' },
+      COOKIE_SESSION,
+    );
+    await userEvent.click(screen.getByRole('button', { name: messages.secondFactor.useAppCode }));
+    expect(screen.getByLabelText(messages.secondFactor.code)).toHaveAttribute(
+      'inputmode',
+      'numeric',
+    );
   });
 
   it('signs in with the code and the challenge the password was answered with, as a browser', async () => {
@@ -168,7 +195,7 @@ describe('signing in to an account with two-step sign-in', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       messages.errors.INVALID_SECOND_FACTOR_CODE,
     );
-    expect(screen.getByLabelText(messages.secondFactor.codeOrRecovery)).toBeInTheDocument();
+    expect(screen.getByLabelText(messages.secondFactor.code)).toBeInTheDocument();
   });
 
   it('says how long codes have to wait after too many wrong ones', async () => {

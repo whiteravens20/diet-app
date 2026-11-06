@@ -258,7 +258,9 @@
     "switchOffBody": "Signing in will take only your password again.",
     "newCodes": "New recovery codes",
     "newCodesBody": "The recovery codes you have now stop working.",
-    "codeOrRecovery": "Code from the app, or a recovery code",
+    "recoveryCode": "Recovery code",
+    "useRecoveryCode": "Use a recovery code",
+    "useAppCode": "Use the code from the app",
     "failed": "That did not work. Try again.",
     "signInBody": "Enter the six-digit code from your authenticator app. If you do not have your phone, enter one of your recovery codes.",
     "signInBack": "Back to the password"

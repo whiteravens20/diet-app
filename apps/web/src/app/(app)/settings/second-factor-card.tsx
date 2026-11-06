@@ -9,6 +9,7 @@ import type { RecoveryCodes, SecondFactorSetup, SecondFactorState } from '@diet-
 import { AuthenticatorSetup } from '@/components/authenticator-setup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SecondStepCode } from '@/components/second-step-code';
 import { Field, Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -290,9 +291,7 @@ export function SecondFactorCard() {
                 autoComplete="current-password"
               />
             </Field>
-            <Field label={t('codeOrRecovery')}>
-              <Input name="code" required autoComplete="one-time-code" maxLength={40} />
-            </Field>
+            <SecondStepCode />
             {problem}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>

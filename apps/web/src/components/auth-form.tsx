@@ -9,6 +9,7 @@ import type { AuthResponse, LoginResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { SecondStepCode } from '@/components/second-step-code';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { api, COOKIE_SESSION } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -118,9 +119,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         <CardContent>
           <form onSubmit={onCode} className="space-y-4">
             <p className="text-sm text-muted-foreground">{tSecond('signInBody')}</p>
-            <Field label={tSecond('codeOrRecovery')}>
-              <Input name="code" required autoFocus autoComplete="one-time-code" maxLength={40} />
-            </Field>
+            <SecondStepCode autoFocus />
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}
