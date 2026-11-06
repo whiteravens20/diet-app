@@ -20,6 +20,7 @@ const UNEVEN: PlanWeek = {
   target: 2135,
   average: 2181,
   uneven: true,
+  listOutOfDate: false,
 };
 
 function shown(week: PlanWeek | undefined) {

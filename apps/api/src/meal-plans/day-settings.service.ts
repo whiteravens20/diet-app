@@ -171,7 +171,7 @@ export class DaySettingsService {
           .filter((meal) => meal.dayId !== dayId),
         clientToday ?? this.plans.today(),
       ),
-      week: this.weekPreview(context, change),
+      week: await this.weekPreview(context, change),
     };
   }
 
@@ -179,7 +179,7 @@ export class DaySettingsService {
    * The week of the day before and after the change (`DaySettingsPreview.week`):
    * the averages, the paces they come to, and what evening the week out gives.
    */
-  private weekPreview(context: Context, change: Change): DaySettingsPreview['week'] {
+  private async weekPreview(context: Context, change: Change): Promise<DaySettingsPreview['week']> {
     const target = context.plan.calorieTarget;
     const after = this.weekAfter(context, change);
     const now = weekAverage(context.week);
@@ -194,6 +194,21 @@ export class DaySettingsService {
     const { maintenance } = calculateCalories(calorieInputOf(context.profile));
     const pace = (average: number): number =>
       Math.round(((maintenance - average) * 7 * 100) / KCAL_PER_KG_FAT) / 100;
+    const others = after.filter(
+      (day) =>
+        day.id !== context.day.id && evened.has(day.id) && evened.get(day.id) !== day.calorieTarget,
+    );
+    const listed =
+      others.length > 0 &&
+      (await this.prisma.shoppingList.count({
+        where: {
+          planId: context.plan.id,
+          OR: others.map((day) => ({
+            fromDate: { lte: new Date(day.date) },
+            toDate: { gte: new Date(day.date) },
+          })),
+        },
+      })) > 0;
     return {
       target,
       average: {
@@ -206,12 +221,8 @@ export class DaySettingsService {
         Math.abs(alone - target) > weekSlack(target) &&
         Math.abs(evenedAverage - target) < Math.abs(alone - target),
       evenedTarget: evened.get(context.day.id) ?? change.target,
-      otherDays: after.filter(
-        (day) =>
-          day.id !== context.day.id &&
-          evened.has(day.id) &&
-          evened.get(day.id) !== day.calorieTarget,
-      ).length,
+      otherDays: others.length,
+      listOutOfDate: listed,
     };
   }
 

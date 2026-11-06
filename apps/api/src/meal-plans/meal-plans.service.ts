@@ -232,16 +232,28 @@ export class MealPlansService {
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const [restrictions, diary] = await Promise.all([
+    const [restrictions, diary, lists] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
+      this.prisma.shoppingList.findMany({
+        where: { planId },
+        select: { fromDate: true, toDate: true },
+      }),
     ]);
     // The entries themselves are read only for a plan whose days hold any.
     const written =
       diary.size > 0
         ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
         : new Map<string, DiaryEntry[]>();
-    return this.toDto(plan, locale, restrictions, diary, written, clientToday ?? this.today());
+    return this.toDto(
+      plan,
+      locale,
+      restrictions,
+      diary,
+      written,
+      lists,
+      clientToday ?? this.today(),
+    );
   }
 
   /**
@@ -995,9 +1007,13 @@ export class MealPlansService {
     restrictions: Restrictions,
     diary: Map<string, DiaryOnDay>,
     written: Map<string, DiaryEntry[]>,
+    /** The plan's shopping lists, by the days they cover. */
+    lists: readonly { fromDate: Date; toDate: Date }[],
     /** The day it is for the client: what its weeks can still change starts there. */
     today: string,
   ): MealPlan {
+    const listed = (date: Date): boolean =>
+      lists.some((list) => list.fromDate <= date && date <= list.toDate);
     const floor = safetyFloor(plan.profile?.sex ?? null);
     const labelLimits = labelLimitsOf(plan.profile?.preferences);
     // What a plan on the custom diet aims at is the split it was made with.
@@ -1139,6 +1155,7 @@ export class MealPlansService {
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
         mealCount: dayMealCount(day, options.mealCount, plan.profile?.mealCount ?? 3),
+        listed: listed(day.date),
       };
     });
 
@@ -1161,6 +1178,7 @@ export class MealPlansService {
           calorieTarget: day.calorieTarget,
           overrides: day.overrides,
           eaten: day.meals.length > 0 && day.meals.every((meal) => meal.eatenAt !== null),
+          listed: listed(day.date),
         })),
         plan.calorieTarget,
         today,

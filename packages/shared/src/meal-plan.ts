@@ -531,6 +531,12 @@ export const MealPlanDay = z.object({
    * starts from (`DaySettings`).
    */
   mealCount: z.number().int().min(2).max(5),
+  /**
+   * A shopping list of the plan covers the day: once its meals or their
+   * portions change, the list says it is out of date, which a change says
+   * before it is made.
+   */
+  listed: z.boolean(),
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
 
@@ -646,6 +652,8 @@ export const DaySettingsPreview = z.object({
       unevenAlone: z.boolean(),
       evenedTarget: z.number(),
       otherDays: z.number().int().min(0),
+      /** A shopping list of the plan covers one of the other days evening the week out changes. */
+      listOutOfDate: z.boolean(),
     })
     .nullable(),
 });
@@ -717,6 +725,8 @@ export const PlanWeek = z.object({
    * of the week from today on can still bring it back (`EvenWeekRequest`).
    */
   uneven: z.boolean(),
+  /** A shopping list of the plan covers a day of the week that evening it out can change. */
+  listOutOfDate: z.boolean(),
 });
 export type PlanWeek = z.infer<typeof PlanWeek>;
 

@@ -12649,6 +12649,9 @@
                   "otherDays": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "listOutOfDate": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -12657,7 +12660,8 @@
                   "pace",
                   "unevenAlone",
                   "evenedTarget",
-                  "otherDays"
+                  "otherDays",
+                  "listOutOfDate"
                 ],
                 "additionalProperties": false
               },
@@ -15814,6 +15818,9 @@
             "type": "integer",
             "minimum": 2,
             "maximum": 5
+          },
+          "listed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -15832,7 +15839,8 @@
           "skipped",
           "belowSafetyFloor",
           "overrides",
-          "mealCount"
+          "mealCount",
+          "listed"
         ],
         "additionalProperties": false
       },
@@ -17565,6 +17573,9 @@
           },
           "uneven": {
             "type": "boolean"
+          },
+          "listOutOfDate": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -17572,7 +17583,8 @@
           "to",
           "target",
           "average",
-          "uneven"
+          "uneven",
+          "listOutOfDate"
         ],
         "additionalProperties": false
       },

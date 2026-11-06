@@ -38,6 +38,7 @@ const DAY: MealPlanDay = {
   belowSafetyFloor: false,
   overrides: null,
   mealCount: 3,
+  listed: false,
 };
 /** The settings the day has, as the window sends them. */
 const AS_IT_IS = {
@@ -81,6 +82,7 @@ const UNEVEN: NonNullable<DaySettingsPreview['week']> = {
   unevenAlone: true,
   evenedTarget: 2240,
   otherDays: 4,
+  listOutOfDate: false,
 };
 
 /** The window, open on the day of a week as the plan says it stands, with the API answering every preview with `preview`. */
@@ -261,6 +263,7 @@ describe('the window in which the settings of a day are changed', () => {
       target: 2000,
       average: 2043,
       uneven: true,
+      listOutOfDate: false,
     };
     const { dialog, post, onSaved } = await opened(() => aPreview({ unchanged: true }), week);
 

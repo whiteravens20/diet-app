@@ -293,7 +293,14 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       expect(targets(plan)).toEqual([2310, 2010, 2310, 2010, 2310, 2010, 2010]);
       expect(Math.abs(average(targets(plan)) - 2135)).toBeLessThan(5);
       expect(plan.weeks).toEqual([
-        { from: '2026-01-05', to: '2026-01-11', target: 2135, average: 2139, uneven: false },
+        {
+          from: '2026-01-05',
+          to: '2026-01-11',
+          target: 2135,
+          average: 2139,
+          uneven: false,
+          listOutOfDate: false,
+        },
       ]);
     });
 

@@ -197,6 +197,33 @@ describe('the settings of a day of a running plan', () => {
       expect(again.revision).toBe(evened.revision);
     });
 
+    it('says when the shopping list of days that evening the week changes goes out of date, and marks the days a list covers', async () => {
+      await t
+        .http()
+        .post('/api/shopping-lists/generate')
+        .set(as(user))
+        .send({ planId: plan.id, fromDate: day(2), toDate: day(4) })
+        .expect(201);
+
+      const said = await preview(plan, { dayType: 'training' });
+      // The list covers other days of the week, not this one.
+      expect(said.listOutOfDate).toBe(false);
+      expect(said.week).toMatchObject({ unevenAlone: true, listOutOfDate: true });
+
+      const read = (
+        await t
+          .http()
+          .get(`/api/meal-plans/${plan.id}`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .expect(200)
+      ).body as MealPlan;
+      expect(read.days.map((one) => [one.date, one.listed])).toEqual(
+        read.days.map((one) => [one.date, one.date >= day(2) && one.date <= day(4)]),
+      );
+      expect(read.weeks).toEqual([expect.objectContaining({ listOutOfDate: true })]);
+    });
+
     it('keeps the protein of the usual days of the week on a training day, which gains carbohydrate', async () => {
       const after = await apply(plan, { dayType: 'training' });
 

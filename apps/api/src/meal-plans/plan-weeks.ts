@@ -19,6 +19,8 @@ export interface WeekPlanDay {
   overrides: unknown;
   /** Every meal planned for it is eaten: its portions can no longer follow another target. */
   eaten: boolean;
+  /** A shopping list of the plan covers it. */
+  listed?: boolean;
 }
 
 /** How far a week's average may lie from the plan's target before it is said: a hundredth of it, and never less than 10 kcal, the step a day's target is rounded to. */
@@ -98,6 +100,7 @@ export function planWeeks(days: readonly WeekPlanDay[], target: number, today: s
         average !== null &&
         Math.abs(average - target) > weekSlack(target) &&
         week.some((day) => canTakeAnother(day, today)),
+      listOutOfDate: week.some((day) => canTakeAnother(day, today) && day.listed === true),
     };
   });
 }
