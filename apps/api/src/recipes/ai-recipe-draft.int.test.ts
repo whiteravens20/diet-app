@@ -20,7 +20,7 @@ import { MAX_AI_DRAFTS_PER_DAY, MAX_PERSONAL_RECIPES } from './personal-recipes.
 
 /** The catalogue lines of a prompt, as it lists them. */
 const offeredLines = (request: ModelRequest): string[] =>
-  [...request.prompt.matchAll(/^- [a-z0-9-]+: .+ \([a-z_]+, \d+ kcal\/100g.*$/gm)].map(
+  [...request.prompt.matchAll(/^- [a-z0-9-]+: .+ \([a-z_]+; per 100 (?:g|ml): \d+ kcal.*$/gm)].map(
     (match) => match[0],
   );
 
@@ -28,12 +28,26 @@ const offeredLines = (request: ModelRequest): string[] =>
 const offered = (request: ModelRequest): string[] =>
   offeredLines(request).map((line) => line.slice(2, line.indexOf(':')));
 
-/** A draft a careful model would write: three offered ingredients, 100 g of each. */
+/** The English name the prompt gives an ingredient, or what was written for it when it gives none. */
+function englishName(request: ModelRequest, slug: string): string {
+  const line = offeredLines(request).find((one) => one.startsWith(`- ${slug}: `));
+  return line ? line.slice(line.indexOf(': ') + 2).split(/ \/ | \(/)[0]! : slug;
+}
+
+/** Two steps that use every ingredient of a list, as a careful model's do. */
+const stepsUsing = (request: ModelRequest, lines: unknown): string[] => [
+  `Prepare the ${(Array.isArray(lines) ? (lines as { slug?: unknown }[]) : [])
+    .map((line) => englishName(request, String(line.slug ?? '')).toLowerCase())
+    .join(', ')}.`,
+  'Cook everything together and serve.',
+];
+
+/** A draft a careful model would write: three offered ingredients, 100 g of each, every one of them used. */
 function draft(
   request: ModelRequest,
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
-  return {
+  const recipe: Record<string, unknown> = {
     title: 'Scripted bowl',
     description: 'A quick bowl from three things in the cupboard.',
     servings: 1,
@@ -44,9 +58,10 @@ function draft(
     ingredients: offered(request)
       .slice(0, 3)
       .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
-    steps: ['Prepare the ingredients.', 'Cook everything together and serve.'],
     ...overrides,
   };
+  if (!('steps' in overrides)) recipe.steps = stepsUsing(request, recipe.ingredients);
+  return recipe;
 }
 
 /** Every line of a draft with another quantity. */
@@ -191,19 +206,21 @@ describe('drafting a recipe with a model', () => {
     expect(t.model.requests[0]!.maxTokens).toBe(recipeDraft(1).maxTokens);
 
     t.model.reply({
-      text: (request) =>
-        JSON.stringify(
+      text: (request) => {
+        const lines = offered(request)
+          .slice(3, 6)
+          .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null }));
+        return JSON.stringify(
           draft(request, {
             title: undefined,
             description: undefined,
             titles: { en: 'Scripted stew', pl: 'Gulasz ze skryptu' },
             descriptions: { en: 'A stew.', pl: 'Gulasz.' },
-            steps: { en: ['Chop.', 'Simmer.'], pl: ['Pokrój.', 'Duś.'] },
-            ingredients: offered(request)
-              .slice(3, 6)
-              .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
+            steps: { en: stepsUsing(request, lines), pl: ['Pokrój wszystko.', 'Duś i podaj.'] },
+            ingredients: lines,
           }),
-        ),
+        );
+      },
     });
     const polish = await ask({}, 'pl');
 

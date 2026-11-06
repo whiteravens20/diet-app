@@ -11,10 +11,6 @@ import {
   type HttpException,
 } from '@nestjs/common';
 import {
-  type CookingMethod,
-  type Complexity,
-  type Cuisine,
-  type DietType,
   fitsDiet,
   MealType,
   type AiDraftRecipeRequest,
@@ -27,6 +23,7 @@ import { AiRouterService } from '../ai/ai-router.service.js';
 import { readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { buildDraftPrompt } from './ai-recipe-draft.prompt.js';
 import { draftCatalogue } from './draft-catalogue.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
 import { checkRecipe, type CheckedRecipe } from './recipe-rules.js';
@@ -35,14 +32,14 @@ import { toRecipeDto } from './recipes.service.js';
 const ALLOWED_MEALS = MealType.options as readonly string[];
 
 /**
- * Drafts a brand-new recipe from the preferences a user picked. AI picks
- * ingredients + writes title/description/steps; the deterministic engine
- * recomputes per-serving nutrition before the row is persisted. The recipe is
- * private to the requester (`origin='ai'` + `createdByUserId`) and lives in
- * the database only: nothing about a user is written to the instance's data
- * files. It is stored the way `PersonalRecipesService` describes, and one the
- * instance's model wrote goes before the curators as well, with nothing that
- * names who asked for it.
+ * Drafts a brand-new recipe from the choices a user made. The model picks the
+ * ingredients from the curated catalogue and writes the title, description
+ * and steps; the engine works out the nutrition before the row is stored.
+ * The recipe is private to the requester (`origin='ai'` + `createdByUserId`)
+ * and lives in the database only: nothing about a user is written to the
+ * instance's data files. It is stored the way `PersonalRecipesService`
+ * describes, and one the instance's model wrote goes before the curators as
+ * well, with nothing that names who asked for it.
  */
 @Injectable()
 export class AiRecipeDraftService {
@@ -71,10 +68,6 @@ export class AiRecipeDraftService {
     await this.personalRecipes.assertRoomFor(userId, 'ai');
 
     const dietType = req.dietType ?? profile.dietType;
-    // Drafts are always single-serving. The user's per-day kcal target lives
-    // on the meal plan, not the recipe — keeping recipes at servings=1 keeps
-    // engine recompute trivial and the prompt small.
-    const servings = 1;
     const allergens = (profile.preferences?.allergens ?? []) as string[];
     // Allergens are ALWAYS excluded. Other exclusions only when the user
     // asked for it (defaults to true on the request shape). What the profile
@@ -88,15 +81,19 @@ export class AiRecipeDraftService {
       req.useFavoriteIngredients ? (profile.preferences?.favoriteIngredientIds ?? []) : [],
     );
 
+    // Target locales: always EN (canonical for nutrition / ingredient mapping
+    // + slot-resolution invariant) and, when the user's locale is non-EN, the
+    // user's locale so the recipe renders natively in their plan without a
+    // round-trip through the translation runner. Adding a new locale to the
+    // Locale enum auto-extends this without code changes.
+    const targetLocales: Locale[] = locale === 'en' ? ['en'] : ['en', locale];
+
     // Every curated ingredient the profile may eat, and the favourites the
     // request asks for whatever they are: the hard constraints (diet,
     // allergens, exclusions) are applied in the query, so nothing eligible is
     // lost to a cut made before them. The foods of a USDA import are left out
     // as the panel's batches leave them out: their names are the import's,
     // and among hundreds of them the model misses the staples a dish needs.
-    // Cuisine / cooking method / complexity are NOT hard-filtered here —
-    // they're rendered into the prompt as preferences and the model is free
-    // to broaden.
     const eligible = await this.prisma.ingredient.findMany({
       where: {
         // The model names its picks by slug, and a recipe is recognised by them.
@@ -113,8 +110,14 @@ export class AiRecipeDraftService {
         slug: true,
         name: true,
         category: true,
+        canonicalUnit: true,
         caloriesPer100: true,
         proteinPer100: true,
+        gramsPerPiece: true,
+        translations: {
+          where: { locale: { in: targetLocales } },
+          select: { locale: true, name: true },
+        },
       },
     });
     if (eligible.length === 0) {
@@ -126,19 +129,24 @@ export class AiRecipeDraftService {
     // What the model is offered: the same list for the same request, with the
     // favourites in it and something of every category.
     const catalogue = draftCatalogue(
-      eligible.map((row) => ({ ...row, slug: row.slug! })),
+      eligible.map((row) => ({
+        id: row.id,
+        slug: row.slug!,
+        names: {
+          ...Object.fromEntries(row.translations.map((t) => [t.locale, t.name])),
+          en: row.name,
+        },
+        category: row.category,
+        canonicalUnit: row.canonicalUnit,
+        caloriesPer100: row.caloriesPer100,
+        proteinPer100: row.proteinPer100,
+        gramsPerPiece: row.gramsPerPiece,
+      })),
       favouriteIds,
       [profile.id, dietType, req.mealType, req.cuisine, req.cookingMethod, req.complexity].join(
         ':',
       ),
     );
-
-    // Target locales: always EN (canonical for nutrition / ingredient mapping
-    // + slot-resolution invariant) and, when the user's locale is non-EN, the
-    // user's locale so the recipe renders natively in their plan without a
-    // round-trip through the translation runner. Adding a new locale to the
-    // Locale enum auto-extends this without code changes.
-    const targetLocales: Locale[] = locale === 'en' ? ['en'] : ['en', locale];
 
     const prompt = buildDraftPrompt({
       mealType: req.mealType,
@@ -148,7 +156,6 @@ export class AiRecipeDraftService {
       complexity: req.complexity,
       kcalTarget: req.kcalTarget,
       prepTimeMaxMinutes: req.prepTimeMaxMinutes,
-      servings,
       catalogue,
       favouriteIds,
       targetLocales,
@@ -174,7 +181,7 @@ export class AiRecipeDraftService {
     // the whole draft — we never invent rows or guess substitutions silently.
     const offered = new Map<string, (typeof catalogue)[number]>();
     for (const ingredient of catalogue) {
-      offered.set(ingredient.name.toLowerCase(), ingredient);
+      offered.set(ingredient.names.en.toLowerCase(), ingredient);
       offered.set(ingredient.slug, ingredient);
     }
     const draft = readDraft(
@@ -204,6 +211,7 @@ export class AiRecipeDraftService {
       });
     }
     const payload = draft.recipe;
+
     const resolved = payload.ingredients.map((line) => ({
       ingredientId: offered.get(line.slug)!.id,
       quantity: line.quantity,
@@ -297,7 +305,7 @@ export class AiRecipeDraftService {
         prepMinutes: payload.prepMinutes,
         cookMinutes: payload.cookMinutes,
         difficulty: payload.difficulty,
-        // The cuisine it was asked for: the model was pointed at it, and the recipe says so.
+        // The cuisine it was asked for: the prompt asks for a dish of that kitchen.
         cuisine: req.cuisine ?? null,
         ingredients: resolved,
         facts,
@@ -337,132 +345,13 @@ export class AiRecipeDraftService {
   }
 }
 
-/**
- * Build the model prompt from the structured request. There is no user
- * free-text path — every preference is a fixed enum / number, so this
- * function is the entire surface the model sees beyond the system rules.
- *
- * Preferences are rendered as soft hints ("prefer", "lean toward"), never
- * as hard constraints. The model knows the only hard constraints are: pick
- * ingredients from the catalogue, name each by its slug, no invented macros.
- */
-function buildDraftPrompt(input: {
-  mealType?: MealType;
-  dietType: DietType;
-  cuisine?: Cuisine;
-  cookingMethod?: CookingMethod;
-  complexity?: Complexity;
-  kcalTarget?: number;
-  prepTimeMaxMinutes?: number;
-  servings: number;
-  catalogue: {
-    id: string;
-    slug: string;
-    name: string;
-    category: string;
-    caloriesPer100: number;
-    proteinPer100: number;
-  }[];
-  favouriteIds: Set<string>;
-  targetLocales: Locale[];
-}): { system: string; user: string } {
-  const lines = input.catalogue.map((c) => {
-    const star = input.favouriteIds.has(c.id) ? ' ⭐' : '';
-    return `- ${c.slug}: ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)${star}`;
-  });
-
-  // Locale-keyed shape only when more than one locale is requested. For pure
-  // EN ('en' only), keep the legacy single-string shape so we don't pay a
-  // prompt-size and parser tax for monolingual operators.
-  const multi = input.targetLocales.length > 1;
-  const localeList = input.targetLocales.join(', ');
-  const titlesShape = multi
-    ? `"titles":{${input.targetLocales.map((l) => `"${l}":string`).join(',')}}`
-    : '"title":string';
-  const descShape = multi
-    ? `"descriptions":{${input.targetLocales.map((l) => `"${l}":string`).join(',')}}`
-    : '"description":string';
-  const stepsShape = multi
-    ? `"steps":{${input.targetLocales.map((l) => `"${l}":string[]`).join(',')}}`
-    : '"steps":string[]';
-
-  const localeRule = multi
-    ? `You write title, description, and steps in EVERY one of these locales: ${localeList}. ` +
-      'Translations are natural per locale — not literal word-for-word renderings. ' +
-      'Keep the cooking technique and ingredient choices identical across locales. '
-    : '';
-
-  const system =
-    'You draft cooking recipes for a deterministic meal-planning app. ' +
-    'You ONLY pick from the ingredient catalogue provided — never invent ' +
-    'ingredients, never propose substitutions. You never write or estimate ' +
-    'calories, protein, fat, or carbs; the app recomputes those from the ' +
-    'catalogue values. ' +
-    localeRule +
-    'Respond with valid JSON exactly matching this shape — no prose, no ' +
-    'markdown fences, no extra keys:\n' +
-    `{${titlesShape},${descShape},"servings":int,` +
-    '"mealTypes":string[],"prepMinutes":int,' +
-    '"cookMinutes":int,"difficulty":"easy"|"medium"|"hard",' +
-    '"ingredients":[{"slug":string,"quantity":number,' +
-    `"unit":"g"|"ml"|"piece","note":string|null}],${stepsShape}}`;
-
-  const preferences: string[] = [];
-  if (input.cuisine) preferences.push(`- Cuisine: ${input.cuisine.replace(/_/g, ' ')}`);
-  if (input.cookingMethod) {
-    preferences.push(`- Cooking method: ${input.cookingMethod.replace(/_/g, ' ')}`);
-  }
-  if (input.complexity) preferences.push(`- Complexity: ${input.complexity}`);
-  if (input.kcalTarget) preferences.push(`- Aim for roughly ${input.kcalTarget} kcal per serving`);
-  if (input.prepTimeMaxMinutes) {
-    preferences.push(`- Keep prep + cook ≤ ${input.prepTimeMaxMinutes} minutes`);
-  }
-  if (input.favouriteIds.size > 0) {
-    preferences.push(
-      '- Favourite ingredients are marked with ⭐ in the catalogue — prefer them when they fit.',
-    );
-  }
-  const preferenceBlock =
-    preferences.length > 0
-      ? [
-          '',
-          'Soft preferences (use when sensible, ignore when they conflict with what makes a good recipe):',
-          ...preferences,
-        ]
-      : [
-          '',
-          '(No additional preferences — pick any cuisine, method or complexity that fits the diet + meal type.)',
-        ];
-
-  const user = [
-    `Target diet type: ${input.dietType}`,
-    input.mealType ? `Target meal type: ${input.mealType}` : null,
-    `Target servings: ${input.servings}`,
-    ...preferenceBlock,
-    '',
-    'Hard rules:',
-    '1. Pick 3-12 ingredients from the catalogue below. Name each by its slug: the part of its line before the colon.',
-    "2. Quantity > 0; unit is g, ml or piece — match the ingredient's natural form.",
-    '3. 2-12 cooking steps, imperative ("Slice the chicken", "Combine and stir").',
-    '4. mealTypes is one or two slots.',
-    '5. Difficulty reflects step count + technique.',
-    '',
-    'Ingredient catalogue:',
-    ...lines,
-    '',
-    'Respond with the JSON object only.',
-  ]
-    .filter((s): s is string => s !== null)
-    .join('\n');
-
-  return { system, user };
-}
-
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
 
 /** The tag a food of a USDA import carries (`admin/usda/importer.ts`). */
 const IMPORTED = 'usda-imported';
+
+/** How many of the account's own recipes, and of the library's, a prompt lists for the draft to be another dish. */
 
 function draftUnavailable(reason: AiFallbackReason | null): HttpException {
   switch (reason) {

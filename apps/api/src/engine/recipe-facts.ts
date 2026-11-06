@@ -49,8 +49,8 @@ export interface RecipeFacts {
  * budget, which a number of grams would not. All carbohydrate counts, fibre
  * included.
  */
-const KETO_BELOW_CARB_ENERGY = 0.1;
-const LOW_CARB_BELOW_CARB_ENERGY = 0.26;
+export const KETO_BELOW_CARB_ENERGY = 0.1;
+export const LOW_CARB_BELOW_CARB_ENERGY = 0.26;
 
 const KCAL_PER_GRAM_OF_CARBOHYDRATE = 4;
 
