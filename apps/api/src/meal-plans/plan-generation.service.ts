@@ -35,6 +35,7 @@ import {
   effectiveDayTarget,
   macroSplitOf,
   optimisePlan,
+  weekScales,
   sizeAssignments,
   sharesOf,
   OptimizerError,
@@ -62,6 +63,7 @@ import {
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
+import { asWeekDay } from './plan-weeks.js';
 import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import { readReroll, rerollDayOf, rerollOutcome } from './reroll-reading.js';
@@ -371,6 +373,8 @@ export class PlanGenerationService {
 
     /** The days that are filled again, by their place in the plan, with the meals that stay on them. */
     const filled: { dayIndex: number; dayId: string; staying: string[] }[] = [];
+    // A plan made again shares each week's base among its days as a new plan does.
+    const scales = weekScales(plan.days.map(asWeekDay));
     const days = plan.days.map((day, dayIndex): ResolvedDay => {
       const iso = dates[dayIndex]!;
       const o = parseDayOverrides(day.overrides);
@@ -416,7 +420,7 @@ export class PlanGenerationService {
         date: day.date,
         isoDate: iso,
         mealSlots: reading.slots,
-        calorieTarget: whole ? dayTarget(base, o) : day.calorieTarget,
+        calorieTarget: whole ? dayTarget(base, o, scales[dayIndex]!) : day.calorieTarget,
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
         lockedSlots: o?.lockedSlots
           ? reading.locks.map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId }))
@@ -573,13 +577,15 @@ export class PlanGenerationService {
 
   /**
    * The target of a day of a plan with the settings `overrides`, as the days of
-   * the plan were given theirs: the base the plan was made with, shaped by the
-   * kind of day, or the day's own target.
+   * the plan were given theirs: the base the plan was made with, times `scale`
+   * (what a usual day of the day's week is against the base, `weekScale`),
+   * shaped by the kind of day; or the day's own target.
    */
   targetOfDay(
     profile: BaseProfile,
     plan: { calorieTarget: number; options: unknown },
     overrides: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null,
+    scale: number,
   ): number {
     const made = PlanOptions.parse(plan.options);
     return dayTarget(
@@ -588,6 +594,7 @@ export class PlanGenerationService {
         target: plan.calorieTarget,
       },
       overrides,
+      scale,
     );
   }
 
@@ -1132,16 +1139,21 @@ interface PlanBase {
   holdUnder: number | null;
 }
 
-/** The target of one day of a plan: its own when the user set one, else the base shaped by the kind of day. */
+/**
+ * The target of one day of a plan: its own when the user set one, else the
+ * base times the scale of its week (`weekScale`), shaped by the kind of day.
+ */
 function dayTarget(
   base: PlanBase,
-  day?: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null,
+  day: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null | undefined,
+  scale: number,
 ): number {
   return effectiveDayTarget({
     base: base.target,
     baseIsCalculated: base.calculated,
     floor: base.floor,
     dayType: day?.dayType,
+    scale,
     ownTarget: day?.calorieTarget,
     holdUnder: base.holdUnder,
   }).target;
@@ -1171,8 +1183,15 @@ function resolvePlanDays(input: {
     }
     byDate.set(o.date, o);
   }
+  // The kinds of day share each week's base among its days.
+  const scales = weekScales(
+    dates.map((date) => {
+      const o = byDate.get(isoDate(date));
+      return { dayType: o?.dayType, ownTarget: o?.calorieTarget ?? null, skip: o?.skip };
+    }),
+  );
 
-  return dates.map((date) => {
+  return dates.map((date, dayIndex) => {
     const iso = isoDate(date);
     const o = byDate.get(iso);
     const mealCount = o?.mealCount ?? input.defaultMealCount;
@@ -1192,7 +1211,7 @@ function resolvePlanDays(input: {
       date,
       isoDate: iso,
       mealSlots,
-      calorieTarget: dayTarget(input.base, o),
+      calorieTarget: dayTarget(input.base, o, scales[dayIndex]!),
       cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
       lockedSlots,
       useUpBy: o?.useUpBy ?? false,

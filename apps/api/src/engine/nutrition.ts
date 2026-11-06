@@ -36,7 +36,7 @@ const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
 };
 
 /** Energy density of body fat — 1 kg ≈ 7700 kcal. */
-const KCAL_PER_KG_FAT = 7700;
+export const KCAL_PER_KG_FAT = 7700;
 
 /**
  * Macro split per diet type, as fractions of total daily calories.
@@ -287,27 +287,71 @@ function round(n: number): number {
   return Math.round(n);
 }
 
-/**
- * Periodisation factors: a training day runs a surplus and a rest day a
- * deficit relative to the plan's base target, so tagging a day actually shapes
- * its calories. Defaults are ±15%.
- */
-const TRAINING_DAY_FACTOR = 1.15;
-const REST_DAY_FACTOR = 0.85;
-
 /** The kind of day a plan day is: it shapes the day's target. */
 export type DayType = 'normal' | 'rest' | 'training';
+
+/**
+ * What a day of each kind takes against a usual day of its week: a training
+ * day about 15 % more, a rest day about 15 % less. The kinds move calories
+ * between the days of a week (`weekScale`), they add none: the activity level
+ * a profile names already holds the training of an average week.
+ */
+export const DAY_KIND_FACTOR: Readonly<Record<DayType, number>> = {
+  normal: 1,
+  training: 1.15,
+  rest: 0.85,
+};
+
+/** A day of a week of a plan, as far as the week's sharing of its base goes. */
+export interface WeekDay {
+  dayType?: DayType;
+  /** A target somebody set for the day: taken as it is, and out of the week's sharing. */
+  ownTarget?: number | null;
+  /** A skipped day plans nothing, and is out of the week's sharing. */
+  skip?: boolean;
+}
+
+/** The day takes part in its week's sharing of the base: it is not skipped, and has no target of its own. */
+export const sharesTheWeek = (day: WeekDay): boolean =>
+  day.skip !== true && (day.ownTarget ?? null) === null;
+
+/**
+ * What a usual day of a week of a plan is, against the plan's base: the
+ * factor that leaves the average of the days that share the week on the base,
+ * whatever kinds they are. Three training days and four usual ones: 7 / 7.45,
+ * so a usual day 2010 kcal and a training day 2310 kcal of a base of 2135.
+ */
+export function weekScale(days: readonly WeekDay[]): number {
+  const sharing = days.filter(sharesTheWeek);
+  if (sharing.length === 0) return 1;
+  const kinds = sharing.reduce((sum, day) => sum + DAY_KIND_FACTOR[day.dayType ?? 'normal'], 0);
+  return sharing.length / kinds;
+}
+
+/** The weeks of a plan are its days in sevens from its first: the week a day is in. */
+export const weekOfDay = (dayIndex: number): number => Math.floor(dayIndex / 7);
+
+/** For each day of a plan, the scale of its week (`weekScale`). */
+export function weekScales(days: readonly WeekDay[]): number[] {
+  const scales = new Map<number, number>();
+  return days.map((_, index) => {
+    const week = weekOfDay(index);
+    if (!scales.has(week)) scales.set(week, weekScale(days.slice(week * 7, week * 7 + 7)));
+    return scales.get(week)!;
+  });
+}
 
 /**
  * The calorie target of one day of a plan. The one place where it is decided.
  *
  *  - A target the user set for that day is taken as it is, unless the
  *    profile's loss goal is held and the target is under maintenance.
- *  - Otherwise the plan's base is shaped by the kind of day and rounded to
- *    ten. When the base was calculated, a rest day does not take it under the
- *    floor (nor under the base itself, where that is under the floor already).
- *    When somebody typed the base, the day follows it down, but never under
- *    the least a typed target may be.
+ *  - Otherwise the plan's base, times the scale of the day's week
+ *    (`weekScale`), is shaped by the kind of day and rounded to ten. When the
+ *    base was calculated, a rest day does not take it under the floor (nor
+ *    under the base itself, where that is under the floor already). When
+ *    somebody typed the base, the day follows it down, but never under the
+ *    least a typed target may be.
  *
  * `belowFloor` says that a target somebody typed, for the plan or for the
  * day, has put the day under the floor.
@@ -318,6 +362,8 @@ export function effectiveDayTarget(day: {
   baseIsCalculated: boolean;
   floor: number;
   dayType?: DayType;
+  /** What a usual day of the day's week is against the base (`weekScale`); one where left out. */
+  scale?: number;
   /** The target the user set for this day. */
   ownTarget?: number | null;
   /** Maintenance, for a profile whose loss goal is held: a day's own target under it is not taken. */
@@ -326,9 +372,10 @@ export function effectiveDayTarget(day: {
   const own = day.ownTarget ?? null;
   const held = own !== null && day.holdUnder != null && own < day.holdUnder;
   if (own !== null && !held) return { target: own, belowFloor: own < day.floor };
-  const factor =
-    day.dayType === 'training' ? TRAINING_DAY_FACTOR : day.dayType === 'rest' ? REST_DAY_FACTOR : 1;
-  const shaped = Math.round((day.base * factor) / 10) * 10;
+  const factor = DAY_KIND_FACTOR[day.dayType ?? 'normal'] * (day.scale ?? 1);
+  // To a thousandth of a kilocalorie first: a product of factors lands a hair off a half, which rounds up.
+  const exact = Math.round(day.base * factor * 1000) / 1000;
+  const shaped = Math.round(exact / 10) * 10;
   const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : MIN_CALORIE_TARGET;
   const target = Math.max(shaped, least);
   return { target, belowFloor: !day.baseIsCalculated && target < day.floor };

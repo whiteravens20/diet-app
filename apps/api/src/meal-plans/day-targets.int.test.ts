@@ -266,6 +266,47 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
     });
   });
 
+  describe('the kinds of day of a week', () => {
+    // 37 years, 190 cm, 91 kg, sedentary, half a kilogram a week: a target of 2135 kcal.
+    const losing = () =>
+      aProfile(t, user, {
+        age: 37,
+        heightCm: 190,
+        weightKg: 91,
+        activityLevel: 'sedentary',
+        weeklyLossTarget: '0.5',
+      });
+    const average = (values: number[]) =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+
+    it("move calories between the days of a week and leave their average on the plan's target", async () => {
+      const plan = await aPlan(t, user, await losing(), {
+        startDate: '2026-01-05',
+        durationDays: 7,
+        dayOverrides: ['2026-01-05', '2026-01-07', '2026-01-09'].map((date) => ({
+          date,
+          dayType: 'training' as const,
+        })),
+      });
+
+      // Added on top of the target, as they were, the three training days made the week 2274 kcal a day.
+      expect(targets(plan)).toEqual([2310, 2010, 2310, 2010, 2310, 2010, 2010]);
+      expect(Math.abs(average(targets(plan)) - 2135)).toBeLessThan(5);
+      expect(plan.weeks).toEqual([
+        { from: '2026-01-05', to: '2026-01-11', target: 2135, average: 2139, uneven: false },
+      ]);
+    });
+
+    it('move nothing in a plan of one day, which has no other day to take from', async () => {
+      const plan = await aPlan(t, user, await losing(), {
+        durationDays: 1,
+        dayOverrides: [{ date: '2026-01-05', dayType: 'training' }],
+      });
+
+      expect(targets(plan)).toEqual([toTen(2135)]);
+    });
+  });
+
   it('stores no acknowledgement for somebody who has nothing to acknowledge', async () => {
     const profile = await aProfile(t, user, { acknowledgeRisk: true });
 

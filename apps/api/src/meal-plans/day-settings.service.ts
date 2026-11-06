@@ -10,6 +10,7 @@ import {
   type DayMealFate,
   type DaySettings,
   type DaySettingsPreview,
+  type EvenWeekRequest,
   type Locale,
   type MealPlan,
   type MealType,
@@ -17,14 +18,21 @@ import {
 import { storedSplit } from '../common/stored-split.js';
 import { diaryDays } from '../diary/diary-days.js';
 import {
+  calculateCalories,
+  DAY_KIND_FACTOR,
   fitServings,
+  KCAL_PER_KG_FAT,
   macrosForCalories,
   REBALANCE_TOLERANCE,
   safetyFloor,
   sharesOf,
+  sharesTheWeek,
   slotBudgets,
+  weekOfDay,
+  weekScale,
   type KeptMeal,
 } from '../engine/index.js';
+import { calorieInputOf } from '../profiles/calorie-input.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StoredReport, withDaysAgain } from './generation-report.js';
 import {
@@ -41,6 +49,15 @@ import {
   type DayOverridesJson,
 } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
+import {
+  asWeekDay,
+  canTakeAnother,
+  evenedScale,
+  weekAverage,
+  weekSlack,
+  weeksOfPlan,
+  type WeekPlanDay,
+} from './plan-weeks.js';
 import { writePlan } from './plan-write.js';
 
 /** What a meal's recipe is read for here: what a serving holds, and how long it takes. */
@@ -152,7 +169,130 @@ export class DaySettingsService {
           .filter((meal) => meal.dayId !== dayId),
         clientToday ?? this.plans.today(),
       ),
+      week: this.weekPreview(context, change),
     };
+  }
+
+  /**
+   * The week of the day before and after the change (`DaySettingsPreview.week`):
+   * the averages, the paces they come to, and what evening the week out gives.
+   */
+  private weekPreview(context: Context, change: Change): DaySettingsPreview['week'] {
+    const target = context.plan.calorieTarget;
+    const after = this.weekAfter(context, change);
+    const now = weekAverage(context.week);
+    const alone = weekAverage(after);
+    if (now === null || alone === null) return null;
+    const evened = this.evened(context, after);
+    const evenedWeek = after.map((day) => ({
+      ...day,
+      calorieTarget: evened.get(day.id) ?? day.calorieTarget,
+    }));
+    const evenedAverage = weekAverage(evenedWeek) ?? alone;
+    const { maintenance } = calculateCalories(calorieInputOf(context.profile));
+    const pace = (average: number): number =>
+      Math.round(((maintenance - average) * 7 * 100) / KCAL_PER_KG_FAT) / 100;
+    return {
+      target,
+      average: {
+        now: Math.round(now),
+        alone: Math.round(alone),
+        evened: Math.round(evenedAverage),
+      },
+      pace: { now: pace(now), alone: pace(alone), evened: pace(evenedAverage) },
+      unevenAlone:
+        Math.abs(alone - target) > weekSlack(target) &&
+        Math.abs(evenedAverage - target) < Math.abs(alone - target),
+      evenedTarget: evened.get(context.day.id) ?? change.target,
+      otherDays: after.filter(
+        (day) =>
+          day.id !== context.day.id &&
+          evened.has(day.id) &&
+          evened.get(day.id) !== day.calorieTarget,
+      ).length,
+    };
+  }
+
+  /** The week of the day as it would be with the change: the day with its new target and settings. */
+  private weekAfter(context: Context, change: Change): WeekPlanDay[] {
+    return context.week.map((day) =>
+      day.id === context.day.id
+        ? { ...day, calorieTarget: change.target, overrides: change.overrides }
+        : day,
+    );
+  }
+
+  /**
+   * The targets that even `week` out (`evenedScale`), by the ids of the days
+   * that can take another: each the plan's target at the evened scale, shaped
+   * by its kind, as a day of a new plan is given its target.
+   */
+  private evened(context: Context, week: readonly WeekPlanDay[]): Map<string, number> {
+    const targets = new Map<string, number>();
+    const scale = evenedScale(week, context.plan.calorieTarget, context.today);
+    if (scale === null) return targets;
+    for (const day of week) {
+      if (!canTakeAnother(day, context.today)) continue;
+      const overrides = parseDayOverrides(day.overrides);
+      targets.set(
+        day.id,
+        this.generation.targetOfDay(context.profile, context.plan, overrides, scale),
+      );
+    }
+    return targets;
+  }
+
+  /**
+   * Give the days of `evened` other than `dayId` their new targets, and bring
+   * their dishes to them in other portions, as a change of a day's kind does.
+   */
+  private async evenOthers(
+    tx: Prisma.TransactionClient,
+    context: Context,
+    evened: ReadonlyMap<string, number>,
+  ): Promise<void> {
+    for (const day of context.week) {
+      const next = evened.get(day.id);
+      if (day.id === context.day.id || next === undefined || next === day.calorieTarget) continue;
+      await tx.mealPlanDay.update({ where: { id: day.id }, data: { calorieTarget: next } });
+      await this.plans.rebalanceDayInternal(day.id, tx, context.today);
+    }
+  }
+
+  /**
+   * Even out the week of a plan that `request.date` is in (`EvenWeekRequest`),
+   * on the plan as it was at `request.revision`.
+   */
+  async evenWeek(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    request: EvenWeekRequest,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
+    const dayId = await this.plans.dayIdOf(userId, planId, request.date);
+    const context = await this.read(userId, planId, dayId, clientToday, { pastAllowed: true });
+    const evened = this.evened(context, context.week);
+    const changes = context.week.some(
+      (day) => evened.has(day.id) && evened.get(day.id) !== day.calorieTarget,
+    );
+    if (context.plan.revision !== request.revision) {
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed while this request was running. Reload it and try again.',
+      });
+    }
+    if (changes) {
+      await writePlan(this.prisma, planId, request.revision, async (tx) => {
+        const own = evened.get(context.day.id);
+        if (own !== undefined && own !== context.day.calorieTarget) {
+          await tx.mealPlanDay.update({ where: { id: dayId }, data: { calorieTarget: own } });
+          await this.plans.rebalanceDayInternal(dayId, tx, context.today);
+        }
+        await this.evenOthers(tx, context, evened);
+      });
+    }
+    return this.plans.get(userId, locale, planId);
   }
 
   /** Change the settings of a day, on the plan as it was at the preview's `revision`. */
@@ -171,8 +311,18 @@ export class DaySettingsService {
         message: 'The plan changed while this request was running. Reload it and try again.',
       });
     }
-    const change = this.change(context, request);
-    if (change.unchanged) return this.plans.get(userId, locale, planId);
+    let change = this.change(context, request);
+    // The week evened out with the change: this day's target is the one an evened week gives it.
+    const evened = request.evenWeek
+      ? this.evened(context, this.weekAfter(context, change))
+      : new Map<string, number>();
+    const evenedTarget = evened.get(dayId);
+    if (evenedTarget !== undefined && evenedTarget !== change.target)
+      change = this.change(context, request, evenedTarget);
+    const othersChange = context.week.some(
+      (day) => day.id !== dayId && evened.has(day.id) && evened.get(day.id) !== day.calorieTarget,
+    );
+    if (change.unchanged && !othersChange) return this.plans.get(userId, locale, planId);
     const gone = change.fates
       .filter((fate) => fate.fate === 'removed' || fate.fate === 'redrawn')
       .map((fate) => fate.mealId);
@@ -187,6 +337,7 @@ export class DaySettingsService {
         // The dishes that stay, brought to the day's target.
         if (change.resizes)
           await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
+        await this.evenOthers(tx, context, evened);
       });
       return this.plans.get(userId, locale, planId);
     }
@@ -307,37 +458,75 @@ export class DaySettingsService {
         new Set([dayId]),
         today,
       );
+      await this.evenOthers(tx, context, evened);
     });
     return this.plans.get(userId, locale, planId);
   }
 
-  /** The plan, the day and the profile, when the plan is this user's; a day before today is refused. */
-  private async read(userId: string, planId: string, dayId: string, clientToday: string | null) {
+  /**
+   * The plan, the day, the profile and the week of the day, when the plan is
+   * this user's; a day before today is refused, unless `pastAllowed`.
+   */
+  private async read(
+    userId: string,
+    planId: string,
+    dayId: string,
+    clientToday: string | null,
+    { pastAllowed = false } = {},
+  ) {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: {
         profile: true,
-        days: { where: { id: dayId }, include: { meals: { include: { recipe: RECIPE } } } },
+        days: {
+          orderBy: { date: 'asc' },
+          select: {
+            id: true,
+            date: true,
+            calorieTarget: true,
+            overrides: true,
+            meals: { select: { eatenAt: true } },
+          },
+        },
       },
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const day = plan.days[0];
+    const index = plan.days.findIndex((one) => one.id === dayId);
+    const day =
+      index < 0
+        ? null
+        : await this.prisma.mealPlanDay.findUnique({
+            where: { id: dayId },
+            include: { meals: { include: { recipe: RECIPE } } },
+          });
     if (!day)
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     const date = isoDate(day.date);
+    const today = clientToday ?? isoDate(new Date());
     // Dates in this form compare as text.
-    if (date < (clientToday ?? isoDate(new Date()))) {
+    if (!pastAllowed && date < today) {
       throw new ConflictException({
         error: 'DAY_IN_THE_PAST',
         message: 'This day is over: its settings stay as they were.',
       });
     }
-    return { plan, profile: plan.profile, day, date };
+    const week: WeekPlanDay[] = weeksOfPlan(plan.days)[weekOfDay(index)]!.map((one) => ({
+      id: one.id,
+      date: isoDate(one.date),
+      calorieTarget: one.calorieTarget,
+      overrides: one.overrides,
+      eaten: one.meals.length > 0 && one.meals.every((meal) => meal.eatenAt !== null),
+    }));
+    return { plan, profile: plan.profile, day, date, week, today };
   }
 
-  /** What `settings` would do to the day. */
-  private change({ plan, profile, day }: Context, settings: DaySettings): Change {
+  /**
+   * What `settings` would do to the day; with `evenedTarget`, the target an
+   * evened week gives it in place of the one the change alone gives.
+   */
+  private change(context: Context, settings: DaySettings, evenedTarget?: number): Change {
+    const { plan, profile, day } = context;
     const made = PlanOptions.parse(plan.options);
     const before = parseDayOverrides(day.overrides);
     const count = dayMealCount(day, made.mealCount, profile.mealCount);
@@ -356,7 +545,16 @@ export class DaySettingsService {
       useUpBy: settings.useUpBy || undefined,
       lockedSlots: locks.length > 0 ? locks : undefined,
     });
-    const target = this.generation.targetOfDay(profile, plan, overrides);
+    // The day keeps its target while its kind and own target stay; another takes the level of its week.
+    const kept =
+      (before?.dayType ?? 'normal') === (overrides?.dayType ?? 'normal') &&
+      (before?.calorieTarget ?? null) === (overrides?.calorieTarget ?? null) &&
+      (before?.skip ?? false) === (overrides?.skip ?? false);
+    const target =
+      evenedTarget ??
+      (kept
+        ? day.calorieTarget
+        : this.generation.targetOfDay(profile, plan, overrides, usualScale(context, overrides)));
     const targetChanged = target !== day.calorieTarget;
     // A limit draws other recipes when it is new or tighter, not every time the day is saved with it.
     const cookLimit =
@@ -424,6 +622,29 @@ export class DaySettingsService {
       canonical(before) === canonical(overrides);
     return { overrides, target, fates, added, drawn, resizes, unchanged };
   }
+}
+
+/**
+ * What a usual day of the day's week is against the plan's target, as the
+ * other days of the week that share it hold it: a day changed alone takes the
+ * level of its week, so that a training day stays as far over its usual days
+ * as the others are. Where no other day shares the week, the scale its kinds
+ * give it with the day's new settings.
+ */
+function usualScale(context: Context, overrides: DayOverridesJson | null): number {
+  const others = context.week.filter(
+    (one) => one.id !== context.day.id && sharesTheWeek(asWeekDay(one)),
+  );
+  if (others.length === 0)
+    return weekScale(
+      context.week.map((one) => asWeekDay(one.id === context.day.id ? { overrides } : one)),
+    );
+  const kinds = others.reduce(
+    (sum, one) => sum + DAY_KIND_FACTOR[asWeekDay(one).dayType ?? 'normal'],
+    0,
+  );
+  const held = others.reduce((sum, one) => sum + one.calorieTarget, 0);
+  return held / (kinds * context.plan.calorieTarget);
 }
 
 /** The settings of a day as they are kept: only those that are set, and none when none is. */

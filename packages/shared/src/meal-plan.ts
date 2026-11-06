@@ -35,7 +35,11 @@ export const DayOverride = z.object({
   skip: z.boolean().optional(),
   /** Override the daily calorie target for this day (refeed / rest periodisation). */
   calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
-  /** Semantic tag so a calorie override carries intent (read by the rebalancer and stats). */
+  /**
+   * The kind of day: a training day aims about 15 % over a usual day of its
+   * week and a rest day about 15 % under, and the days of the week aim at the
+   * plan's target on average (`PlanWeek`).
+   */
   dayType: z.enum(['normal', 'rest', 'training']).optional(),
   /** Hard cap on a recipe's prep+cook minutes for this day (busy weekdays). */
   cookTimeBudgetMinutes: z.number().int().min(0).max(600).optional(),
@@ -565,6 +569,12 @@ export const ApplyDaySettingsRequest = DaySettings.extend({
   allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
   /** The recipe drawn for a meal goes on the meals cooked with it as well. */
   together: z.boolean().default(false),
+  /**
+   * The week of the day is evened out with the change: the days of it from
+   * today on that share it get the targets that bring its average back to the
+   * plan's target, and their dishes stay in other portions (`PlanWeek`).
+   */
+  evenWeek: z.boolean().default(false),
 });
 export type ApplyDaySettingsRequest = z.infer<typeof ApplyDaySettingsRequest>;
 
@@ -613,8 +623,42 @@ export const DaySettingsPreview = z.object({
   unchanged: z.boolean(),
   /** The meals cooked with those that get another recipe. */
   cooking: CookingChange,
+  /**
+   * The week of the plan the day is in (`PlanWeek`): what the days that share
+   * it aim at on average now, with the change of this day alone, and with the
+   * change and the week evened out (`evenWeek`), against the plan's target;
+   * the pace each average comes to against the profile's maintenance, in
+   * kilograms a week (less than nothing for a gain); the target this day gets
+   * in an evened week, and how many other days evening it out changes. Null
+   * where no day of the week shares it.
+   */
+  week: z
+    .object({
+      target: z.number(),
+      average: z.object({ now: z.number(), alone: z.number(), evened: z.number() }),
+      pace: z.object({ now: z.number(), alone: z.number(), evened: z.number() }),
+      /** With the change alone, the average lies off the target and evening the week out would bring it nearer. */
+      unevenAlone: z.boolean(),
+      evenedTarget: z.number(),
+      otherDays: z.number().int().min(0),
+    })
+    .nullable(),
 });
 export type DaySettingsPreview = z.infer<typeof DaySettingsPreview>;
+
+/**
+ * Even out the week of a plan the day `date` is in, on the plan as it was at
+ * `revision`: the days of the week from today on that share it, and have a
+ * meal left to eat, get the targets that bring its average back to the plan's
+ * target (`PlanWeek`), in the same proportions of their kinds, and their
+ * dishes stay in other portions. A plan that changed since answers 409
+ * `PLAN_CHANGED`; a week no day of which can change is left as it is.
+ */
+export const EvenWeekRequest = z.object({
+  date: CalendarDay,
+  revision: z.number().int().min(0).max(2_147_483_647),
+});
+export type EvenWeekRequest = z.infer<typeof EvenWeekRequest>;
 
 /** A pack that a plan's menu opens and does not finish. */
 export const PlanOpenPack = z.object({
@@ -648,6 +692,29 @@ export const PlanPacks = z.object({
 });
 export type PlanPacks = z.infer<typeof PlanPacks>;
 
+/**
+ * A week of a plan: seven of its days from its first, the last week as long
+ * as what is left. The kinds of day move calories between the days of a week:
+ * a training day about 15 % over a usual day of it, a rest day about 15 %
+ * under, and the days that share the week (not skipped, and with no target of
+ * their own) aim at the plan's target on average. A change of one day of a
+ * running plan can leave the average off it, until the week is evened out.
+ */
+export const PlanWeek = z.object({
+  from: z.string().date(),
+  to: z.string().date(),
+  /** The plan's own calorie target. */
+  target: z.number(),
+  /** What the days that share the week aim at on average; null where none does. */
+  average: z.number().nullable(),
+  /**
+   * The average lies off the target by more than a hundredth of it, and days
+   * of the week from today on can still bring it back (`EvenWeekRequest`).
+   */
+  uneven: z.boolean(),
+});
+export type PlanWeek = z.infer<typeof PlanWeek>;
+
 /** A full multi-day meal plan. */
 export const MealPlan = z.object({
   id: z.string().uuid(),
@@ -656,6 +723,8 @@ export const MealPlan = z.object({
   durationDays: z.number().int(),
   dietType: DietType,
   days: z.array(MealPlanDay),
+  /** Its weeks, the first first. */
+  weeks: z.array(PlanWeek),
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
@@ -790,6 +859,7 @@ export type PlanCalendar = z.infer<typeof PlanCalendar>;
 export const MealPlanSummary = MealPlan.omit({
   averageOff: true,
   days: true,
+  weeks: true,
   report: true,
   targetMacros: true,
   packs: true,

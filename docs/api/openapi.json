@@ -4442,6 +4442,16 @@
             }
           },
           {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "Accept-Language",
             "in": "header",
             "required": false,
@@ -5567,6 +5577,80 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UseUpSuggestions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/weeks/even": {
+      "post": {
+        "operationId": "MealPlans_evenWeek",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Even out the week of a plan that a day is in: the days of it from today on that share it get the targets that bring its average back to the plan's target, their dishes in other portions (`EvenWeekRequest`).",
+        "description": "Even out the week of a plan that a day is in: the days of it from today on that share it get the targets that bring its average back to the plan's target, their dishes in other portions (`EvenWeekRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvenWeekRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
                 }
               }
             }
@@ -11231,6 +11315,10 @@
           "together": {
             "default": false,
             "type": "boolean"
+          },
+          "evenWeek": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -12503,6 +12591,80 @@
           },
           "cooking": {
             "$ref": "#/components/schemas/CookingChange"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "type": "number"
+                  },
+                  "average": {
+                    "type": "object",
+                    "properties": {
+                      "now": {
+                        "type": "number"
+                      },
+                      "alone": {
+                        "type": "number"
+                      },
+                      "evened": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "now",
+                      "alone",
+                      "evened"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "pace": {
+                    "type": "object",
+                    "properties": {
+                      "now": {
+                        "type": "number"
+                      },
+                      "alone": {
+                        "type": "number"
+                      },
+                      "evened": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "now",
+                      "alone",
+                      "evened"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "unevenAlone": {
+                    "type": "boolean"
+                  },
+                  "evenedTarget": {
+                    "type": "number"
+                  },
+                  "otherDays": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "target",
+                  "average",
+                  "pace",
+                  "unevenAlone",
+                  "evenedTarget",
+                  "otherDays"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -12517,7 +12679,8 @@
           "fits",
           "listOutOfDate",
           "unchanged",
-          "cooking"
+          "cooking",
+          "week"
         ],
         "additionalProperties": false
       },
@@ -13300,6 +13463,23 @@
           "APPROVED",
           "REJECTED",
           "SHIPPED"
+        ]
+      },
+      "EvenWeekRequest": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "date",
+          "revision"
         ]
       },
       "FavoriteMark": {
@@ -15429,6 +15609,12 @@
               "$ref": "#/components/schemas/MealPlanDay"
             }
           },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanWeek"
+            }
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -15506,6 +15692,7 @@
           "durationDays",
           "dietType",
           "days",
+          "weeks",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",
@@ -17355,6 +17542,39 @@
           "past",
           "upcoming"
         ]
+      },
+      "PlanWeek": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "target": {
+            "type": "number"
+          },
+          "average": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uneven": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "target",
+          "average",
+          "uneven"
+        ],
+        "additionalProperties": false
       },
       "PlannedIngredient": {
         "type": "object",

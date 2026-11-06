@@ -165,6 +165,12 @@ const ASKS: Ask[] = [
     (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/settings`,
     () => ({ ...DAY_SETTINGS, revision: 0 }),
   ],
+  [
+    'even out a week of a plan',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/weeks/even`,
+    (ids) => ({ date: ids.date, revision: 0 }),
+  ],
   ['delete a plan', 'delete', (ids) => `/api/meal-plans/${ids.plan}`],
   [
     'ask for another recipe for a meal',

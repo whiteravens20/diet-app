@@ -15,7 +15,10 @@ import {
   scaledFigures,
   sharesOf,
   splitDistance,
+  weekScale,
+  weekScales,
   type CalorieEngineInput,
+  type DayType,
 } from './nutrition.js';
 
 describe('the target of one day', () => {
@@ -33,6 +36,11 @@ describe('the target of one day', () => {
     expect(day({ dayType: 'rest' }).target).toBe(1700);
     // 2209 × 1.15 = 2540.35
     expect(day({ base: 2209, dayType: 'training' }).target).toBe(2540);
+  });
+
+  it('rounds a half up, however the factors of the week and the kind land in floating point', () => {
+    // 2297 × 1.15 × (2300 / 2297) is 2645 to the reader, 2644.9999999999995 to the machine.
+    expect(day({ base: 2297, dayType: 'training', scale: 2300 / 2297 }).target).toBe(2650);
   });
 
   it('is not taken under the floor by a rest day when the base was calculated', () => {
@@ -69,6 +77,65 @@ describe('the target of one day', () => {
     expect(day({ ownTarget: 900, holdUnder: 2000 })).toEqual({ target: 2000, belowFloor: false });
     expect(day({ ownTarget: 2300, holdUnder: 2000 }).target).toBe(2300);
     expect(day({ ownTarget: 900, holdUnder: null }).target).toBe(900);
+  });
+});
+
+describe('the kinds of day of a week', () => {
+  /** The targets of a week of a plan whose calculated base is 2135 kcal, with the floor of a man. */
+  const week = (kinds: DayType[]) => {
+    const scale = weekScale(kinds.map((dayType) => ({ dayType })));
+    return kinds.map(
+      (dayType) =>
+        effectiveDayTarget({ base: 2135, baseIsCalculated: true, floor: 1500, dayType, scale })
+          .target,
+    );
+  };
+  const average = (targets: number[]) => targets.reduce((sum, t) => sum + t, 0) / targets.length;
+
+  it('move calories between its days and leave their average on the base: three training days and four usual ones', () => {
+    const targets = week([
+      'training',
+      'normal',
+      'training',
+      'normal',
+      'training',
+      'normal',
+      'normal',
+    ]);
+
+    expect(targets).toEqual([2310, 2010, 2310, 2010, 2310, 2010, 2010]);
+    // Added on top of the base, as they were, the same week came to 2274 kcal a day: 0.37 kg a week instead of 0.5.
+    expect(Math.abs(average(targets) - 2135)).toBeLessThan(5);
+  });
+
+  it('keep a training day about 15 % over a usual day of its week and a rest day about 15 % under it', () => {
+    const targets = week(['training', 'rest', 'normal', 'rest', 'training', 'normal', 'training']);
+    const usual = targets[2]!;
+
+    expect(targets[0]! / usual).toBeCloseTo(1.15, 2);
+    expect(targets[1]! / usual).toBeCloseTo(0.85, 2);
+    expect(Math.abs(average(targets) - 2135)).toBeLessThan(5);
+  });
+
+  it('change nothing in a week of usual days, nor in one where training and rest days weigh the same', () => {
+    // The base rounded to ten, as a day's target always is.
+    expect(week(Array<DayType>(7).fill('normal'))).toEqual(Array(7).fill(2140));
+    expect(weekScale([{ dayType: 'training' }, { dayType: 'rest' }, {}])).toBe(1);
+  });
+
+  it('leave out of the sharing the days with a target of their own and the skipped ones', () => {
+    expect(
+      weekScale([{ dayType: 'training' }, { dayType: 'rest', ownTarget: 3000 }, { skip: true }]),
+    ).toBeCloseTo(1 / 1.15, 10);
+    expect(weekScale([{ ownTarget: 1800 }, { skip: true }])).toBe(1);
+  });
+
+  it("count a plan's weeks in sevens from its first day, the last as long as what is left", () => {
+    const kinds: DayType[] = [...Array<DayType>(7).fill('normal'), 'training', 'normal', 'normal'];
+    const scales = weekScales(kinds.map((dayType) => ({ dayType })));
+
+    expect(scales.slice(0, 7)).toEqual(Array(7).fill(1));
+    expect(scales.slice(7)).toEqual(Array(3).fill(3 / 3.15));
   });
 });
 

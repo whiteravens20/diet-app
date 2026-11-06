@@ -69,6 +69,7 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   listOutOfDate: false,
   cooking: null,
   unchanged: false,
+  week: null,
   ...over,
 });
 

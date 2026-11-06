@@ -24,6 +24,7 @@ import {
   ApplyMealSwapRequest,
   DaySettings,
   DaySettingsPreview,
+  EvenWeekRequest,
   DayVariations,
   GeneratePlanRequest,
   MealPlan,
@@ -134,8 +135,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.get(user.id, locale, id);
+    return this.plans.get(user.id, locale, id, today);
   }
 
   /**
@@ -293,6 +295,25 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.settings.apply(user.id, locale, id, dayId, dto, today);
+  }
+
+  /**
+   * Even out the week of a plan that a day is in: the days of it from today on
+   * that share it get the targets that bring its average back to the plan's
+   * target, their dishes in other portions (`EvenWeekRequest`).
+   */
+  @Post(':id/weeks/even')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
+  evenWeek(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(EvenWeekRequest)) dto: EvenWeekRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.settings.evenWeek(user.id, locale, id, dto, today);
   }
 
   /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */

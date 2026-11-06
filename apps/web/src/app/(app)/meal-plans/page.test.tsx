@@ -147,6 +147,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       mealCount: 3,
     },
   ],
+  weeks: [{ from: '2026-01-05', to: '2026-01-05', target: 230, average: 230, uneven: false }],
   averageDailyNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
   targetMacros: { protein: 100, fat: 62, carbs: 260 },
   averageOff: { calories: null, macros: false },

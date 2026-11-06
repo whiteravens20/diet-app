@@ -58,7 +58,7 @@ describe('the settings of a day of a running plan', () => {
     ).body as DaySettingsPreview;
   const apply = async (
     of: MealPlan,
-    change: Partial<DaySettings> & { allowRelaxations?: string[] },
+    change: Partial<DaySettings> & { allowRelaxations?: string[]; evenWeek?: boolean },
   ) =>
     (
       await t
@@ -93,11 +93,8 @@ describe('the settings of a day of a running plan', () => {
   describe('another kind of day', () => {
     it('keeps the dishes in larger portions on a training day, at the target its kind gives', async () => {
       const day = dayOf(plan);
-      // A training day aims fifteen in a hundred over the plan's base, to ten kilocalories.
-      const { calorieTarget: base } = await t.prisma.mealPlan.findUniqueOrThrow({
-        where: { id: plan.id },
-      });
-      const target = Math.round((base * 1.15) / 10) * 10;
+      // A training day aims fifteen in a hundred over the usual days of its week, to ten kilocalories.
+      const target = Math.round((day.calorieTarget * 1.15) / 10) * 10;
 
       const said = await preview(plan, { dayType: 'training' });
       expect(said.calorieTarget).toEqual({ now: day.calorieTarget, then: target });
@@ -124,6 +121,80 @@ describe('the settings of a day of a running plan', () => {
       const after = dayOf(await apply(plan, { calorieTarget: 2100 }));
       expect(after).toMatchObject({ calorieTarget: 2100, overrides: { calorieTarget: 2100 } });
       expect(insideItsWindow(after)).toBe(true);
+    });
+  });
+
+  describe('the week of the day', () => {
+    const planTarget = async () =>
+      (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).calorieTarget;
+    const mean = (days: MealPlanDay[]) =>
+      days.reduce((sum, one) => sum + one.calorieTarget, 0) / days.length;
+    const slack = (target: number) => Math.max(10, target / 100);
+    const even = (of: MealPlan, date: string, revision = of.revision) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${of.id}/weeks/even`)
+        .set(as(user))
+        .set('X-Client-Date', day(0))
+        .send({ date, revision });
+    /** The days of the plan from today on, but the one whose settings change. */
+    const toCome = [day(0), day(2), day(3), day(4)];
+
+    it("says how a kind changed alone moves the week's average and its pace, and changes that day alone, at the level of its week", async () => {
+      const target = await planTarget();
+      const usual = dayOf(plan).calorieTarget;
+      const training = Math.round((usual * 1.15) / 10) * 10;
+
+      const said = await preview(plan, { dayType: 'training' });
+      expect(said.calorieTarget.then).toBe(training);
+      expect(said.week).toMatchObject({ target, unevenAlone: true, otherDays: toCome.length });
+      expect(said.week!.average.alone - said.week!.average.now).toBeCloseTo(
+        (training - usual) / 7,
+        0,
+      );
+      expect(said.week!.pace.alone).toBeLessThan(said.week!.pace.now);
+      expect(Math.abs(said.week!.average.evened - target)).toBeLessThanOrEqual(slack(target));
+
+      const after = await apply(plan, { dayType: 'training' });
+      expect(dayOf(after).calorieTarget).toBe(training);
+      const others = (of: MealPlan) =>
+        of.days.filter((one) => one.date !== DATE).map((one) => one.calorieTarget);
+      expect(others(after)).toEqual(others(plan));
+      expect(after.weeks).toEqual([expect.objectContaining({ target, uneven: true })]);
+    });
+
+    it('evens the week out with the change: the days from today on give back what the day takes, in other portions of the same dishes, and the days before today stay', async () => {
+      const target = await planTarget();
+      const said = await preview(plan, { dayType: 'training' });
+
+      const after = await apply(plan, { dayType: 'training', evenWeek: true });
+
+      expect(dayOf(after).calorieTarget).toBe(said.week!.evenedTarget);
+      for (const date of [day(-2), day(-1)])
+        expect(dayOf(after, date).calorieTarget).toBe(dayOf(plan, date).calorieTarget);
+      for (const date of toCome) {
+        expect(dayOf(after, date).calorieTarget).toBeLessThan(dayOf(plan, date).calorieTarget);
+        expect(dishes(dayOf(after, date))).toEqual(dishes(dayOf(plan, date)));
+        expect(insideItsWindow(dayOf(after, date))).toBe(true);
+      }
+      expect(Math.abs(mean(after.days) - target)).toBeLessThanOrEqual(slack(target));
+      expect(after.weeks).toEqual([expect.objectContaining({ uneven: false })]);
+    });
+
+    it('is evened out later from any of its days, on the plan as it was read; a week that is even is left as it is', async () => {
+      const alone = await apply(plan, { dayType: 'training' });
+
+      expect((await even(alone, DATE, plan.revision).expect(409)).body.error).toBe('PLAN_CHANGED');
+
+      const evened = (await even(alone, day(-1)).expect(200)).body as MealPlan;
+      expect(evened.weeks).toEqual([expect.objectContaining({ uneven: false })]);
+      expect(dayOf(evened).calorieTarget).toBeLessThan(dayOf(alone).calorieTarget);
+      expect(dayOf(evened).overrides).toEqual({ dayType: 'training' });
+      for (const date of [day(-2), day(-1)])
+        expect(dayOf(evened, date).calorieTarget).toBe(dayOf(plan, date).calorieTarget);
+
+      const again = (await even(evened, DATE).expect(200)).body as MealPlan;
+      expect(again.revision).toBe(evened.revision);
     });
   });
 

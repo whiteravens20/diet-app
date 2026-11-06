@@ -67,6 +67,7 @@ import {
   sumNutrition,
   type MealAmount,
 } from './plan-days.js';
+import { planWeeks } from './plan-weeks.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
@@ -194,7 +195,12 @@ export class MealPlansService {
     };
   }
 
-  async get(userId: string, locale: Locale, planId: string): Promise<MealPlan> {
+  async get(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
     const trWhere = locale === 'en' ? ['en'] : [locale, 'en'];
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
@@ -235,7 +241,7 @@ export class MealPlansService {
       diary.size > 0
         ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
         : new Map<string, DiaryEntry[]>();
-    return this.toDto(plan, locale, restrictions, diary, written);
+    return this.toDto(plan, locale, restrictions, diary, written, clientToday ?? this.today());
   }
 
   /**
@@ -500,6 +506,11 @@ export class MealPlansService {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
     return day;
+  }
+
+  /** The id of the day `date` of a plan that is `userId`'s. */
+  async dayIdOf(userId: string, planId: string, date: string): Promise<string> {
+    return (await this.loadDay(userId, planId, date)).id;
   }
 
   /**
@@ -982,6 +993,8 @@ export class MealPlansService {
     restrictions: Restrictions,
     diary: Map<string, DiaryOnDay>,
     written: Map<string, DiaryEntry[]>,
+    /** The day it is for the client: what its weeks can still change starts there. */
+    today: string,
   ): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     const labelLimits = labelLimitsOf(plan.profile?.preferences);
@@ -1138,6 +1151,17 @@ export class MealPlansService {
       durationDays: plan.durationDays,
       dietType: plan.dietType,
       days,
+      weeks: planWeeks(
+        plan.days.map((day) => ({
+          id: day.id,
+          date: isoDate(day.date),
+          calorieTarget: day.calorieTarget,
+          overrides: day.overrides,
+          eaten: day.meals.length > 0 && day.meals.every((meal) => meal.eatenAt !== null),
+        })),
+        plan.calorieTarget,
+        today,
+      ),
       averageDailyNutrition: average,
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
       averageOff: {
