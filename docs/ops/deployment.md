@@ -70,7 +70,7 @@ Load them on the first run, in the admin panel:
 2. (Optional) Fetch USDA whole foods with **Run import** on the panel's USDA
    importer (defaults to **Foundation**, ~330 generic foods). It writes
    `data/ingredients.generated.json` — without it only the hand-curated baseline
-   (96 ingredients) is available. `SR Legacy` adds the full ~7 k corpus, but see
+   (114 ingredients) is available. `SR Legacy` adds the full ~7 k corpus, but see
    [data/README.md](../../data/README.md#choosing-fdc_data_types) for why that
    is rarely worth it. In a checkout of the repository,
    `FDC_API_KEY=<key> npm run import:usda` does the same on the host.

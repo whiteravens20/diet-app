@@ -105,13 +105,32 @@ inside the application and shipped through its curation queue.
 
 ## Where the figures are from
 
+The catalogue has two layers, and each takes its figures from one source:
+
+- **The curated ingredients of this file take theirs from USDA SR Legacy,** one
+  food for each ingredient: its energy, macronutrients and the four figures of a
+  label all come from that food, and its household measures give the weight of a
+  piece or a teaspoon. SR Legacy holds nearly every food a recipe needs, spices,
+  bread, pasta and tortillas among them, with whole figures and household
+  measures; that it no longer changes keeps the figures under the recipes still.
+  A food SR Legacy lacks in the form the ingredient describes is taken from the
+  Foundation set (canned black beans, which it has drained; red onion), and one
+  neither has from the Polish tables (curd cheese). A food that no reference
+  table holds is left out rather than taken from a label: rounded to a teaspoon,
+  a label gives nothing per 100 g of a spice (garam masala is left out so).
+- **An instance's import takes the Foundation set** (see
+  [Choosing `FDC_DATA_TYPES`](#choosing-fdc_data_types)). Where it brings a food
+  a curated ingredient already is, the ingredient names it in `importedAs`, its
+  row is left out, and the curated figures are the ones every recipe is counted
+  with ([Foods the catalogue already has](#foods-the-catalogue-already-has)).
+
 The figures of the ingredients below are those of
 [USDA FoodData Central](https://fdc.nal.usda.gov/), of its SR Legacy data set
-(canned black beans of its Foundation set, which has them drained), each by the
-id of its food there. What is measured in millilitres was worked
+(canned black beans and red onion of its Foundation set), each by the id of its
+food there. What is measured in millilitres was worked
 out from the figures of 100 g and from what the database says a cup of the food
-weighs; the weight of a lemon, of a lime, of a cherry tomato and of a slice of
-rye bread are the database's as well.
+weighs; the weight of a lemon, of a lime, of a cherry tomato, of a slice of
+rye bread, of a jalapeño and of a red onion are the database's as well.
 
 | Ingredient            | FDC id  | The food in the database                                                            |
 | --------------------- | ------- | ----------------------------------------------------------------------------------- |
@@ -208,6 +227,24 @@ rye bread are the database's as well.
 | `walnuts`             | 170187  | Nuts, walnuts, english                                                              |
 | `chia-seeds`          | 170554  | Seeds, chia seeds, dried                                                            |
 | `feta-cheese`         | 173420  | Cheese, feta                                                                        |
+| `cumin`               | 170923  | Spices, cumin seed                                                                  |
+| `ground-coriander`    | 170922  | Spices, coriander seed                                                              |
+| `turmeric`            | 172231  | Spices, turmeric, ground                                                            |
+| `ground-chili`        | 170932  | Spices, pepper, red or cayenne                                                      |
+| `dried-thyme`         | 170938  | Spices, thyme, dried                                                                |
+| `dried-rosemary`      | 171333  | Spices, rosemary, dried                                                             |
+| `dried-marjoram`      | 170928  | Spices, marjoram, dried                                                             |
+| `caraway-seeds`       | 170918  | Spices, caraway seed                                                                |
+| `bay-leaf`            | 170917  | Spices, bay leaf                                                                    |
+| `allspice`            | 171315  | Spices, allspice, ground                                                            |
+| `curry-powder`        | 170924  | Spices, curry powder                                                                |
+| `taco-seasoning`      | 172243  | Seasoning mix, dry, taco, original                                                  |
+| `fresh-coriander`     | 169997  | Coriander (cilantro) leaves, raw                                                    |
+| `fresh-mint`          | 173475  | Spearmint, fresh                                                                    |
+| `sesame-oil`          | 171016  | Oil, sesame, salad or cooking                                                       |
+| `tahini`              | 170189  | Seeds, sesame butter, tahini, from roasted and toasted kernels (most common type)   |
+| `jalapeno`            | 168576  | Peppers, jalapeno, raw                                                              |
+| `red-onion`           | 790577  | Onions, red, raw                                                                    |
 | `lemon-juice`         | 167747  | Lemon juice, raw                                                                    |
 | `lime-juice`          | 168156  | Lime juice, raw                                                                     |
 
@@ -268,14 +305,26 @@ dry one is shown in pinches, a sixteenth of a teaspoon each, and more than four
 teaspoons by weight or volume. `perTeaspoon` is how much a level teaspoon holds in
 the canonical unit, from the household measures of USDA SR Legacy:
 
-| Ingredient              | `perTeaspoon` | SR Legacy                                    |
-| ----------------------- | ------------- | -------------------------------------------- |
-| salt                    | 6 g           | Salt, table: 1 tsp = 6 g                     |
-| black pepper            | 2.3 g         | Spices, pepper, black: 1 tsp, ground = 2.3 g |
-| paprika                 | 2.3 g         | Spices, paprika: 1 tsp = 2.3 g               |
-| cinnamon                | 2.6 g         | Spices, cinnamon, ground: 1 tsp = 2.6 g      |
-| dried oregano           | 1 g           | Spices, oregano, dried: 1 tsp, leaves = 1 g  |
-| lemon juice, lime juice | 5 ml          | a teaspoon of 5 ml                           |
+| Ingredient              | `perTeaspoon` | SR Legacy                                         |
+| ----------------------- | ------------- | ------------------------------------------------- |
+| salt                    | 6 g           | Salt, table: 1 tsp = 6 g                          |
+| black pepper            | 2.3 g         | Spices, pepper, black: 1 tsp, ground = 2.3 g      |
+| paprika                 | 2.3 g         | Spices, paprika: 1 tsp = 2.3 g                    |
+| cinnamon                | 2.6 g         | Spices, cinnamon, ground: 1 tsp = 2.6 g           |
+| dried oregano           | 1 g           | Spices, oregano, dried: 1 tsp, leaves = 1 g       |
+| cumin                   | 2.1 g         | Spices, cumin seed: 1 tsp, whole = 2.1 g          |
+| ground coriander        | 1.8 g         | Spices, coriander seed: 1 tsp = 1.8 g             |
+| turmeric                | 3 g           | Spices, turmeric, ground: 1 tsp = 3 g             |
+| ground chili            | 1.8 g         | Spices, pepper, red or cayenne: 1 tsp = 1.8 g     |
+| dried thyme             | 1 g           | Spices, thyme, dried: 1 tsp, leaves = 1 g         |
+| dried rosemary          | 1.2 g         | Spices, rosemary, dried: 1 tsp = 1.2 g            |
+| dried marjoram          | 0.6 g         | Spices, marjoram, dried: 1 tsp = 0.6 g            |
+| caraway seeds           | 2.1 g         | Spices, caraway seed: 1 tsp = 2.1 g               |
+| bay leaf                | 0.6 g         | Spices, bay leaf: 1 tsp, crumbled = 0.6 g         |
+| allspice                | 1.9 g         | Spices, allspice, ground: 1 tsp = 1.9 g           |
+| curry powder            | 2 g           | Spices, curry powder: 1 tsp = 2 g                 |
+| taco seasoning          | 2.9 g         | Seasoning mix, dry, taco, original: 2 tsp = 5.7 g |
+| lemon juice, lime juice | 5 ml          | a teaspoon of 5 ml                                |
 
 Nutrition, the shopping list and the pantry go on by weight or volume. The lint
 refuses a `perTeaspoon` on what is counted in pieces.
