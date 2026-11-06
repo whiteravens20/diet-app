@@ -6,6 +6,7 @@
  * them interchangeably and fail over between them.
  */
 import type { AiProvider } from '@diet-app/shared';
+import type { Reasoning } from './operations.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -35,12 +36,13 @@ export interface CompletionOptions {
   /** The call is abandoned after this long and reported as timed out. */
   timeoutMs: number;
   /**
-   * Ask for the answer without the model thinking first, where the provider
-   * has a setting for that. What a model thinks is billed as output and
-   * counts against `maxTokens`: a model that thinks about a short answer can
-   * spend the whole cap before it writes a word.
+   * How much the model is asked to think before it answers, where the
+   * provider has a setting for that; unset leaves the model as it is set up.
+   * What a model thinks is billed as output and counts against `maxTokens`:
+   * a model that thinks about a short answer can spend the whole cap before
+   * it writes a word.
    */
-  direct?: boolean;
+  reasoning?: Reasoning;
 }
 
 export interface CompletionResult {

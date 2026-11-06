@@ -200,11 +200,21 @@ describe('asking for an answer without thinking first', () => {
   it('says so to OpenRouter in the field it has for that, and not otherwise', async () => {
     transport(() => json(200, openAiAnswer('{}')));
 
-    await openrouter.chat(messages, options({ direct: true }));
+    await openrouter.chat(messages, options({ reasoning: 'none' }));
+    await openrouter.chat(messages, options({ reasoning: 'low' }));
     await openrouter.chat(messages, options());
 
     expect(sent[0]!.body.reasoning).toEqual({ effort: 'none' });
-    expect(sent[1]!.body).not.toHaveProperty('reasoning');
+    expect(sent[1]!.body.reasoning).toEqual({ effort: 'low' });
+    expect(sent[2]!.body).not.toHaveProperty('reasoning');
+  });
+
+  it('asks once when a little thinking is refused: only a request without thinking is asked again', async () => {
+    transport(() => json(400, refusal));
+
+    await failure(openrouter.chat(messages, options({ reasoning: 'low' })));
+
+    expect(sent).toHaveLength(1);
   });
 
   it('asks a model that refuses the setting once more without it, and gives that answer', async () => {
@@ -213,7 +223,7 @@ describe('asking for an answer without thinking first', () => {
       request.body.reasoning ? json(400, refusal) : json(200, openAiAnswer('thought it over')),
     );
 
-    await expect(openrouter.chat(messages, options({ direct: true }))).resolves.toMatchObject({
+    await expect(openrouter.chat(messages, options({ reasoning: 'none' }))).resolves.toMatchObject({
       text: 'thought it over',
     });
     expect(sent).toHaveLength(2);
@@ -224,7 +234,7 @@ describe('asking for an answer without thinking first', () => {
   it('reports a request that is refused either way, after asking twice', async () => {
     transport(() => json(400, { error: { message: 'no such model' } }));
 
-    const failed = await failure(openrouter.chat(messages, options({ direct: true })));
+    const failed = await failure(openrouter.chat(messages, options({ reasoning: 'none' })));
     expect(failed.message).toContain('no such model');
     expect(failed.timedOut).toBe(false);
     expect(sent).toHaveLength(2);
@@ -232,7 +242,7 @@ describe('asking for an answer without thinking first', () => {
 
   it('asks once when the failure is another, or when the request did not carry the setting', async () => {
     transport(() => json(503, { error: { message: 'not now' } }));
-    await failure(openrouter.chat(messages, options({ direct: true })));
+    await failure(openrouter.chat(messages, options({ reasoning: 'none' })));
     expect(sent).toHaveLength(1);
 
     sent.length = 0;
@@ -251,7 +261,7 @@ describe('asking for an answer without thinking first', () => {
 
     const started = performance.now();
     const slow = await failure(
-      openrouter.chat(messages, options({ direct: true, timeoutMs: 500 })),
+      openrouter.chat(messages, options({ reasoning: 'none', timeoutMs: 500 })),
     );
     expect(slow.timedOut).toBe(true);
     expect(performance.now() - started).toBeLessThan(900);
@@ -261,7 +271,7 @@ describe('asking for an answer without thinking first', () => {
     const { adapter, answer } = cases[name]!;
     transport(() => json(200, answer('{}')));
 
-    await adapter.chat(messages, options({ direct: true }));
+    await adapter.chat(messages, options({ reasoning: 'none' }));
     await adapter.chat(messages, options());
 
     expect(sent[0]!.body).toEqual(sent[1]!.body);

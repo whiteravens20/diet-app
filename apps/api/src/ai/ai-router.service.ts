@@ -138,7 +138,7 @@ export class AiRouterService {
           maxTokens: operation.maxTokens,
           temperature: operation.temperature,
           timeoutMs,
-          direct: operation.direct,
+          reasoning: operation.reasoning,
         });
         if (result.truncated) {
           this.logger.warn(

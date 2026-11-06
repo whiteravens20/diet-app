@@ -19,14 +19,19 @@ export interface Operation {
    */
   timeoutMs: number;
   /**
-   * The model is asked to answer without thinking first, where its provider
-   * has a setting for that: what a user waits for is short, and a model that
-   * thinks about it spends the cap, and the user's time, on the thinking.
+   * How much the model thinks before it answers, where its provider has a
+   * setting for that. What a user waits for is mostly short, and a model that
+   * thinks about it spends the cap, and the user's time, on the thinking:
+   * those are asked with `none`. A recipe draft is asked with `low`: a little
+   * thinking measurably keeps it to what was asked (`docs/ops/ai-models.md`).
    * The runs of the administrator's panel leave a model as its provider sets
    * it up: they wait longer and their caps are wider.
    */
-  direct?: boolean;
+  reasoning?: Reasoning;
 }
+
+/** How much a model is asked to think before it answers. */
+export type Reasoning = 'none' | 'low';
 
 /**
  * The longest a user's request waits for a model. The web front-end proxies
@@ -41,7 +46,7 @@ export const MEAL_SWAP: Operation = {
   maxTokens: 400,
   temperature: 0.2,
   timeoutMs: USER_WAIT_MS,
-  direct: true,
+  reasoning: 'none',
 };
 
 export const INGREDIENT_SWAP: Operation = {
@@ -49,7 +54,7 @@ export const INGREDIENT_SWAP: Operation = {
   maxTokens: 400,
   temperature: 0.2,
   timeoutMs: USER_WAIT_MS,
-  direct: true,
+  reasoning: 'none',
 };
 
 /**
@@ -62,7 +67,7 @@ const weighing = (name: string): Operation => ({
   maxTokens: 700,
   temperature: 0.2,
   timeoutMs: USER_WAIT_MS,
-  direct: true,
+  reasoning: 'none',
 });
 export const DAY_VARIATIONS = weighing('day-variations');
 export const USE_UP_SWAPS = weighing('use-up-swaps');
@@ -78,17 +83,21 @@ export const SWAP_REWRITE: Operation = {
   maxTokens: 3_000,
   temperature: 0.3,
   timeoutMs: 20_000,
-  direct: true,
+  reasoning: 'none',
 };
 
-/** One recipe, written in `locales` languages. */
+/**
+ * One recipe, written in `locales` languages. Its thinking counts against the
+ * cap: measured at no more than 564 tokens on 2026-11-06, so the cap holds a
+ * thousand more than the answer alone needs.
+ */
 export function recipeDraft(locales: number): Operation {
   return {
     name: 'recipe-draft',
-    maxTokens: 600 + 1_200 * locales,
+    maxTokens: 1_600 + 1_200 * locales,
     temperature: 0.7,
     timeoutMs: USER_WAIT_MS,
-    direct: true,
+    reasoning: 'low',
   };
 }
 

@@ -156,17 +156,19 @@ describe('AiRouterService.chat', () => {
     expect(calls[0]!.opts.timeoutMs).toBeLessThanOrEqual(6_000);
   });
 
-  it('asks for an answer without thinking when the operation does, and not otherwise', async () => {
+  it('asks for as much thinking as the operation does, and leaves it out when the operation names none', async () => {
     const { router, calls } = setup({
       chain: [{ provider: 'openrouter' }],
       behaviour: { openrouter: async () => answer('ok') },
     });
 
-    await router.chat('user-1', MESSAGES, { ...OPERATION, direct: true });
+    await router.chat('user-1', MESSAGES, { ...OPERATION, reasoning: 'none' });
+    await router.chat('user-1', MESSAGES, { ...OPERATION, reasoning: 'low' });
     await router.chat('user-1', MESSAGES, OPERATION);
 
-    expect(calls[0]!.opts.direct).toBe(true);
-    expect(calls[1]!.opts.direct).toBeUndefined();
+    expect(calls[0]!.opts.reasoning).toBe('none');
+    expect(calls[1]!.opts.reasoning).toBe('low');
+    expect(calls[2]!.opts.reasoning).toBeUndefined();
   });
 
   it('moves on to the next provider when one fails, in the order of the chain', async () => {

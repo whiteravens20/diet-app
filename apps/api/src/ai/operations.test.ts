@@ -53,17 +53,24 @@ describe('the limits of a user request', () => {
     expect(recipeDraft(2).maxTokens).toBeGreaterThan(recipeDraft(1).maxTokens);
   });
 
-  it('asks for an answer without thinking, which a run of the panel does not', () => {
-    for (const operation of operations) {
-      expect(operation.direct, operation.name).toBe(true);
+  it('asks for an answer without thinking, a draft with a little, and a run of the panel as the model is set up', () => {
+    for (const operation of operations.slice(0, 6)) {
+      expect(operation.reasoning, operation.name).toBe('none');
     }
+    expect(recipeDraft(1).reasoning).toBe('low');
+    expect(recipeDraft(2).reasoning).toBe('low');
     for (const run of [
       recipeBatch(3, 2, 0.2),
       ingredientNames(20, 1, 0.2),
       recipeTranslation(6, 0.2),
     ]) {
-      expect(run.direct, run.name).toBeUndefined();
+      expect(run.reasoning, run.name).toBeUndefined();
     }
+  });
+
+  it('leaves a draft room for its thinking: the 564 tokens measured, beside what the answer needs', () => {
+    // An answer in two languages took up to 1,141 tokens with its thinking (2026-11-06).
+    expect(recipeDraft(2).maxTokens).toBeGreaterThanOrEqual(1_141 + 1_000);
   });
 });
 

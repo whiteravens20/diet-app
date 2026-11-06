@@ -9,6 +9,7 @@ import {
   type CompletionOptions,
   type CompletionResult,
 } from '../provider.interface.js';
+import type { Reasoning } from '../operations.js';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -18,7 +19,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * model that has none.
  */
 type OpenRouterRequest = OpenAI.Chat.ChatCompletionCreateParamsNonStreaming & {
-  reasoning?: { effort: 'none' };
+  reasoning?: { effort: Reasoning };
 };
 
 /** OpenRouter adapter — OpenAI-compatible API, routed across many models. */
@@ -31,17 +32,18 @@ export class OpenRouterProvider implements AiProviderAdapter {
     const started = Date.now();
     try {
       try {
-        return await this.ask(messages, opts, opts.direct === true, opts.timeoutMs);
+        return await this.ask(messages, opts, opts.reasoning, opts.timeoutMs);
       } catch (err) {
         // A model whose thinking cannot be turned off refuses the request that
         // asks for it, at once and unbilled. It is asked again as it is set up,
         // in the time that is left: that is the same request made acceptable,
         // not another try of one that failed.
-        if (!(opts.direct && err instanceof OpenAI.APIError && err.status === 400)) throw err;
+        if (!(opts.reasoning === 'none' && err instanceof OpenAI.APIError && err.status === 400))
+          throw err;
         return await this.ask(
           messages,
           opts,
-          false,
+          undefined,
           Math.max(1, opts.timeoutMs - (Date.now() - started)),
         );
       }
@@ -57,7 +59,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
   private async ask(
     messages: ChatMessage[],
     opts: CompletionOptions,
-    direct: boolean,
+    reasoning: Reasoning | undefined,
     timeoutMs: number,
   ): Promise<CompletionResult> {
     const client = new OpenAI({
@@ -72,7 +74,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
       temperature: opts.temperature,
       max_tokens: opts.maxTokens,
       ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
-      ...(direct ? { reasoning: { effort: 'none' } } : {}),
+      ...(reasoning ? { reasoning: { effort: reasoning } } : {}),
     };
     const res = await client.chat.completions.create(request);
     return {
