@@ -1407,7 +1407,30 @@
       "leftoverHow": "See in the plan what would use it up.",
       "none": "Nothing: no row could stand for another, and no pack would be left more than a fifth full.",
       "errLoad": "Could not look the list over."
-    }
+    },
+    "partOf": "This list is a part of a household list: {profiles}. A tick here changes this plan's part only.",
+    "openHousehold": "Open the household list",
+    "csvShares": "For whom",
+    "replacesPart": "A list of these days is a part of a household list: {profiles}. A new list takes its place, and the household list loses this plan's part."
+  },
+  "householdLists": {
+    "title": "Household lists",
+    "subhead": "One list from the plans of several profiles for the same days. Each plan keeps its part, and what you buy beyond the needs goes into the profiles' pantries by what their plans need.",
+    "open": "New household list",
+    "plans": "Plans",
+    "planOf": "{profile}'s plan",
+    "noPlan": "No plan on these days",
+    "atLeastTwo": "Choose the plans of two profiles at least.",
+    "make": "Make the household list",
+    "pick": "{dates}\u00a0· {profiles}",
+    "forWhom": "For: {profiles}",
+    "pdfTitle": "Household list: {profiles}",
+    "stale": "A plan's menu changed after this list was made, so it no longer matches what the plans need.",
+    "deleteConfirm": "Delete the household list? Its parts in the plans' lists go with it.",
+    "errMake": "The household list could not be made.",
+    "errDelete": "The household list could not be deleted.",
+    "replaces": "The lists of these plans that cover these days give way to their parts. What was already bought for them counts towards the new list.",
+    "packsHint": "Where something is sold in packs, its row says how many it takes. Press that when you have bought them: what the plans do not need of them goes into the profiles' pantries by what their plans need."
   },
   "units": {
     "amount": {

@@ -2,6 +2,7 @@
 
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
@@ -22,6 +23,15 @@ import { LoadFailed } from '@/components/load-failed';
 import { ListView, type RowPatch } from './list-view';
 
 export const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
+
+/** Fetched where the account has two profiles or more, the only accounts that are shown it. */
+const HouseholdLists = dynamic(
+  () => import('./household-lists').then((section) => section.HouseholdLists),
+  { ssr: false, loading: () => <Skeleton className="h-40" /> },
+);
+
+/** Where the household lists are on the page, which a part of one leads to. */
+const HOUSEHOLD_LISTS = 'household-lists';
 
 /** What marks a change of a row among the requests on their way. */
 const ROW_CHANGE = ['shopping-list-item'];
@@ -66,6 +76,9 @@ export default function ShoppingListsPage() {
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
   const [pickedPlan, setPickedPlan] = useState<string | null>(null);
   const [pickedList, setPickedList] = useState<string | null>(null);
+  const [openHousehold, setOpenHousehold] = useState<string | null>(null);
+  /** The days the form names, as they are typed: the plan's own until then. */
+  const [range, setRange] = useState<{ fromDate?: string; toDate?: string }>({});
 
   const profiles = useQuery({
     queryKey: ['profiles'],
@@ -103,6 +116,20 @@ export default function ShoppingListsPage() {
     listOptions[0]?.id ??
     null;
   const activeList = listOptions.find((l) => l.id === activeListId) ?? null;
+  const planEnd = activePlan
+    ? new Date(
+        new Date(activePlan.startDate).getTime() +
+          (activePlan.durationDays - 1) * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 10)
+    : '';
+  const formFrom = range.fromDate || activePlan?.startDate || '';
+  const formTo = range.toDate || planEnd;
+  // A list of the days the form names that is a part of a household list: a new list takes its place there.
+  const replacedPart = listOptions.find(
+    (l) => l.household && l.fromDate <= formTo && l.toDate >= formFrom,
+  )?.household;
 
   const generate = useMutation({
     mutationFn: (body: { planId: string; fromDate?: string; toDate?: string }) =>
@@ -112,6 +139,8 @@ export default function ShoppingListsPage() {
       // Generation may auto-check rows fully covered by pantry, decrementing
       // inventory as a side-effect. Force the inventory page to refetch.
       qc.invalidateQueries({ queryKey: ['inventory'] });
+      // It may have replaced a part of a household list.
+      qc.invalidateQueries({ queryKey: ['household-lists'] });
       setPickedList(list.id);
     },
     onError: (e) => setError(errorText(e, t('errGenerate'))),
@@ -141,6 +170,7 @@ export default function ShoppingListsPage() {
     // with it, so what the inventory page holds is read again.
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['inventory'] });
+      if (updated.household) qc.invalidateQueries({ queryKey: ['household-lists'] });
       // An answer does not know of the changes made after its request was sent: while one of those is on
       // its way it is not shown, and neither is the last of them, which may have been made before an
       // earlier one reached the server. The list is then read once, when all are through.
@@ -176,6 +206,7 @@ export default function ShoppingListsPage() {
       setPickedList(null);
       qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['household-lists'] });
     },
     onError: (e) => setError(errorText(e, t('errDelete'))),
   });
@@ -221,6 +252,12 @@ export default function ShoppingListsPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.shopping} title={t('title')} subtitle={t('subhead')} />
+
+      {profileList.length > 1 && (
+        <div id={HOUSEHOLD_LISTS} className="scroll-mt-4">
+          <HouseholdLists profiles={profileList} opened={openHousehold} onOpen={setOpenHousehold} />
+        </div>
+      )}
 
       {profileList.length > 1 && (
         <div className="flex gap-2">
@@ -271,6 +308,7 @@ export default function ShoppingListsPage() {
                   onChange={(e) => {
                     setPickedPlan(e.target.value);
                     setPickedList(null);
+                    setRange({});
                   }}
                 >
                   {planList.map((p) => (
@@ -285,22 +323,19 @@ export default function ShoppingListsPage() {
                 </select>
               </Field>
               <Field label={t('fromDate')} optional>
-                <Input name="fromDate" type="date" defaultValue={activePlan?.startDate ?? ''} />
+                <Input
+                  name="fromDate"
+                  type="date"
+                  defaultValue={activePlan?.startDate ?? ''}
+                  onChange={(e) => setRange((was) => ({ ...was, fromDate: e.target.value }))}
+                />
               </Field>
               <Field label={t('toDate')} optional>
                 <Input
                   name="toDate"
                   type="date"
-                  defaultValue={
-                    activePlan
-                      ? new Date(
-                          new Date(activePlan.startDate).getTime() +
-                            (activePlan.durationDays - 1) * 24 * 60 * 60 * 1000,
-                        )
-                          .toISOString()
-                          .slice(0, 10)
-                      : ''
-                  }
+                  defaultValue={planEnd}
+                  onChange={(e) => setRange((was) => ({ ...was, toDate: e.target.value }))}
                 />
               </Field>
               <div className="flex items-end">
@@ -308,6 +343,11 @@ export default function ShoppingListsPage() {
                   {generate.isPending ? t('generating') : t('generateButton')}
                 </Button>
               </div>
+              {replacedPart && (
+                <p className="text-sm text-muted-foreground sm:col-span-4">
+                  {t('replacesPart', { profiles: fmt.list(replacedPart.profiles) })}
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
@@ -348,12 +388,32 @@ export default function ShoppingListsPage() {
               ))}
             </div>
           )}
+          {activeList?.household && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+              <p>{t('partOf', { profiles: fmt.list(activeList.household.profiles) })}</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setOpenHousehold(activeList.household!.id);
+                  // The whole list is above: the page goes to it once it is shown.
+                  requestAnimationFrame(() =>
+                    document.getElementById(HOUSEHOLD_LISTS)?.scrollIntoView({ block: 'start' }),
+                  );
+                }}
+              >
+                {t('openHousehold')}
+              </Button>
+            </div>
+          )}
           {activeList && (
             <ListView
               profileId={activeProfileId}
               aiEnabled={aiEnabled}
               aiOffNote={session.data && !aiEnabled ? aiOffNote : undefined}
               list={activeList}
+              proposalsOf={activeList}
               busy={updateItem.isPending || remove.isPending || generate.isPending}
               locked={remove.isPending || generate.isPending}
               formatQty={formatItemQty}
@@ -388,11 +448,11 @@ export default function ShoppingListsPage() {
               }
               onDelete={remove.mutate}
               // A list for the same dates replaces this one, and counts what was obtained for it.
-              onUpdate={(list) =>
+              onUpdate={() =>
                 generate.mutate({
-                  planId: list.planId,
-                  fromDate: list.fromDate,
-                  toDate: list.toDate,
+                  planId: activeList.planId,
+                  fromDate: activeList.fromDate,
+                  toDate: activeList.toDate,
                 })
               }
             />

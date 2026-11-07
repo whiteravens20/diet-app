@@ -15,7 +15,8 @@ import {
   Circle,
   pdf,
 } from '@react-pdf/renderer';
-import type { DisplayUnit, ShoppingList } from '@diet-app/shared';
+import type { DisplayUnit } from '@diet-app/shared';
+import type { ShownItem, ShownList } from './list-view';
 import { saveFile } from '@/lib/save-file';
 import { packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
@@ -212,7 +213,9 @@ function Logo({ size = 22 }: { size?: number }) {
 }
 
 type BuildOpts = {
-  list: ShoppingList;
+  list: Pick<ShownList, 'groups'>;
+  /** Who needs what of a row of a household list, said under its name; null for a plan's row. */
+  sharesOf: (item: ShownItem) => string | null;
   appName: string;
   planTitle: string;
   dateRangeLabel: string;
@@ -236,7 +239,7 @@ function buildShoppingListPdf(opts: BuildOpts) {
   return opts.mode === 'foldable-a4' ? buildFoldable(opts) : buildPretty(opts);
 }
 
-function splitGroups(list: ShoppingList) {
+function splitGroups(list: Pick<ShownList, 'groups'>) {
   // Two-column split, balance by item count so each column ends roughly the
   // same height — visually steadier than dumping every group in the left col.
   const counts = list.groups.map((g) => g.items.length);
@@ -267,10 +270,11 @@ function buildPretty(opts: BuildOpts) {
     ofLabel,
     haveLabel,
     boughtLabel,
+    sharesOf,
   } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
-  function renderItem(i: ShoppingList['groups'][number]['items'][number]) {
+  function renderItem(i: ShownItem) {
     // Auto-mark items fully covered by the pantry — nothing to buy means the
     // shopper can ignore the row, but it still appears so they can see "this
     // recipe needed flour, you already have it".
@@ -293,6 +297,7 @@ function buildPretty(opts: BuildOpts) {
                 <Text style={prettyStyles.pantryHint}> ({haveLabel})</Text>
               )}
             </Text>
+            {sharesOf(i) && <Text style={prettyStyles.pantryHint}>{sharesOf(i)}</Text>}
           </View>
           <Text style={prettyStyles.qty}>
             {rowAmount(i.toBuyQuantity, i, formatQty)}
@@ -318,7 +323,7 @@ function buildPretty(opts: BuildOpts) {
     );
   }
 
-  function renderGroup(g: ShoppingList['groups'][number]) {
+  function renderGroup(g: ShownList['groups'][number]) {
     return (
       <View key={g.category} style={sharedStyles.section} wrap={false}>
         <Text style={sharedStyles.sectionTitle}>{categoryLabel(g.category)}</Text>
@@ -361,10 +366,11 @@ function buildFoldable(opts: BuildOpts) {
     formatQty,
     ofLabel,
     haveLabel,
+    sharesOf,
   } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
-  function renderItem(i: ShoppingList['groups'][number]['items'][number]) {
+  function renderItem(i: ShownItem) {
     const isCovered = i.toBuyQuantity === 0 && i.alreadyHaveQuantity > 0;
     const isChecked = i.checked || isCovered;
     return (
@@ -383,6 +389,7 @@ function buildFoldable(opts: BuildOpts) {
               <Text style={foldableStyles.pantryHint}> ({haveLabel})</Text>
             )}
           </Text>
+          {sharesOf(i) && <Text style={foldableStyles.pantryHint}>{sharesOf(i)}</Text>}
         </View>
         <Text style={foldableStyles.qty}>
           {rowAmount(i.toBuyQuantity, i, formatQty)}
@@ -403,7 +410,7 @@ function buildFoldable(opts: BuildOpts) {
     );
   }
 
-  function renderGroup(g: ShoppingList['groups'][number]) {
+  function renderGroup(g: ShownList['groups'][number]) {
     return (
       <View key={g.category} style={sharedStyles.section} wrap={false}>
         <Text style={sharedStyles.sectionTitle}>{categoryLabel(g.category)}</Text>

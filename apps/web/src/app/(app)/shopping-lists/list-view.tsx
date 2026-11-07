@@ -6,9 +6,16 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { Package } from 'lucide-react';
-import type { DisplayUnit, ShoppingList, ShoppingListItem } from '@diet-app/shared';
+import type {
+  DisplayUnit,
+  HouseholdListItem,
+  ShoppingList,
+  ShoppingListGroup,
+  ShoppingListItem,
+} from '@diet-app/shared';
 import { copyText } from '@/lib/clipboard';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
+import { DOT, held } from '@/lib/figure-line';
 import { useUnitName } from '@/lib/ingredient-format';
 import { saveText } from '@/lib/save-file';
 import { Button } from '@/components/ui/button';
@@ -21,11 +28,43 @@ import { ListProposals } from './list-proposals';
 import { packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
 
+/** A row as the view shows it: of a plan's list, or of a household list with what each profile needs of it. */
+export type ShownItem = ShoppingListItem & { shares?: HouseholdListItem['shares'] };
+
+/** A list as the view shows it: a plan's, or a household's. */
+export interface ShownList {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  createdAt: string;
+  stale: boolean;
+  totalEstimatedCalories: number;
+  groups: {
+    category: ShoppingListGroup['category'];
+    estimatedCalories: number;
+    items: ShownItem[];
+  }[];
+}
+
+/** Who needs what of a row of a household list, in one line: "Adam 150 g · Ewa 150 g". Null for a plan's row. */
+export function sharesLine(
+  item: ShownItem,
+  formatQty: (qty: number, unit: DisplayUnit) => string,
+): string | null {
+  if (!item.shares) return null;
+  return item.shares
+    .map((share) => held(`${share.profile} ${formatQty(share.totalQuantity, item.displayUnit)}`))
+    .join(DOT);
+}
+
 export function ListView({
   profileId,
   aiEnabled,
   aiOffNote,
   list,
+  proposalsOf,
+  forWhom,
+  packsHint,
   busy,
   locked,
   formatQty,
@@ -55,7 +94,13 @@ export function ListView({
   aiEnabled: boolean;
   /** The id of the line that says why what asks a model is off, on an account where it is. */
   aiOffNote: string | undefined;
-  list: ShoppingList;
+  list: ShownList;
+  /** The plan's list the proposals are for; null for a household list, whose proposals are its parts'. */
+  proposalsOf: ShoppingList | null;
+  /** Whom a household list is for, said under its dates. */
+  forWhom?: string;
+  /** What the packs of a row do, where the list's own words differ from a plan's list's. */
+  packsHint?: string;
   /** Something of the list is on its way to the server: what the server works out of a row waits for its answer. */
   busy: boolean;
   /** The list is being made again or removed: nothing of it can be ticked either. */
@@ -81,7 +126,8 @@ export function ListView({
   staleUpdateHint: string;
   onPatch: (item: ShoppingListItem, patch: RowPatch) => void;
   onDelete: (listId: string) => void;
-  onUpdate: (list: ShoppingList) => void;
+  /** Make the list again for its days: the answer to a stale list. */
+  onUpdate: () => void;
 }) {
   const totalItems = useMemo(
     () => list.groups.reduce((n, g) => n + g.items.length, 0),
@@ -129,10 +175,11 @@ export function ListView({
           '',
           categoryLabel(group.category),
           // What is sold in packs says how many, for whoever stands at the shelf.
-          ...left.map(
-            (item) =>
-              `- ${item.name}: ${rowAmount(stillToBuy(item), item, formatQty)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`,
-          ),
+          ...left.flatMap((item) => {
+            const line = `- ${item.name}: ${rowAmount(stillToBuy(item), item, formatQty)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`;
+            const shares = sharesLine(item, formatQty);
+            return shares ? [line, `  ${shares.replaceAll('\u00a0', ' ')}`] : [line];
+          }),
         ]),
     ].join('\n');
   // What happened to the last copy: it is on the clipboard, or it is shown to be copied by hand.
@@ -147,6 +194,7 @@ export function ListView({
 
   // The whole list as a table for a spreadsheet: every row, ticked or not, with its numbers as numbers.
   function downloadCsv() {
+    const forEach = everyItem.some((item) => item.shares);
     const head = (
       [
         'csvAisle',
@@ -159,6 +207,7 @@ export function ListView({
         'csvPacks',
         'csvTicked',
         'csvEnergy',
+        ...(forEach ? (['csvShares'] as const) : []),
       ] as const
     ).map((column) => t(column));
     const rows = list.groups.flatMap((group) =>
@@ -173,6 +222,7 @@ export function ListView({
         packsStand(item) ? packsText(item.packs, formatQty) : '',
         tCommon(item.checked ? 'yes' : 'no'),
         item.estimatedCalories,
+        ...(forEach ? [sharesLine(item, formatQty) ?? ''] : []),
       ]),
     );
     saveText(
@@ -206,6 +256,7 @@ export function ListView({
         boughtLabel,
         notesLabel,
         foldHereLabel,
+        sharesOf: (item: ShownItem) => sharesLine(item, formatQty),
         mode: action === 'print' ? ('foldable-a4' as const) : ('pretty-a4' as const),
       };
       if (action === 'download') {
@@ -229,6 +280,7 @@ export function ListView({
       <div className="flex items-center justify-between gap-4 border-b border-border p-4">
         <div>
           <p className="font-medium">{dateRangeLabel}</p>
+          {forWhom && <p className="text-sm">{forWhom}</p>}
           <p className="text-sm text-muted-foreground">
             {summaryLabel(checkedItems, totalItems, list.totalEstimatedCalories)}
           </p>
@@ -311,29 +363,25 @@ export function ListView({
           <p>
             {staleLabel} <span className="text-xs">{staleUpdateHint}</span>
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => onUpdate(list)}
-            disabled={busy}
-          >
+          <Button type="button" size="sm" variant="outline" onClick={onUpdate} disabled={busy}>
             {staleUpdateLabel}
           </Button>
         </div>
       )}
       <CardContent className="space-y-5 pt-4">
         {/* Asked of the list as it is: another list, or the same list made anew, begins without an answer. */}
-        <div className="space-y-2">
-          <ListProposals
-            key={`${list.id}-${list.createdAt}`}
-            list={list}
-            profileId={profileId}
-            aiEnabled={aiEnabled}
-            aiOffNote={aiOffNote}
-          />
-          {aiOffNote && <AiOffNote id={aiOffNote} />}
-        </div>
+        {proposalsOf && (
+          <div className="space-y-2">
+            <ListProposals
+              key={`${proposalsOf.id}-${proposalsOf.createdAt}`}
+              list={proposalsOf}
+              profileId={profileId}
+              aiEnabled={aiEnabled}
+              aiOffNote={aiOffNote}
+            />
+            {aiOffNote && <AiOffNote id={aiOffNote} />}
+          </div>
+        )}
         <div className="max-w-sm">
           <Field label={t('findEntry')}>
             <Input
@@ -345,7 +393,7 @@ export function ListView({
           </Field>
         </div>
         {everyItem.some(packsStand) && (
-          <p className="text-xs text-muted-foreground">{t('packsHint')}</p>
+          <p className="text-xs text-muted-foreground">{packsHint ?? t('packsHint')}</p>
         )}
         {wanted && groups.length === 0 && (
           <p className="text-sm text-muted-foreground">
@@ -412,7 +460,7 @@ function ItemRow({
   ofLabel,
   onPatch,
 }: {
-  item: ShoppingListItem;
+  item: ShownItem;
   busy: boolean;
   locked: boolean;
   formatQty: (qty: number, unit: DisplayUnit) => string;
@@ -476,15 +524,19 @@ function ItemRow({
           disabled={locked}
           onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
         />
-        <span
-          className={
-            item.checked ? 'min-w-0 flex-1 text-muted-foreground line-through' : 'min-w-0 flex-1'
-          }
-        >
-          {item.name}
-          {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
-            <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
-              {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+        <span className="min-w-0 flex-1">
+          <span className={item.checked ? 'text-muted-foreground line-through' : undefined}>
+            {item.name}
+            {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
+                {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+              </span>
+            )}
+          </span>
+          {/* A row of a household list says whom it is for. */}
+          {item.shares && (
+            <span className="block text-xs text-muted-foreground">
+              {sharesLine(item, formatQty)}
             </span>
           )}
         </span>

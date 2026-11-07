@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -685,18 +685,21 @@ describe('the shopping page with nothing to show yet', () => {
     profiles = [{ id: 'profile', name: 'Me' }],
     plans = [] as unknown[],
     lists = [] as ShoppingList[],
+    households = [] as unknown[],
   }) {
     vi.spyOn(api, 'get').mockImplementation((path: string) =>
       Promise.resolve(
         (path === '/profiles'
           ? profiles
-          : path === '/users/me'
-            ? { aiMode: 'none' }
-            : path.startsWith('/meal-plans?')
-              ? { items: plans, page: 1, pageSize: 50, total: plans.length, totalPages: 1 }
-              : path.startsWith('/shopping-lists?')
-                ? lists
-                : []) as never,
+          : path === '/household-lists'
+            ? households
+            : path === '/users/me'
+              ? { aiMode: 'none' }
+              : path.startsWith('/meal-plans?')
+                ? { items: plans, page: 1, pageSize: 50, total: plans.length, totalPages: 1 }
+                : path.startsWith('/shopping-lists?')
+                  ? lists
+                  : []) as never,
       ),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -709,6 +712,73 @@ describe('the shopping page with nothing to show yet', () => {
       </NextIntlClientProvider>,
     );
   }
+
+  it("says of a plan's list that it is a part of a household list, and opens the whole", async () => {
+    const part = (planId: string, profile: string) => ({
+      listId: `list-${profile}`,
+      planId,
+      profileId: profile,
+      profile,
+      fromDate: '2026-01-05',
+      toDate: '2026-01-07',
+      stale: false,
+    });
+    renderWith({
+      profiles: [
+        { id: 'profile', name: 'Me' },
+        { id: 'other', name: 'Ewa' },
+      ],
+      plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
+      lists: [{ ...aList, household: { id: 'household', profiles: ['Ewa', 'Me'] } }],
+      households: [
+        {
+          id: 'household',
+          fromDate: '2026-01-05',
+          toDate: '2026-01-07',
+          parts: [part('ewas-plan', 'Ewa'), part(PLAN, 'Me')],
+          groups: [],
+          totalEstimatedCalories: 0,
+          stale: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(
+      await screen.findByText(
+        "This list is a part of a household list: Ewa and Me. A tick here changes this plan's part only.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('For: Ewa and Me')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: texts.openHousehold }));
+    expect(await screen.findByText('For: Ewa and Me')).toBeInTheDocument();
+  });
+
+  it('says that a new list of the days of a part takes its place in the household list, and not of other days', async () => {
+    renderWith({
+      profiles: [
+        { id: 'profile', name: 'Me' },
+        { id: 'other', name: 'Ewa' },
+      ],
+      plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
+      lists: [
+        {
+          ...aList,
+          fromDate: '2026-01-06',
+          toDate: '2026-01-07',
+          household: { id: 'household', profiles: ['Ewa', 'Me'] },
+        },
+      ],
+    });
+    const replaces =
+      "A list of these days is a part of a household list: Ewa and Me. A new list takes its place, and the household list loses this plan's part.";
+
+    expect(await screen.findByText(replaces)).toBeInTheDocument();
+    const [from, to] = screen.getAllByLabelText(/^(From|To)/);
+    fireEvent.change(to!, { target: { value: '2026-01-05' } });
+    fireEvent.change(from!, { target: { value: '2026-01-05' } });
+    expect(screen.queryByText(replaces)).not.toBeInTheDocument();
+  });
 
   it('leads an account without a profile to the profiles', async () => {
     renderWith({ profiles: [] });

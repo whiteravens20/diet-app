@@ -1407,7 +1407,30 @@
       "leftoverHow": "Zobacz w planie, co by to zużyło.",
       "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad jedna piąta.",
       "errLoad": "Nie udało się przejrzeć listy."
-    }
+    },
+    "partOf": "Ta lista to część listy dla domu: {profiles}. Odhaczenie tutaj zmienia tylko część tego planu.",
+    "openHousehold": "Otwórz listę dla domu",
+    "csvShares": "Dla kogo",
+    "replacesPart": "Lista z tych dni jest częścią listy dla domu: {profiles}. Nowa lista zajmie jej miejsce, a lista dla domu straci część tego planu."
+  },
+  "householdLists": {
+    "title": "Listy dla domu",
+    "subhead": "Jedna lista z planów kilku profili na te same dni. Każdy plan ma w niej swoją część, a to, co kupisz ponad potrzeby, trafia do spiżarni profili według potrzeb ich planów.",
+    "open": "Nowa lista dla domu",
+    "plans": "Plany",
+    "planOf": "Plan: {profile}",
+    "noPlan": "Brak planu w te dni",
+    "atLeastTwo": "Wybierz plany co najmniej dwóch profili.",
+    "make": "Utwórz listę dla domu",
+    "pick": "{dates}\u00a0· {profiles}",
+    "forWhom": "Dla: {profiles}",
+    "pdfTitle": "Lista dla domu: {profiles}",
+    "stale": "Jadłospis jednego z planów zmienił się po utworzeniu tej listy, więc nie odpowiada już temu, czego plany potrzebują.",
+    "deleteConfirm": "Usunąć listę dla domu? Razem z nią znikną jej części w listach planów.",
+    "errMake": "Nie udało się utworzyć listy dla domu.",
+    "errDelete": "Nie udało się usunąć listy dla domu.",
+    "replaces": "Listy tych planów obejmujące te dni ustąpią miejsca ich częściom. To, co już na nie kupiono, zostanie policzone na poczet nowej listy.",
+    "packsHint": "Przy tym, co sprzedaje się w opakowaniach, wiersz podaje, ile ich trzeba. Po zakupie naciśnij tę liczbę: to, czego plany z nich nie potrzebują, trafi do spiżarni profili według potrzeb ich planów."
   },
   "units": {
     "amount": {
