@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-203 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+205 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -302,6 +302,13 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/users/me/sessions` | an account | The sessions of the account that are open: where it is signed in. |  | 200 a list of `AccountSession` |  |
 | `DELETE /api/users/me/sessions` | an account | Sign out everywhere, this session included. |  | 204 |  |
 | `DELETE /api/users/me/sessions/:id` | an account | End one session of the account. |  | 204 |  |
+
+## water
+
+| Route | Asked by | What it does | Takes | Answers | Limit |
+|---|---|---|---|---|---|
+| `GET /api/water` | an account | The water of a day of a profile's calendar (`?day=`): what was drunk in all, against its target. | query `WaterDayQuery` | 200 `WaterDay` |  |
+| `POST /api/water` | an account | Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then. A day holds at most 50 entries, and what it holds may not go under nothing. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now. | `AddWaterRequest` | 201 `WaterDay` | 60 in a minute |
 
 ## weights
 

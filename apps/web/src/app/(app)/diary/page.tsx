@@ -46,6 +46,7 @@ import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
+import { WaterCard } from '@/components/water-card';
 import { DOT, held } from '@/lib/figure-line';
 
 /** The meals of a day in the order they are eaten. */
@@ -303,6 +304,9 @@ function DiaryContent() {
                 rebalance.mutate({ planId, body: { scope: 'day', date: shown.date } })
               }
             />
+
+            {/* The day's water, where the diary takes entries for it: not a day still to come, nor one over a year back. */}
+            {active && !ahead && !tooOld && <WaterCard profile={active} day={shown.date} />}
 
             {ahead ? (
               <p className="text-sm text-muted-foreground">{t('aheadNote')}</p>

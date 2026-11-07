@@ -82,6 +82,7 @@ export class ProfilesService {
           heightCm: input.heightCm,
           weightKg: input.weightKg,
           targetWeightKg: input.targetWeightKg,
+          waterTargetMl: input.waterTargetMl,
           activityLevel: input.activityLevel,
           dietType: input.dietType,
           weeklyLossTarget: input.weeklyLossTarget,
@@ -135,6 +136,8 @@ export class ProfilesService {
         heightCm: input.heightCm,
         weightKg: input.weightKg,
         targetWeightKg: input.targetWeightKg,
+        // Left out by a client from before the target of water, it stays as it is.
+        ...(input.waterTargetMl === undefined ? {} : { waterTargetMl: input.waterTargetMl }),
         activityLevel: input.activityLevel,
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
@@ -212,6 +215,7 @@ export class ProfilesService {
     heightCm: number;
     weightKg: number;
     targetWeightKg: number | null;
+    waterTargetMl: number | null;
     activityLevel: Profile['activityLevel'];
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
@@ -249,6 +253,7 @@ export class ProfilesService {
       heightCm: row.heightCm,
       weightKg: row.weightKg,
       targetWeightKg: row.targetWeightKg,
+      waterTargetMl: row.waterTargetMl,
       activityLevel: row.activityLevel,
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,

@@ -9403,6 +9403,120 @@
         }
       }
     },
+    "/api/water": {
+      "get": {
+        "operationId": "Water_day",
+        "tags": [
+          "water"
+        ],
+        "summary": "The water of a day of a profile's calendar (`?day=`): what was drunk in all, against its target.",
+        "description": "The water of a day of a profile's calendar (`?day=`): what was drunk in all, against its target.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaterDay"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      },
+      "post": {
+        "operationId": "Water_add",
+        "tags": [
+          "water"
+        ],
+        "summary": "Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then.",
+        "description": "Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then. A day holds at most 50 entries, and what it holds may not go under nothing. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddWaterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaterDay"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/weights": {
       "get": {
         "operationId": "Weights_list",
@@ -9979,6 +10093,28 @@
         "required": [
           "profileId",
           "recipeId"
+        ]
+      },
+      "AddWaterRequest": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "day": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "ml": {
+            "type": "integer",
+            "minimum": -5000,
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "profileId",
+          "day",
+          "ml"
         ]
       },
       "AdminAiAccess": {
@@ -18578,6 +18714,19 @@
               }
             ]
           },
+          "waterTargetMl": {
+            "default": 2000,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 250,
+                "maximum": 10000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "activityLevel": {
             "default": "moderate",
             "$ref": "#/components/schemas/ActivityLevel"
@@ -18688,6 +18837,7 @@
           "heightCm",
           "weightKg",
           "targetWeightKg",
+          "waterTargetMl",
           "activityLevel",
           "dietType",
           "weeklyLossTarget",
@@ -18745,6 +18895,19 @@
                 "type": "number",
                 "minimum": 30,
                 "maximum": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waterTargetMl": {
+            "default": 2000,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 250,
+                "maximum": 10000
               },
               {
                 "type": "null"
@@ -19218,6 +19381,18 @@
                 "type": "number",
                 "minimum": 30,
                 "maximum": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waterTargetMl": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 250,
+                "maximum": 10000
               },
               {
                 "type": "null"
@@ -22976,6 +23151,39 @@
         "required": [
           "token"
         ]
+      },
+      "WaterDay": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "ml": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entries": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "day",
+          "ml",
+          "target",
+          "entries"
+        ],
+        "additionalProperties": false
       },
       "WebAddress": {
         "type": "string",

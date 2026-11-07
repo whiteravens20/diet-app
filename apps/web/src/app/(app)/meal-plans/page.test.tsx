@@ -41,6 +41,7 @@ const profile: Profile = {
   heightCm: 180,
   weightKg: 80,
   targetWeightKg: null,
+  waterTargetMl: 2000,
   activityLevel: 'moderate',
   dietType: 'vegan',
   weeklyLossTarget: '0.5',

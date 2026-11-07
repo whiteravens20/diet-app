@@ -430,6 +430,8 @@
     "UNIT_NOT_CONVERTIBLE": "This ingredient can't be kept in that unit. Use the unit it is weighed or measured in.",
     "WEIGHT_ENTRY_NOT_FOUND": "Weight entry not found.",
     "WEIGHT_DAY_FULL": "The weight log holds no more entries for this day: remove the last entry to log another.",
+    "WATER_DAY_FULL": "This day holds no more entries of water.",
+    "WATER_BELOW_ZERO": "This day holds less water than you want to take back.",
     "WEIGHT_TOO_OLD": "The weight log takes new entries at most a year back.",
     "DIARY_ENTRY_NOT_FOUND": "Diary entry not found.",
     "DIARY_DAY_AHEAD": "The diary takes today and the year before it, not a day still to come.",
@@ -2268,6 +2270,18 @@
     "removeLatestConfirm": "Remove the last logged weight ({weight} · {date})?",
     "removeFailed": "Could not remove the weight entry."
   },
+  "water": {
+    "title": "Water",
+    "drunk": "{drunk} of {target}",
+    "drunkNoTarget": "{drunk} drunk",
+    "addGlass": "+1 glass",
+    "takeBack": "−1",
+    "takeBackLabel": "Take one glass back",
+    "own": "Own amount (ml)",
+    "add": "Add",
+    "glassNote": "A glass is 250 ml.",
+    "errAdd": "The water could not be saved."
+  },
   "recipeModal": {
     "title": "Recipe details",
     "close": "Close",
@@ -2317,6 +2331,8 @@
     "weight": "Weight ({unit})",
     "targetWeight": "Weight to work towards ({unit})",
     "targetWeightHint": "The chart of your weights draws it as a line.",
+    "waterTarget": "Water a day (ml)",
+    "waterTargetHint": "Empty: no target. A glass is 250 ml.",
     "activityLevel": "Activity level",
     "activityHint": {
       "sedentary": "Mostly sitting, little or no exercise.",

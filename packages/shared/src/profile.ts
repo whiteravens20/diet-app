@@ -20,6 +20,7 @@ import {
   NO_LABEL_LIMITS,
 } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
+import { DEFAULT_WATER_TARGET_ML, MAX_WATER_TARGET_ML, MIN_WATER_TARGET_ML } from './water.js';
 
 /**
  * How many profiles an account may hold is for whoever runs an instance to
@@ -183,6 +184,8 @@ const profileFields = {
   weeklyLossTarget: WeeklyLossTarget.nullable(),
   /** The weight the profile is working towards, in kilograms; null when it has named none. The chart of its weights draws it as a line. */
   targetWeightKg: z.number().min(30).max(400).nullable(),
+  /** How much water a day the profile aims to drink, in millilitres; null where it names no target. */
+  waterTargetMl: z.number().int().min(MIN_WATER_TARGET_ML).max(MAX_WATER_TARGET_ML).nullable(),
   /** Manual kcal target; when set it overrides the calculated value. */
   manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
   /** Default meal count (2-5) for new plans. */
@@ -222,6 +225,7 @@ const newProfile = z.object({
   heightCm: profileFields.heightCm,
   weightKg: profileFields.weightKg,
   targetWeightKg: profileFields.targetWeightKg.default(null),
+  waterTargetMl: profileFields.waterTargetMl.default(DEFAULT_WATER_TARGET_ML),
   activityLevel: profileFields.activityLevel.default('moderate'),
   dietType: profileFields.dietType.default('balanced'),
   weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
@@ -247,6 +251,9 @@ export const ProfileUpdate = z
   .object({
     ...profileFields,
     acknowledgeRisk,
+    // The target of water came after the clients that send every other part: left out, it stays
+    // as it is.
+    waterTargetMl: profileFields.waterTargetMl.optional(),
     // The limits of a label came after the clients that send every other part: left out, they
     // stay as they are.
     preferences: z.object({ ...preferenceFields, labelLimits: LabelLimits.optional() }),

@@ -31,6 +31,7 @@ import { RecipesModule } from './recipes/recipes.module.js';
 import { ReviewModule } from './review/review.module.js';
 import { ShoppingListsModule } from './shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './users/users.module.js';
+import { WaterModule } from './water/water.module.js';
 import { WeightsModule } from './weights/weights.module.js';
 
 @Module({
@@ -70,6 +71,7 @@ import { WeightsModule } from './weights/weights.module.js';
     ReviewModule,
     UsersModule,
     WeightsModule,
+    WaterModule,
     DiaryModule,
     ProductsModule,
     NotificationsModule,

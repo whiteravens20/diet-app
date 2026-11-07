@@ -22,6 +22,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   heightCm: 180,
   weightKg: 80,
   targetWeightKg: null,
+  waterTargetMl: 2000,
   activityLevel: 'moderate',
   dietType: 'balanced',
   weeklyLossTarget: '0.5',
@@ -683,5 +684,39 @@ describe('the profile form, on what its figures come to', () => {
     await pressSave();
 
     expect(put.mock.calls[0]![1]).toMatchObject({ weeklyLossTarget: null });
+  });
+});
+
+describe("the profile form, on a day's water", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.profile;
+  const editing = async (profile: Profile) => {
+    await renderPage([profile], 2);
+    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
+    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
+    return { save: pressSave, sent: () => put.mock.calls[0]![1] as Profile };
+  };
+  const waterField = () =>
+    screen.getByRole('spinbutton', { name: (name) => name.startsWith(texts.waterTarget) });
+
+  it("shows the profile's target, and sends another typed in its place", async () => {
+    const { save, sent } = await editing(aProfile('Me'));
+
+    expect(waterField()).toHaveValue(2000);
+    await userEvent.clear(waterField());
+    await userEvent.type(waterField(), '1500');
+    await save();
+    expect(sent().waterTargetMl).toBe(1500);
+  });
+
+  it('sends no target for a field left empty', async () => {
+    const { save, sent } = await editing(aProfile('Me'));
+
+    await userEvent.clear(waterField());
+    await save();
+    expect(sent().waterTargetMl).toBeNull();
   });
 });

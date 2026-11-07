@@ -339,6 +339,18 @@ const ASKS: Ask[] = [
   ['delete a weight', 'delete', (ids) => `/api/weights/${ids.weight}`],
 
   [
+    'read the water of a day of a profile',
+    'get',
+    (ids) => `/api/water?profileId=${ids.profile}&day=2026-01-05`,
+  ],
+  [
+    'note water drunk by a profile',
+    'post',
+    () => '/api/water',
+    (ids) => ({ profileId: ids.profile, day: new Date().toISOString().slice(0, 10), ml: 250 }),
+  ],
+
+  [
     'read a day of the diary of a profile',
     'get',
     (ids) => `/api/diary/day?profileId=${ids.profile}&date=${ids.date}`,
@@ -677,6 +689,7 @@ describe('what belongs to another account', () => {
       await t.prisma.inventoryItem.findMany({ where: { profileId: theirs.profile } }),
     ),
     weights: await t.prisma.weightEntry.count({ where: { profileId: theirs.profile } }),
+    water: await t.prisma.waterEntry.count({ where: { profileId: theirs.profile } }),
     diary: JSON.stringify(
       await t.prisma.diaryEntry.findMany({
         where: { profileId: theirs.profile },

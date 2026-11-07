@@ -301,6 +301,7 @@ describe('the profile the steps make', () => {
       heightCm: 168,
       weightKg: 70.5,
       targetWeightKg: 64,
+      waterTargetMl: 2000,
       activityLevel: 'light',
       dietType: 'vegetarian',
       customMacroSplit: null,

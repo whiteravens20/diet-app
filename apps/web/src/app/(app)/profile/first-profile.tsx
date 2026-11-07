@@ -6,7 +6,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import type { Allergen, Profile, ProfileInput, WeightReminderCadence } from '@diet-app/shared';
+import {
+  DEFAULT_WATER_TARGET_ML,
+  type Allergen,
+  type Profile,
+  type ProfileInput,
+  type WeightReminderCadence,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useProfileForm } from '@/lib/use-profile-form';
 import { useErrorText } from '@/lib/use-error-text';
@@ -117,6 +123,8 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       heightCm: Number(f.get('heightCm')),
       weightKg: toKilograms(Number(f.get('weight')), unit),
       targetWeightKg: targetWeight === '' ? null : toKilograms(Number(targetWeight), unit),
+      // A new profile drinks to the target every profile starts with; the profile's page changes it.
+      waterTargetMl: DEFAULT_WATER_TARGET_ML,
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       customMacroSplit: splitIn(f, null),

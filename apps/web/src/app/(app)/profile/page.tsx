@@ -9,6 +9,9 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 import {
   DEFAULT_PROFILES_PER_ACCOUNT,
+  DEFAULT_WATER_TARGET_ML,
+  MAX_WATER_TARGET_ML,
+  MIN_WATER_TARGET_ML,
   NO_LABEL_LIMITS,
   type Profile,
   type ProfileInput,
@@ -194,6 +197,8 @@ export default function ProfilePage() {
       heightCm: Number(f.get('heightCm')),
       weightKg: weightTyped(f.get('weight'), editing?.weightKg) ?? 0,
       targetWeightKg: weightTyped(f.get('targetWeight'), editing?.targetWeightKg),
+      // Left empty, the profile drinks to no target.
+      waterTargetMl: f.get('waterTarget') ? Number(f.get('waterTarget')) : null,
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
@@ -410,6 +415,17 @@ export default function ProfilePage() {
                         ? shownToOne(editing.targetWeightKg, unit)
                         : ''
                     }
+                  />
+                </Field>
+                <Field label={t('waterTarget')} hint={t('waterTargetHint')} optional>
+                  <Input
+                    name="waterTarget"
+                    type="number"
+                    inputMode="numeric"
+                    min={MIN_WATER_TARGET_ML}
+                    max={MAX_WATER_TARGET_ML}
+                    step={50}
+                    defaultValue={editing ? (editing.waterTargetMl ?? '') : DEFAULT_WATER_TARGET_ML}
                   />
                 </Field>
                 <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />

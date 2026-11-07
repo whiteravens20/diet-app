@@ -268,6 +268,8 @@ model Profile {
   weightKg            Float
   // The weight the profile is working towards, when it has named one.
   targetWeightKg      Float?
+  // How much water a day the profile aims to drink, in millilitres; null = no target.
+  waterTargetMl       Int?          @default(2000)
   activityLevel       ActivityLevel @default(moderate)
   dietType            DietType      @default(balanced)
   // "0.25" | "0.5" | "0.75" | "1.0" — null = maintenance.
@@ -305,6 +307,7 @@ model Profile {
   favoriteSets  FavoriteSet[]
   inventory     InventoryItem[]
   weightEntries WeightEntry[]
+  waterEntries  WaterEntry[]
   notifications Notification[]
   diaryEntries  DiaryEntry[]
 
@@ -324,6 +327,20 @@ model WeightEntry {
   createdAt  DateTime @default(now())
 
   @@index([profileId, recordedAt(sort: Desc)])
+}
+
+// What a profile drank on a day of its own calendar, in millilitres: a glass
+// or an amount typed, or a glass taken back (a negative amount). The day's
+// water is the sum of its rows, which never goes under nothing.
+model WaterEntry {
+  id        String   @id @default(uuid())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  day       DateTime @db.Date
+  ml        Int
+  createdAt DateTime @default(now())
+
+  @@index([profileId, day])
 }
 
 // What a profile ate on a calendar day besides the meals its plan marks as

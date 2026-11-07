@@ -1612,6 +1612,24 @@
       "pl": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
     }
   },
+  "WATER_BELOW_ZERO": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day holds less water than you want to take back.",
+      "pl": "Ten dzień ma mniej wody, niż chcesz cofnąć."
+    }
+  },
+  "WATER_DAY_FULL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day holds no more entries of water.",
+      "pl": "Ten dzień nie zmieści więcej wpisów wody."
+    }
+  },
   "WEIGHT_DAY_FULL": {
     "statuses": [
       409
