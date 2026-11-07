@@ -106,10 +106,11 @@ export function useNotificationText(): (notification: Notification) => string {
 }
 
 /**
- * What a press on a reminder of water does: the amount goes to the day of the
- * reminded profile, the reminder says so for a moment, and is then read and goes.
+ * What a press on a reminder of water does, in the bell and in the toast of
+ * one that comes in: the amount goes to the day of the reminded profile, the
+ * reminder says so for a moment, and is then read and goes.
  */
-function useWaterFromReminder() {
+export function useWaterFromReminder() {
   const t = useTranslations('notifications');
   const tWater = useTranslations('water');
   const fmt = useFormat();
@@ -164,7 +165,7 @@ function useWaterFromReminder() {
 }
 
 /** The amounts a reminder of water adds, side by side, until one of them was added. */
-function WaterAmounts({
+export function WaterAmounts({
   reminder,
   water,
 }: {

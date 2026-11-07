@@ -1,12 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Notification } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { plain, spaced } from '@/testing/spaces';
 import messages from '../../messages/en.json';
 import { NotificationToast } from './notification-toast';
 
@@ -21,10 +22,23 @@ const weigh = (id: string, days: number): Notification => ({
 });
 const ONE = '11111111-1111-4111-8111-111111111111';
 const TWO = '22222222-2222-4222-8222-222222222222';
+const PROFILE = '99999999-9999-4999-8999-999999999999';
+const drink = (id: string): Notification => ({
+  id,
+  profileId: PROFILE,
+  type: 'water_reminder',
+  payload: { day: '2026-11-09', ml: 600, target: 2000 },
+  createdAt: '2026-11-09T12:00:00.000Z',
+  readAt: null,
+});
 
 /** The toast of a signed-in account with these notifications unread. */
 async function renderToast(unread: Notification[]) {
-  const get = vi.spyOn(api, 'get').mockImplementation(() => Promise.resolve(unread as never));
+  const get = vi
+    .spyOn(api, 'get')
+    .mockImplementation((path: string) =>
+      Promise.resolve((path === '/profiles' ? [{ id: PROFILE, name: 'Me' }] : unread) as never),
+    );
   await act(async () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -122,6 +136,47 @@ describe('a notification that comes in', () => {
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('diet-app.notifications.said')!)).toEqual([ONE]);
+  });
+
+  it('carries the amounts of a reminder of water that came in alone, and says what a press added', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+    await renderToast([drink(ONE)]);
+    const said = await screen.findByRole('status');
+    expect(said).toHaveTextContent('Water today: 0.6 L of 2 L.');
+
+    // Pressed late, the toast still says what the press added: the ten seconds count again.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9_000);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: spaced('+330 ml') }));
+    });
+    expect(post).toHaveBeenCalledWith('/water', { profileId: PROFILE, day: '2026-11-09', ml: 330 });
+    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 mL · Me');
+    expect(screen.queryByRole('button', { name: spaced('+250 ml') })).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Added');
+
+    // Then the reminder is read, as a press in the bell reads it.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+    expect(post).toHaveBeenCalledWith(`/notifications/${ONE}/read`);
+  });
+
+  it('carries no amounts for anything else, nor for a reminder of water among others', async () => {
+    await renderToast([weigh(ONE, 9)]);
+    await screen.findByRole('status');
+    expect(screen.queryByRole('button', { name: spaced('+330 ml') })).not.toBeInTheDocument();
+    cleanup();
+    localStorage.clear();
+
+    await renderToast([drink(ONE), weigh(TWO, 10)]);
+    expect(await screen.findByRole('status')).toHaveTextContent('2 new notifications');
+    expect(screen.queryByRole('button', { name: spaced('+330 ml') })).not.toBeInTheDocument();
   });
 
   it('says nothing to a visitor who is not signed in, and asks nothing', async () => {

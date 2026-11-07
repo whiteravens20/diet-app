@@ -7,7 +7,12 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { useNotificationText, useUnreadNotifications } from '@/components/notifications-bell';
+import {
+  useNotificationText,
+  useUnreadNotifications,
+  useWaterFromReminder,
+  WaterAmounts,
+} from '@/components/notifications-bell';
 
 /** Where a browser keeps which notifications it has said once already. */
 const SAID = 'diet-app.notifications.said';
@@ -30,13 +35,15 @@ function saidBefore(): readonly string[] {
  *
  * "New" is for the browser to know: it keeps the notifications it has said,
  * for as long as they are unread, so one is not said again on every page.
- * It goes by itself after ten seconds, and is then said too.
+ * It goes by itself after ten seconds, and is then said too. A reminder of
+ * water that came in alone carries the bell's amounts.
  */
 export function NotificationToast() {
   const t = useTranslations('notifications');
   const textOf = useNotificationText();
   const qc = useQueryClient();
   const { hasToken, list } = useUnreadNotifications();
+  const water = useWaterFromReminder();
   const [said, setSaid] = useState<readonly string[]>(saidBefore);
 
   const fresh = list.filter((notification) => !said.includes(notification.id));
@@ -57,11 +64,13 @@ export function NotificationToast() {
   useEffect(() => {
     whenOver.current = putAside;
   });
+  // A press on an amount counts the ten seconds again, so that what it added is said before the toast goes.
+  const addedIds = Object.keys(water.added).join(',');
   useEffect(() => {
     if (freshIds === '') return;
     const timer = setTimeout(() => whenOver.current(), STAYS_MS);
     return () => clearTimeout(timer);
-  }, [freshIds]);
+  }, [freshIds, addedIds]);
 
   const markRead = useMutation({
     mutationFn: () =>
@@ -77,6 +86,7 @@ export function NotificationToast() {
   });
 
   if (!hasToken || fresh.length === 0) return null;
+  const alone = fresh.length === 1 ? fresh[0]! : null;
 
   return (
     <div
@@ -85,10 +95,15 @@ export function NotificationToast() {
       className="pop-in fixed inset-x-4 top-16 z-50 mx-auto max-w-sm rounded-lg border border-border bg-card p-4 text-card-foreground shadow-lg md:inset-x-auto md:right-4 md:top-4 md:mx-0"
     >
       <p className="text-sm font-medium">{t('toastTitle', { count: fresh.length })}</p>
-      {fresh.length === 1 && (
+      {alone && (
         <p className="mt-1 line-clamp-3 break-words text-sm text-muted-foreground">
-          {textOf(fresh[0]!)}
+          {water.added[alone.id] ?? textOf(alone)}
         </p>
+      )}
+      {alone?.type === 'water_reminder' && (
+        <div className="mt-3">
+          <WaterAmounts reminder={alone} water={water} />
+        </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
