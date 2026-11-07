@@ -486,6 +486,24 @@
       "pl": "Brak dostępu."
     }
   },
+  "HOUSEHOLD_LIST_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Household shopping list not found.",
+      "pl": "Nie znaleziono listy zakupów dla domu."
+    }
+  },
+  "HOUSEHOLD_PROFILE_TWICE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "A household list takes one plan of each profile.",
+      "pl": "Lista dla domu bierze jeden plan z każdego profilu."
+    }
+  },
   "IDEMPOTENCY_KEY_REUSED": {
     "statuses": [
       422

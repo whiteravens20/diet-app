@@ -10,6 +10,7 @@ import {
   ProductCategory,
   Unit,
 } from './enums.js';
+import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 
 /** The most shopping lists one plan may have at a time. */
 export const MAX_LISTS_PER_PLAN = 10;
@@ -137,9 +138,93 @@ export const ShoppingList = z.object({
    * Generating a list for the same dates again replaces this one.
    */
   stale: z.boolean(),
+  /**
+   * The household list this list is a part of, and the names of the profiles
+   * whose plans it joins, in the order of its parts; null for a list of its
+   * plan alone. A row ticked here changes this plan's part only.
+   */
+  household: z.object({ id: z.string().uuid(), profiles: z.array(z.string()) }).nullable(),
   createdAt: z.string().datetime(),
 });
 export type ShoppingList = z.infer<typeof ShoppingList>;
+
+/** The most plans one household list joins: one a profile, of an account's profiles. */
+export const MAX_HOUSEHOLD_PLANS = MOST_PROFILES_PER_ACCOUNT;
+
+/**
+ * Request to make a household list: plans of several profiles of the
+ * account, one a profile, for the same days. Each plan takes of `fromDate` to
+ * `toDate` the days it has, and has to have one of them at least; its lists
+ * that share a day with them are replaced, as by a list of its own.
+ */
+export const GenerateHouseholdListRequest = z
+  .object({
+    planIds: z.array(z.string().uuid()).min(2).max(MAX_HOUSEHOLD_PLANS),
+    fromDate: CalendarDay,
+    toDate: CalendarDay,
+  })
+  .refine((request) => request.fromDate <= request.toDate, {
+    message: 'fromDate must not be after toDate.',
+    path: ['toDate'],
+  })
+  .refine((request) => new Set(request.planIds).size === request.planIds.length, {
+    message: 'A plan is named once.',
+    path: ['planIds'],
+  });
+export type GenerateHouseholdListRequest = z.infer<typeof GenerateHouseholdListRequest>;
+
+/**
+ * A row of a household list: the rows of its parts for one ingredient,
+ * summed, its packs counted from the sum. Its `id` is that of the row of the
+ * first part that has the ingredient: a change of the row
+ * (`UpdateShoppingItemRequest`) changes the row of every part, what is at
+ * home shared as the pantries had it, and what the household holds for the
+ * row shared so that each plan first has what it lacks and what is over goes
+ * into the pantries by need.
+ */
+export const HouseholdListItem = ShoppingListItem.extend({
+  /** What each plan of the household needs of the row, by the profile it is for, in the order of the parts. */
+  shares: z
+    .array(
+      z.object({
+        profileId: z.string().uuid(),
+        profile: z.string(),
+        totalQuantity: z.number().min(0),
+      }),
+    )
+    .min(1),
+});
+export type HouseholdListItem = z.infer<typeof HouseholdListItem>;
+
+export const HouseholdListGroup = ShoppingListGroup.extend({ items: z.array(HouseholdListItem) });
+export type HouseholdListGroup = z.infer<typeof HouseholdListGroup>;
+
+/** One shopping list for the plans of several profiles: each plan's own list is a part of it. */
+export const HouseholdList = z.object({
+  id: z.string().uuid(),
+  fromDate: z.string().date(),
+  toDate: z.string().date(),
+  /** Each plan's part: its list, the plan and the profile it is for, the days it takes, and whether it is stale. */
+  parts: z
+    .array(
+      z.object({
+        listId: z.string().uuid(),
+        planId: z.string().uuid(),
+        profileId: z.string().uuid(),
+        profile: z.string(),
+        fromDate: z.string().date(),
+        toDate: z.string().date(),
+        stale: z.boolean(),
+      }),
+    )
+    .min(2),
+  groups: z.array(HouseholdListGroup),
+  totalEstimatedCalories: z.number().min(0),
+  /** True when a part is. Making the list again with the same plans and days replaces it. */
+  stale: z.boolean(),
+  createdAt: z.string().datetime(),
+});
+export type HouseholdList = z.infer<typeof HouseholdList>;
 
 /** The most a quantity of a row may be, whatever its unit: each unit has a ceiling of its own, which the API holds a row to. */
 const MOST = Math.max(...Object.values(MAX_QUANTITY));

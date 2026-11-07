@@ -10,6 +10,7 @@ export * from './label.js';
 export * from './recipe-facts.js';
 export * from './substitution.js';
 export * from './shopping.js';
+export * from './household.js';
 export * from './pantry.js';
 export * from './packs.js';
 export * from './use-up.js';

@@ -359,6 +359,8 @@ export class AccountExportService {
         shoppingLists: plan.shoppingLists.map((shopping) => ({
           fromDate: isoDate(shopping.fromDate),
           toDate: isoDate(shopping.toDate),
+          // The household list it is a part of, in `householdLists`.
+          householdId: shopping.householdId,
           createdAt: shopping.createdAt.toISOString(),
           items: shopping.items.map((item) => ({
             ingredientId: item.ingredientId,
@@ -374,6 +376,33 @@ export class AccountExportService {
       }),
       // A plan brings its days, meals and lists: fewer of them are read at a time.
       PLANS_AT_A_TIME,
+    );
+
+    // One shopping list for plans of several profiles: each part is a plan's list, under the plan.
+    yield* list(
+      'householdLists',
+      (page) =>
+        this.prisma.householdList.findMany({
+          where: { userId },
+          include: {
+            parts: {
+              orderBy: { id: 'asc' },
+              select: { planId: true, fromDate: true, toDate: true },
+            },
+          },
+          ...page,
+        }),
+      (household) => ({
+        id: household.id,
+        fromDate: isoDate(household.fromDate),
+        toDate: isoDate(household.toDate),
+        createdAt: household.createdAt.toISOString(),
+        parts: household.parts.map((part) => ({
+          planId: part.planId,
+          fromDate: isoDate(part.fromDate),
+          toDate: isoDate(part.toDate),
+        })),
+      }),
     );
 
     yield* list(

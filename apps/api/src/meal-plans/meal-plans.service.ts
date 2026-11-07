@@ -70,7 +70,7 @@ import {
 } from './plan-days.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
-import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
+import { releasePlanLists, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
 import { writePlan } from './plan-write.js';
@@ -110,11 +110,13 @@ export class MealPlansService {
     const profileId = plan.profile.id;
     // The plan takes its shopping lists with it. What was obtained for the
     // days still ahead is in the kitchen and goes into the pantry first, by
-    // the rule a list deleted on its own follows.
+    // the rule a list deleted on its own follows; a household list left with
+    // one part is that plan's list alone.
     await this.prisma.$transaction(
       async (tx) => {
-        await releasePlanLists(tx, planId, profileId);
+        const households = await releasePlanLists(tx, planId, profileId);
         await tx.mealPlan.deleteMany({ where: { id: planId } });
+        await settleHouseholds(tx, households);
       },
       { timeout: 30_000, maxWait: 10_000 },
     );

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-214 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+219 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -156,6 +156,16 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/health` | anyone | Whether the API is up and reaches its database: 200, or 503 with the database down. |  | 200 `Health` |  |
+
+## household-lists
+
+| Route | Asked by | What it does | Takes | Answers | Limit |
+|---|---|---|---|---|---|
+| `GET /api/household-lists` | an account | The household lists of the account, the newest first. |  | 200 a list of `HouseholdList` |  |
+| `POST /api/household-lists` | an account | Make a household list of plans of several profiles, one a profile, for the same days. Each plan's lists that share a day with its part are replaced, as by a list of its own. | `GenerateHouseholdListRequest` | 201 `HouseholdList` |  |
+| `GET /api/household-lists/:id` | an account | One household list. |  | 200 `HouseholdList` |  |
+| `DELETE /api/household-lists/:id` | an account | Delete a household list and its parts. What was obtained for days still ahead goes into each profile's pantry. |  | 204 |  |
+| `PATCH /api/household-lists/:id/items/:itemId` | an account | Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick. | `UpdateShoppingItemRequest` | 200 `HouseholdList` |  |
 
 ## ingredients
 

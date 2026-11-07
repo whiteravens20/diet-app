@@ -78,6 +78,7 @@ model User {
   signInChallenges   SignInChallenge[]
   browserSignInCodes BrowserSignInCode[]
   idempotencyKeys    IdempotencyKey[]
+  householdLists     HouseholdList[]
 }
 
 // One refresh token of a session. A session is the chain of tokens that
@@ -1091,16 +1092,39 @@ model InventoryItem {
 // ── Shopping lists ────────────────────────────────────────────────────────────
 
 model ShoppingList {
-  id        String   @id @default(uuid())
-  plan      MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  planId    String
-  fromDate  DateTime @db.Date
-  toDate    DateTime @db.Date
-  createdAt DateTime @default(now())
+  id          String         @id @default(uuid())
+  plan        MealPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId      String
+  fromDate    DateTime       @db.Date
+  toDate      DateTime       @db.Date
+  createdAt   DateTime       @default(now())
+  // The household list this list is a part of, with the lists of other
+  // profiles' plans for the same days. Null for a list of its plan alone,
+  // which is what a part becomes when its household list goes.
+  household   HouseholdList? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdId String?
 
   items ShoppingListItem[]
 
   @@index([planId])
+  @@index([householdId])
+}
+
+// One shopping list for the plans of several profiles of an account, for the
+// same days: each plan's own list is a part of it, and keeps its pantry, its
+// days on a list and its staleness; the household list shows the parts' rows
+// summed. It has two parts at least: one left over is its plan's list alone.
+model HouseholdList {
+  id        String         @id @default(uuid())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  fromDate  DateTime       @db.Date
+  toDate    DateTime       @db.Date
+  createdAt DateTime       @default(now())
+
+  parts ShoppingList[]
+
+  @@index([userId])
 }
 
 model ShoppingListItem {

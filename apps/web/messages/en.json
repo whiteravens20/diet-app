@@ -367,6 +367,8 @@
     "NO_FAVORITE_INGREDIENTS": "Add favourite ingredients on the profile before swapping by them.",
     "NO_FAVORITE_INGREDIENT_MATCH": "No recipe matches your favourite ingredients.",
     "LIST_NOT_FOUND": "Shopping list not found.",
+    "HOUSEHOLD_LIST_NOT_FOUND": "Household shopping list not found.",
+    "HOUSEHOLD_PROFILE_TWICE": "A household list takes one plan of each profile.",
     "AI_CONFIG_NOT_FOUND": "AI provider configuration not found.",
     "BYOK_NO_PROVIDER": "Add at least one provider key before switching to bring-your-own.",
     "OLLAMA_HOST_NOT_ALLOWED": "That Ollama address isn't allowed on this instance. Ask the operator to add it to OLLAMA_ALLOWED_HOSTS.",

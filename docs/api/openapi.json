@@ -4332,6 +4332,250 @@
         }
       }
     },
+    "/api/household-lists": {
+      "get": {
+        "operationId": "HouseholdLists_list",
+        "tags": [
+          "household-lists"
+        ],
+        "summary": "The household lists of the account, the newest first.",
+        "description": "The household lists of the account, the newest first.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HouseholdList"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      },
+      "post": {
+        "operationId": "HouseholdLists_generate",
+        "tags": [
+          "household-lists"
+        ],
+        "summary": "Make a household list of plans of several profiles, one a profile, for the same days.",
+        "description": "Make a household list of plans of several profiles, one a profile, for the same days. Each plan's lists that share a day with its part are replaced, as by a list of its own.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateHouseholdListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/household-lists/{id}": {
+      "get": {
+        "operationId": "HouseholdLists_get",
+        "tags": [
+          "household-lists"
+        ],
+        "summary": "One household list.",
+        "description": "One household list.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "HouseholdLists_remove",
+        "tags": [
+          "household-lists"
+        ],
+        "summary": "Delete a household list and its parts.",
+        "description": "Delete a household list and its parts. What was obtained for days still ahead goes into each profile's pantry.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/household-lists/{id}/items/{itemId}": {
+      "patch": {
+        "operationId": "HouseholdLists_updateItem",
+        "tags": [
+          "household-lists"
+        ],
+        "summary": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick.",
+        "description": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShoppingItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdList"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/ingredients": {
       "get": {
         "operationId": "Ingredients_list",
@@ -14549,6 +14793,31 @@
         ],
         "additionalProperties": false
       },
+      "GenerateHouseholdListRequest": {
+        "type": "object",
+        "properties": {
+          "planIds": {
+            "minItems": 2,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "fromDate": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "toDate": {
+            "$ref": "#/components/schemas/CalendarDay"
+          }
+        },
+        "required": [
+          "planIds",
+          "fromDate",
+          "toDate"
+        ]
+      },
       "GeneratePlanRequest": {
         "type": "object",
         "properties": {
@@ -14700,6 +14969,280 @@
           "status",
           "db",
           "time"
+        ],
+        "additionalProperties": false
+      },
+      "HouseholdList": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "toDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "parts": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "listId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "planId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profileId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "fromDate": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "toDate": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "stale": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "listId",
+                "planId",
+                "profileId",
+                "profile",
+                "fromDate",
+                "toDate",
+                "stale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HouseholdListGroup"
+            }
+          },
+          "totalEstimatedCalories": {
+            "type": "number",
+            "minimum": 0
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "fromDate",
+          "toDate",
+          "parts",
+          "groups",
+          "totalEstimatedCalories",
+          "stale",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "HouseholdListGroup": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ProductCategory"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HouseholdListItem"
+            }
+          },
+          "estimatedCalories": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "category",
+          "items",
+          "estimatedCalories"
+        ],
+        "additionalProperties": false
+      },
+      "HouseholdListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ProductCategory"
+          },
+          "totalQuantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "displayUnit": {
+            "$ref": "#/components/schemas/DisplayUnit"
+          },
+          "gramsPerPiece": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alreadyHaveQuantity": {
+            "default": 0,
+            "type": "number",
+            "minimum": 0
+          },
+          "toBuyQuantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "purchasedQuantity": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pantryBestBefore": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estimatedCalories": {
+            "type": "number",
+            "minimum": 0
+          },
+          "packs": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "size": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "sizeUnit": {
+                    "$ref": "#/components/schemas/DisplayUnit"
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "count",
+                  "size",
+                  "sizeUnit",
+                  "quantity"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checked": {
+            "default": false,
+            "type": "boolean"
+          },
+          "shares": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "totalQuantity": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "profileId",
+                "profile",
+                "totalQuantity"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "ingredientId",
+          "name",
+          "category",
+          "totalQuantity",
+          "unit",
+          "displayUnit",
+          "gramsPerPiece",
+          "alreadyHaveQuantity",
+          "toBuyQuantity",
+          "purchasedQuantity",
+          "pantryBestBefore",
+          "estimatedCalories",
+          "packs",
+          "checked",
+          "shares"
         ],
         "additionalProperties": false
       },
@@ -22907,6 +23450,33 @@
           "stale": {
             "type": "boolean"
           },
+          "household": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profiles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "profiles"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -22920,6 +23490,7 @@
           "groups",
           "totalEstimatedCalories",
           "stale",
+          "household",
           "createdAt"
         ],
         "additionalProperties": false

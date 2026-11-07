@@ -27,6 +27,7 @@ import { storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
 import { calculateCalories, sharesOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { calorieInputOf } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
@@ -196,7 +197,20 @@ export class ProfilesService {
 
   async remove(userId: string, id: string): Promise<void> {
     await this.load(userId, id);
-    await this.prisma.profile.delete({ where: { id } });
+    // The profile takes its plans and their lists with it, and the household
+    // lists they were parts of their parts: one left with a single part is
+    // that plan's list alone.
+    await this.prisma.$transaction(async (tx) => {
+      const parts = await tx.shoppingList.findMany({
+        where: { plan: { profileId: id }, householdId: { not: null } },
+        select: { householdId: true },
+      });
+      await tx.profile.delete({ where: { id } });
+      await settleHouseholds(
+        tx,
+        parts.map((part) => part.householdId!),
+      );
+    });
   }
 
   /** Deterministic calorie/macro calculation for a profile. */

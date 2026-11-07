@@ -28,6 +28,10 @@ interface Ids {
   meal: string;
   list: string;
   item: string;
+  /** A plan of the account's second profile, for a household list with the first's. */
+  partnerPlan: string;
+  household: string;
+  householdItem: string;
   pantry: string;
   weight: string;
   water: string;
@@ -304,6 +308,20 @@ const ASKS: Ask[] = [
     () => ({}),
   ],
   ['delete a shopping list', 'delete', (ids) => `/api/shopping-lists/${ids.list}`],
+  [
+    'make a household list of plans',
+    'post',
+    () => '/api/household-lists',
+    (ids) => ({ planIds: [ids.plan, ids.partnerPlan], fromDate: ids.date, toDate: ids.date }),
+  ],
+  ['read a household list', 'get', (ids) => `/api/household-lists/${ids.household}`],
+  [
+    'tick a row of a household list',
+    'patch',
+    (ids) => `/api/household-lists/${ids.household}/items/${ids.householdItem}`,
+    () => ({ checked: true }),
+  ],
+  ['delete a household list', 'delete', (ids) => `/api/household-lists/${ids.household}`],
 
   ['read a pantry', 'get', (ids) => `/api/inventory?profileId=${ids.profile}`],
   [
@@ -582,16 +600,34 @@ describe('what belongs to another account', () => {
     await aProfile(t, stranger);
 
     const profile = await aProfile(t, owner);
-    const plan = await aPlan(t, owner, profile, { durationDays: 2 });
+    const plan = await aPlan(t, owner, profile, { durationDays: 4 });
+    // A list of the plan's first two days, and a household list of its last two with a plan of a second profile.
     const list = (
       await t
         .http()
         .post('/api/shopping-lists/generate')
         .set(as(owner))
-        .send({ planId: plan.id })
+        .send({ planId: plan.id, fromDate: plan.days[0]!.date, toDate: plan.days[1]!.date })
         .expect(201)
     ).body as { id: string };
     const item = await t.prisma.shoppingListItem.findFirstOrThrow({ where: { listId: list.id } });
+    const partner = await aProfile(t, owner, { name: 'Partner' });
+    const partnerPlan = await aPlan(t, owner, partner, {
+      startDate: plan.days[2]!.date,
+      durationDays: 2,
+    });
+    const household = (
+      await t
+        .http()
+        .post('/api/household-lists')
+        .set(as(owner))
+        .send({
+          planIds: [plan.id, partnerPlan.id],
+          fromDate: plan.days[2]!.date,
+          toDate: plan.days[3]!.date,
+        })
+        .expect(201)
+    ).body as { id: string; groups: { items: { id: string }[] }[] };
     const rice = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'white-rice' } });
     const oats = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'rolled-oats' } });
     const curated = await t.prisma.recipe.findFirstOrThrow({
@@ -645,6 +681,9 @@ describe('what belongs to another account', () => {
       meal: plan.days[0]!.meals[0]!.id,
       list: list.id,
       item: item.id,
+      partnerPlan: partnerPlan.id,
+      household: household.id,
+      householdItem: household.groups[0]!.items[0]!.id,
       pantry: pantry.id,
       weight: weight.id,
       water: water.id,
@@ -715,6 +754,12 @@ describe('what belongs to another account', () => {
         orderBy: { id: 'asc' },
       }),
     ),
+    households: JSON.stringify(
+      await t.prisma.shoppingListItem.findMany({
+        where: { list: { householdId: theirs.household } },
+        orderBy: { id: 'asc' },
+      }),
+    ),
     pantry: JSON.stringify(
       await t.prisma.inventoryItem.findMany({ where: { profileId: theirs.profile } }),
     ),
@@ -772,6 +817,7 @@ describe('what belongs to another account', () => {
     await t.http().get(`/api/profiles/${theirs.profile}`).set(as(owner)).expect(200);
     await t.http().get(`/api/meal-plans/${theirs.plan}`).set(as(owner)).expect(200);
     await t.http().get(`/api/shopping-lists/${theirs.list}`).set(as(owner)).expect(200);
+    await t.http().get(`/api/household-lists/${theirs.household}`).set(as(owner)).expect(200);
     await t.http().get(`/api/recipes/${theirs.ownRecipe}`).set(as(owner)).expect(200);
   });
 
