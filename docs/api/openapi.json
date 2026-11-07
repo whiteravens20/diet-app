@@ -17103,7 +17103,8 @@
           "product_rejected",
           "product_replaced",
           "product_withdrawn",
-          "cooking_reminder"
+          "cooking_reminder",
+          "water_reminder"
         ]
       },
       "Nutrition": {
@@ -19404,6 +19405,10 @@
             "default": true,
             "type": "boolean"
           },
+          "waterReminders": {
+            "default": false,
+            "type": "boolean"
+          },
           "customMacroSplit": {
             "default": null,
             "anyOf": [
@@ -19503,6 +19508,7 @@
           "mealCount",
           "weightReminderCadence",
           "cookingReminders",
+          "waterReminders",
           "customMacroSplit",
           "preferences",
           "id",
@@ -19623,6 +19629,10 @@
           },
           "cookingReminders": {
             "default": true,
+            "type": "boolean"
+          },
+          "waterReminders": {
+            "default": false,
             "type": "boolean"
           },
           "customMacroSplit": {
@@ -20086,6 +20096,9 @@
             "$ref": "#/components/schemas/WeightReminderCadence"
           },
           "cookingReminders": {
+            "type": "boolean"
+          },
+          "waterReminders": {
             "type": "boolean"
           },
           "customMacroSplit": {

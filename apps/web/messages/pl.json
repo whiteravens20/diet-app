@@ -475,6 +475,7 @@
     "PRODUCTS_NOT_OFFERED": "Ta instancja nie oferuje produktów."
   },
   "notifications": {
+    "water_reminder": "Woda dziś: {drunk} z {target}.",
     "cooking_reminder": "Jutro gotujesz na zapas: {groups}.",
     "cookingGroup": "{dishes}, też na {cover}",
     "cookingCover": {
@@ -485,6 +486,7 @@
       "snack": "przekąskę",
       "dinner": "kolację"
     },
+    "waterAdded": "Dodano {amount}\u00a0· {name}",
     "label": "Powiadomienia",
     "title": "Powiadomienia",
     "empty": "Brak nowości.",
@@ -2422,6 +2424,8 @@
     "weightReminderCadenceHint": "Jak często aplikacja przypomina o zapisaniu wagi.",
     "cookingReminders": "Przypomnienie o gotowaniu na zapas",
     "cookingRemindersHint": "O 18:00\u00a0dzień wcześniej, gdy plan gotuje danie na dwa dni albo dwa posiłki.",
+    "waterReminders": "Przypomnienie o wodzie",
+    "waterRemindersHint": "Od 9:00\u00a0do 21:00, gdy picie zostaje w tyle za celem dnia, najwyżej co 3\u00a0godziny.",
     "weightReminderOff": "Wyłączone",
     "weightReminderDaily": "Codziennie",
     "weightReminderWeekly": "Co tydzień",

@@ -30,6 +30,7 @@ export const NotificationType = z.enum([
   'product_replaced',
   'product_withdrawn',
   'cooking_reminder',
+  'water_reminder',
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -83,6 +84,14 @@ export const CookingReminderPayload = z.object({
   dishes: z.array(CookedAhead).min(1),
 });
 export type CookingReminderPayload = z.infer<typeof CookingReminderPayload>;
+
+/** Payload for `type='water_reminder'`: what the day held against its target when it was made. */
+export const WaterReminderPayload = z.object({
+  day: CalendarDay,
+  ml: z.number().int().min(0),
+  target: z.number().int().min(1),
+});
+export type WaterReminderPayload = z.infer<typeof WaterReminderPayload>;
 
 export const Notification = z.object({
   id: z.string().uuid(),

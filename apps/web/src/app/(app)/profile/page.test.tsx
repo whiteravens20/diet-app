@@ -26,6 +26,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   waterTargetMl: 2000,
   expenditureCorrectionKcal: null,
   cookingReminders: true,
+  waterReminders: false,
   targetWeightReached: false,
   targetReachedLaterUntil: null,
   activityLevel: 'moderate',

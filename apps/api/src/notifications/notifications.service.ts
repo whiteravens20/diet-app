@@ -5,6 +5,7 @@ import {
   MAX_UNREAD_LISTED,
   type Notification,
   NotificationType,
+  type WaterReminderPayload,
   type WeightReminderPayload,
 } from '@diet-app/shared';
 import type { Prisma } from '@prisma/client';
@@ -75,7 +76,26 @@ export class NotificationsService {
     payload: WeightReminderPayload,
     now: Date,
   ): Promise<void> {
-    const type = NotificationType.enum.weight_reminder;
+    await this.remindOnce(tx, profileId, NotificationType.enum.weight_reminder, payload, now);
+  }
+
+  /** Remind a profile to drink, as a reminder of its weight is made: one unread at most, the newest on top. */
+  async remindOfWater(
+    tx: Prisma.TransactionClient,
+    profileId: string,
+    payload: WaterReminderPayload,
+    now: Date,
+  ): Promise<void> {
+    await this.remindOnce(tx, profileId, NotificationType.enum.water_reminder, payload, now);
+  }
+
+  private async remindOnce(
+    tx: Prisma.TransactionClient,
+    profileId: string,
+    type: NotificationType,
+    payload: WeightReminderPayload | WaterReminderPayload,
+    now: Date,
+  ): Promise<void> {
     const unread = await tx.notification.findFirst({
       where: { profileId, type, readAt: null },
       select: { id: true },

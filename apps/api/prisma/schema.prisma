@@ -318,6 +318,10 @@ model Profile {
   // A reminder the evening before a day that cooks for two days or two meals,
   // on unless the profile switches it off.
   cookingReminders      Boolean   @default(true)
+  // Reminders to drink through the day while the day is behind its target,
+  // off unless the profile switches them on; and when the last one came.
+  waterReminders        Boolean   @default(false)
+  lastWaterReminderAt   DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -590,9 +594,8 @@ model Notification {
   id        String    @id @default(uuid())
   profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
   profileId String
-  // Constrained at the API layer via NotificationType in packages/shared.
-  // Currently 'weight_reminder'; future types extend the enum without a
-  // migration.
+  // Constrained at the API layer via NotificationType in packages/shared:
+  // a new type extends that enum without a migration.
   type      String
   payload   Json?
   readAt    DateTime?

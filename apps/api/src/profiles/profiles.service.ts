@@ -94,6 +94,7 @@ export class ProfilesService {
           mealCount: input.mealCount,
           weightReminderCadence: input.weightReminderCadence,
           cookingReminders: input.cookingReminders,
+          waterReminders: input.waterReminders,
           preferences: { create: preferenceColumns(input.preferences) },
         },
         include: { preferences: true },
@@ -149,10 +150,11 @@ export class ProfilesService {
         customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
-        // Left out by a client from before the reminder, it stays as it is.
+        // Left out by a client from before the reminders, they stay as they are.
         ...(input.cookingReminders === undefined
           ? {}
           : { cookingReminders: input.cookingReminders }),
+        ...(input.waterReminders === undefined ? {} : { waterReminders: input.waterReminders }),
         preferences: {
           upsert: {
             create: preferenceColumns(input.preferences),
@@ -262,6 +264,7 @@ export class ProfilesService {
     mealCount: number;
     weightReminderCadence: string;
     cookingReminders: boolean;
+    waterReminders: boolean;
     createdAt: Date;
     updatedAt: Date;
     preferences: {
@@ -310,6 +313,7 @@ export class ProfilesService {
       mealCount: row.mealCount,
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
       cookingReminders: row.cookingReminders,
+      waterReminders: row.waterReminders,
       customMacroSplit: storedSplit(row.customMacroSplit),
       preferences: {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],

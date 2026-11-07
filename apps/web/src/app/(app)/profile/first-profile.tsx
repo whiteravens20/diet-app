@@ -136,8 +136,9 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: 'weekly' satisfies WeightReminderCadence,
-      // A new profile is reminded of cooking ahead; the profile's page switches it off.
+      // A new profile is reminded of cooking ahead and not of water; the profile's page changes either.
       cookingReminders: true,
+      waterReminders: false,
       preferences: { allergens },
     });
   }

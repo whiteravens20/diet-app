@@ -475,6 +475,7 @@
     "PRODUCTS_NOT_OFFERED": "This instance offers no products."
   },
   "notifications": {
+    "water_reminder": "Water today: {drunk} of {target}.",
     "cooking_reminder": "Tomorrow you cook ahead: {groups}.",
     "cookingGroup": "{dishes}, also for {cover}",
     "cookingCover": {
@@ -485,6 +486,7 @@
       "snack": "a snack",
       "dinner": "dinner"
     },
+    "waterAdded": "Added {amount}\u00a0· {name}",
     "label": "Notifications",
     "title": "Notifications",
     "empty": "Nothing new.",
@@ -2422,6 +2424,8 @@
     "weightReminderCadenceHint": "How often the app nudges you to log your weight.",
     "cookingReminders": "Reminder to cook ahead",
     "cookingRemindersHint": "At 6\u00a0pm the day before, when the plan cooks a dish for two days or two meals.",
+    "waterReminders": "Reminder to drink",
+    "waterRemindersHint": "From 9\u00a0am to 9\u00a0pm, when drinking falls behind the day's target, at most every 3\u00a0hours.",
     "weightReminderOff": "Off",
     "weightReminderDaily": "Daily",
     "weightReminderWeekly": "Weekly",

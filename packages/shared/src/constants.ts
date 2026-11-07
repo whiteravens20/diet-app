@@ -223,3 +223,16 @@ export const TARGET_REACHED_LATER_DAYS = 14;
 
 /** The hour, by the account's clock, from which a cooking ahead is reminded of the evening before. */
 export const COOKING_REMINDER_HOUR = 18;
+
+/**
+ * When water is reminded of, by the account's clock: from the first hour to
+ * before the last, while the day holds more than `WATER_REMINDER_BEHIND_ML`
+ * less than an even pace to the target from `WATER_PACE_FROM_HOUR` to
+ * `WATER_PACE_TO_HOUR`, at most every `WATER_REMINDER_EVERY_HOURS` hours.
+ */
+export const WATER_REMINDER_FROM_HOUR = 9;
+export const WATER_REMINDER_TO_HOUR = 21;
+export const WATER_PACE_FROM_HOUR = 8;
+export const WATER_PACE_TO_HOUR = 20;
+export const WATER_REMINDER_BEHIND_ML = 250;
+export const WATER_REMINDER_EVERY_HOURS = 3;

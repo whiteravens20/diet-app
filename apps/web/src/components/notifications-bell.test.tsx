@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, renderHook, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -10,9 +11,10 @@ import type { Notification } from '@diet-app/shared';
 import messages from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { api } from '@/lib/api';
-import { plain } from '@/testing/spaces';
+import { plain, spaced } from '@/testing/spaces';
 import { NotificationsBell, useNotificationText } from './notifications-bell';
 
+const PROFILE = '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f';
 const PLAN = '11111111-1111-4111-8111-111111111111';
 
 function tree() {
@@ -114,6 +116,65 @@ describe('NotificationsBell', () => {
         'Jutro gotujesz na zapas: Porridge i Stew, też na pojutrze; Chicken with rice, też na kolację.',
       );
     });
+
+    it('says what the day drank against its target', () => {
+      expect(said('water_reminder', { day: '2026-11-09', ml: 600, target: 2000 })).toBe(
+        'Water today: 0.6 L of 2 L.',
+      );
+    });
+  });
+
+  it('takes an amount of water at a press on its reminder, says so, and lets the reminder go', async () => {
+    document.cookie = 'diet_session=1; Path=/';
+    const reminder = {
+      id: '0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9',
+      profileId: PROFILE,
+      type: 'water_reminder',
+      payload: { day: '2026-11-09', ml: 600, target: 2000 },
+      readAt: null,
+      createdAt: '2026-11-09T12:00:00.000Z',
+    };
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === '/profiles' ? [{ id: PROFILE, name: 'Me' }] : [reminder]) as never),
+    );
+    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+    await act(async () => {
+      render(tree());
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: spaced('+330 ml') }));
+    expect(post).toHaveBeenCalledWith('/water', { profileId: PROFILE, day: '2026-11-09', ml: 330 });
+    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 mL · Me');
+    await vi.waitFor(
+      () => expect(post).toHaveBeenCalledWith(`/notifications/${reminder.id}/read`),
+      { timeout: 6000 },
+    );
+  });
+
+  it('says why a press on a reminder of water added nothing, and keeps its amounts', async () => {
+    document.cookie = 'diet_session=1; Path=/';
+    const reminder = {
+      id: '0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9',
+      profileId: PROFILE,
+      type: 'water_reminder',
+      payload: { day: '2026-11-09', ml: 600, target: 2000 },
+      readAt: null,
+      createdAt: '2026-11-09T12:00:00.000Z',
+    };
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === '/profiles' ? [{ id: PROFILE, name: 'Me' }] : [reminder]) as never),
+    );
+    const post = vi.spyOn(api, 'post').mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      render(tree());
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: spaced('+330 ml') }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.water.errAdd);
+    expect(screen.getByRole('button', { name: spaced('+330 ml') })).toBeEnabled();
+    expect(post).not.toHaveBeenCalledWith(`/notifications/${reminder.id}/read`);
   });
 
   describe('what it says of a product of the account', () => {

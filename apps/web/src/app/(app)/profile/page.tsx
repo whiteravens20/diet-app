@@ -221,6 +221,7 @@ export default function ProfilePage() {
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
       cookingReminders: f.get('cookingReminders') === 'on',
+      waterReminders: f.get('waterReminders') === 'on',
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: {
@@ -468,6 +469,20 @@ export default function ProfilePage() {
                       <span className="font-medium">{t('cookingReminders')}</span>
                       <span className="block text-xs text-muted-foreground">
                         {t('cookingRemindersHint')}
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      name="waterReminders"
+                      className="mt-1"
+                      defaultChecked={editing?.waterReminders ?? false}
+                    />
+                    <span>
+                      <span className="font-medium">{t('waterReminders')}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {t('waterRemindersHint')}
                       </span>
                     </span>
                   </label>

@@ -195,6 +195,8 @@ const profileFields = {
   weightReminderCadence: WeightReminderCadence,
   /** A reminder the evening before a day that cooks for two days or two meals. */
   cookingReminders: z.boolean(),
+  /** Reminders to drink through the day while the day is behind its water target. */
+  waterReminders: z.boolean(),
   /**
    * The split of a day's energy the profile aims at on the `custom` diet.
    * A profile on that diet has one; a profile on another may keep one for
@@ -237,6 +239,7 @@ const newProfile = z.object({
   mealCount: profileFields.mealCount.default(3),
   weightReminderCadence: profileFields.weightReminderCadence.default('weekly'),
   cookingReminders: profileFields.cookingReminders.default(true),
+  waterReminders: profileFields.waterReminders.default(false),
   customMacroSplit: profileFields.customMacroSplit.default(null),
   preferences: ProfilePreferences.default(PREFERENCE_DEFAULTS),
 });
@@ -258,8 +261,9 @@ export const ProfileUpdate = z
     // The target of water came after the clients that send every other part: left out, it stays
     // as it is.
     waterTargetMl: profileFields.waterTargetMl.optional(),
-    // The reminder of cooking came after them too: left out, it stays as it is.
+    // The reminders of cooking and of water came after them too: left out, they stay as they are.
     cookingReminders: profileFields.cookingReminders.optional(),
+    waterReminders: profileFields.waterReminders.optional(),
     // The limits of a label came after the clients that send every other part: left out, they
     // stay as they are.
     preferences: z.object({ ...preferenceFields, labelLimits: LabelLimits.optional() }),
