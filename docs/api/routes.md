@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-212 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+214 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -238,6 +238,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `PUT /api/profiles/:id` | an account | The profile as it is from now on: every part of it. A part that is left out is refused. | `ProfileUpdate` | 200 `Profile` |  |
 | `DELETE /api/profiles/:id` | an account | Delete a profile, with its plans, lists and pantry. |  | 204 |  |
 | `GET /api/profiles/:id/calories` | an account | What the profile's figures come to: its calorie target and how it is worked out, and the protein, fat and carbohydrate of it. |  | 200 `CalorieCalculation` |  |
+| `POST /api/profiles/:id/keep-weight` | an account | Keep the weight once the target weight is reached: the pace becomes keeping the weight. |  | 200 `Profile` | 20 in a minute |
+| `POST /api/profiles/:id/keep-weight/later` | an account | Put the offer to keep the weight off for two weeks from the client's day ("Nie teraz"). |  | 200 `Profile` | 20 in a minute |
 | `PATCH /api/profiles/:id/preferences` | an account | Change some of the profile's preferences: what is left out stays as it is. | `ProfilePreferencesPatch` | 200 `Profile` |  |
 | `POST /api/profiles/calories` | an account | The calorie target and macros that figures somebody typed would come to, and what each pace of loss would: for a form that shows them before there is a profile. Nothing is kept. | `CaloriePreviewRequest` | 200 `CaloriePreview` |  |
 

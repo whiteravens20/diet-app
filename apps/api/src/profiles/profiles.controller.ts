@@ -12,6 +12,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   CalorieCalculation,
   CaloriePreview,
@@ -21,6 +22,7 @@ import {
   ProfilePreferencesPatch,
   ProfileUpdate,
 } from '@diet-app/shared';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -95,6 +97,28 @@ export class ProfilesController {
     @Body(new ZodValidationPipe(ProfilePreferencesPatch)) dto: ProfilePreferencesPatch,
   ) {
     return this.profiles.patchPreferences(user.id, id, dto);
+  }
+
+  /** Keep the weight once the target weight is reached: the pace becomes keeping the weight. */
+  @Post(':id/keep-weight')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(Profile)
+  keepWeight(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
+    return this.profiles.keepWeight(user.id, id);
+  }
+
+  /** Put the offer to keep the weight off for two weeks from the client's day ("Nie teraz"). */
+  @Post(':id/keep-weight/later')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(Profile)
+  putOffKeepingWeight(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.profiles.putOffKeepingWeight(user.id, id, today);
   }
 
   /** Delete a profile, with its plans, lists and pantry. */

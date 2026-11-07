@@ -217,3 +217,6 @@ export const WEEK_DAYS = 7;
  * kilograms of weight move it less, a change of activity more.
  */
 export const TARGET_MOVED_LEAST_KCAL = 100;
+
+/** How long "Nie teraz" puts off the offer to keep the weight once the target weight is reached, in days. */
+export const TARGET_REACHED_LATER_DAYS = 14;

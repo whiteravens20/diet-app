@@ -4,6 +4,7 @@ import * as z from './zod.js';
 import {
   ActivityLevel,
   Allergen,
+  CalendarDay,
   Cuisine,
   DietType,
   ProteinKind,
@@ -310,6 +311,14 @@ export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
   riskAcknowledgedAt: z.string().datetime().nullable(),
   /** The correction of the formula's maintenance accepted from the real expenditure, in kcal a day; null for none (`Expenditure`). */
   expenditureCorrectionKcal: z.number().int().nullable(),
+  /**
+   * The newest weight is at or under the weight the profile works towards
+   * while its pace still loses, and its target comes of that pace: the
+   * dashboard offers to keep the weight (`POST /profiles/:id/keep-weight`).
+   */
+  targetWeightReached: z.boolean(),
+  /** The day until which that offer is put off ("Nie teraz"); null when it is not. */
+  targetReachedLaterUntil: CalendarDay.nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

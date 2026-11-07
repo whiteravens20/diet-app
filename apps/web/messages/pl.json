@@ -2309,6 +2309,14 @@
     "previous": "Poprzedni tydzień",
     "next": "Następny tydzień"
   },
+  "keepWeight": {
+    "title": "Waga docelowa",
+    "reached": "Osiągnięto wagę docelową {target}. Przejść na utrzymanie wagi?",
+    "note": "Cel dzienny zrówna się wtedy z zapotrzebowaniem, a plan w toku zaproponuje go od dziś.",
+    "keep": "Przejdź",
+    "later": "Nie teraz",
+    "errAct": "Nie udało się zapisać decyzji."
+  },
   "expenditure": {
     "title": "Rzeczywisty wydatek",
     "proposed": "Z dziennika i wag z ostatnich 3\u00a0tygodni wychodzi około {estimate, number, ::group-off}\u00a0kcal dziennie, o {difference, number, ::group-off}\u00a0kcal {more, select, true {więcej} other {mniej}} niż liczy wzór. Cel dzienny byłby {corrected, number, ::group-off}\u00a0kcal zamiast {target, number, ::group-off}.",

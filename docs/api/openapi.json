@@ -7331,6 +7331,106 @@
         }
       }
     },
+    "/api/profiles/{id}/keep-weight": {
+      "post": {
+        "operationId": "Profiles_keepWeight",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Keep the weight once the target weight is reached: the pace becomes keeping the weight.",
+        "description": "Keep the weight once the target weight is reached: the pace becomes keeping the weight.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/profiles/{id}/keep-weight/later": {
+      "post": {
+        "operationId": "Profiles_putOffKeepingWeight",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Put the offer to keep the weight off for two weeks from the client's day (\"Nie teraz\").",
+        "description": "Put the offer to keep the weight off for two weeks from the client's day (\"Nie teraz\").\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/profiles/{id}/preferences": {
       "patch": {
         "operationId": "Profiles_patchPreferences",
@@ -19362,6 +19462,19 @@
               }
             ]
           },
+          "targetWeightReached": {
+            "type": "boolean"
+          },
+          "targetReachedLaterUntil": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -19391,6 +19504,8 @@
           "userId",
           "riskAcknowledgedAt",
           "expenditureCorrectionKcal",
+          "targetWeightReached",
+          "targetReachedLaterUntil",
           "createdAt",
           "updatedAt"
         ],

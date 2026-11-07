@@ -43,6 +43,8 @@ const profile: Profile = {
   targetWeightKg: null,
   waterTargetMl: 2000,
   expenditureCorrectionKcal: null,
+  targetWeightReached: false,
+  targetReachedLaterUntil: null,
   activityLevel: 'moderate',
   dietType: 'vegan',
   weeklyLossTarget: '0.5',

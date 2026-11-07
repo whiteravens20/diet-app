@@ -281,6 +281,8 @@ model Profile {
   expenditureDays           Int?
   expenditureWeights        Int?
   expenditureLaterUntil     DateTime? @db.Date
+  // The day until which "Nie teraz" puts off the card that says the target weight is reached.
+  targetReachedLaterUntil   DateTime? @db.Date
   activityLevel       ActivityLevel @default(moderate)
   dietType            DietType      @default(balanced)
   // "0.25" | "0.5" | "0.75" | "1.0" — null = maintenance.

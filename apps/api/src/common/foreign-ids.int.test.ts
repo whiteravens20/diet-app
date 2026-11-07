@@ -338,6 +338,12 @@ const ASKS: Ask[] = [
     (ids) => ({ profileId: ids.profile, kg: 71 }),
   ],
   ['delete a weight', 'delete', (ids) => `/api/weights/${ids.weight}`],
+  ['keep the weight of a profile', 'post', (ids) => `/api/profiles/${ids.profile}/keep-weight`],
+  [
+    'put off keeping the weight of a profile',
+    'post',
+    (ids) => `/api/profiles/${ids.profile}/keep-weight/later`,
+  ],
   [
     "take a profile's target into its plan from today",
     'post',

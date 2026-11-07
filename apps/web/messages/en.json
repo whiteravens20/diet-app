@@ -2309,6 +2309,14 @@
     "previous": "Previous week",
     "next": "Next week"
   },
+  "keepWeight": {
+    "title": "Target weight",
+    "reached": "The target weight of {target} is reached. Move to keeping the weight?",
+    "note": "The daily target then equals maintenance, and a running plan offers it from today.",
+    "keep": "Move",
+    "later": "Not now",
+    "errAct": "The choice could not be saved."
+  },
   "expenditure": {
     "title": "Real expenditure",
     "proposed": "Your diary and weights of the last 3\u00a0weeks come to about {estimate, number, ::group-off}\u00a0kcal a day, {difference, number, ::group-off}\u00a0kcal {more, select, true {more} other {less}} than the formula says. The daily target would be {corrected, number, ::group-off}\u00a0kcal instead of {target, number, ::group-off}.",

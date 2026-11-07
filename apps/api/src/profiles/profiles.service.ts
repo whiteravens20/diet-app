@@ -6,6 +6,7 @@ import {
   type CaloriePreview,
   type CaloriePreviewRequest,
   Cuisine,
+  dayAfter,
   PACES_OF_LOSS,
   type Profile,
   type ProfileInput,
@@ -14,6 +15,7 @@ import {
   type ProfilePreferencesPatch,
   type ProfileUpdate,
   riskOfLosingWeight,
+  TARGET_REACHED_LATER_DAYS,
   WeightReminderCadence,
 } from '@diet-app/shared';
 import { ConfigService } from '@nestjs/config';
@@ -158,6 +160,33 @@ export class ProfilesService {
     return this.toDto(row);
   }
 
+  /**
+   * Keep the weight once the target weight is reached: the pace becomes
+   * keeping the weight, and the offer goes. A running plan then says that the
+   * profile's target moved, and offers it from today.
+   */
+  async keepWeight(userId: string, id: string): Promise<Profile> {
+    await this.load(userId, id);
+    const row = await this.prisma.profile.update({
+      where: { id },
+      data: { weeklyLossTarget: null, targetReachedLaterUntil: null },
+      include: { preferences: true },
+    });
+    return this.toDto(row);
+  }
+
+  /** Put the offer to keep the weight off for `TARGET_REACHED_LATER_DAYS` days from `today`, the client's day. */
+  async putOffKeepingWeight(userId: string, id: string, today: string | null): Promise<Profile> {
+    await this.load(userId, id);
+    const from = today ?? new Date().toISOString().slice(0, 10);
+    const row = await this.prisma.profile.update({
+      where: { id },
+      data: { targetReachedLaterUntil: new Date(dayAfter(from, TARGET_REACHED_LATER_DAYS)) },
+      include: { preferences: true },
+    });
+    return this.toDto(row);
+  }
+
   async remove(userId: string, id: string): Promise<void> {
     await this.load(userId, id);
     await this.prisma.profile.delete({ where: { id } });
@@ -218,6 +247,7 @@ export class ProfilesService {
     targetWeightKg: number | null;
     waterTargetMl: number | null;
     expenditureCorrectionKcal: number | null;
+    targetReachedLaterUntil: Date | null;
     activityLevel: Profile['activityLevel'];
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
@@ -257,6 +287,15 @@ export class ProfilesService {
       targetWeightKg: row.targetWeightKg,
       waterTargetMl: row.waterTargetMl,
       expenditureCorrectionKcal: row.expenditureCorrectionKcal,
+      // The newest weight came down to the one worked towards, and the pace that loses still sets the target.
+      targetWeightReached:
+        row.targetWeightKg !== null &&
+        row.weightKg <= row.targetWeightKg &&
+        row.weeklyLossTarget !== null &&
+        row.manualCalorieTarget === null,
+      targetReachedLaterUntil: row.targetReachedLaterUntil
+        ? row.targetReachedLaterUntil.toISOString().slice(0, 10)
+        : null,
       activityLevel: row.activityLevel,
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,
