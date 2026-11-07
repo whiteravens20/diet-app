@@ -21,6 +21,7 @@ import {
   type Expenditure,
   type Nutrition,
   type WeekSummary,
+  type WeekWater,
   type WeightTrend,
 } from '@diet-app/shared';
 import {
@@ -93,7 +94,28 @@ export class DiarySummaryService {
           Math.abs(day.eaten.calories - day.target.calories) <=
           WITHIN_TARGET_SHARE * day.target.calories,
       ).length,
+      water: await this.water(profileId, from, end),
       weight: await this.trend(profileId, end),
+    };
+  }
+
+  /** What the days from `from` to `end` drank: the days that hold water, their average, and those that reached the target. */
+  private async water(profileId: string, from: string, end: string): Promise<WeekWater> {
+    const [days, profile] = await Promise.all([
+      this.prisma.waterEntry.groupBy({
+        by: ['day'],
+        where: { profileId, day: { gte: new Date(from), lte: new Date(end) } },
+        _sum: { ml: true },
+      }),
+      this.prisma.profile.findUnique({ where: { id: profileId }, select: { waterTargetMl: true } }),
+    ]);
+    const held = days.map((day) => day._sum.ml ?? 0).filter((ml) => ml > 0);
+    const target = profile?.waterTargetMl ?? null;
+    return {
+      counted: held.length,
+      averageMl: held.length ? Math.round(held.reduce((a, b) => a + b, 0) / held.length) : null,
+      target,
+      reached: target === null ? 0 : held.filter((ml) => ml >= target).length,
     };
   }
 

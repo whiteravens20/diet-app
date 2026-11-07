@@ -120,6 +120,21 @@ describe("what a profile's diary and weights come to", () => {
       expect(ahead).toBeLessThan(95);
     });
 
+    it('says what the week drank: the days that hold water, their average, and those that reached the target', async () => {
+      const drink = (day: string, ml: number) =>
+        t.prisma.waterEntry.create({ data: { profileId: profile.id, day: new Date(day), ml } });
+      await drink(daysAgo(1), 1200);
+      await drink(daysAgo(1), 800);
+      await drink(daysAgo(2), 1500);
+      await drink(daysAgo(3), 2500);
+      // Today is not in the week, nor is the day before its first.
+      await drink(today, 3000);
+      await drink(daysAgo(8), 3000);
+
+      const { water } = await get<WeekSummary>(`/api/diary/week?profileId=${profile.id}`);
+      expect(water).toEqual({ counted: 3, averageMl: 2000, target: 2000, reached: 2 });
+    });
+
     it('draws no line from too few weights, and goes back a week when asked', async () => {
       await weigh(3, 90.5);
       await weigh(1, 90.2);

@@ -23735,6 +23735,9 @@
             "minimum": 0,
             "maximum": 7
           },
+          "water": {
+            "$ref": "#/components/schemas/WeekWater"
+          },
           "weight": {
             "$ref": "#/components/schemas/WeightTrend"
           }
@@ -23747,7 +23750,50 @@
           "eaten",
           "target",
           "withinTarget",
+          "water",
           "weight"
+        ],
+        "additionalProperties": false
+      },
+      "WeekWater": {
+        "type": "object",
+        "properties": {
+          "counted": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "averageMl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reached": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          }
+        },
+        "required": [
+          "counted",
+          "averageMl",
+          "target",
+          "reached"
         ],
         "additionalProperties": false
       },

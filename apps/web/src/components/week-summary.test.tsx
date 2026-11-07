@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,7 @@ const aWeek = (over: Partial<WeekSummary> = {}): WeekSummary => ({
   eaten: { calories: 2174, protein: 120, fat: 80, carbs: 270 },
   target: { calories: 2135, protein: 134, fat: 71, carbs: 240 },
   withinTarget: 4,
+  water: { counted: 7, averageMl: 1630, target: 2000, reached: 4 },
   weight: { kgPerWeek: -0.5, targetKg: 85, reachesTargetOn: '2027-02-01' },
   ...over,
 });
@@ -60,6 +61,26 @@ describe("a profile's week in sum", () => {
       'Protein 120 of 134 g · fat 80 of 71 g · carbs 270 of 240 g',
     );
     expect(get).toHaveBeenCalledWith(`/diary/week?profileId=${PROFILE.id}&to=${yesterday}`);
+  });
+
+  it('says what the week drank against the target, only the average without one, and nothing of a week without water', async () => {
+    shown(aWeek());
+    expect(plain((await screen.findByText(/^Water:/)).textContent)).toBe(
+      'Water: 1.63 L of 2 L a day on average, on target 4 of 7 days.',
+    );
+    cleanup();
+    vi.restoreAllMocks();
+
+    shown(aWeek({ water: { counted: 3, averageMl: 1500, target: null, reached: 0 } }));
+    expect(plain((await screen.findByText(/^Water:/)).textContent)).toBe(
+      'Water: 1.5 L a day on average.',
+    );
+    cleanup();
+    vi.restoreAllMocks();
+
+    shown(aWeek({ water: { counted: 0, averageMl: null, target: 2000, reached: 0 } }));
+    await screen.findByText('On average 2174 of 2135 kcal a day');
+    expect(screen.queryByText(/^Water:/)).toBeNull();
   });
 
   it('says where the weight leads, and when it reaches the target at this pace', async () => {

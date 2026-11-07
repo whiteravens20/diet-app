@@ -69,6 +69,7 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
             {shown.empty > 0 && shown.counted > 0 && (
               <p className="text-muted-foreground">{t('empty', { empty: shown.empty })}</p>
             )}
+            <WaterLine water={shown.water} />
             <WeightLine summary={shown} />
           </>
         )}
@@ -95,6 +96,26 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** What the week drank: the average of the days that hold water and, with a target, how many reached it. */
+function WaterLine({ water }: { water: WeekSummary['water'] }) {
+  const t = useTranslations('weekSummary');
+  const fmt = useFormat();
+  if (water.averageMl === null) return null;
+  const liters = (ml: number) => fmt.unit(ml / 1000, 'liter', 2);
+  return (
+    <p>
+      {water.target === null
+        ? t('waterNoTarget', { average: liters(water.averageMl) })
+        : t('water', {
+            average: liters(water.averageMl),
+            target: liters(water.target),
+            reached: water.reached,
+            counted: water.counted,
+          })}
+    </p>
   );
 }
 

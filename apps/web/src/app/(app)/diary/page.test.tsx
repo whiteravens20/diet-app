@@ -121,6 +121,7 @@ async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay>
         eaten: null,
         target: null,
         withinTarget: 0,
+        water: { counted: 0, averageMl: null, target: 1500, reached: 0 },
         weight: { kgPerWeek: null, targetKg: null, reachesTargetOn: null },
       } as never);
     if (path.startsWith('/recipes?'))

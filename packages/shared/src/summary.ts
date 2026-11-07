@@ -31,7 +31,18 @@ export const WeightTrend = z.object({
 });
 export type WeightTrend = z.infer<typeof WeightTrend>;
 
-/** A week of a profile in sum: what its days ate against what they aimed at, and where its weight leads. */
+/** The water of a week: the days that hold some, what they hold on average, and how many reached the target. */
+export const WeekWater = z.object({
+  counted: z.number().int().min(0).max(WEEK_DAYS),
+  /** In millilitres; null where no day holds water. */
+  averageMl: z.number().int().nullable(),
+  /** The profile's target a day; null where it names none, and then no day reaches it. */
+  target: z.number().int().nullable(),
+  reached: z.number().int().min(0).max(WEEK_DAYS),
+});
+export type WeekWater = z.infer<typeof WeekWater>;
+
+/** A week of a profile in sum: what its days ate against what they aimed at, what they drank, and where its weight leads. */
 export const WeekSummary = z.object({
   from: CalendarDay,
   to: CalendarDay,
@@ -43,6 +54,7 @@ export const WeekSummary = z.object({
   target: Nutrition.nullable(),
   /** The days that count which came within a tenth of their target. */
   withinTarget: z.number().int().min(0).max(WEEK_DAYS),
+  water: WeekWater,
   weight: WeightTrend,
 });
 export type WeekSummary = z.infer<typeof WeekSummary>;
