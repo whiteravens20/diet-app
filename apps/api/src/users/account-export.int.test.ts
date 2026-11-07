@@ -29,7 +29,14 @@ interface Exported {
     id: string;
     profileId: string;
     days: { date: string; meals: Record<string, unknown>[] }[];
-    shoppingLists: { items: unknown[] }[];
+    shoppingLists: { householdId: string | null; items: unknown[] }[];
+  }[];
+  householdLists: {
+    id: string;
+    fromDate: string;
+    toDate: string;
+    createdAt: string;
+    parts: { planId: string; fromDate: string; toDate: string }[];
   }[];
   notifications: Record<string, unknown>[];
   aiCalls: Record<string, unknown>[];
@@ -458,6 +465,47 @@ describe('everything an account holds, as one file', () => {
     expect(file.profiles).toHaveLength(1);
     expect(file.plans).toHaveLength(1);
     expect(file.aiCalls).toHaveLength(1);
+  });
+
+  it("holds a household list with its parts, and says of each plan's list whose part it is", async () => {
+    const plans = [
+      await aPlan(t, user, await aProfile(t, user, { name: 'Adam' }), { durationDays: 3 }),
+      await aPlan(t, user, await aProfile(t, user, { name: 'Ewa' }), { durationDays: 3 }),
+    ];
+    const made = (
+      await t
+        .http()
+        .post('/api/household-lists')
+        .set(as(user))
+        .send({
+          planIds: plans.map((plan) => plan.id),
+          fromDate: plans[0]!.days[1]!.date,
+          toDate: plans[0]!.days[2]!.date,
+        })
+        .expect(201)
+    ).body as { id: string; createdAt: string };
+
+    const { file } = await fileOf();
+
+    expect(file.householdLists).toEqual([
+      {
+        id: made.id,
+        fromDate: plans[0]!.days[1]!.date,
+        toDate: plans[0]!.days[2]!.date,
+        createdAt: made.createdAt,
+        parts: expect.arrayContaining(
+          plans.map((plan) => ({
+            planId: plan.id,
+            fromDate: plan.days[1]!.date,
+            toDate: plan.days[2]!.date,
+          })),
+        ),
+      },
+    ]);
+    expect(file.plans.map((plan) => plan.shoppingLists.map((list) => list.householdId))).toEqual([
+      [made.id],
+      [made.id],
+    ]);
   });
 
   it('writes every row of a long table once, however many pages it is read in', async () => {
