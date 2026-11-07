@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -88,6 +88,25 @@ describe("the water of a profile's day", () => {
       expect(post).toHaveBeenLastCalledWith('/water', { profileId: PROFILE.id, day: DAY, ml });
     }
     expect(plain((await screen.findByText(/^0\.83 L/)).textContent)).toBe('0.83 L of 2 L');
+  });
+
+  it('comes to its card once the day is shown, where a page was opened at the card', async () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    shown(aDay());
+    await screen.findByText(/of 2 L$/);
+    expect(scroll).not.toHaveBeenCalled();
+    cleanup();
+
+    // A reminder of water links to the card of its profile.
+    window.history.replaceState(null, '', `/dashboard#water-${PROFILE.id}`);
+    try {
+      shown(aDay());
+      await screen.findByText(/of 2 L$/);
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect(scroll.mock.contexts[0]).toHaveAttribute('id', `water-${PROFILE.id}`);
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
   });
 
   it('adds an amount of its own, and nothing that is no amount', async () => {

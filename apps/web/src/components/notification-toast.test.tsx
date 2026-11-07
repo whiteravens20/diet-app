@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Notification } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -11,6 +12,19 @@ import { plain, spaced } from '@/testing/spaces';
 import messages from '../../messages/en.json';
 import { NotificationsBell } from './notifications-bell';
 import { NotificationToast } from './notification-toast';
+
+// A link goes nowhere in the DOM of the tests: it says only that it was followed.
+vi.mock('next/link', () => ({
+  default: ({ onClick, ...rest }: ComponentProps<'a'>) => (
+    <a
+      {...rest}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick?.(event);
+      }}
+    />
+  ),
+}));
 
 const text = messages.notifications;
 const weigh = (id: string, days: number): Notification => ({
@@ -180,6 +194,18 @@ describe('a notification that comes in', () => {
       await vi.advanceTimersByTimeAsync(1_500);
     });
     expect(post).toHaveBeenCalledWith(`/notifications/${ONE}/read`);
+  });
+
+  it("leads from a reminder of water to the profile's water card, reads it and goes", async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+    await renderToast([drink(ONE)]);
+    await screen.findByRole('status');
+
+    const go = screen.getByRole('link', { name: text.waterGo });
+    expect(go).toHaveAttribute('href', `/dashboard#water-${PROFILE}`);
+    await userEvent.click(go);
+    expect(post).toHaveBeenCalledExactlyOnceWith(`/notifications/${ONE}/read`);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('carries no amounts for anything else, nor for a reminder of water among others', async () => {

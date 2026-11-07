@@ -487,6 +487,7 @@
       "dinner": "dinner"
     },
     "waterAdded": "Added {amount}\u00a0· {name}",
+    "waterGo": "Go to the dashboard",
     "label": "Notifications",
     "title": "Notifications",
     "empty": "Nothing new.",

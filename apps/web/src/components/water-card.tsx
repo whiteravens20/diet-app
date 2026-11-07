@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Profile, WaterDay } from '@diet-app/shared';
 import { MAX_WATER_ENTRY_ML, WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { held } from '@/lib/figure-line';
 import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { waterCardAnchor } from '@/lib/water-card-anchor';
 
 /** As high as the chart of the days, so that the card does not jump when the chart arrives. */
 const CHART_HEIGHT = 132;
@@ -35,7 +36,8 @@ const waterKey = (profileId: string, day: string) => ['water', profileId, day] a
  * The water of a profile's day: what was drunk against the profile's target,
  * an amount added at a press or typed, the last entry removed, and the seven
  * days up to it. On the dashboard it is today's; in the diary it is the day
- * the diary shows.
+ * the diary shows. A page opened at the card's anchor comes to it once the
+ * day is shown: a reminder of water links there.
  */
 export function WaterCard({ profile, day = localDate() }: { profile: Profile; day?: string }) {
   const t = useTranslations('water');
@@ -78,9 +80,16 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
     typed.trim() !== '' && Number.isInteger(own) && own > 0 && own <= MAX_WATER_ENTRY_ML;
   const target = shown?.target ?? null;
   const reached = target === null ? [] : (shown?.days ?? []).filter((d) => d.ml >= target);
+  const anchor = waterCardAnchor(profile.id);
+  const ready = shown !== undefined;
+  useEffect(() => {
+    if (ready && window.location.hash === `#${anchor}`) {
+      document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
+    }
+  }, [ready, anchor]);
 
   return (
-    <Card>
+    <Card id={anchor} className="scroll-mt-4">
       <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>

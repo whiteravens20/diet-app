@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type {
   CookedAhead,
@@ -22,6 +23,7 @@ import { held } from '@/lib/figure-line';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
+import { waterCardAnchor } from '@/lib/water-card-anchor';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -111,7 +113,8 @@ export function useNotificationText(): (notification: Notification) => string {
 /**
  * What a press on a reminder of water does, in the bell and in the toast of
  * one that comes in: the amount goes to the day of the reminded profile, the
- * reminder says so for a moment, and is then read and goes.
+ * reminder says so for a moment, and is then read and goes. Its link to the
+ * profile's water card reads it at once.
  */
 export function useWaterFromReminder() {
   const t = useTranslations('notifications');
@@ -164,18 +167,26 @@ export function useWaterFromReminder() {
     failed,
     pending: drink.isPending,
     add: (n: Notification, ml: number) => drink.mutate({ n, ml }),
+    read: (n: Notification) => read.mutate(n.id),
   };
 }
 
-/** The amounts a reminder of water adds, side by side, until one of them was added. */
+/**
+ * The amounts a reminder of water adds, side by side, and under them the way to
+ * the profile's water card on the dashboard, until an amount was added.
+ * `onGone` closes what showed the reminder once its link is followed.
+ */
 export function WaterAmounts({
   reminder,
   water,
+  onGone,
 }: {
   reminder: Notification;
   water: ReturnType<typeof useWaterFromReminder>;
+  onGone: () => void;
 }) {
   const t = useTranslations('water');
+  const tNotes = useTranslations('notifications');
   if (water.added[reminder.id]) return null;
   const failed = water.failed[reminder.id];
   return (
@@ -200,6 +211,16 @@ export function WaterAmounts({
           {failed}
         </span>
       )}
+      <Link
+        href={`/dashboard#${waterCardAnchor(reminder.profileId)}`}
+        onClick={() => {
+          water.read(reminder);
+          onGone();
+        }}
+        className="inline-block pt-1 text-sm font-medium text-primary underline-offset-2 hover:underline"
+      >
+        {tNotes('waterGo')}
+      </Link>
     </span>
   );
 }
@@ -304,7 +325,9 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
                 >
                   <span className="min-w-0 flex-1 space-y-2 break-words text-sm">
                     <span className="block">{water.added[n.id] ?? renderBody(n)}</span>
-                    {n.type === 'water_reminder' && <WaterAmounts reminder={n} water={water} />}
+                    {n.type === 'water_reminder' && (
+                      <WaterAmounts reminder={n} water={water} onGone={() => setOpen(false)} />
+                    )}
                   </span>
                   <button
                     type="button"

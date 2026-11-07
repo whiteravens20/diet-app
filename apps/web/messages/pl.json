@@ -487,6 +487,7 @@
       "dinner": "kolację"
     },
     "waterAdded": "Dodano {amount}\u00a0· {name}",
+    "waterGo": "Przejdź do pulpitu",
     "label": "Powiadomienia",
     "title": "Powiadomienia",
     "empty": "Brak nowości.",

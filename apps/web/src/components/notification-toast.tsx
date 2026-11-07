@@ -109,7 +109,7 @@ export function NotificationToast() {
       )}
       {alone?.type === 'water_reminder' && (
         <div className="mt-3">
-          <WaterAmounts reminder={alone} water={water} />
+          <WaterAmounts reminder={alone} water={water} onGone={putAside} />
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
