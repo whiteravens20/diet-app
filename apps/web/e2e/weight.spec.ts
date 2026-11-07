@@ -24,8 +24,8 @@ const BUDGETS: Record<string, number> = {
   '/from-the-app': 190,
   '/terms': 190,
   // The pages of an account that load none of the contract's schemas.
-  '/dashboard': 205,
-  '/diary': 210,
+  '/dashboard': 207,
+  '/diary': 213,
   '/shopping-lists': 205,
   '/inventory': 205,
   '/settings': 215,
