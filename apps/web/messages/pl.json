@@ -2280,6 +2280,10 @@
     "add": "Dodaj",
     "removeLast": "Usuń ostatni wpis",
     "removeLastLabel": "{amount}\u00a0· {time}",
+    "daysLabel": "Woda z 7 dni do {day}",
+    "dayLine": "{day}: {amount}",
+    "dayReached": "{day}: {amount}, cel osiągnięty",
+    "inTarget": "W celu: {reached, number, ::group-off} z {days, plural, one {{days, number, ::group-off} dnia} few {{days, number, ::group-off} dni} many {{days, number, ::group-off} dni} other {{days, number, ::group-off} dnia}}",
     "errAdd": "Nie udało się zapisać wody.",
     "errRemove": "Nie udało się usunąć wpisu wody."
   },

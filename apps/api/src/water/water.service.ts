@@ -6,6 +6,7 @@ import {
   dayAfter,
   DIARY_DAYS_BACK,
   MAX_WATER_ENTRIES_A_DAY,
+  WATER_DAYS_SHOWN,
   type AddWaterRequest,
   type WaterDay,
 } from '@diet-app/shared';
@@ -106,11 +107,13 @@ export class WaterService {
     return this.dayOf(this.prisma, entry.profileId, isoDate(entry.day));
   }
 
-  /** What a day of a profile holds against its target, and its last entry. */
+  /** What a day of a profile holds against its target, its last entry, and the days up to it. */
   private async dayOf(reader: Reader, profileId: string, day: string): Promise<WaterDay> {
-    const [held, last, profile] = await Promise.all([
-      reader.waterEntry.aggregate({
-        where: { profileId, day: new Date(day) },
+    const from = dayAfter(day, -(WATER_DAYS_SHOWN - 1));
+    const [sums, last, profile] = await Promise.all([
+      reader.waterEntry.groupBy({
+        by: ['day'],
+        where: { profileId, day: { gte: new Date(from), lte: new Date(day) } },
         _sum: { ml: true },
         _count: true,
       }),
@@ -121,12 +124,18 @@ export class WaterService {
       }),
       reader.profile.findUnique({ where: { id: profileId }, select: { waterTargetMl: true } }),
     ]);
+    const of = new Map(sums.map((sum) => [isoDate(sum.day), sum]));
+    const days = Array.from({ length: WATER_DAYS_SHOWN }, (_, at) => {
+      const shown = dayAfter(from, at);
+      return { day: shown, ml: of.get(shown)?._sum.ml ?? 0 };
+    });
     return {
       day,
-      ml: held._sum.ml ?? 0,
+      ml: of.get(day)?._sum.ml ?? 0,
       target: profile?.waterTargetMl ?? null,
-      entries: held._count,
+      entries: of.get(day)?._count ?? 0,
       last: last ? { id: last.id, ml: last.ml, at: last.createdAt.toISOString() } : null,
+      days,
     };
   }
 

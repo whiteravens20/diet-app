@@ -94,6 +94,24 @@ describe('the water a profile drinks', () => {
     expect((await remove(written.last!.id, 404)).body.error).toBe('WATER_ENTRY_NOT_FOUND');
   });
 
+  it('brings the seven days that end with the day asked for, oldest first', async () => {
+    await add(GLASS, dayAfter(today, -6));
+    await add(330, dayAfter(today, -2));
+    await add(500, dayAfter(today, -2));
+    // A day before the seven is not among them.
+    await add(GLASS, dayAfter(today, -7));
+
+    const { days } = await dayOf();
+    expect(days.map((d) => d.day)).toEqual(
+      Array.from({ length: 7 }, (_, at) => dayAfter(today, at - 6)),
+    );
+    expect(days.map((d) => d.ml)).toEqual([250, 0, 0, 0, 830, 0, 0]);
+    expect((await dayOf(dayAfter(today, -2))).days.at(-1)).toEqual({
+      day: dayAfter(today, -2),
+      ml: 830,
+    });
+  });
+
   it('takes today and the year before it, as the diary does', async () => {
     expect((await add(GLASS, dayAfter(today, 1), 409)).body.error).toBe('DIARY_DAY_AHEAD');
     expect((await add(GLASS, dayAfter(today, -367), 409)).body.error).toBe('DIARY_DAY_TOO_OLD');

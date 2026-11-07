@@ -2280,6 +2280,10 @@
     "add": "Add",
     "removeLast": "Remove the last entry",
     "removeLastLabel": "{amount}\u00a0· {time}",
+    "daysLabel": "Water of the 7 days to {day}",
+    "dayLine": "{day}: {amount}",
+    "dayReached": "{day}: {amount}, target reached",
+    "inTarget": "On target: {reached, number, ::group-off} of {days, plural, one {{days, number, ::group-off} day} other {{days, number, ::group-off} days}}",
     "errAdd": "The water could not be saved.",
     "errRemove": "The water entry could not be removed."
   },

@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import type { Profile, WaterDay } from '@diet-app/shared';
 import { MAX_WATER_ENTRY_ML, WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
@@ -18,13 +19,23 @@ import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 
+/** As high as the chart of the days, so that the card does not jump when the chart arrives. */
+const CHART_HEIGHT = 132;
+
+/** Fetched when a card shows its days: the charting library comes with it, and not before. */
+const WaterDaysChart = dynamic(
+  () => import('@/components/water-days-chart').then((chart) => chart.WaterDaysChart),
+  { ssr: false, loading: () => <Skeleton style={{ height: CHART_HEIGHT }} /> },
+);
+
 /** The key a day's water is kept under, read again by whoever changes it. */
 const waterKey = (profileId: string, day: string) => ['water', profileId, day] as const;
 
 /**
  * The water of a profile's day: what was drunk against the profile's target,
- * an amount added at a press or typed, and the last entry removed. On the
- * dashboard it is today's; in the diary it is the day the diary shows.
+ * an amount added at a press or typed, the last entry removed, and the seven
+ * days up to it. On the dashboard it is today's; in the diary it is the day
+ * the diary shows.
  */
 export function WaterCard({ profile, day = localDate() }: { profile: Profile; day?: string }) {
   const t = useTranslations('water');
@@ -65,6 +76,8 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
   const own = Number(typed);
   const ownFits =
     typed.trim() !== '' && Number.isInteger(own) && own > 0 && own <= MAX_WATER_ENTRY_ML;
+  const target = shown?.target ?? null;
+  const reached = target === null ? [] : (shown?.days ?? []).filter((d) => d.ml >= target);
 
   return (
     <Card>
@@ -149,6 +162,26 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
               )
             </span>
           </Button>
+        )}
+        {shown && (
+          <div className="space-y-1">
+            <WaterDaysChart days={shown.days} target={target} shown={day} height={CHART_HEIGHT} />
+            <ul className="sr-only" aria-label={t('daysLabel', { day: fmt.day(day) })}>
+              {shown.days.map((d) => (
+                <li key={d.day}>
+                  {t(target !== null && d.ml >= target ? 'dayReached' : 'dayLine', {
+                    day: fmt.day(d.day),
+                    amount: liters(d.ml),
+                  })}
+                </li>
+              ))}
+            </ul>
+            {target !== null && (
+              <p className="text-sm text-muted-foreground">
+                {t('inTarget', { reached: reached.length, days: shown.days.length })}
+              </p>
+            )}
+          </div>
         )}
         {error && (
           <p role="alert" className="text-sm text-destructive">

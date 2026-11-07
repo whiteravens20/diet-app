@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { MAX_WATER_ENTRY_ML } from './constants.js';
 import { CalendarDay } from './enums.js';
 
+/** How many days the water of a day brings with it, that day the last of them. */
+export const WATER_DAYS_SHOWN = 7;
+
 /**
  * Water drunk on a day of the profile's calendar (`POST /water`). An entry
  * only adds: one written by mistake is removed (`DELETE /water/:id`).
@@ -28,7 +31,10 @@ export const WaterEntry = z.object({
 });
 export type WaterEntry = z.infer<typeof WaterEntry>;
 
-/** The water of a profile's day: what was drunk in all against the profile's target, and its last entry. */
+/**
+ * The water of a profile's day: what was drunk in all against the profile's
+ * target, the day's last entry, and what each of the days up to it holds.
+ */
 export const WaterDay = z.object({
   day: CalendarDay,
   /** What the day's entries come to, in millilitres. */
@@ -39,5 +45,9 @@ export const WaterDay = z.object({
   entries: z.number().int().min(0),
   /** The entry written last for the day; null for a day that holds none. */
   last: WaterEntry.nullable(),
+  /** The `WATER_DAYS_SHOWN` days that end with this one, oldest first, each with what it holds. */
+  days: z
+    .array(z.object({ day: CalendarDay, ml: z.number().int().min(0) }))
+    .length(WATER_DAYS_SHOWN),
 });
 export type WaterDay = z.infer<typeof WaterDay>;

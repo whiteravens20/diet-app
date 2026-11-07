@@ -23629,6 +23629,28 @@
                 "type": "null"
               }
             ]
+          },
+          "days": {
+            "minItems": 7,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "$ref": "#/components/schemas/CalendarDay"
+                },
+                "ml": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "day",
+                "ml"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -23636,7 +23658,8 @@
           "ml",
           "target",
           "entries",
-          "last"
+          "last",
+          "days"
         ],
         "additionalProperties": false
       },

@@ -110,6 +110,7 @@ async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay>
         target: 1500,
         entries: 0,
         last: null,
+        days: Array.from({ length: 7 }, (_, at) => ({ day: dayAfter(day.date, at - 6), ml: 0 })),
       } as never);
     if (path.startsWith('/diary/week?'))
       return Promise.resolve({

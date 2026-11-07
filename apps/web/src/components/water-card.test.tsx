@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +10,19 @@ import { api } from '@/lib/api';
 import { plain, spaced } from '@/testing/spaces';
 import messages from '../../messages/en.json';
 import { WaterCard } from './water-card';
+
+// The chart is fetched on demand and draws nothing in a DOM without a size: a stand-in says what it was given.
+vi.mock('next/dynamic', async () => {
+  const { createElement } = await import('react');
+  return {
+    default: () => (props: { days: { day: string }[]; target: number | null; shown: string }) =>
+      createElement(
+        'p',
+        { 'data-testid': 'water-chart' },
+        `${props.days.length} days to ${props.shown}, a line at ${props.target ?? 'none'}`,
+      ),
+  };
+});
 
 const texts = messages.water;
 const PROFILE = { id: '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f', name: 'Me' } as Profile;
@@ -26,6 +39,10 @@ const aDay = (over: Partial<WaterDay> = {}): WaterDay => ({
   target: 2000,
   entries: 2,
   last: LAST,
+  days: [2100, 0, 1800, 2000, 900, 2400, 500].map((ml, at) => ({
+    day: `2026-11-0${at + 1}`,
+    ml,
+  })),
   ...over,
 });
 
@@ -103,10 +120,28 @@ describe("the water of a profile's day", () => {
     expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull();
   });
 
+  it('says the seven days in words, each that reached the target as reached, and how many did', async () => {
+    shown(aDay());
+
+    expect(await screen.findByText('On target: 3 of 7 days')).toBeInTheDocument();
+    expect(screen.getByTestId('water-chart')).toHaveTextContent(`7 days to ${DAY}, a line at 2000`);
+    const days = within(screen.getByRole('list', { name: /^Water of the 7 days/ }));
+    expect(days.getAllByRole('listitem').map((day) => plain(day.textContent))).toEqual([
+      'Sun, Nov 1: 2.1 L, target reached',
+      'Mon, Nov 2: 0 L',
+      'Tue, Nov 3: 1.8 L',
+      'Wed, Nov 4: 2 L, target reached',
+      'Thu, Nov 5: 0.9 L',
+      'Fri, Nov 6: 2.4 L, target reached',
+      'Sat, Nov 7: 0.5 L',
+    ]);
+  });
+
   it('says only what was drunk where the profile names no target', async () => {
     shown(aDay({ target: null, ml: 1250 }));
 
     expect(plain((await screen.findByText(/drunk$/)).textContent)).toBe('1.25 L drunk');
     expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.queryByText(/^On target/)).toBeNull();
   });
 });
