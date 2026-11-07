@@ -338,6 +338,7 @@ const ASKS: Ask[] = [
   ],
   ['delete a weight', 'delete', (ids) => `/api/weights/${ids.weight}`],
 
+  ['read the week of a profile in sum', 'get', (ids) => `/api/diary/week?profileId=${ids.profile}`],
   [
     'read the water of a day of a profile',
     'get',

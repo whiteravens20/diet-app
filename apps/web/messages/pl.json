@@ -2282,6 +2282,21 @@
     "glassNote": "Szklanka to 250 ml.",
     "errAdd": "Nie udało się zapisać wody."
   },
+  "weekSummary": {
+    "title": "Ostatnie 7 dni",
+    "titleOf": "Tydzień w skrócie",
+    "eaten": "Średnio {eaten, number, ::group-off} z {target, number, ::group-off} kcal dziennie",
+    "within": "W granicach celu (±10%): {within, number, ::group-off} z {counted, plural, one {{counted, number, ::group-off} dnia} few {{counted, number, ::group-off} dni} many {{counted, number, ::group-off} dni} other {{counted, number, ::group-off} dnia}}",
+    "empty": "{empty, plural, one {{empty, number, ::group-off} dzień bez wpisów} few {{empty, number, ::group-off} dni bez wpisów} many {{empty, number, ::group-off} dni bez wpisów} other {{empty, number, ::group-off} dnia bez wpisów}}",
+    "nothing": "W tych dniach nic nie zapisano.",
+    "macros": "Białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g · tłuszcz {fat, number, ::group-off} z {fatTarget, number, ::group-off} g · węglowodany {carbs, number, ::group-off} z {carbsTarget, number, ::group-off} g",
+    "trend": "Waga: {pace} na tydzień.",
+    "trendNone": "Trend wagi pojawi się po co najmniej 3 ważeniach w ciągu 14 dni.",
+    "reaches": "Przy tym tempie waga dojdzie do {target} około {date}.",
+    "leadsAway": "Przy tym tempie waga nie zbliża się do {target}.",
+    "previous": "Poprzedni tydzień",
+    "next": "Następny tydzień"
+  },
   "recipeModal": {
     "title": "Szczegóły przepisu",
     "close": "Zamknij",

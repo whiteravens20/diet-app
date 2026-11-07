@@ -2282,6 +2282,21 @@
     "glassNote": "A glass is 250 ml.",
     "errAdd": "The water could not be saved."
   },
+  "weekSummary": {
+    "title": "The last 7 days",
+    "titleOf": "A week in sum",
+    "eaten": "On average {eaten, number, ::group-off} of {target, number, ::group-off} kcal a day",
+    "within": "On target (±10%): {within, number, ::group-off} of {counted, plural, one {{counted, number, ::group-off} day} other {{counted, number, ::group-off} days}}",
+    "empty": "{empty, plural, one {{empty, number, ::group-off} day without entries} other {{empty, number, ::group-off} days without entries}}",
+    "nothing": "Nothing was written on these days.",
+    "macros": "Protein {protein, number, ::group-off} of {proteinTarget, number, ::group-off} g · fat {fat, number, ::group-off} of {fatTarget, number, ::group-off} g · carbs {carbs, number, ::group-off} of {carbsTarget, number, ::group-off} g",
+    "trend": "Weight: {pace} a week.",
+    "trendNone": "The weight's trend shows after at least 3 weighings within 14 days.",
+    "reaches": "At this pace the weight reaches {target} around {date}.",
+    "leadsAway": "At this pace the weight comes no nearer {target}.",
+    "previous": "Previous week",
+    "next": "Next week"
+  },
   "recipeModal": {
     "title": "Recipe details",
     "close": "Close",

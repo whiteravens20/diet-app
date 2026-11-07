@@ -3615,6 +3615,65 @@
         }
       }
     },
+    "/api/diary/week": {
+      "get": {
+        "operationId": "DiarySummary_week",
+        "tags": [
+          "diary"
+        ],
+        "summary": "The week of a profile in sum: the seven days that end with `?to=`, or with yesterday by the client's day.",
+        "description": "The week of a profile in sum: the seven days that end with `?to=`, or with yesterday by the client's day. What the days with an entry or an eaten meal ate on average against what they aimed at, how many came within a tenth of it, and where the weights of the last 28 days lead.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekSummary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/favorite-sets": {
       "get": {
         "operationId": "FavoriteSets_list",
@@ -23190,6 +23249,66 @@
         "maxLength": 500,
         "format": "uri"
       },
+      "WeekSummary": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "to": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "counted": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "empty": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "eaten": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Nutrition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Nutrition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withinTarget": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "weight": {
+            "$ref": "#/components/schemas/WeightTrend"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "counted",
+          "empty",
+          "eaten",
+          "target",
+          "withinTarget",
+          "weight"
+        ],
+        "additionalProperties": false
+      },
       "WeeklyLossTarget": {
         "type": "string",
         "enum": [
@@ -23268,6 +23387,39 @@
           "daily",
           "weekly"
         ]
+      },
+      "WeightTrend": {
+        "type": "object",
+        "properties": {
+          "kgPerWeek": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "targetKg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "reachesTargetOn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kgPerWeek",
+          "targetKg",
+          "reachesTargetOn"
+        ],
+        "additionalProperties": false
       },
       "WeightUnit": {
         "type": "string",

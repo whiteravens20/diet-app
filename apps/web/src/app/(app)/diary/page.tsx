@@ -47,6 +47,7 @@ import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
 import { WaterCard } from '@/components/water-card';
+import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
 
 /** The meals of a day in the order they are eaten. */
@@ -376,6 +377,9 @@ function DiaryContent() {
           </>
         )
       )}
+
+      {/* The profile's weeks in sum, from the one before today back a week at a time. */}
+      {active && <WeekSummaryCard profile={active} weeks />}
 
       {adding && (
         <AddEntryDialog

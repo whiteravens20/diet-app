@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-205 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+206 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -127,6 +127,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/diary/entries` | an account | Write an entry for a day of today or at most a year before it, by the client's day (`X-Client-Date`): a recipe in servings, an ingredient in an amount, a product in grams or millilitres, or a meal of one's own by its figures. What a meal of one's own leaves out, or a product's label lacks, is estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is answered with the entry the first request wrote and writes nothing. | `CreateDiaryEntryRequest` | 201 `DiaryEntry` | 60 in a minute |
 | `DELETE /api/diary/entries/:id` | an account | Remove an entry. |  | 204 | 60 in a minute |
 | `PATCH /api/diary/entries/:id` | an account | Change an entry: the meal it is under, or how much of it there was, which changes its figures in proportion. An entry of a product can be moved to a product of the reader's own, whose label then gives its figures. | `UpdateDiaryEntryRequest` | 200 `DiaryEntry` | 60 in a minute |
+| `GET /api/diary/week` | an account | The week of a profile in sum: the seven days that end with `?to=`, or with yesterday by the client's day. What the days with an entry or an eaten meal ate on average against what they aimed at, how many came within a tenth of it, and where the weights of the last 28 days lead. | query `WeekSummaryQuery` | 200 `WeekSummary` |  |
 
 ## favorite-sets
 

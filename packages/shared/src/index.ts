@@ -29,6 +29,7 @@ export * from './admin.js';
 export * from './recipe-import.js';
 export * from './weight.js';
 export * from './water.js';
+export * from './summary.js';
 export * from './product.js';
 export * from './diary.js';
 export * from './notification.js';

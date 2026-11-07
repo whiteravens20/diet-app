@@ -70,6 +70,14 @@ import { entryDto, entryWith, languages } from './diary-entries.js';
 /** Energy and the three macronutrients, in kcal and grams. */
 type Figures = Macros & { calories: number };
 
+/** A day of a profile's diary in figures: what it ate, what the day aimed at, and whether anything was written. */
+export interface DayFigures {
+  date: string;
+  eaten: Figures;
+  target: Figures;
+  counted: boolean;
+}
+
 /** What the diary reads of a profile: whose it is, and what its own target is worked out from. */
 const PROFILE = {
   id: true,
@@ -229,6 +237,89 @@ export class DiaryService {
       labelNotes: labelNotes(eatenLabel, labelLimitsOf(profile.preferences)),
       estimated: rows.some((row) => row.estimated),
     };
+  }
+
+  /**
+   * What a profile ate on each day from `from` to `to`, both included, and
+   * what each day aimed at, as the day's own view works them out: the meals
+   * of the plan made last that were marked eaten and the entries, against the
+   * plan's day or, where no plan holds it or the plan skips it, the profile.
+   * A day counts once it holds an entry or a meal marked eaten. For the week
+   * in sum and the expenditure worked out from the diary.
+   */
+  async figuresOfDays(
+    userId: string,
+    profileId: string,
+    from: string,
+    to: string,
+  ): Promise<DayFigures[]> {
+    const profile = await this.profile(userId, profileId);
+    const range = { gte: new Date(from), lte: new Date(to) };
+    const [planDays, sums] = await Promise.all([
+      this.prisma.mealPlanDay.findMany({
+        where: { date: range, plan: { profileId } },
+        orderBy: [{ date: 'asc' }, ...MADE_LAST],
+        select: {
+          date: true,
+          calorieTarget: true,
+          overrides: true,
+          plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
+          meals: {
+            where: { eatenAt: { not: null } },
+            select: {
+              servings: true,
+              quantityScale: true,
+              source: true,
+              customMacros: true,
+              recipe: {
+                select: {
+                  caloriesPerServing: true,
+                  proteinPerServing: true,
+                  fatPerServing: true,
+                  carbsPerServing: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.diaryEntry.groupBy({
+        by: ['date'],
+        where: { profileId, date: range },
+        _sum: { calories: true, protein: true, fat: true, carbs: true },
+        _count: true,
+      }),
+    ]);
+    // Of the plans that hold a day, the one made last, as the day's own view picks it.
+    const planOf = new Map<string, (typeof planDays)[number]>();
+    for (const day of planDays)
+      if (!planOf.has(isoDate(day.date))) planOf.set(isoDate(day.date), day);
+    const entriesOf = new Map(sums.map((row) => [isoDate(row.date), row]));
+    const days: DayFigures[] = [];
+    for (let date = from; date <= to; date = dayAfter(date, 1)) {
+      const planDay = planOf.get(date) ?? null;
+      const entries = entriesOf.get(date);
+      const meals = sumNutrition((planDay?.meals ?? []).map((meal) => mealNutrition(meal)));
+      const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null).target;
+      const target = {
+        calories: aim.calories,
+        protein: aim.protein,
+        fat: aim.fat,
+        carbs: aim.carbs,
+      };
+      days.push({
+        date,
+        eaten: wholeFigures({
+          calories: meals.calories + (entries?._sum.calories ?? 0),
+          protein: meals.protein + (entries?._sum.protein ?? 0),
+          fat: meals.fat + (entries?._sum.fat ?? 0),
+          carbs: meals.carbs + (entries?._sum.carbs ?? 0),
+        }),
+        target,
+        counted: (entries?._count ?? 0) > 0 || (planDay?.meals.length ?? 0) > 0,
+      });
+    }
+    return days;
   }
 
   /**

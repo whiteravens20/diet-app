@@ -17,6 +17,7 @@ import { TargetNotices } from '@/components/target-notices';
 import { FavoriteSetsCard } from '@/components/favorite-sets-card';
 import { PlanOverviewCard } from '@/components/plan-overview-card';
 import { WaterCard } from '@/components/water-card';
+import { WeekSummaryCard } from '@/components/week-summary';
 import { WeightCard } from '@/components/weight-card';
 import { useFormat } from '@/lib/use-format';
 
@@ -90,6 +91,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
       <PlanOverviewCard profile={profile} />
 
       <WaterCard profile={profile} />
+
+      <WeekSummaryCard profile={profile} />
 
       {/* The split a day aims at and the weights that were logged, beside each other where there is room for both. */}
       <div className="grid gap-4 lg:grid-cols-2">
