@@ -20,7 +20,7 @@ describe('the published contract of the API', () => {
     files = await contractFiles();
   }, 60_000);
 
-  it.each(['openapi.json', 'routes.md', 'errors.md', 'errors.json'])(
+  it.each(['openapi.json', 'routes.md', 'errors.md'])(
     'docs/api/%s is what `npm run contract` writes',
     (name) => {
       // A difference is a route, a schema, a comment above a handler or a text of the catalogue that changed: run the command and commit the result.
@@ -30,6 +30,44 @@ describe('the published contract of the API', () => {
       ).toBe(true);
     },
   );
+
+  /** What of `errors.json` is held to the catalogue: each code, its statuses, and its English and Polish sentences. */
+  const ofTheSource = (text: string) =>
+    Object.fromEntries(
+      Object.entries(
+        JSON.parse(text) as Record<
+          string,
+          { statuses: number[]; messages: Record<string, string | null> }
+        >,
+      ).map(([code, { statuses, messages }]) => [
+        code,
+        { statuses, en: messages.en, pl: messages.pl },
+      ]),
+    );
+
+  it('docs/api/errors.json holds every code, its statuses and its English and Polish sentences as `npm run contract` writes them', () => {
+    // The sentences of the other languages are written into it whenever the contract moves to the Android
+    // client: a translation that changes them alone, as a translation tool's pull request does, needs no run.
+    expect(ofTheSource(readFileSync(join(CONTRACT_DIRECTORY, 'errors.json'), 'utf8'))).toEqual(
+      ofTheSource(files['errors.json']!),
+    );
+  });
+
+  it('takes a sentence of another language for what it is, and no English or Polish one', () => {
+    const written = JSON.parse(files['errors.json']!) as Record<
+      string,
+      { messages: Record<string, string | null> }
+    >;
+    const code = Object.keys(written)[0]!;
+    const withGerman = structuredClone(written);
+    withGerman[code]!.messages.de = 'Ein Satz, den die Übersetzung brachte.';
+    expect(ofTheSource(JSON.stringify(withGerman))).toEqual(ofTheSource(files['errors.json']!));
+    const otherPolish = structuredClone(written);
+    otherPolish[code]!.messages.pl = 'Inne zdanie.';
+    expect(ofTheSource(JSON.stringify(otherPolish))).not.toEqual(
+      ofTheSource(files['errors.json']!),
+    );
+  });
 
   it('has every route say what it does and who may ask', () => {
     expect(routes.length).toBeGreaterThan(150);
