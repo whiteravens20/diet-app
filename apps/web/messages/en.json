@@ -2057,7 +2057,7 @@
     "resendVerificationSent": "A new link is on its way.",
     "resendVerificationFailed": "The link could not be sent.",
     "dataExport": "Your data",
-    "dataExportBody": "Everything this account holds, as one JSON file: its profiles and their preferences, the weights you logged, your diary, your pantry, your own products, the recipes you marked and the ones that are your own, your plans with their meals and shopping lists. No password, token or provider key is in it.",
+    "dataExportBody": "Everything this account holds, as one JSON file: its profiles and their preferences, the weights you logged, the water you noted, your diary, your pantry, your own products, the recipes you marked and the ones that are your own, your plans with their meals and shopping lists. No password, token or provider key is in it.",
     "dataExportButton": "Download my data",
     "dataExportPreparing": "Preparing the file…",
     "dataExportSaved": "The file was handed to your browser.",

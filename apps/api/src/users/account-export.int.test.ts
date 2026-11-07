@@ -18,6 +18,7 @@ interface Exported {
   aiProviders: Record<string, unknown>[];
   profiles: (Record<string, unknown> & { id: string; preferences: Record<string, unknown> })[];
   weights: { profileId: string; kg: number }[];
+  water: { profileId: string; day: string; ml: number }[];
   diary: Record<string, unknown>[];
   pantry: Record<string, unknown>[];
   markedRecipes: Record<string, unknown>[];
@@ -106,6 +107,9 @@ describe('everything an account holds, as one file', () => {
     const shared = await t.prisma.recipe.findFirstOrThrow({ where: { slug: 'tofu-rice-bowl' } });
     await aPrivateRecipe(t, of, { title: 'My variant' });
     await t.prisma.weightEntry.create({ data: { profileId: profile.id, kg: 79.5 } });
+    await t.prisma.waterEntry.create({
+      data: { profileId: profile.id, day: new Date('2026-03-01'), ml: 330 },
+    });
     await t
       .http()
       .post('/api/diary/entries')
@@ -183,6 +187,7 @@ describe('everything an account holds, as one file', () => {
       'aiProviders',
       'profiles',
       'weights',
+      'water',
       'diary',
       'pantry',
       'markedRecipes',
@@ -219,6 +224,9 @@ describe('everything an account holds, as one file', () => {
       maxTimesPerWeekSameMeal: 3,
     });
     expect(file.weights).toEqual([expect.objectContaining({ profileId: profile.id, kg: 79.5 })]);
+    expect(file.water).toEqual([
+      { profileId: profile.id, day: '2026-03-01', ml: 330, createdAt: expect.any(String) },
+    ]);
     expect(file.diary).toEqual([
       {
         profileId: profile.id,

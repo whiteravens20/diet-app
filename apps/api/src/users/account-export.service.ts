@@ -132,6 +132,18 @@ export class AccountExportService {
       }),
     );
 
+    // What a profile drank, entry by entry, on the calendar day it was written for.
+    yield* list(
+      'water',
+      (page) => this.prisma.waterEntry.findMany({ where: ofTheAccount, ...page }),
+      (entry) => ({
+        profileId: entry.profileId,
+        day: isoDate(entry.day),
+        ml: entry.ml,
+        createdAt: entry.createdAt.toISOString(),
+      }),
+    );
+
     yield* list(
       'diary',
       (page) => this.prisma.diaryEntry.findMany({ where: ofTheAccount, ...page }),

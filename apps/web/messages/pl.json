@@ -2057,7 +2057,7 @@
     "resendVerificationSent": "Nowy link jest w drodze.",
     "resendVerificationFailed": "Nie udało się wysłać linku.",
     "dataExport": "Twoje dane",
-    "dataExportBody": "Wszystko, co przechowuje to konto, w jednym pliku JSON: profile i ich preferencje, zapisane pomiary wagi, dziennik, spiżarnia, własne produkty, oznaczone przepisy i przepisy własne, plany z posiłkami i listami zakupów. W pliku nie ma hasła, tokenów ani kluczy dostawców AI.",
+    "dataExportBody": "Wszystko, co przechowuje to konto, w jednym pliku JSON: profile i ich preferencje, zapisane pomiary wagi, zapisana woda, dziennik, spiżarnia, własne produkty, oznaczone przepisy i przepisy własne, plany z posiłkami i listami zakupów. W pliku nie ma hasła, tokenów ani kluczy dostawców AI.",
     "dataExportButton": "Pobierz moje dane",
     "dataExportPreparing": "Przygotowywanie pliku…",
     "dataExportSaved": "Plik został przekazany przeglądarce.",
