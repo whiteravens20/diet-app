@@ -47,7 +47,7 @@ export interface ShownList {
 }
 
 /** Who needs what of a row of a household list, in one line: "Adam 150 g · Ewa 150 g". Null for a plan's row. */
-export function sharesLine(
+function sharesLine(
   item: ShownItem,
   formatQty: (qty: number, unit: DisplayUnit) => string,
 ): string | null {
