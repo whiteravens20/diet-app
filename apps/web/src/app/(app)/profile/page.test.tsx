@@ -23,6 +23,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   weightKg: 80,
   targetWeightKg: null,
   waterTargetMl: 2000,
+  expenditureCorrectionKcal: null,
   activityLevel: 'moderate',
   dietType: 'balanced',
   weeklyLossTarget: '0.5',

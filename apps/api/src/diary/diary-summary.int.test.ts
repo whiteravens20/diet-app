@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { dayAfter, type Profile, type WeekSummary } from '@diet-app/shared';
+import { dayAfter, type Expenditure, type Profile, type WeekSummary } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -66,6 +66,28 @@ describe("what a profile's diary and weights come to", () => {
     });
   const get = async <T>(path: string): Promise<T> =>
     (await t.http().get(path).set(as(user)).set('X-Client-Date', today).expect(200)).body as T;
+  const act = (what: 'accept' | 'later' | 'drop', expected = 200) =>
+    t
+      .http()
+      .post(`/api/diary/expenditure/${what}`)
+      .set(as(user))
+      .set('X-Client-Date', today)
+      .send({ profileId: profile.id })
+      .expect(expected);
+  const expenditure = () => get<Expenditure>(`/api/diary/expenditure?profileId=${profile.id}`);
+  /** As if the last working out were a week and a day old: the next asking works it out again. */
+  const outOfDate = () =>
+    t.prisma.profile.update({
+      where: { id: profile.id },
+      data: { expenditureCheckedOn: new Date(daysAgo(8)) },
+    });
+  /** Three weeks eaten at 2400 kcal a day, weights falling half a kilogram a week to 91 kg. */
+  const threeWeeksAt2400 = async (halfWritten = 0) => {
+    for (let days = 1; days <= 15; days++)
+      await eat(daysAgo(days), days <= halfWritten ? 900 : 2400);
+    for (const days of [20, 13, 6, 1]) await weigh(days, 91 + days / 14);
+  };
+
   describe('the week in sum', () => {
     it('averages the days that count against their targets, and names the empty ones', async () => {
       for (const [days, kcal] of [
@@ -107,6 +129,81 @@ describe("what a profile's diary and weights come to", () => {
       expect(week).toMatchObject({ from: daysAgo(14), to: daysAgo(8), counted: 0, empty: 7 });
       expect(week.eaten).toBeNull();
       expect(week.weight.kgPerWeek).toBeNull();
+    });
+  });
+
+  describe('the real expenditure', () => {
+    it('says nothing is proposed while there is too little to go by', async () => {
+      expect(await expenditure()).toMatchObject({
+        state: 'too_little',
+        estimate: null,
+        maintenance: 2685,
+        target: 2135,
+        checkedOn: today,
+      });
+    });
+
+    it('proposes a corrected target, which counts once accepted and leaves once taken away', async () => {
+      await threeWeeksAt2400();
+      await outOfDate();
+
+      // 2400 eaten a day while the body lost half a kilogram a week: about 2950 used, 265 over the formula.
+      const proposed = await expenditure();
+      expect(proposed).toMatchObject({
+        state: 'proposed',
+        estimate: 2950,
+        correction: 270,
+        days: 15,
+        weights: 4,
+      });
+      expect(proposed.targetCorrected).toBe(2135 + 270);
+      const before = await get<{ dailyTarget: number }>(`/api/profiles/${profile.id}/calories`);
+      expect(before.dailyTarget).toBe(2135);
+
+      const kept = (await act('accept')).body as Expenditure;
+      expect(kept).toMatchObject({ state: 'kept', correction: 270, target: 2405 });
+      const after = await get<{ dailyTarget: number }>(`/api/profiles/${profile.id}/calories`);
+      expect(after.dailyTarget).toBe(2405);
+      expect((await get<Profile>(`/api/profiles/${profile.id}`)).expenditureCorrectionKcal).toBe(
+        270,
+      );
+
+      // Taken away: the formula's target again, and no proposal for two weeks.
+      const dropped = (await act('drop')).body as Expenditure;
+      expect(dropped).toMatchObject({
+        state: 'later',
+        target: 2135,
+        laterUntil: dayAfter(today, 14),
+      });
+      expect((await act('accept', 409)).body.error).toBe('EXPENDITURE_NOTHING_PROPOSED');
+    });
+
+    it('puts a proposal off for two weeks', async () => {
+      await threeWeeksAt2400();
+      await outOfDate();
+      expect((await expenditure()).state).toBe('proposed');
+
+      expect((await act('later')).body).toMatchObject({
+        state: 'later',
+        laterUntil: dayAfter(today, 14),
+      });
+      expect((await expenditure()).state).toBe('later');
+    });
+
+    it('counts no day written at less than half its target', async () => {
+      await threeWeeksAt2400(3);
+      await outOfDate();
+
+      expect(await expenditure()).toMatchObject({ state: 'too_little', days: 12 });
+    });
+
+    it('is worked out once a week, not on every asking', async () => {
+      expect((await expenditure()).state).toBe('too_little');
+      await threeWeeksAt2400();
+
+      expect(await expenditure()).toMatchObject({ state: 'too_little', days: 0, checkedOn: today });
+      await outOfDate();
+      expect((await expenditure()).state).toBe('proposed');
     });
   });
 });

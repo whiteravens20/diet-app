@@ -3615,6 +3615,225 @@
         }
       }
     },
+    "/api/diary/expenditure": {
+      "get": {
+        "operationId": "DiarySummary_expenditure",
+        "tags": [
+          "diary"
+        ],
+        "summary": "What the diary and the weights of the three weeks before today say a profile really uses, worked out again once a week, and the correction of its target that comes of it: proposed, never applied unasked.",
+        "description": "What the diary and the weights of the three weeks before today say a profile really uses, worked out again once a week, and the correction of its target that comes of it: proposed, never applied unasked.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expenditure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/diary/expenditure/accept": {
+      "post": {
+        "operationId": "DiarySummary_accept",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Take the correction proposed; refused with `EXPENDITURE_NOTHING_PROPOSED` where none is.",
+        "description": "Take the correction proposed; refused with `EXPENDITURE_NOTHING_PROPOSED` where none is.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenditureRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expenditure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/expenditure/drop": {
+      "post": {
+        "operationId": "DiarySummary_drop",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Take a kept correction away: the formula's target again, and no proposal for two weeks.",
+        "description": "Take a kept correction away: the formula's target again, and no proposal for two weeks.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenditureRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expenditure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/expenditure/later": {
+      "post": {
+        "operationId": "DiarySummary_later",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Put the proposal off for two weeks.",
+        "description": "Put the proposal off for two weeks.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenditureRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expenditure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/diary/week": {
       "get": {
         "operationId": "DiarySummary_week",
@@ -11930,6 +12149,12 @@
           "acknowledgeRisk": {
             "default": false,
             "type": "boolean"
+          },
+          "expenditureCorrection": {
+            "default": 0,
+            "type": "integer",
+            "minimum": -5000,
+            "maximum": 5000
           }
         },
         "required": [
@@ -13679,6 +13904,110 @@
         "required": [
           "date",
           "revision"
+        ]
+      },
+      "Expenditure": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "too_little",
+              "near",
+              "proposed",
+              "later",
+              "kept"
+            ]
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "weights": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maintenance": {
+            "type": "integer"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "type": "integer"
+          },
+          "targetCorrected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkedOn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "laterUntil": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "days",
+          "weights",
+          "estimate",
+          "maintenance",
+          "correction",
+          "target",
+          "targetCorrected",
+          "checkedOn",
+          "laterUntil"
+        ],
+        "additionalProperties": false
+      },
+      "ExpenditureRequest": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "profileId"
         ]
       },
       "FavoriteMark": {
@@ -18880,6 +19209,16 @@
               }
             ]
           },
+          "expenditureCorrectionKcal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -18908,6 +19247,7 @@
           "id",
           "userId",
           "riskAcknowledgedAt",
+          "expenditureCorrectionKcal",
           "createdAt",
           "updatedAt"
         ],

@@ -182,6 +182,7 @@ export class ProfilesService {
       dietType: typed.dietType,
       customMacroSplit: sharesOf(typed.customMacroSplit),
       riskAcknowledged: typed.acknowledgeRisk,
+      expenditureCorrection: typed.expenditureCorrection,
     };
     return {
       calculation: calculateCalories({
@@ -216,6 +217,7 @@ export class ProfilesService {
     weightKg: number;
     targetWeightKg: number | null;
     waterTargetMl: number | null;
+    expenditureCorrectionKcal: number | null;
     activityLevel: Profile['activityLevel'];
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
@@ -254,6 +256,7 @@ export class ProfilesService {
       weightKg: row.weightKg,
       targetWeightKg: row.targetWeightKg,
       waterTargetMl: row.waterTargetMl,
+      expenditureCorrectionKcal: row.expenditureCorrectionKcal,
       activityLevel: row.activityLevel,
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,

@@ -36,6 +36,7 @@ export function figuresOf(kept: Profile): CaloriePreviewRequest {
     weeklyLossTarget: kept.weeklyLossTarget,
     manualCalorieTarget: kept.manualCalorieTarget,
     acknowledgeRisk: kept.riskAcknowledgedAt !== null,
+    expenditureCorrection: kept.expenditureCorrectionKcal ?? 0,
   };
 }
 

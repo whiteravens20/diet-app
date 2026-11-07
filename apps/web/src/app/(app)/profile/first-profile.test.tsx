@@ -195,6 +195,7 @@ describe('the figures beside the steps of a first profile', () => {
       weeklyLossTarget: '0.5',
       manualCalorieTarget: null,
       acknowledgeRisk: false,
+      expenditureCorrection: 0,
     });
   });
 

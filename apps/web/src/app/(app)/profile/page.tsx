@@ -46,6 +46,7 @@ import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@
 import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
 import { LabelLimitFields, labelLimitsIn } from './label-limit-fields';
 import { PageBanner } from '@/components/page-banner';
+import { KeptCorrection } from '@/components/expenditure-card';
 import { IMAGERY } from '@/lib/imagery';
 
 /** Fetched for an account that has no profile yet: nobody else is shown the steps. */
@@ -95,7 +96,15 @@ export default function ProfilePage() {
   const formKey = editing?.id ?? 'new';
   const { form, typed, onChange } = useProfileForm(formKey, unit);
   const risk = typed ? typed.reasons : editing ? riskOf(editing) : [];
-  const shown = useCaloriePreview(typed ? typed.figures : editing ? figuresOf(editing) : null);
+  // A profile being changed keeps the correction it accepted from its real expenditure: the figures say the target with it.
+  const kept = editing?.expenditureCorrectionKcal ?? 0;
+  const shown = useCaloriePreview(
+    typed
+      ? typed.figures && { ...typed.figures, expenditureCorrection: kept }
+      : editing
+        ? figuresOf(editing)
+        : null,
+  );
   // The profile the steps of a first profile have just made: the page says what comes next.
   const [made, setMade] = useState<Profile | null>(null);
   // Creation is opt-in: the form stays hidden until the user clicks "Add".
@@ -429,6 +438,7 @@ export default function ProfilePage() {
                   />
                 </Field>
                 <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
+                {editing && <KeptCorrection profile={editing} />}
                 <RiskBox
                   reasons={risk}
                   acknowledged={editing?.riskAcknowledgedAt != null}

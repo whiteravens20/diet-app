@@ -23,6 +23,7 @@ const figures = (over: Partial<CaloriePreviewRequest> = {}): CaloriePreviewReque
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
   acknowledgeRisk: false,
+  expenditureCorrection: 0,
   ...over,
 });
 

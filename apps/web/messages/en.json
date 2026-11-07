@@ -432,6 +432,7 @@
     "WEIGHT_DAY_FULL": "The weight log holds no more entries for this day: remove the last entry to log another.",
     "WATER_DAY_FULL": "This day holds no more entries of water.",
     "WATER_BELOW_ZERO": "This day holds less water than you want to take back.",
+    "EXPENDITURE_NOTHING_PROPOSED": "No correction of the target is proposed for this profile now.",
     "WEIGHT_TOO_OLD": "The weight log takes new entries at most a year back.",
     "DIARY_ENTRY_NOT_FOUND": "Diary entry not found.",
     "DIARY_DAY_AHEAD": "The diary takes today and the year before it, not a day still to come.",
@@ -2296,6 +2297,16 @@
     "leadsAway": "At this pace the weight comes no nearer {target}.",
     "previous": "Previous week",
     "next": "Next week"
+  },
+  "expenditure": {
+    "title": "Real expenditure",
+    "proposed": "Your diary and weights of the last 3 weeks come to about {estimate, number, ::group-off} kcal a day, {difference, number, ::group-off} kcal {more, select, true {more} other {less}} than the formula says. The daily target would be {corrected, number, ::group-off} kcal instead of {target, number, ::group-off}.",
+    "note": "Only a proposal. Plans already made keep their target.",
+    "accept": "Accept",
+    "later": "Not now",
+    "kept": "The target holds a correction from the real expenditure: {correction} kcal a day.",
+    "drop": "Remove the correction",
+    "errAct": "The decision could not be saved."
   },
   "recipeModal": {
     "title": "Recipe details",

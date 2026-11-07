@@ -423,6 +423,15 @@
       "pl": "Brak zmian do zapisania."
     }
   },
+  "EXPENDITURE_NOTHING_PROPOSED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "No correction of the target is proposed for this profile now.",
+      "pl": "Dla tego profilu nie ma teraz propozycji poprawki celu."
+    }
+  },
   "FAVORITE_LIMIT_REACHED": {
     "statuses": [
       409

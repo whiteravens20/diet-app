@@ -280,6 +280,8 @@ export const CaloriePreviewRequest = z
     weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
     manualCalorieTarget: profileFields.manualCalorieTarget.default(null),
     acknowledgeRisk: z.boolean().default(false),
+    /** The correction a profile keeps from its real expenditure, for the form of that profile; nothing for a new one. */
+    expenditureCorrection: z.number().int().min(-5000).max(5000).default(0),
   })
   .refine(hasItsSplit, SPLIT_MISSING);
 export type CaloriePreviewRequest = z.infer<typeof CaloriePreviewRequest>;
@@ -306,6 +308,8 @@ export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
   userId: z.string().uuid(),
   /** When the risk of losing weight was acknowledged, for a profile that needs it. */
   riskAcknowledgedAt: z.string().datetime().nullable(),
+  /** The correction of the formula's maintenance accepted from the real expenditure, in kcal a day; null for none (`Expenditure`). */
+  expenditureCorrectionKcal: z.number().int().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

@@ -340,6 +340,17 @@ const ASKS: Ask[] = [
 
   ['read the week of a profile in sum', 'get', (ids) => `/api/diary/week?profileId=${ids.profile}`],
   [
+    'read the real expenditure of a profile',
+    'get',
+    (ids) => `/api/diary/expenditure?profileId=${ids.profile}`,
+  ],
+  ...(['accept', 'later', 'drop'] as const).map((what): Ask => [
+    `${what} the correction of a profile's target`,
+    'post',
+    () => `/api/diary/expenditure/${what}`,
+    (ids) => ({ profileId: ids.profile }),
+  ]),
+  [
     'read the water of a day of a profile',
     'get',
     (ids) => `/api/water?profileId=${ids.profile}&day=2026-01-05`,

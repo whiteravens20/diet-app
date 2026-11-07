@@ -39,6 +39,7 @@ describe('the figures a profile form holds, as a calorie target is worked out fr
       weeklyLossTarget: '0.25',
       manualCalorieTarget: null,
       acknowledgeRisk: false,
+      expenditureCorrection: 0,
     });
   });
 

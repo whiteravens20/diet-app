@@ -18,6 +18,7 @@ export function calorieInputOf(
     | 'weeklyLossTarget'
     | 'manualCalorieTarget'
     | 'riskAcknowledgedAt'
+    | 'expenditureCorrectionKcal'
   >,
 ): CalorieEngineInput {
   return {
@@ -31,5 +32,6 @@ export function calorieInputOf(
     weeklyLossTarget: profile.weeklyLossTarget as CalorieEngineInput['weeklyLossTarget'],
     manualCalorieTarget: profile.manualCalorieTarget,
     riskAcknowledged: profile.riskAcknowledgedAt !== null,
+    expenditureCorrection: profile.expenditureCorrectionKcal ?? 0,
   };
 }

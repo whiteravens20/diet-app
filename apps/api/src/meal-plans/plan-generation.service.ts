@@ -618,6 +618,7 @@ export class PlanGenerationService {
       weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
       riskAcknowledged,
+      expenditureCorrection: profile.expenditureCorrectionKcal ?? 0,
     });
     const atRisk = calories.warnings.includes('minor') || calories.warnings.includes('underweight');
     return {
@@ -1148,8 +1149,12 @@ function newSeed(): number {
 /** What a plan's base target is worked out from, of a profile. */
 type BaseProfile = Omit<
   CalorieEngineInput,
-  'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'
-> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null };
+  'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit' | 'expenditureCorrection'
+> & {
+  weeklyLossTarget: string | null;
+  riskAcknowledgedAt: Date | null;
+  expenditureCorrectionKcal: number | null;
+};
 
 /**
  * The base target of a plan and how it came about: what the target of each

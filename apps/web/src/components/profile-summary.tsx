@@ -16,6 +16,7 @@ import { StatCard } from '@/components/stat-card';
 import { TargetNotices } from '@/components/target-notices';
 import { FavoriteSetsCard } from '@/components/favorite-sets-card';
 import { PlanOverviewCard } from '@/components/plan-overview-card';
+import { ExpenditureCard } from '@/components/expenditure-card';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { WeightCard } from '@/components/weight-card';
@@ -87,6 +88,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
       </div>
 
       {c && <TargetNotices calories={c} />}
+
+      <ExpenditureCard profile={profile} />
 
       <PlanOverviewCard profile={profile} />
 

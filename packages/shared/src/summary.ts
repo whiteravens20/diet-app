@@ -48,3 +48,47 @@ export const WeekSummary = z.object({
   weight: WeightTrend,
 });
 export type WeekSummary = z.infer<typeof WeekSummary>;
+
+/** The days the real expenditure is worked out from, the least of them that count, and what a day needs of its target to count. */
+export const EXPENDITURE_DAYS = 21;
+export const EXPENDITURE_LEAST_DAYS = 14;
+export const EXPENDITURE_LEAST_SHARE_OF_TARGET = 0.5;
+/** The least weights over those days, and the least days they span. */
+export const EXPENDITURE_LEAST_WEIGHTS = 4;
+export const EXPENDITURE_LEAST_SPAN_DAYS = 14;
+/** The least difference from the formula a proposal is made for, in kcal a day, and the most a correction is, as a share of the formula's maintenance. */
+export const EXPENDITURE_LEAST_DIFFERENCE = 100;
+export const EXPENDITURE_MOST_SHARE = 0.25;
+/** How often the expenditure is worked out again, and how long "Nie teraz" puts a proposal off, in days. */
+export const EXPENDITURE_EVERY_DAYS = 7;
+export const EXPENDITURE_LATER_DAYS = 14;
+
+/** The profile whose real expenditure is asked for, or acted on. */
+export const ExpenditureRequest = z.object({ profileId: z.string().uuid() });
+export type ExpenditureRequest = z.infer<typeof ExpenditureRequest>;
+
+/**
+ * What the diary and the weights say of what a profile really uses
+ * (`GET /diary/expenditure`), worked out once a week: too little of them yet,
+ * an expenditure near the formula's, a correction proposed, a proposal put off,
+ * or a correction kept. A correction is only ever kept when it is accepted.
+ */
+export const Expenditure = z.object({
+  state: z.enum(['too_little', 'near', 'proposed', 'later', 'kept']),
+  /** What the last working out counted: the days that count and the weights. */
+  days: z.number().int().min(0),
+  weights: z.number().int().min(0),
+  /** The expenditure worked out, in kcal a day; null with too little to go by. */
+  estimate: z.number().int().nullable(),
+  /** The formula's maintenance, with no correction. */
+  maintenance: z.number().int(),
+  /** The correction proposed or kept, in kcal a day against the formula; null where there is none. */
+  correction: z.number().int().nullable(),
+  /** The daily target as it stands, and as it would with the correction proposed. */
+  target: z.number().int(),
+  targetCorrected: z.number().int().nullable(),
+  /** The day it was last worked out, and the day a proposal put off comes back. */
+  checkedOn: CalendarDay.nullable(),
+  laterUntil: CalendarDay.nullable(),
+});
+export type Expenditure = z.infer<typeof Expenditure>;

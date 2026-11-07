@@ -432,6 +432,7 @@
     "WEIGHT_DAY_FULL": "Dziennik wagi nie zmieści więcej wpisów na ten dzień: usuń ostatni wpis, aby zapisać nowy.",
     "WATER_DAY_FULL": "Ten dzień nie zmieści więcej wpisów wody.",
     "WATER_BELOW_ZERO": "Ten dzień ma mniej wody, niż chcesz cofnąć.",
+    "EXPENDITURE_NOTHING_PROPOSED": "Dla tego profilu nie ma teraz propozycji poprawki celu.",
     "WEIGHT_TOO_OLD": "Dziennik wagi przyjmuje nowe wpisy najwyżej rok wstecz.",
     "DIARY_ENTRY_NOT_FOUND": "Nie znaleziono wpisu w dzienniku.",
     "DIARY_DAY_AHEAD": "Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie.",
@@ -2296,6 +2297,16 @@
     "leadsAway": "Przy tym tempie waga nie zbliża się do {target}.",
     "previous": "Poprzedni tydzień",
     "next": "Następny tydzień"
+  },
+  "expenditure": {
+    "title": "Rzeczywisty wydatek",
+    "proposed": "Z dziennika i wag z ostatnich 3 tygodni wychodzi około {estimate, number, ::group-off} kcal dziennie, o {difference, number, ::group-off} kcal {more, select, true {więcej} other {mniej}} niż liczy wzór. Cel dzienny byłby {corrected, number, ::group-off} kcal zamiast {target, number, ::group-off}.",
+    "note": "To tylko propozycja. Plany już ułożone zostają przy swoim celu.",
+    "accept": "Przyjmij",
+    "later": "Nie teraz",
+    "kept": "Cel uwzględnia poprawkę z rzeczywistego wydatku: {correction} kcal dziennie.",
+    "drop": "Usuń poprawkę",
+    "errAct": "Nie udało się zapisać decyzji."
   },
   "recipeModal": {
     "title": "Szczegóły przepisu",

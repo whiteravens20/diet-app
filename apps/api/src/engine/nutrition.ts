@@ -80,6 +80,11 @@ export interface CalorieEngineInput {
   manualCalorieTarget: number | null;
   /** Whether a profile that is under 18 or underweight has said it understands the risk of losing weight. */
   riskAcknowledged: boolean;
+  /**
+   * The correction of the formula's maintenance a profile accepted from its real expenditure, in kcal a
+   * day (`Expenditure`); nothing where it accepted none.
+   */
+  expenditureCorrection?: number;
 }
 
 /** The most of maintenance a pace of loss may take away each day. */
@@ -232,7 +237,10 @@ export function filledMacros(calories: number, known: Partial<Macros>, split: Ma
  */
 export function calculateCalories(input: CalorieEngineInput): CalorieCalculation {
   const bmr = calculateBmr(input);
-  const maintenance = calculateMaintenance(bmr, input.activityLevel);
+  // The formula's maintenance, moved by what the diary and the weights showed the body really uses, where
+  // the profile accepted that.
+  const maintenance =
+    calculateMaintenance(bmr, input.activityLevel) + (input.expenditureCorrection ?? 0);
   const requestedDeficit = deficitForWeeklyTarget(input.weeklyLossTarget);
   const floor = safetyFloor(input.sex);
   const manual = input.manualCalorieTarget;

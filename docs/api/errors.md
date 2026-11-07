@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 185 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 186 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -55,6 +55,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `EMAIL_TAKEN` | 400, 409 | That email is already registered. | Ten adres e-mail jest już zarejestrowany. |
 | `EMPTY_SET` | 400 | This favourite set has no slots — add at least one before applying. | Ten zestaw ulubionych jest pusty — dodaj do niego co najmniej jeden posiłek, zanim go zastosujesz. |
 | `EMPTY_UPDATE` | 400 | Nothing to update. | Brak zmian do zapisania. |
+| `EXPENDITURE_NOTHING_PROPOSED` | 409 | No correction of the target is proposed for this profile now. | Dla tego profilu nie ma teraz propozycji poprawki celu. |
 | `FAVORITE_LIMIT_REACHED` | 409 | This profile already has as many marked recipes as it can hold. Remove a mark first. | Ten profil ma już tyle oznaczonych przepisów, ile może mieć. Najpierw usuń jedno oznaczenie. |
 | `FAVORITE_NOT_FOUND` | 404 | That recipe is not marked for this profile. | Ten przepis nie jest oznaczony dla tego profilu. |
 | `FAVORITE_SET_ALLERGEN_CONFLICT` | 400 | This favourite set contains a recipe with an allergen this profile avoids — it can't be applied. | Ten zestaw ulubionych zawiera przepis z alergenem, którego ten profil unika — nie można go zastosować. |

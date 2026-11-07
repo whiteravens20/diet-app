@@ -92,8 +92,14 @@ const PROFILE = {
   weeklyLossTarget: true,
   manualCalorieTarget: true,
   riskAcknowledgedAt: true,
+  expenditureCorrectionKcal: true,
   preferences: {
-    select: { saltAtMost: true, fiberAtLeast: true, saturatedFatAtMost: true, sugarsAtMost: true },
+    select: {
+      saltAtMost: true,
+      fiberAtLeast: true,
+      saturatedFatAtMost: true,
+      sugarsAtMost: true,
+    },
   },
 } as const;
 type DiaryProfile = Prisma.ProfileGetPayload<{ select: typeof PROFILE }>;
@@ -144,7 +150,9 @@ export class DiaryService {
           planId: true,
           calorieTarget: true,
           overrides: true,
-          plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
+          plan: {
+            select: { dietType: true, macroSplit: true, calorieTarget: true },
+          },
           meals: {
             select: {
               id: true,
@@ -263,7 +271,9 @@ export class DiaryService {
           date: true,
           calorieTarget: true,
           overrides: true,
-          plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
+          plan: {
+            select: { dietType: true, macroSplit: true, calorieTarget: true },
+          },
           meals: {
             where: { eatenAt: { not: null } },
             select: {
@@ -377,7 +387,9 @@ export class DiaryService {
     id: string,
     change: UpdateDiaryEntryRequest,
   ): Promise<DiaryEntry> {
-    const row = await this.prisma.diaryEntry.findFirst({ where: { id, profile: { userId } } });
+    const row = await this.prisma.diaryEntry.findFirst({
+      where: { id, profile: { userId } },
+    });
     if (!row) throw entryNotFound();
     if (change.productId !== undefined) return this.toOwnProduct(userId, locale, row, change);
     const inAmount = row.kind === 'ingredient' || row.kind === 'product';
@@ -418,14 +430,22 @@ export class DiaryService {
   private async toOwnProduct(
     userId: string,
     locale: Locale,
-    row: { id: string; profileId: string; date: Date; kind: string; quantity: number | null },
+    row: {
+      id: string;
+      profileId: string;
+      date: Date;
+      kind: string;
+      quantity: number | null;
+    },
     change: UpdateDiaryEntryRequest,
   ): Promise<DiaryEntry> {
     if (row.kind !== 'product')
       throw refused('productId', 'Only an entry of a product takes another product.');
     if (change.servings !== undefined)
       throw refused('servings', 'An entry of a product takes a quantity, not servings.');
-    const own = await this.prisma.ownProduct.findFirst({ where: { id: change.productId, userId } });
+    const own = await this.prisma.ownProduct.findFirst({
+      where: { id: change.productId, userId },
+    });
     if (!own) {
       throw new NotFoundException({
         error: 'PRODUCT_NOT_FOUND',
@@ -616,7 +636,10 @@ export class DiaryService {
       select: PROFILE,
     });
     if (!profile || profile.userId !== userId)
-      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+      throw new NotFoundException({
+        error: 'PROFILE_NOT_FOUND',
+        message: 'Profile not found.',
+      });
     return profile;
   }
 
@@ -659,7 +682,9 @@ export class DiaryService {
     adding: number,
   ): Promise<void> {
     await holdProfile(tx, profileId);
-    const held = await tx.diaryEntry.count({ where: { profileId, date: new Date(date) } });
+    const held = await tx.diaryEntry.count({
+      where: { profileId, date: new Date(date) },
+    });
     if (held + adding > MAX_DIARY_ENTRIES_A_DAY) {
       throw new ConflictException({
         error: 'DIARY_DAY_FULL',
@@ -678,7 +703,11 @@ export class DiaryService {
     planDay: {
       calorieTarget: number;
       overrides: unknown;
-      plan: { dietType: DiaryProfile['dietType']; macroSplit: unknown; calorieTarget: number };
+      plan: {
+        dietType: DiaryProfile['dietType'];
+        macroSplit: unknown;
+        calorieTarget: number;
+      };
     } | null,
   ): { target: DiaryDay['target']; split: Macros } {
     if (planDay) {
@@ -695,7 +724,11 @@ export class DiaryService {
     const input = calorieInputOf(profile);
     const calculation = calculateCalories(input);
     return {
-      target: { calories: calculation.dailyTarget, ...calculation.targetMacros, from: 'profile' },
+      target: {
+        calories: calculation.dailyTarget,
+        ...calculation.targetMacros,
+        from: 'profile',
+      },
       split: macroSplitOf(input.dietType, input.customMacroSplit),
     };
   }
@@ -711,7 +744,9 @@ export class DiaryService {
       select: {
         calorieTarget: true,
         overrides: true,
-        plan: { select: { dietType: true, macroSplit: true, calorieTarget: true } },
+        plan: {
+          select: { dietType: true, macroSplit: true, calorieTarget: true },
+        },
       },
     });
     return this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
@@ -746,7 +781,10 @@ export class DiaryService {
         },
       });
       if (!recipe)
-        throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+        throw new NotFoundException({
+          error: 'RECIPE_NOT_FOUND',
+          message: 'Recipe not found.',
+        });
       return {
         kind: 'recipe',
         recipeId: req.recipeId,
@@ -814,7 +852,9 @@ export class DiaryService {
     }
 
     if (req.kind === 'product') {
-      const base = await this.prisma.product.findUnique({ where: { id: req.productId } });
+      const base = await this.prisma.product.findUnique({
+        where: { id: req.productId },
+      });
       // Not the base's: a product of the account's own, which nobody else's request can reach.
       const own = base
         ? null
