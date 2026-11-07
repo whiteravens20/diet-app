@@ -5,12 +5,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { dayAfter, WEEK_DAYS, type Profile, type WeekSummary } from '@diet-app/shared';
+import type { Profile, WeekSummary } from '@diet-app/shared';
+import { WEEK_DAYS } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
+import { dayAfter } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 

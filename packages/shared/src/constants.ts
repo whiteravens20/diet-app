@@ -191,3 +191,22 @@ export const MOST_TRANSLATIONS_PER_RUN = 200;
  * plan is still made and repeats a dish more often than a profile asks.
  */
 export const VARIETY_DEPTH = 3;
+
+/** What the water card's buttons add, in millilitres: a glass, a can and a bottle. */
+export const WATER_AMOUNTS_ML = [250, 330, 500] as const;
+
+/** The water a day that a profile aims at unless it names its own, in millilitres. */
+export const DEFAULT_WATER_TARGET_ML = 2000;
+
+/** The bounds of a profile's own target of water a day, in millilitres. */
+export const MIN_WATER_TARGET_ML = 250;
+export const MAX_WATER_TARGET_ML = 10_000;
+
+/** The most water one entry adds, in millilitres. */
+export const MAX_WATER_ENTRY_ML = 5000;
+
+/** The most entries a day of a profile holds. */
+export const MAX_WATER_ENTRIES_A_DAY = 50;
+
+/** The days of a week in sum: the full days before today, today left out. */
+export const WEEK_DAYS = 7;

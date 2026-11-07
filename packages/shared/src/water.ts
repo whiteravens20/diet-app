@@ -1,23 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
+import { MAX_WATER_ENTRY_ML } from './constants.js';
 import { CalendarDay } from './enums.js';
-
-/** What the water card's buttons add, in millilitres: a glass, a can and a bottle. */
-export const WATER_AMOUNTS_ML = [250, 330, 500] as const;
-
-/** The water a day that a profile aims at unless it names its own, in millilitres. */
-export const DEFAULT_WATER_TARGET_ML = 2000;
-
-/** The bounds of a profile's own target of water a day, in millilitres. */
-export const MIN_WATER_TARGET_ML = 250;
-export const MAX_WATER_TARGET_ML = 10_000;
-
-/** The most water one entry adds, in millilitres. */
-export const MAX_WATER_ENTRY_ML = 5000;
-
-/** The most entries a day of a profile holds. */
-export const MAX_WATER_ENTRIES_A_DAY = 50;
 
 /**
  * Water drunk on a day of the profile's calendar (`POST /water`). An entry

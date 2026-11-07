@@ -6,12 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import {
-  MAX_WATER_ENTRY_ML,
-  WATER_AMOUNTS_ML,
-  type Profile,
-  type WaterDay,
-} from '@diet-app/shared';
+import type { Profile, WaterDay } from '@diet-app/shared';
+import { MAX_WATER_ENTRY_ML, WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';

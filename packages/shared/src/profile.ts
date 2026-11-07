@@ -20,7 +20,7 @@ import {
   NO_LABEL_LIMITS,
 } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
-import { DEFAULT_WATER_TARGET_ML, MAX_WATER_TARGET_ML, MIN_WATER_TARGET_ML } from './water.js';
+import { DEFAULT_WATER_TARGET_ML, MAX_WATER_TARGET_ML, MIN_WATER_TARGET_ML } from './constants.js';
 
 /**
  * How many profiles an account may hold is for whoever runs an instance to

@@ -1,11 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
+import { WEEK_DAYS } from './constants.js';
 import { CalendarDay } from './enums.js';
 import { Nutrition } from './nutrition.js';
-
-/** The days of a week in sum: the full days before today, today left out. */
-export const WEEK_DAYS = 7;
 
 /** A day that counts comes within this share of its target to be "on target". */
 export const WITHIN_TARGET_SHARE = 0.1;
