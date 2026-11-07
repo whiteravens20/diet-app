@@ -25,11 +25,13 @@ vi.mock('@/app/providers', () => ({
 /** The account as its session holds it, with the language, theme and palette given; its language its owner's unless said otherwise. */
 function anAccount(
   chosen: Pick<SessionUser, 'locale' | 'theme' | 'palette'> &
-    Partial<Pick<SessionUser, 'localeChosen'>>,
+    Partial<Pick<SessionUser, 'localeChosen' | 'timeZone'>>,
 ): SessionUser {
   return {
     id: 'b3c1e2d4-5f6a-4b7c-8d9e-0f1a2b3c4d5e',
     localeChosen: true,
+    // The zone this browser is in, unless a test says otherwise.
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     ...chosen,
   } as SessionUser;
 }
@@ -118,6 +120,29 @@ describe("the account's own look on a browser it signs in on", () => {
     await vi.waitFor(() => expect(client.getQueryData(['session'])).toEqual(saved));
     expect(document.cookie).not.toContain('NEXT_LOCALE=pl');
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("saves this device's time zone as the account's where it is another, with the page's language where that is saved too", async () => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const patch = vi
+      .spyOn(api, 'patch')
+      .mockResolvedValue(anAccount({ locale: 'en', theme: 'system', palette: 'default' }));
+
+    onAPage(anAccount({ locale: 'en', theme: 'system', palette: 'default', timeZone: null }));
+    expect(patch).toHaveBeenCalledExactlyOnceWith('/users/me', { timeZone: zone });
+
+    patch.mockClear();
+    onAPage(
+      anAccount({
+        locale: 'en',
+        localeChosen: false,
+        theme: 'system',
+        palette: 'default',
+        timeZone: 'Pacific/Chatham',
+      }),
+      'pl',
+    );
+    expect(patch).toHaveBeenCalledExactlyOnceWith('/users/me', { locale: 'pl', timeZone: zone });
   });
 
   it('does not load the page again where the browser keeps no cookie, which would load it for ever', () => {

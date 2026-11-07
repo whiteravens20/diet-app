@@ -3,6 +3,7 @@
 import * as z from './zod.js';
 import { AuthUser, emailAddress, newPassword } from './auth.js';
 import { LOCALES, PALETTES } from './options.js';
+import { TimeZone } from './weight.js';
 
 /**
  * Supported UI locales. The single source of truth for "which locales the app
@@ -70,6 +71,8 @@ export const SessionUser = AuthUser.extend({
   aiMode: AiMode,
   /** Null until the account chooses: a client then goes by where its reader is (pounds in the few countries that weigh in them). */
   weightUnit: WeightUnit.nullable(),
+  /** The time zone the account's clients last sent, whose hours its reminders keep; null until one sends it. */
+  timeZone: TimeZone.nullable(),
 });
 export type SessionUser = z.infer<typeof SessionUser>;
 
@@ -81,6 +84,8 @@ export const UpdateUserSettings = z.object({
   aiMode: AiMode.optional(),
   /** Null gives the choice back to the client. */
   weightUnit: WeightUnit.nullable().optional(),
+  /** The time zone of the device, as a client sends it when it differs from the account's. */
+  timeZone: TimeZone.optional(),
 });
 export type UpdateUserSettings = z.infer<typeof UpdateUserSettings>;
 

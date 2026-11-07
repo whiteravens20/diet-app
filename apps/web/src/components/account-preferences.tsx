@@ -9,6 +9,7 @@ import type { SessionUser } from '@diet-app/shared';
 import { usePalette } from '@/app/providers';
 import { api } from '@/lib/api';
 import { LOCALE_COOKIE } from '@/lib/locale';
+import { readersZone } from '@/lib/use-format';
 
 /**
  * Puts the account's language, theme and palette on this browser once the account
@@ -19,7 +20,9 @@ import { LOCALE_COOKIE } from '@/lib/locale';
  *
  * An account made before its language was kept holds English whatever its owner
  * reads (`localeChosen` is false): it keeps the language of this page instead,
- * which is saved as the account's and goes with it from then on.
+ * which is saved as the account's and goes with it from then on. The time zone
+ * of this device is saved as the account's when it differs, so that its
+ * reminders come at the hours of where it is.
  */
 export function AccountPreferences() {
   const queryClient = useQueryClient();
@@ -37,13 +40,20 @@ export function AccountPreferences() {
     done.current = true;
     if (me.palette !== palette) setPalette(me.palette);
     if (me.theme !== theme) setTheme(me.theme);
-    if (!me.localeChosen) {
-      // Tried again on the next page when it does not get through.
+    // The device's time zone, whose hours the account's reminders keep, and the page's language for an
+    // account that never chose one: saved together, and tried again on the next page when it does not get through.
+    const zone = readersZone();
+    const changes = {
+      ...(me.localeChosen ? {} : { locale }),
+      ...(me.timeZone === zone ? {} : { timeZone: zone }),
+    };
+    if (Object.keys(changes).length > 0) {
       void api
-        .patch<SessionUser>('/users/me', { locale })
+        .patch<SessionUser>('/users/me', changes)
         .then((saved) => queryClient.setQueryData(['session'], saved))
         .catch(() => undefined);
-    } else if (me.locale !== locale) {
+    }
+    if (me.localeChosen && me.locale !== locale) {
       document.cookie = `${LOCALE_COOKIE}=${me.locale}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
       // The server renders the page in the language of the cookie, so the page is
       // loaded again in the account's. Not where the browser keeps no cookie: the

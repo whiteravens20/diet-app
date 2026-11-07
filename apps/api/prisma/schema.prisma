@@ -55,6 +55,10 @@ model User {
   // The unit the account reads and types a body weight in: "kg" or "lb". Null
   // until it chooses; a client then goes by where its reader is.
   weightUnit     String?
+  // The time zone of the account's device, as IANA names it ("Europe/Warsaw"),
+  // sent by its clients: the hour a reminder comes at is the account's. Null
+  // until a client sends it; no reminder that keeps an hour comes before.
+  timeZone       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

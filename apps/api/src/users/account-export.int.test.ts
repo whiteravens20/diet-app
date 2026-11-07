@@ -178,6 +178,7 @@ describe('everything an account holds, as one file', () => {
       palette: 'default',
       aiMode: 'none',
       weightUnit: null,
+      timeZone: null,
       createdAt: expect.any(String),
       secondFactorSince: null,
       operatorAiApprovedAt: null,

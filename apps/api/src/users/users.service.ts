@@ -9,12 +9,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type {
-  ChangeEmailRequest,
-  ChangePasswordRequest,
-  DeleteAccountRequest,
-  SessionUser,
-  UpdateUserSettings,
+import {
+  TimeZone,
+  type ChangeEmailRequest,
+  type ChangePasswordRequest,
+  type DeleteAccountRequest,
+  type SessionUser,
+  type UpdateUserSettings,
 } from '@diet-app/shared';
 import { Passwords } from '../common/passwords.js';
 import {
@@ -103,6 +104,7 @@ export class UsersService {
         ...(dto.palette !== undefined ? { palette: dto.palette } : {}),
         ...(dto.aiMode !== undefined ? { aiMode: dto.aiMode } : {}),
         ...(dto.weightUnit !== undefined ? { weightUnit: dto.weightUnit } : {}),
+        ...(dto.timeZone !== undefined ? { timeZone: dto.timeZone } : {}),
       },
     });
     return this.toSessionUser(user);
@@ -250,6 +252,7 @@ export class UsersService {
     palette: string;
     aiMode: string;
     weightUnit: string | null;
+    timeZone: string | null;
   }): SessionUser {
     return {
       id: user.id,
@@ -263,6 +266,12 @@ export class UsersService {
       palette: storedPalette(user.palette),
       aiMode: storedAiMode(user.aiMode),
       weightUnit: storedWeightUnit(user.weightUnit),
+      timeZone: storedTimeZone(user.timeZone),
     };
   }
+}
+
+/** A time zone as it was kept, which this runtime knows; null for one it does not (or for none). */
+function storedTimeZone(zone: string | null): string | null {
+  return zone !== null && TimeZone.safeParse(zone).success ? zone : null;
 }

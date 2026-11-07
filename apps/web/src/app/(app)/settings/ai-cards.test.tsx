@@ -23,6 +23,7 @@ const me = (aiMode: AiMode): SessionUser => ({
   palette: 'default',
   aiMode,
   weightUnit: null,
+  timeZone: null,
 });
 
 const status = (over: Partial<AiQuotaStatus> = {}): AiQuotaStatus => ({

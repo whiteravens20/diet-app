@@ -10189,8 +10189,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "maxLength": 64
+              "$ref": "#/components/schemas/TimeZone"
             }
           }
         ],
@@ -22611,6 +22610,16 @@
                 "type": "null"
               }
             ]
+          },
+          "timeZone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeZone"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -22624,7 +22633,8 @@
           "theme",
           "palette",
           "aiMode",
-          "weightUnit"
+          "weightUnit",
+          "timeZone"
         ],
         "additionalProperties": false
       },
@@ -23445,6 +23455,10 @@
           "system"
         ]
       },
+      "TimeZone": {
+        "type": "string",
+        "maxLength": 64
+      },
       "TranslationGenerateSpec": {
         "type": "object",
         "properties": {
@@ -23578,6 +23592,9 @@
                 "type": "null"
               }
             ]
+          },
+          "timeZone": {
+            "$ref": "#/components/schemas/TimeZone"
           }
         }
       },

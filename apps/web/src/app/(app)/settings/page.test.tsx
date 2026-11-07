@@ -29,6 +29,7 @@ const ME: SessionUser = {
   palette: 'default',
   aiMode: 'none',
   weightUnit: null,
+  timeZone: null,
 };
 
 function shown(search = '') {

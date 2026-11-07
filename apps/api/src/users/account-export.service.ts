@@ -68,6 +68,8 @@ export class AccountExportService {
       palette: account.palette,
       aiMode: account.aiMode,
       weightUnit: account.weightUnit,
+      // The zone the account's clients last sent, whose hours its reminders keep.
+      timeZone: account.timeZone,
       createdAt: user.createdAt.toISOString(),
       // Whether sign-in takes a second step, and since when. Its secret and its recovery codes stay where they are.
       secondFactorSince: secondFactor?.createdAt.toISOString() ?? null,

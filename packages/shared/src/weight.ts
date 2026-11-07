@@ -71,6 +71,14 @@ export const WeightListQuery = z.object({
 });
 export type WeightListQuery = z.infer<typeof WeightListQuery>;
 
+/** A time zone as IANA names it (`Europe/Warsaw`), one this runtime knows. */
+export const TimeZone = z
+  .string()
+  .max(64)
+  .refine((zone) => isTimeZone(zone), {
+    message: 'Must be a time zone as IANA names it, such as Europe/Warsaw.',
+  });
+
 /** Whether this runtime knows `zone` as a time zone, as IANA names one. */
 function isTimeZone(zone: string): boolean {
   try {
@@ -90,9 +98,7 @@ function isTimeZone(zone: string): boolean {
 export const WeightDaysQuery = z.object({
   profileId: z.string().uuid(),
   since: z.string().datetime().optional(),
-  timeZone: z.string().max(64).refine(isTimeZone, {
-    message: 'Must be a time zone as IANA names it, such as Europe/Warsaw.',
-  }),
+  timeZone: TimeZone,
 });
 export type WeightDaysQuery = z.infer<typeof WeightDaysQuery>;
 
