@@ -192,8 +192,8 @@ export const MOST_TRANSLATIONS_PER_RUN = 200;
  */
 export const VARIETY_DEPTH = 3;
 
-/** What the water card's buttons add, in millilitres: a glass, a can and a bottle. */
-export const WATER_AMOUNTS_ML = [250, 330, 500] as const;
+/** What the buttons of the water card and of a reminder of water add, in millilitres: a small glass, a glass and a can. */
+export const WATER_AMOUNTS_ML = [200, 250, 330] as const;
 
 /** The water a day that a profile aims at unless it names its own, in millilitres. */
 export const DEFAULT_WATER_TARGET_ML = 2000;

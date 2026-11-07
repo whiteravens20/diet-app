@@ -79,11 +79,11 @@ describe("the water of a profile's day", () => {
     expect(api.get).toHaveBeenCalledWith(`/water?profileId=${PROFILE.id}&day=${DAY}`);
   });
 
-  it('adds 250, 330 or 500 ml at a press, and says the day as the API answers it', async () => {
+  it('adds 200, 250 or 330 ml at a press, and says the day as the API answers it', async () => {
     const { post } = shown(aDay());
     post.mockResolvedValue(aDay({ ml: 830, entries: 3 }));
 
-    for (const ml of [250, 330, 500]) {
+    for (const ml of [200, 250, 330]) {
       await userEvent.click(await screen.findByRole('button', { name: spaced(`+${ml} ml`) }));
       expect(post).toHaveBeenLastCalledWith('/water', { profileId: PROFILE.id, day: DAY, ml });
     }

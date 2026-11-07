@@ -64,7 +64,8 @@ describe('the water a profile drinks', () => {
 
     for (const ml of WATER_AMOUNTS_ML) await add(ml);
     const after = (await add(120)).body as WaterDay;
-    expect(after).toMatchObject({ day: today, ml: 1200, target: 2000, entries: 4 });
+    const pressed = WATER_AMOUNTS_ML.reduce((sum, ml) => sum + ml, 0);
+    expect(after).toMatchObject({ day: today, ml: pressed + 120, target: 2000, entries: 4 });
     expect(after.last).toMatchObject({ ml: 120 });
     // Another day is a day of its own.
     expect((await dayOf(dayAfter(today, -1))).ml).toBe(0);
@@ -105,7 +106,7 @@ describe('the water a profile drinks', () => {
     expect(days.map((d) => d.day)).toEqual(
       Array.from({ length: 7 }, (_, at) => dayAfter(today, at - 6)),
     );
-    expect(days.map((d) => d.ml)).toEqual([250, 0, 0, 0, 830, 0, 0]);
+    expect(days.map((d) => d.ml)).toEqual([GLASS, 0, 0, 0, 830, 0, 0]);
     expect((await dayOf(dayAfter(today, -2))).days.at(-1)).toEqual({
       day: dayAfter(today, -2),
       ml: 830,
