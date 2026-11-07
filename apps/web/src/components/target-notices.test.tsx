@@ -7,6 +7,7 @@ import type { CalorieCalculation } from '@diet-app/shared';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { TargetNotices } from './target-notices';
+import { plain as asRead } from '@/testing/spaces';
 
 const plain: CalorieCalculation = {
   bmr: 1780,
@@ -32,7 +33,7 @@ function told(calories: CalorieCalculation, locale: 'en' | 'pl' = 'en'): string[
       <TargetNotices calories={calories} />
     </NextIntlClientProvider>,
   );
-  const lines = screen.queryAllByRole('listitem').map((item) => item.textContent ?? '');
+  const lines = screen.queryAllByRole('listitem').map((item) => asRead(item.textContent));
   unmount();
   return lines;
 }
@@ -132,7 +133,7 @@ describe('what a user is told about their calorie target', () => {
           <TargetNotices calories={calories} risk={false} />
         </NextIntlClientProvider>,
       );
-      const lines = screen.queryAllByRole('listitem').map((item) => item.textContent ?? '');
+      const lines = screen.queryAllByRole('listitem').map((item) => asRead(item.textContent));
       unmount();
       return lines;
     };

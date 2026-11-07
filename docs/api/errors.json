@@ -986,8 +986,8 @@
       429
     ],
     "messages": {
-      "en": "You can write or change at most 50 products in 24 hours.",
-      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
+      "en": "You can write or change at most 50 products in 24 hours.",
+      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
     }
   },
   "OWN_PRODUCT_LIMIT": {
@@ -995,8 +995,8 @@
       409
     ],
     "messages": {
-      "en": "An account holds at most 500 products of its own.",
-      "pl": "Konto może mieć najwyżej 500 własnych produktów."
+      "en": "An account holds at most 500 products of its own.",
+      "pl": "Konto może mieć najwyżej 500 własnych produktów."
     }
   },
   "OWN_PRODUCT_NOT_FOUND": {
@@ -1022,8 +1022,8 @@
       429
     ],
     "messages": {
-      "en": "You can send at most 10 products to the base in 24 hours.",
-      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
+      "en": "You can send at most 10 products to the base in 24 hours.",
+      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
     }
   },
   "OWN_RECIPE_DAILY_LIMIT": {
@@ -1166,8 +1166,8 @@
       409
     ],
     "messages": {
-      "en": "The last import of these countries began less than 24 hours ago.",
-      "pl": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
+      "en": "The last import of these countries began less than 24 hours ago.",
+      "pl": "Ostatni import tych krajów zaczął się mniej niż 24 godziny temu."
     }
   },
   "PRODUCT_LOOKUPS_BUSY": {
@@ -1184,7 +1184,7 @@
       429
     ],
     "messages": {
-      "en": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
+      "en": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
       "pl": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej."
     }
   },

@@ -11,6 +11,7 @@ import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import CalculatorPage from './page';
+import { plain } from '@/testing/spaces';
 
 const texts = messages.calculator;
 const fields = messages.profile;
@@ -210,7 +211,7 @@ describe('the calculator', () => {
   it('tells somebody for whom losing weight is a risk what the figures show until they say they understand it', async () => {
     const { asked } = await open([aProfile('Anna', { age: 16 })]);
 
-    expect(screen.getByText(fields.risk.minor)).toBeInTheDocument();
+    expect(screen.getByText(plain(fields.risk.minor))).toBeInTheDocument();
     expect(screen.getByText(fields.risk.heldHere)).toBeInTheDocument();
     await screen.findByText('2209 kcal');
     expect(asked()).toMatchObject({ acknowledgeRisk: false });

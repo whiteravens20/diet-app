@@ -33,6 +33,13 @@ const read = (file: string): Tree =>
  */
 const LOOSE_DOT = /[^\s] ·|\{\s*['"` ]{1,3}\s*\}\s*·/;
 
+/**
+ * A number of a text with a plain space before the word or sign after it, which a narrow screen
+ * may leave alone at the end of a line: a counted one (`#`), an argument written as a number, or
+ * one written out.
+ */
+const LOOSE_COUNT = /(#|\{\w+, number[^{}]*\}|(?<![\p{L}\p{N}.,])\d+(?:[.,]\d+)?) (?=[\p{L}%])/u;
+
 /** The code without its comments, whose examples show a line as the eye reads it. */
 const withoutComments = (code: string): string =>
   code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
@@ -51,6 +58,25 @@ describe('a line of figures joined by dots', () => {
       expect(loose).toEqual([]);
     },
   );
+
+  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
+    'never parts a number of %s from the word after it',
+    (file) => {
+      const loose = [...texts(read(file))]
+        .filter(([, text]) => LOOSE_COUNT.test(text))
+        .map(([key]) => key);
+      expect(loose).toEqual([]);
+    },
+  );
+
+  it('finds a number apart from its word, whether counted, an argument or written out', () => {
+    expect(LOOSE_COUNT.test('{days, plural, one {# dnia} other {# dni}}')).toBe(true);
+    expect(LOOSE_COUNT.test('W celu: {reached, number, ::group-off} z 7 dni')).toBe(true);
+    expect(LOOSE_COUNT.test('Co najmniej 12 znaków')).toBe(true);
+    expect(LOOSE_COUNT.test('Cel: 1,5 l')).toBe(true);
+    expect(LOOSE_COUNT.test('Co najmniej 12\u00a0znaków, {n, number}\u00a0dni, 7 · 8')).toBe(false);
+    expect(LOOSE_COUNT.test('Krok2 i x1 z {name}')).toBe(false);
+  });
 
   it('is joined in the code with the held dot, not with a plain space before it', () => {
     const SOURCE = path.resolve(process.cwd(), 'src');
@@ -77,6 +103,20 @@ describe('a line of figures joined by dots', () => {
   type Say = (key: string, values: Record<string, string | number>) => string;
   const say = (locale: 'pl' | 'en'): Say =>
     createTranslator({ locale, messages: read(`${locale}.json`) }) as unknown as Say;
+
+  it('keeps a count with its days in the lines of the week and of the water', () => {
+    const week = { average: '1,67 l', target: '2 l', reached: 3, counted: 6 };
+    expect(pieces(say('pl')('weekSummary.water', week)).slice(-2)).toEqual(['3 z', '6 dni.']);
+    expect(pieces(say('pl')('weekSummary.within', { within: 0, counted: 7 })).slice(-1)).toEqual([
+      '7 dni',
+    ]);
+    expect(pieces(say('pl')('water.inTarget', { reached: 3, days: 7 })).slice(-1)).toEqual([
+      '7 dni',
+    ]);
+    expect(pieces(say('en')('water.inTarget', { reached: 1, days: 1 })).slice(-1)).toEqual([
+      '1 day',
+    ]);
+  });
 
   it('breaks the average day of a plan only after a dot, while its opening words may break', () => {
     const figures = {

@@ -7,6 +7,7 @@ import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { ApiClientError } from './http';
 import { useDraftErrorText, useSkipReasonText } from './use-draft-error';
+import { plain } from '@/testing/spaces';
 
 function Shown({ error }: { error: unknown }) {
   const errorText = useDraftErrorText();
@@ -20,7 +21,7 @@ function told(error: unknown, locale: 'en' | 'pl' = 'en'): string {
       <Shown error={error} />
     </NextIntlClientProvider>,
   );
-  const text = screen.getByRole('paragraph').textContent ?? '';
+  const text = plain(screen.getByRole('paragraph').textContent);
   unmount();
   return text;
 }
@@ -115,7 +116,7 @@ function heldBack(reason: string, locale: 'en' | 'pl' = 'en'): string {
       <Reason reason={reason} />
     </NextIntlClientProvider>,
   );
-  const text = screen.getByRole('paragraph').textContent ?? '';
+  const text = plain(screen.getByRole('paragraph').textContent);
   unmount();
   return text;
 }

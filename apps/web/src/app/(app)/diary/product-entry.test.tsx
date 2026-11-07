@@ -12,6 +12,7 @@ import { aPublicConfig } from '@/testing/public-config';
 import en from '../../../../messages/en.json';
 import pl from '../../../../messages/pl.json';
 import { AddEntryDialog } from './add-entry-dialog';
+import { plain, spaced } from '@/testing/spaces';
 
 const texts = en.diary;
 
@@ -317,7 +318,9 @@ describe('a product in the window that adds to a diary', () => {
       );
       const { window, user, field } = await openOnProducts();
       await user.type(field, '5900512320359{Enter}');
-      expect(await window.findByRole('alert')).toHaveTextContent(en.errors.PRODUCT_LOOKUPS_USED_UP);
+      expect(await window.findByRole('alert')).toHaveTextContent(
+        plain(en.errors.PRODUCT_LOOKUPS_USED_UP),
+      );
     });
   });
 
@@ -375,7 +378,7 @@ describe('a product in the window that adds to a diary', () => {
     it('goes to a serving or the whole pack with a press', async () => {
       const { window, user } = await picked();
       const field = window.getByRole('spinbutton', { name: /ml/ });
-      await user.click(window.getByRole('button', { name: '1 serving (250 ml)' }));
+      await user.click(window.getByRole('button', { name: spaced('1 serving (250 ml)') }));
       expect(field).toHaveValue(250);
       await user.click(window.getByRole('button', { name: 'Whole pack (1000 ml)' }));
       expect(field).toHaveValue(1000);

@@ -7,6 +7,7 @@ import type { DisplayAmount, DisplayUnit } from '@diet-app/shared';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { useAmount, useShownAmount } from './ingredient-format';
+import { plain } from '@/testing/spaces';
 
 function Shown({ quantity, unit }: { quantity: number; unit: DisplayUnit }) {
   return <p>{useAmount()(quantity, unit)}</p>;
@@ -19,7 +20,7 @@ function shown(quantity: number, unit: DisplayUnit, locale: 'en' | 'pl'): string
       <Shown quantity={quantity} unit={unit} />
     </NextIntlClientProvider>,
   );
-  const text = screen.getByRole('paragraph').textContent ?? '';
+  const text = plain(screen.getByRole('paragraph').textContent);
   unmount();
   return text;
 }
@@ -54,7 +55,7 @@ describe('an amount shown in pieces', () => {
         <WithWeight amount={amount} />
       </NextIntlClientProvider>,
     );
-    const text = screen.getByRole('paragraph').textContent ?? '';
+    const text = plain(screen.getByRole('paragraph').textContent);
     unmount();
     return text;
   };

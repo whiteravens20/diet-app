@@ -340,7 +340,7 @@ describe('the profile the steps make', () => {
     await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
 
     expect(sent()).toBeUndefined();
-    expect(screen.getByRole('alert')).toHaveTextContent(texts.splitSumRefused);
+    expect(screen.getByRole('alert')).toHaveTextContent(plain(texts.splitSumRefused));
   });
 
   it('says what the API refused, and stays where it was', async () => {
@@ -368,7 +368,7 @@ describe('somebody for whom losing weight is a risk, on the steps of a first pro
     await aBody({ age: '16' });
     await next();
 
-    expect(screen.getByText(texts.risk.minor)).toBeInTheDocument();
+    expect(screen.getByText(plain(texts.risk.minor))).toBeInTheDocument();
     expect(screen.getByText(texts.risk.held)).toBeInTheDocument();
     await next();
     await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));

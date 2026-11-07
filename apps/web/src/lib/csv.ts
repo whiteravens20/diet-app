@@ -29,8 +29,10 @@ function written(cell: Cell, dialect: CsvDialect): string {
     return Number.isFinite(cell)
       ? String(Math.round(cell * 100) / 100).replace('.', dialect.decimal)
       : '';
+  // A file of values is no narrow screen: what reads it next parts words at plain spaces, so a held one is written plain.
+  const plain = cell.replaceAll('\u00a0', ' ');
   // A name somebody typed is text, whatever it begins with: with an apostrophe before it a spreadsheet does not work it out.
-  const text = STARTS_A_FORMULA.test(cell) ? `'${cell}` : cell;
+  const text = STARTS_A_FORMULA.test(plain) ? `'${plain}` : plain;
   return /["\r\n]/.test(text) || text.includes(dialect.separator) || text !== text.trim()
     ? `"${text.replaceAll('"', '""')}"`
     : text;

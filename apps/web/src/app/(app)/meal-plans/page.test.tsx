@@ -364,7 +364,9 @@ describe('the plan page, where the catalogue is short of recipes', () => {
     supply.vegan['4'] = { level: 'thin', recipes: 2, fewerMeals: 3 };
     await renderPage(supply);
 
-    expect(screen.getByRole('status').textContent).toContain('has only 2 recipes to choose from');
+    expect(plain(screen.getByRole('status').textContent)).toContain(
+      'has only 2 recipes to choose from',
+    );
   });
 
   it('says nothing on the form when there are enough', async () => {
@@ -470,7 +472,7 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
 
     await userEvent.click(await lettingGiveWay(1));
     // The second attempt needs another limit: what was let before stays let.
-    expect((await screen.findByRole('alert')).textContent).toContain(
+    expect(plain((await screen.findByRole('alert')).textContent)).toContain(
       '2 meals would go outside: cooking time of the day.',
     );
     expect(post.mock.calls[1]![1]).toMatchObject({ allowRelaxations: ['weekly_cap'] });
@@ -1783,7 +1785,7 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
       ),
     );
 
-    expect(screen.getByRole('alert').textContent).toBe(
+    expect(plain(screen.getByRole('alert').textContent)).toBe(
       '2 meals of this plan hold something the profile has ruled out since the plan was made. Each is marked below: swap it, or make the plan again.',
     );
     for (const conflict of ['allergen', 'excluded_ingredient', 'avoided'] as const) {
@@ -2057,7 +2059,7 @@ describe('the calendar on the plan page', () => {
     await renderPage(aSupply(), [plan]);
 
     await userEvent.click(
-      await screen.findByRole('button', { name: /^Mon, Jan 5: 230 of 2000 kcal/ }),
+      await screen.findByRole('button', { name: /^Mon, Jan 5: 230\sof 2000\skcal/ }),
     );
 
     await vi.waitFor(() =>
@@ -2952,7 +2954,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/130/);
-    expect(dialog.textContent).toContain(
+    expect(plain(dialog.textContent)).toContain(
       'The original gives amounts for 1 serving, this cooking comes to 2.3 servings.',
     );
   });
@@ -2965,7 +2967,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(messages.recipeDetail.ingredients);
-    expect(dialog.textContent).toContain(
+    expect(plain(dialog.textContent)).toContain(
       'The original gives amounts for 1 serving, your meal is 1.3 servings.',
     );
   });

@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import { PlanOverviewCard } from './plan-overview-card';
+import { plain } from '@/testing/spaces';
 
 // The chart is fetched on demand and draws nothing in a DOM without a size: the figures beside it are what is tested.
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
@@ -61,7 +62,7 @@ function shown(answer: PlanOverview | null | Error) {
 
 /** What a figure of the card says: its number and the sentence under it. */
 const figure = (label: string): string =>
-  (screen.getByText(label).closest('div')?.querySelector('dd')?.textContent ?? '').trim();
+  plain(screen.getByText(label).closest('div')?.querySelector('dd')?.textContent).trim();
 
 describe('what the plan of the moment comes to, on the dashboard', () => {
   afterEach(() => {
@@ -107,7 +108,7 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
 
     const rows = within(await screen.findByRole('table', { name: texts.days })).getAllByRole('row');
     expect(
-      rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent)),
+      rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => plain(cell.textContent))),
     ).toEqual([
       ['Day', "Day's total", 'Target'],
       ['Mon, Jan 5', '1868 kcal', '1900 kcal'],

@@ -7,6 +7,7 @@ import { DietType, MealType } from '@diet-app/shared';
 import type { AdminStats } from '@/lib/admin-api';
 import messages from '../../../messages/en.json';
 import { CoverageCard } from './coverage-card';
+import { plain } from '@/testing/spaces';
 
 const coverage = Object.fromEntries(
   DietType.options.map((diet) => [
@@ -135,7 +136,7 @@ describe("the administrator's table of recipes per diet and meal", () => {
     expect(
       within(row)
         .getAllByRole('cell')
-        .map((cell) => cell.textContent),
+        .map((cell) => plain(cell.textContent)),
     ).toEqual([
       '4+2and 2 drafts waiting',
       '0+1and 1 draft waiting',

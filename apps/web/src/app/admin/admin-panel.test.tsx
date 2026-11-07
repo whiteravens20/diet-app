@@ -162,7 +162,7 @@ describe('the panel of a signed-in administrator, in parts', () => {
 
     expect(await tab(text.tabs.overview)).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('419')).toBeInTheDocument();
-    const shown = await screen.findByRole('button', { name: /231 names to judge/ });
+    const shown = await screen.findByRole('button', { name: /231\snames to judge/ });
     expect(shown).toBeInTheDocument();
     for (const line of [
       '1 rejected name waits for a new proposal',
@@ -170,7 +170,9 @@ describe('the panel of a signed-in administrator, in parts', () => {
       '16 recipes to judge',
       '2 approved recipes to ship',
     ]) {
-      expect(screen.getByRole('button', { name: new RegExp(line) })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: new RegExp(line.replaceAll(' ', '[ \\u00a0]')) }),
+      ).toBeInTheDocument();
     }
   });
 
@@ -202,7 +204,7 @@ describe('the panel of a signed-in administrator, in parts', () => {
     signedIn();
 
     // 231 + 1 + 0 names, 16 + 2 recipes.
-    const queue = await tab(/^Queue, 250 wait/);
+    const queue = await tab(/^Queue, 250\swait/);
     expect(within(queue).getByText('250')).toHaveAttribute('aria-hidden', 'true');
   });
 
@@ -236,7 +238,9 @@ describe('the panel of a signed-in administrator, in parts', () => {
     async (_what, given, line) => {
       signedIn(given);
 
-      const press = await screen.findByRole('button', { name: new RegExp(line) });
+      const press = await screen.findByRole('button', {
+        name: new RegExp(line.replaceAll(' ', '[ \\u00a0]')),
+      });
       expect(await tab(/^Catalogue/)).toHaveAccessibleName(`Catalogue, ${text.tabs.attention}`);
 
       await userEvent.click(press);

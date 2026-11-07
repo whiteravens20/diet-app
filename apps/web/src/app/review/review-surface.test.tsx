@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reviewApi } from '@/lib/review-api';
 import messages from '../../../messages/en.json';
 import { ReviewSurface } from './review-surface';
+import { spaced } from '@/testing/spaces';
 
 vi.mock('@/lib/use-config', () => ({
   useConfig: () => ({ data: { products: { offered: productsOffered, lookups: false } } }),
@@ -85,10 +86,10 @@ describe("the reviewer's page", () => {
     );
 
     expect(
-      await screen.findByRole('button', { name: `${text.kindRecipe}, 3 wait` }),
+      await screen.findByRole('button', { name: spaced(`${text.kindRecipe}, 3 wait`) }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole('button', { name: `${text.kindIngredientName}, 1 waits` }),
+      await screen.findByRole('button', { name: spaced(`${text.kindIngredientName}, 1 waits`) }),
     ).toBeInTheDocument();
   });
 

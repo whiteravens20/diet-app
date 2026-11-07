@@ -107,7 +107,7 @@ describe("a profile's week in sum", () => {
     );
 
     expect(await screen.findByText(texts.nothing)).toBeInTheDocument();
-    expect(screen.getByText(texts.trendNone)).toBeInTheDocument();
+    expect(screen.getByText(plain(texts.trendNone))).toBeInTheDocument();
   });
 
   it('goes back a week at a time in the diary, and no further forward than yesterday', async () => {

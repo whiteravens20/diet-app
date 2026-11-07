@@ -125,7 +125,7 @@ describe("the water of a profile's day", () => {
 
     expect(await screen.findByText('On target: 3 of 7 days')).toBeInTheDocument();
     expect(screen.getByTestId('water-chart')).toHaveTextContent(`7 days to ${DAY}, a line at 2000`);
-    const days = within(screen.getByRole('list', { name: /^Water of the 7 days/ }));
+    const days = within(screen.getByRole('list', { name: /^Water of the 7\sdays/ }));
     expect(days.getAllByRole('listitem').map((day) => plain(day.textContent))).toEqual([
       'Sun, Nov 1: 2.1 L, target reached',
       'Mon, Nov 2: 0 L',

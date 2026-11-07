@@ -7,6 +7,7 @@ import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { ApiClientError } from './http';
 import { useErrorText } from './use-error-text';
+import { plain } from '@/testing/spaces';
 
 function Shown({ error, fallback }: { error: unknown; fallback?: string }) {
   const errorText = useErrorText();
@@ -23,7 +24,7 @@ function told(
       <Shown error={error} fallback={fallback} />
     </NextIntlClientProvider>,
   );
-  const text = screen.getByRole('paragraph').textContent ?? '';
+  const text = plain(screen.getByRole('paragraph').textContent);
   unmount();
   return text;
 }

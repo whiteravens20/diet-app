@@ -9,6 +9,7 @@ import type { PlanCalendarDay } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../../../messages/en.json';
 import { PlanCalendar } from './plan-calendar';
+import { plain, spaced } from '@/testing/spaces';
 
 const texts = messages.mealPlans.calendar;
 const PROFILE = '6f1c2b1e-7a52-4a3a-9d0e-000000000001';
@@ -90,7 +91,7 @@ describe("the calendar of a profile's plans", () => {
     const monday = cell(/^Mon, Jan 12:/);
 
     expect(monday).toHaveAccessibleName(
-      'Mon, Jan 12: 2190 of 2200 kcal, 2 of 3 meals eaten. Choose it to open the plan.',
+      spaced('Mon, Jan 12: 2190 of 2200 kcal, 2 of 3 meals eaten. Choose it to open the plan.'),
     );
     // The button shows the date alone, which its name holds; what the day holds is drawn beside it.
     expect(monday).toHaveTextContent(/^12$/);
@@ -106,7 +107,7 @@ describe("the calendar of a profile's plans", () => {
     const tuesday = cell(/^Tue, Jan 13:/);
 
     expect(tuesday).toHaveAccessibleName(
-      'Tue, Jan 13: no plan. Choose it to begin a plan on this day.',
+      spaced('Tue, Jan 13: no plan. Choose it to begin a plan on this day.'),
     );
     await userEvent.click(tuesday);
     expect(onStart).toHaveBeenCalledWith('2026-01-13');
@@ -121,10 +122,14 @@ describe("the calendar of a profile's plans", () => {
     ]);
 
     expect(cell(/^Mon, Jan 12:/)).toHaveAccessibleName(
-      'Mon, Jan 12: 2900 of 2200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.',
+      spaced(
+        'Mon, Jan 12: 2900 of 2200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.',
+      ),
     );
     expect(cell(/^Tue, Jan 13:/)).toHaveAccessibleName(
-      'Tue, Jan 13: 1500 of 2200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
+      spaced(
+        'Tue, Jan 13: 1500 of 2200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
+      ),
     );
     expect(cell(/^Tue, Jan 13:/).closest('td')).toHaveTextContent('131500+2');
     // A day off its target, over or under, is set apart by its frame and ground; a skipped day is not.
@@ -132,7 +137,9 @@ describe("the calendar of a profile's plans", () => {
     expect(cell(/^Tue, Jan 13:/)).toHaveClass('border-warning/60');
     expect(cell(/^Wed, Jan 14:/)).not.toHaveClass('border-warning/60');
     expect(cell(/^Wed, Jan 14:/)).toHaveAccessibleName(
-      'Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.',
+      spaced(
+        'Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.',
+      ),
     );
     expect(cell(/^Wed, Jan 14:/).closest('td')).toHaveTextContent(`14${texts.skipped}+1`);
   });
@@ -147,7 +154,7 @@ describe("the calendar of a profile's plans", () => {
       texts.legendMore,
       texts.legendKeys,
     ])
-      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(screen.getByText(plain(line))).toBeInTheDocument();
   });
 
   it('leafs to the month after and the one before, and back to the month it is', async () => {

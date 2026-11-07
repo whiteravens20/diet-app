@@ -12,6 +12,7 @@ import { saveText } from '@/lib/save-file';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ProductsPage from './page';
+import { plain } from '@/testing/spaces';
 
 vi.mock('@/lib/save-file', () => ({ saveText: vi.fn() }));
 vi.mock('next/image', () => ({ default: () => null }));
@@ -197,7 +198,7 @@ describe('the page of the products of an account', () => {
     // At the product it was asked of, which may be far down the list.
     const row = screen.getByRole('listitem');
     expect(await within(row).findByRole('alert')).toHaveTextContent(
-      messages.errors.OWN_PRODUCT_SEND_LIMIT,
+      plain(messages.errors.OWN_PRODUCT_SEND_LIMIT),
     );
   });
 

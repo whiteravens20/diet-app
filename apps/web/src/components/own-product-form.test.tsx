@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import { OwnProductForm } from './own-product-form';
+import { plain } from '@/testing/spaces';
 
 const t = messages.products;
 
@@ -147,10 +148,10 @@ describe("the form a product of one's own is written in", () => {
     await userEvent.type(field(t.name), 'Chleb');
     if (label !== t.calories) await userEvent.type(field(t.calories), '100');
     await userEvent.type(field(label), typed);
-    expect(screen.queryByText(said)).not.toBeInTheDocument();
+    expect(screen.queryByText(plain(said))).not.toBeInTheDocument();
     await save();
 
-    expect(screen.getByText(said)).toBeInTheDocument();
+    expect(screen.getByText(plain(said))).toBeInTheDocument();
     expect(field(label)).toHaveAttribute('aria-invalid', 'true');
     expect(post).not.toHaveBeenCalled();
   });
@@ -174,7 +175,7 @@ describe("the form a product of one's own is written in", () => {
     await save();
 
     expect(screen.getByText(t.errName)).toBeInTheDocument();
-    expect(screen.getByText(t.errCalories)).toBeInTheDocument();
+    expect(screen.getByText(plain(t.errCalories))).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -191,7 +192,7 @@ describe("the form a product of one's own is written in", () => {
     await userEvent.type(field(t.sugars), '51');
     await save();
 
-    expect(screen.getByText(t.errMacros)).toBeInTheDocument();
+    expect(screen.getByText(plain(t.errMacros))).toBeInTheDocument();
     expect(screen.getByText(t.errSaturated)).toBeInTheDocument();
     expect(screen.getByText(t.errSugars)).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
@@ -258,7 +259,9 @@ describe("the form a product of one's own is written in", () => {
     await userEvent.type(field(t.calories), '100');
     await save();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.OWN_PRODUCT_LIMIT);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      plain(messages.errors.OWN_PRODUCT_LIMIT),
+    );
     expect(field(t.name)).toHaveValue('Chleb');
     expect(onSaved).not.toHaveBeenCalled();
   });

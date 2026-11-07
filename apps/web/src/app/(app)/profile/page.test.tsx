@@ -12,6 +12,7 @@ import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ProfilePage from './page';
+import { plain } from '@/testing/spaces';
 
 const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   id: `6f1c2b1e-7a52-4a3a-9d0e-${name.padEnd(12, '0').slice(0, 12)}`,
@@ -196,7 +197,7 @@ describe('the profile form, on the custom diet', () => {
     await save();
 
     expect(put).not.toHaveBeenCalled();
-    expect(screen.getByText(texts.splitSumRefused)).toBeInTheDocument();
+    expect(screen.getByText(plain(texts.splitSumRefused))).toBeInTheDocument();
   });
 
   it('sends the split with the custom diet', async () => {

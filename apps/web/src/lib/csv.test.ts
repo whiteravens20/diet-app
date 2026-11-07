@@ -56,6 +56,12 @@ describe('a table as a file of separated values', () => {
     expect(cell).toContain(name.replaceAll('"', '""'));
   });
 
+  it('writes a space held on a screen as a plain one: what reads the file parts words at spaces', () => {
+    expect(lines(csvOf([['2\u00a0sztuki', '1\u00a0×\u00a0250\u00a0g']], CSV_DIALECTS.pl!))[0]).toBe(
+      '2 sztuki;1 × 250 g',
+    );
+  });
+
   it('leaves a negative number a number', () => {
     expect(lines(csvOf([[-120]], en))[0]).toBe('-120');
   });

@@ -74,7 +74,7 @@ test.describe('a plan and what it is made for', () => {
       made.days.map(() => [2, 1900]),
     );
     // The new plan opens by itself, and each of its days says what it aims at.
-    await expect(page.getByText(/\/ 1900 kcal/).first()).toBeVisible();
+    await expect(page.getByText(/\/ 1900\skcal/).first()).toBeVisible();
 
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had: a plan with a shopping list.
     page.once('dialog', (confirm) => void confirm.accept());

@@ -8,6 +8,7 @@ import type { Supply } from '@diet-app/shared';
 import { aPublicConfig, aSupply } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { SupplyNote } from './supply-note';
+import { plain } from '@/testing/spaces';
 
 /** Render the note for vegans at four meals a day, of which the API says `found`; no answer yet when omitted. */
 function renderNote(found?: Supply) {
@@ -45,14 +46,16 @@ describe('the note on what the catalogue has for a diet', () => {
 
   it('says plans will repeat when one of the meals has few, and how few', () => {
     renderNote({ level: 'thin', recipes: 2, fewerMeals: 3 });
-    expect(screen.getByRole('status').textContent).toContain(
+    expect(plain(screen.getByRole('status').textContent)).toContain(
       'one of the 4 meals a day has only 2 recipes to choose from',
     );
   });
 
   it('counts a single recipe as one', () => {
     renderNote({ level: 'thin', recipes: 1, fewerMeals: 3 });
-    expect(screen.getByRole('status').textContent).toContain('has only 1 recipe to choose from');
+    expect(plain(screen.getByRole('status').textContent)).toContain(
+      'has only 1 recipe to choose from',
+    );
   });
 
   it('says nothing when there are enough', () => {

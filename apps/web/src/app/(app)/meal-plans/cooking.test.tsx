@@ -9,6 +9,7 @@ import type { CookingChange, MealPlan, PlannedMeal } from '@diet-app/shared';
 import en from '../../../../messages/en.json';
 import pl from '../../../../messages/pl.json';
 import { CookingNote, toCook, useCookingWords } from './cooking';
+import { plain } from '@/testing/spaces';
 
 const TUESDAY = '2026-01-06';
 const WEDNESDAY = '2026-01-07';
@@ -46,7 +47,7 @@ describe('what is said in Polish of a meal cooked with another', () => {
     const { chip, hint } = words();
     const meal = aMeal('cook', place());
 
-    expect(chip(meal, TUESDAY)).toBe('Ugotuj na 2 dni');
+    expect(plain(chip(meal, TUESDAY))).toBe('Ugotuj na 2 dni');
     expect(hint(meal, TUESDAY)).toBe('Gotujesz raz, na wtorek i środę.');
   });
 
@@ -54,7 +55,7 @@ describe('what is said in Polish of a meal cooked with another', () => {
     const { chip, hint } = words();
     const meal = aMeal('cook', place({ date: TUESDAY, mealType: 'dinner' }));
 
-    expect(chip(meal, TUESDAY)).toBe('Ugotuj na 2 posiłki');
+    expect(plain(chip(meal, TUESDAY))).toBe('Ugotuj na 2 posiłki');
     expect(hint(meal, TUESDAY)).toBe('Gotujesz raz, na obiad i kolację.');
   });
 
@@ -87,7 +88,7 @@ describe('what is said in Polish of a meal cooked with another', () => {
     ] as const;
     for (const [mealType, name, inText] of from) {
       const meal = aMeal('cooked', place({ date: TUESDAY, mealType }));
-      expect(chip(meal, TUESDAY)).toBe(name);
+      expect(plain(chip(meal, TUESDAY))).toBe(name);
       expect(hint(meal, TUESDAY)).toBe(`Nie gotujesz: to reszta dania ${inText}.`);
     }
   });
@@ -96,7 +97,7 @@ describe('what is said in Polish of a meal cooked with another', () => {
     const { chip, hint } = words();
     const meal = aMeal('cook', place({ date: TUESDAY, mealType: 'dinner' }), place());
 
-    expect(chip(meal, TUESDAY)).toBe('Ugotuj na 2 dni');
+    expect(plain(chip(meal, TUESDAY))).toBe('Ugotuj na 2 dni');
     expect(hint(meal, TUESDAY)).toBe('Gotujesz raz, na wtorek i środę.');
   });
 
@@ -162,7 +163,7 @@ describe('what is said in English of a meal cooked with another', () => {
       wrapper: inEnglish,
     }).result.current;
 
-    expect(chip(aMeal('cook', place()), TUESDAY)).toBe('Cook for 2 days');
+    expect(plain(chip(aMeal('cook', place()), TUESDAY))).toBe('Cook for 2 days');
     expect(hint(aMeal('cook', place()), TUESDAY)).toBe('You cook once, for Tuesday and Wednesday.');
     expect(chip(aMeal('cooked', place({ date: TUESDAY })), WEDNESDAY)).toBe('From Tuesday');
     expect(hint(aMeal('cooked', place({ date: TUESDAY })), WEDNESDAY)).toBe(

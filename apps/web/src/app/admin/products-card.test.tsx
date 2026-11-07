@@ -10,6 +10,7 @@ import { ApiClientError } from '@/lib/http';
 import en from '../../../messages/en.json';
 import pl from '../../../messages/pl.json';
 import { productImportNeedsAttention, ProductsCard } from './products-card';
+import { plain } from '@/testing/spaces';
 
 const t = en.admin.products;
 
@@ -236,7 +237,9 @@ describe('the card of products in the panel', () => {
       );
       shown(IMPORTED);
       await userEvent.click(screen.getByRole('button', { name: t.ask }));
-      expect(await screen.findByRole('alert')).toHaveTextContent(en.errors.PRODUCT_IMPORT_TOO_SOON);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        plain(en.errors.PRODUCT_IMPORT_TOO_SOON),
+      );
     });
 
     it('and follows the state while the worker is at it', () => {

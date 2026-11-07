@@ -10,7 +10,7 @@ import messages from '../../../../messages/en.json';
 import { IngredientPanel } from './ingredient-panel';
 import { RecipeDraftRow } from './recipe-draft-row';
 import { ReviewSignature, SignatureField } from './review-signature';
-import { spaced } from '@/testing/spaces';
+import { plain, spaced } from '@/testing/spaces';
 
 const texts = messages.admin.curation;
 
@@ -199,7 +199,7 @@ describe('the drafts of names in the administrator’s panel', () => {
       .mockResolvedValue({ rejected: shownDrafts.map((draft) => draft.id), skipped: [] });
 
     shown(<IngredientPanel queue={QUEUE} />);
-    const press = await screen.findByRole('button', { name: 'Reject the 2 shown' });
+    const press = await screen.findByRole('button', { name: spaced('Reject the 2 shown') });
     await signed();
     await userEvent.type(
       screen.getByRole('textbox', { name: texts.bulkReason }),
@@ -306,7 +306,7 @@ describe('writing names again in the administrator’s panel', () => {
       await screen.findByRole('button', { name: spaced('Generate the unapproved again · 230') }),
     );
 
-    expect(confirm.mock.calls.map(([question]) => question)).toEqual([
+    expect(confirm.mock.calls.map(([question]) => plain(question))).toEqual([
       expect.stringContaining('names for 12 ingredients'),
       expect.stringContaining('in place of 5 rejected ones'),
       expect.stringContaining('in place of 230 that wait'),
