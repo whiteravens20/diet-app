@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
+  BELL_OPENED,
   useNotificationText,
   useUnreadNotifications,
   useWaterFromReminder,
@@ -35,8 +36,9 @@ function saidBefore(): readonly string[] {
  *
  * "New" is for the browser to know: it keeps the notifications it has said,
  * for as long as they are unread, so one is not said again on every page.
- * It goes by itself after ten seconds, and is then said too. A reminder of
- * water that came in alone carries the bell's amounts.
+ * It goes by itself after ten seconds, and is then said too; so it goes when
+ * the bell opens, which lists the same. A reminder of water that came in
+ * alone carries the bell's amounts.
  */
 export function NotificationToast() {
   const t = useTranslations('notifications');
@@ -71,6 +73,11 @@ export function NotificationToast() {
     const timer = setTimeout(() => whenOver.current(), STAYS_MS);
     return () => clearTimeout(timer);
   }, [freshIds, addedIds]);
+  useEffect(() => {
+    const bellOpened = (): void => whenOver.current();
+    window.addEventListener(BELL_OPENED, bellOpened);
+    return () => window.removeEventListener(BELL_OPENED, bellOpened);
+  }, []);
 
   const markRead = useMutation({
     mutationFn: () =>

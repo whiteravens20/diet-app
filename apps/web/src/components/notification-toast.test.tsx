@@ -9,6 +9,7 @@ import type { Notification } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { plain, spaced } from '@/testing/spaces';
 import messages from '../../messages/en.json';
+import { NotificationsBell } from './notifications-bell';
 import { NotificationToast } from './notification-toast';
 
 const text = messages.notifications;
@@ -32,8 +33,8 @@ const drink = (id: string): Notification => ({
   readAt: null,
 });
 
-/** The toast of a signed-in account with these notifications unread. */
-async function renderToast(unread: Notification[]) {
+/** The toast of a signed-in account with these notifications unread, and the bell beside it if asked. */
+async function renderToast(unread: Notification[], { bell = false } = {}) {
   const get = vi
     .spyOn(api, 'get')
     .mockImplementation((path: string) =>
@@ -45,6 +46,7 @@ async function renderToast(unread: Notification[]) {
         <QueryClientProvider
           client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
         >
+          {bell && <NotificationsBell />}
           <NotificationToast />
         </QueryClientProvider>
       </NextIntlClientProvider>,
@@ -136,6 +138,19 @@ describe('a notification that comes in', () => {
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('diet-app.notifications.said')!)).toEqual([ONE]);
+  });
+
+  it('is put aside as the bell opens, which lists the same, and reads nothing', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue(undefined as never);
+    await renderToast([weigh(ONE, 9)], { bell: true });
+    await screen.findByRole('status');
+
+    await userEvent.click(screen.getByRole('button', { name: text.label }));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: text.label })).toHaveTextContent("it's been 9 days");
+    expect(JSON.parse(localStorage.getItem('diet-app.notifications.said')!)).toEqual([ONE]);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it('carries the amounts of a reminder of water that came in alone, and says what a press added', async () => {

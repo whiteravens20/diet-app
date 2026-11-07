@@ -30,6 +30,9 @@ const POLL_INTERVAL_MS = 60_000;
 /** How long a reminder of water says what a press added before it goes. */
 const ADDED_SHOWN_MS = 4000;
 
+/** Said on the window as the bell opens: what it lists is no longer new to the page. */
+export const BELL_OPENED = 'diet-app:notifications-bell-opened';
+
 /**
  * The notifications of the account that nobody has read yet, asked for again
  * every minute while a session is open. Whoever shows them asks through here,
@@ -251,7 +254,11 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
         aria-label={t('label')}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          // What the bell lists is no longer new: the toast of what came in puts it aside.
+          if (!open) window.dispatchEvent(new Event(BELL_OPENED));
+          setOpen((o) => !o);
+        }}
         className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Bell size={16} aria-hidden />
