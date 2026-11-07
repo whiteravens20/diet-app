@@ -104,7 +104,13 @@ async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay>
       return Promise.resolve([{ id: PROFILE, name: 'Me', mealCount: 3 }] as never);
     // The day's water and the week in sum, which the page shows beside the day.
     if (path.startsWith('/water?'))
-      return Promise.resolve({ day: day.date, ml: 0, target: 1500, entries: 0 } as never);
+      return Promise.resolve({
+        day: day.date,
+        ml: 0,
+        target: 1500,
+        entries: 0,
+        last: null,
+      } as never);
     if (path.startsWith('/diary/week?'))
       return Promise.resolve({
         from: day.date,

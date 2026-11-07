@@ -24,6 +24,8 @@ export interface Format {
   moment(iso: string): string;
   /** The day a moment fell on, by the reader's clock: "Jan 5, 2026". */
   dayOf(iso: string): string;
+  /** The time of a moment, by the reader's clock: "2:03 PM", "14:03". */
+  time(iso: string): string;
   /** A number with at most `digits` decimals, its thousands not set apart: "2150", "79.5"; "79,5". */
   number(value: number, digits?: number): string;
   /** A number with exactly `digits` decimals: "1.20", "1,20". */
@@ -87,6 +89,8 @@ export function useFormat(): Format {
         }),
       dayOf: (iso) =>
         format.dateTime(new Date(iso), { dateStyle: 'medium', timeZone: readersZone() }),
+      time: (iso) =>
+        format.dateTime(new Date(iso), { timeStyle: 'short', timeZone: readersZone() }),
       number: (value, digits = 0) =>
         format.number(value, { useGrouping: false, maximumFractionDigits: digits }),
       fixed: (value, digits) =>

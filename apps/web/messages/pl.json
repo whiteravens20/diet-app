@@ -431,7 +431,7 @@
     "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
     "WEIGHT_DAY_FULL": "Dziennik wagi nie zmieści więcej wpisów na ten dzień: usuń ostatni wpis, aby zapisać nowy.",
     "WATER_DAY_FULL": "Ten dzień nie zmieści więcej wpisów wody.",
-    "WATER_BELOW_ZERO": "Ten dzień ma mniej wody, niż chcesz cofnąć.",
+    "WATER_ENTRY_NOT_FOUND": "Tego wpisu wody już nie ma.",
     "EXPENDITURE_NOTHING_PROPOSED": "Dla tego profilu nie ma teraz propozycji poprawki celu.",
     "WEIGHT_TOO_OLD": "Dziennik wagi przyjmuje nowe wpisy najwyżej rok wstecz.",
     "DIARY_ENTRY_NOT_FOUND": "Nie znaleziono wpisu w dzienniku.",
@@ -2275,13 +2275,13 @@
     "title": "Woda",
     "drunk": "{drunk} z {target}",
     "drunkNoTarget": "{drunk} wypite",
-    "addGlass": "+1 szklanka",
-    "takeBack": "−1",
-    "takeBackLabel": "Cofnij jedną szklankę",
+    "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Własna ilość (ml)",
     "add": "Dodaj",
-    "glassNote": "Szklanka to 250 ml.",
-    "errAdd": "Nie udało się zapisać wody."
+    "removeLast": "Usuń ostatni wpis",
+    "removeLastLabel": "{amount}\u00a0· {time}",
+    "errAdd": "Nie udało się zapisać wody.",
+    "errRemove": "Nie udało się usunąć wpisu wody."
   },
   "weekSummary": {
     "title": "Ostatnie 7 dni",
@@ -2358,7 +2358,7 @@
     "targetWeight": "Waga docelowa ({unit})",
     "targetWeightHint": "Wykres wagi rysuje ją jako linię.",
     "waterTarget": "Cel wody na dzień (ml)",
-    "waterTargetHint": "Puste: bez celu. Szklanka to 250 ml.",
+    "waterTargetHint": "Puste: bez celu.",
     "activityLevel": "Poziom aktywności",
     "activityHint": {
       "sedentary": "Głównie siedzenie, mało ruchu albo wcale.",

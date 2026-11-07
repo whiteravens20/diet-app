@@ -9734,8 +9734,8 @@
         "tags": [
           "water"
         ],
-        "summary": "Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then.",
-        "description": "Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then. A day holds at most 50 entries, and what it holds may not go under nothing. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "summary": "Water drunk on a day of today or at most a year before it, answered with the day as it is then.",
+        "description": "Water drunk on a day of today or at most a year before it, answered with the day as it is then. A day holds at most 50 entries. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -9776,6 +9776,51 @@
         },
         "responses": {
           "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaterDay"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/water/{id}": {
+      "delete": {
+        "operationId": "Water_remove",
+        "tags": [
+          "water"
+        ],
+        "summary": "Remove an entry written by mistake, answered with its day as it is then.",
+        "description": "Remove an entry written by mistake, answered with its day as it is then.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "What was asked for.",
             "content": {
               "application/json": {
@@ -10385,7 +10430,7 @@
           },
           "ml": {
             "type": "integer",
-            "minimum": -5000,
+            "minimum": 1,
             "maximum": 5000
           }
         },
@@ -23574,13 +23619,47 @@
           "entries": {
             "type": "integer",
             "minimum": 0
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaterEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "day",
           "ml",
           "target",
-          "entries"
+          "entries",
+          "last"
+        ],
+        "additionalProperties": false
+      },
+      "WaterEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ml": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "ml",
+          "at"
         ],
         "additionalProperties": false
       },

@@ -3,14 +3,21 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { GLASS_ML, MAX_WATER_ENTRY_ML, type Profile, type WaterDay } from '@diet-app/shared';
+import {
+  MAX_WATER_ENTRY_ML,
+  WATER_AMOUNTS_ML,
+  type Profile,
+  type WaterDay,
+} from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
+import { held } from '@/lib/figure-line';
 import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -20,7 +27,7 @@ const waterKey = (profileId: string, day: string) => ['water', profileId, day] a
 
 /**
  * The water of a profile's day: what was drunk against the profile's target,
- * a glass added or taken back at a press, or an amount of one's own. On the
+ * an amount added at a press or typed, and the last entry removed. On the
  * dashboard it is today's; in the diary it is the day the diary shows.
  */
 export function WaterCard({ profile, day = localDate() }: { profile: Profile; day?: string }) {
@@ -35,18 +42,30 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
     queryKey: waterKey(profile.id, day),
     queryFn: () => api.get<WaterDay>(`/water?profileId=${profile.id}&day=${day}`),
   });
+  /** The day as the API answers it, and the week in sum, whose water it changes. */
+  const settled = (answer: WaterDay) => {
+    qc.setQueryData(waterKey(profile.id, day), answer);
+    void qc.invalidateQueries({ queryKey: ['week-summary', profile.id] });
+  };
   const add = useMutation({
     mutationFn: (ml: number) => api.post<WaterDay>('/water', { profileId: profile.id, day, ml }),
     onMutate: () => setError(null),
     onSuccess: (answer) => {
-      qc.setQueryData(waterKey(profile.id, day), answer);
+      settled(answer);
       setTyped('');
     },
     onError: (err) => setError(errorText(err, t('errAdd'))),
   });
+  const remove = useMutation({
+    mutationFn: (id: string) => api.delete<WaterDay>(`/water/${id}`),
+    onMutate: () => setError(null),
+    onSuccess: settled,
+    onError: (err) => setError(errorText(err, t('errRemove'))),
+  });
 
   const liters = (ml: number): string => fmt.unit(ml / 1000, 'liter', 2);
   const shown = water.data;
+  const busy = add.isPending || remove.isPending || !shown;
   const own = Number(typed);
   const ownFits =
     typed.trim() !== '' && Number.isInteger(own) && own > 0 && own <= MAX_WATER_ENTRY_ML;
@@ -84,24 +103,11 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
           </>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            disabled={add.isPending || !shown}
-            onClick={() => add.mutate(GLASS_ML)}
-          >
-            {t('addGlass')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-label={t('takeBackLabel')}
-            disabled={add.isPending || !shown || shown.ml < GLASS_ML}
-            onClick={() => add.mutate(-GLASS_ML)}
-          >
-            {t('takeBack')}
-          </Button>
+          {WATER_AMOUNTS_ML.map((ml) => (
+            <Button key={ml} type="button" size="sm" disabled={busy} onClick={() => add.mutate(ml)}>
+              {t('addMl', { ml })}
+            </Button>
+          ))}
         </div>
         <form
           className="flex max-w-sm items-end gap-2"
@@ -111,7 +117,7 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
           }}
         >
           <div className="min-w-0 flex-1">
-            <Field label={t('own')} hint={t('glassNote')}>
+            <Field label={t('own')}>
               <Input
                 type="number"
                 inputMode="numeric"
@@ -123,16 +129,31 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
               />
             </Field>
           </div>
-          <Button
-            type="submit"
-            size="md"
-            variant="outline"
-            disabled={add.isPending || !ownFits}
-            className="mb-5"
-          >
+          <Button type="submit" size="md" variant="outline" disabled={busy || !ownFits}>
             {t('add')}
           </Button>
         </form>
+        {shown?.last && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => remove.mutate(shown.last!.id)}
+            className="text-muted-foreground"
+          >
+            <Undo2 size={14} aria-hidden />
+            <span className="ml-1">{t('removeLast')}</span>
+            <span className="ml-1 text-xs">
+              (
+              {t('removeLastLabel', {
+                amount: held(fmt.unit(shown.last.ml, 'milliliter')),
+                time: fmt.time(shown.last.at),
+              })}
+              )
+            </span>
+          </Button>
+        )}
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}

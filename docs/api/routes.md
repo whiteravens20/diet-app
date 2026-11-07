@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-210 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+211 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -313,7 +313,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/water` | an account | The water of a day of a profile's calendar (`?day=`): what was drunk in all, against its target. | query `WaterDayQuery` | 200 `WaterDay` |  |
-| `POST /api/water` | an account | Water drunk on a day of today or at most a year before it, or a glass taken back (a negative amount), answered with the day as it is then. A day holds at most 50 entries, and what it holds may not go under nothing. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now. | `AddWaterRequest` | 201 `WaterDay` | 60 in a minute |
+| `POST /api/water` | an account | Water drunk on a day of today or at most a year before it, answered with the day as it is then. A day holds at most 50 entries. Sent again with the same `Idempotency-Key` within a week, it writes nothing and is answered with the day as it is now. | `AddWaterRequest` | 201 `WaterDay` | 60 in a minute |
+| `DELETE /api/water/:id` | an account | Remove an entry written by mistake, answered with its day as it is then. |  | 200 `WaterDay` | 60 in a minute |
 
 ## weights
 

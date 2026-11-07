@@ -188,8 +188,8 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `USER_NOT_FOUND` | 404 | Account not found. | Nie znaleziono konta. |
 | `VALIDATION_FAILED` | 400 | Some fields need attention. | Niektóre pola wymagają poprawy. |
 | `VERIFICATION_SENT_RECENTLY` | 429 | A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes. | Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut. |
-| `WATER_BELOW_ZERO` | 409 | This day holds less water than you want to take back. | Ten dzień ma mniej wody, niż chcesz cofnąć. |
 | `WATER_DAY_FULL` | 409 | This day holds no more entries of water. | Ten dzień nie zmieści więcej wpisów wody. |
+| `WATER_ENTRY_NOT_FOUND` | 404 | That water entry is not there any more. | Tego wpisu wody już nie ma. |
 | `WEIGHT_DAY_FULL` | 409 | The weight log holds no more entries for this day: remove the last entry to log another. | Dziennik wagi nie zmieści więcej wpisów na ten dzień: usuń ostatni wpis, aby zapisać nowy. |
 | `WEIGHT_ENTRY_NOT_FOUND` | 404 | Weight entry not found. | Nie znaleziono wpisu wagi. |
 | `WEIGHT_TOO_OLD` | 409 | The weight log takes new entries at most a year back. | Dziennik wagi przyjmuje nowe wpisy najwyżej rok wstecz. |

@@ -62,10 +62,12 @@ describe('dates, numbers and units, as the language of the application writes th
     process.env.TZ = 'Europe/Warsaw';
     expect(shown((f) => f.moment(moment), 'pl')).toBe('6 sty 2026, 00:30');
     expect(shown((f) => f.dayOf(moment), 'pl')).toBe('6 sty 2026');
+    expect(shown((f) => f.time(moment), 'pl')).toBe('00:30');
 
     process.env.TZ = 'America/New_York';
     expect(shown((f) => f.moment(moment))).toBe('Jan 5, 2026, 6:30 PM');
     expect(shown((f) => f.dayOf(moment))).toBe('Jan 5, 2026');
+    expect(shown((f) => f.time(moment))).toBe('6:30 PM');
   });
 
   it('writes a number with the decimal sign of the language, and nothing between its thousands', () => {

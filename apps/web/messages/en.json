@@ -431,7 +431,7 @@
     "WEIGHT_ENTRY_NOT_FOUND": "Weight entry not found.",
     "WEIGHT_DAY_FULL": "The weight log holds no more entries for this day: remove the last entry to log another.",
     "WATER_DAY_FULL": "This day holds no more entries of water.",
-    "WATER_BELOW_ZERO": "This day holds less water than you want to take back.",
+    "WATER_ENTRY_NOT_FOUND": "That water entry is not there any more.",
     "EXPENDITURE_NOTHING_PROPOSED": "No correction of the target is proposed for this profile now.",
     "WEIGHT_TOO_OLD": "The weight log takes new entries at most a year back.",
     "DIARY_ENTRY_NOT_FOUND": "Diary entry not found.",
@@ -2275,13 +2275,13 @@
     "title": "Water",
     "drunk": "{drunk} of {target}",
     "drunkNoTarget": "{drunk} drunk",
-    "addGlass": "+1 glass",
-    "takeBack": "−1",
-    "takeBackLabel": "Take one glass back",
+    "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Own amount (ml)",
     "add": "Add",
-    "glassNote": "A glass is 250 ml.",
-    "errAdd": "The water could not be saved."
+    "removeLast": "Remove the last entry",
+    "removeLastLabel": "{amount}\u00a0· {time}",
+    "errAdd": "The water could not be saved.",
+    "errRemove": "The water entry could not be removed."
   },
   "weekSummary": {
     "title": "The last 7 days",
@@ -2358,7 +2358,7 @@
     "targetWeight": "Weight to work towards ({unit})",
     "targetWeightHint": "The chart of your weights draws it as a line.",
     "waterTarget": "Water a day (ml)",
-    "waterTargetHint": "Empty: no target. A glass is 250 ml.",
+    "waterTargetHint": "Empty: no target.",
     "activityLevel": "Activity level",
     "activityHint": {
       "sedentary": "Mostly sitting, little or no exercise.",

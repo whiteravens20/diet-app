@@ -30,6 +30,7 @@ interface Ids {
   item: string;
   pantry: string;
   weight: string;
+  water: string;
   diaryEntry: string;
   ownRecipe: string;
   ownProduct: string;
@@ -361,6 +362,7 @@ const ASKS: Ask[] = [
     () => '/api/water',
     (ids) => ({ profileId: ids.profile, day: new Date().toISOString().slice(0, 10), ml: 250 }),
   ],
+  ['remove an entry of water', 'delete', (ids) => `/api/water/${ids.water}`],
 
   [
     'read a day of the diary of a profile',
@@ -588,6 +590,9 @@ describe('what belongs to another account', () => {
       data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g' },
     });
     const weight = await t.prisma.weightEntry.create({ data: { profileId: profile.id, kg: 80 } });
+    const water = await t.prisma.waterEntry.create({
+      data: { profileId: profile.id, day: new Date('2026-01-01'), ml: 250 },
+    });
     const diaryEntry = await t.prisma.diaryEntry.create({
       data: {
         profileId: profile.id,
@@ -630,6 +635,7 @@ describe('what belongs to another account', () => {
       item: item.id,
       pantry: pantry.id,
       weight: weight.id,
+      water: water.id,
       diaryEntry: diaryEntry.id,
       ownRecipe: own.id,
       ownProduct: (

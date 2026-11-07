@@ -18,9 +18,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
 type Reader = PrismaService | Prisma.TransactionClient;
 
 /**
- * The water a profile drinks, a day of its own calendar at a time: glasses and
- * amounts typed, and glasses taken back. A day is the sum of its entries,
- * which never goes under nothing, against the profile's target.
+ * The water a profile drinks, a day of its own calendar at a time: amounts
+ * pressed or typed, and an entry written by mistake removed. A day is the sum
+ * of its entries, against the profile's target.
  */
 @Injectable()
 export class WaterService {
@@ -34,10 +34,10 @@ export class WaterService {
 
   /**
    * Water drunk on a day of today or at most a year before it (`today` is the
-   * client's day), or a glass taken back; answered with the day as it is
-   * then. A day holds at most `MAX_WATER_ENTRIES_A_DAY` entries, and what it
-   * holds may not go under nothing. Sent again with the same `Idempotency-Key`
-   * within a week, it writes nothing and is answered with the day as it is now.
+   * client's day), answered with the day as it is then. A day holds at most
+   * `MAX_WATER_ENTRIES_A_DAY` entries. Sent again with the same
+   * `Idempotency-Key` within a week, it writes nothing and is answered with
+   * the day as it is now.
    */
   add(
     userId: string,
@@ -56,21 +56,11 @@ export class WaterService {
         this.refuseDayOutside(day, today);
         return this.prisma.$transaction(async (tx) => {
           await holdProfile(tx, profileId);
-          const held = await tx.waterEntry.aggregate({
-            where: { profileId, day: new Date(day) },
-            _sum: { ml: true },
-            _count: true,
-          });
-          if (held._count >= MAX_WATER_ENTRIES_A_DAY) {
+          const held = await tx.waterEntry.count({ where: { profileId, day: new Date(day) } });
+          if (held >= MAX_WATER_ENTRIES_A_DAY) {
             throw new ConflictException({
               error: 'WATER_DAY_FULL',
               message: `A day holds at most ${MAX_WATER_ENTRIES_A_DAY} entries of water.`,
-            });
-          }
-          if ((held._sum.ml ?? 0) + ml < 0) {
-            throw new ConflictException({
-              error: 'WATER_BELOW_ZERO',
-              message: 'A day holds less water than would be taken back.',
             });
           }
           const noted = await tx.waterEntry.create({
@@ -95,21 +85,48 @@ export class WaterService {
     });
   }
 
-  /** What a day of a profile holds, against its target. */
+  /**
+   * Remove an entry of one of the user's profiles, answered with its day as it
+   * is then. An entry of somebody else's profile is answered as one that is
+   * not there.
+   */
+  async remove(userId: string, id: string): Promise<WaterDay> {
+    const entry = await this.prisma.waterEntry.findFirst({
+      where: { id, profile: { userId } },
+      select: { profileId: true, day: true },
+    });
+    if (!entry) {
+      throw new NotFoundException({
+        error: 'WATER_ENTRY_NOT_FOUND',
+        message: 'Water entry not found.',
+      });
+    }
+    // Removed by another request in the meantime, it is gone all the same.
+    await this.prisma.waterEntry.deleteMany({ where: { id } });
+    return this.dayOf(this.prisma, entry.profileId, isoDate(entry.day));
+  }
+
+  /** What a day of a profile holds against its target, and its last entry. */
   private async dayOf(reader: Reader, profileId: string, day: string): Promise<WaterDay> {
-    const [held, profile] = await Promise.all([
+    const [held, last, profile] = await Promise.all([
       reader.waterEntry.aggregate({
         where: { profileId, day: new Date(day) },
         _sum: { ml: true },
         _count: true,
       }),
+      reader.waterEntry.findFirst({
+        where: { profileId, day: new Date(day) },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, ml: true, createdAt: true },
+      }),
       reader.profile.findUnique({ where: { id: profileId }, select: { waterTargetMl: true } }),
     ]);
     return {
       day,
-      ml: Math.max(0, held._sum.ml ?? 0),
+      ml: held._sum.ml ?? 0,
       target: profile?.waterTargetMl ?? null,
       entries: held._count,
+      last: last ? { id: last.id, ml: last.ml, at: last.createdAt.toISOString() } : null,
     };
   }
 
