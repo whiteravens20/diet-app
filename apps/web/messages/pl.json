@@ -328,6 +328,7 @@
     "PROFILE_LIMIT_REACHED": "Osiągnięto maksymalną liczbę profili.",
     "PLAN_NOT_FOUND": "Nie znaleziono planu posiłków.",
     "PLAN_CHANGED": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie.",
+    "PLAN_TARGET_TYPED": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia.",
     "DAY_NOT_FOUND": "Nie znaleziono dnia w tym planie.",
     "DAY_IN_THE_PAST": "Ten dzień już minął: zostaje taki, jaki był.",
     "DAY_SKIPPED": "Ten dzień jest pominięty: nie ma na nim posiłku do zmiany.",
@@ -1901,6 +1902,10 @@
     "weekUneven": "Średni cel dnia w tym tygodniu: {average} kcal, cel planu: {target} kcal.",
     "evenWeek": "Wyrównaj tydzień",
     "evenWeekNote": "Dni tego tygodnia od dziś dostaną nowe cele: te same dania w innych porcjach.",
+    "targetMoved": "Cel profilu to teraz {profile, number, ::group-off}\u00a0kcal, ten plan liczy {plan, number, ::group-off}\u00a0kcal.",
+    "retarget": "Przyjmij od dziś",
+    "retargetNote": "Dni od dziś dostaną cele z celu profilu, z tymi samymi daniami w innych porcjach. Wcześniejsze dni zostaną, jak były.",
+    "errRetarget": "Nie udało się przyjąć celu profilu.",
     "errEvenWeek": "Nie udało się wyrównać tygodnia.",
     "listOutOfDateDay": "Lista zakupów obejmująca ten dzień będzie do odświeżenia.",
     "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia."

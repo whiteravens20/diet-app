@@ -5795,6 +5795,80 @@
         }
       }
     },
+    "/api/meal-plans/{id}/retarget": {
+      "post": {
+        "operationId": "MealPlans_retarget",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take the profile's target from today: the plan's target becomes the one the profile has now, its days from today get their targets from it, kinds of day and their own targets kept, the same dishes in other portions; days before today stay (`RetargetPlanRequest`).",
+        "description": "Take the profile's target from today: the plan's target becomes the one the profile has now, its days from today get their targets from it, kinds of day and their own targets kept, the same dishes in other portions; days before today stay (`RetargetPlanRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetargetPlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/use-up": {
       "post": {
         "operationId": "MealPlans_useUpSuggestions",
@@ -16188,6 +16262,29 @@
               "$ref": "#/components/schemas/PlanWeek"
             }
           },
+          "targetMoved": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "profileTarget": {
+                    "type": "integer"
+                  },
+                  "planTarget": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "profileTarget",
+                  "planTarget"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -16266,6 +16363,7 @@
           "dietType",
           "days",
           "weeks",
+          "targetMoved",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",
@@ -22014,6 +22112,19 @@
           "unreadable"
         ],
         "additionalProperties": false
+      },
+      "RetargetPlanRequest": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "revision"
+        ]
       },
       "RetiredIngredient": {
         "type": "object",

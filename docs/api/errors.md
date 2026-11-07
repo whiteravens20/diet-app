@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 186 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 187 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -131,6 +131,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PLAN_LIMIT_REACHED` | 409 | This profile already has as many meal plans as it can hold. Delete an old plan first. | Ten profil ma już tyle planów, ile może mieć. Najpierw usuń któryś ze starych planów. |
 | `PLAN_NEEDS_RELAXATION` | 422 | The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for. | Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie. |
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |
+| `PLAN_TARGET_TYPED` | 409 | This plan keeps the target typed when it was made: the profile's target does not change it. | Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia. |
 | `PRODUCTS_NOT_OFFERED` | 404 | This instance offers no products. | Ta instancja nie oferuje produktów. |
 | `PRODUCT_CHANGED` | 409 | This product changed after it was opened. Open it again. | Ten produkt zmienił się po otwarciu. Otwórz go ponownie. |
 | `PRODUCT_CODE_HELD` | 409 | A product of yours has this code already. | Masz już własny produkt o tym kodzie. |

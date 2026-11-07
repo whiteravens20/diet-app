@@ -338,6 +338,12 @@ const ASKS: Ask[] = [
     (ids) => ({ profileId: ids.profile, kg: 71 }),
   ],
   ['delete a weight', 'delete', (ids) => `/api/weights/${ids.weight}`],
+  [
+    "take a profile's target into its plan from today",
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/retarget`,
+    () => ({ revision: 0 }),
+  ],
 
   ['read the week of a profile in sum', 'get', (ids) => `/api/diary/week?profileId=${ids.profile}`],
   [

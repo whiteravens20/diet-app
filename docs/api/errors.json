@@ -1107,6 +1107,15 @@
       "pl": "Nie znaleziono planu posiłków."
     }
   },
+  "PLAN_TARGET_TYPED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This plan keeps the target typed when it was made: the profile's target does not change it.",
+      "pl": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia."
+    }
+  },
   "PRODUCTS_NOT_OFFERED": {
     "statuses": [
       404

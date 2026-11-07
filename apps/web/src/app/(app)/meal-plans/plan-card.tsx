@@ -46,6 +46,7 @@ import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
 import { ListNote } from './list-note';
 import { UseUp } from './use-up';
+import { TargetMovedLine } from './target-moved-line';
 import { WeekLine } from './week-line';
 import { DOT, held } from '@/lib/figure-line';
 
@@ -1305,6 +1306,7 @@ export function PlanCard({
               {t('conflictsNotice', { count: conflicts })}
             </p>
           )}
+          <TargetMovedLine plan={plan} onTaken={onChanged} />
           {plan.days.length > DAYS_A_WEEK ? (
             <Tabs
               label={t('planWeeks')}

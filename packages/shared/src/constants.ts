@@ -210,3 +210,10 @@ export const MAX_WATER_ENTRIES_A_DAY = 50;
 
 /** The days of a week in sum: the full days before today, today left out. */
 export const WEEK_DAYS = 7;
+
+/**
+ * How far a profile's target may move from the one a running plan was made
+ * with, in kcal a day, before the plan says so and offers the new one: a few
+ * kilograms of weight move it less, a change of activity more.
+ */
+export const TARGET_MOVED_LEAST_KCAL = 100;

@@ -13,6 +13,7 @@ import {
   fitsDiet,
   MAX_MEALS_ON_A_PLAN_DAY,
   PlanOptions,
+  TARGET_MOVED_LEAST_KCAL,
   type AddCustomMealRequest,
   type CookingChange,
   type DiaryEntry,
@@ -67,6 +68,7 @@ import {
   sumNutrition,
   type MealAmount,
 } from './plan-days.js';
+import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
@@ -1171,6 +1173,7 @@ export class MealPlansService {
       durationDays: plan.durationDays,
       dietType: plan.dietType,
       days,
+      targetMoved: targetMoved(plan, options, today),
       weeks: planWeeks(
         plan.days.map((day) => ({
           id: day.id,
@@ -1229,12 +1232,14 @@ interface PlanWithRelations {
   report: unknown;
   revision: number;
   createdAt: Date;
-  /** Whose plan it is: the floor a day's target is compared with follows from it. */
-  profile: {
-    sex: Sex | null;
-    mealCount: number;
-    preferences: LabelLimitColumns | null;
-  } | null;
+  /** Whose plan it is: the floor a day's target is compared with follows from it, and its target now. */
+  profile:
+    | (BaseProfile & {
+        sex: Sex | null;
+        mealCount: number;
+        preferences: LabelLimitColumns | null;
+      })
+    | null;
   days: {
     id: string;
     date: Date;
@@ -1417,4 +1422,23 @@ function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number):
     },
     { calories: 0, protein: 0, fat: 0, carbs: 0 },
   );
+}
+
+/**
+ * The profile's target now beside the plan's own, where they part by
+ * `TARGET_MOVED_LEAST_KCAL` or more and a day of the plan is still to come:
+ * the plan then offers the new one from today. A plan whose target was typed
+ * for it keeps it, and says nothing.
+ */
+function targetMoved(
+  plan: Pick<PlanWithRelations, 'calorieTarget' | 'profile' | 'days'>,
+  options: { calorieTargetOverride: number | null },
+  today: string,
+): MealPlan['targetMoved'] {
+  if (!plan.profile || options.calorieTargetOverride !== null) return null;
+  if (!plan.days.some((day) => isoDate(day.date) >= today && !isSkipped(day))) return null;
+  const profileTarget = planBaseOf(plan.profile).target;
+  return Math.abs(profileTarget - plan.calorieTarget) >= TARGET_MOVED_LEAST_KCAL
+    ? { profileTarget, planTarget: plan.calorieTarget }
+    : null;
 }

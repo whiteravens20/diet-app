@@ -673,6 +673,18 @@ export const EvenWeekRequest = z.object({
 });
 export type EvenWeekRequest = z.infer<typeof EvenWeekRequest>;
 
+/**
+ * Take the profile's target from today (`POST /meal-plans/:id/retarget`): the
+ * plan's target becomes the profile's, its days from today get their targets
+ * from it, kinds of day and their own targets kept, the same dishes in other
+ * portions; days before today stay as they were. A plan that changed since
+ * answers 409 `PLAN_CHANGED`.
+ */
+export const RetargetPlanRequest = z.object({
+  revision: z.number().int().min(0).max(2_147_483_647),
+});
+export type RetargetPlanRequest = z.infer<typeof RetargetPlanRequest>;
+
 /** A pack that a plan's menu opens and does not finish. */
 export const PlanOpenPack = z.object({
   ingredientId: z.string().uuid(),
@@ -740,6 +752,14 @@ export const MealPlan = z.object({
   days: z.array(MealPlanDay),
   /** Its weeks, the first first. */
   weeks: z.array(PlanWeek),
+  /**
+   * The profile's target now and the one the plan was made with, where they
+   * part by `TARGET_MOVED_LEAST_KCAL` or more and the plan has days to come;
+   * null otherwise, and for a plan whose target was typed for it.
+   */
+  targetMoved: z
+    .object({ profileTarget: z.number().int(), planTarget: z.number().int() })
+    .nullable(),
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
@@ -875,6 +895,7 @@ export const MealPlanSummary = MealPlan.omit({
   averageOff: true,
   days: true,
   weeks: true,
+  targetMoved: true,
   report: true,
   targetMacros: true,
   packs: true,

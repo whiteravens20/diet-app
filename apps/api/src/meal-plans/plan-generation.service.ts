@@ -31,7 +31,6 @@ import {
 } from '@diet-app/shared';
 import {
   amountsPerServing,
-  calculateCalories,
   dayMacros,
   effectiveDayTarget,
   macroSplitOf,
@@ -44,7 +43,6 @@ import {
   proteinKindsOf,
   recipeCoverage,
   requirementsPerServing,
-  type CalorieEngineInput,
   type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
@@ -65,6 +63,7 @@ import {
   parseDayOverrides,
   type DayOverridesJson,
 } from './plan-days.js';
+import { planBaseOf, type BaseProfile, type PlanBase } from './plan-base.js';
 import { asWeekDay } from './plan-weeks.js';
 import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
@@ -182,6 +181,63 @@ export class PlanGenerationService {
     const { from, to, ...options } = request;
     await this.reroll(userId, planId, { from, to }, options, clientToday);
     return this.plans.get(userId, locale, planId);
+  }
+
+  /**
+   * Take the profile's target from today (`RetargetPlanRequest`), on the plan
+   * as it was at `revision`: the plan's target becomes the one the profile
+   * has now, and each day from today that is not skipped gets the target that
+   * comes of it by its kind and its week, or keeps its own, the same dishes
+   * in other portions. Days before today stay as they were. A plan whose
+   * target was typed for it has nothing to take.
+   */
+  async retarget(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    revision: number,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      include: { profile: true, days: { orderBy: { date: 'asc' } } },
+    });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.revision !== revision) {
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed while this request was running. Reload it and try again.',
+      });
+    }
+    const made = PlanOptions.parse(plan.options);
+    if (made.calorieTargetOverride !== null) {
+      throw new ConflictException({
+        error: 'PLAN_TARGET_TYPED',
+        message: 'This plan keeps the target typed for it; the profile has none to give it.',
+      });
+    }
+    const today = clientToday ?? this.today();
+    const base = this.planBase(plan.profile);
+    const scales = weekScales(plan.days.map(asWeekDay));
+    const moved = plan.days.flatMap((day, index) => {
+      if (isoDate(day.date) < today || isSkipped(day)) return [];
+      const target = dayTarget(base, parseDayOverrides(day.overrides), scales[index]!);
+      return target === day.calorieTarget ? [] : [{ id: day.id, target }];
+    });
+    if (base.target !== plan.calorieTarget || moved.length > 0) {
+      await writePlan(this.prisma, planId, revision, async (tx) => {
+        await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
+        for (const day of moved) {
+          await tx.mealPlanDay.update({
+            where: { id: day.id },
+            data: { calorieTarget: day.target },
+          });
+          await this.plans.rebalanceDayInternal(day.id, tx, today);
+        }
+      });
+    }
+    return this.plans.get(userId, locale, planId, today);
   }
 
   /** Give one day of a plan other meals. */
@@ -602,32 +658,9 @@ export class PlanGenerationService {
     );
   }
 
-  /**
-   * The base target of a plan for this profile, and how it came about. A
-   * target typed for the plan stands in for the one typed on the profile.
-   */
+  /** The base target of a plan for this profile (`planBaseOf`). */
   private planBase(profile: BaseProfile, typedForThePlan?: number): PlanBase {
-    const riskAcknowledged = profile.riskAcknowledgedAt !== null;
-    const calories = calculateCalories({
-      age: profile.age,
-      sex: profile.sex,
-      heightCm: profile.heightCm,
-      weightKg: profile.weightKg,
-      activityLevel: profile.activityLevel,
-      dietType: profile.dietType,
-      weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
-      manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
-      riskAcknowledged,
-      expenditureCorrection: profile.expenditureCorrectionKcal ?? 0,
-    });
-    const atRisk = calories.warnings.includes('minor') || calories.warnings.includes('underweight');
-    return {
-      target: calories.dailyTarget,
-      // A goal that is held is planned as maintenance, which the engine worked out.
-      calculated: calories.source === 'calculated' || calories.goalHeld,
-      floor: calories.safetyFloor,
-      holdUnder: atRisk && !riskAcknowledged ? calories.maintenance : null,
-    };
+    return planBaseOf(profile, typedForThePlan);
   }
 
   /**
@@ -1086,8 +1119,6 @@ const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({
   inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0,
 });
 
-type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
-
 /** A fully-resolved day: defaults merged with overrides, ready for the optimiser. */
 interface ResolvedDay {
   date: Date;
@@ -1144,29 +1175,6 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
 /** A random value for one generation: any 32-bit integer, which is what the column holds. */
 function newSeed(): number {
   return randomInt(-(2 ** 31), 2 ** 31);
-}
-
-/** What a plan's base target is worked out from, of a profile. */
-type BaseProfile = Omit<
-  CalorieEngineInput,
-  'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit' | 'expenditureCorrection'
-> & {
-  weeklyLossTarget: string | null;
-  riskAcknowledgedAt: Date | null;
-  expenditureCorrectionKcal: number | null;
-};
-
-/**
- * The base target of a plan and how it came about: what the target of each
- * of its days is decided from.
- */
-interface PlanBase {
-  target: number;
-  /** Worked out by the engine, not typed by somebody. */
-  calculated: boolean;
-  floor: number;
-  /** Maintenance, when the profile's loss goal is held: no day goes under it by a target of its own. */
-  holdUnder: number | null;
 }
 
 /**

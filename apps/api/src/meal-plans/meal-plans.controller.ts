@@ -25,6 +25,7 @@ import {
   DaySettings,
   DaySettingsPreview,
   EvenWeekRequest,
+  RetargetPlanRequest,
   DayVariations,
   GeneratePlanRequest,
   MealPlan,
@@ -314,6 +315,26 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.settings.evenWeek(user.id, locale, id, dto, today);
+  }
+
+  /**
+   * Take the profile's target from today: the plan's target becomes the one
+   * the profile has now, its days from today get their targets from it, kinds
+   * of day and their own targets kept, the same dishes in other portions;
+   * days before today stay (`RetargetPlanRequest`).
+   */
+  @Post(':id/retarget')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
+  retarget(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(RetargetPlanRequest)) dto: RetargetPlanRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.generation.retarget(user.id, locale, id, dto.revision, today);
   }
 
   /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */

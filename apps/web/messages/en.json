@@ -328,6 +328,7 @@
     "PROFILE_LIMIT_REACHED": "You've reached the maximum number of profiles.",
     "PLAN_NOT_FOUND": "Meal plan not found.",
     "PLAN_CHANGED": "The plan changed in the meantime. It has been reloaded; try again.",
+    "PLAN_TARGET_TYPED": "This plan keeps the target typed when it was made: the profile's target does not change it.",
     "DAY_NOT_FOUND": "Day not found in this plan.",
     "DAY_IN_THE_PAST": "This day is over: it stays as it was.",
     "DAY_SKIPPED": "This day is skipped: there is no meal on it to change.",
@@ -1901,6 +1902,10 @@
     "weekUneven": "This week's average daily target: {average} kcal, the plan's target: {target} kcal.",
     "evenWeek": "Even out the week",
     "evenWeekNote": "This week's days from today get new targets: the same dishes in other portions.",
+    "targetMoved": "The profile's target is now {profile, number, ::group-off}\u00a0kcal, this plan counts {plan, number, ::group-off}\u00a0kcal.",
+    "retarget": "Take it from today",
+    "retargetNote": "The days from today get targets from the profile's target, with the same dishes in other portions. The days before them stay as they were.",
+    "errRetarget": "The profile's target could not be taken.",
     "errEvenWeek": "Could not even out the week.",
     "listOutOfDateDay": "The shopping list that covers this day will need to be made again.",
     "listOutOfDateDays": "The shopping list that covers these days will need to be made again."
