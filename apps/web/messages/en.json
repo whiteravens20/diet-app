@@ -475,6 +475,16 @@
     "PRODUCTS_NOT_OFFERED": "This instance offers no products."
   },
   "notifications": {
+    "cooking_reminder": "Tomorrow you cook ahead: {groups}.",
+    "cookingGroup": "{dishes}, also for {cover}",
+    "cookingCover": {
+      "nextDay": "the day after",
+      "breakfast": "breakfast",
+      "second_breakfast": "second breakfast",
+      "lunch": "lunch",
+      "snack": "a snack",
+      "dinner": "dinner"
+    },
     "label": "Notifications",
     "title": "Notifications",
     "empty": "Nothing new.",
@@ -2410,6 +2420,8 @@
     "splitSumRefused": "The split of protein, fat and carbohydrate has to add up to 100\u00a0%.",
     "weightReminderCadence": "Weight reminder",
     "weightReminderCadenceHint": "How often the app nudges you to log your weight.",
+    "cookingReminders": "Reminder to cook ahead",
+    "cookingRemindersHint": "At 6\u00a0pm the day before, when the plan cooks a dish for two days or two meals.",
     "weightReminderOff": "Off",
     "weightReminderDaily": "Daily",
     "weightReminderWeekly": "Weekly",

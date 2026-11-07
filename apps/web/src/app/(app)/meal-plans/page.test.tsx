@@ -43,6 +43,7 @@ const profile: Profile = {
   targetWeightKg: null,
   waterTargetMl: 2000,
   expenditureCorrectionKcal: null,
+  cookingReminders: true,
   targetWeightReached: false,
   targetReachedLaterUntil: null,
   activityLevel: 'moderate',

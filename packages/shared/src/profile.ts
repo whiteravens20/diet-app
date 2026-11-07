@@ -193,6 +193,8 @@ const profileFields = {
   mealCount: z.number().int().min(2).max(5),
   /** How often the background worker should nudge to log a weight. */
   weightReminderCadence: WeightReminderCadence,
+  /** A reminder the evening before a day that cooks for two days or two meals. */
+  cookingReminders: z.boolean(),
   /**
    * The split of a day's energy the profile aims at on the `custom` diet.
    * A profile on that diet has one; a profile on another may keep one for
@@ -234,6 +236,7 @@ const newProfile = z.object({
   acknowledgeRisk,
   mealCount: profileFields.mealCount.default(3),
   weightReminderCadence: profileFields.weightReminderCadence.default('weekly'),
+  cookingReminders: profileFields.cookingReminders.default(true),
   customMacroSplit: profileFields.customMacroSplit.default(null),
   preferences: ProfilePreferences.default(PREFERENCE_DEFAULTS),
 });
@@ -255,6 +258,8 @@ export const ProfileUpdate = z
     // The target of water came after the clients that send every other part: left out, it stays
     // as it is.
     waterTargetMl: profileFields.waterTargetMl.optional(),
+    // The reminder of cooking came after them too: left out, it stays as it is.
+    cookingReminders: profileFields.cookingReminders.optional(),
     // The limits of a label came after the clients that send every other part: left out, they
     // stay as they are.
     preferences: z.object({ ...preferenceFields, labelLimits: LabelLimits.optional() }),

@@ -475,6 +475,16 @@
     "PRODUCTS_NOT_OFFERED": "Ta instancja nie oferuje produktów."
   },
   "notifications": {
+    "cooking_reminder": "Jutro gotujesz na zapas: {groups}.",
+    "cookingGroup": "{dishes}, też na {cover}",
+    "cookingCover": {
+      "nextDay": "pojutrze",
+      "breakfast": "śniadanie",
+      "second_breakfast": "drugie śniadanie",
+      "lunch": "obiad",
+      "snack": "przekąskę",
+      "dinner": "kolację"
+    },
     "label": "Powiadomienia",
     "title": "Powiadomienia",
     "empty": "Brak nowości.",
@@ -2410,6 +2420,8 @@
     "splitSumRefused": "Podział na białko, tłuszcz i węglowodany musi sumować się do 100\u00a0%.",
     "weightReminderCadence": "Przypomnienie o wadze",
     "weightReminderCadenceHint": "Jak często aplikacja przypomina o zapisaniu wagi.",
+    "cookingReminders": "Przypomnienie o gotowaniu na zapas",
+    "cookingRemindersHint": "O 18:00\u00a0dzień wcześniej, gdy plan gotuje danie na dwa dni albo dwa posiłki.",
     "weightReminderOff": "Wyłączone",
     "weightReminderDaily": "Codziennie",
     "weightReminderWeekly": "Co tydzień",

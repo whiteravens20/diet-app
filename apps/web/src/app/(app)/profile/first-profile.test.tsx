@@ -310,6 +310,8 @@ describe('the profile the steps make', () => {
       manualCalorieTarget: null,
       mealCount: 4,
       weightReminderCadence: 'weekly',
+      // A new profile is reminded of cooking ahead.
+      cookingReminders: true,
       preferences: { allergens: ['peanuts'] },
     });
     await vi.waitFor(() =>

@@ -220,6 +220,7 @@ export default function ProfilePage() {
       ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
+      cookingReminders: f.get('cookingReminders') === 'on',
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: {
@@ -455,6 +456,22 @@ export default function ProfilePage() {
                     <option value="weekly">{t('weightReminderWeekly')}</option>
                   </select>
                 </Field>
+                <div className="space-y-3 text-sm sm:col-span-2">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      name="cookingReminders"
+                      className="mt-1"
+                      defaultChecked={editing?.cookingReminders ?? true}
+                    />
+                    <span>
+                      <span className="font-medium">{t('cookingReminders')}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {t('cookingRemindersHint')}
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </FormSection>
               <FormSection title={t('section.food')}>
                 <DietFields

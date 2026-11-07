@@ -93,6 +93,7 @@ export class ProfilesService {
           customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
           mealCount: input.mealCount,
           weightReminderCadence: input.weightReminderCadence,
+          cookingReminders: input.cookingReminders,
           preferences: { create: preferenceColumns(input.preferences) },
         },
         include: { preferences: true },
@@ -148,6 +149,10 @@ export class ProfilesService {
         customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
+        // Left out by a client from before the reminder, it stays as it is.
+        ...(input.cookingReminders === undefined
+          ? {}
+          : { cookingReminders: input.cookingReminders }),
         preferences: {
           upsert: {
             create: preferenceColumns(input.preferences),
@@ -256,6 +261,7 @@ export class ProfilesService {
     customMacroSplit: unknown;
     mealCount: number;
     weightReminderCadence: string;
+    cookingReminders: boolean;
     createdAt: Date;
     updatedAt: Date;
     preferences: {
@@ -303,6 +309,7 @@ export class ProfilesService {
       riskAcknowledgedAt: row.riskAcknowledgedAt?.toISOString() ?? null,
       mealCount: row.mealCount,
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
+      cookingReminders: row.cookingReminders,
       customMacroSplit: storedSplit(row.customMacroSplit),
       preferences: {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],

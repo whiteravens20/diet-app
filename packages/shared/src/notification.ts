@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { CalendarDay, MealType } from './enums.js';
 
 /**
  * Device-agnostic notification surface.
@@ -28,6 +29,7 @@ export const NotificationType = z.enum([
   'product_rejected',
   'product_replaced',
   'product_withdrawn',
+  'cooking_reminder',
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
@@ -62,6 +64,25 @@ export const WeightReminderPayload = z.object({
   cadence: z.enum(['daily', 'weekly']),
 });
 export type WeightReminderPayload = z.infer<typeof WeightReminderPayload>;
+
+/** A dish cooked once tomorrow for later as well: its meal, its title, and what else it covers. */
+export const CookedAhead = z.object({
+  planId: z.string().uuid(),
+  plannedMealId: z.string().uuid(),
+  /** The recipe's title in the account's language when the reminder was made. */
+  dish: z.string(),
+  /** What else it covers: the day after, or another meal of the same day. */
+  alsoDate: CalendarDay,
+  alsoMealType: MealType,
+});
+export type CookedAhead = z.infer<typeof CookedAhead>;
+
+/** Payload for `type='cooking_reminder'`: the dishes cooked ahead on `date`, one reminder a day. */
+export const CookingReminderPayload = z.object({
+  date: CalendarDay,
+  dishes: z.array(CookedAhead).min(1),
+});
+export type CookingReminderPayload = z.infer<typeof CookingReminderPayload>;
 
 export const Notification = z.object({
   id: z.string().uuid(),

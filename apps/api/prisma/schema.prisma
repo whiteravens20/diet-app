@@ -315,6 +315,9 @@ model Profile {
   // this profile. Used as a debounce so a stale-by-one-day profile isn't
   // re-nudged every hourly tick.
   lastWeightReminderAt  DateTime?
+  // A reminder the evening before a day that cooks for two days or two meals,
+  // on unless the profile switches it off.
+  cookingReminders      Boolean   @default(true)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 

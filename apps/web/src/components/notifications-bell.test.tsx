@@ -10,7 +10,10 @@ import type { Notification } from '@diet-app/shared';
 import messages from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { api } from '@/lib/api';
+import { plain } from '@/testing/spaces';
 import { NotificationsBell, useNotificationText } from './notifications-bell';
+
+const PLAN = '11111111-1111-4111-8111-111111111111';
 
 function tree() {
   return (
@@ -58,6 +61,59 @@ describe('NotificationsBell', () => {
 
     expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
     expect(get).not.toHaveBeenCalled();
+  });
+
+  describe('what it says of the reminders that keep the hours of the account', () => {
+    const said = (
+      type: string,
+      payload: unknown,
+      texts: typeof messages = messages,
+      locale = 'en',
+    ) => {
+      const { result } = renderHook(() => useNotificationText(), {
+        wrapper: ({ children }) => (
+          <NextIntlClientProvider locale={locale} messages={texts}>
+            {children}
+          </NextIntlClientProvider>
+        ),
+      });
+      return plain(result.current({ id: 'n', type, payload } as unknown as Notification));
+    };
+    const cooking = {
+      date: '2026-11-10',
+      dishes: [
+        {
+          planId: PLAN,
+          plannedMealId: PLAN,
+          dish: 'Porridge',
+          alsoDate: '2026-11-11',
+          alsoMealType: 'breakfast',
+        },
+        {
+          planId: PLAN,
+          plannedMealId: PLAN,
+          dish: 'Stew',
+          alsoDate: '2026-11-11',
+          alsoMealType: 'lunch',
+        },
+        {
+          planId: PLAN,
+          plannedMealId: PLAN,
+          dish: 'Chicken with rice',
+          alsoDate: '2026-11-10',
+          alsoMealType: 'dinner',
+        },
+      ],
+    };
+
+    it('names the dishes cooked ahead tomorrow, by what else they cover', () => {
+      expect(said('cooking_reminder', cooking)).toBe(
+        'Tomorrow you cook ahead: Porridge and Stew, also for the day after; Chicken with rice, also for dinner.',
+      );
+      expect(said('cooking_reminder', cooking, pl as typeof messages, 'pl')).toBe(
+        'Jutro gotujesz na zapas: Porridge i Stew, też na pojutrze; Chicken with rice, też na kolację.',
+      );
+    });
   });
 
   describe('what it says of a product of the account', () => {

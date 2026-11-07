@@ -220,3 +220,6 @@ export const TARGET_MOVED_LEAST_KCAL = 100;
 
 /** How long "Nie teraz" puts off the offer to keep the weight once the target weight is reached, in days. */
 export const TARGET_REACHED_LATER_DAYS = 14;
+
+/** The hour, by the account's clock, from which a cooking ahead is reminded of the evening before. */
+export const COOKING_REMINDER_HOUR = 18;

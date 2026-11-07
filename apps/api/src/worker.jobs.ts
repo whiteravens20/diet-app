@@ -9,6 +9,7 @@ import { pruneIdempotencyKeys } from './common/idempotency.js';
 import { pruneLimitLogs } from './common/limit-logs.js';
 import { runAlone } from './common/job-lock.js';
 import { NotificationsService } from './notifications/notifications.service.js';
+import { CookingReminderService } from './notifications/cooking-reminder.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
 import { PrismaService } from './prisma/prisma.service.js';
 import { ProductImport } from './products/product-import.js';
@@ -27,6 +28,7 @@ export type Job = readonly [name: string, run: () => Promise<unknown>];
  */
 export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] {
   const weightReminders = app.get(WeightReminderService);
+  const cookingReminders = app.get(CookingReminderService);
   const notifications = app.get(NotificationsService);
   const personalRecipes = app.get(PersonalRecipesService);
   const sessions = app.get(SessionsService);
@@ -37,6 +39,7 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
 
   return [
     ['weight-reminder scan', () => weightReminders.scan()],
+    ['cooking-reminder scan', () => cookingReminders.scan()],
     [
       'removal of notifications nobody will look at again',
       async () => {

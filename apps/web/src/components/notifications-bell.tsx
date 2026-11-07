@@ -6,8 +6,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import type { Notification, ProductNoticePayload, WeightReminderPayload } from '@diet-app/shared';
+import type {
+  CookedAhead,
+  CookingReminderPayload,
+  Notification,
+  ProductNoticePayload,
+  WeightReminderPayload,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { useFormat } from '@/lib/use-format';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -38,7 +45,24 @@ export function useUnreadNotifications() {
 export function useNotificationText(): (notification: Notification) => string {
   const t = useTranslations('notifications');
   const tBody = useTranslations('notifications.weight_reminder');
+  const fmt = useFormat();
   return (n) => {
+    if (n.type === 'cooking_reminder') {
+      const { date, dishes } = n.payload as CookingReminderPayload;
+      // The dishes by what else they cover: the day after, or another meal of the day.
+      const groups = new Map<string, CookedAhead[]>();
+      for (const dish of dishes) {
+        const cover = dish.alsoDate === date ? dish.alsoMealType : 'nextDay';
+        groups.set(cover, [...(groups.get(cover) ?? []), dish]);
+      }
+      const said = [...groups].map(([cover, cooked]) =>
+        t('cookingGroup', {
+          dishes: fmt.list(cooked.map((dish) => dish.dish)),
+          cover: t(`cookingCover.${cover}` as 'cookingCover.nextDay'),
+        }),
+      );
+      return t('cooking_reminder', { groups: said.join('; ') });
+    }
     if (n.type === 'weight_reminder') {
       const p = (n.payload ?? null) as WeightReminderPayload | null;
       const days = p?.daysSinceLastEntry ?? 0;
