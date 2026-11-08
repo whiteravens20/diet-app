@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { barriers, expect, settled, test } from './fixtures';
+import { barriers, expect, loose, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -40,7 +40,7 @@ test.describe('a product in the diary', () => {
     expect(await barriers(page), 'the window with a product to look for').toEqual([]);
 
     await window.getByRole('searchbox').fill(MILK.word);
-    await window.getByRole('button', { name: new RegExp(MILK.name) }).click();
+    await window.getByRole('button', { name: new RegExp(loose(MILK.name)) }).click();
     // Its label, with what is not on it said to be so, and where it comes from.
     await expect(window.getByText(diary.labelFiber!)).toBeVisible();
     await expect(window.getByText(diary.labelUnknown!)).toBeVisible();
@@ -233,7 +233,7 @@ test.describe("a product of one's own", () => {
 
     const window = await windowOnProducts(page, diary);
     await window.getByRole('searchbox').fill(BREAD.word);
-    await window.getByRole('button', { name: new RegExp(BREAD.name) }).click();
+    await window.getByRole('button', { name: new RegExp(loose(BREAD.name)) }).click();
     await expect(window.getByText(diary.productSourceOwn!)).toBeVisible();
     await window.getByRole('spinbutton').fill('100');
     const written = answered(page, 'POST', '/api/diary/entries');

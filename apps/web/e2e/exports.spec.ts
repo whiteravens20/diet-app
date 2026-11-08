@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs';
 import type { Download, Page } from '@playwright/test';
-import { expect, settled, test, type Messages } from './fixtures';
+import { expect, loose, settled, test, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -37,7 +37,7 @@ test.describe('a shopping list, taken out of the application', () => {
     await expect(byHand.or(copied).first()).toBeVisible();
     if (await byHand.isVisible()) {
       await expect(byHand.getByRole('textbox')).toHaveValue(
-        new RegExp(`^${lists.copyTitle!.split(',')[0]}`),
+        new RegExp(`^${loose(lists.copyTitle!.split(',')[0]!)}`),
       );
       await page.keyboard.press('Escape');
       await expect(byHand).toBeHidden();
@@ -109,7 +109,7 @@ test.describe('a shopping list, taken out of the application', () => {
     await settled(page);
 
     await expect(
-      page.getByText(new RegExp(lists.aisleEnergy!.split('{')[0]!)).first(),
+      page.getByText(new RegExp(loose(lists.aisleEnergy!.split('{')[0]!))).first(),
     ).toBeVisible();
 
     // The first row that is not done with: somebody has a little of it at home after all. A row is known by the name it is ticked by.
@@ -121,7 +121,7 @@ test.describe('a shopping list, taken out of the application', () => {
     const atHome = page
       .getByRole('main')
       .locator('li', { has: page.getByRole('checkbox', { name: entry!, exact: true }) })
-      .getByRole('spinbutton', { name: new RegExp(`^${lists.atHome!}`) });
+      .getByRole('spinbutton', { name: new RegExp(`^${loose(lists.atHome!)}`) });
     const changed = () =>
       page.waitForResponse(
         (res) =>

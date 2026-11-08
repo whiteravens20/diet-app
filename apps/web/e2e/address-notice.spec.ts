@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { expect, settled, test } from './fixtures';
+import { expect, loose, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -43,9 +43,8 @@ test.describe('the notice of an address that is not confirmed', () => {
     // A narrow screen says one sentence, and the whole at "Details": the bar takes less than a fifth of it.
     const more = notice.getByRole('button', { name: texts.more!, exact: true });
     // The sentence of the instance's kind: one where confirming unlocks its AI says so.
-    const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const sentence = notice.getByText(
-      new RegExp(`^(${escaped(texts.shortPlain!)}|${escaped(texts.shortAi!)})`),
+      new RegExp(`^(${loose(texts.shortPlain!)}|${loose(texts.shortAi!)})`),
     );
     if (screenSize.width < 640) {
       expect(box.height).toBeLessThan(screenSize.height / 5);

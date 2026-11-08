@@ -87,13 +87,13 @@ describe('what an editor is told when a draft edit is refused', () => {
         ),
         'pl',
       ),
-    ).toBe(pl.errors.DRAFT_REJECTED);
+    ).toBe(plain(pl.errors.DRAFT_REJECTED));
     expect(
       told(
         new ApiClientError(409, 'DRAFT_SHIPPED', 'A draft that has shipped cannot be edited.'),
         'pl',
       ),
-    ).toBe(pl.errors.DRAFT_SHIPPED);
+    ).toBe(plain(pl.errors.DRAFT_SHIPPED));
   });
 
   it('is what the API said when the code has no text here, and the fallback for anything else', () => {

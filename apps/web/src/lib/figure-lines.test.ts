@@ -128,14 +128,17 @@ describe('a line of figures joined by dots', () => {
   const say = (locale: 'pl' | 'en'): Say =>
     createTranslator({ locale, messages: read(`${locale}.json`) }) as unknown as Say;
 
-  it('keeps a count with its days in the lines of the week and of the water', () => {
+  it('keeps a count with its days, and a word of one letter with what follows it, in the lines of the week and of the water', () => {
     const week = { average: '1,67 l', target: '2 l', reached: 3, counted: 6 };
-    expect(pieces(say('pl')('weekSummary.water', week)).slice(-2)).toEqual(['3 z', '6 dni.']);
+    expect(pieces(say('pl')('weekSummary.water', week)).slice(-2)).toEqual([
+      'w celu',
+      '3 z 6 dni.',
+    ]);
     expect(pieces(say('pl')('weekSummary.within', { within: 0, counted: 7 })).slice(-1)).toEqual([
-      '7 dni',
+      '0 z 7 dni',
     ]);
     expect(pieces(say('pl')('water.inTarget', { reached: 3, days: 7 })).slice(-1)).toEqual([
-      '7 dni',
+      '3 z 7 dni',
     ]);
     expect(pieces(say('en')('water.inTarget', { reached: 1, days: 1 })).slice(-1)).toEqual([
       '1 day',
@@ -265,5 +268,24 @@ describe('a sign that ends a sentence', () => {
   it('is found alone', () => {
     expect(LOOSE_SIGN.test('Dziennik oszacuje i oznaczy ≈.')).toBe(true);
     expect(LOOSE_SIGN.test('Dziennik oznaczy\u00a0≈. Suma ≥ 12 g')).toBe(false);
+  });
+});
+
+/** A Polish word of one letter with a plain space after it: a narrow screen may leave it alone at a line's end. */
+const LOOSE_LETTER = /(?:^|[\s(„"»<>{])[wziaouWZIAOU] (?=\S)/u;
+
+describe('a Polish word of one letter', () => {
+  it('is held to the word after it in every Polish text', () => {
+    const loose = [...texts(read('pl.json'))]
+      .filter(([, text]) => LOOSE_LETTER.test(text))
+      .map(([key]) => key);
+    expect(loose).toEqual([]);
+  });
+
+  it('is found alone', () => {
+    expect(LOOSE_LETTER.test('Wyłączysz ją w profilu.')).toBe(true);
+    expect(LOOSE_LETTER.test('W tym przepisie')).toBe(true);
+    expect(LOOSE_LETTER.test('{count, plural, one {i {count} szkic}}')).toBe(true);
+    expect(LOOSE_LETTER.test('Wyłączysz ją w\u00a0profilu i\u00a0tyle, B 12 g')).toBe(false);
   });
 });

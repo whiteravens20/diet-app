@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import Landing from './page';
+import { plain } from '@/testing/spaces';
 
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -32,7 +33,7 @@ describe('the landing page', () => {
 
       const heading = screen.getByRole('heading', { level: 2 });
       expect(heading).toHaveTextContent(messages.landing.yours.title);
-      expect(screen.getByText(messages.landing.yours.body)).toBeInTheDocument();
+      expect(screen.getByText(plain(messages.landing.yours.body))).toBeInTheDocument();
       const features = messages.landing.features;
       expect(screen.getAllByRole('heading', { level: 3 }).map((one) => one.textContent)).toEqual([
         features.controlTitle,

@@ -41,7 +41,19 @@ const aMeal = (cookAhead: 'cook' | 'cooked', ...others: Place[]) =>
   }) as Pick<PlannedMeal, 'cookAhead' | 'mealType' | 'cooking'>;
 
 describe('what is said in Polish of a meal cooked with another', () => {
-  const words = () => renderHook(() => useCookingWords(), { wrapper: inPolish }).result.current;
+  // What the words say as the eye reads them: a no-break space read as a plain one.
+  const words = () => {
+    const said = renderHook(() => useCookingWords(), { wrapper: inPolish }).result.current;
+    return Object.fromEntries(
+      Object.entries(said).map(([name, say]) => [
+        name,
+        (...args: unknown[]) => {
+          const text = (say as (...given: unknown[]) => string | null)(...args);
+          return text === null ? null : plain(text);
+        },
+      ]),
+    ) as typeof said;
+  };
 
   it('names the two days of a dish cooked once', () => {
     const { chip, hint } = words();

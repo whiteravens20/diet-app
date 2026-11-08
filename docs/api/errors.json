@@ -14,7 +14,7 @@
     ],
     "messages": {
       "en": "ADMIN_SECOND_FACTOR_RESET is on: a second step would be removed at the next start. Switch it off and restart the API first.",
-      "pl": "ADMIN_SECOND_FACTOR_RESET jest włączone: drugi etap zostałby usunięty przy następnym starcie. Najpierw wyłącz tę opcję i zrestartuj API."
+      "pl": "ADMIN_SECOND_FACTOR_RESET jest włączone: drugi etap zostałby usunięty przy następnym starcie. Najpierw wyłącz tę opcję i zrestartuj API."
     }
   },
   "AI_CONFIG_NOT_FOUND": {
@@ -32,7 +32,7 @@
     ],
     "messages": {
       "en": "AI has written as many recipes for you as it may in one day. Try again tomorrow.",
-      "pl": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro."
+      "pl": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro."
     }
   },
   "AI_DRAFT_INVALID": {
@@ -50,7 +50,7 @@
     ],
     "messages": {
       "en": "The AI's recipe does not fit the diet you asked for — try again.",
-      "pl": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie."
+      "pl": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie."
     }
   },
   "AI_DRAFT_OFF_TARGET": {
@@ -59,7 +59,7 @@
     ],
     "messages": {
       "en": "The AI's recipe came out far from the calories you asked for — try again.",
-      "pl": "Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie."
+      "pl": "Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie."
     }
   },
   "AI_DRAFT_UNKNOWN_INGREDIENT": {
@@ -86,7 +86,7 @@
     ],
     "messages": {
       "en": "A saved AI provider key can no longer be read — enter it again in the AI settings.",
-      "pl": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w ustawieniach AI."
+      "pl": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w ustawieniach AI."
     }
   },
   "AI_MONTHLY_LIMIT_REACHED": {
@@ -113,7 +113,7 @@
     ],
     "messages": {
       "en": "No AI provider is set up for your account — choose one in the AI settings.",
-      "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w ustawieniach AI."
+      "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w ustawieniach AI."
     }
   },
   "AI_NOT_PERMITTED": {
@@ -131,7 +131,7 @@
     ],
     "messages": {
       "en": "AI provider was too slow — try a smaller model or a cloud provider.",
-      "pl": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze."
+      "pl": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze."
     }
   },
   "AI_UNAVAILABLE": {
@@ -167,7 +167,7 @@
     ],
     "messages": {
       "en": "The app has signed a browser in too many times in the last hour. Sign in here, or try again later.",
-      "pl": "Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później."
+      "pl": "Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później."
     }
   },
   "BYOK_NO_PROVIDER": {
@@ -203,7 +203,7 @@
     ],
     "messages": {
       "en": "Custom meals can't be swapped or have ingredients substituted.",
-      "pl": "Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika."
+      "pl": "Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika."
     }
   },
   "CUSTOM_SPLIT_MISSING": {
@@ -212,7 +212,7 @@
     ],
     "messages": {
       "en": "The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.",
-      "pl": "Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu."
+      "pl": "Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu."
     }
   },
   "DAY_IN_THE_PAST": {
@@ -230,7 +230,7 @@
     ],
     "messages": {
       "en": "Day not found in this plan.",
-      "pl": "Nie znaleziono dnia w tym planie."
+      "pl": "Nie znaleziono dnia w tym planie."
     }
   },
   "DAY_SKIPPED": {
@@ -248,7 +248,7 @@
     ],
     "messages": {
       "en": "The diary takes today and the year before it, not a day still to come.",
-      "pl": "Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie."
+      "pl": "Dziennik przyjmuje dzisiejszy dzień i dni z ostatniego roku, nie dzień, który dopiero nadejdzie."
     }
   },
   "DIARY_DAY_FULL": {
@@ -275,7 +275,7 @@
     ],
     "messages": {
       "en": "Diary entry not found.",
-      "pl": "Nie znaleziono wpisu w dzienniku."
+      "pl": "Nie znaleziono wpisu w dzienniku."
     }
   },
   "DIARY_MACROS_OVER_ENERGY": {
@@ -284,7 +284,7 @@
     ],
     "messages": {
       "en": "The protein, fat and carbohydrate you gave hold more energy than the calories you gave. Check the figures.",
-      "pl": "Podane białko, tłuszcz i węglowodany mają więcej energii niż podane kalorie. Sprawdź wartości."
+      "pl": "Podane białko, tłuszcz i węglowodany mają więcej energii niż podane kalorie. Sprawdź wartości."
     }
   },
   "DIARY_UNIT_NOT_CONVERTIBLE": {
@@ -293,7 +293,7 @@
     ],
     "messages": {
       "en": "This ingredient can't be given in that unit. Choose one of the units offered for it.",
-      "pl": "Tego składnika nie można podać w tej jednostce. Wybierz jedną z jednostek, które są dla niego dostępne."
+      "pl": "Tego składnika nie można podać w tej jednostce. Wybierz jedną z jednostek, które są dla niego dostępne."
     }
   },
   "DRAFT_INVALID": {
@@ -302,7 +302,7 @@
     ],
     "messages": {
       "en": "The draft would break the rules for recipe text and quantities. Nothing was saved.",
-      "pl": "Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane."
+      "pl": "Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane."
     }
   },
   "DRAFT_NOT_APPROVED": {
@@ -311,7 +311,7 @@
     ],
     "messages": {
       "en": "Draft must be approved in every locale before it can be promoted.",
-      "pl": "Szkic musi być zatwierdzony w każdym języku, zanim trafi do biblioteki."
+      "pl": "Szkic musi być zatwierdzony w każdym języku, zanim trafi do biblioteki."
     }
   },
   "DRAFT_NOT_FOUND": {
@@ -338,7 +338,7 @@
     ],
     "messages": {
       "en": "This draft cannot go into the library as it is:",
-      "pl": "Ten szkic nie może w tej postaci trafić do biblioteki:"
+      "pl": "Ten szkic nie może w tej postaci trafić do biblioteki:"
     }
   },
   "DRAFT_REJECTED": {
@@ -356,7 +356,7 @@
     ],
     "messages": {
       "en": "This ingredient has a newer proposal or a shipped name, so this draft stays as history.",
-      "pl": "Ten składnik ma nowszą propozycję albo wysłaną nazwę, więc ten szkic zostaje w historii."
+      "pl": "Ten składnik ma nowszą propozycję albo wysłaną nazwę, więc ten szkic zostaje w historii."
     }
   },
   "DRAFT_SHIPPED": {
@@ -365,7 +365,7 @@
     ],
     "messages": {
       "en": "This draft has already shipped and can't be changed.",
-      "pl": "Ten szkic został już wysłany i nie można go zmieniać."
+      "pl": "Ten szkic został już wysłany i nie można go zmieniać."
     }
   },
   "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": {
@@ -374,7 +374,7 @@
     ],
     "messages": {
       "en": "User-drafted recipes accept translation edits only — promote first to restructure.",
-      "pl": "W przepisach użytkowników można zmieniać tylko tłumaczenia — żeby zmienić resztę, najpierw przenieś przepis do biblioteki."
+      "pl": "W przepisach użytkowników można zmieniać tylko tłumaczenia — żeby zmienić resztę, najpierw przenieś przepis do biblioteki."
     }
   },
   "EMAIL_ALREADY_VERIFIED": {
@@ -456,7 +456,7 @@
     ],
     "messages": {
       "en": "This favourite set contains a recipe with an allergen this profile avoids — it can't be applied.",
-      "pl": "Ten zestaw ulubionych zawiera przepis z alergenem, którego ten profil unika — nie można go zastosować."
+      "pl": "Ten zestaw ulubionych zawiera przepis z alergenem, którego ten profil unika — nie można go zastosować."
     }
   },
   "FAVORITE_SET_LIMIT_REACHED": {
@@ -465,7 +465,7 @@
     ],
     "messages": {
       "en": "This profile already has as many favorite sets as it can hold. Delete one first.",
-      "pl": "Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich."
+      "pl": "Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich."
     }
   },
   "FAVORITE_SET_NOT_ELIGIBLE": {
@@ -501,7 +501,7 @@
     ],
     "messages": {
       "en": "A household list takes one plan of each profile.",
-      "pl": "Lista dla domu bierze jeden plan z każdego profilu."
+      "pl": "Lista dla domu bierze jeden plan z każdego profilu."
     }
   },
   "IDEMPOTENCY_KEY_REUSED": {
@@ -528,7 +528,7 @@
     ],
     "messages": {
       "en": "This is not a JSON document of recipes.",
-      "pl": "To nie jest dokument JSON z przepisami."
+      "pl": "To nie jest dokument JSON z przepisami."
     }
   },
   "INGREDIENT_NOT_FOUND": {
@@ -555,7 +555,7 @@
     ],
     "messages": {
       "en": "Only a retired ingredient can be replaced, and this one is not retired any more.",
-      "pl": "Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany."
+      "pl": "Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany."
     }
   },
   "INSTANCE_DATA_NEWER": {
@@ -600,7 +600,7 @@
     ],
     "messages": {
       "en": "This sign-in from the app has already been used or has run out. Open the page from the app again, or sign in here.",
-      "pl": "To logowanie z aplikacji zostało już użyte albo minęła jego minuta. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj."
+      "pl": "To logowanie z aplikacji zostało już użyte albo minęła jego minuta. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj."
     }
   },
   "INVALID_CREDENTIALS": {
@@ -681,7 +681,7 @@
     ],
     "messages": {
       "en": "That code is not right. Codes change every half a minute, and each works once.",
-      "pl": "Ten kod jest nieprawidłowy. Kody zmieniają się co pół minuty, a każdy działa tylko raz."
+      "pl": "Ten kod jest nieprawidłowy. Kody zmieniają się co pół minuty, a każdy działa tylko raz."
     }
   },
   "INVALID_SIGN_IN_CHALLENGE": {
@@ -717,7 +717,7 @@
     ],
     "messages": {
       "en": "Inventory item not found.",
-      "pl": "Nie znaleziono pozycji w spiżarni."
+      "pl": "Nie znaleziono pozycji w spiżarni."
     }
   },
   "ITEM_NOT_FOUND": {
@@ -744,7 +744,7 @@
     ],
     "messages": {
       "en": "This draft wasn't generated for that locale.",
-      "pl": "Ten szkic nie został przygotowany w wybranym języku."
+      "pl": "Ten szkic nie został przygotowany w wybranym języku."
     }
   },
   "LOCKED_RECIPE_INELIGIBLE": {
@@ -762,7 +762,7 @@
     ],
     "messages": {
       "en": "This meal is marked as eaten and can't be changed. Unmark it first.",
-      "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
+      "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
     }
   },
   "MEAL_NOT_EATEN_YET": {
@@ -771,7 +771,7 @@
     ],
     "messages": {
       "en": "A meal of a day still to come cannot be marked as eaten.",
-      "pl": "Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego."
+      "pl": "Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego."
     }
   },
   "MEAL_NOT_FOUND": {
@@ -780,7 +780,7 @@
     ],
     "messages": {
       "en": "Meal not found in this plan.",
-      "pl": "Nie znaleziono posiłku w tym planie."
+      "pl": "Nie znaleziono posiłku w tym planie."
     }
   },
   "MEAL_NOT_REBALANCEABLE": {
@@ -789,7 +789,7 @@
     ],
     "messages": {
       "en": "Custom and eaten meals are never rebalanced.",
-      "pl": "Własne i zjedzone posiłki nie są przeliczane."
+      "pl": "Własne i zjedzone posiłki nie są przeliczane."
     }
   },
   "METHOD_NOT_ALLOWED": {
@@ -807,7 +807,7 @@
     ],
     "messages": {
       "en": "This suggestion is no longer good for what it was made for. Ask for another.",
-      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
+      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
     }
   },
   "NAMER_IN_PROGRESS": {
@@ -825,7 +825,7 @@
     ],
     "messages": {
       "en": "Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are.",
-      "pl": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian."
+      "pl": "Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian."
     }
   },
   "NOTHING_TO_UNDO": {
@@ -879,7 +879,7 @@
     ],
     "messages": {
       "en": "No ingredients match your diet and allergen settings.",
-      "pl": "Żadne składniki nie pasują do diety i alergenów profilu."
+      "pl": "Żadne składniki nie pasują do diety i alergenów profilu."
     }
   },
   "NO_ELIGIBLE_RECIPE": {
@@ -897,7 +897,7 @@
     ],
     "messages": {
       "en": "Add favourite ingredients on the profile before swapping by them.",
-      "pl": "Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich."
+      "pl": "Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich."
     }
   },
   "NO_FAVORITE_INGREDIENT_MATCH": {
@@ -924,7 +924,7 @@
     ],
     "messages": {
       "en": "None of the approved drafts can ship as they are.",
-      "pl": "Żaden z zatwierdzonych szkiców nie może zostać wysłany w obecnej postaci."
+      "pl": "Żaden z zatwierdzonych szkiców nie może zostać wysłany w obecnej postaci."
     }
   },
   "OFFER_INVALID": {
@@ -933,7 +933,7 @@
     ],
     "messages": {
       "en": "This offer is no longer good for what it was made for. Ask for another.",
-      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
+      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
     }
   },
   "OFF_DIET_FAVORITE_NOT_ALLOWED": {
@@ -951,7 +951,7 @@
     ],
     "messages": {
       "en": "That Ollama address isn't allowed on this instance. Ask the operator to add it to OLLAMA_ALLOWED_HOSTS.",
-      "pl": "Ten adres Ollama nie jest dozwolony na tej instancji. Poproś operatora o dodanie go do OLLAMA_ALLOWED_HOSTS."
+      "pl": "Ten adres Ollama nie jest dozwolony na tej instancji. Poproś operatora o dodanie go do OLLAMA_ALLOWED_HOSTS."
     }
   },
   "OLLAMA_USER_DISABLED": {
@@ -969,7 +969,7 @@
     ],
     "messages": {
       "en": "This request has to come from the application itself. Reload the page and try again.",
-      "pl": "To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie."
+      "pl": "To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie."
     }
   },
   "OUT_OF_COMPLEXITY_BAND": {
@@ -978,7 +978,7 @@
     ],
     "messages": {
       "en": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",
-      "pl": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas."
+      "pl": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas."
     }
   },
   "OVERRIDE_DATE_OUT_OF_RANGE": {
@@ -996,7 +996,7 @@
     ],
     "messages": {
       "en": "A correction of a product of the base stays yours and does not go to the instance's base. For everybody to have it, correct the product at Open Food Facts.",
-      "pl": "Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts."
+      "pl": "Poprawka produktu z bazy zostaje Twoja i nie trafia do bazy instancji. Żeby poprawka trafiła do wszystkich, popraw produkt w Open Food Facts."
     }
   },
   "OWN_PRODUCT_DAILY_LIMIT": {
@@ -1005,7 +1005,7 @@
     ],
     "messages": {
       "en": "You can write or change at most 50 products in 24 hours.",
-      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
+      "pl": "W ciągu doby możesz dodać lub zmienić najwyżej 50 produktów."
     }
   },
   "OWN_PRODUCT_LIMIT": {
@@ -1032,7 +1032,7 @@
     ],
     "messages": {
       "en": "A product goes to the base with its code, calories, protein, fat and carbohydrates.",
-      "pl": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami."
+      "pl": "Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami."
     }
   },
   "OWN_PRODUCT_SEND_LIMIT": {
@@ -1041,7 +1041,7 @@
     ],
     "messages": {
       "en": "You can send at most 10 products to the base in 24 hours.",
-      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
+      "pl": "W ciągu doby możesz wysłać do bazy najwyżej 10 produktów."
     }
   },
   "OWN_RECIPE_DAILY_LIMIT": {
@@ -1059,7 +1059,7 @@
     ],
     "messages": {
       "en": "The pantry already holds as many items as it can. Remove one first.",
-      "pl": "Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich."
+      "pl": "Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich."
     }
   },
   "PAYLOAD_TOO_LARGE": {
@@ -1086,7 +1086,7 @@
     ],
     "messages": {
       "en": "The plan changed in the meantime. It has been reloaded; try again.",
-      "pl": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie."
+      "pl": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie."
     }
   },
   "PLAN_DAY_FULL": {
@@ -1095,7 +1095,7 @@
     ],
     "messages": {
       "en": "This day of the plan already holds as many meals as it can. Remove a meal first.",
-      "pl": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich."
+      "pl": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich."
     }
   },
   "PLAN_LIMIT_REACHED": {
@@ -1113,7 +1113,7 @@
     ],
     "messages": {
       "en": "The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for.",
-      "pl": "Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie."
+      "pl": "Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie."
     }
   },
   "PLAN_NOT_FOUND": {
@@ -1158,7 +1158,7 @@
     ],
     "messages": {
       "en": "A product of yours has this code already.",
-      "pl": "Masz już własny produkt o tym kodzie."
+      "pl": "Masz już własny produkt o tym kodzie."
     }
   },
   "PRODUCT_CODE_KNOWN": {
@@ -1167,7 +1167,7 @@
     ],
     "messages": {
       "en": "The base has a product of this code.",
-      "pl": "Baza ma już produkt o tym kodzie."
+      "pl": "Baza ma już produkt o tym kodzie."
     }
   },
   "PRODUCT_IMPORT_NO_COUNTRIES": {
@@ -1176,7 +1176,7 @@
     ],
     "messages": {
       "en": "The settings name no country: set OPEN_FOOD_FACTS_COUNTRIES and restart the instance.",
-      "pl": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie."
+      "pl": "Ustawienia nie wymieniają żadnego kraju: ustaw OPEN_FOOD_FACTS_COUNTRIES i uruchom instancję ponownie."
     }
   },
   "PRODUCT_IMPORT_RUNNING": {
@@ -1212,7 +1212,7 @@
     ],
     "messages": {
       "en": "That is all the new codes an account can check in 24 hours. Products this instance knows still work.",
-      "pl": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej."
+      "pl": "Konto może sprawdzić tyle nowych kodów w ciągu doby. Produkty, które ta instancja już zna, działają dalej."
     }
   },
   "PRODUCT_NOT_FOUND": {
@@ -1221,7 +1221,7 @@
     ],
     "messages": {
       "en": "No product with this code is known.",
-      "pl": "Nie znamy produktu o tym kodzie."
+      "pl": "Nie znamy produktu o tym kodzie."
     }
   },
   "PRODUCT_NOT_WAITING": {
@@ -1302,7 +1302,7 @@
     ],
     "messages": {
       "en": "You already have a recipe with these ingredients, in these amounts, for these meals.",
-      "pl": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki."
+      "pl": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki."
     }
   },
   "RECIPE_GEN_IN_PROGRESS": {
@@ -1320,7 +1320,7 @@
     ],
     "messages": {
       "en": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
-      "pl": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane."
+      "pl": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane."
     }
   },
   "RECIPE_NOT_ELIGIBLE": {
@@ -1356,7 +1356,7 @@
     ],
     "messages": {
       "en": "A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library.",
-      "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
+      "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
     }
   },
   "RECIPE_WORDS_ONLY_OF_A_SWAP": {
@@ -1365,7 +1365,7 @@
     ],
     "messages": {
       "en": "Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version.",
-      "pl": "Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję."
+      "pl": "Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję."
     }
   },
   "REFERENCE_CONFLICT": {
@@ -1383,7 +1383,7 @@
     ],
     "messages": {
       "en": "Choose another ingredient of the catalogue to replace it with.",
-      "pl": "Wybierz inny składnik z katalogu, którym go zastąpić."
+      "pl": "Wybierz inny składnik z katalogu, którym go zastąpić."
     }
   },
   "REVIEWER_DISABLED": {
@@ -1429,7 +1429,7 @@
     ],
     "messages": {
       "en": "No account with that address uses two-step sign-in.",
-      "pl": "Żadne konto z tym adresem nie używa logowania dwuetapowego."
+      "pl": "Żadne konto z tym adresem nie używa logowania dwuetapowego."
     }
   },
   "SECOND_FACTOR_NOT_ON": {
@@ -1465,7 +1465,7 @@
     ],
     "messages": {
       "en": "Your session was refreshed in another tab a moment ago. Try again.",
-      "pl": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie."
+      "pl": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie."
     }
   },
   "SESSION_NOT_FOUND": {
@@ -1501,7 +1501,7 @@
     ],
     "messages": {
       "en": "This plan already has as many shopping lists as it can hold. Delete one first.",
-      "pl": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich."
+      "pl": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich."
     }
   },
   "SHOPPING_RANGE_OUTSIDE_PLAN": {
@@ -1510,7 +1510,7 @@
     ],
     "messages": {
       "en": "Those dates are not within the plan. Pick dates the plan covers.",
-      "pl": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje."
+      "pl": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje."
     }
   },
   "SUBSTITUTION_MOVES_NUTRITION": {
@@ -1519,7 +1519,7 @@
     ],
     "messages": {
       "en": "This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same.",
-      "pl": "Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać."
+      "pl": "Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać."
     }
   },
   "TOO_MANY_ATTEMPTS": {
@@ -1537,7 +1537,7 @@
     ],
     "messages": {
       "en": "This address has opened as many accounts as it may in a day. Try again later, at most a day from now.",
-      "pl": "Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę."
+      "pl": "Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę."
     }
   },
   "TRANSLATIONS_IN_PROGRESS": {
@@ -1573,7 +1573,7 @@
     ],
     "messages": {
       "en": "That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another.",
-      "pl": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny."
+      "pl": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny."
     }
   },
   "UNIT_CONVERSION_FAILED": {
@@ -1591,7 +1591,7 @@
     ],
     "messages": {
       "en": "This ingredient can't be kept in that unit. Use the unit it is weighed or measured in.",
-      "pl": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy."
+      "pl": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy."
     }
   },
   "UNKNOWN_SLUG": {
@@ -1600,7 +1600,7 @@
     ],
     "messages": {
       "en": "Ingredient slug not found in the curated catalogue.",
-      "pl": "Składnik nie istnieje w katalogu — podaj inny slug."
+      "pl": "Składnik nie istnieje w katalogu — podaj inny slug."
     }
   },
   "UNSUPPORTED_MEDIA_TYPE": {
@@ -1645,7 +1645,7 @@
     ],
     "messages": {
       "en": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes.",
-      "pl": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
+      "pl": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
     }
   },
   "WATER_DAY_FULL": {
@@ -1699,7 +1699,7 @@
     ],
     "messages": {
       "en": "The data changed while the request was running. Try again.",
-      "pl": "Dane zmieniły się w trakcie operacji. Spróbuj ponownie."
+      "pl": "Dane zmieniły się w trakcie operacji. Spróbuj ponownie."
     }
   }
 }

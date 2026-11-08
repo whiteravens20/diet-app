@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { barriers, expect, test, type Messages } from './fixtures';
+import { barriers, expect, loose, test, type Messages } from './fixtures';
 
 const texts = (messages: Messages, ...path: string[]): Record<string, string> =>
   path.reduce<unknown>((at, key) => (at as Record<string, unknown>)[key], messages) as Record<
@@ -63,8 +63,10 @@ test.describe("taking recipes in from elsewhere, in the administrator's panel", 
     await page.getByLabel(admin.adminUser!).fill(user!);
     await page.getByLabel(admin.adminPassword!).fill(password!);
     await page.getByRole('button', { name: admin.signIn!, exact: true }).click();
-    await page.getByRole('tab', { name: new RegExp(`^${tabs.queue}`) }).click();
-    await page.getByRole('button', { name: new RegExp(`^${curation.kindRecipes}`) }).click();
+    await page.getByRole('tab', { name: new RegExp(`^${loose(tabs.queue!)}`) }).click();
+    await page
+      .getByRole('button', { name: new RegExp(`^${loose(curation.kindRecipes!)}`) })
+      .click();
     const section = page.getByRole('region', { name: text.title!, exact: true });
     await section.getByRole('heading', { name: text.title!, exact: true }).click();
     await expect(section.getByLabel(text.document!, { exact: true })).toBeVisible();

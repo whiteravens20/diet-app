@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Locator, Page } from '@playwright/test';
-import { barriers, expect, settled, test, theFormForAPlan, type Messages } from './fixtures';
+import { barriers, expect, loose, settled, test, theFormForAPlan, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
@@ -18,8 +18,7 @@ async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
 }
 
 /** The name of a control of a meal: what it does, then the meal it does it to. */
-const ofAMeal = (action: string): RegExp =>
-  new RegExp(`^${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `);
+const ofAMeal = (action: string): RegExp => new RegExp(`^${loose(`${action}: `)}`);
 
 /** The ways to change the first meal that can be changed, unfolded. */
 async function waysToChangeAMeal(page: Page, messages: Messages): Promise<Locator> {
@@ -48,7 +47,7 @@ test.describe('a plan and what it is made for', () => {
     await theFormForAPlan(page, messages);
 
     // A label that holds a list of choices reads with them: it is found by how it begins.
-    await page.getByLabel(new RegExp(`^${plans.mealsPerDay!}`)).selectOption('2');
+    await page.getByLabel(new RegExp(`^${loose(plans.mealsPerDay!)}`)).selectOption('2');
     await page.getByLabel(plans.calorieTarget!, { exact: true }).fill('1900');
     const answered = page.waitForResponse(
       (res) => new URL(res.url()).pathname === '/api/meal-plans/generate',
@@ -134,7 +133,7 @@ test.describe('a plan that is made again', () => {
       await expect(confirm).toBeEnabled();
       // The plan begins today: nothing of it has passed, and what is left of it is the whole of it.
       await expect(
-        dialog.getByText(new RegExp(`^${reroll.replaced!.split(':')[0]}:`)),
+        dialog.getByText(new RegExp(`^${loose(reroll.replaced!.split(':')[0]!)}:`)),
       ).toBeVisible();
       await expect(dialog.getByLabel(reroll.fromToday!, { exact: true })).toBeDisabled();
       await expect(dialog.getByText(reroll.fromTodayNotBegun!)).toBeVisible();
@@ -236,7 +235,7 @@ test.describe('a meal of a plan', () => {
     await dialog.getByLabel(plans.customFat!, { exact: true }).fill('20');
     await dialog.getByLabel(plans.customCarbs!, { exact: true }).fill('110');
     await dialog
-      .getByRole('spinbutton', { name: new RegExp(`^${plans.customServings!}`) })
+      .getByRole('spinbutton', { name: new RegExp(`^${loose(plans.customServings!)}`) })
       .fill('2');
 
     // Two servings of 900 kcal: the day gets 1800, and the window says so before anything is sent. A

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { expect, settled, test, type Messages } from './fixtures';
+import { expect, loose, settled, test, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 const textsOf = (messages: Messages): Texts => messages.favorites as Texts;
@@ -45,8 +45,8 @@ test.describe('the recipes a profile marked', () => {
       .first();
     const how = row.getByRole('combobox');
     // The two lists that narrow the page. A label that holds a list of choices reads with them, and a recipe's own tags are a list named alike: these are found as what they are, by how their name begins.
-    const byTag = page.getByRole('combobox', { name: new RegExp(`^${texts.tag!}`) });
-    const byMark = page.getByRole('combobox', { name: new RegExp(`^${texts.marked!}`) });
+    const byTag = page.getByRole('combobox', { name: new RegExp(`^${loose(texts.tag!)}`) });
+    const byMark = page.getByRole('combobox', { name: new RegExp(`^${loose(texts.marked!)}`) });
 
     const often = marked(page);
     await how.selectOption('often');

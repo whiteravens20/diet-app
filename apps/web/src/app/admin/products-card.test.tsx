@@ -267,7 +267,7 @@ describe('the card of products in the panel', () => {
 
   it('speaks Polish in Polish, with numbers as the application writes them', () => {
     shown(IMPORTED, pl as unknown as typeof en, 'pl');
-    expect(screen.getByText(pl.admin.products.title)).toBeInTheDocument();
+    expect(screen.getByText(plain(pl.admin.products.title))).toBeInTheDocument();
     expect(screen.getByText(/Z importu: 263587/)).toBeInTheDocument();
   });
 

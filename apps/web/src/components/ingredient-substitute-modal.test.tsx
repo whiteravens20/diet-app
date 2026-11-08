@@ -87,7 +87,7 @@ async function substituting(preview: SwapPreview, locale: 'en' | 'pl' = 'en') {
   await userEvent.click(screen.getByRole('button', { name: /White rice/ }));
   await userEvent.type(screen.getByPlaceholderText(texts.pickers.ingredientSearch), 'chick');
   await userEvent.click(await screen.findByRole('button', { name: 'Chickpeas' }));
-  const delta = (await screen.findByText(texts.swap.stepDelta)).closest('section')!;
+  const delta = (await screen.findByText(plain(texts.swap.stepDelta))).closest('section')!;
   return {
     post,
     onApplied,

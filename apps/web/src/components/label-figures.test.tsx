@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { LabelGrid, LabelLine, LabelNotes } from './label-figures';
+import { plain } from '@/testing/spaces';
 
 const within = (locale: 'en' | 'pl', node: React.ReactNode) =>
   render(
@@ -50,7 +51,7 @@ describe('fibre, sugars, salt and saturated fat', () => {
       { nutrient: 'salt', kind: 'atMost', limit: 5, figure: { grams: 6.2, atLeast: true } },
     ];
     within('pl', <LabelNotes notes={notes} />);
-    const lines = screen.getAllByRole('listitem').map((item) => item.textContent);
+    const lines = screen.getAllByRole('listitem').map((item) => plain(item.textContent));
     expect(lines).toEqual([
       'Błonnik: 12 g, mniej niż 25 g z ustawień profilu',
       'Sól: ≥ 6,2 g, więcej niż 5 g z ustawień profilu',

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { expect, settled, test, type Messages } from './fixtures';
+import { expect, loose, settled, test, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 const textsOf = (messages: Messages, group: string): Texts => messages[group] as Texts;
@@ -23,7 +23,9 @@ async function editing(page: Page, messages: Messages): Promise<void> {
     .first()
     .click();
   // The field is named by its label and the line under it: it is found by how its name begins.
-  await expect(page.getByLabel(new RegExp(`^${textsOf(messages, 'profile').name!}`))).toBeVisible();
+  await expect(
+    page.getByLabel(new RegExp(`^${loose(textsOf(messages, 'profile').name!)}`)),
+  ).toBeVisible();
 }
 
 test.describe('what a profile says of how it eats', () => {
@@ -35,7 +37,7 @@ test.describe('what a profile says of how it eats', () => {
     const profile = textsOf(messages, 'profile');
     const split = (messages.profile as unknown as { split: Texts }).split;
     // A label that holds a list of choices reads with them: it is found by how it begins.
-    const diet = () => page.getByLabel(new RegExp(`^${profile.dietType!}`));
+    const diet = () => page.getByLabel(new RegExp(`^${loose(profile.dietType!)}`));
     const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
 
     await editing(page, messages);
@@ -60,7 +62,7 @@ test.describe('what a profile says of how it eats', () => {
     await page.goto('/meal-plans');
     await settled(page);
     const offered = page
-      .getByLabel(new RegExp(`^${textsOf(messages, 'mealPlans').diet!}`))
+      .getByLabel(new RegExp(`^${loose(textsOf(messages, 'mealPlans').diet!)}`))
       .locator('option[value="custom"]');
     await expect(offered).toHaveCount(1);
     await expect(offered).toHaveText(/30.*40.*30/);
@@ -117,7 +119,7 @@ test.describe('what a profile says of how it eats', () => {
     const page = session.page;
     const profile = textsOf(messages, 'profile');
     const pickers = textsOf(messages, 'pickers');
-    const remove = new RegExp(`^${pickers.remove!.replace('{name}', '')}`);
+    const remove = new RegExp(`^${loose(pickers.remove!.replace('{name}', ''))}`);
     // Three lists of ingredients stand on the page, each named by its heading, each with a search field of its own.
     const list = page.getByRole('group', { name: profile.dislikedLabel!, exact: true });
     await page.goto('/profile');
@@ -153,8 +155,7 @@ test.describe('what a profile drinks', () => {
     const profile = textsOf(messages, 'profile');
     const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
     // The field is named by its label and the line under it: it is found by how its name begins.
-    const label = profile.waterTarget!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const water = () => page.getByLabel(new RegExp(`^${label}`));
+    const water = () => page.getByLabel(new RegExp(`^${loose(profile.waterTarget!)}`));
 
     await editing(page, messages);
     const before = await water().inputValue();
@@ -182,9 +183,8 @@ test.describe('what a profile drinks', () => {
     const profile = textsOf(messages, 'profile');
     const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
     const tracking = () =>
-      page.getByRole('checkbox', { name: new RegExp(`^${profile.waterTracking!}`) });
-    const label = profile.waterTarget!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const water = () => page.getByLabel(new RegExp(`^${label}`));
+      page.getByRole('checkbox', { name: new RegExp(`^${loose(profile.waterTracking!)}`) });
+    const water = () => page.getByLabel(new RegExp(`^${loose(profile.waterTarget!)}`));
     // The amounts are the water card's alone.
     const amount = () => page.getByRole('button', { name: /^\+200\s/ });
     const switched = async (on: boolean, first?: () => Promise<void>) => {
@@ -241,7 +241,7 @@ test.describe('the profiles of an account', () => {
     const add = page.getByRole('button', { name: profile.addProfile!, exact: true });
 
     await add.click();
-    await page.getByLabel(new RegExp(`^${profile.name!}`)).fill('A second one');
+    await page.getByLabel(new RegExp(`^${loose(profile.name!)}`)).fill('A second one');
     await page.getByLabel(profile.age!, { exact: true }).fill('41');
     await page.getByLabel(profile.heightCm!, { exact: true }).fill('168');
     const weight = page.getByRole('spinbutton', { name: /^(Weight|Waga) \((kg|lb)\)$/ });

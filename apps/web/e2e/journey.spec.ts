@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { barriers, expect, navigation, settled, test } from './fixtures';
+import { barriers, expect, loose, navigation, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -54,7 +54,7 @@ test.describe('somebody who comes to the instance for the first time', () => {
       })
       .click();
     await page.waitForURL('**/profile');
-    await page.getByLabel(new RegExp(`^${profile.name!}`)).fill('Anna');
+    await page.getByLabel(new RegExp(`^${loose(profile.name!)}`)).fill('Anna');
     await page.getByLabel(profile.age!, { exact: true }).fill('34');
     await page.getByLabel(profile.heightCm!, { exact: true }).fill('168');
     // An account that has not said which unit it weighs in is given the one of where its browser says it is.

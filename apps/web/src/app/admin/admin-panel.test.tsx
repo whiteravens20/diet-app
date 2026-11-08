@@ -9,6 +9,7 @@ import { adminApi, type AdminHealth, type AdminOverview, type AdminStats } from 
 import en from '../../../messages/en.json';
 import pl from '../../../messages/pl.json';
 import { AdminPanel } from './admin-panel';
+import { plain } from '@/testing/spaces';
 
 /** What the API says of a panel nobody has set a password for: its own sentence, in English. */
 const DISABLED = {
@@ -37,7 +38,7 @@ describe("the administrator's panel on an instance without an admin password", (
         </NextIntlClientProvider>,
       );
 
-      expect(await screen.findByText(messages.admin.disabledHint)).toBeInTheDocument();
+      expect(await screen.findByText(plain(messages.admin.disabledHint))).toBeInTheDocument();
       expect(screen.getByText(messages.admin.disabled)).toBeInTheDocument();
       expect(screen.getByText(messages.admin.restartHint)).toBeInTheDocument();
       expect(screen.queryByText(DISABLED.message)).toBeNull();

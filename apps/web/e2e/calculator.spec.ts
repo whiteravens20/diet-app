@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { expect, settled, test } from './fixtures';
+import { expect, loose, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -39,7 +39,9 @@ test.describe('the calculator', () => {
     const before = await target.textContent();
 
     // Somebody who moves much more uses more: the target follows.
-    await page.getByLabel(new RegExp(`^${profile.activityLevel!}`)).selectOption('very_active');
+    await page
+      .getByLabel(new RegExp(`^${loose(profile.activityLevel!)}`))
+      .selectOption('very_active');
     await expect(target).not.toHaveText(before!);
 
     // The empty form asks for the figures again.
@@ -55,6 +57,8 @@ test.describe('the calculator', () => {
     // The profile is as it was: the calculator reads it again when the page is opened.
     await page.reload();
     await settled(page);
-    await expect(page.getByLabel(new RegExp(`^${profile.activityLevel!}`))).toHaveValue('moderate');
+    await expect(page.getByLabel(new RegExp(`^${loose(profile.activityLevel!)}`))).toHaveValue(
+      'moderate',
+    );
   });
 });

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page } from '@playwright/test';
-import { barriers, expect, settled, test, theFormForAPlan, type Messages } from './fixtures';
+import { barriers, expect, loose, settled, test, theFormForAPlan, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -88,11 +88,19 @@ test.describe('a plan made for cooking ahead', () => {
     while ((await folded.count()) > 0) await folded.first().click();
     const cooking = (messages.mealPlans as unknown as { cooking: CookingTexts }).cooking;
     const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-    const fromADay = Object.values(cooking.dayFrom).map(capitalised).join('|');
+    const fromADay = new RegExp(
+      `^(${Object.values(cooking.dayFrom)
+        .map((day) => loose(capitalised(day)))
+        .join('|')})$`,
+    );
     await expect(page.getByText(cooking.cookDays, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(new RegExp(`^(${fromADay})$`)).first()).toBeVisible();
-    await expect(page.getByText(new RegExp(`^${start(cooking.cookHint)}`)).first()).toBeVisible();
-    await expect(page.getByText(new RegExp(`^${start(cooking.fromHint)}`)).first()).toBeVisible();
+    await expect(page.getByText(fromADay).first()).toBeVisible();
+    await expect(
+      page.getByText(new RegExp(`^${loose(start(cooking.cookHint))}`)).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText(new RegExp(`^${loose(start(cooking.fromHint))}`)).first(),
+    ).toBeVisible();
 
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had.
     page.once('dialog', (confirm) => void confirm.accept());
@@ -152,7 +160,7 @@ test.describe('a shopping list and the packs things are sold in', () => {
     // The row is done, has what the packs hold as bought, and offers them no more.
     await expect(row.getByRole('checkbox')).toBeChecked();
     await expect(
-      row.getByRole('spinbutton', { name: new RegExp(`^${lists.bought!}`) }),
+      row.getByRole('spinbutton', { name: new RegExp(`^${loose(lists.bought!)}`) }),
     ).not.toHaveValue('');
     await expect(packs).toHaveCount(0);
 

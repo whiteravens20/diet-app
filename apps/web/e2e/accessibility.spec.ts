@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { barriers, expect, settled, test } from './fixtures';
+import { barriers, expect, loose, settled, test } from './fixtures';
 
 test.describe('a page anybody can open has nothing that keeps somebody from using it', () => {
   for (const path of [
@@ -97,7 +97,7 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
       .click();
     // The field is named by its label and the line under it: it is found by how its name begins.
     await expect(
-      page.getByLabel(new RegExp(`^${(messages.profile as Record<string, string>).name!}`)),
+      page.getByLabel(new RegExp(`^${loose((messages.profile as Record<string, string>).name!)}`)),
     ).toBeVisible();
     // Its button waits for the first figures: the form is judged once they are in, as it stands then.
     await expect(

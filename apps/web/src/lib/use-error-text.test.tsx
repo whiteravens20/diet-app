@@ -38,10 +38,10 @@ describe('what anybody is told when a request failed', () => {
     );
 
     expect(told(full)).toBe(en.errors.PANTRY_FULL);
-    expect(told(full, { locale: 'pl' })).toBe(pl.errors.PANTRY_FULL);
+    expect(told(full, { locale: 'pl' })).toBe(plain(pl.errors.PANTRY_FULL));
     // The sentence a screen has for "it did not work" is not needed when the refusal says why.
     expect(told(full, { locale: 'pl', fallback: 'Nie udało się dodać.' })).toBe(
-      pl.errors.PANTRY_FULL,
+      plain(pl.errors.PANTRY_FULL),
     );
   });
 
@@ -66,7 +66,7 @@ describe('what anybody is told when a request failed', () => {
     );
 
     expect(told(signUps)).toBe(en.errors.TOO_MANY_SIGN_UPS);
-    expect(told(signUps, { locale: 'pl' })).toBe(pl.errors.TOO_MANY_SIGN_UPS);
+    expect(told(signUps, { locale: 'pl' })).toBe(plain(pl.errors.TOO_MANY_SIGN_UPS));
     // A link that went out a moment ago is better looked for than waited for.
     expect(
       told(
@@ -117,7 +117,7 @@ describe('what anybody is told when a request failed', () => {
     expect(told(new Error('a bug of the page'), { fallback: 'Could not save.' })).toBe(
       'Could not save.',
     );
-    expect(told('not even an error', { locale: 'pl' })).toBe(pl.errors.GENERIC);
+    expect(told('not even an error', { locale: 'pl' })).toBe(plain(pl.errors.GENERIC));
   });
 
   it('says that the server cannot be reached when nothing answered', () => {
@@ -126,6 +126,6 @@ describe('what anybody is told when a request failed', () => {
         locale: 'pl',
         fallback: 'Nie udało się.',
       }),
-    ).toBe(pl.errors.NETWORK);
+    ).toBe(plain(pl.errors.NETWORK));
   });
 });

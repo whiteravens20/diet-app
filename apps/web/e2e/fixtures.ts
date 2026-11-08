@@ -11,6 +11,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { accountOf, STATE, type Account } from './accounts';
+import { loose } from './patterns';
 
 export type AppLocale = 'en' | 'pl';
 
@@ -22,8 +23,19 @@ export interface Options {
 
 /** The texts of the application in a language, as the pages show them: a test finds things by them. */
 export type Messages = Record<string, Record<string, unknown>>;
+/** A text as a test reads the page: a no-break space as a plain one, as Playwright reads the page's text. */
+const plainSpaces = (value: unknown): unknown =>
+  typeof value === 'string'
+    ? value.replaceAll('\u00a0', ' ')
+    : value !== null && typeof value === 'object'
+      ? Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, plainSpaces(inner)]))
+      : value;
+
+/** The texts of a language, their no-break spaces read as plain ones: a pattern made of them matches the page. */
 const messagesOf = (locale: AppLocale): Messages =>
-  JSON.parse(readFileSync(join(__dirname, '..', 'messages', `${locale}.json`), 'utf8')) as Messages;
+  plainSpaces(
+    JSON.parse(readFileSync(join(__dirname, '..', 'messages', `${locale}.json`), 'utf8')),
+  ) as Messages;
 
 /** A browser that is signed in as the project's account, in its language and at its size. */
 export interface Session {
@@ -185,7 +197,7 @@ export const test = base.extend<
   ],
 });
 
-export { expect };
+export { expect, loose };
 
 /** True on a screen too narrow for the navigation to stand beside the page. */
 export const narrowScreen = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 768;
@@ -209,7 +221,9 @@ export async function settled(page: Page): Promise<void> {
 /** The form for a new plan, unfolded: a profile that has a plan has it folded. */
 export async function theFormForAPlan(page: Page, messages: Messages): Promise<void> {
   const title = (messages.mealPlans as Record<string, string>).generateFor!.split('{')[0]!;
-  const head = page.locator('button[aria-expanded]').filter({ hasText: new RegExp(`^${title}`) });
+  const head = page
+    .locator('button[aria-expanded]')
+    .filter({ hasText: new RegExp(`^${loose(title)}`) });
   if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
 }
 
