@@ -247,3 +247,23 @@ describe('a value put in and its unit', () => {
     expect(LOOSE_FIGURE.test('d={`M ${x - 5} ${y - 4} l 3.5 3.5`}')).toBe(false);
   });
 });
+
+/** A sign that ends a sentence with a plain space before it: a narrow screen may begin a line with it alone. */
+const LOOSE_SIGN = /(?<=\S) [≈≥≤](?=[.,;:!?)]|$)/u;
+
+describe('a sign that ends a sentence', () => {
+  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
+    'is held to the word before it in every text of %s',
+    (file) => {
+      const loose = [...texts(read(file))]
+        .filter(([, text]) => LOOSE_SIGN.test(text))
+        .map(([key]) => key);
+      expect(loose).toEqual([]);
+    },
+  );
+
+  it('is found alone', () => {
+    expect(LOOSE_SIGN.test('Dziennik oszacuje i oznaczy ≈.')).toBe(true);
+    expect(LOOSE_SIGN.test('Dziennik oznaczy\u00a0≈. Suma ≥ 12 g')).toBe(false);
+  });
+});
