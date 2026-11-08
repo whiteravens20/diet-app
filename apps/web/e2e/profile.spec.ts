@@ -183,19 +183,32 @@ test.describe('what a profile drinks', () => {
     const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
     const tracking = () =>
       page.getByRole('checkbox', { name: new RegExp(`^${profile.waterTracking!}`) });
+    const label = profile.waterTarget!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const water = () => page.getByLabel(new RegExp(`^${label}`));
     // The amounts are the water card's alone.
     const amount = () => page.getByRole('button', { name: /^\+200\s/ });
-    const switched = async (on: boolean) => {
+    const switched = async (on: boolean, first?: () => Promise<void>) => {
       await editing(page, messages);
+      await first?.();
       await tracking().setChecked(on);
       const kept = changed(page, 'PUT');
       await save().click();
-      expect(await (await kept).json()).toMatchObject({ waterTracking: on });
+      // The profile as the API kept it.
+      const saved = await (await kept).json();
+      expect(saved).toMatchObject({ waterTracking: on });
       await page.goto('/dashboard');
       await settled(page);
+      return saved;
     };
 
-    await switched(false);
+    // A number the field does not take, typed before water stops being tracked: out of sight, it
+    // holds no save back, and the profile keeps the target it had.
+    let had = '';
+    const saved = await switched(false, async () => {
+      had = await water().inputValue();
+      await water().fill('40');
+    });
+    expect(saved).toMatchObject({ waterTargetMl: had === '' ? null : Number(had) });
     await expect(
       page.getByText(textsOf(messages, 'profileSummary').dailyTarget!).first(),
     ).toBeVisible();

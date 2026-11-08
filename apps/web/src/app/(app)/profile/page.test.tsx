@@ -737,16 +737,51 @@ describe("the profile form, on a day's water", () => {
 
     expect(tracking()).toBeChecked();
     expect(waterField().closest('.hidden')).toBeNull();
+    // What is typed or ticked before water stops being tracked is not what the profile keeps.
+    await userEvent.clear(waterField());
+    await userEvent.type(waterField(), '40');
+    await userEvent.click(reminder());
     await userEvent.click(tracking());
 
     // The page's styles hide what carries the class; the test's document has none of them.
     expect(waterField().closest('.hidden')).not.toBeNull();
     expect(reminder().closest('.hidden')).not.toBeNull();
+    // Switched off, a number typed wrong in the field is no longer one the browser holds a save back for.
+    expect(waterField()).toBeDisabled();
+    expect(reminder()).toBeDisabled();
     await save();
     expect(sent()).toMatchObject({
       waterTracking: false,
       waterTargetMl: 2000,
       waterReminders: true,
+    });
+  });
+
+  it('gives a new profile that does not track water the target and the reminder a new one starts with', async () => {
+    await renderPage([aProfile('First')], 2);
+    const post = vi
+      .spyOn(api, 'post')
+      .mockImplementation((path: string) =>
+        Promise.resolve((path === '/profiles' ? aProfile('New') : aPreview()) as never),
+      );
+    await userEvent.click(screen.getByRole('button', { name: texts.addProfile }));
+    await userEvent.type(screen.getByLabelText(new RegExp(`^${texts.name}`)), 'New');
+    await userEvent.type(screen.getByLabelText(texts.age), '30');
+    await userEvent.type(screen.getByLabelText(texts.heightCm), '180');
+    // The unit follows the language the test's browser gives; 180 is a weight in either.
+    await userEvent.type(screen.getByLabelText(/^Weight \((kg|lb)\)/), '180');
+
+    await userEvent.clear(waterField());
+    await userEvent.click(reminder());
+    await userEvent.click(tracking());
+    const button = screen.getByRole('button', { name: texts.createProfile });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/profiles', expect.anything()));
+    expect(post.mock.calls.find(([path]) => path === '/profiles')![1]).toMatchObject({
+      waterTracking: false,
+      waterTargetMl: 2000,
+      waterReminders: false,
     });
   });
 

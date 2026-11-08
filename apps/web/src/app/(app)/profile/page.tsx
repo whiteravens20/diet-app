@@ -210,8 +210,15 @@ export default function ProfilePage() {
       heightCm: Number(f.get('heightCm')),
       weightKg: weightTyped(f.get('weight'), editing?.weightKg) ?? 0,
       targetWeightKg: weightTyped(f.get('targetWeight'), editing?.targetWeightKg),
-      // Left empty, the profile drinks to no target. Kept as it is while water is not tracked.
-      waterTargetMl: f.get('waterTarget') ? Number(f.get('waterTarget')) : null,
+      // Left empty, the profile drinks to no target. While water is not tracked, the target and the
+      // reminder to drink are out of sight and stay as the profile had them.
+      waterTargetMl: tracking
+        ? f.get('waterTarget')
+          ? Number(f.get('waterTarget'))
+          : null
+        : editing
+          ? editing.waterTargetMl
+          : DEFAULT_WATER_TARGET_ML,
       waterTracking: f.get('waterTracking') === 'on',
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
@@ -226,7 +233,9 @@ export default function ProfilePage() {
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
       cookingReminders: f.get('cookingReminders') === 'on',
-      waterReminders: f.get('waterReminders') === 'on',
+      waterReminders: tracking
+        ? f.get('waterReminders') === 'on'
+        : (editing?.waterReminders ?? false),
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: {
@@ -448,13 +457,15 @@ export default function ProfilePage() {
                     </span>
                   </span>
                 </label>
-                {/* Out of sight while water is not tracked, and sent as it is all the same. */}
+                {/* Out of sight while water is not tracked, and switched off, so that a number typed
+                    wrong in it holds no save back. */}
                 <div className={cn(!tracking && 'hidden')}>
                   <Field label={t('waterTarget')} hint={t('waterTargetHint')} optional>
                     <Input
                       name="waterTarget"
                       type="number"
                       inputMode="numeric"
+                      disabled={!tracking}
                       min={MIN_WATER_TARGET_ML}
                       max={MAX_WATER_TARGET_ML}
                       defaultValue={
@@ -501,6 +512,7 @@ export default function ProfilePage() {
                       type="checkbox"
                       name="waterReminders"
                       className="mt-1"
+                      disabled={!tracking}
                       defaultChecked={editing?.waterReminders ?? false}
                     />
                     <span>
