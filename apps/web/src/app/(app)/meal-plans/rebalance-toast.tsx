@@ -67,7 +67,8 @@ export function RebalanceToast({
   const spreadable = ofTheDay && day !== null && day.offTarget !== null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg print:hidden">
+    // Over the bar of an address not confirmed, where one stands at the bottom of the screen.
+    <div className="fixed bottom-[calc(1rem+var(--bottom-bar,0px))] right-4 z-50 max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg print:hidden">
       {ofTheDay ? (
         <>
           <p className="text-sm font-medium">

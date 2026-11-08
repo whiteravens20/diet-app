@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -107,6 +107,57 @@ describe('the notice of an address that is not confirmed', () => {
     shown(false);
 
     expect(await screen.findByRole('button', { name: c.later })).toBeInTheDocument();
+  });
+
+  it('keeps room at the end of the page as tall as the bar, and says its height to what stands above it, till it goes', async () => {
+    // The browser's size of the bar: 120 px, told at once.
+    const observed: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly told: () => void) {}
+        observe(): void {
+          observed.push(this.told);
+          this.told();
+        }
+        disconnect(): void {}
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      height: 120,
+    } as DOMRect);
+    shown(false);
+
+    const bar = await screen.findByRole('status');
+    const room = bar.previousElementSibling as HTMLElement;
+    await waitFor(() => expect(room.style.height).toBe('120px'));
+    expect(room).toHaveAttribute('aria-hidden', 'true');
+    expect(document.documentElement.style.getPropertyValue('--bottom-bar')).toBe('120px');
+
+    await userEvent.click(screen.getByRole('button', { name: c.later }));
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--bottom-bar')).toBe('');
+    vi.unstubAllGlobals();
+  });
+
+  it('says one sentence where the screen is narrow, and the whole at "More"; a wide screen has the whole only', async () => {
+    shown(false);
+
+    const whole = await screen.findByText(c.noticePlain.replace('{email}', ADDRESS));
+    // The page's styles hide the whole on a narrow screen and the sentence on a wide one; the test's document has none.
+    expect(whole).toHaveClass('hidden', 'sm:block');
+    const sentence = screen.getByText(c.shortPlain);
+    expect(sentence).toHaveClass('sm:hidden');
+    await userEvent.click(screen.getByRole('button', { name: c.more }));
+
+    expect(whole).not.toHaveClass('hidden');
+    expect(screen.queryByText(c.shortPlain)).toBeNull();
+  });
+
+  it("says in its sentence that confirming unlocks the instance's AI where it does", async () => {
+    shown(false, { unlocksAi: true });
+
+    expect(await screen.findByText(c.shortAi)).toBeInTheDocument();
   });
 
   it('is not there for a confirmed address, nor where the instance sends no mail', async () => {

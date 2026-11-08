@@ -66,6 +66,9 @@
   },
   "confirmEmail": {
     "noticeAi": "Confirming {email} is optional, but on this instance it unlocks the instance's AI. Open the link in the message sent to this address: it works for an hour.",
+    "shortPlain": "Confirm your email address (optional).",
+    "shortAi": "Confirm your email address (unlocks the instance's AI).",
+    "more": "More",
     "noticePlain": "Confirming {email} is optional: every feature works without it. A confirmed address makes sure a link to change your password reaches you. The link in the message works for an hour.",
     "worthAi": "Confirming is optional, but on this instance it unlocks the instance's AI.",
     "worthPlain": "Confirming is optional: every feature works without it. A confirmed address makes sure a link to change your password reaches you.",

@@ -12,8 +12,8 @@ import { Sidebar } from '@/components/sidebar';
  * other on a wide screen; on a narrow one the navigation is a bar over the
  * page. The page waits for the session (see `SessionGate`), and then takes on
  * the account's language, theme and palette. An address that is not
- * confirmed, and a notification that comes in, are said over whichever page
- * is open.
+ * confirmed is said at the bottom of the screen, and a notification that comes
+ * in at its top, over whichever page is open.
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -22,8 +22,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
         <SessionGate>
           <AccountPreferences />
-          <LazyConfirmEmailNotice />
           {children}
+          {/* After the page: it stands over the bottom of the screen, and the room it keeps grows the page at its end. */}
+          <LazyConfirmEmailNotice />
         </SessionGate>
       </main>
       <NotificationToast />
