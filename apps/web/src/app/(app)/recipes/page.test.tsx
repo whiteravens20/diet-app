@@ -11,6 +11,10 @@ import messages from '../../../../messages/en.json';
 import RecipesPage from './page';
 
 const texts = messages.recipes;
+
+// The address the page is opened at: `?tab=mine` opens on one's own recipes.
+let address = '';
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(address) }));
 const PROFILE = '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f';
 const TOFU = '7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d';
 
@@ -72,7 +76,12 @@ async function renderPage(
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  await screen.findByText(library.items[0]?.title ?? texts.noneAtAll);
+  // What the tab opened shows first: the library's first recipe or its word for none, or one's own first recipe.
+  await screen.findByText(
+    address === 'tab=mine'
+      ? (mine[0] as { title: string }).title
+      : (library.items[0]?.title ?? texts.noneAtAll),
+  );
 }
 
 /** Wait until the library was asked with `part` set to `value`, and say everything it was asked. */
@@ -312,6 +321,21 @@ describe("the recipes of one's own", () => {
     ).toBeInTheDocument();
     for (const title of ['My bowl with chicken for tofu', 'A lunch the curators have']) {
       expect(within(await card(title)).queryByRole('button', { name: texts.submit })).toBeNull();
+    }
+  });
+
+  it('are the first thing shown where the address asks for them', async () => {
+    address = 'tab=mine';
+    try {
+      await renderPage(
+        1,
+        [TOFU],
+        [own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f01', 'A dinner a model wrote', 'ai')],
+      );
+
+      expect(await screen.findByText('A dinner a model wrote')).toBeInTheDocument();
+    } finally {
+      address = '';
     }
   });
 

@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '@diet-app/shared';
@@ -11,9 +12,11 @@ import RecipeDetailPage from './page';
 
 const ID = '5d0e6f1a-2b3c-4d5e-8f6a-7b8c9d0e1f2a';
 let address = '';
+const push = vi.fn();
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: ID }),
   useSearchParams: () => new URLSearchParams(address),
+  useRouter: () => ({ push }),
 }));
 
 const recipe = (origin: Recipe['origin']): Recipe => ({
@@ -54,6 +57,7 @@ function opened(origin: Recipe['origin']) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  push.mockReset();
 });
 
 describe('the page of one recipe', () => {
@@ -111,4 +115,47 @@ describe('the page of one recipe', () => {
       expect(screen.queryByRole('link', { name: messages.recipeDetail.edit })).toBeNull();
     },
   );
+});
+
+describe('deleting a recipe from its page', () => {
+  it("is offered for a recipe of one's own, says what becomes of its plans and of a suggestion, and leads to one's own recipes", async () => {
+    const deleted = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const asked = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    opened('manual');
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.recipes.delete }));
+
+    expect(asked).toHaveBeenCalledWith(messages.recipes.deleteConfirm);
+    expect(deleted).toHaveBeenCalledWith(`/recipes/${ID}`);
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/recipes?tab=mine'));
+  });
+
+  it('deletes nothing when the question is answered no', async () => {
+    const deleted = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    opened('ai');
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.recipes.delete }));
+
+    expect(deleted).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('says so when the deletion fails, and stays', async () => {
+    vi.spyOn(api, 'delete').mockRejectedValue(new Error('down'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    opened('swap');
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.recipes.delete }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.recipes.deleteFailed);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('is not offered for a recipe of the library', async () => {
+    opened('seed');
+
+    expect(await screen.findByText('Lentil soup')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: messages.recipes.delete })).toBeNull();
+  });
 });

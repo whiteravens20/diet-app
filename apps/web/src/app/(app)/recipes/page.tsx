@@ -5,8 +5,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PenLine, Pencil, Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import type {
   Allergen,
   MarkedFilter,
@@ -47,7 +48,7 @@ const sentToCurators = (recipe: Recipe | MyRecipe): boolean =>
   'submitted' in recipe && recipe.submitted;
 
 /** Recipe library — search + filter; each card opens the full recipe. */
-export default function RecipesPage() {
+function RecipesContent() {
   const t = useTranslations('recipes');
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
@@ -73,7 +74,11 @@ export default function RecipesPage() {
   const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
   const [page, setPage] = useState(1);
   const [draftOpen, setDraftOpen] = useState(false);
-  const [tab, setTab] = useState<'library' | 'mine'>('library');
+  // `?tab=mine` opens on one's own recipes: where a recipe deleted from its page leads back to.
+  const params = useSearchParams();
+  const [tab, setTab] = useState<'library' | 'mine'>(() =>
+    params.get('tab') === 'mine' ? 'mine' : 'library',
+  );
   const PAGE_SIZE = 36;
   const queryClient = useQueryClient();
 
@@ -680,5 +685,13 @@ function Pagination({
         </Button>
       </div>
     </nav>
+  );
+}
+
+export default function RecipesPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-64" />}>
+      <RecipesContent />
+    </Suspense>
   );
 }
