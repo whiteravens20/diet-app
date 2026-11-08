@@ -176,9 +176,22 @@ export const test = base.extend<
     { scope: 'worker' },
   ],
 
+  /**
+   * After every test the session's page is given back as the project has it: the answers a test
+   * changed on their way to it, its media and its size end with the test, whether it got to its own
+   * end or not. Its cookies are then written down.
+   */
   sessionKept: [
     async ({ session }, provide, testInfo) => {
       await provide();
+      const { viewport, colorScheme, reducedMotion } = testInfo.project.use;
+      await session.page.unrouteAll({ behavior: 'ignoreErrors' });
+      await session.page.emulateMedia({
+        media: null,
+        colorScheme: colorScheme ?? null,
+        reducedMotion: reducedMotion ?? null,
+      });
+      if (viewport) await session.page.setViewportSize(viewport);
       await session.context.storageState({ path: join(STATE, `${testInfo.project.name}.json`) });
     },
     { auto: true },

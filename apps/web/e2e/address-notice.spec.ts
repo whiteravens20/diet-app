@@ -29,9 +29,10 @@ test.describe('the notice of an address that is not confirmed', () => {
         json: { ...((await answer.json()) as object), emailVerified: false },
       });
     });
-    // Whatever an earlier test of this browser put aside.
-    await page.addInitScript(() => localStorage.removeItem('diet-app.confirm-email.later'));
+    // Whatever an earlier test of this browser put aside, taken away before the page is opened again.
     await page.goto('/dashboard');
+    await page.evaluate(() => localStorage.removeItem('diet-app.confirm-email.later'));
+    await page.reload();
     await settled(page);
     const later = page.getByRole('button', { name: texts.later!, exact: true });
     const notice = page.getByRole('status').filter({ has: later });
