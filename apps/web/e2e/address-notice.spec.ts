@@ -40,7 +40,7 @@ test.describe('the notice of an address that is not confirmed', () => {
     const screenSize = page.viewportSize()!;
     const box = (await notice.boundingBox())!;
     expect(Math.abs(box.y + box.height - screenSize.height)).toBeLessThan(2);
-    // A narrow screen says one sentence, and the whole at "More": the bar takes less than a fifth of it.
+    // A narrow screen says one sentence, and the whole at "Details": the bar takes less than a fifth of it.
     const more = notice.getByRole('button', { name: texts.more!, exact: true });
     // The sentence of the instance's kind: one where confirming unlocks its AI says so.
     const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

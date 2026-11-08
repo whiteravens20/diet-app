@@ -68,7 +68,7 @@
     "noticeAi": "Potwierdzenie adresu {email} jest nieobowiązkowe, ale na tej instancji odblokowuje AI instancji. Kliknij link z wiadomości wysłanej na ten adres: jest ważny godzinę.",
     "shortPlain": "Potwierdź adres e-mail (nieobowiązkowe).",
     "shortAi": "Potwierdź adres e-mail (odblokowuje AI instancji).",
-    "more": "Więcej",
+    "more": "Szczegóły",
     "noticePlain": "Potwierdzenie adresu {email} jest nieobowiązkowe: wszystkie funkcje działają bez niego. Potwierdzony adres daje pewność, że link do zmiany hasła do Ciebie dotrze. Link z wiadomości jest ważny godzinę.",
     "worthAi": "Potwierdzenie jest nieobowiązkowe, ale na tej instancji odblokowuje AI instancji.",
     "worthPlain": "Potwierdzenie jest nieobowiązkowe: wszystkie funkcje działają bez niego. Potwierdzony adres daje pewność, że link do zmiany hasła do Ciebie dotrze.",

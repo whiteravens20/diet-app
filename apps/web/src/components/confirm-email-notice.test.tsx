@@ -140,7 +140,7 @@ describe('the notice of an address that is not confirmed', () => {
     vi.unstubAllGlobals();
   });
 
-  it('says one sentence where the screen is narrow, and the whole at "More"; a wide screen has the whole only', async () => {
+  it('says one sentence where the screen is narrow, and the whole at "Details"; a wide screen has the whole only', async () => {
     shown(false);
 
     const whole = await screen.findByText(c.noticePlain.replace('{email}', ADDRESS));

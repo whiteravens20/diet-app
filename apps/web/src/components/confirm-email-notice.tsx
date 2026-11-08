@@ -124,7 +124,7 @@ export function ConfirmEmailNotice() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-start gap-3">
           <Mail size={18} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
           {/* The words keep a width to be read at: on a narrow screen the buttons go under them. A phone
-              says one sentence, and the whole at "More": the bar stands over a quarter of its screen otherwise. */}
+              says one sentence, and the whole at "Details": the bar stands over a quarter of its screen otherwise. */}
           <div className="min-w-0 flex-1 basis-64 space-y-1">
             <p className={cn(!more && 'hidden sm:block')}>
               {t(config.email.confirmationUnlocksAi ? 'noticeAi' : 'noticePlain', {
