@@ -435,7 +435,6 @@ export default function ProfilePage() {
                     inputMode="numeric"
                     min={MIN_WATER_TARGET_ML}
                     max={MAX_WATER_TARGET_ML}
-                    step={50}
                     defaultValue={editing ? (editing.waterTargetMl ?? '') : DEFAULT_WATER_TARGET_ML}
                   />
                 </Field>

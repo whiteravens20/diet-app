@@ -144,6 +144,37 @@ test.describe('what a profile says of how it eats', () => {
   });
 });
 
+test.describe('what a profile drinks', () => {
+  test('keeps any whole number of millilitres a day within the bounds, as the phone may have saved it, and the target it had again', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const profile = textsOf(messages, 'profile');
+    const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
+    // The field is named by its label and the line under it: it is found by how its name begins.
+    const label = profile.waterTarget!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const water = () => page.getByLabel(new RegExp(`^${label}`));
+
+    await editing(page, messages);
+    const before = await water().inputValue();
+    // Not a multiple of 50: the browser holds the form back where its field steps by 50.
+    await water().fill('2125');
+    const kept = changed(page, 'PUT');
+    await save().click();
+    expect(await (await kept).json()).toMatchObject({ waterTargetMl: 2125 });
+
+    // Back to the target it had, so that the tests after this one find the profile they expect.
+    await editing(page, messages);
+    await water().fill(before);
+    const back = changed(page, 'PUT');
+    await save().click();
+    expect(await (await back).json()).toMatchObject({
+      waterTargetMl: before === '' ? null : Number(before),
+    });
+  });
+});
+
 test.describe('the profiles of an account', () => {
   test('are as many as the instance gives an account: another is made in the page, and taken away again', async ({
     session,
