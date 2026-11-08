@@ -69,6 +69,30 @@ describe('a line of figures joined by dots', () => {
     },
   );
 
+  /** A text with each of its arguments as one figure, as the reader sees it: `{fat, number, ::group-off}` as `0`. */
+  const argued = (text: string): string => {
+    let flat = text;
+    while (/\{[^{}]*\}/.test(flat)) flat = flat.replace(/\{[^{}]*\}/g, '0');
+    return flat;
+  };
+
+  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
+    'breaks every line of macronutrients of %s only after a dot, its opening words aside',
+    (file) => {
+      const loose = [...texts(read(file))]
+        .filter(([key, text]) => /macros/i.test(key) && text.includes('\u00a0· '))
+        .filter(([, text]) =>
+          argued(text)
+            .split(': ')
+            .at(-1)!
+            .split('\u00a0· ')
+            .some((pair) => pair.includes(' ')),
+        )
+        .map(([key]) => key);
+      expect(loose).toEqual([]);
+    },
+  );
+
   it('finds a number apart from its word, whether counted, an argument or written out', () => {
     expect(LOOSE_COUNT.test('{days, plural, one {# dnia} other {# dni}}')).toBe(true);
     expect(LOOSE_COUNT.test('W celu: {reached, number, ::group-off} z 7 dni')).toBe(true);
