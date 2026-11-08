@@ -142,7 +142,7 @@ describe("the water of a profile's day", () => {
     remove.mockResolvedValueOnce(aDay({ ml: 170, entries: 1, last: null }));
 
     const button = await screen.findByRole('button', { name: /^Remove the last entry/ });
-    expect(plain(button.textContent)).toBe('Remove the last entry(330 mL · 2:05 PM)');
+    expect(plain(button.textContent)).toBe('Remove the last entry(330 ml · 2:05 PM)');
     await userEvent.click(button);
     expect(remove).toHaveBeenCalledWith(`/water/${LAST.id}`);
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull());

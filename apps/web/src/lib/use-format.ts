@@ -106,13 +106,17 @@ export function useFormat(): Format {
           maximumFractionDigits: 0,
         }),
       unit: (value, unit, digits = 0) =>
-        format.number(value, {
-          useGrouping: false,
-          style: 'unit',
-          unit,
-          unitDisplay: 'short',
-          maximumFractionDigits: digits,
-        }),
+        // Millilitres are "ml" in every language the application ships, as its texts and the phone write
+        // them: the English of Intl writes "mL".
+        unit === 'milliliter'
+          ? `${format.number(value, { useGrouping: false, maximumFractionDigits: digits })} ml`
+          : format.number(value, {
+              useGrouping: false,
+              style: 'unit',
+              unit,
+              unitDisplay: 'short',
+              maximumFractionDigits: digits,
+            }),
       percent: (share) =>
         format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),
       list: (items) => format.list([...items], { type: 'conjunction' }),

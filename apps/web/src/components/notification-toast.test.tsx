@@ -182,7 +182,7 @@ describe('a notification that comes in', () => {
       fireEvent.click(screen.getByRole('button', { name: spaced('+330 ml') }));
     });
     expect(post).toHaveBeenCalledWith('/water', { profileId: PROFILE, day: '2026-11-09', ml: 330 });
-    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 mL · Me');
+    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 ml · Me');
     expect(screen.queryByRole('button', { name: spaced('+250 ml') })).not.toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000);

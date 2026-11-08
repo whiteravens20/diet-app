@@ -159,7 +159,7 @@ describe('NotificationsBell', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: spaced('+330 ml') }));
     expect(post).toHaveBeenCalledWith('/water', { profileId: PROFILE, day: '2026-11-09', ml: 330 });
-    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 mL · Me');
+    expect(plain((await screen.findByText(/^Added/)).textContent)).toBe('Added 330 ml · Me');
     await vi.waitFor(
       () => expect(post).toHaveBeenCalledWith(`/notifications/${reminder.id}/read`),
       { timeout: 6000 },
