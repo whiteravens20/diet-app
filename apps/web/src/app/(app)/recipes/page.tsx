@@ -519,7 +519,7 @@ export default function RecipesPage() {
                     href={`/recipes/${r.id}/edit`}
                     title={t('edit')}
                     aria-label={t('edit')}
-                    className={`absolute top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100 ${r.origin === 'swap' || sentToCurators(r) ? 'right-9' : 'right-16'}`}
+                    className={`absolute top-2 rounded p-1.5 text-muted-foreground transition [@media(hover:hover)]:opacity-0 hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100 ${r.origin === 'swap' || sentToCurators(r) ? 'right-9' : 'right-16'}`}
                   >
                     <Pencil size={14} aria-hidden />
                   </Link>
@@ -538,7 +538,7 @@ export default function RecipesPage() {
                       submitRecipe.mutate(r.id);
                     }}
                     disabled={submitRecipe.isPending}
-                    className="absolute right-9 top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100"
+                    className="absolute right-9 top-2 rounded p-1.5 text-muted-foreground transition [@media(hover:hover)]:opacity-0 hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100"
                   >
                     <Send size={14} aria-hidden />
                   </button>
@@ -556,7 +556,7 @@ export default function RecipesPage() {
                       deleteRecipe.mutate(r.id);
                     }}
                     disabled={deleteRecipe.isPending}
-                    className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100"
+                    className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground transition [@media(hover:hover)]:opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100"
                   >
                     <Trash size={14} aria-hidden />
                   </button>
