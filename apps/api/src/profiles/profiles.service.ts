@@ -86,6 +86,7 @@ export class ProfilesService {
           weightKg: input.weightKg,
           targetWeightKg: input.targetWeightKg,
           waterTargetMl: input.waterTargetMl,
+          waterTracking: input.waterTracking,
           activityLevel: input.activityLevel,
           dietType: input.dietType,
           weeklyLossTarget: input.weeklyLossTarget,
@@ -143,6 +144,7 @@ export class ProfilesService {
         targetWeightKg: input.targetWeightKg,
         // Left out by a client from before the target of water, it stays as it is.
         ...(input.waterTargetMl === undefined ? {} : { waterTargetMl: input.waterTargetMl }),
+        ...(input.waterTracking === undefined ? {} : { waterTracking: input.waterTracking }),
         activityLevel: input.activityLevel,
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
@@ -267,6 +269,7 @@ export class ProfilesService {
     weightKg: number;
     targetWeightKg: number | null;
     waterTargetMl: number | null;
+    waterTracking: boolean;
     expenditureCorrectionKcal: number | null;
     targetReachedLaterUntil: Date | null;
     activityLevel: Profile['activityLevel'];
@@ -309,6 +312,7 @@ export class ProfilesService {
       weightKg: row.weightKg,
       targetWeightKg: row.targetWeightKg,
       waterTargetMl: row.waterTargetMl,
+      waterTracking: row.waterTracking,
       expenditureCorrectionKcal: row.expenditureCorrectionKcal,
       // The newest weight came down to the one worked towards, and the pace that loses still sets the target.
       targetWeightReached:

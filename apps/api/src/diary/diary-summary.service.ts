@@ -99,16 +99,24 @@ export class DiarySummaryService {
     };
   }
 
-  /** What the days from `from` to `end` drank: the days that hold water, their average, and those that reached the target. */
-  private async water(profileId: string, from: string, end: string): Promise<WeekWater> {
+  /**
+   * What the days from `from` to `end` drank: the days that hold water, their
+   * average, and those that reached the target; nothing for a profile that
+   * does not track water.
+   */
+  private async water(profileId: string, from: string, end: string): Promise<WeekWater | null> {
     const [days, profile] = await Promise.all([
       this.prisma.waterEntry.groupBy({
         by: ['day'],
         where: { profileId, day: { gte: new Date(from), lte: new Date(end) } },
         _sum: { ml: true },
       }),
-      this.prisma.profile.findUnique({ where: { id: profileId }, select: { waterTargetMl: true } }),
+      this.prisma.profile.findUnique({
+        where: { id: profileId },
+        select: { waterTargetMl: true, waterTracking: true },
+      }),
     ]);
+    if (profile && !profile.waterTracking) return null;
     const held = days.map((day) => day._sum.ml ?? 0).filter((ml) => ml > 0);
     const target = profile?.waterTargetMl ?? null;
     return {

@@ -20,6 +20,7 @@ import {
 } from '@diet-app/shared';
 import { CUISINES } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { figuresOf, riskOf } from '@/lib/typed-figures';
 import { useProfileForm } from '@/lib/use-profile-form';
 import { useConfig } from '@/lib/use-config';
@@ -94,6 +95,9 @@ export default function ProfilePage() {
   // describe, when a loss is asked for. Until something is typed, both are the
   // profile's own.
   const formKey = editing?.id ?? 'new';
+  // Whether the form's profile tracks water, as ticked in the form open, else as the profile has it.
+  const [trackingOf, setTrackingOf] = useState<{ form: string; on: boolean } | null>(null);
+  const tracking = trackingOf?.form === formKey ? trackingOf.on : (editing?.waterTracking ?? true);
   const { form, typed, onChange } = useProfileForm(formKey, unit);
   const risk = typed ? typed.reasons : editing ? riskOf(editing) : [];
   // A profile being changed keeps the correction it accepted from its real expenditure: the figures say the target with it.
@@ -206,8 +210,9 @@ export default function ProfilePage() {
       heightCm: Number(f.get('heightCm')),
       weightKg: weightTyped(f.get('weight'), editing?.weightKg) ?? 0,
       targetWeightKg: weightTyped(f.get('targetWeight'), editing?.targetWeightKg),
-      // Left empty, the profile drinks to no target.
+      // Left empty, the profile drinks to no target. Kept as it is while water is not tracked.
       waterTargetMl: f.get('waterTarget') ? Number(f.get('waterTarget')) : null,
+      waterTracking: f.get('waterTracking') === 'on',
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
@@ -428,16 +433,36 @@ export default function ProfilePage() {
                     }
                   />
                 </Field>
-                <Field label={t('waterTarget')} hint={t('waterTargetHint')} optional>
-                  <Input
-                    name="waterTarget"
-                    type="number"
-                    inputMode="numeric"
-                    min={MIN_WATER_TARGET_ML}
-                    max={MAX_WATER_TARGET_ML}
-                    defaultValue={editing ? (editing.waterTargetMl ?? '') : DEFAULT_WATER_TARGET_ML}
+                <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    name="waterTracking"
+                    className="mt-1"
+                    checked={tracking}
+                    onChange={(event) => setTrackingOf({ form: formKey, on: event.target.checked })}
                   />
-                </Field>
+                  <span>
+                    <span className="font-medium">{t('waterTracking')}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {t('waterTrackingHint')}
+                    </span>
+                  </span>
+                </label>
+                {/* Out of sight while water is not tracked, and sent as it is all the same. */}
+                <div className={cn(!tracking && 'hidden')}>
+                  <Field label={t('waterTarget')} hint={t('waterTargetHint')} optional>
+                    <Input
+                      name="waterTarget"
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_WATER_TARGET_ML}
+                      max={MAX_WATER_TARGET_ML}
+                      defaultValue={
+                        editing ? (editing.waterTargetMl ?? '') : DEFAULT_WATER_TARGET_ML
+                      }
+                    />
+                  </Field>
+                </div>
                 <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
                 {editing && <KeptCorrection profile={editing} />}
                 <RiskBox
@@ -471,7 +496,7 @@ export default function ProfilePage() {
                       </span>
                     </span>
                   </label>
-                  <label className="flex items-start gap-2">
+                  <label className={cn('flex items-start gap-2', !tracking && 'hidden')}>
                     <input
                       type="checkbox"
                       name="waterReminders"

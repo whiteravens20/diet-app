@@ -145,6 +145,8 @@ describe('changing a profile', () => {
         weeklyLossTarget: '0.5',
         mealCount: 3,
         weightReminderCadence: 'weekly',
+        waterTargetMl: 2000,
+        waterTracking: true,
       });
       expect(made.preferences).toMatchObject({
         allergens: [],
@@ -152,6 +154,19 @@ describe('changing a profile', () => {
         maxTimesPerWeekSameMeal: 3,
         inventoryBiasResetEvery: 5,
       });
+    });
+  });
+
+  describe('with its water', () => {
+    it('stops tracking water and keeps its target, and a client that sends no word of it leaves it as it is', async () => {
+      const off: Profile = (await put({ ...whole(), waterTracking: false }).expect(200)).body;
+      expect(off).toMatchObject({ waterTracking: false, waterTargetMl: profile.waterTargetMl });
+
+      await put(without(whole(), 'waterTracking')).expect(200);
+      expect((await stored()).waterTracking).toBe(false);
+
+      await put({ ...whole(), waterTracking: true }).expect(200);
+      expect((await stored()).waterTracking).toBe(true);
     });
   });
 

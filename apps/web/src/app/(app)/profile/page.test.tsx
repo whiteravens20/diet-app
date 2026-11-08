@@ -24,6 +24,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   weightKg: 80,
   targetWeightKg: null,
   waterTargetMl: 2000,
+  waterTracking: true,
   expenditureCorrectionKcal: null,
   cookingReminders: true,
   waterReminders: false,
@@ -724,5 +725,40 @@ describe("the profile form, on a day's water", () => {
     await userEvent.clear(waterField());
     await save();
     expect(sent().waterTargetMl).toBeNull();
+  });
+
+  const tracking = () =>
+    screen.getByRole('checkbox', { name: (name) => name.startsWith(texts.waterTracking) });
+  const reminder = () =>
+    screen.getByRole('checkbox', { name: (name) => name.startsWith(texts.waterReminders) });
+
+  it('tracks water to begin with, and a profile that stops keeps its target and its reminder, out of sight', async () => {
+    const { save, sent } = await editing(aProfile('Me', { waterReminders: true }));
+
+    expect(tracking()).toBeChecked();
+    expect(waterField().closest('.hidden')).toBeNull();
+    await userEvent.click(tracking());
+
+    // The page's styles hide what carries the class; the test's document has none of them.
+    expect(waterField().closest('.hidden')).not.toBeNull();
+    expect(reminder().closest('.hidden')).not.toBeNull();
+    await save();
+    expect(sent()).toMatchObject({
+      waterTracking: false,
+      waterTargetMl: 2000,
+      waterReminders: true,
+    });
+  });
+
+  it('shows a profile that does not track water so, and tracks it again at a tick', async () => {
+    const { save, sent } = await editing(aProfile('Me', { waterTracking: false }));
+
+    expect(tracking()).not.toBeChecked();
+    expect(waterField().closest('.hidden')).not.toBeNull();
+    await userEvent.click(tracking());
+
+    expect(waterField().closest('.hidden')).toBeNull();
+    await save();
+    expect(sent().waterTracking).toBe(true);
   });
 });

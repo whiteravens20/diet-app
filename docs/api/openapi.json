@@ -19902,6 +19902,10 @@
               }
             ]
           },
+          "waterTracking": {
+            "default": true,
+            "type": "boolean"
+          },
           "activityLevel": {
             "default": "moderate",
             "$ref": "#/components/schemas/ActivityLevel"
@@ -20044,6 +20048,7 @@
           "weightKg",
           "targetWeightKg",
           "waterTargetMl",
+          "waterTracking",
           "activityLevel",
           "dietType",
           "weeklyLossTarget",
@@ -20124,6 +20129,10 @@
                 "type": "null"
               }
             ]
+          },
+          "waterTracking": {
+            "default": true,
+            "type": "boolean"
           },
           "activityLevel": {
             "default": "moderate",
@@ -20617,6 +20626,9 @@
                 "type": "null"
               }
             ]
+          },
+          "waterTracking": {
+            "type": "boolean"
           },
           "manualCalorieTarget": {
             "anyOf": [
@@ -24576,7 +24588,14 @@
             "maximum": 7
           },
           "water": {
-            "$ref": "#/components/schemas/WeekWater"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeekWater"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "weight": {
             "$ref": "#/components/schemas/WeightTrend"

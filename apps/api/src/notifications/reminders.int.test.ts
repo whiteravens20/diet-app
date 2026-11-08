@@ -94,6 +94,25 @@ describe('the reminders that keep the hours of an account', () => {
       expect(await water.scan(at(`${day}T20:30:00Z`))).toBe(0);
     });
 
+    it('reminds nobody whose profile stopped tracking water, and again once it tracks it, the reminder kept on all along', async () => {
+      const tracking = (on: boolean) =>
+        t
+          .http()
+          .put(`/api/profiles/${profile.id}`)
+          .set(as(user))
+          .send({ ...ProfileInput.parse(profile), waterReminders: true, waterTracking: on })
+          .expect(200);
+      expect((await tracking(false)).body).toMatchObject({
+        waterTracking: false,
+        waterReminders: true,
+        waterTargetMl: 2000,
+      });
+      expect(await water.scan(at(`${day}T14:00:00Z`))).toBe(0);
+
+      await tracking(true);
+      expect(await water.scan(at(`${day}T14:00:00Z`))).toBe(1);
+    });
+
     it('reminds nobody who switched it off, names no target, or whose account sent no time zone', async () => {
       await zone(null);
       expect(await water.scan(at(`${day}T14:00:00Z`))).toBe(0);

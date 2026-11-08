@@ -40,6 +40,7 @@ export class WaterReminderService {
     const profiles = await this.prisma.profile.findMany({
       where: {
         waterReminders: true,
+        waterTracking: true,
         waterTargetMl: { not: null },
         user: { timeZone: { not: null } },
       },

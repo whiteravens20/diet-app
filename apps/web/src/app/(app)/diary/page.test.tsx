@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { aPublicConfig } from '@/testing/public-config';
+import { spaced } from '@/testing/spaces';
 import messages from '../../../../messages/en.json';
 import DiaryPage from './page';
 
@@ -91,8 +92,15 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
 /** The days the page asked for, in order. */
 let askedDays: string[] = [];
 
-/** The page of an account of one profile whose diary answers `days` (by date, the day given otherwise). */
-async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay> = {}) {
+/**
+ * The page of an account of one profile whose diary answers `days` (by date, the day given
+ * otherwise); the profile tracks water unless `tracksWater` says it does not.
+ */
+async function renderPage(
+  day: DiaryDay = aDay(),
+  days: Record<string, DiaryDay> = {},
+  tracksWater = true,
+) {
   askedDays = [];
   vi.spyOn(api, 'get').mockImplementation((path: string) => {
     if (path.startsWith('/diary/day?')) {
@@ -101,7 +109,9 @@ async function renderPage(day: DiaryDay = aDay(), days: Record<string, DiaryDay>
       return Promise.resolve((days[date] ?? { ...day, date }) as never);
     }
     if (path === '/profiles')
-      return Promise.resolve([{ id: PROFILE, name: 'Me', mealCount: 3 }] as never);
+      return Promise.resolve([
+        { id: PROFILE, name: 'Me', mealCount: 3, waterTracking: tracksWater },
+      ] as never);
     // The day's water and the week in sum, which the page shows beside the day.
     if (path.startsWith('/water?'))
       return Promise.resolve({
@@ -182,6 +192,16 @@ describe('the diary', () => {
     await screen.findByDisplayValue(TODAY);
 
     expect(askedDays).toEqual([yesterday, dayAfter(TODAY, -2), TODAY]);
+  });
+
+  it("shows the day's water for a profile that tracks it, and none for one that does not", async () => {
+    await renderPage();
+    expect(await screen.findByRole('button', { name: spaced('+200 ml') })).toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+
+    await renderPage(aDay(), {}, false);
+    expect(screen.queryByRole('button', { name: spaced('+200 ml') })).toBeNull();
   });
 
   it('takes no entry for a day still to come, and says so', async () => {

@@ -187,6 +187,8 @@ const profileFields = {
   targetWeightKg: z.number().min(30).max(400).nullable(),
   /** How much water a day the profile aims to drink, in millilitres; null where it names no target. */
   waterTargetMl: z.number().int().min(MIN_WATER_TARGET_ML).max(MAX_WATER_TARGET_ML).nullable(),
+  /** Whether the profile tracks water: off, the clients show none of its water and no reminder to drink comes; its entries stay. */
+  waterTracking: z.boolean(),
   /** Manual kcal target; when set it overrides the calculated value. */
   manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
   /** Default meal count (2-5) for new plans. */
@@ -231,6 +233,7 @@ const newProfile = z.object({
   weightKg: profileFields.weightKg,
   targetWeightKg: profileFields.targetWeightKg.default(null),
   waterTargetMl: profileFields.waterTargetMl.default(DEFAULT_WATER_TARGET_ML),
+  waterTracking: profileFields.waterTracking.default(true),
   activityLevel: profileFields.activityLevel.default('moderate'),
   dietType: profileFields.dietType.default('balanced'),
   weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
@@ -261,6 +264,8 @@ export const ProfileUpdate = z
     // The target of water came after the clients that send every other part: left out, it stays
     // as it is.
     waterTargetMl: profileFields.waterTargetMl.optional(),
+    // Whether the profile tracks water came later still: left out, it stays as it is.
+    waterTracking: profileFields.waterTracking.optional(),
     // The reminders of cooking and of water came after them too: left out, they stay as they are.
     cookingReminders: profileFields.cookingReminders.optional(),
     waterReminders: profileFields.waterReminders.optional(),

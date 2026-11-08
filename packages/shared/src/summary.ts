@@ -54,7 +54,8 @@ export const WeekSummary = z.object({
   target: Nutrition.nullable(),
   /** The days that count which came within a tenth of their target. */
   withinTarget: z.number().int().min(0).max(WEEK_DAYS),
-  water: WeekWater,
+  /** What the days drank; null for a profile that does not track water. */
+  water: WeekWater.nullable(),
   weight: WeightTrend,
 });
 export type WeekSummary = z.infer<typeof WeekSummary>;

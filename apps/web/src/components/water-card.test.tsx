@@ -68,6 +68,22 @@ describe("the water of a profile's day", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it('says once that the card can be turned off in the profile, and not again in this browser once that is closed', async () => {
+    window.localStorage.removeItem('water-card-note-closed');
+    shown(aDay());
+
+    const profile = await screen.findByRole('link', { name: 'in the profile' });
+    expect(profile).toHaveAttribute('href', '/profile');
+    await userEvent.click(screen.getByRole('button', { name: messages.common.close }));
+    expect(screen.queryByRole('link', { name: 'in the profile' })).toBeNull();
+
+    cleanup();
+    shown(aDay());
+    await screen.findByText(/of 2 L$/);
+    expect(screen.queryByRole('link', { name: 'in the profile' })).toBeNull();
+    window.localStorage.removeItem('water-card-note-closed');
+  });
+
   it('says what was drunk against the target, and how far that goes', async () => {
     shown(aDay());
 

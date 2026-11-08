@@ -3,10 +3,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Undo2 } from 'lucide-react';
+import { Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Profile, WaterDay } from '@diet-app/shared';
 import { MAX_WATER_ENTRY_ML, WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const waterKey = (profileId: string, day: string) => ['water', profileId, day] a
  * day is shown: a reminder of water links there.
  */
 export function WaterCard({ profile, day = localDate() }: { profile: Profile; day?: string }) {
+  const [noteClosed, closeNote] = useNoteClosed();
   const t = useTranslations('water');
   const fmt = useFormat();
   const errorText = useErrorText();
@@ -197,7 +199,81 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
             {error}
           </p>
         )}
+        {!noteClosed && <TurnOffNote onClose={closeNote} />}
       </CardContent>
     </Card>
+  );
+}
+
+/** Where this browser keeps that the note on turning the water card off was closed. */
+const NOTE_CLOSED = 'water-card-note-closed';
+
+// Closed on this page, in a browser that keeps nothing for it.
+let closedUnkept = false;
+const noteListeners = new Set<() => void>();
+
+function noteKeptClosed(): boolean {
+  try {
+    return window.localStorage.getItem(NOTE_CLOSED) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function watchNote(listener: () => void): () => void {
+  noteListeners.add(listener);
+  window.addEventListener('storage', listener);
+  return () => {
+    noteListeners.delete(listener);
+    window.removeEventListener('storage', listener);
+  };
+}
+
+/**
+ * Whether the note on turning the water card off was closed in this browser,
+ * and the way to close it: once closed, no card of any profile shows it here
+ * again. The page the server makes shows none.
+ */
+function useNoteClosed(): [boolean, () => void] {
+  const closed = useSyncExternalStore(
+    watchNote,
+    () => closedUnkept || noteKeptClosed(),
+    () => true,
+  );
+  const close = (): void => {
+    try {
+      window.localStorage.setItem(NOTE_CLOSED, '1');
+    } catch {
+      closedUnkept = true;
+    }
+    noteListeners.forEach((listener) => listener());
+  };
+  return [closed, close];
+}
+
+/** That the card can be turned off in the profile, said once, until it is closed. */
+function TurnOffNote({ onClose }: { onClose: () => void }) {
+  const t = useTranslations('water');
+  const tCommon = useTranslations('common');
+  return (
+    <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+      <p className="min-w-0 flex-1">
+        {t.rich('note', {
+          link: (chunks) => (
+            <Link href="/profile" className="underline underline-offset-2 hover:text-foreground">
+              {chunks}
+            </Link>
+          ),
+        })}
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={tCommon('close')}
+        className="shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
+      >
+        <X size={14} aria-hidden />
+      </button>
+    </div>
   );
 }

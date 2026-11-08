@@ -81,6 +81,13 @@ describe("a profile's week in sum", () => {
     shown(aWeek({ water: { counted: 0, averageMl: null, target: 2000, reached: 0 } }));
     await screen.findByText('On average 2174 of 2135 kcal a day');
     expect(screen.queryByText(/^Water:/)).toBeNull();
+    cleanup();
+    vi.restoreAllMocks();
+
+    // A profile that does not track water hears nothing of it.
+    shown(aWeek({ water: null }));
+    await screen.findByText('On average 2174 of 2135 kcal a day');
+    expect(screen.queryByText(/^Water:/)).toBeNull();
   });
 
   it('says where the weight leads, and when it reaches the target at this pace', async () => {

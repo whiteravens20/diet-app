@@ -2321,6 +2321,7 @@
     "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Own amount (ml)",
     "add": "Add water",
+    "note": "No need for the water card? You can turn it off <link>in the profile</link>.",
     "removeLast": "Remove the last entry",
     "removeLastLabel": "{amount}\u00a0· {time}",
     "daysLabel": "Water of the 7\u00a0days to {day}",
@@ -2416,6 +2417,8 @@
     "targetWeightHint": "The chart of your weights draws it as a line.",
     "waterTarget": "Water a day (ml)",
     "waterTargetHint": "Empty: no target.",
+    "waterTracking": "Track water",
+    "waterTrackingHint": "The water card on the dashboard and in the diary, water in the week in sum, and the reminder to drink. Turned off, what was written stays.",
     "activityLevel": "Activity level",
     "activityHint": {
       "sedentary": "Mostly sitting, little or no exercise.",

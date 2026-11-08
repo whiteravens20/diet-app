@@ -302,7 +302,9 @@ describe('the profile the steps make', () => {
       heightCm: 168,
       weightKg: 70.5,
       targetWeightKg: 64,
+      // A new profile tracks water.
       waterTargetMl: 2000,
+      waterTracking: true,
       activityLevel: 'light',
       dietType: 'vegetarian',
       customMacroSplit: null,

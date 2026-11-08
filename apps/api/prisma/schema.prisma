@@ -275,6 +275,9 @@ model Profile {
   targetWeightKg      Float?
   // How much water a day the profile aims to drink, in millilitres; null = no target.
   waterTargetMl       Int?          @default(2000)
+  // Whether the profile tracks water at all: switched off, no client shows its water and no
+  // reminder to drink comes; its entries stay for when it is switched on again.
+  waterTracking       Boolean       @default(true)
   // The real expenditure worked out from the diary and the weights, once a
   // week: the correction of the formula's maintenance the profile accepted,
   // in kcal a day (null = none, never applied unasked), the last working out

@@ -123,8 +123,9 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       heightCm: Number(f.get('heightCm')),
       weightKg: toKilograms(Number(f.get('weight')), unit),
       targetWeightKg: targetWeight === '' ? null : toKilograms(Number(targetWeight), unit),
-      // A new profile drinks to the target every profile starts with; the profile's page changes it.
+      // A new profile tracks water and drinks to the target every profile starts with; the profile's page changes both.
       waterTargetMl: DEFAULT_WATER_TARGET_ML,
+      waterTracking: true,
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       customMacroSplit: splitIn(f, null),

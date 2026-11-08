@@ -307,7 +307,9 @@ function DiaryContent() {
             />
 
             {/* The day's water, where the diary takes entries for it: not a day still to come, nor one over a year back. */}
-            {active && !ahead && !tooOld && <WaterCard profile={active} day={shown.date} />}
+            {active?.waterTracking && !ahead && !tooOld && (
+              <WaterCard profile={active} day={shown.date} />
+            )}
 
             {ahead ? (
               <p className="text-sm text-muted-foreground">{t('aheadNote')}</p>

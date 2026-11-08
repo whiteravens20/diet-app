@@ -96,7 +96,7 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
       <PlanOverviewCard profile={profile} />
 
-      <WaterCard profile={profile} />
+      {profile.waterTracking && <WaterCard profile={profile} />}
 
       <WeekSummaryCard profile={profile} />
 

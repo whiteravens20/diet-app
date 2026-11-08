@@ -103,7 +103,8 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
 function WaterLine({ water }: { water: WeekSummary['water'] }) {
   const t = useTranslations('weekSummary');
   const fmt = useFormat();
-  if (water.averageMl === null) return null;
+  // Nothing for a profile that does not track water, or a week that holds none.
+  if (!water || water.averageMl === null) return null;
   const liters = (ml: number) => fmt.unit(ml / 1000, 'liter', 2);
   return (
     <p>

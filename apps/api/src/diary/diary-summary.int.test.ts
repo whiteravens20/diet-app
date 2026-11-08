@@ -133,6 +133,11 @@ describe("what a profile's diary and weights come to", () => {
 
       const { water } = await get<WeekSummary>(`/api/diary/week?profileId=${profile.id}`);
       expect(water).toEqual({ counted: 3, averageMl: 2000, target: 2000, reached: 2 });
+
+      // A profile that does not track water hears nothing of it, what it drank kept all the same.
+      await t.prisma.profile.update({ where: { id: profile.id }, data: { waterTracking: false } });
+      expect((await get<WeekSummary>(`/api/diary/week?profileId=${profile.id}`)).water).toBeNull();
+      expect(await t.prisma.waterEntry.count({ where: { profileId: profile.id } })).toBe(6);
     });
 
     it('draws no line from too few weights, and goes back a week when asked', async () => {

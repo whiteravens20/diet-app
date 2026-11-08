@@ -173,6 +173,38 @@ test.describe('what a profile drinks', () => {
       waterTargetMl: before === '' ? null : Number(before),
     });
   });
+
+  test('a profile that stops tracking water has no water card on the dashboard, and has it again once it tracks it', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const profile = textsOf(messages, 'profile');
+    const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
+    const tracking = () =>
+      page.getByRole('checkbox', { name: new RegExp(`^${profile.waterTracking!}`) });
+    // The amounts are the water card's alone.
+    const amount = () => page.getByRole('button', { name: /^\+200\s/ });
+    const switched = async (on: boolean) => {
+      await editing(page, messages);
+      await tracking().setChecked(on);
+      const kept = changed(page, 'PUT');
+      await save().click();
+      expect(await (await kept).json()).toMatchObject({ waterTracking: on });
+      await page.goto('/dashboard');
+      await settled(page);
+    };
+
+    await switched(false);
+    await expect(
+      page.getByText(textsOf(messages, 'profileSummary').dailyTarget!).first(),
+    ).toBeVisible();
+    await expect(amount()).toHaveCount(0);
+
+    // Back to tracking it, so that the tests after this one find the profile they expect.
+    await switched(true);
+    await expect(amount().first()).toBeVisible();
+  });
 });
 
 test.describe('the profiles of an account', () => {

@@ -2321,6 +2321,7 @@
     "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Własna ilość (ml)",
     "add": "Dodaj wodę",
+    "note": "Nie potrzebujesz karty wody? Wyłączysz ją <link>w profilu</link>.",
     "removeLast": "Usuń ostatni wpis",
     "removeLastLabel": "{amount}\u00a0· {time}",
     "daysLabel": "Woda z 7\u00a0dni do {day}",
@@ -2416,6 +2417,8 @@
     "targetWeightHint": "Wykres wagi rysuje ją jako linię.",
     "waterTarget": "Cel wody na dzień (ml)",
     "waterTargetHint": "Puste: bez celu.",
+    "waterTracking": "Śledzenie wody",
+    "waterTrackingHint": "Karta wody na Pulpicie i w dzienniku, woda w podsumowaniu tygodnia i przypomnienie o piciu. Po wyłączeniu to, co zapisane, zostaje.",
     "activityLevel": "Poziom aktywności",
     "activityHint": {
       "sedentary": "Głównie siedzenie, mało ruchu albo wcale.",
