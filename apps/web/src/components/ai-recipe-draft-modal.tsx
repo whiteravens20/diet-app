@@ -345,7 +345,7 @@ function SliderRow({
         <span className="flex-1">{label}</span>
         {enabled && (
           <span className="text-xs tabular-nums text-muted-foreground">
-            {value} {unit}
+            {`${value}\u00a0${unit}`}
           </span>
         )}
       </label>

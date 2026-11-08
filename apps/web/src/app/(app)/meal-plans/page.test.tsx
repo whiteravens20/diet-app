@@ -25,7 +25,7 @@ import { aPublicConfig, aSupply } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 import { dayAnchor } from './plan-card';
-import { plain } from '@/testing/spaces';
+import { plain, spaced } from '@/testing/spaces';
 
 /** What the address of the page says after its question mark: empty unless a test is about a link that leads here. */
 const address = vi.hoisted(() => ({ search: '' }));
@@ -1441,7 +1441,7 @@ describe('the plan page, on how a day stands against its target', () => {
       await userEvent.click(line);
       const packs = within(line.closest('details')!)
         .getAllByRole('listitem')
-        .map((pack) => pack.textContent);
+        .map((pack) => plain(pack.textContent));
       expect(packs).toEqual([
         'Feta cheese: 160 g left of a pack of 200 g, more than a fifth of it',
         'Whole milk: 500 ml left of a pack of 1000 ml, more than a fifth of it',
@@ -1945,7 +1945,9 @@ describe('the plan page, on what a plan is made for', () => {
     await renderPage();
 
     expect(
-      screen.getByRole('option', { name: 'Custom (30 % protein, 40 % fat, 30 % carbohydrate)' }),
+      screen.getByRole('option', {
+        name: spaced('Custom (30 % protein, 40 % fat, 30 % carbohydrate)'),
+      }),
     ).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
 

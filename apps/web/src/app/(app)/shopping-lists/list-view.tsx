@@ -164,6 +164,7 @@ export function ListView({
   const open = everyItem.filter((item) => !item.checked);
 
   // The list as a text somebody can send: what is still to be bought, under its aisles. What is ticked is done with.
+  // Its spaces are plain, as a message's are: the page's no-break spaces hold its own lines, not those of a message.
   const asText = (): string =>
     [
       t('copyTitle', { dates: dateRangeLabel }),
@@ -178,10 +179,12 @@ export function ListView({
           ...left.flatMap((item) => {
             const line = `- ${item.name}: ${rowAmount(stillToBuy(item), item, formatQty)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`;
             const shares = sharesLine(item, formatQty);
-            return shares ? [line, `  ${shares.replaceAll('\u00a0', ' ')}`] : [line];
+            return shares ? [line, `  ${shares}`] : [line];
           }),
         ]),
-    ].join('\n');
+    ]
+      .join('\n')
+      .replaceAll('\u00a0', ' ');
   // What happened to the last copy: it is on the clipboard, or it is shown to be copied by hand.
   const [copied, setCopied] = useState<{ entries: number } | null>(null);
   const [byHand, setByHand] = useState<string | null>(null);

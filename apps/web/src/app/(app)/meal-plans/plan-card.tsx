@@ -1526,7 +1526,7 @@ function MacrosLine({
         `${t('protein')} ${fmt.unit(nutrition.protein, 'gram')}`,
         `${t('fat')} ${fmt.unit(nutrition.fat, 'gram')}`,
         `${t('carbs')} ${fmt.unit(nutrition.carbs, 'gram')}`,
-        `${fmt.number(nutrition.calories)} ${t('kcal')}`,
+        `${fmt.number(nutrition.calories)}\u00a0${t('kcal')}`,
       ]
         .map(held)
         .join(DOT)}

@@ -516,7 +516,7 @@ function RecipeReviewCard({
           <section className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
             <Stat
               label={t('statCalories')}
-              value={`${fmt.number(slice.caloriesPerServing)} kcal`}
+              value={`${fmt.number(slice.caloriesPerServing)}\u00a0kcal`}
             />
             <Stat label={t('statProtein')} value={fmt.unit(slice.proteinPerServing, 'gram', 1)} />
             <Stat label={t('statFat')} value={fmt.unit(slice.fatPerServing, 'gram', 1)} />

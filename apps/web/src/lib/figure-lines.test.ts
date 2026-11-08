@@ -185,3 +185,65 @@ describe('a line of figures joined by dots', () => {
     ).toEqual(['Wychodzą 4 porcje ·', '15 min przygotowania ·', '30 min gotowania']);
   });
 });
+
+/** The units and counted words that follow a value put in as text. */
+const UNIT = String.raw`(?:g|kg|mg|µg|kcal|ml|l|lb|cm|min|h|%|dni|dnia|dzień|days?|servings?)`;
+
+/** A value put in as text, `{kcal} kcal`, with a plain space before its unit: a narrow screen may leave the number at a line's end. */
+const LOOSE_UNIT = new RegExp(String.raw`\{\w+\} ${UNIT}(?=[\s.,;:)!?\u00a0]|$)`, 'u');
+
+/** The number formats of the application, whose figure a unit follows. */
+const FORMATTED = String.raw`\$\{(?:fmt\.(?:number|fixed|signed|unit|percent)|Math\.round)\([^{}]*\)\}`;
+
+/** A figure the code joins to its unit with a plain space: a number formatted, then a unit written or put in. */
+const LOOSE_FIGURE = new RegExp(
+  [
+    String.raw`${FORMATTED} ${UNIT}(?![\p{L}\p{N}])`,
+    String.raw`${FORMATTED} \$\{`,
+    String.raw`\{\w+\} \{(?:unit|kcal)\w*\}`,
+  ].join('|'),
+  'u',
+);
+
+/** The application's sources, comments left out, by their path under `src`. */
+const sources = (): [string, string][] => {
+  const SOURCE = path.resolve(process.cwd(), 'src');
+  return readdirSync(SOURCE, { recursive: true, encoding: 'utf8' })
+    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+    .map((file) => [file, withoutComments(readFileSync(path.join(SOURCE, file), 'utf8'))]);
+};
+
+describe('a value put in and its unit', () => {
+  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
+    'are held together in every text of %s',
+    (file) => {
+      const loose = [...texts(read(file))]
+        .filter(([, text]) => LOOSE_UNIT.test(text))
+        .map(([key]) => key);
+      expect(loose).toEqual([]);
+    },
+  );
+
+  it('are found apart in a text', () => {
+    expect(LOOSE_UNIT.test('Cel dnia: {kcal} kcal.')).toBe(true);
+    expect(LOOSE_UNIT.test('Własna ({protein} % białka)')).toBe(true);
+    expect(LOOSE_UNIT.test('Cel dnia: {kcal}\u00a0kcal, {name} gotuje.')).toBe(false);
+  });
+
+  it('are held together in the code', () => {
+    const loose = sources()
+      .filter(([, code]) => LOOSE_FIGURE.test(code))
+      .map(([file]) => file);
+    expect(loose).toEqual([]);
+  });
+
+  it('are found apart in the code', () => {
+    expect(LOOSE_FIGURE.test('value={`${fmt.number(kcal)} kcal`}')).toBe(true);
+    expect(LOOSE_FIGURE.test('`${fmt.number(value, 2)} ${unit}`')).toBe(true);
+    expect(LOOSE_FIGURE.test('<span>{value} {unit}</span>')).toBe(true);
+    expect(LOOSE_FIGURE.test('`${fmt.number(kcal)}\\u00a0kcal`')).toBe(false);
+    expect(LOOSE_FIGURE.test('`${fmt.weekday(date)} ${mealName(meal)}`')).toBe(false);
+    expect(LOOSE_FIGURE.test('`${count} grams of ${name}`')).toBe(false);
+    expect(LOOSE_FIGURE.test('d={`M ${x - 5} ${y - 4} l 3.5 3.5`}')).toBe(false);
+  });
+});

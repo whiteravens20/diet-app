@@ -11,6 +11,7 @@ import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import polish from '../../messages/pl.json';
 import { IngredientSubstituteModal } from './ingredient-substitute-modal';
+import { plain } from '@/testing/spaces';
 
 const taken = (ingredientId: string, name: string, quantity: number): PlannedIngredient => ({
   ingredientId,
@@ -127,9 +128,10 @@ describe('the substitution of an ingredient, before it is made', () => {
     async (sizing) => {
       const { delta } = await substituting(aPreview({ sizing }), 'pl');
 
-      const sentence = [...delta.querySelectorAll('p')].find((line) =>
-        line.textContent!.includes('White rice'),
-      )!.textContent!;
+      const sentence = plain(
+        [...delta.querySelectorAll('p')].find((line) => line.textContent!.includes('White rice'))!
+          .textContent,
+      );
       for (const part of ['White rice', '120 g', 'Chickpeas', '265 g'])
         expect(sentence).toContain(part);
       expect(sentence).not.toMatch(/[{}]|swap\.sizing/);

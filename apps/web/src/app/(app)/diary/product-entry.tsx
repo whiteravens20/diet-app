@@ -309,7 +309,7 @@ export function ProductAmount({
   const unitName = useUnitName();
   const most = DIARY_QUANTITY_LIMITS[product.unit];
   const unit = unitName(product.unit);
-  const amount = (value: number): string => `${fmt.number(value, 2)} ${unit}`;
+  const amount = (value: number): string => `${fmt.number(value, 2)}\u00a0${unit}`;
   const fits = (value: number | null): value is number => value !== null && value <= most;
   return (
     <div className="space-y-2">

@@ -61,7 +61,7 @@ export function PlanDaysChart({ days }: { days: PlanOverview['days'] }) {
           }}
           labelFormatter={(day) => (typeof day === 'string' ? fmt.day(day) : '')}
           formatter={(value, name) => [
-            typeof value === 'number' ? `${fmt.number(value)} kcal` : '—',
+            typeof value === 'number' ? `${fmt.number(value)}\u00a0kcal` : '—',
             name === 'planned' ? t('seriesPlanned') : t('seriesTarget'),
           ]}
         />

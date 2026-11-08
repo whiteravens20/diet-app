@@ -380,7 +380,7 @@ describe('a product in the window that adds to a diary', () => {
       const field = window.getByRole('spinbutton', { name: /ml/ });
       await user.click(window.getByRole('button', { name: spaced('1 serving (250 ml)') }));
       expect(field).toHaveValue(250);
-      await user.click(window.getByRole('button', { name: 'Whole pack (1000 ml)' }));
+      await user.click(window.getByRole('button', { name: spaced('Whole pack (1000 ml)') }));
       expect(field).toHaveValue(1000);
       expect(window.getByText('Adds 600 kcal to the day.')).toBeInTheDocument();
     });

@@ -25,7 +25,7 @@ export function useEntryAmount(): (entry: Pick<DiaryEntry, 'amount' | 'servings'
     if (!entry.amount) return t('servingsShown', { count: shownServings(entry.servings) });
     const { quantity, unit } = entry.amount.shown;
     return unit === 'g' || unit === 'ml'
-      ? `${fmt.number(quantity, 2)} ${unitName(unit)}`
+      ? `${fmt.number(quantity, 2)}\u00a0${unitName(unit)}`
       : amount(quantity, unit);
   };
 }

@@ -65,20 +65,20 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           index={0}
           icon={Target}
           label={t('dailyTarget')}
-          value={c ? `${fmt.number(c.dailyTarget)} ${kcal}` : '—'}
+          value={c ? `${fmt.number(c.dailyTarget)}\u00a0${kcal}` : '—'}
           hint={c?.source === 'manual_override' ? t('manualHint') : t('calculatedHint')}
         />
         <StatCard
           index={1}
           icon={Flame}
           label={t('maintenance')}
-          value={c ? `${fmt.number(c.maintenance)} ${kcal}` : '—'}
+          value={c ? `${fmt.number(c.maintenance)}\u00a0${kcal}` : '—'}
         />
         <StatCard
           index={2}
           icon={Wheat}
           label={c && c.dailyDeficit < 0 ? t('dailySurplus') : t('dailyDeficit')}
-          value={c ? `${fmt.number(Math.abs(c.dailyDeficit))} ${kcal}` : '—'}
+          value={c ? `${fmt.number(Math.abs(c.dailyDeficit))}\u00a0${kcal}` : '—'}
         />
         <StatCard
           index={3}

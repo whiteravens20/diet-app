@@ -12,6 +12,7 @@ import * as files from '@/lib/save-file';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ShoppingListsPage from './page';
+import { spaced } from '@/testing/spaces';
 
 const texts = messages.shoppingLists;
 const PLAN = '11111111-1111-4111-8111-111111111111';
@@ -469,7 +470,9 @@ describe('a row of a shopping list', () => {
       );
 
       expect(packsOf('Salmon')).toHaveTextContent('2 × 250 g');
-      expect(packsOf('Salmon')).toHaveAccessibleName('Bought in packs: 2 × 250 g of Salmon');
+      expect(packsOf('Salmon')).toHaveAccessibleName(
+        spaced('Bought in packs: 2 × 250 g of Salmon'),
+      );
       expect(screen.getByText(texts.packsHint)).toBeInTheDocument();
     });
 
