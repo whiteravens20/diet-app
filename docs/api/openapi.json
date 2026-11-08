@@ -14862,6 +14862,10 @@
             "default": true,
             "type": "boolean"
           },
+          "lessWaste": {
+            "default": false,
+            "type": "boolean"
+          },
           "maxRepeatsPerRecipe": {
             "type": "integer",
             "minimum": 1,
@@ -16376,6 +16380,62 @@
         ],
         "additionalProperties": false
       },
+      "LessWasteEffect": {
+        "type": "object",
+        "properties": {
+          "pantry": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "less": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "now",
+              "less"
+            ],
+            "additionalProperties": false
+          },
+          "packs": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "less": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "now",
+              "less"
+            ],
+            "additionalProperties": false
+          },
+          "fewerRecipes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "pantry",
+          "packs",
+          "fewerRecipes"
+        ],
+        "additionalProperties": false
+      },
       "ListProposal": {
         "oneOf": [
           {
@@ -17580,6 +17640,18 @@
         ],
         "additionalProperties": false
       },
+      "NamedDiet": {
+        "type": "string",
+        "enum": [
+          "balanced",
+          "high_protein",
+          "low_carb",
+          "vegetarian",
+          "vegan",
+          "keto",
+          "mediterranean"
+        ]
+      },
       "NaturalUnit": {
         "type": "string",
         "enum": [
@@ -18569,6 +18641,10 @@
           "respectInventory": {
             "type": "boolean"
           },
+          "lessWaste": {
+            "default": false,
+            "type": "boolean"
+          },
           "maxRepeatsPerRecipe": {
             "anyOf": [
               {
@@ -18594,6 +18670,7 @@
           "respectExclusions",
           "respectFavorites",
           "respectInventory",
+          "lessWaste",
           "maxRepeatsPerRecipe",
           "allowRelaxations"
         ],
@@ -20967,12 +21044,31 @@
                 "items": {
                   "$ref": "#/components/schemas/PlanRelaxation"
                 }
+              },
+              "lessWaste": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/components/schemas/NamedDiet"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/LessWasteEffect"
+                },
+                "required": [
+                  "balanced",
+                  "high_protein",
+                  "low_carb",
+                  "vegetarian",
+                  "vegan",
+                  "keto",
+                  "mediterranean"
+                ]
               }
             },
             "required": [
               "maxRepeatsPerRecipe",
               "mealSlots",
-              "relaxations"
+              "relaxations",
+              "lessWaste"
             ],
             "additionalProperties": false
           }
@@ -22419,6 +22515,9 @@
           },
           "to": {
             "$ref": "#/components/schemas/CalendarDay"
+          },
+          "lessWaste": {
+            "type": "boolean"
           }
         }
       },

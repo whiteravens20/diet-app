@@ -44,6 +44,26 @@ export type Supply = z.infer<typeof Supply>;
 export const CatalogueSupply = z.record(DietType, z.record(MealCountKey, Supply));
 export type CatalogueSupply = z.infer<typeof CatalogueSupply>;
 
+/** The diets with a split of their own: every diet but `custom`, whose split is the profile's. */
+export const NamedDiet = DietType.exclude(['custom']);
+export type NamedDiet = z.infer<typeof NamedDiet>;
+
+const Share = z.number().int().min(0).max(100);
+
+/**
+ * What a plan that wastes less (`GeneratePlanRequest.lessWaste`) does on a
+ * diet, in hundredths: the share of the pantry's stock a week of it uses and
+ * the share of the opened packs that keep badly, each as a plan has it
+ * without the option (`now`) and with it (`less`), and how many in a hundred
+ * fewer different recipes the week has with it.
+ */
+export const LessWasteEffect = z.object({
+  pantry: z.object({ now: Share, less: Share }),
+  packs: z.object({ now: Share, less: Share }),
+  fewerRecipes: Share,
+});
+export type LessWasteEffect = z.infer<typeof LessWasteEffect>;
+
 /**
  * Public, unauthenticated runtime configuration the web app needs before a user
  * is signed in. Served by `GET /api/config`. Deliberately exposes only
@@ -106,6 +126,12 @@ export const PublicConfig = z.object({
      * meal inside them, in the order in which they do.
      */
     relaxations: z.array(PlanRelaxation),
+    /**
+     * What a plan that wastes less does on each diet with a split of its own,
+     * as measured on the base catalogue: what to expect, not a promise, since
+     * the catalogue, the pantry and the limits of a profile move it.
+     */
+    lessWaste: z.record(NamedDiet, LessWasteEffect),
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

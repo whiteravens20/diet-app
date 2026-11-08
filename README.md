@@ -29,7 +29,9 @@ The companion Android app lives in a separate repository:
   of maintenance, a floor no calculated target goes under, manual override.
 - **Meal planning** — multi-day plans honouring calorie/macro targets and diet type, with
   an optimiser that leans towards using up what it opens: a plan says what it buys in
-  packs that do not keep against what it uses of them, and a plan made for cooking ahead
+  packs that do not keep against what it uses of them. Asked to waste less, a plan leans
+  much harder on the pantry and on those packs, for fewer different recipes in a week, as
+  the form says in figures for the diet before it is made. A plan made for cooking ahead
   has a dish cooked once for two days. A day of a plan under way can be set apart (a
   training or rest day, skipped, another number of meals, a target of its own), with what
   that does to its meals said before it is saved.

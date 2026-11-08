@@ -3,7 +3,9 @@
 import type { ProteinKind } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  LESS_WASTE_WEIGHTS,
   OptimizerError,
+  SCORE_WEIGHTS,
   fitServings,
   optimisePlan,
   proteinKindsOf,
@@ -315,6 +317,33 @@ describe('optimisePlan', () => {
     // With r2 marked as covering expiring stock it wins more often than the
     // unbiased baseline — proving the per-day coverage map is honoured.
     expect(countR2(new Map([['r2', 1]]))).toBeGreaterThan(countR2(undefined));
+  });
+});
+
+describe('a plan that wastes less', () => {
+  it('takes the recipe the pantry covers far more often than one made as ever, against the variety of its week', () => {
+    // Five breakfasts alike but for what they are made of; the pantry holds all of the first.
+    const recipes = ['r1', 'r2', 'r3', 'r4', 'r5'].map((id) => recipe(id, ['breakfast'], 500));
+    const covered = (weights: typeof SCORE_WEIGHTS): number =>
+      Array.from({ length: 20 }, (_, i) => i + 1).reduce(
+        (sum, seed) =>
+          sum +
+          optimisePlan(
+            {
+              ...baseInput,
+              recipes,
+              seed,
+              days: uniformDays(7, ['breakfast'], 500),
+              maxConsecutiveDaysSameMeal: 7,
+              maxTimesPerWeekSameMeal: 7,
+              inventoryCoverage: new Map([['r1', 1]]),
+            },
+            weights,
+          ).assignments.filter((placed) => placed.recipeId === 'r1').length,
+        0,
+      );
+
+    expect(covered(LESS_WASTE_WEIGHTS)).toBeGreaterThan(covered(SCORE_WEIGHTS) + 20);
   });
 });
 

@@ -50,6 +50,7 @@ import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-car
 import { RebalanceToast, type PlanWord } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
+import { LessWasteSwitch } from './less-waste';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { LoadFailed } from '@/components/load-failed';
@@ -145,6 +146,9 @@ function MealPlansContent() {
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
   const [cookAhead, setCookAhead] = useState(false);
+  // A plan that wastes less counts the pantry: its box stays ticked while the plan is to waste less.
+  const [lessWaste, setLessWaste] = useState(false);
+  const [withPantry, setWithPantry] = useState(true);
   // What this plan is made for where it differs from the profile: empty means "as the profile has it".
   const [diet, setDiet] = useState<DietType | ''>('');
   const [mealCount, setMealCount] = useState<number | ''>('');
@@ -533,7 +537,8 @@ function MealPlansContent() {
       mealPrepFriendly: cookAhead,
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
-      respectInventory: f.get('respectInventory') === 'on',
+      respectInventory: withPantry || lessWaste,
+      lessWaste,
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
     });
   }
@@ -739,10 +744,17 @@ function MealPlansContent() {
                 {t('preferFavorites')}
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="respectInventory" defaultChecked className="h-4 w-4" />
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={withPantry || lessWaste}
+                  disabled={lessWaste}
+                  onChange={(e) => setWithPantry(e.target.checked)}
+                />
                 {t('preferInventory')}
               </label>
             </fieldset>
+            <LessWasteSwitch diet={planDiet} checked={lessWaste} onChange={setLessWaste} />
             <AdvancedOptions
               dates={planDates(startDate, durationDays)}
               defaultMealCount={planMeals}
@@ -897,6 +909,7 @@ function MealPlansContent() {
               edited={edited}
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
+              profileDiet={active?.dietType ?? plan.dietType}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
               onReroll={(asked) => {
                 setError(null);

@@ -126,6 +126,7 @@ describe('regenerating a plan', () => {
         respectExclusions: false,
         respectFavorites: false,
         respectInventory: false,
+        lessWaste: true,
         maxRepeatsPerRecipe: 3,
       });
       const left = await aPlan(t, user, profile, { startDate: '2026-02-02' });
@@ -141,6 +142,7 @@ describe('regenerating a plan', () => {
         respectExclusions: false,
         respectFavorites: false,
         respectInventory: false,
+        lessWaste: true,
         maxRepeatsPerRecipe: 3,
         allowRelaxations: [],
       });
@@ -152,6 +154,7 @@ describe('regenerating a plan', () => {
         respectExclusions: true,
         respectFavorites: true,
         respectInventory: true,
+        lessWaste: false,
         maxRepeatsPerRecipe: null,
         allowRelaxations: [],
       });

@@ -148,6 +148,16 @@ export const GeneratePlanRequest = z
      */
     respectInventory: z.boolean().default(true),
     /**
+     * Waste less: lean much harder on what the pantry holds and on finishing
+     * the packs that do not keep once opened, at the cost of fewer different
+     * recipes in a week and days a little further from their split. Such a
+     * plan counts the pantry whatever `respectInventory` says, and is never
+     * the round of the rotation that leaves it out; the limits of the profile
+     * and of the plan hold as ever. What it does on each diet is in
+     * `PublicConfig.plans.lessWaste`. Off by default.
+     */
+    lessWaste: z.boolean().default(false),
+    /**
      * Variety floor: max total times any one recipe may appear across the
      * whole plan window. Omitted = no floor.
      */
@@ -221,6 +231,8 @@ export const PlanOptions = z.object({
   respectExclusions: z.boolean(),
   respectFavorites: z.boolean(),
   respectInventory: z.boolean(),
+  /** The plan wastes less (see `GeneratePlanRequest.lessWaste`); a plan made before it was offered does not. */
+  lessWaste: z.boolean().default(false),
   maxRepeatsPerRecipe: z.number().int().nullable(),
   /** The limits that may give way when the plan is made again. */
   allowRelaxations: z.array(PlanRelaxation),
@@ -410,6 +422,12 @@ export type RegenerateDayRequest = z.infer<typeof RegenerateDayRequest>;
 export const RegenerateRequest = RerollOptions.extend({
   from: CalendarDay.optional(),
   to: CalendarDay.optional(),
+  /**
+   * Whether the plan wastes less (`GeneratePlanRequest.lessWaste`) from now on:
+   * kept with the plan when the whole of it is made again. Left out: as the
+   * plan has it; a part of the plan made again always has it as the plan does.
+   */
+  lessWaste: z.boolean().optional(),
 }).prefault({});
 export type RegenerateRequest = z.infer<typeof RegenerateRequest>;
 

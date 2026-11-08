@@ -5,7 +5,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { MealPlan, PlanRelaxation, RerollPreview } from '@diet-app/shared';
+import type { DietType, MealPlan, PlanRelaxation, RerollPreview } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CookingNote } from './cooking';
+import { LessWasteSwitch } from './less-waste';
 import { type Reroll, type RerollScope } from './reroll';
 import { ListNote } from './list-note';
 
@@ -49,6 +50,7 @@ export function RerollDialog({
   planId,
   title,
   start,
+  profileDiet,
   limitNames,
   mealName,
   onClose,
@@ -58,6 +60,8 @@ export function RerollDialog({
   /** The plan as its row in the list names it. */
   title: string;
   start: RerollStart;
+  /** The diet of the plan's profile as it is now: the whole plan made again follows it where the plan names none. */
+  profileDiet: DietType;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   mealName: (mealType: string) => string;
   onClose: () => void;
@@ -87,6 +91,7 @@ export function RerollDialog({
         <RerollForm
           plan={plan.data}
           start={start}
+          profileDiet={profileDiet}
           limitNames={limitNames}
           mealName={mealName}
           onClose={onClose}
@@ -113,6 +118,7 @@ export function RerollDialog({
 function RerollForm({
   plan,
   start,
+  profileDiet,
   limitNames,
   mealName,
   onClose,
@@ -120,6 +126,7 @@ function RerollForm({
 }: {
   plan: MealPlan;
   start: RerollStart;
+  profileDiet: DietType;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   mealName: (mealType: string) => string;
   onClose: () => void;
@@ -150,6 +157,9 @@ function RerollForm({
   const [replaceCustom, setReplaceCustom] = useState(false);
   const [holdLimits, setHoldLimits] = useState(start.holdLimits ?? false);
   const [only, setOnly] = useState(false);
+  // Only the whole plan made again can change it: days of it filled again are made as the plan is.
+  const [lessWaste, setLessWaste] = useState(plan.options.lessWaste);
+  const wholeDiet = plan.options.dietType ?? profileDiet;
 
   // What the API is asked what a re-roll would do: the days chosen, and what of them may go as well.
   const dayId = days.find((d) => d.date === day)?.id;
@@ -235,6 +245,7 @@ function RerollForm({
           ...(couldGo.custom && replaceCustom ? { replaceCustom: true } : {}),
           ...(holdLimits && mayGiveWay.length > 0 ? { allowRelaxations: [] } : {}),
           ...(!only && shown.cooking?.changes.length ? { together: true } : {}),
+          ...(scope === 'whole' && lessWaste !== plan.options.lessWaste ? { lessWaste } : {}),
         });
         onClose();
       }}
@@ -260,6 +271,11 @@ function RerollForm({
             <p id={`${id}-${option.scope}`} className="ml-6 text-xs text-muted-foreground">
               {option.hint}
             </p>
+            {option.scope === 'whole' && scope === 'whole' && (
+              <div className="ml-6">
+                <LessWasteSwitch diet={wholeDiet} checked={lessWaste} onChange={setLessWaste} />
+              </div>
+            )}
             {option.scope === 'range' && scope === 'range' && (
               <p className="ml-6 flex flex-wrap items-center gap-2">
                 <select

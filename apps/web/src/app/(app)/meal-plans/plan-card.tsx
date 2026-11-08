@@ -11,6 +11,7 @@ import {
   fitsDiet,
   type AddCustomMealRequest,
   type DiaryEntry,
+  type DietType,
   type AiMealSwapPreview,
   type MealPlan,
   type MealPlanDay,
@@ -120,6 +121,7 @@ export function PlanCard({
   edited,
   busy,
   dietLabel,
+  profileDiet,
   favorites,
   tMeal,
   onToggle,
@@ -156,6 +158,8 @@ export function PlanCard({
   edited: MealPlan | null;
   busy: boolean;
   dietLabel: string;
+  /** The diet of the plan's profile as it is now: a whole plan made again follows it where the plan names none. */
+  profileDiet: DietType;
   favorites: FavoriteOption[];
   tMeal: ReturnType<typeof useTranslations<'enums.mealType'>>;
   onToggle: () => void;
@@ -1279,7 +1283,7 @@ export function PlanCard({
               </PlanPacksLine>
             )}
           </div>
-          {(plan.options.allowRelaxations.length > 0 || pantryLine) && (
+          {(plan.options.allowRelaxations.length > 0 || pantryLine || plan.options.lessWaste) && (
             <div className="space-y-1 text-xs text-muted-foreground">
               {plan.options.allowRelaxations.length > 0 && (
                 <p className="flex flex-wrap items-center gap-2">
@@ -1296,6 +1300,7 @@ export function PlanCard({
                 </p>
               )}
               {pantryLine && <p>{t(pantryLine)}</p>}
+              {plan.options.lessWaste && <p>{t('planLessWaste')}</p>}
             </div>
           )}
           {conflicts > 0 && (
@@ -1381,6 +1386,7 @@ export function PlanCard({
           planId={summary.id}
           title={t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           start={reroll}
+          profileDiet={profileDiet}
           limitNames={limitNames}
           mealName={mealName}
           onClose={() => setReroll(null)}

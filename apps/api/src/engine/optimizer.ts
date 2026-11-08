@@ -33,8 +33,10 @@ import {
   fitsDiet,
   PLAN_RELAXATIONS,
   type DietType,
+  type LessWasteEffect,
   type Macros,
   type MealType,
+  type NamedDiet,
   type PlanRelaxation,
   type ProteinKind,
   type Unit,
@@ -279,6 +281,39 @@ export const SCORE_WEIGHTS = {
   packs: 0.15,
 };
 export type ScoreWeights = typeof SCORE_WEIGHTS;
+
+/**
+ * The weights of a plan that wastes less (`GeneratePlanRequest.lessWaste`):
+ * the packs and the pantry weigh much more. Chosen with
+ * `scripts/tune-pack-weight.ts` and `scripts/tune-pantry-weight.ts`: past 0.6
+ * the packs used stay near 90 % while the variety of a week keeps falling, and
+ * the pantry has to rise with the packs, which alone pull away from it. What
+ * they do on each diet is `LESS_WASTE_EFFECT`.
+ */
+export const LESS_WASTE_WEIGHTS: ScoreWeights = {
+  ...SCORE_WEIGHTS,
+  packs: 0.6,
+  inventoryCoverage: 0.6,
+};
+
+/**
+ * What `LESS_WASTE_WEIGHTS` do against `SCORE_WEIGHTS` on each diet with a
+ * split of its own, as `scripts/tune-pantry-weight.ts` measured them on the
+ * base catalogue (183 recipes, weeks of 2000 kcal at three to five meals a
+ * day, a pantry of eight of the diet's ingredients): the rows "now" and 0.60
+ * of its table, the different recipes of a week as the share they fall by.
+ * Measured again whenever either set of weights changes; the configuration
+ * serves it, so that a client says what the option costs before it is chosen.
+ */
+export const LESS_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
+  balanced: { pantry: { now: 35, less: 62 }, packs: { now: 80, less: 83 }, fewerRecipes: 19 },
+  high_protein: { pantry: { now: 45, less: 66 }, packs: { now: 81, less: 84 }, fewerRecipes: 15 },
+  low_carb: { pantry: { now: 64, less: 71 }, packs: { now: 77, less: 85 }, fewerRecipes: 27 },
+  vegetarian: { pantry: { now: 36, less: 58 }, packs: { now: 84, less: 85 }, fewerRecipes: 23 },
+  vegan: { pantry: { now: 57, less: 70 }, packs: { now: 82, less: 86 }, fewerRecipes: 24 },
+  keto: { pantry: { now: 67, less: 71 }, packs: { now: 69, less: 77 }, fewerRecipes: 34 },
+  mediterranean: { pantry: { now: 55, less: 67 }, packs: { now: 72, less: 83 }, fewerRecipes: 24 },
+};
 
 /** A day that is this far from its split, or further, gets nothing for it. */
 const MACRO_REACH = 0.5;

@@ -15,6 +15,7 @@ import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
 import { supplyByMealCount } from '../engine/coverage.js';
+import { LESS_WASTE_EFFECT } from '../engine/optimizer.js';
 import { MailService } from '../mail/mail.service.js';
 import { TurnstileService } from '../auth/turnstile.service.js';
 import { PACKAGE_VERSION } from './package-version.js';
@@ -25,7 +26,8 @@ import { PACKAGE_VERSION } from './package-version.js';
  * render Turnstile + the site key, whether email flows are available), what
  * the operator publishes about the instance, which diets the catalogue has
  * recipes for, the limits the operator set for accounts and plans, whether
- * products with a barcode are offered, and how a plan's days are laid out.
+ * products with a barcode are offered, how a plan's days are laid out, and
+ * what a plan that wastes less does on each diet.
  * Mirrors the unauthenticated HealthController, and is limited like it and
  * every other route.
  */
@@ -72,6 +74,7 @@ export class AppConfigController {
           MealCountKey.options.map((count) => [count, MEAL_SLOTS_BY_COUNT[Number(count)]!]),
         ) as Record<MealCountKey, MealType[]>,
         relaxations: [...PLAN_RELAXATIONS],
+        lessWaste: LESS_WASTE_EFFECT,
       },
     };
   }

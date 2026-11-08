@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ConfigService } from '@nestjs/config';
+import { NamedDiet } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import type { TurnstileService } from '../auth/turnstile.service.js';
 import type { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
@@ -102,6 +103,16 @@ describe('GET /api/config', () => {
       'consecutive_days',
       'weekly_cap',
     ]);
+  });
+
+  it('publishes what a plan that wastes less does on every diet with a split of its own: more of the pantry and the packs used, for fewer recipes', async () => {
+    const { lessWaste } = (await configOf({})).plans;
+    expect(Object.keys(lessWaste).sort()).toEqual([...NamedDiet.options].sort());
+    for (const effect of Object.values(lessWaste)) {
+      expect(effect.pantry.less).toBeGreaterThan(effect.pantry.now);
+      expect(effect.packs.less).toBeGreaterThanOrEqual(effect.packs.now);
+      expect(effect.fewerRecipes).toBeGreaterThan(0);
+    }
   });
 
   it('never carries a secret', async () => {

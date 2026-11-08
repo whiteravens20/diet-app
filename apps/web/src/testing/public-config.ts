@@ -4,8 +4,10 @@
 import {
   DietType,
   MEAL_SLOTS_BY_COUNT,
+  NamedDiet,
   PLAN_RELAXATIONS,
   type CatalogueSupply,
+  type LessWasteEffect,
   type PublicConfig,
   type Supply,
 } from '@diet-app/shared';
@@ -18,6 +20,20 @@ export function aSupply(): CatalogueSupply {
   return Object.fromEntries(
     DietType.options.map((diet) => [diet, { 2: ENOUGH, 3: ENOUGH, 4: ENOUGH, 5: ENOUGH }]),
   ) as CatalogueSupply;
+}
+
+/** What a plan that wastes less does on each diet, each diet's figures its own, so that a test sees whose it shows. */
+export function aLessWaste(): Record<NamedDiet, LessWasteEffect> {
+  return Object.fromEntries(
+    NamedDiet.options.map((diet, i) => [
+      diet,
+      {
+        pantry: { now: 30 + i, less: 60 + i },
+        packs: { now: 70 + i, less: 80 + i },
+        fewerRecipes: 10 + i,
+      },
+    ]),
+  ) as Record<NamedDiet, LessWasteEffect>;
 }
 
 /** Nothing switched on, nothing published by the operator, plenty of recipes; a test overrides what it is about. */
@@ -39,6 +55,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
         5: MEAL_SLOTS_BY_COUNT[5]!,
       },
       relaxations: [...PLAN_RELAXATIONS],
+      lessWaste: aLessWaste(),
     },
     ...overrides,
   };

@@ -33,9 +33,11 @@ import {
   amountsPerServing,
   dayMacros,
   effectiveDayTarget,
+  LESS_WASTE_WEIGHTS,
   macroSplitOf,
   macrosForCalories,
   optimisePlan,
+  SCORE_WEIGHTS,
   weekScales,
   sizeAssignments,
   sharesOf,
@@ -97,6 +99,7 @@ export class PlanGenerationService {
       respectExclusions: req.respectExclusions,
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
+      lessWaste: req.lessWaste,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
       allowRelaxations: req.allowRelaxations,
     };
@@ -131,6 +134,7 @@ export class PlanGenerationService {
       respectExclusions: req.respectExclusions,
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
+      lessWaste: req.lessWaste,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
       allowRelaxations: req.allowRelaxations,
       seed,
@@ -372,7 +376,7 @@ export class PlanGenerationService {
     userId: string,
     planId: string,
     range: { from?: string; to?: string },
-    options: RegenerateDayRequest,
+    options: RegenerateDayRequest & { lessWaste?: boolean },
     clientToday: string | null,
   ) {
     const plan = await this.prisma.mealPlan.findUnique({
@@ -425,6 +429,8 @@ export class PlanGenerationService {
     const profile = await this.plans.loadProfile(userId, plan.profileId);
     const diary = await diaryOfDays(this.prisma, plan.profileId, plan.days);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
+    // Asked of the whole plan, it is kept with the plan; a part of it is made as the plan is.
+    const lessWaste = whole ? (options.lessWaste ?? made.lessWaste) : made.lessWaste;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
     // A plan that is made again takes the split the profile has now; days of it that are filled again, the one the plan was made with.
@@ -501,6 +507,7 @@ export class PlanGenerationService {
       filled,
       diary,
       allowRelaxations,
+      lessWaste,
       base,
       dietType,
       macroSplit,
@@ -523,6 +530,7 @@ export class PlanGenerationService {
       respectExclusions: prepared.made.respectExclusions,
       respectFavorites: prepared.made.respectFavorites,
       respectInventory: prepared.made.respectInventory,
+      lessWaste: prepared.lessWaste,
       maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
       allowRelaxations: prepared.allowRelaxations,
       dropIneligibleLocks: prepared.dropIneligibleLocks,
@@ -546,8 +554,19 @@ export class PlanGenerationService {
           'Every day asked for is skipped or before today. A skipped day is left as it is, and days in the past are made again only when the request says so.',
       });
     }
-    const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit } =
-      prepared;
+    const {
+      plan,
+      made,
+      dates,
+      whole,
+      days,
+      filled,
+      allowRelaxations,
+      lessWaste,
+      base,
+      dietType,
+      macroSplit,
+    } = prepared;
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
     // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
@@ -618,7 +637,7 @@ export class PlanGenerationService {
                 calorieTarget: base.target,
                 dietType,
                 macroSplit: macroSplit ?? Prisma.JsonNull,
-                options: { ...made, allowRelaxations },
+                options: { ...made, allowRelaxations, lessWaste },
                 seed,
               }
             : {}),
@@ -700,6 +719,8 @@ export class PlanGenerationService {
       respectFavorites?: boolean;
       /** Pantry-aware bias toggle (default true). */
       respectInventory?: boolean;
+      /** Lean much harder on the pantry and the packs (`LESS_WASTE_WEIGHTS`). */
+      lessWaste?: boolean;
       /** Variety floor — max total uses of any recipe across the window. */
       maxRepeatsPerRecipe?: number;
       /** The limits that may give way when a meal cannot be filled inside them. */
@@ -751,9 +772,12 @@ export class PlanGenerationService {
       opts.respectFavorites === false
         ? undefined
         : new Set(profile.preferences?.favoriteIngredientIds ?? []);
+    // A plan that wastes less counts the pantry, whatever the request says of it.
+    const countsPantry = opts.respectInventory !== false || opts.lessWaste === true;
     const pantry = await this.resolveInventoryBias(
       profile.id,
-      opts.respectInventory !== false,
+      countsPantry,
+      opts.lessWaste === true,
       optimizerRecipes,
       requirementsByRecipe,
     );
@@ -762,7 +786,7 @@ export class PlanGenerationService {
     // Use-up-by: build a per-date coverage map for each flagged day, scored
     // only against stock expiring by that date. Falls back to the plan-level map.
     const expiringByDate = new Map<string, ReadonlyMap<string, number>>();
-    if (opts.respectInventory !== false) {
+    if (countsPantry) {
       const dates = [
         ...new Set(opts.days.filter((d) => d.useUpBy && !d.skip).map((d) => d.isoDate)),
       ];
@@ -814,27 +838,30 @@ export class PlanGenerationService {
     const dates = opts.days.map((d) => d.isoDate);
     const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
     try {
-      const result = optimisePlan({
-        recipes: optimizerRecipes,
-        days,
-        macroSplit: split,
-        dietType: opts.dietType,
-        mealPrepFriendly: opts.mealPrepFriendly,
-        favoriteIngredientIds,
-        dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
-        preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
-        inventoryCoverage,
-        maxConsecutiveDaysSameMeal: caps.consecutive,
-        maxTimesPerWeekSameMeal: caps.perWeek,
-        // A plan that names no number is held to the operator's, where one is set.
-        maxRepeatsPerRecipe:
-          opts.maxRepeatsPerRecipe ??
-          this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
-        maxMealsPerKind: mealsPerKind(profile.preferences),
-        perishablePacks,
-        allowRelaxations: new Set(opts.allowRelaxations),
-        seed: opts.seed,
-      });
+      const result = optimisePlan(
+        {
+          recipes: optimizerRecipes,
+          days,
+          macroSplit: split,
+          dietType: opts.dietType,
+          mealPrepFriendly: opts.mealPrepFriendly,
+          favoriteIngredientIds,
+          dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
+          preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
+          inventoryCoverage,
+          maxConsecutiveDaysSameMeal: caps.consecutive,
+          maxTimesPerWeekSameMeal: caps.perWeek,
+          // A plan that names no number is held to the operator's, where one is set.
+          maxRepeatsPerRecipe:
+            opts.maxRepeatsPerRecipe ??
+            this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+          maxMealsPerKind: mealsPerKind(profile.preferences),
+          perishablePacks,
+          allowRelaxations: new Set(opts.allowRelaxations),
+          seed: opts.seed,
+        },
+        opts.lessWaste ? LESS_WASTE_WEIGHTS : SCORE_WEIGHTS,
+      );
       return {
         assignments: sizeAssignments(days, optimizerRecipes, result.assignments, split),
         ingredientReuseScore: result.ingredientReuseScore,
@@ -1068,11 +1095,13 @@ export class PlanGenerationService {
    * of recipes. `streak` is what the profile's count becomes once the plan is
    * filled; the caller writes it then. It only moves on plan-level paths (a
    * swap reads `recipeCoverageMap` directly). Threshold `0` switches the
-   * rotation off.
+   * rotation off. A plan that wastes less (`lessWaste`) is a round like any
+   * other but never the one that leaves the pantry out: the plan after it is.
    */
   private async resolveInventoryBias(
     profileId: string,
     respectInventory: boolean,
+    lessWaste: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
   ): Promise<{ use: PantryUse; coverage?: Map<string, number>; round?: PantryRound }> {
@@ -1099,7 +1128,7 @@ export class PlanGenerationService {
     const threshold = profile?.preferences?.inventoryBiasResetEvery ?? 5;
     if (threshold === 0) return { use: 'counted', coverage };
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
-    return currentStreak >= threshold
+    return currentStreak >= threshold && !lessWaste
       ? { use: 'left_out', round: 'left_out' }
       : { use: 'counted', coverage, round: 'counted' };
   }
