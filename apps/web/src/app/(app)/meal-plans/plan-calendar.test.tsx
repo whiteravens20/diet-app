@@ -176,7 +176,7 @@ describe("the calendar of a profile's plans", () => {
     expect(screen.getByRole('heading', { name: 'January 2026' })).toBeInTheDocument();
   });
 
-  it('says that the plans could not be read, and reads them again when asked', async () => {
+  it('says that the plans could not be read, keeps its size with days that cannot be chosen, and reads them again when asked', async () => {
     let fails = true;
     await open([], () =>
       fails
@@ -185,11 +185,48 @@ describe("the calendar of a profile's plans", () => {
     );
 
     expect(await screen.findByRole('button', { name: messages.common.retry })).toBeInTheDocument();
-    expect(screen.queryByRole('grid')).toBeNull();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    // The grid stands as it would, so that nothing under it moves; a day that could not be read is not offered as one without a plan.
+    const days = within(screen.getByRole('grid')).getAllByRole('button');
+    expect(days).toHaveLength(35);
+    days.forEach((day) => expect(day).toBeDisabled());
     fails = false;
     await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
 
     expect(await screen.findByRole('button', { name: /^Mon, Jan 12: 2190/ })).toBeInTheDocument();
+  });
+});
+
+describe('the calendar read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the days it showed when a read again fails, says why under them, and reads again when asked', async () => {
+    let fails = false;
+    vi.spyOn(api, 'get').mockImplementation((() =>
+      fails
+        ? Promise.reject(new Error('no answer'))
+        : Promise.resolve({ days: [aDay('2026-01-12')] })) as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <PlanCalendar profileId={PROFILE} today="2026-01-14" onOpen={vi.fn()} onStart={vi.fn()} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await screen.findByRole('button', { name: /^Mon, Jan 12: 2190/ });
+
+    // A change of a plan has the calendar read again, and the read fails.
+    fails = true;
+    await client.invalidateQueries({ queryKey: ['meal-plans'] });
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Mon, Jan 12: 2190/ })).toBeInTheDocument();
+    fails = false;
+    await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
 });
 

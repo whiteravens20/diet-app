@@ -12,7 +12,7 @@ import { monthAfter, monthOf, weeksOf } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LoadFailed } from '@/components/load-failed';
+import { useErrorText } from '@/lib/use-error-text';
 
 /** How far each key moves among the days, in days. */
 const STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
@@ -56,7 +56,14 @@ export function PlanCalendar({
     // The month before stays while the next is on its way: its days are other days, drawn where these will be.
     placeholderData: keepPreviousData,
   });
-  const held = new Map((calendar.data?.days ?? []).map((day) => [day.date, day]));
+  // A read that failed is said under the grid, which keeps its size, so that the page under it stays where it is.
+  // A read again keeps the days the calendar holds of this month; with none of this month, the days are drawn
+  // without what they hold and cannot be chosen, since a day that could not be read is not a day without a plan.
+  const kept = calendar.data !== undefined && !calendar.isPlaceholderData;
+  const unread = calendar.isError && !kept;
+  const held = new Map((unread ? [] : (calendar.data?.days ?? [])).map((day) => [day.date, day]));
+  const tCommon = useTranslations('common');
+  const errorText = useErrorText();
 
   // The day the arrow keys are at. It is the one day of the grid in the order of the Tab key.
   const [at, setAt] = useState(today);
@@ -153,122 +160,134 @@ export function PlanCalendar({
         </div>
       </div>
 
-      {calendar.isError ? (
-        <LoadFailed error={calendar.error} onRetry={() => void calendar.refetch()} />
-      ) : (
-        <table
-          role="grid"
-          aria-labelledby={title}
-          aria-busy={calendar.isFetching}
-          className="w-full table-fixed border-separate border-spacing-1"
-        >
-          <thead>
-            <tr>
-              {weeks[0]!.map((date) => (
-                <th
-                  key={date}
-                  scope="col"
-                  className="pb-1 text-center text-xs font-medium text-muted-foreground"
-                >
-                  <abbr title={fmt.weekday(date, 'long')} className="no-underline">
-                    {fmt.weekday(date)}
-                  </abbr>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((week) => (
-              <tr key={week[0]}>
-                {week.map((date, weekday) => {
-                  const day = held.get(date);
-                  return (
-                    <td key={date} className="relative p-0">
-                      <button
-                        type="button"
-                        ref={(cell) => {
-                          if (cell) cells.current.set(date, cell);
-                          else cells.current.delete(date);
-                        }}
-                        tabIndex={date === tabStop ? 0 : -1}
-                        aria-label={spoken(date, day)}
-                        aria-current={date === today ? 'date' : undefined}
-                        onClick={() => {
-                          setAt(date);
-                          if (day) onOpen(day.planId, date);
-                          else onStart(date);
-                        }}
-                        onKeyDown={onKey(date, weekday)}
+      <table
+        role="grid"
+        aria-labelledby={title}
+        aria-busy={calendar.isFetching}
+        className="w-full table-fixed border-separate border-spacing-1"
+      >
+        <thead>
+          <tr>
+            {weeks[0]!.map((date) => (
+              <th
+                key={date}
+                scope="col"
+                className="pb-1 text-center text-xs font-medium text-muted-foreground"
+              >
+                <abbr title={fmt.weekday(date, 'long')} className="no-underline">
+                  {fmt.weekday(date)}
+                </abbr>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {weeks.map((week) => (
+            <tr key={week[0]}>
+              {week.map((date, weekday) => {
+                const day = held.get(date);
+                return (
+                  <td key={date} className="relative p-0">
+                    <button
+                      type="button"
+                      ref={(cell) => {
+                        if (cell) cells.current.set(date, cell);
+                        else cells.current.delete(date);
+                      }}
+                      tabIndex={date === tabStop ? 0 : -1}
+                      disabled={unread}
+                      aria-label={spoken(date, day)}
+                      aria-current={date === today ? 'date' : undefined}
+                      onClick={() => {
+                        setAt(date);
+                        if (day) onOpen(day.planId, date);
+                        else onStart(date);
+                      }}
+                      onKeyDown={onKey(date, weekday)}
+                      className={cn(
+                        'flex h-16 w-full flex-col items-start gap-0.5 rounded-md border p-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                        // A day off its target is set apart by its frame and ground: they take no room from what it says.
+                        day && day.offTarget && !day.skipped
+                          ? 'border-warning/60 bg-warning/10 hover:bg-warning/15'
+                          : day
+                            ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                            : 'border-border/60 hover:bg-muted',
+                        // A day of the month before or after is told apart by its frame and a quieter colour that can still be read: a faded day could not.
+                        monthOf(date) !== month && 'border-dashed text-muted-foreground',
+                      )}
+                    >
+                      <span
                         className={cn(
-                          'flex h-16 w-full flex-col items-start gap-0.5 rounded-md border p-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          // A day off its target is set apart by its frame and ground: they take no room from what it says.
-                          day && day.offTarget && !day.skipped
-                            ? 'border-warning/60 bg-warning/10 hover:bg-warning/15'
-                            : day
-                              ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
-                              : 'border-border/60 hover:bg-muted',
-                          // A day of the month before or after is told apart by its frame and a quieter colour that can still be read: a faded day could not.
-                          monthOf(date) !== month && 'border-dashed text-muted-foreground',
+                          'flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium tabular-nums',
+                          date === today && 'bg-primary text-primary-foreground',
                         )}
                       >
-                        <span
-                          className={cn(
-                            'flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium tabular-nums',
-                            date === today && 'bg-primary text-primary-foreground',
-                          )}
-                        >
-                          {Number(date.slice(8))}
-                        </span>
-                      </button>
-                      {day && (
-                        // What the day holds, drawn over its button below the date. The button shows the
-                        // date alone, which its name holds, so what can be read on it is in its name; the
-                        // name says all of this too. The same frame and padding as the button's, so the
-                        // lines fall where they would inside it.
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'pointer-events-none absolute inset-0 flex flex-col items-start gap-0.5 border border-transparent p-1.5 text-xs',
-                            monthOf(date) !== month && 'text-muted-foreground',
-                          )}
-                        >
-                          <span className="h-5 shrink-0" />
-                          {day.skipped && (
-                            <span className="text-muted-foreground">{t('skipped')}</span>
-                          )}
-                          {!day.skipped && (
-                            <span
-                              className={cn(
-                                'tabular-nums',
-                                day.offTarget && 'font-medium text-warning',
-                              )}
-                            >
-                              {fmt.number(day.calories)}
-                            </span>
-                          )}
-                          {(day.eaten.meals > 0 || day.plans > 1) && (
-                            <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
-                              {day.eaten.meals > 0 && (
-                                <span className="flex items-center gap-0.5">
-                                  <Check size={10} />
-                                  {day.eaten.meals}/{day.eaten.of}
-                                </span>
-                              )}
-                              {/* A phone's cell has no room for it beside the meals eaten: the day's name says it. */}
-                              {day.plans > 1 && (
-                                <span className="hidden sm:inline">+{day.plans - 1}</span>
-                              )}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                        {Number(date.slice(8))}
+                      </span>
+                    </button>
+                    {day && (
+                      // What the day holds, drawn over its button below the date. The button shows the
+                      // date alone, which its name holds, so what can be read on it is in its name; the
+                      // name says all of this too. The same frame and padding as the button's, so the
+                      // lines fall where they would inside it.
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'pointer-events-none absolute inset-0 flex flex-col items-start gap-0.5 border border-transparent p-1.5 text-xs',
+                          monthOf(date) !== month && 'text-muted-foreground',
+                        )}
+                      >
+                        <span className="h-5 shrink-0" />
+                        {day.skipped && (
+                          <span className="text-muted-foreground">{t('skipped')}</span>
+                        )}
+                        {!day.skipped && (
+                          <span
+                            className={cn(
+                              'tabular-nums',
+                              day.offTarget && 'font-medium text-warning',
+                            )}
+                          >
+                            {fmt.number(day.calories)}
+                          </span>
+                        )}
+                        {(day.eaten.meals > 0 || day.plans > 1) && (
+                          <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                            {day.eaten.meals > 0 && (
+                              <span className="flex items-center gap-0.5">
+                                <Check size={10} />
+                                {day.eaten.meals}/{day.eaten.of}
+                              </span>
+                            )}
+                            {/* A phone's cell has no room for it beside the meals eaten: the day's name says it. */}
+                            {day.plans > 1 && (
+                              <span className="hidden sm:inline">+{day.plans - 1}</span>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {calendar.isError && (
+        <p
+          role="alert"
+          className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
+        >
+          {errorText(calendar.error, tCommon('error'))}
+          <button
+            type="button"
+            className="font-medium text-foreground underline underline-offset-2"
+            onClick={() => void calendar.refetch()}
+          >
+            {tCommon('retry')}
+          </button>
+        </p>
       )}
 
       {/* What the marks in a day mean is said in words: a mark alone says it to nobody who does not already know. */}
