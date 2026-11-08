@@ -2320,7 +2320,7 @@
     "drunkNoTarget": "{drunk} drunk",
     "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Own amount (ml)",
-    "add": "Add",
+    "add": "Add water",
     "removeLast": "Remove the last entry",
     "removeLastLabel": "{amount}\u00a0· {time}",
     "daysLabel": "Water of the 7\u00a0days to {day}",
