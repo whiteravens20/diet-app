@@ -484,12 +484,26 @@ test.describe('a long plan', () => {
           res.request().method() === 'GET' &&
           new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`,
       );
-    // With `part` in the middle of the screen, as a person has what they press: the change is to leave it on the screen, and the page where it was.
-    const stays = async (part: Locator, change: () => Promise<unknown>): Promise<void> => {
+    // With what is pressed in the middle of the screen, as a person has what they press: the presses that lead to
+    // the change (`open`) may move the page, as a person scrolls to a button; the press of `button`, in the middle
+    // of the screen, makes the change (`change`), which is to leave `part` on the screen, and the page where it was.
+    // The middle is clear of what stands over the bottom of the screen, such as the bar of an address not confirmed.
+    // What a change takes away (`gone`) may take the page with it by its own height: Chromium keeps what is under
+    // it where it was on the screen, and the page above it comes down into its place.
+    const stays = async (
+      part: Locator,
+      open: () => Promise<unknown>,
+      button: Locator,
+      change: () => Promise<unknown>,
+      gone?: Locator,
+    ): Promise<void> => {
       const dismiss = page.getByRole('button', { name: plans.rebalanceDismiss!, exact: true });
       if (await dismiss.isVisible()) await dismiss.click();
       await part.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      await open();
+      await button.evaluate((element) => element.scrollIntoView({ block: 'center' }));
       const scrolled = await page.evaluate(() => window.scrollY);
+      const room = gone ? (await gone.boundingBox())!.height : 0;
       await change();
       await settled(page);
       await page.waitForTimeout(200);
@@ -499,12 +513,13 @@ test.describe('a long plan', () => {
       });
       expect(after.bottom).toBeGreaterThan(0);
       expect(after.top).toBeLessThan(after.screen);
-      expect(Math.abs(after.scrolled - scrolled)).toBeLessThan(200);
+      expect(Math.abs(after.scrolled - scrolled)).toBeLessThan(200 + room);
     };
     const row = rows.first();
     const ways = async (): Promise<void> => {
       await row.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
     };
+    const nothing = async (): Promise<void> => {};
 
     // A meal is marked as eaten from its day on: not on this day of next week.
     await expect(row.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) })).toBeDisabled();
@@ -512,26 +527,35 @@ test.describe('a long plan', () => {
     // Marked as eaten today, and the mark taken back: a meal that is marked offers no other change.
     await page.getByRole('tab', { name: weekNamed(1) }).click();
     const todays = dayAt(0).locator('li[id^="meal-"]').first();
+    const eaten = todays.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) });
     for (let press = 0; press < 2; press += 1)
-      await stays(todays, async () => {
+      await stays(todays, nothing, eaten, async () => {
         const read = readAgain();
-        await todays.getByRole('checkbox', { name: ofAMeal(plans.markEaten!) }).click();
+        await eaten.click();
         await read;
       });
     await page.getByRole('tab', { name: weekNamed(2) }).click();
     await expect(row).toBeVisible();
 
-    await stays(row, async () => {
-      await ways();
-      await row.getByRole('button', { name: ofAMeal(plans.swap!) }).click();
-      const read = readAgain();
-      await row.getByRole('button', { name: plans.offerTake!, exact: true }).click();
-      await read;
-    });
+    // The offer of a swap opens under the meal: a long name can take the button that swaps it in below the fold.
+    const take = row.getByRole('button', { name: plans.offerTake!, exact: true });
+    await stays(
+      row,
+      async () => {
+        await ways();
+        await row.getByRole('button', { name: ofAMeal(plans.swap!) }).click();
+      },
+      take,
+      async () => {
+        const read = readAgain();
+        await take.click();
+        await read;
+      },
+    );
 
-    await stays(row, async () => {
-      await ways();
-      await row.getByRole('button', { name: ofAMeal(plans.substituteIngr!) }).click();
+    const substitute = row.getByRole('button', { name: ofAMeal(plans.substituteIngr!) });
+    await stays(row, ways, substitute, async () => {
+      await substitute.click();
       const window = page.locator('dialog[open]');
       await expect(window).toBeVisible();
       await page.keyboard.press('Escape');
@@ -540,7 +564,7 @@ test.describe('a long plan', () => {
     });
 
     const add = day.getByRole('button', { name: plans.addCustomMeal! });
-    await stays(add, async () => {
+    await stays(add, nothing, add, async () => {
       await add.click();
       const dialog = page.getByRole('dialog', { name: plans.customModalTitle! });
       await dialog.getByLabel(plans.customName!, { exact: true }).fill('A snack');
@@ -554,13 +578,21 @@ test.describe('a long plan', () => {
       await expect(dialog).toBeHidden();
     });
 
-    await stays(day, async () => {
-      await ways();
-      await row.getByRole('button', { name: ofAMeal(plans.remove!) }).click();
-      const read = readAgain();
-      await row.getByRole('button', { name: plans.removeConfirm!, exact: true }).click();
-      await read;
-    });
+    const removed = row.getByRole('button', { name: plans.removeConfirm!, exact: true });
+    await stays(
+      day,
+      async () => {
+        await ways();
+        await row.getByRole('button', { name: ofAMeal(plans.remove!) }).click();
+      },
+      removed,
+      async () => {
+        const read = readAgain();
+        await removed.click();
+        await read;
+      },
+      row,
+    );
 
     // One press leads back to the week that holds today, and to the day.
     await page.getByRole('button', { name: plans.goToToday!, exact: true }).click();
