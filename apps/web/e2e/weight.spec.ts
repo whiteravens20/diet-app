@@ -2,6 +2,7 @@
 
 import { gzipSync } from 'node:zlib';
 import type { APIRequestContext } from '@playwright/test';
+import budgets from '../budgets.json';
 import { expect, test } from './fixtures';
 
 /**
@@ -14,34 +15,21 @@ import { expect, test } from './fixtures';
  * more. A page that goes over one has grown: either the growth is taken back
  * (what is new is fetched when it is needed, or leaves a library out), or the
  * budget is raised with the reason beside it.
+ *
+ * The budgets are in `budgets.json`, which the build is held to as soon as it
+ * is there (`npm run budgets`, counting the same scripts): what anybody can
+ * open (`open`), the pages of an account that load none of the contract's
+ * schemas (`account`), and the pages that also check what is typed or answered
+ * against the contract, which brings its schemas (`contract`).
  */
 const BUDGETS: Record<string, number> = {
-  // What anybody can open: the framework, the texts and the shell.
-  '/': 190,
-  '/login': 190,
-  '/register': 190,
-  '/forgot-password': 190,
-  '/from-the-app': 190,
-  '/terms': 190,
-  // The pages of an account that load none of the contract's schemas.
-  '/dashboard': 207,
-  '/diary': 213,
-  '/shopping-lists': 205,
-  '/inventory': 205,
-  '/settings': 215,
-  '/recipes': 210,
-  '/favorites': 210,
-  '/admin': 220,
-  '/review': 195,
-  // The pages that also check what is typed or answered against the contract, which brings its schemas.
-  '/profile': 245,
-  '/products': 240,
-  '/calculator': 240,
-  '/meal-plans': 270,
+  ...budgets.open,
+  ...budgets.account,
+  ...budgets.contract,
 };
 
 /** What every page needs: the framework and what the shell is made of. */
-const SHARED_BUDGET = 185;
+const SHARED_BUDGET = budgets.shared;
 
 interface Weight {
   scripts: string[];

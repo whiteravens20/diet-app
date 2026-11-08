@@ -254,6 +254,13 @@ npm run bench
 
 This starts the API on the same PostgreSQL with a reference catalogue of 2,000 recipes, made from the ingredients of `data/`, and asks it what an account asks: a plan of four weeks, a day made again, the shopping list of the plan, the recipe library. It fails when a path takes longer than its budget, when a path asks the database more statements than its ceiling, or when one statement takes 50 ms or longer, and it prints what every path took. Run it after a change to how plans are made, lists are built or recipes are read. The budgets are in `apps/api/src/testing/budgets.bench.ts`; `BENCH_STATEMENTS=<a word of a path's name>` lists the statements of the paths it names.
 
+```bash
+npm run build -w @diet-app/web
+npm run budgets -w @diet-app/web
+```
+
+This sums, for every page of the web app, the JavaScript its HTML names, compressed as a server sends it, and fails when a page, or what all pages share, goes over its budget in `apps/web/budgets.json`. Run it after a change of the web app or of the package it shares with the API: a page near its budget goes over with a few bytes of shared code. The browser tests (`apps/web/e2e/weight.spec.ts`) hold the running app to the same budgets. A page that goes over has grown: take the growth back where you can, or raise its budget and say why in the commit.
+
 ### The contract of the API
 
 ```bash

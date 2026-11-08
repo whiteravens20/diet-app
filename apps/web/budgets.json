@@ -1,0 +1,28 @@
+{
+  "shared": 185,
+  "open": {
+    "/": 190,
+    "/login": 190,
+    "/register": 190,
+    "/forgot-password": 190,
+    "/from-the-app": 190,
+    "/terms": 190
+  },
+  "account": {
+    "/dashboard": 207,
+    "/diary": 213,
+    "/shopping-lists": 205,
+    "/inventory": 205,
+    "/settings": 215,
+    "/recipes": 210,
+    "/favorites": 210,
+    "/admin": 220,
+    "/review": 195
+  },
+  "contract": {
+    "/profile": 245,
+    "/products": 240,
+    "/calculator": 240,
+    "/meal-plans": 270
+  }
+}

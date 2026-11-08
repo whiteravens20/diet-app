@@ -75,6 +75,11 @@ jobs:
       # vitest.config.ts is not reached.
       - run: npm run test:cov -- --filter=@diet-app/web
       - run: npm run build -- --filter=@diet-app/web
+      # The JavaScript a first visit of each page needs, held to its budget as soon
+      # as the build is there; the browser tests hold the running stack to the
+      # same budgets.
+      - name: Check the JavaScript budgets
+        run: npm run budgets -w @diet-app/web
 
   markers:
     name: markers
