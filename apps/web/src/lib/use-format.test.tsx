@@ -83,8 +83,19 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.number(79.46, 1), 'pl')).toBe('79,5');
     expect(shown((f) => f.number(80, 1), 'pl')).toBe('80');
     expect(shown((f) => f.fixed(1.2, 2), 'pl')).toBe('1,20');
-    expect(shown((f) => `${f.signed(120)} ${f.signed(-80)} ${f.signed(0)}`)).toBe('+120 -80 +0');
+    expect(shown((f) => `${f.signed(120)} ${f.signed(-80)} ${f.signed(0)}`)).toBe(
+      '+120 \u221280 +0',
+    );
     expect(shown((f) => f.percent(0.42), 'pl')).toBe('42%');
+  });
+
+  it('writes a negative number with the minus sign in every format, as print does', () => {
+    expect(shown((f) => f.number(-5))).toBe('\u22125');
+    expect(shown((f) => f.number(-1.25, 2), 'pl')).toBe('\u22121,25');
+    expect(shown((f) => f.fixed(-1.5, 1), 'pl')).toBe('\u22121,5');
+    expect(shown((f) => f.signed(-80), 'pl')).toBe('\u221280');
+    expect(shown((f) => f.unit(-250, 'milliliter'))).toBe('\u2212250 ml');
+    expect(shown((f) => f.percent(-0.1))).toBe('\u221210%');
   });
 
   it('writes a number with its unit', () => {

@@ -289,3 +289,23 @@ describe('a Polish word of one letter', () => {
     expect(LOOSE_LETTER.test('Wyłączysz ją w\u00a0profilu i\u00a0tyle, B 12 g')).toBe(false);
   });
 });
+
+/** The sign of a number written by hand with a hyphen, where the minus sign belongs. */
+const HYPHEN_SIGN = /\? *'-' *:|: *'-'(?!-)|['"`]-\$\{|'-' *\+ *[\w(]/;
+
+describe('the sign of a number', () => {
+  it('is written by the formats, never with a hyphen by hand', () => {
+    const loose = sources()
+      .filter(([, code]) => HYPHEN_SIGN.test(code))
+      .map(([file]) => file);
+    expect(loose).toEqual([]);
+  });
+
+  it('is found written by hand with a hyphen', () => {
+    expect(HYPHEN_SIGN.test("`${delta < 0 ? '-' : '+'}${Math.abs(delta)}`")).toBe(true);
+    expect(HYPHEN_SIGN.test('`-${Math.abs(delta)}`')).toBe(true);
+    expect(HYPHEN_SIGN.test("'-' + Math.abs(delta)")).toBe(true);
+    expect(HYPHEN_SIGN.test("`${delta < 0 ? '−' : '+'}${Math.abs(delta)}`")).toBe(false);
+    expect(HYPHEN_SIGN.test("className={cn('-mx-2', '--x')}")).toBe(false);
+  });
+});

@@ -61,6 +61,9 @@ export const readersZone = (): string => Intl.DateTimeFormat().resolvedOptions()
  * That clock is the browser's: `moment` and `dayOf` are for what is rendered
  * there. A page the server renders can use everything else.
  */
+/** A negative number with the minus sign, as print sets it, where Intl writes a hyphen: "−2", not "-2". */
+const minus = (text: string): string => text.replace('-', '\u2212');
+
 export function useFormat(): Format {
   const format = useFormatter();
   return useMemo(
@@ -92,33 +95,40 @@ export function useFormat(): Format {
       time: (iso) =>
         format.dateTime(new Date(iso), { timeStyle: 'short', timeZone: readersZone() }),
       number: (value, digits = 0) =>
-        format.number(value, { useGrouping: false, maximumFractionDigits: digits }),
+        minus(format.number(value, { useGrouping: false, maximumFractionDigits: digits })),
       fixed: (value, digits) =>
-        format.number(value, {
-          useGrouping: false,
-          minimumFractionDigits: digits,
-          maximumFractionDigits: digits,
-        }),
+        minus(
+          format.number(value, {
+            useGrouping: false,
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits,
+          }),
+        ),
       signed: (value) =>
-        format.number(value, {
-          useGrouping: false,
-          signDisplay: 'always',
-          maximumFractionDigits: 0,
-        }),
+        minus(
+          format.number(value, {
+            useGrouping: false,
+            signDisplay: 'always',
+            maximumFractionDigits: 0,
+          }),
+        ),
       unit: (value, unit, digits = 0) =>
-        format
-          .number(value, {
+        minus(
+          format.number(value, {
             useGrouping: false,
             style: 'unit',
             unit,
             unitDisplay: 'short',
             maximumFractionDigits: digits,
-          })
+          }),
+        )
           // Millilitres are "ml" in every language the application ships, as its texts and the phone
           // write them: the English of Intl writes "mL".
           .replace('mL', 'ml'),
       percent: (share) =>
-        format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),
+        minus(
+          format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),
+        ),
       list: (items) => format.list([...items], { type: 'conjunction' }),
     }),
     [format],
