@@ -11,13 +11,31 @@ test.describe('the notice of an address that is not confirmed', () => {
   }) => {
     const page = session.page;
     const texts = messages.confirmEmail as Texts;
+    // An instance that sends mail, and an account whose address nobody confirmed: the answers are changed on
+    // their way to the page, nothing on the server, so that an instance without mail shows the notice too.
+    await page.route('**/api/config', async (route) => {
+      const answer = await route.fetch();
+      const config = (await answer.json()) as { email: Record<string, unknown> };
+      await route.fulfill({
+        response: answer,
+        json: { ...config, email: { ...config.email, enabled: true } },
+      });
+    });
+    // Every answer about the account: the page saves its time zone as it opens, and takes the account it gets back.
+    await page.route('**/api/users/me', async (route) => {
+      const answer = await route.fetch();
+      await route.fulfill({
+        response: answer,
+        json: { ...((await answer.json()) as object), emailVerified: false },
+      });
+    });
+    // Whatever an earlier test of this browser put aside.
+    await page.addInitScript(() => localStorage.removeItem('diet-app.confirm-email.later'));
     await page.goto('/dashboard');
     await settled(page);
     const later = page.getByRole('button', { name: texts.later!, exact: true });
-    // The account of the tests has an address nobody confirmed, on an instance that sends mail; a run that
-    // put the notice aside already has nothing to say of it.
-    test.skip(!(await later.isVisible()), 'The notice was put aside on this browser before.');
     const notice = page.getByRole('status').filter({ has: later });
+    await expect(notice).toBeVisible();
 
     const screenSize = page.viewportSize()!;
     const box = (await notice.boundingBox())!;
