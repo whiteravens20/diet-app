@@ -272,7 +272,7 @@ export function RecipeView({
             <CardTitle>{t('perServing')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
               {[
                 [t('calories'), fmt.number(n.calories)],
                 [t('protein'), fmt.unit(n.protein, 'gram', 1)],
