@@ -124,7 +124,9 @@ export function useFormat(): Format {
         )
           // Millilitres are "ml" in every language the application ships, as its texts and the phone
           // write them: the English of Intl writes "mL".
-          .replace('mL', 'ml'),
+          .replace('mL', 'ml')
+          // The number held to its unit, so that no line ends on it: Intl puts a plain space between.
+          .replaceAll(' ', '\u00a0'),
       percent: (share) =>
         minus(
           format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),

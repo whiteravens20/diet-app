@@ -10,16 +10,21 @@ function Shown({ what }: { what: (format: Format) => string }) {
 }
 
 /** What somebody reading `locale` sees. The provider is given a time zone of its own, as the server gives it one. */
-function shown(what: (format: Format) => string, locale: 'en' | 'pl' = 'en'): string {
+function shown(
+  what: (format: Format) => string,
+  locale: 'en' | 'pl' = 'en',
+  { raw = false }: { raw?: boolean } = {},
+): string {
   const { unmount } = render(
     <NextIntlClientProvider locale={locale} messages={{}} timeZone="Asia/Tokyo">
       <Shown what={what} />
     </NextIntlClientProvider>,
   );
-  // A language may put a space that does not break between a number and its unit.
-  const text = (screen.getByRole('paragraph').textContent ?? '').replace(/[   ]/g, ' ');
+  const text = screen.getByRole('paragraph').textContent ?? '';
   unmount();
-  return text;
+  // A language may put a space that does not break before a time's part of the day, or between a
+  // number and its unit: read as a plain one, unless the test is about that space.
+  return raw ? text : text.replace(/[\u00a0\u202f\u2009]/g, ' ');
 }
 
 describe('dates, numbers and units, as the language of the application writes them', () => {
@@ -98,13 +103,34 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.percent(-0.1))).toBe('\u221210%');
   });
 
-  it('writes a number with its unit', () => {
-    expect(shown((f) => f.unit(79.5, 'kilogram', 1))).toBe('79.5 kg');
-    expect(shown((f) => f.unit(79.5, 'kilogram', 1), 'pl')).toBe('79,5 kg');
-    expect(shown((f) => f.unit(215, 'gram'), 'pl')).toBe('215 g');
-    expect(shown((f) => f.unit(15, 'minute'))).toBe('15 min');
-    expect(shown((f) => f.unit(12.34, 'kilobyte', 1), 'pl')).toBe('12,3 kB');
+  it('writes a number with its unit, held to it by a no-break space', () => {
+    expect(shown((f) => f.unit(79.5, 'kilogram', 1), 'en', { raw: true })).toBe('79.5\u00a0kg');
+    expect(shown((f) => f.unit(79.5, 'kilogram', 1), 'pl', { raw: true })).toBe('79,5\u00a0kg');
+    expect(shown((f) => f.unit(215, 'gram'), 'pl', { raw: true })).toBe('215\u00a0g');
+    expect(shown((f) => f.unit(15, 'minute'), 'en', { raw: true })).toBe('15\u00a0min');
+    expect(shown((f) => f.unit(12.34, 'kilobyte', 1), 'pl', { raw: true })).toBe('12,3\u00a0kB');
   });
+
+  it.each(['en', 'pl'] as const)(
+    'never parts a number from its unit in %s, whatever unit the application writes',
+    (locale) => {
+      const units = [
+        'gram',
+        'kilogram',
+        'pound',
+        'liter',
+        'milliliter',
+        'minute',
+        'kilobyte',
+        'megabyte',
+      ] as const;
+      for (const unit of units) {
+        const text = shown((f) => f.unit(187.4, unit, 1), locale, { raw: true });
+        expect(text, unit).not.toMatch(/ /);
+        expect(text, unit).toMatch(/\d\u00a0\S/);
+      }
+    },
+  );
 
   it('names several things one after another the way the language joins them', () => {
     expect(shown((f) => f.list(['rice', 'oats', 'tofu']))).toBe('rice, oats, and tofu');

@@ -7,7 +7,7 @@ import { Pencil, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import type { Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -33,10 +33,13 @@ function RecipeDetail() {
   const search = useSearchParams();
   const portion = Number(search.get('portion'));
   const whole = search.get('whole') === '1';
+  // Deleted, it is asked for no more while the page leaves: the API would only say it is not there.
+  const [gone, setGone] = useState(false);
   const recipe = useQuery({
     queryKey: ['recipe', params.id],
     queryFn: () => api.get<Recipe>(`/recipes/${params.id}`),
     retry: false,
+    enabled: !gone,
   });
   // Deleting it leaves the plans that hold it as they are, and a suggestion of it with the curators.
   const tRecipes = useTranslations('recipes');
@@ -46,6 +49,7 @@ function RecipeDetail() {
   const remove = useMutation({
     mutationFn: () => api.delete(`/recipes/${params.id}`),
     onSuccess: () => {
+      setGone(true);
       queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
       queryClient.removeQueries({ queryKey: ['recipe', params.id] });
@@ -53,7 +57,8 @@ function RecipeDetail() {
     },
   });
 
-  if (recipe.isLoading) return <Skeleton className="h-64" />;
+  // Deleted, it waits for the page it goes to.
+  if (recipe.isLoading || gone) return <Skeleton className="h-64" />;
 
   if (recipe.error) {
     const notFound = recipe.error instanceof ApiClientError && recipe.error.status === 404;
