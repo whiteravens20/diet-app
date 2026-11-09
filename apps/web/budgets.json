@@ -9,9 +9,9 @@
     "/terms": 190
   },
   "account": {
-    "/dashboard": 207,
-    "/diary": 213,
-    "/shopping-lists": 205,
+    "/dashboard": 208,
+    "/diary": 214,
+    "/shopping-lists": 206,
     "/inventory": 205,
     "/settings": 215,
     "/recipes": 210,
@@ -20,9 +20,9 @@
     "/review": 195
   },
   "contract": {
-    "/profile": 245,
+    "/profile": 246,
     "/products": 240,
     "/calculator": 240,
-    "/meal-plans": 270
+    "/meal-plans": 271
   }
 }
