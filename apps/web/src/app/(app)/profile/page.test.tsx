@@ -188,7 +188,7 @@ describe('the profile form, on the custom diet', () => {
         (field) => (field as HTMLInputElement).value,
       ),
     ).toEqual(['25', '30', '45']);
-    expect(screen.getByText('Adds up to 100 %.')).toBeInTheDocument();
+    expect(screen.getByText('Adds up to 100%.')).toBeInTheDocument();
   });
 
   it('says what the three add up to while they are typed, and sends nothing that does not add up to a hundred', async () => {
@@ -197,7 +197,7 @@ describe('the profile form, on the custom diet', () => {
 
     await type('protein', '30');
     expect(
-      screen.getByText('The three add up to 105 %. They have to add up to 100.'),
+      screen.getByText('The three add up to 105%. They have to add up to 100.'),
     ).toBeInTheDocument();
     await save();
 

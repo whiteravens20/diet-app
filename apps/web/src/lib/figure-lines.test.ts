@@ -191,7 +191,7 @@ describe('a line of figures joined by dots', () => {
 });
 
 /** The units and counted words that follow a value put in as text. */
-const UNIT = String.raw`(?:g|kg|mg|µg|kcal|ml|l|lb|cm|min|h|%|dni|dnia|dzień|days?|servings?)`;
+const UNIT = String.raw`(?:g|kg|mg|µg|kcal|ml|l|lb|cm|min|h|dni|dnia|dzień|days?|servings?)`;
 
 /** A value put in as text, `{kcal} kcal`, with a plain space before its unit: a narrow screen may leave the number at a line's end. */
 const LOOSE_UNIT = new RegExp(String.raw`\{\w+\} ${UNIT}(?=[\s.,;:)!?\u00a0]|$)`, 'u');
@@ -227,7 +227,7 @@ describe('a value put in and its unit', () => {
 
   it('are found apart in a text', () => {
     expect(LOOSE_UNIT.test('Cel dnia: {kcal} kcal.')).toBe(true);
-    expect(LOOSE_UNIT.test('Własna ({protein} % białka)')).toBe(true);
+    expect(LOOSE_UNIT.test('Własna ({protein} g białka)')).toBe(true);
     expect(LOOSE_UNIT.test('Cel dnia: {kcal}\u00a0kcal, {name} gotuje.')).toBe(false);
   });
 
@@ -246,6 +246,44 @@ describe('a value put in and its unit', () => {
     expect(LOOSE_FIGURE.test('`${fmt.weekday(date)} ${mealName(meal)}`')).toBe(false);
     expect(LOOSE_FIGURE.test('`${count} grams of ${name}`')).toBe(false);
     expect(LOOSE_FIGURE.test('d={`M ${x - 5} ${y - 4} l 3.5 3.5`}')).toBe(false);
+  });
+});
+
+/**
+ * A per cent sign with any space before it, plain or no-break: the application writes it right after
+ * its number in every language, as the number formats do ("42%").
+ */
+const SPACED_PERCENT = /(?:\{[^{}]+\}|#|\d)[ \u00a0]%/u;
+
+/** The same in the code: a number formatted, or put in, then a space and the sign. */
+const SPACED_PERCENT_CODE = /(?:\$\{[^{}]+\}|\{\w+\})(?: |\\u00a0|\u00a0)%/u;
+
+describe('a per cent sign', () => {
+  it.each(LISTED)('stands right after its number in every text of %s', (file) => {
+    const spaced = [...texts(read(file))]
+      .filter(([, text]) => SPACED_PERCENT.test(text))
+      .map(([key]) => key);
+    expect(spaced).toEqual([]);
+  });
+
+  it('is found apart from its number in a text, whatever the space', () => {
+    expect(SPACED_PERCENT.test('Własna ({protein} % białka)')).toBe(true);
+    expect(SPACED_PERCENT.test('zużywa ok.\u00a0{share}\u00a0% zapasów')).toBe(true);
+    expect(SPACED_PERCENT.test('sumować się do 100 %.')).toBe(true);
+    expect(SPACED_PERCENT.test('Własna ({protein}% białka), 100% dnia')).toBe(false);
+  });
+
+  it('stands right after its number in the code', () => {
+    const spaced = sources()
+      .filter(([, code]) => SPACED_PERCENT_CODE.test(code))
+      .map(([file]) => file);
+    expect(spaced).toEqual([]);
+  });
+
+  it('is found apart from its number in the code', () => {
+    expect(SPACED_PERCENT_CODE.test('`${fmt.number(share)} %`')).toBe(true);
+    expect(SPACED_PERCENT_CODE.test('`${value}\\u00a0%`')).toBe(true);
+    expect(SPACED_PERCENT_CODE.test('style={{ width: `${pct ?? 0}%` }}')).toBe(false);
   });
 });
 

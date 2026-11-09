@@ -2077,7 +2077,7 @@ describe('the plan page, on what a plan is made for', () => {
 
     expect(
       screen.getByRole('option', {
-        name: spaced('Custom (30 % protein, 40 % fat, 30 % carbohydrate)'),
+        name: spaced('Custom (30% protein, 40% fat, 30% carbohydrate)'),
       }),
     ).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
