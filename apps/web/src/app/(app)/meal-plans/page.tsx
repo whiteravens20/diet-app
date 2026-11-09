@@ -570,6 +570,15 @@ function MealPlansContent() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.mealPlans} title={t('title')} subtitle={t('subhead')} />
+      <p className="-mt-4 text-sm text-muted-foreground">
+        {t.rich('splitLink', {
+          link: (chunks) => (
+            <Link href="/split" className="font-medium text-primary hover:underline">
+              {chunks}
+            </Link>
+          ),
+        })}
+      </p>
 
       {list.length > 1 && (
         <div className="flex gap-2">

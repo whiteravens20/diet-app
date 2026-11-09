@@ -1849,6 +1849,54 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
 
     expect(screen.queryByText(/Cook for 2/)).toBeNull();
     expect(screen.queryByText(/No cooking/)).toBeNull();
+    expect(screen.queryByRole('button', { name: messages.split.open })).toBeNull();
+  });
+
+  it('leads to splitting any cooked dish on a page of its own', async () => {
+    await opened(aPlanOf({}, {}));
+
+    expect(screen.getByRole('link', { name: 'Splitting a dish' })).toHaveAttribute(
+      'href',
+      '/split',
+    );
+  });
+
+  it('splits a dish cooked ahead, from the meal it is cooked at, into its meals by the energy the plan gives each', async () => {
+    const first = '33333333-3333-4333-8333-333333333333';
+    const second = '33333338-3333-4333-8333-333333333333';
+    const plan = aPlanOf(
+      {
+        cookAhead: 'cook',
+        cooking: {
+          with: [{ mealId: second, date: '2026-01-05', mealType: 'lunch', eaten: false }],
+          ingredients: [],
+        },
+      },
+      {
+        cookAhead: 'cooked',
+        cooking: {
+          with: [{ mealId: first, date: '2026-01-05', mealType: 'breakfast', eaten: false }],
+          ingredients: [],
+        },
+      },
+    );
+    const [breakfast, lunch] = plan.days[0]!.meals;
+    breakfast!.nutrition = { ...breakfast!.nutrition, calories: 640 };
+    lunch!.nutrition = { ...lunch!.nutrition, calories: 560 };
+    await opened(plan);
+
+    // The meal eaten from the dish has nothing to split.
+    const splits = screen.getAllByRole('button', { name: messages.split.open });
+    expect(splits).toHaveLength(1);
+    await userEvent.click(splits[0]!);
+
+    const splitting = await screen.findByRole('dialog', { name: messages.split.title });
+    expect(within(splitting).getByText(messages.split.planIntro)).toBeVisible();
+    expect(within(splitting).getByText('Monday, breakfast')).toBeVisible();
+    expect(within(splitting).getByText('Monday, lunch')).toBeVisible();
+    await userEvent.type(within(splitting).getByLabelText(messages.split.onScale), '1250');
+    expect(within(splitting).getByText('667 g')).toBeVisible();
+    expect(within(splitting).getByText('583 g')).toBeVisible();
   });
 
   it('says over the days how many meals hold what the profile has ruled out since, and under each of them what and what to do', async () => {

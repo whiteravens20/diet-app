@@ -17,7 +17,8 @@
     "/recipes": 210,
     "/favorites": 210,
     "/admin": 220,
-    "/review": 195
+    "/review": 195,
+    "/split": 201
   },
   "contract": {
     "/profile": 246,

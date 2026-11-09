@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CookingChange, MealPlan, PlannedMeal } from '@diet-app/shared';
 import en from '../../../../messages/en.json';
 import pl from '../../../../messages/pl.json';
-import { CookingNote, toCook, useCookingWords } from './cooking';
+import { CookingNote, mealsOfCooking, toCook, useCookingWords } from './cooking';
 import { plain } from '@/testing/spaces';
 
 const TUESDAY = '2026-01-06';
@@ -227,6 +227,37 @@ describe('what a meal takes to cook', () => {
       amounts: [line(250)],
       portion: { servings: 2.6, whole: true },
     });
+  });
+});
+
+describe('the meals a dish cooked ahead is split into', () => {
+  const meal = (id: string, over: Partial<PlannedMeal> = {}) =>
+    ({ id, cookAhead: null, cooking: null, ...over }) as PlannedMeal;
+  const cook = meal('cook', {
+    cookAhead: 'cook',
+    cooking: {
+      with: [{ mealId: 'later', date: '2026-01-06', mealType: 'lunch', eaten: false }],
+      ingredients: [],
+    },
+  });
+  const later = meal('later', { cookAhead: 'cooked' });
+  const plan = {
+    days: [
+      { date: '2026-01-05', meals: [meal('other'), cook] },
+      { date: '2026-01-06', meals: [later, meal('another')] },
+    ],
+  } as MealPlan;
+
+  it('are the meal it is cooked at and those eaten from it, in the order of the plan, each with its day', () => {
+    expect(mealsOfCooking(plan, cook)).toEqual([
+      { meal: cook, date: '2026-01-05' },
+      { meal: later, date: '2026-01-06' },
+    ]);
+  });
+
+  it('are none for a meal eaten from a dish cooked earlier, or cooked for itself', () => {
+    expect(mealsOfCooking(plan, later)).toEqual([]);
+    expect(mealsOfCooking(plan, meal('other'))).toEqual([]);
   });
 });
 

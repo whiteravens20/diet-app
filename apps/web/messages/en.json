@@ -1458,6 +1458,7 @@
     }
   },
   "mealPlans": {
+    "splitLink": "<link>Splitting a dish</link>: split a cooked dish into portions, by weight or in pieces.",
     "title": "Meal plans",
     "subhead": "Plans that hit your calorie target — made for each profile on its own.",
     "noProfile": "No profile yet",
@@ -2884,5 +2885,41 @@
     "reject": "Do not accept",
     "reason": "What its author is told",
     "rejectConfirm": "Do not accept, with this reason"
+  },
+  "split": {
+    "title": "Split what you cooked",
+    "open": "Split what you cooked…",
+    "planIntro": "Each portion's share comes from its calories in the plan.",
+    "pageTitle": "Splitting a dish",
+    "pageIntro": "Split a cooked dish into portions: equal ones, or by each portion's calories. A dish cooked ahead can be split in the plan as well, beside it.",
+    "portions": "Portions",
+    "portionCount": "Number of portions",
+    "byKcal": "By each portion's calories",
+    "kcalOf": "Calories of portion {n} (kcal)",
+    "portion": "Portion {n}",
+    "portionOf": "{day}, {meal}",
+    "wayLegend": "What are you weighing?",
+    "way": {
+      "whole": "The whole dish",
+      "part": "One part",
+      "pieces": "Pieces"
+    },
+    "wayHint": {
+      "whole": "A mixed dish such as a soup, a stew or pasta in its sauce. Stir well before you weigh and serve the portions.",
+      "part": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and split it by the same shares, then the next.",
+      "pieces": "Eggs, cutlets, pancakes. Pieces cannot be split exactly: rounding changes a portion."
+    },
+    "pieceCount": "Number of pieces",
+    "onScale": "Weight on the scale (g)",
+    "inPot": "I weigh it in the pot",
+    "emptyPot": "Weight of the empty pot (g)",
+    "potTooHeavy": "The empty pot cannot weigh as much as the full one or more.",
+    "foodAlone": "The food alone: {grams}.",
+    "shareUnknown": "Type in each portion's calories.",
+    "share": "Share: {share}",
+    "shareOfKcal": "Share: {share} ({kcal}\u00a0kcal)",
+    "pieces": "{count, plural, one {{count, number, ::group-off}\u00a0piece} other {{count, number, ::group-off}\u00a0pieces}}",
+    "tare": "Put the container on the scale and tare it before you serve a portion.",
+    "risk": "Splitting a pot is never 100% exact: in a mixed dish the pieces, the fat and the sauce do not spread evenly, and a scale has its error. If exact proportions matter to you, cook the portions separately."
   }
 }

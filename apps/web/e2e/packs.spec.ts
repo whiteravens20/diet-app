@@ -102,6 +102,23 @@ test.describe('a plan made for cooking ahead', () => {
       page.getByText(new RegExp(`^${loose(start(cooking.fromHint))}`)).first(),
     ).toBeVisible();
 
+    // The dish cooked once is split, from the meal it is cooked at, into the meals it is eaten at: whole grams
+    // that add up to what was weighed, and the risk said beside them.
+    const split = messages.split as unknown as Texts;
+    await page.getByRole('button', { name: split.open!, exact: true }).first().click();
+    const splitting = page.getByRole('dialog', { name: split.title! });
+    await expect(splitting.getByText(split.risk!)).toBeVisible();
+    await splitting.getByLabel(split.onScale!).fill('1001');
+    const rows = await splitting.getByRole('listitem').allTextContents();
+    const grams = rows.map((row) => Number(/(\d+)[\s\u00a0]g$/.exec(row)?.[1]));
+    expect(grams.length).toBeGreaterThanOrEqual(2);
+    expect(grams.reduce((sum, one) => sum + one, 0)).toBe(1001);
+    expect(await barriers(page)).toEqual([]);
+    await splitting
+      .getByRole('button', { name: (messages.common as Texts).close!, exact: true })
+      .click();
+    await expect(splitting).toHaveCount(0);
+
     // The plan was made for this test. It goes again, so that the tests after this one find what the account had.
     page.once('dialog', (confirm) => void confirm.accept());
     const gone = page.waitForResponse(

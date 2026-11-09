@@ -64,6 +64,18 @@ export function toCook(plan: MealPlan, meal: PlannedMeal) {
   };
 }
 
+/** The meals one cooking is eaten at, in the plan's order, with their days: what a dish cooked ahead is split into. None for a meal that is not cooked ahead. */
+export function mealsOfCooking(
+  plan: MealPlan,
+  meal: PlannedMeal,
+): { meal: PlannedMeal; date: string }[] {
+  if (meal.cookAhead !== 'cook' || !meal.cooking) return [];
+  const ids = new Set([meal.id, ...meal.cooking.with.map((other) => other.mealId)]);
+  return plan.days.flatMap((day) =>
+    day.meals.filter((one) => ids.has(one.id)).map((one) => ({ meal: one, date: day.date })),
+  );
+}
+
 /** What is said of a meal cooked with another: the day or the meal it comes from, by name. */
 export function useCookingWords() {
   const t = useTranslations('mealPlans.cooking');

@@ -18,6 +18,7 @@ export const IMAGERY = {
   products: '/imagery/products.webp',
   profile: '/imagery/profile.webp',
   calculator: '/imagery/calculator.webp',
+  split: '/imagery/split.webp',
   settings: '/imagery/settings.webp',
   // Distinct photos for empty states, so they don't echo the page banner.
   emptyDashboard: '/imagery/empty-dashboard.webp',

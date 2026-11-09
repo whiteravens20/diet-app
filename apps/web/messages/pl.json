@@ -1458,6 +1458,7 @@
     }
   },
   "mealPlans": {
+    "splitLink": "<link>Podział dania</link>: ugotowane danie podzielisz na porcje, zważone albo w\u00a0sztukach.",
     "title": "Plany posiłków",
     "subhead": "Plany dopasowane do celu kalorycznego — układane osobno dla każdego profilu.",
     "noProfile": "Brak profilu",
@@ -2884,5 +2885,41 @@
     "reject": "Nie przyjmuj",
     "reason": "Co dostanie autor",
     "rejectConfirm": "Nie przyjmuj, z tym powodem"
+  },
+  "split": {
+    "title": "Podziel ugotowane",
+    "open": "Podziel ugotowane…",
+    "planIntro": "Udział każdej porcji wynika z\u00a0jej kalorii w\u00a0planie.",
+    "pageTitle": "Podział dania",
+    "pageIntro": "Podziel ugotowane danie na porcje: równe albo według kalorii każdej z\u00a0nich. Danie gotowane na zapas podzielisz też w\u00a0planie, przy nim samym.",
+    "portions": "Porcje",
+    "portionCount": "Liczba porcji",
+    "byKcal": "Według kalorii porcji",
+    "kcalOf": "Kalorie porcji {n} (kcal)",
+    "portion": "Porcja {n}",
+    "portionOf": "{day}, {meal}",
+    "wayLegend": "Co ważysz?",
+    "way": {
+      "whole": "Całe danie",
+      "part": "Jeden składnik",
+      "pieces": "Sztuki"
+    },
+    "wayHint": {
+      "whole": "Danie mieszane, jak zupa, gulasz albo makaron w\u00a0sosie. Zamieszaj dokładnie, zanim zważysz i\u00a0nałożysz porcje.",
+      "part": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0podziel go tymi samymi udziałami, potem kolejny.",
+      "pieces": "Jajka, kotlety, placki. Sztuk nie podzielisz dokładnie: zaokrąglenie zmienia porcję."
+    },
+    "pieceCount": "Liczba sztuk",
+    "onScale": "Waga na wadze (g)",
+    "inPot": "Ważę w\u00a0garnku",
+    "emptyPot": "Waga pustego garnka (g)",
+    "potTooHeavy": "Pusty garnek nie może ważyć tyle co pełny ani więcej.",
+    "foodAlone": "Samo danie: {grams}.",
+    "shareUnknown": "Wpisz kalorie każdej porcji.",
+    "share": "Udział: {share}",
+    "shareOfKcal": "Udział: {share} ({kcal}\u00a0kcal)",
+    "pieces": "{count, plural, one {{count, number, ::group-off}\u00a0sztuka} few {{count, number, ::group-off}\u00a0sztuki} many {{count, number, ::group-off}\u00a0sztuk} other {{count, number, ::group-off}\u00a0sztuki}}",
+    "tare": "Pojemnik postaw na wadze i\u00a0wytaruj ją, zanim nałożysz porcję.",
+    "risk": "Podział garnka nigdy nie jest w\u00a0100% dokładny: w\u00a0daniu mieszanym kawałki, tłuszcz i\u00a0sos nie rozkładają się równo, a\u00a0waga ma swój błąd. Jeśli zależy Ci na dokładnych proporcjach, ugotuj porcje osobno."
   }
 }

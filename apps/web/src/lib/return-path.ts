@@ -10,6 +10,7 @@ export const ACCOUNT_PAGES = [
   '/diary',
   '/profile',
   '/calculator',
+  '/split',
   '/recipes',
   '/favorites',
   '/meal-plans',

@@ -32,7 +32,8 @@ import { IngredientSubstituteModal } from '@/components/ingredient-substitute-mo
 import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
-import { CookingNote, toCook, useCookingWords, type MealPortion } from './cooking';
+import type { SplitPortion } from '@/components/split-calculator';
+import { CookingNote, mealsOfCooking, toCook, useCookingWords, type MealPortion } from './cooking';
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
@@ -53,6 +54,11 @@ import { DOT, held } from '@/lib/figure-line';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
+  ssr: false,
+});
+
+/** Fetched when a dish cooked ahead is split: no first visit of the page waits for the window. */
+const SplitDialog = dynamic(() => import('./split-dialog').then((dialog) => dialog.SplitDialog), {
   ssr: false,
 });
 
@@ -221,6 +227,9 @@ export function PlanCard({
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
   const cookWords = useCookingWords();
+  const tSplit = useTranslations('split');
+  // The dish cooked ahead being split, as the portions of its meals, while its window is open.
+  const [splitting, setSplitting] = useState<SplitPortion[] | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
@@ -278,6 +287,7 @@ export function PlanCard({
   const aiEnabled = onAiSwapMeal !== undefined;
   const mealName = (type: string): string =>
     tMeal.has(type) ? tMeal(type) : type.replace('_', ' ');
+  const upper = (text: string): string => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
   // The plan taken out of the application: as a table for a spreadsheet, or as a sheet for the printer.
   const tExport = useTranslations('mealPlans.export');
   const locale = useLocale();
@@ -1048,6 +1058,30 @@ export function PlanCard({
                           {cookWords.hint(m, day.date)}
                         </p>
                       )}
+                      {m.cookAhead === 'cook' && m.cooking && (
+                        <div className="ml-6">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="-ml-3"
+                            onClick={() =>
+                              setSplitting(
+                                mealsOfCooking(plan, m).map((one) => ({
+                                  key: one.meal.id,
+                                  label: tSplit('portionOf', {
+                                    day: upper(fmt.weekday(one.date, 'long')),
+                                    meal: mealName(one.meal.mealType).toLocaleLowerCase(locale),
+                                  }),
+                                  kcal: one.meal.nutrition.calories,
+                                })),
+                              )
+                            }
+                          >
+                            {tSplit('open')}
+                          </Button>
+                        </div>
+                      )}
                       {cookWords.notCooked(m, day.date, today) && (
                         <p className="ml-6 text-xs text-warning">
                           {cookWords.notCooked(m, day.date, today)}
@@ -1365,6 +1399,7 @@ export function PlanCard({
           }}
         />
       )}
+      {splitting && <SplitDialog portions={splitting} onClose={() => setSplitting(null)} />}
       {settingsFor && (
         <DaySettingsDialog
           planId={summary.id}
