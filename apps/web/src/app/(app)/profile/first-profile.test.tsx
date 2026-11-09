@@ -127,12 +127,12 @@ describe('the steps a first profile is set up in', () => {
       'active',
     );
     await next();
-    await userEvent.click(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ }));
+    await userEvent.click(screen.getByRole('radio', { name: /Lose 0\.25[ \u00a0]kg a week/ }));
     await next();
     expect(heading(3, steps.food)).toBeInTheDocument();
 
     await back();
-    expect(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Lose 0\.25[ \u00a0]kg a week/ })).toBeChecked();
     await back();
 
     expect(heading(1, steps.body)).toHaveFocus();
@@ -231,7 +231,7 @@ describe('the figures beside the steps of a first profile', () => {
     await next();
     await screen.findByText('2209 kcal');
 
-    expect(screen.getByRole('radio', { name: /Lose 1.1 lb a week/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Lose 1\.1[ \u00a0]lb a week/ })).toBeInTheDocument();
     expect(asked()).toMatchObject({ weightKg: 80.01 });
   });
 
@@ -279,7 +279,7 @@ describe('the profile the steps make', () => {
       'light',
     );
     await next();
-    await userEvent.click(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ }));
+    await userEvent.click(screen.getByRole('radio', { name: /Lose 0\.25[ \u00a0]kg a week/ }));
     await userEvent.type(
       screen.getByRole('spinbutton', { name: /^Weight to work towards \(kg\)/ }),
       '64',

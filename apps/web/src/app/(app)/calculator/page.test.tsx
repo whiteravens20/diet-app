@@ -121,7 +121,7 @@ describe('the calculator', () => {
     expect(screen.getByLabelText('Weight (kg)')).toHaveValue(80);
     expect(screen.getByLabelText(new RegExp(`^${fields.activityLevel}`))).toHaveValue('light');
     expect(screen.getByLabelText(fields.dietType)).toHaveValue('vegan');
-    expect(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Lose 0\.25[ \u00a0]kg a week/ })).toBeChecked();
     expect(await screen.findByText('2209 kcal')).toBeInTheDocument();
     expect(asked()).toMatchObject({
       age: 41,
