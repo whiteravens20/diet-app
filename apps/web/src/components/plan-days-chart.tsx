@@ -17,7 +17,7 @@ import type { PlanOverview } from '@diet-app/shared';
 import { useFormat } from '@/lib/use-format';
 
 /** As high as the chart, so that the card does not jump when the chart arrives. */
-export const PLAN_DAYS_CHART_HEIGHT = 200;
+const PLAN_DAYS_CHART_HEIGHT = 200;
 
 /**
  * The days of a plan side by side: what each holds as a bar, and what each
