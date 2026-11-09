@@ -362,7 +362,7 @@ export function IngredientSubstituteModal({
                     {t('merged', { name: preview.data.to.name })}
                   </p>
                 )}
-                <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                   <Delta
                     label={tProf('kcal')}
                     before={preview.data.before.calories}

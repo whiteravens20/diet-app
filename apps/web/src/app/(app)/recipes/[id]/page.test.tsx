@@ -128,6 +128,11 @@ describe('deleting a recipe from its page', () => {
     expect(asked).toHaveBeenCalledWith(messages.recipes.deleteConfirm);
     expect(deleted).toHaveBeenCalledWith(`/recipes/${ID}`);
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/recipes?tab=mine'));
+    // Gone, it is not asked for again while the page leaves: the API would only say it is not there.
+    await new Promise((settled) => setTimeout(settled, 50));
+    expect(
+      vi.mocked(api.get).mock.calls.filter(([path]) => path === `/recipes/${ID}`),
+    ).toHaveLength(1);
   });
 
   it('deletes nothing when the question is answered no', async () => {

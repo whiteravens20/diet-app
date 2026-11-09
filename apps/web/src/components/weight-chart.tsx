@@ -18,7 +18,7 @@ import { useFormat } from '@/lib/use-format';
 import type { WeightDay } from '@diet-app/shared';
 
 /** As high as the chart, so that the card does not jump when the chart arrives. */
-export const WEIGHT_CHART_HEIGHT = 220;
+const WEIGHT_CHART_HEIGHT = 220;
 
 /**
  * The range of the weight axis for `values`, the weights and the target: room
