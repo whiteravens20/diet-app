@@ -23,7 +23,7 @@ export function aSupply(): CatalogueSupply {
 }
 
 /** What a plan that wastes less does on each diet, each diet's figures its own, so that a test sees whose it shows. */
-export function aLessWaste(): Record<NamedDiet, LessWasteEffect> {
+function aLessWaste(): Record<NamedDiet, LessWasteEffect> {
   return Object.fromEntries(
     NamedDiet.options.map((diet, i) => [
       diet,
