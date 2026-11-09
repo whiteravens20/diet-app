@@ -2,6 +2,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { LOCALES } from '@diet-app/shared';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 
@@ -15,6 +16,12 @@ import { describe, expect, it } from 'vitest';
 type Tree = { [key: string]: string | Tree };
 
 const FOLDER = path.resolve(process.cwd(), 'messages');
+
+/**
+ * The files of the languages the app loads (`LOCALES`): a file off that list may hold a translation
+ * still being made, and is held only to what it has (`messages.test.ts`), never to how its lines break.
+ */
+const LISTED = LOCALES.map((locale) => `${locale}.json`);
 
 function texts(tree: Tree, prefix = '', into = new Map<string, string>()): Map<string, string> {
   for (const [key, value] of Object.entries(tree)) {
@@ -49,25 +56,19 @@ const pieces = (text: string): string[] =>
   text.split(' ').map((piece) => piece.replaceAll('\u00a0', ' '));
 
 describe('a line of figures joined by dots', () => {
-  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
-    'never lets a dot of %s start a line',
-    (file) => {
-      const loose = [...texts(read(file))]
-        .filter(([, text]) => text.includes(' ·'))
-        .map(([key]) => key);
-      expect(loose).toEqual([]);
-    },
-  );
+  it.each(LISTED)('never lets a dot of %s start a line', (file) => {
+    const loose = [...texts(read(file))]
+      .filter(([, text]) => text.includes(' ·'))
+      .map(([key]) => key);
+    expect(loose).toEqual([]);
+  });
 
-  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
-    'never parts a number of %s from the word after it',
-    (file) => {
-      const loose = [...texts(read(file))]
-        .filter(([, text]) => LOOSE_COUNT.test(text))
-        .map(([key]) => key);
-      expect(loose).toEqual([]);
-    },
-  );
+  it.each(LISTED)('never parts a number of %s from the word after it', (file) => {
+    const loose = [...texts(read(file))]
+      .filter(([, text]) => LOOSE_COUNT.test(text))
+      .map(([key]) => key);
+    expect(loose).toEqual([]);
+  });
 
   /** A text with each of its arguments as one figure, as the reader sees it: `{fat, number, ::group-off}` as `0`. */
   const argued = (text: string): string => {
@@ -76,7 +77,7 @@ describe('a line of figures joined by dots', () => {
     return flat;
   };
 
-  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
+  it.each(LISTED)(
     'breaks every line of macronutrients of %s only after a dot, its opening words aside',
     (file) => {
       const loose = [...texts(read(file))]
@@ -217,15 +218,12 @@ const sources = (): [string, string][] => {
 };
 
 describe('a value put in and its unit', () => {
-  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
-    'are held together in every text of %s',
-    (file) => {
-      const loose = [...texts(read(file))]
-        .filter(([, text]) => LOOSE_UNIT.test(text))
-        .map(([key]) => key);
-      expect(loose).toEqual([]);
-    },
-  );
+  it.each(LISTED)('are held together in every text of %s', (file) => {
+    const loose = [...texts(read(file))]
+      .filter(([, text]) => LOOSE_UNIT.test(text))
+      .map(([key]) => key);
+    expect(loose).toEqual([]);
+  });
 
   it('are found apart in a text', () => {
     expect(LOOSE_UNIT.test('Cel dnia: {kcal} kcal.')).toBe(true);
@@ -255,15 +253,12 @@ describe('a value put in and its unit', () => {
 const LOOSE_SIGN = /(?<=\S) [≈≥≤](?=[.,;:!?)]|$)/u;
 
 describe('a sign that ends a sentence', () => {
-  it.each(readdirSync(FOLDER).filter((file) => file.endsWith('.json')))(
-    'is held to the word before it in every text of %s',
-    (file) => {
-      const loose = [...texts(read(file))]
-        .filter(([, text]) => LOOSE_SIGN.test(text))
-        .map(([key]) => key);
-      expect(loose).toEqual([]);
-    },
-  );
+  it.each(LISTED)('is held to the word before it in every text of %s', (file) => {
+    const loose = [...texts(read(file))]
+      .filter(([, text]) => LOOSE_SIGN.test(text))
+      .map(([key]) => key);
+    expect(loose).toEqual([]);
+  });
 
   it('is found alone', () => {
     expect(LOOSE_SIGN.test('Dziennik oszacuje i oznaczy ≈.')).toBe(true);
