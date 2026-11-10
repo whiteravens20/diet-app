@@ -12064,6 +12064,10 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "forAll": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -12337,6 +12341,10 @@
             "$ref": "#/components/schemas/ModelPickNote"
           },
           "together": {
+            "default": false,
+            "type": "boolean"
+          },
+          "forAll": {
             "default": false,
             "type": "boolean"
           }
@@ -24281,6 +24289,10 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "forAll": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [

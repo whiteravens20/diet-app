@@ -274,6 +274,115 @@ describe('a plan made together with another profile of the account', () => {
     expect(fromPot).toEqual({ breakfast: true, lunch: true, snack: false, dinner: false });
   });
 
+  describe('a dish changed for both', () => {
+    const offerFor = async (plan: MealPlan, meal: PlannedMeal, ask: Record<string, unknown>) =>
+      (
+        await t
+          .http()
+          .post('/api/meal-plans/swap-meal/preview')
+          .set(as(user))
+          .send({ planId: plan.id, plannedMealId: meal.id, strategy: 'random', ...ask })
+          .expect(201)
+      ).body as { recipe: { id: string; allergens: string[] }; revision: number };
+    const take = (
+      plan: MealPlan,
+      meal: PlannedMeal,
+      recipeId: string,
+      revision: number,
+      ask: Record<string, unknown>,
+    ) =>
+      t
+        .http()
+        .post('/api/meal-plans/swap-meal')
+        .set(as(user))
+        .send({
+          planId: plan.id,
+          plannedMealId: meal.id,
+          recipeId,
+          revision,
+          strategy: 'random',
+          ...ask,
+        });
+
+    it('goes on both meals, each sized to what that meal held, and the meal stays shared', async () => {
+      const adams = await together();
+      const lunch = at(adams, 0, 'lunch')!;
+      const herDayBefore = (await read(adams.joint!.planId)).days[0]!;
+
+      const offered = await offerFor(adams, lunch, { forAll: true });
+      await take(adams, lunch, offered.recipe.id, offered.revision, { forAll: true }).expect(201);
+
+      const mine = at(await read(adams.id), 0, 'lunch')!;
+      const herPlan = await read(adams.joint!.planId);
+      const hers = at(herPlan, 0, 'lunch')!;
+      expect(mine.recipe!.id).toBe(offered.recipe.id);
+      expect(hers.recipe!.id).toBe(offered.recipe.id);
+      expect(mine.shared!.id).toBe(lunch.shared!.id);
+      expect(hers.shared!.with.mealId).toBe(mine.id);
+      // Hers is a portion of her own, and her day keeps its total, as a swap keeps the total of any day.
+      expect(hers.servings * hers.quantityScale).not.toBe(mine.servings * mine.quantityScale);
+      expect(
+        Math.abs(herPlan.days[0]!.dayNutrition.calories - herDayBefore.dayNutrition.calories),
+      ).toBeLessThanOrEqual(herDayBefore.dayNutrition.calories * 0.1);
+    });
+
+    it('offers only what the other may be given, and refuses a favourite that she may not', async () => {
+      ewa = await save(ewa, { preferences: { ...ewa.preferences, allergens: ['fish'] } });
+      const adams = await together();
+      const lunch = at(adams, 0, 'lunch')!;
+      const salmon = (
+        await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'salmon-with-rice' } })
+      ).id;
+
+      const skip: string[] = [];
+      for (let asked = 0; asked < 4; asked += 1) {
+        const offered = await offerFor(adams, lunch, { forAll: true, skip });
+        expect(offered.recipe.allergens).not.toContain('fish');
+        skip.push(offered.recipe.id);
+      }
+      const favourite = await t
+        .http()
+        .post('/api/meal-plans/swap-meal/preview')
+        .set(as(user))
+        .send({
+          planId: adams.id,
+          plannedMealId: lunch.id,
+          strategy: 'favorite',
+          favoriteRecipeId: salmon,
+          forAll: true,
+        })
+        .expect(400);
+      expect(favourite.body.error).toBe('OFF_DIET_FAVORITE_NOT_ALLOWED');
+      // For him alone it may: the meal is then his own.
+      const mineAlone = await take(adams, lunch, salmon, adams.revision, {
+        strategy: 'favorite',
+      }).expect(201);
+      expect(at(mineAlone.body.plan, 0, 'lunch')!.shared).toBeNull();
+    });
+
+    it('is taken back in both plans', async () => {
+      const adams = await together();
+      const lunch = at(adams, 0, 'lunch')!;
+      const offered = await offerFor(adams, lunch, { forAll: true });
+      const swapped = (
+        await take(adams, lunch, offered.recipe.id, offered.revision, { forAll: true }).expect(201)
+      ).body as { plan: MealPlan };
+
+      await t
+        .http()
+        .post('/api/meal-plans/swap-meal/undo')
+        .set(as(user))
+        .send({ planId: adams.id, revision: swapped.plan.revision })
+        .expect(200);
+
+      const mine = at(await read(adams.id), 0, 'lunch')!;
+      const hers = at(await read(adams.joint!.planId), 0, 'lunch')!;
+      expect(mine.recipe!.id).toBe(lunch.recipe!.id);
+      expect(hers.recipe!.id).toBe(lunch.recipe!.id);
+      expect(mine.shared!.id).toBe(lunch.shared!.id);
+    });
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

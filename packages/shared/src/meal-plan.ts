@@ -1042,6 +1042,12 @@ export const SwapMealRequest = z
     allowOffDiet: z.boolean().default(false),
     /** Recipes offered for this meal already in this sitting: the next offer is none of them while another is left. */
     skip: z.array(z.string().uuid()).max(100).default([]),
+    /**
+     * Of a shared meal (`PlannedMeal.shared`): the dish for both people, each
+     * sized to their own portion. Only a dish the other person may be given
+     * too, and their day does not hold already, is offered or taken.
+     */
+    forAll: z.boolean().default(false),
   })
   // A favourite is asked for by its recipe.
   .refine((request) => request.strategy !== 'favorite' || request.favoriteRecipeId !== undefined, {
@@ -1062,6 +1068,12 @@ export const AiSwapMealRequest = z.object({
   respectInventory: z.boolean().default(true),
   /** Recipes offered for this meal already in this sitting. */
   skip: z.array(z.string().uuid()).max(100).default([]),
+  /**
+   * Of a shared meal (`PlannedMeal.shared`): the dish for both people, each
+   * sized to their own portion. Only a dish the other person may be given
+   * too, and their day does not hold already, is offered or taken.
+   */
+  forAll: z.boolean().default(false),
 });
 export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
 
@@ -1123,6 +1135,8 @@ export const ApplyMealSwapRequest = z.object({
   pick: ModelPickNote.optional(),
   /** The recipe goes on the other meals of the same cooking as well, as the offer said. */
   together: z.boolean().default(false),
+  /** Of a shared meal: the dish goes on the other person's meal too, as the offer was asked (`SwapMealRequest.forAll`). */
+  forAll: z.boolean().default(false),
 });
 export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 

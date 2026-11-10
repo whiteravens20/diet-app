@@ -56,7 +56,7 @@ import {
 } from './meal-plans.service.js';
 import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
-import { writePlan } from './plan-write.js';
+import { writePlans } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
 
 // What the prompt asks the model to answer with. A reason is welcome and
@@ -128,7 +128,23 @@ export class MealSwapService {
     clientToday: string | null = null,
   ): Promise<MealSwapPreview> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
-    return this.previewOf(userId, locale, slot, await this.pick(slot, req), waivedBy(req));
+    const theirs = await this.theirs(userId, slot, req.forAll, clientToday);
+    return this.previewOf(userId, locale, slot, await this.pick(slot, req, theirs), waivedBy(req));
+  }
+
+  /**
+   * The other person's meal of a shared meal, as a swap reads it, where the
+   * swap is asked for both; null otherwise, and for a meal of one plan alone.
+   */
+  private async theirs(
+    userId: string,
+    slot: Slot,
+    forAll: boolean,
+    clientToday: string | null,
+  ): Promise<Slot | null> {
+    if (!forAll) return null;
+    const other = await this.plans.otherOfShared(userId, slot.meal);
+    return other ? this.slot(userId, other.day.planId, other.id, clientToday) : null;
   }
 
   /**
@@ -167,7 +183,9 @@ export class MealSwapService {
         },
         orderBy: { id: 'asc' },
       })
-    ).filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held));
+    )
+      .filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held))
+      .filter(forThemToo(await this.theirs(userId, slot, req.forAll, clientToday)));
     if (candidates.length === 0) throw noAlternative();
 
     // What holds nothing the profile would rather not eat comes before what does, for the model as for the engine.
@@ -245,7 +263,10 @@ export class MealSwapService {
   async apply(
     userId: string,
     locale: Locale,
-    req: Omit<ApplyMealSwapRequest, 'together'> & { together?: boolean },
+    req: Omit<ApplyMealSwapRequest, 'together' | 'forAll'> & {
+      together?: boolean;
+      forAll?: boolean;
+    },
     clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId, clientToday);
@@ -267,6 +288,15 @@ export class MealSwapService {
       throw new BadRequestException({ error: refusal, message: 'That recipe is not available.' });
     }
     assertMayEnter(replacement, restrictions, meal.mealType, refusal, waivedBy(req));
+    // For both: what the other person may be given, and their day does not hold already, as the offer was.
+    const theirs = await this.theirs(userId, slot, req.forAll === true, clientToday);
+    if (theirs && !forThemToo(theirs, !byHand)(replacement)) {
+      throw new BadRequestException({
+        error: refusal,
+        message:
+          'That recipe cannot go to both: the other person may not be given it, or it cannot take the place of their meal.',
+      });
+    }
     // A favourite picked by hand is the user's own choice of what to eat;
     // anything else keeps to what the meal holds and to a recipe once a day.
     if (!byHand && !holdsAbout(replacement.caloriesPerServing, slot.held)) {
@@ -293,44 +323,75 @@ export class MealSwapService {
     const replacementId = replacement.id;
     const together = req.together ? takingIt(slot, replacement, waivedBy(req)) : [];
     const today = slot.today;
-    const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
-      await this.plans.rememberSwap(tx, req.planId, req.revision, [
-        meal.dayId,
-        ...together.map((other) => other.dayId),
-      ]);
-      await tx.plannedMeal.update({
-        where: { id: req.plannedMealId },
-        // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
-        data: {
-          recipeId: replacementId,
-          servings,
-          swapHistory: nextHistory,
-          quantityScale: 1,
-          modelPicked: picked !== null,
-          modelReason: picked?.reason ?? null,
-        },
-      });
-      const carried = await this.plans.carryDish(tx, together, replacement, today, picked);
-      const otherDays = [...new Set(carried.map((other) => other.dayId))];
-      // What the recipe is outside of the meals say for as long as they hold it.
-      await this.plans.noteOutsideLimits(tx, req.planId, [
-        req.plannedMealId,
-        ...together.map((other) => other.id),
-      ]);
-      // The swap changed the day total — pull it back toward target, on each day it changed.
-      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
-      const others = await Promise.all(
-        otherDays
-          .filter((dayId) => dayId !== meal.dayId)
-          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, today)),
-      );
-      return (
-        summary && {
-          ...summary,
-          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+    // The other person's meals that take the dish: theirs of this meal, and of the others of the cooking that take it.
+    const theirPlan = theirs
+      ? { planId: theirs.meal.day.planId, revision: theirs.meal.day.plan.revision }
+      : null;
+    const theirMeals = theirs
+      ? await this.plans.partnersOf(userId, [{ id: req.plannedMealId }, ...together])
+      : [];
+    const summary = await writePlans(
+      this.prisma,
+      [{ planId: req.planId, revision: req.revision }, ...(theirPlan ? [theirPlan] : [])],
+      async (tx) => {
+        await this.plans.rememberSwap(
+          tx,
+          req.planId,
+          req.revision,
+          [meal.dayId, ...together.map((other) => other.dayId)],
+          theirPlan,
+        );
+        if (theirs && theirPlan) {
+          await this.plans.rememberSwap(
+            tx,
+            theirPlan.planId,
+            theirPlan.revision,
+            theirMeals.map((other) => other.dayId),
+            { planId: req.planId, revision: req.revision },
+          );
+          await this.plans.carryDish(tx, theirMeals, replacement, today, picked);
+          await this.plans.noteOutsideLimits(
+            tx,
+            theirPlan.planId,
+            theirMeals.map((other) => other.id),
+          );
+          for (const dayId of new Set(theirMeals.map((other) => other.dayId)))
+            await this.plans.rebalanceDayInternal(dayId, tx, today);
         }
-      );
-    });
+        await tx.plannedMeal.update({
+          where: { id: req.plannedMealId },
+          // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
+          data: {
+            recipeId: replacementId,
+            servings,
+            swapHistory: nextHistory,
+            quantityScale: 1,
+            modelPicked: picked !== null,
+            modelReason: picked?.reason ?? null,
+          },
+        });
+        const carried = await this.plans.carryDish(tx, together, replacement, today, picked);
+        const otherDays = [...new Set(carried.map((other) => other.dayId))];
+        // What the recipe is outside of the meals say for as long as they hold it.
+        await this.plans.noteOutsideLimits(tx, req.planId, [
+          req.plannedMealId,
+          ...together.map((other) => other.id),
+        ]);
+        // The swap changed the day total — pull it back toward target, on each day it changed.
+        const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
+        const others = await Promise.all(
+          otherDays
+            .filter((dayId) => dayId !== meal.dayId)
+            .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, today)),
+        );
+        return (
+          summary && {
+            ...summary,
+            changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+          }
+        );
+      },
+    );
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
 
@@ -427,7 +488,7 @@ export class MealSwapService {
   }
 
   /** The recipe to offer for a meal, by the strategy that was asked for. */
-  private async pick(slot: Slot, req: SwapMealRequest): Promise<Offered> {
+  private async pick(slot: Slot, req: SwapMealRequest, theirs: Slot | null): Promise<Offered> {
     const { meal, restrictions } = slot;
     const waived = waivedBy(req);
     let replacement: Offered;
@@ -442,6 +503,14 @@ export class MealSwapService {
         throw new BadRequestException({
           error: 'OFF_DIET_FAVORITE_NOT_ALLOWED',
           message: 'That favourite is not available.',
+        });
+      }
+      // Picked by hand it is not held to energy, for the other person either; what they may be given it is.
+      if (theirs && !forThemToo(theirs, false)(picked)) {
+        throw new BadRequestException({
+          error: 'OFF_DIET_FAVORITE_NOT_ALLOWED',
+          message:
+            'That favourite cannot go to both: the other person may not be given it, or their day holds it already.',
         });
       }
       replacement = picked;
@@ -461,7 +530,9 @@ export class MealSwapService {
             select: OFFERED,
             orderBy: { id: 'asc' },
           })
-        ).filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held)),
+        )
+          .filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held))
+          .filter(forThemToo(theirs)),
       );
       let ranked = pool;
       if (req.strategy === 'favorite_ingredients') {
@@ -628,6 +699,25 @@ export class MealSwapService {
 }
 
 type Slot = Awaited<ReturnType<MealSwapService['slot']>>;
+
+/**
+ * Whether a recipe may go to the other person's meal of a shared meal as well
+ * (`theirs`): what they may be given at it, not on their day already, and,
+ * unless it is a favourite picked by hand, near what their meal holds. Every
+ * recipe may where nothing is asked for both.
+ */
+function forThemToo(
+  theirs: Slot | null,
+  heldToEnergy = true,
+): (
+  recipe: Parameters<typeof violations>[0] & { id: string; caloriesPerServing: number },
+) => boolean {
+  return (recipe) =>
+    !theirs ||
+    (violations(recipe, theirs.restrictions, theirs.meal.mealType).length === 0 &&
+      !theirs.onTheDay.includes(recipe.id) &&
+      (!heldToEnergy || holdsAbout(recipe.caloriesPerServing, theirs.held)));
+}
 type Offered = Prisma.RecipeGetPayload<{ select: typeof OFFERED }>;
 
 /**

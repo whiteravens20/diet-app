@@ -493,6 +493,51 @@ export class MealPlansService {
   }
 
   /**
+   * The other person's meals linked to `meals` as shared meals, holding the
+   * same dish, as a change of a dish carries one to a meal: the meals a change
+   * asked for both takes to the other plan.
+   */
+  async partnersOf(userId: string, meals: readonly { id: string }[]): Promise<CookedMeal[]> {
+    if (meals.length === 0) return [];
+    const mine = await this.prisma.plannedMeal.findMany({
+      where: { id: { in: meals.map((meal) => meal.id) }, sharedMealId: { not: null } },
+      select: { id: true, recipeId: true, sharedMealId: true },
+    });
+    const theirs = await this.prisma.plannedMeal.findMany({
+      where: {
+        sharedMealId: { in: mine.map((meal) => meal.sharedMealId!) },
+        id: { notIn: mine.map((meal) => meal.id) },
+        day: { plan: { profile: { userId } } },
+      },
+      include: { recipe: { select: { caloriesPerServing: true } }, day: true },
+    });
+    const days = await this.prisma.mealPlanDay.findMany({
+      where: { planId: { in: [...new Set(theirs.map((meal) => meal.day.planId))] } },
+      orderBy: { date: 'asc' },
+      select: { id: true },
+    });
+    const dayIndex = new Map(days.map((day, index) => [day.id, index]));
+    return theirs
+      .filter((meal) =>
+        mine.some(
+          (one) => one.sharedMealId === meal.sharedMealId && one.recipeId === meal.recipeId,
+        ),
+      )
+      .map((meal) => ({
+        id: meal.id,
+        dayId: meal.dayId,
+        dayIndex: dayIndex.get(meal.dayId) ?? 0,
+        date: isoDate(meal.day.date),
+        mealType: meal.mealType as MealType,
+        recipeId: meal.recipeId!,
+        eaten: meal.eatenAt !== null,
+        skipped: isSkipped(meal.day),
+        swapHistory: meal.swapHistory ?? [],
+        held: (meal.recipe?.caloriesPerServing ?? 0) * meal.servings * meal.quantityScale,
+      }));
+  }
+
+  /**
    * Say how a shared meal of the plan is cooked: each portion apart, or in one
    * pot split by weight. It is the same for both plans of the joint plan, and
    * changes none of their meals.
@@ -967,6 +1012,8 @@ export class MealPlansService {
     planId: string,
     readAtRevision: number,
     dayIds: readonly string[],
+    /** The other plan of a joint plan the swap changed as well, at the revision it read: taken back with this one. */
+    also: { planId: string; revision: number } | null = null,
   ): Promise<void> {
     const meals = await tx.plannedMeal.findMany({
       where: { dayId: { in: [...dayIds] } },
@@ -980,7 +1027,11 @@ export class MealPlansService {
         modelReason: true,
       },
     });
-    const lastSwap: StoredSwap = { revision: readAtRevision + 1, meals };
+    const lastSwap: StoredSwap = {
+      revision: readAtRevision + 1,
+      meals,
+      ...(also ? { also: { planId: also.planId, revision: also.revision + 1 } } : {}),
+    };
     await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap } });
   }
 
@@ -1009,14 +1060,33 @@ export class MealPlansService {
         message: 'The plan changed after the swap: it can no longer be taken back.',
       });
     }
-    await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
-      for (const { id, ...before } of swap.meals)
-        await tx.plannedMeal.update({ where: { id }, data: before });
-      await tx.mealPlan.update({
-        where: { id: req.planId },
-        data: { lastSwap: Prisma.JsonNull },
-      });
-    });
+    // A swap made for both is taken back in the other plan too, while that plan is as the swap left it.
+    const also = swap.also
+      ? await this.prisma.mealPlan.findFirst({
+          where: { id: swap.also.planId, revision: swap.also.revision, profile: { userId } },
+          select: { id: true, revision: true, lastSwap: true },
+        })
+      : null;
+    const theirs = also ? StoredSwap.nullable().parse(also.lastSwap ?? null) : null;
+    const together =
+      also && theirs?.revision === also.revision ? { plan: also, swap: theirs } : null;
+    await writePlans(
+      this.prisma,
+      [
+        { planId: req.planId, revision: req.revision },
+        ...(together ? [{ planId: together.plan.id, revision: together.plan.revision }] : []),
+      ],
+      async (tx) => {
+        for (const [planId, taken] of [
+          [req.planId, swap],
+          ...(together ? [[together.plan.id, together.swap] as const] : []),
+        ] as const) {
+          for (const { id, ...before } of taken.meals)
+            await tx.plannedMeal.update({ where: { id }, data: before });
+          await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap: Prisma.JsonNull } });
+        }
+      },
+    );
     return this.buildRebalanceResult(userId, locale, req.planId, 'day', null);
   }
 
@@ -1493,6 +1563,8 @@ const StoredSwap = z.object({
       modelReason: z.string().nullable(),
     }),
   ),
+  /** The other plan of a joint plan the swap was made in as well, at the revision it left that plan at. */
+  also: z.object({ planId: z.string(), revision: z.number().int() }).optional(),
 });
 type StoredSwap = z.infer<typeof StoredSwap>;
 
