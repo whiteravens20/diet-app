@@ -2,12 +2,14 @@
 
 'use client';
 
-import { Font } from '@react-pdf/renderer';
+// A picture of a document, which has no text in place of it as a page's has.
+import { Font, Image as PdfPicture } from '@react-pdf/renderer';
 
 /*
- * What the application's documents share: their typeface. Only the modules
- * that make a document import this, and the page fetches those when a
- * document is asked for, so @react-pdf never ships with a page.
+ * What the application's documents share: their typeface and the mark at
+ * their head. Only the modules that make a document import this, and the
+ * page fetches those when a document is asked for, so @react-pdf never ships
+ * with a page.
  *
  * The default @react-pdf built-in fonts (Helvetica/Times/Courier) cover only
  * basic Latin and mangle Polish diacritics. We register Inter from /public,
@@ -34,4 +36,14 @@ export function ensureFontRegistered(): void {
     ],
   });
   fontRegistered = true;
+}
+
+/** The application's icon, as the sidebar shows it, fetched from the instance as the typeface is. */
+export function Mark({ size = 22 }: { size?: number }) {
+  return (
+    <PdfPicture
+      src={`${window.location.origin}/icon-192.png`}
+      style={{ width: size, height: size, borderRadius: size * 0.2 }}
+    />
+  );
 }

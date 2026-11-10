@@ -2,21 +2,10 @@
 
 'use client';
 
-import {
-  Document,
-  Page,
-  Path,
-  Rect,
-  StyleSheet,
-  Svg,
-  Text,
-  View,
-  Circle,
-  pdf,
-} from '@react-pdf/renderer';
+import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
 import type { DisplayUnit } from '@diet-app/shared';
 import type { ShownItem, ShownList } from './list-view';
-import { ensureFontRegistered } from '@/lib/pdf-common';
+import { ensureFontRegistered, Mark } from '@/lib/pdf-common';
 import { saveFile } from '@/lib/save-file';
 import { packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
@@ -178,16 +167,6 @@ const foldableStyles = StyleSheet.create({
   },
 });
 
-function Logo({ size = 22 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Rect width={64} height={64} rx={14} fill="#2f9e6f" />
-      <Path d="M32 14c8 6 12 13 12 21a12 12 0 1 1-24 0c0-8 4-15 12-21Z" fill="#ffffff" />
-      <Circle cx={32} cy={36} r={5} fill="#2f9e6f" />
-    </Svg>
-  );
-}
-
 type BuildOpts = {
   list: Pick<ShownList, 'groups'>;
   /** Who needs what of a row of a household list, said under its name; null for a plan's row. */
@@ -313,7 +292,7 @@ function buildPretty(opts: BuildOpts) {
       <Page size={[A4.width, A4.height]} style={prettyStyles.page}>
         <View style={sharedStyles.header}>
           <View style={sharedStyles.brandRow}>
-            <Logo size={26} />
+            <Mark size={26} />
             <View>
               <Text style={sharedStyles.brandText}>{appName}</Text>
               <Text style={sharedStyles.dateText}>{dateRangeLabel}</Text>
@@ -405,7 +384,7 @@ function buildFoldable(opts: BuildOpts) {
         <View style={foldableStyles.topHalf}>
           <View style={sharedStyles.header}>
             <View style={sharedStyles.brandRow}>
-              <Logo />
+              <Mark />
               <View>
                 <Text style={sharedStyles.brandText}>{appName}</Text>
                 <Text style={sharedStyles.dateText}>{dateRangeLabel}</Text>
