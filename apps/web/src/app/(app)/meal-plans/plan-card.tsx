@@ -208,8 +208,8 @@ export function PlanCard({
   onToggleEaten: (mealId: string, eaten: boolean, forAll?: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse, plannedMealId: string) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
-  /** Take a meal off its day. */
-  onRemoveMeal: (mealId: string) => void;
+  /** Take a meal off its day; `forAll`, of a shared meal, off the other person's day as well. */
+  onRemoveMeal: (mealId: string, forAll?: boolean) => void;
   /** Ask the offer for a shared meal again, for both people or for this one alone. */
   onOfferFor: (forAll: boolean) => void;
   /** Say how a shared meal is cooked: each portion apart, or in one pot. */
@@ -921,12 +921,30 @@ export function PlanCard({
                         >
                           <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
                           {apart && <p>{apart}</p>}
+                          {m.shared && !m.shared.with.eaten && (
+                            <p>{t('removeShared', { name: m.shared.with.profileName })}</p>
+                          )}
                           <ListNote listed={day.listed} />
                           <div className="flex flex-wrap gap-2 pt-1">
+                            {m.shared && !m.shared.with.eaten && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setRemoving(null);
+                                  changing.current = dayAnchor(plan.id, day.date);
+                                  onRemoveMeal(m.id, true);
+                                }}
+                                disabled={busy}
+                              >
+                                {t('removeForAll')}
+                              </Button>
+                            )}
                             <Button
                               type="button"
                               size="sm"
-                              variant="destructive"
+                              variant={m.shared && !m.shared.with.eaten ? 'outline' : 'destructive'}
                               onClick={() => {
                                 setRemoving(null);
                                 changing.current = dayAnchor(plan.id, day.date);
@@ -934,7 +952,9 @@ export function PlanCard({
                               }}
                               disabled={busy}
                             >
-                              {t('removeConfirm')}
+                              {t(
+                                m.shared && !m.shared.with.eaten ? 'removeForMe' : 'removeConfirm',
+                              )}
                             </Button>
                             <Button
                               type="button"

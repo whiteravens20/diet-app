@@ -3511,6 +3511,21 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(post.mock.calls[2]![1]).not.toHaveProperty('forAll');
   });
 
+  it('takes a shared meal off both days, or off its own alone', async () => {
+    const plan = together();
+    await open(plan);
+    const remove = vi.spyOn(api, 'delete').mockResolvedValue({ plan, rebalance: null } as never);
+
+    await unfoldMeal();
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.remove) }));
+    expect(screen.getByText('Ewa has this dish in their plan.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.removeForAll }));
+
+    expect(remove).toHaveBeenCalledWith(
+      `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}?forAll=true`,
+    );
+  });
+
   it('opens the recipe of a shared dish with what the pot takes and the portions in it', async () => {
     const plan = together();
     await open(plan);

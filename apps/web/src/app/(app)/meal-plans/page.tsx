@@ -471,8 +471,10 @@ function MealPlansContent() {
   });
 
   const removeMeal = useMutation({
-    mutationFn: (v: { planId: string; mealId: string }) =>
-      api.delete<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}`),
+    mutationFn: (v: { planId: string; mealId: string; forAll?: boolean }) =>
+      api.delete<RebalanceResult>(
+        `/meal-plans/${v.planId}/meals/${v.mealId}${v.forAll ? '?forAll=true' : ''}`,
+      ),
     onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errRemoveMeal')),
   });
@@ -1030,9 +1032,9 @@ function MealPlansContent() {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
               }}
-              onRemoveMeal={(mealId) => {
+              onRemoveMeal={(mealId, forAll) => {
                 setError(null);
-                removeMeal.mutate({ planId: plan.id, mealId });
+                removeMeal.mutate({ planId: plan.id, mealId, forAll });
               }}
               onOfferFor={(forAll) => offer && askFor({ ...offer.asked, forAll })}
               onSetApart={(sharedMealId, apart) => {
