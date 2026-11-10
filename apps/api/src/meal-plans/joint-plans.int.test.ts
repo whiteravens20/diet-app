@@ -209,6 +209,25 @@ describe('a plan made together with another profile of the account', () => {
     expect(await t.prisma.plannedMeal.count({ where: { sharedMealId: { not: null } } })).toBe(0);
   });
 
+  it('uses up two of the makings of a plan a minute allows, being the work of two', async () => {
+    const made = async (body: Record<string, string>): Promise<number> =>
+      Number(
+        (
+          await t
+            .http()
+            .post('/api/meal-plans/generate')
+            .set(as(user))
+            .send({ startDate: '2026-01-05', durationDays: 2, ...body })
+            .expect(201)
+        ).headers['x-ratelimit-remaining'],
+      );
+
+    const afterOne = await made({ profileId: adam.id });
+    const afterTwo = await made({ profileId: adam.id, withProfileId: ewa.id });
+
+    expect(afterTwo).toBe(afterOne - 2);
+  });
+
   it("is refused with another account's profile, with the same profile twice, and with settings of its days", async () => {
     const stranger = await aUser(t);
     const theirs = await aProfile(t, stranger);

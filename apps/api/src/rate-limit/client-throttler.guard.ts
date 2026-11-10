@@ -15,6 +15,7 @@ import {
 import type { Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
 import { countedAddress } from './client-address.js';
+import { REQUEST_WEIGHT, type RequestWeight } from './request-weight.js';
 import { CREDENTIAL_COUNTS, type CredentialCount } from './trackers.js';
 
 /**
@@ -66,6 +67,16 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
       CREDENTIAL_COUNTS,
       [context.getHandler(), context.getClass()],
     );
+    // A request that is the work of several (`@CountsAs`) is counted as many times: the last count over the limit refuses it.
+    const weigh = this.reflector.getAllAndOverride<RequestWeight | undefined>(REQUEST_WEIGHT, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (!counts && weigh) {
+      const times = Math.max(1, Math.floor(weigh(this.getRequestResponse(context).req)));
+      for (let count = 1; count < times; count += 1) await super.handleRequest(request);
+      return super.handleRequest(request);
+    }
     if (!counts) return super.handleRequest(request);
 
     const sender = await this.getTracker(this.getRequestResponse(context).req);

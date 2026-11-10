@@ -60,6 +60,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { CountsAs } from '../rate-limit/request-weight.js';
 import { DaySettingsService } from './day-settings.service.js';
 import { DayVariationsService } from './day-variations.service.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
@@ -152,6 +153,8 @@ export class MealPlansController {
    */
   @Post('generate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  // A joint plan is two plans of work.
+  @CountsAs((req) => ((req.body as { withProfileId?: unknown } | undefined)?.withProfileId ? 2 : 1))
   @Answers(MealPlan)
   generate(
     @CurrentUser() user: RequestUser,
