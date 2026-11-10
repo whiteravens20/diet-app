@@ -1315,9 +1315,12 @@ describe('the plan page, on what a model had to do with a plan', () => {
 
     await userEvent.click(recipe);
 
+    // The window is fetched when a recipe is opened, and reads the recipe after it shows.
     const window = await screen.findByRole('dialog', { name: messages.recipeModal.title });
-    expect(window.textContent).toContain(
-      'A model chose this recipe for the meal: “Lighter than the porridge.”',
+    await vi.waitFor(() =>
+      expect(window.textContent).toContain(
+        'A model chose this recipe for the meal: “Lighter than the porridge.”',
+      ),
     );
   });
 

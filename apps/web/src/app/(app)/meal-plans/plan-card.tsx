@@ -30,7 +30,6 @@ import { Tabs } from '@/components/ui/tabs';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
-import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import type { SplitPortion } from '@/components/split-calculator';
 import { CookingNote, mealsOfCooking, toCook, useCookingWords, type MealPortion } from './cooking';
@@ -61,6 +60,12 @@ const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => shee
 const SplitDialog = dynamic(() => import('./split-dialog').then((dialog) => dialog.SplitDialog), {
   ssr: false,
 });
+
+/** Fetched when a recipe is opened from a meal: no first visit of the page waits for the window. */
+const RecipeModal = dynamic(
+  () => import('@/components/recipe-modal').then((modal) => modal.RecipeModal),
+  { ssr: false },
+);
 
 /** Fetched when the settings of a day are opened: no first visit of the page waits for the window. */
 const DaySettingsDialog = dynamic(
@@ -1466,14 +1471,16 @@ export function PlanCard({
           }}
         />
       )}
-      <RecipeModal
-        recipeId={openRecipe?.id ?? null}
-        amounts={openRecipe?.amounts}
-        picked={openRecipe?.picked ?? null}
-        portion={openRecipe?.portion}
-        label={openRecipe?.label}
-        onClose={() => setOpenRecipe(null)}
-      />
+      {openRecipe && (
+        <RecipeModal
+          recipeId={openRecipe.id}
+          amounts={openRecipe.amounts}
+          picked={openRecipe.picked ?? null}
+          portion={openRecipe.portion}
+          label={openRecipe.label}
+          onClose={() => setOpenRecipe(null)}
+        />
+      )}
     </Card>
   );
 }
