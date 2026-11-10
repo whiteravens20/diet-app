@@ -154,7 +154,13 @@ test.describe('a plan made together with another profile', () => {
     expect(answer.status()).toBe(201);
     const plan = (await answer.json()) as {
       joint: { planId: string; profileName: string } | null;
-      days: { meals: { id: string; shared: { with: { mealId: string } } | null }[] }[];
+      days: {
+        meals: {
+          id: string;
+          recipe: { title: string } | null;
+          shared: { with: { mealId: string } } | null;
+        }[];
+      }[];
     };
     expect(plan.joint?.profileName).toBe('Ewa');
 
@@ -182,6 +188,22 @@ test.describe('a plan made together with another profile', () => {
       .flatMap((day) => day.meals)
       .find((meal) => meal.id === shared!.shared!.with.mealId);
     expect(their?.eatenAt).not.toBeNull();
+
+    // Its recipe can be saved for either person, the two buttons together: on a narrow screen, under the words as one.
+    await row.getByRole('button', { name: shared!.recipe!.title, exact: true }).click();
+    const recipeWindow = page.getByRole('dialog', {
+      name: (messages.recipeModal as Texts).title!,
+    });
+    await expect(recipeWindow.getByRole('heading', { level: 1 })).toBeVisible();
+    const tops = await Promise.all(
+      ['Adam', 'Ewa'].map(
+        async (name) =>
+          (await recipeWindow
+            .getByRole('button', { name: `☆ ${name}`, exact: true })
+            .boundingBox())!.y,
+      ),
+    );
+    expect(tops[0]).toBe(tops[1]);
     await elsewhere.close();
   });
 });

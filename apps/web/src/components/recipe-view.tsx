@@ -237,23 +237,26 @@ export function RecipeView({
       {profileList.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">{t('saveToFavorites')}</span>
-          {profileList.map((p) => {
-            const saved = favIndex.get(p.id)?.has(recipe.id) ?? false;
-            const busy = addFav.isPending || removeFav.isPending;
-            return (
-              <Button
-                key={p.id}
-                type="button"
-                variant={saved ? 'primary' : 'outline'}
-                size="sm"
-                disabled={busy}
-                className="h-auto max-w-full py-1 wrap-anywhere"
-                onClick={() => (saved ? removeFav.mutate(p.id) : addFav.mutate(p.id))}
-              >
-                {saved ? '★' : '☆'} {p.name}
-              </Button>
-            );
-          })}
+          {/* The profiles stay together: on a narrow screen they go under the words as one, as the ways to share do. */}
+          <div className="flex min-w-0 max-w-full flex-wrap gap-2">
+            {profileList.map((p) => {
+              const saved = favIndex.get(p.id)?.has(recipe.id) ?? false;
+              const busy = addFav.isPending || removeFav.isPending;
+              return (
+                <Button
+                  key={p.id}
+                  type="button"
+                  variant={saved ? 'primary' : 'outline'}
+                  size="sm"
+                  disabled={busy}
+                  className="h-auto max-w-full py-1 wrap-anywhere"
+                  onClick={() => (saved ? removeFav.mutate(p.id) : addFav.mutate(p.id))}
+                >
+                  {saved ? '★' : '☆'} {p.name}
+                </Button>
+              );
+            })}
+          </div>
         </div>
       )}
 
