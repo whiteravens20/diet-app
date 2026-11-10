@@ -1461,9 +1461,11 @@
     "sharedChip": "Wspólne",
     "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0porcja} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
     "sharedEaten": "zjedzone",
+    "cookApart": "Gotuj osobno",
     "eatenTogether": "Zjedzone u\u00a0obu osób",
     "jointWith": "Wspólny plan z: {name}",
     "jointApart": "Osobno, bo żadne danie nie pasuje obu osobom: {meals}.",
+    "errCookApart": "Nie udało się zmienić sposobu gotowania.",
     "deleteJointNote": "Drugi plan ({name}) zostanie zwykłym planem, bez wspólnych posiłków.",
     "jointPlanWith": "Wspólny plan z",
     "jointPlanNone": "Z\u00a0nikim",
@@ -2388,6 +2390,7 @@
     "errAct": "Nie udało się zapisać decyzji."
   },
   "recipeModal": {
+    "portionPot": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}. Poniżej ilości na cały garnek: {all, plural, one {{all, number, ::group-off}\u00a0porcja} few {{all, number, ::group-off}\u00a0porcje} many {{all, number, ::group-off}\u00a0porcji} other {{all, number, ::group-off}\u00a0porcji}}, z\u00a0tego Ty {mine, number, ::group-off}, {name} {theirs, number, ::group-off}.",
     "title": "Szczegóły przepisu",
     "close": "Zamknij",
     "openPage": "Otwórz oryginalny przepis",
@@ -2911,6 +2914,7 @@
     "rejectConfirm": "Nie przyjmuj, z tym powodem"
   },
   "split": {
+    "portionOfWho": "{who}: {when}",
     "title": "Podziel ugotowane",
     "open": "Podziel ugotowane…",
     "planIntro": "Udział każdej porcji wynika z\u00a0jej kalorii w\u00a0planie.",

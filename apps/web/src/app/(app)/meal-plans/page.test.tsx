@@ -3464,6 +3464,35 @@ describe('the plan page, on a plan made together with another profile', () => {
     );
   });
 
+  it('says how a shared meal is cooked when the box is ticked', async () => {
+    const plan = together();
+    await open(plan);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(plan as never);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: messages.mealPlans.cookApart }));
+
+    expect(patch).toHaveBeenCalledWith(`/meal-plans/${plan.id}/shared-meals/${SHARED}`, {
+      apart: true,
+    });
+  });
+
+  it('opens the recipe of a shared dish with what the pot takes and the portions in it', async () => {
+    const plan = together();
+    await open(plan);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Oat porridge' }));
+
+    const window = within(await screen.findByRole('dialog', { name: messages.recipeModal.title }));
+    expect(
+      await window.findByText(
+        spaced(
+          'The original gives amounts for 1 serving. Below are the amounts for the whole pot, 2.1 servings: you 1, Ewa 1.1.',
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(window.getByText(spaced('125 g'))).toBeInTheDocument();
+  });
+
   it('says which times of day were planned apart, and why', async () => {
     await open({
       ...together(),

@@ -468,6 +468,16 @@ function MealPlansContent() {
     onError: fail(t('errRemoveMeal')),
   });
 
+  // How a meal both people share is cooked: the same in both plans.
+  const setApart = useMutation({
+    mutationFn: (v: { planId: string; sharedMealId: string; apart: boolean }) =>
+      api.patch<MealPlan>(`/meal-plans/${v.planId}/shared-meals/${v.sharedMealId}`, {
+        apart: v.apart,
+      }),
+    onSuccess: (_plan, v) => void invalidateEdited(v.planId),
+    onError: fail(t('errCookApart')),
+  });
+
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
@@ -519,6 +529,7 @@ function MealPlansContent() {
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
     removeMeal.isPending ||
+    setApart.isPending ||
     rebalance.isPending ||
     remove.isPending;
 
@@ -1014,6 +1025,11 @@ function MealPlansContent() {
                 setError(null);
                 removeMeal.mutate({ planId: plan.id, mealId });
               }}
+              onSetApart={(sharedMealId, apart) => {
+                setError(null);
+                setApart.mutate({ planId: plan.id, sharedMealId, apart });
+              }}
+              profileName={active?.name ?? ''}
               onSpread={(date) => {
                 setError(null);
                 setNotice(null);

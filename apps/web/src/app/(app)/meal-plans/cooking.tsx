@@ -64,6 +64,38 @@ export function toCook(plan: MealPlan, meal: PlannedMeal) {
   };
 }
 
+/** The portions of a dish the two people of a joint plan cook in one pot: this plan's, and the other's by their name. */
+export interface PotPortions {
+  mine: number;
+  name: string;
+  theirs: number;
+}
+
+/**
+ * What a meal the two people of a joint plan cook in one pot is opened with:
+ * what the pot takes, both portions together, of both cookings where the dish
+ * is cooked ahead. Nothing for any other meal, and for one cooked apart.
+ */
+export function toCookTogether(
+  plan: MealPlan,
+  meal: PlannedMeal,
+):
+  | { amounts: PlannedMeal['ingredients']; portion: MealPortion; pot: PotPortions }
+  | Record<string, never> {
+  if (!meal.shared || meal.shared.apart) return {};
+  const cooked =
+    meal.cookAhead === 'cook' && meal.cooking
+      ? mealsOfCooking(plan, meal).map((one) => one.meal)
+      : [meal];
+  const mine = cooked.reduce((sum, one) => sum + servingsOf(one), 0);
+  const theirs = cooked.reduce((sum, one) => sum + (one.shared?.with.servings ?? 0), 0);
+  return {
+    amounts: meal.shared.pot,
+    portion: { servings: shown(mine + theirs), whole: true },
+    pot: { mine: shown(mine), name: meal.shared.with.profileName, theirs: shown(theirs) },
+  };
+}
+
 /** The meals one cooking is eaten at, in the plan's order, with their days: what a dish cooked ahead is split into. None for a meal that is not cooked ahead. */
 export function mealsOfCooking(
   plan: MealPlan,

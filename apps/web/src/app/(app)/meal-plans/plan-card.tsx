@@ -32,7 +32,15 @@ import { IngredientSubstituteModal } from '@/components/ingredient-substitute-mo
 import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import type { SplitPortion } from '@/components/split-calculator';
-import { CookingNote, mealsOfCooking, toCook, useCookingWords, type MealPortion } from './cooking';
+import {
+  CookingNote,
+  mealsOfCooking,
+  toCook,
+  toCookTogether,
+  useCookingWords,
+  type MealPortion,
+  type PotPortions,
+} from './cooking';
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
@@ -152,6 +160,8 @@ export function PlanCard({
   onIngredientSwapped,
   onAddCustomMeal,
   onRemoveMeal,
+  onSetApart,
+  profileName,
   onSpread,
   onResizeDay,
   onSwapped,
@@ -197,6 +207,10 @@ export function PlanCard({
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
   /** Take a meal off its day. */
   onRemoveMeal: (mealId: string) => void;
+  /** Say how a shared meal is cooked: each portion apart, or in one pot. */
+  onSetApart: (sharedMealId: string, apart: boolean) => void;
+  /** The name of the profile whose plan this is: what a portion of a shared pot is called beside the other's. */
+  profileName: string;
   /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
   onSpread: (date: string) => void;
   /** Bring the day of `date` back to its target with its own meals, the diary's entries counted as eaten. */
@@ -229,6 +243,7 @@ export function PlanCard({
     picked: PlannedMealView['modelPick'];
     portion: MealPortion;
     label: PlannedMealView['label'];
+    pot?: PotPortions;
   } | null>(null);
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
@@ -677,6 +692,8 @@ export function PlanCard({
                                     picked: m.modelPick,
                                     label: m.label,
                                     ...toCook(plan, m),
+                                    // A dish both cook in one pot is opened with what the pot takes.
+                                    ...toCookTogether(plan, m),
                                   })
                                 }
                                 className="text-left font-medium text-primary wrap-anywhere hover:underline"
@@ -1095,9 +1112,20 @@ export function PlanCard({
                             })}
                             {m.shared.with.eaten && `${DOT}${t('sharedEaten')}`}
                           </span>
+                          {/* Cooked apart, each portion is its own; in one pot the pot is split by weight, as near as a split comes. */}
+                          <label className="-my-2 inline-flex items-center gap-1.5 py-2">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={m.shared.apart}
+                              disabled={busy}
+                              onChange={() => onSetApart(m.shared!.id, !m.shared!.apart)}
+                            />
+                            {t('cookApart')}
+                          </label>
                         </div>
                       )}
-                      {m.cookAhead === 'cook' && m.cooking && (
+                      {((m.cookAhead === 'cook' && m.cooking) || (m.shared && !m.shared.apart)) && (
                         <div className="ml-6">
                           <Button
                             type="button"
@@ -1106,14 +1134,38 @@ export function PlanCard({
                             className="-ml-3"
                             onClick={() =>
                               setSplitting(
-                                mealsOfCooking(plan, m).map((one) => ({
-                                  key: one.meal.id,
-                                  label: tSplit('portionOf', {
+                                (m.cookAhead === 'cook' && m.cooking
+                                  ? mealsOfCooking(plan, m)
+                                  : [{ meal: m, date: day.date }]
+                                ).flatMap((one) => {
+                                  const when = tSplit('portionOf', {
                                     day: upper(fmt.weekday(one.date, 'long')),
                                     meal: mealName(one.meal.mealType).toLocaleLowerCase(locale),
-                                  }),
-                                  kcal: one.meal.nutrition.calories,
-                                })),
+                                  });
+                                  const together = one.meal.shared && !one.meal.shared.apart;
+                                  // A pot both cook holds the other person's portion of each meal as well.
+                                  return [
+                                    {
+                                      key: one.meal.id,
+                                      label: together
+                                        ? tSplit('portionOfWho', { who: profileName, when })
+                                        : when,
+                                      kcal: one.meal.nutrition.calories,
+                                    },
+                                    ...(together
+                                      ? [
+                                          {
+                                            key: one.meal.shared!.with.mealId,
+                                            label: tSplit('portionOfWho', {
+                                              who: one.meal.shared!.with.profileName,
+                                              when,
+                                            }),
+                                            kcal: one.meal.shared!.with.calories,
+                                          },
+                                        ]
+                                      : []),
+                                  ];
+                                }),
                               )
                             }
                           >
@@ -1528,6 +1580,7 @@ export function PlanCard({
           amounts={openRecipe.amounts}
           picked={openRecipe.picked ?? null}
           portion={openRecipe.portion}
+          pot={openRecipe.pot}
           label={openRecipe.label}
           onClose={() => setOpenRecipe(null)}
         />

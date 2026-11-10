@@ -1461,9 +1461,11 @@
     "sharedChip": "Shared",
     "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
     "sharedEaten": "eaten",
+    "cookApart": "Cook apart",
     "eatenTogether": "Eaten by both",
     "jointWith": "Planned together with: {name}",
     "jointApart": "Planned apart, as no dish suits both: {meals}.",
+    "errCookApart": "Could not change how the meal is cooked.",
     "deleteJointNote": "The other plan ({name}) stays as a plan of its own, without shared meals.",
     "jointPlanWith": "Plan together with",
     "jointPlanNone": "Nobody",
@@ -2388,6 +2390,7 @@
     "errAct": "The decision could not be saved."
   },
   "recipeModal": {
+    "portionPot": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}. Below are the amounts for the whole pot, {all, plural, one {{all, number, ::group-off}\u00a0serving} other {{all, number, ::group-off}\u00a0servings}}: you {mine, number, ::group-off}, {name} {theirs, number, ::group-off}.",
     "title": "Recipe details",
     "close": "Close",
     "openPage": "Open original recipe",
@@ -2911,6 +2914,7 @@
     "rejectConfirm": "Do not accept, with this reason"
   },
   "split": {
+    "portionOfWho": "{who}: {when}",
     "title": "Split what you cooked",
     "open": "Split what you cooked…",
     "planIntro": "Each portion's share comes from its calories in the plan.",

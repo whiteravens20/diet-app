@@ -26,6 +26,7 @@ export function RecipeModal({
   amounts,
   picked = null,
   portion,
+  pot,
   label,
   onClose,
 }: {
@@ -37,6 +38,8 @@ export function RecipeModal({
   picked?: { reason: string | null } | null;
   /** How many servings those lines come to, and whether they are for the whole of a cooking. */
   portion?: { servings: number; whole: boolean };
+  /** Of a dish two people cook in one pot: the lines are the pot's, and these are the portions in it. */
+  pot?: { mine: number; name: string; theirs: number };
   /** Fibre, sugars, salt and saturated fat of the planned meal the modal was opened from. */
   label?: LabelTotals;
   onClose: () => void;
@@ -107,10 +110,18 @@ export function RecipeModal({
         )}
         {recipe.data && portion && (
           <p className="mb-4 text-sm text-muted-foreground">
-            {t(portion.whole ? 'portionWhole' : 'portionMeal', {
-              recipe: recipe.data.servings,
-              mine: portion.servings,
-            })}
+            {pot
+              ? t('portionPot', {
+                  recipe: recipe.data.servings,
+                  all: portion.servings,
+                  mine: pot.mine,
+                  name: pot.name,
+                  theirs: pot.theirs,
+                })
+              : t(portion.whole ? 'portionWhole' : 'portionMeal', {
+                  recipe: recipe.data.servings,
+                  mine: portion.servings,
+                })}
           </p>
         )}
         {recipe.data && (
