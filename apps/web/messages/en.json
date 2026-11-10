@@ -1560,6 +1560,11 @@
     "dropLockAndRetry": "Drop that lock and try again",
     "includePastAndRetry": "Make the days that have passed again too",
     "reroll": {
+      "forWhom": "For whom",
+      "forAll": "For both: you and {name}",
+      "forMe": "For me only",
+      "forAllHint": "The same days of the other person's plan are made again too, with the same dishes shared.",
+      "forMeHint": "Shared meals of these days stop being shared; eaten ones stay.",
       "title": "Make the plan again",
       "scope": "What gets other meals",
       "whole": "The whole plan",

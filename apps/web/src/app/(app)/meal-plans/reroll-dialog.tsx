@@ -157,6 +157,8 @@ function RerollForm({
   const [replaceCustom, setReplaceCustom] = useState(false);
   const [holdLimits, setHoldLimits] = useState(start.holdLimits ?? false);
   const [only, setOnly] = useState(false);
+  // A joint plan is made again for both, unless the user says for this plan alone.
+  const [forAll, setForAll] = useState(true);
   // Only the whole plan made again can change it: days of it filled again are made as the plan is.
   const [lessWaste, setLessWaste] = useState(plan.options.lessWaste);
   const wholeDiet = plan.options.dietType ?? profileDiet;
@@ -246,6 +248,7 @@ function RerollForm({
           ...(holdLimits && mayGiveWay.length > 0 ? { allowRelaxations: [] } : {}),
           ...(!only && shown.cooking?.changes.length ? { together: true } : {}),
           ...(scope === 'whole' && lessWaste !== plan.options.lessWaste ? { lessWaste } : {}),
+          ...(plan.joint && forAll ? { forAll: true } : {}),
         });
         onClose();
       }}
@@ -367,6 +370,24 @@ function RerollForm({
               {t('replaceCustom')}
             </label>
           )}
+        </fieldset>
+      )}
+      {plan.joint && (
+        <fieldset className="space-y-1">
+          <legend className="font-medium">{t('forWhom')}</legend>
+          {[true, false].map((both) => (
+            <label key={String(both)} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="reroll-for"
+                className="h-4 w-4"
+                checked={forAll === both}
+                onChange={() => setForAll(both)}
+              />
+              {both ? t('forAll', { name: plan.joint!.profileName }) : t('forMe')}
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground">{t(forAll ? 'forAllHint' : 'forMeHint')}</p>
         </fieldset>
       )}
       {mayGiveWay.length > 0 && (

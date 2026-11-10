@@ -17,6 +17,8 @@ export interface Reroll {
   allowRelaxations?: PlanRelaxation[];
   /** The other meals of each cooking change with the days filled again. */
   together?: boolean;
+  /** Of a joint plan: the other plan's same days are filled again too, their shared times one dish again. */
+  forAll?: boolean;
   /** Whether the whole plan made again wastes less; left out, as the plan has it. */
   lessWaste?: boolean;
 }
@@ -32,6 +34,7 @@ export function rerollBody(v: Reroll): Record<string, unknown> | undefined {
     ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}),
     ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}),
     ...(v.together ? { together: true } : {}),
+    ...(v.forAll ? { forAll: true } : {}),
     ...(v.lessWaste !== undefined ? { lessWaste: v.lessWaste } : {}),
   };
   return Object.keys(body).length > 0 ? body : undefined;

@@ -1560,6 +1560,11 @@
     "dropLockAndRetry": "Usuń to przypięcie i spróbuj ponownie",
     "includePastAndRetry": "Ułóż ponownie także dni, które już minęły",
     "reroll": {
+      "forWhom": "Dla kogo",
+      "forAll": "Dla obu osób: Ty i\u00a0{name}",
+      "forMe": "Tylko dla mnie",
+      "forAllHint": "Te same dni w\u00a0planie drugiej osoby też powstaną od nowa, z\u00a0tymi samymi wspólnymi daniami.",
+      "forMeHint": "Wspólne posiłki tych dni przestaną być wspólne; zjedzone zostają.",
       "title": "Ułóż plan ponownie",
       "scope": "Co ułożyć ponownie",
       "whole": "Cały plan",

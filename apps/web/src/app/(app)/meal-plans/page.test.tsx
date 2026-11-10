@@ -3543,6 +3543,22 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(window.getByText(spaced('125 g'))).toBeInTheDocument();
   });
 
+  it('makes the plan again for both unless the window is turned to this plan alone', async () => {
+    const plan = together();
+    await open(plan);
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
+    const dialog = await rerollWindow();
+    expect(dialog.getByRole('radio', { name: 'For both: you and Ewa' })).toBeChecked();
+    await recalculate(dialog);
+
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, { forAll: true }]]);
+  });
+
   it('says which times of day were planned apart, and why', async () => {
     await open({
       ...together(),
