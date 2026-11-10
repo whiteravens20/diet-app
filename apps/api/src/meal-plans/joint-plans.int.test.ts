@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -169,6 +169,25 @@ describe('a plan made together with another profile of the account', () => {
     expect(
       ewas.days.flatMap((day) => day.meals).every((meal) => meal.restrictionConflicts.length === 0),
     ).toBe(true);
+  });
+
+  it('no longer shares a meal given another dish in one plan alone, in either plan', async () => {
+    const adams = await together();
+    const lunch = at(adams, 0, 'lunch')!;
+
+    const swapped = await aSwap(t, user, {
+      planId: adams.id,
+      plannedMealId: lunch.id,
+      strategy: 'random',
+    });
+
+    const ewas = await read(adams.joint!.planId);
+    expect(at(swapped.plan, 0, 'lunch')!.shared).toBeNull();
+    expect(at(ewas, 0, 'lunch')!.shared).toBeNull();
+    expect(await t.prisma.sharedMeal.count({ where: { id: lunch.shared!.id } })).toBe(0);
+    // The others stay shared.
+    expect(at(swapped.plan, 0, 'dinner')!.shared).not.toBeNull();
+    expect(at(ewas, 0, 'dinner')!.shared).not.toBeNull();
   });
 
   it('is listed with the plan it was made with', async () => {

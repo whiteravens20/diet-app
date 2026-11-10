@@ -31,6 +31,32 @@ export function writePlan<T>(
         message: 'The plan changed while this request was running. Reload it and try again.',
       });
     }
-    return write(tx);
+    const written = await write(tx);
+    await unlinkDiverged(tx, planId);
+    return written;
   });
+}
+
+/**
+ * Undo each shared meal of the plan's joint plan whose two meals no longer
+ * hold one dish at its day and time of day: a meal given another dish in one
+ * plan alone, given a meal of one's own, or taken off its day. What is left of
+ * it is a meal of its own plan (the link is set null with the row). Nothing
+ * for a plan of one person.
+ */
+async function unlinkDiverged(tx: Prisma.TransactionClient, planId: string): Promise<void> {
+  await tx.$executeRaw`
+    DELETE FROM "SharedMeal" AS shared
+    WHERE shared."jointPlanId" = (SELECT "jointPlanId" FROM "MealPlan" WHERE "id" = ${planId})
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "PlannedMeal" AS meal
+        JOIN "MealPlanDay" AS day ON day."id" = meal."dayId"
+        WHERE meal."sharedMealId" = shared."id"
+          AND meal."recipeId" IS NOT NULL
+          AND meal."mealType" = shared."mealType"
+          AND day."date" = shared."date"
+        GROUP BY meal."sharedMealId"
+        HAVING COUNT(*) = 2 AND COUNT(DISTINCT meal."recipeId") = 1
+      )`;
 }
