@@ -96,6 +96,8 @@ export interface SwapAsk {
   strategy: 'random' | 'favorite' | 'favorite_ingredients' | 'ai';
   favoriteRecipeId?: string;
   allowOffDiet?: boolean;
+  /** Of a shared meal: the dish for both people, held to what both may be given. */
+  forAll?: boolean;
 }
 
 /** What comes back when a recipe is asked for in the place of a meal. A model that was asked leaves `aiMeta`, and the note of its pick when the pick is its own. */
@@ -160,6 +162,7 @@ export function PlanCard({
   onIngredientSwapped,
   onAddCustomMeal,
   onRemoveMeal,
+  onOfferFor,
   onSetApart,
   profileName,
   onSpread,
@@ -207,6 +210,8 @@ export function PlanCard({
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
   /** Take a meal off its day. */
   onRemoveMeal: (mealId: string) => void;
+  /** Ask the offer for a shared meal again, for both people or for this one alone. */
+  onOfferFor: (forAll: boolean) => void;
   /** Say how a shared meal is cooked: each portion apart, or in one pot. */
   onSetApart: (sharedMealId: string, apart: boolean) => void;
   /** The name of the profile whose plan this is: what a portion of a shared pot is called beside the other's. */
@@ -948,6 +953,30 @@ export function PlanCard({
                           role="group"
                           aria-label={t('offerTitle')}
                         >
+                          {/* A dish for both is held to what both may be given; for oneself alone the meal stops being shared that day. */}
+                          {m.shared && (
+                            <fieldset className="flex flex-wrap gap-x-4 gap-y-1">
+                              <legend className="sr-only">{t('offerForWhom')}</legend>
+                              {[true, false].map((forAll) => (
+                                <label
+                                  key={String(forAll)}
+                                  className="inline-flex items-center gap-1.5"
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`${m.id}-for`}
+                                    className="h-4 w-4"
+                                    checked={(offer.asked.forAll ?? false) === forAll}
+                                    disabled={busy}
+                                    onChange={() => onOfferFor(forAll)}
+                                  />
+                                  {forAll
+                                    ? t('offerForAll', { name: m.shared!.with.profileName })
+                                    : t('offerForMe')}
+                                </label>
+                              ))}
+                            </fieldset>
+                          )}
                           {/* A model's own pick says so, with its reason, before it is taken. */}
                           {offer.preview.pick && (
                             <AiMark

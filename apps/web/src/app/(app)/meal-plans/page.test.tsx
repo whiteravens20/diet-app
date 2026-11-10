@@ -3476,6 +3476,41 @@ describe('the plan page, on a plan made together with another profile', () => {
     });
   });
 
+  it('asks another dish for both, and for this one alone when the offer is turned to it', async () => {
+    const plan = together();
+    await open(plan);
+    const offered = {
+      recipe: {
+        ...plan.days[0]!.meals[0]!.recipe!,
+        id: '66666666-6666-4666-8666-666666666666',
+        title: 'Tofu scramble',
+      },
+      servings: 1,
+      before: plan.days[0]!.meals[0]!.nutrition,
+      after: plan.days[0]!.meals[0]!.nutrition,
+      dayAfter: plan.days[0]!.dayNutrition,
+      calorieTarget: 2000,
+      targetMacros: plan.days[0]!.targetMacros,
+      cooking: null,
+      outsideLimits: [],
+      revision: 0,
+    };
+    const post = vi.spyOn(api, 'post').mockResolvedValue(offered as never);
+
+    await unfoldMeal();
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
+    await screen.findByRole('group', { name: messages.mealPlans.offerTitle });
+    expect(post.mock.calls[0]![1]).toMatchObject({ forAll: true });
+
+    await userEvent.click(screen.getByRole('radio', { name: messages.mealPlans.offerForMe }));
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post.mock.calls[1]![1]).not.toHaveProperty('forAll');
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
+
+    expect(post.mock.calls[2]![0]).toBe('/meal-plans/swap-meal');
+    expect(post.mock.calls[2]![1]).not.toHaveProperty('forAll');
+  });
+
   it('opens the recipe of a shared dish with what the pot takes and the portions in it', async () => {
     const plan = together();
     await open(plan);

@@ -391,6 +391,7 @@ function MealPlansContent() {
             plannedMealId: v.plannedMealId,
             respectInventory: swapWithPantry,
             skip: v.seen,
+            ...(v.forAll ? { forAll: true } : {}),
           })
         : api.post<Offered>('/meal-plans/swap-meal/preview', {
             planId: v.planId,
@@ -400,6 +401,7 @@ function MealPlansContent() {
             allowOffDiet: v.allowOffDiet ?? false,
             ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
             skip: v.seen,
+            ...(v.forAll ? { forAll: true } : {}),
           }),
     onSuccess: (preview, { seen, ...asked }) => {
       setOffer({ asked, preview, seen: [...seen, preview.recipe.id] });
@@ -425,6 +427,7 @@ function MealPlansContent() {
         strategy: asked.strategy === 'ai' ? 'random' : asked.strategy,
         allowOffDiet: asked.allowOffDiet ?? false,
         ...(together ? { together: true } : {}),
+        ...(asked.forAll ? { forAll: true } : {}),
         // The note that came with a model's own pick: the meal then says who chose its recipe.
         ...(preview.pick ? { pick: preview.pick } : {}),
       }),
@@ -441,7 +444,13 @@ function MealPlansContent() {
   const askFor = (asked: SwapAsk, seen: string[] = []) => {
     setError(null);
     if (asked.strategy === 'ai') setNotice(null);
-    offerSwap.mutate({ ...asked, seen });
+    // A meal both people share is changed for both unless the user says otherwise in the offer.
+    const shared =
+      opened.data?.id === asked.planId &&
+      opened.data.days.some((day) =>
+        day.meals.some((meal) => meal.id === asked.plannedMealId && meal.shared !== null),
+      );
+    offerSwap.mutate({ forAll: shared, ...asked, seen });
   };
 
   const addCustomMeal = useMutation({
@@ -1025,6 +1034,7 @@ function MealPlansContent() {
                 setError(null);
                 removeMeal.mutate({ planId: plan.id, mealId });
               }}
+              onOfferFor={(forAll) => offer && askFor({ ...offer.asked, forAll })}
               onSetApart={(sharedMealId, apart) => {
                 setError(null);
                 setApart.mutate({ planId: plan.id, sharedMealId, apart });
