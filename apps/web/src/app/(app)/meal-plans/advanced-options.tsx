@@ -111,6 +111,7 @@ export function AdvancedOptions({
   defaultMaxRepeats,
   value,
   onChange,
+  withoutDays = false,
 }: {
   dates: string[];
   defaultMealCount: number;
@@ -121,6 +122,8 @@ export function AdvancedOptions({
   defaultMaxRepeats: number | null;
   value: AdvancedValue;
   onChange: (next: AdvancedValue) => void;
+  /** A joint plan is made without settings of its days: each person changes their own days in their plan after. */
+  withoutDays?: boolean;
 }) {
   const t = useTranslations('mealPlans.advanced');
   const tLimit = useTranslations('mealPlans.limit');
@@ -139,18 +142,23 @@ export function AdvancedOptions({
         {t('toggle')}
       </summary>
       <div className="space-y-4 border-t border-border px-4 py-3">
-        <p className="text-xs text-muted-foreground">{t('hint')}</p>
+        {/* Without settings of its days, the form says where they are changed, and explains only what it holds. */}
+        <p className="text-xs text-muted-foreground">{t(withoutDays ? 'perDayJoint' : 'hint')}</p>
 
         <div className="rounded-md bg-muted/40 px-3 py-2">
           <p className="text-xs font-medium">{t('legendTitle')}</p>
           <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-            <li>{t('legendDayKind')}</li>
-            <li>{t('legendMeals')}</li>
-            <li>{t('legendCalories')}</li>
-            <li>{t('legendCookTime')}</li>
-            <li>{t('legendUseUpBy')}</li>
-            <li>{t('legendSet')}</li>
-            <li>{t('legendLock')}</li>
+            {!withoutDays && (
+              <>
+                <li>{t('legendDayKind')}</li>
+                <li>{t('legendMeals')}</li>
+                <li>{t('legendCalories')}</li>
+                <li>{t('legendCookTime')}</li>
+                <li>{t('legendUseUpBy')}</li>
+                <li>{t('legendSet')}</li>
+                <li>{t('legendLock')}</li>
+              </>
+            )}
             <li>{t('legendVariety', { most })}</li>
           </ul>
         </div>
@@ -211,173 +219,175 @@ export function AdvancedOptions({
           <p className="mt-1 text-xs text-muted-foreground">{t('mayGiveWayHint')}</p>
         </fieldset>
 
-        <fieldset>
-          <legend className="mb-2 text-sm font-medium">{t('perDay')}</legend>
-          <div className="space-y-2">
-            {dates.map((date) => {
-              const d = value.days[date] ?? {};
-              const mealCount = d.mealCount ?? defaultMealCount;
-              const slots = MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
-              const skipped = d.dayKind === 'skip';
-              const lockFavorites = d.lockSlot
-                ? favorites.filter((f) => f.mealTypes.includes(d.lockSlot!))
-                : [];
-              return (
-                <div
-                  key={date}
-                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm"
-                >
-                  <span className="w-24 shrink-0 text-xs text-muted-foreground">
-                    {fmt.day(date)}
-                  </span>
-
-                  {/* Day kind (normal / rest / refeed / skip) */}
-                  <select
-                    aria-label={t('dayKind')}
-                    className={inputCls}
-                    value={d.dayKind ?? 'normal'}
-                    onChange={(e) =>
-                      patchDay(date, { dayKind: e.target.value as DayDraft['dayKind'] })
-                    }
+        {!withoutDays && (
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium">{t('perDay')}</legend>
+            <div className="space-y-2">
+              {dates.map((date) => {
+                const d = value.days[date] ?? {};
+                const mealCount = d.mealCount ?? defaultMealCount;
+                const slots = MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
+                const skipped = d.dayKind === 'skip';
+                const lockFavorites = d.lockSlot
+                  ? favorites.filter((f) => f.mealTypes.includes(d.lockSlot!))
+                  : [];
+                return (
+                  <div
+                    key={date}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm"
                   >
-                    {KINDS.map((k) => (
-                      <option key={k} value={k}>
-                        {t(`kind${k[0]!.toUpperCase()}${k.slice(1)}` as never)}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="w-24 shrink-0 text-xs text-muted-foreground">
+                      {fmt.day(date)}
+                    </span>
 
-                  {/* Everything else is meaningless on a skipped day. */}
-                  {!skipped && (
-                    <>
-                      <select
-                        aria-label={t('mealCount')}
-                        className={inputCls}
-                        value={d.mealCount ?? ''}
-                        onChange={(e) =>
-                          patchDay(date, {
-                            mealCount: e.target.value ? Number(e.target.value) : undefined,
-                            lockSlot: undefined,
-                            lockRecipeId: undefined,
-                          })
-                        }
-                      >
-                        <option value="">{`${t('mealCount')}: ${t('useDefault')}`}</option>
-                        {[2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {`${t('mealCount')}: ${n}`}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Day kind (normal / rest / refeed / skip) */}
+                    <select
+                      aria-label={t('dayKind')}
+                      className={inputCls}
+                      value={d.dayKind ?? 'normal'}
+                      onChange={(e) =>
+                        patchDay(date, { dayKind: e.target.value as DayDraft['dayKind'] })
+                      }
+                    >
+                      {KINDS.map((k) => (
+                        <option key={k} value={k}>
+                          {t(`kind${k[0]!.toUpperCase()}${k.slice(1)}` as never)}
+                        </option>
+                      ))}
+                    </select>
 
-                      <input
-                        type="number"
-                        min={800}
-                        max={6000}
-                        placeholder={t('calories')}
-                        aria-label={t('calories')}
-                        className={`${inputCls} w-24`}
-                        value={d.calorieTarget ?? ''}
-                        onChange={(e) =>
-                          patchDay(date, {
-                            calorieTarget: e.target.value ? Number(e.target.value) : undefined,
-                          })
-                        }
-                      />
-
-                      <input
-                        type="number"
-                        min={0}
-                        max={600}
-                        placeholder={t('cookTime')}
-                        aria-label={t('cookTime')}
-                        className={`${inputCls} w-28`}
-                        value={d.cookTimeBudgetMinutes ?? ''}
-                        onChange={(e) =>
-                          patchDay(date, {
-                            cookTimeBudgetMinutes: e.target.value
-                              ? Number(e.target.value)
-                              : undefined,
-                          })
-                        }
-                      />
-
-                      <label className="flex items-center gap-1 text-xs">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={d.useUpBy ?? false}
-                          onChange={(e) => patchDay(date, { useUpBy: e.target.checked })}
-                        />
-                        {t('useUpBy')}
-                      </label>
-
-                      {/* Fill the day from a favourite set. Offered when there is one. */}
-                      {sets.length > 0 && (
+                    {/* Everything else is meaningless on a skipped day. */}
+                    {!skipped && (
+                      <>
                         <select
-                          aria-label={t('favoriteSet')}
+                          aria-label={t('mealCount')}
                           className={inputCls}
-                          value={d.setId ?? ''}
-                          onChange={(e) => patchDay(date, { setId: e.target.value || undefined })}
+                          value={d.mealCount ?? ''}
+                          onChange={(e) =>
+                            patchDay(date, {
+                              mealCount: e.target.value ? Number(e.target.value) : undefined,
+                              lockSlot: undefined,
+                              lockRecipeId: undefined,
+                            })
+                          }
                         >
-                          <option value="">{`${t('favoriteSet')}: ${t('favoriteSetNone')}`}</option>
-                          {sets.map((set) => (
-                            <option key={set.id} value={set.id}>
-                              {`${t('favoriteSet')}: ${set.label}`}
+                          <option value="">{`${t('mealCount')}: ${t('useDefault')}`}</option>
+                          {[2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>
+                              {`${t('mealCount')}: ${n}`}
                             </option>
                           ))}
                         </select>
-                      )}
 
-                      {/* Lock a recipe to a slot */}
-                      <select
-                        aria-label={t('lockSlot')}
-                        className={inputCls}
-                        value={d.lockSlot ?? ''}
-                        onChange={(e) =>
-                          patchDay(date, {
-                            lockSlot: (e.target.value || undefined) as MealType | undefined,
-                            lockRecipeId: undefined,
-                          })
-                        }
-                      >
-                        <option value="">{`${t('lockSlot')}: ${t('lockNone')}`}</option>
-                        {slots.map((s) => (
-                          <option key={s} value={s}>
-                            {tMeal(s)}
-                          </option>
-                        ))}
-                      </select>
+                        <input
+                          type="number"
+                          min={800}
+                          max={6000}
+                          placeholder={t('calories')}
+                          aria-label={t('calories')}
+                          className={`${inputCls} w-24`}
+                          value={d.calorieTarget ?? ''}
+                          onChange={(e) =>
+                            patchDay(date, {
+                              calorieTarget: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                        />
 
-                      {d.lockSlot &&
-                        (lockFavorites.length > 0 ? (
+                        <input
+                          type="number"
+                          min={0}
+                          max={600}
+                          placeholder={t('cookTime')}
+                          aria-label={t('cookTime')}
+                          className={`${inputCls} w-28`}
+                          value={d.cookTimeBudgetMinutes ?? ''}
+                          onChange={(e) =>
+                            patchDay(date, {
+                              cookTimeBudgetMinutes: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                        />
+
+                        <label className="flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={d.useUpBy ?? false}
+                            onChange={(e) => patchDay(date, { useUpBy: e.target.checked })}
+                          />
+                          {t('useUpBy')}
+                        </label>
+
+                        {/* Fill the day from a favourite set. Offered when there is one. */}
+                        {sets.length > 0 && (
                           <select
-                            aria-label={t('lockRecipe')}
+                            aria-label={t('favoriteSet')}
                             className={inputCls}
-                            value={d.lockRecipeId ?? ''}
-                            onChange={(e) =>
-                              patchDay(date, { lockRecipeId: e.target.value || undefined })
-                            }
+                            value={d.setId ?? ''}
+                            onChange={(e) => patchDay(date, { setId: e.target.value || undefined })}
                           >
-                            <option value="">{t('lockRecipePlaceholder')}</option>
-                            {lockFavorites.map((f) => (
-                              <option key={f.id} value={f.id}>
-                                {f.title}
+                            <option value="">{`${t('favoriteSet')}: ${t('favoriteSetNone')}`}</option>
+                            {sets.map((set) => (
+                              <option key={set.id} value={set.id}>
+                                {`${t('favoriteSet')}: ${set.label}`}
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {t('noFavoritesForLock')}
-                          </span>
-                        ))}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </fieldset>
+                        )}
+
+                        {/* Lock a recipe to a slot */}
+                        <select
+                          aria-label={t('lockSlot')}
+                          className={inputCls}
+                          value={d.lockSlot ?? ''}
+                          onChange={(e) =>
+                            patchDay(date, {
+                              lockSlot: (e.target.value || undefined) as MealType | undefined,
+                              lockRecipeId: undefined,
+                            })
+                          }
+                        >
+                          <option value="">{`${t('lockSlot')}: ${t('lockNone')}`}</option>
+                          {slots.map((s) => (
+                            <option key={s} value={s}>
+                              {tMeal(s)}
+                            </option>
+                          ))}
+                        </select>
+
+                        {d.lockSlot &&
+                          (lockFavorites.length > 0 ? (
+                            <select
+                              aria-label={t('lockRecipe')}
+                              className={inputCls}
+                              value={d.lockRecipeId ?? ''}
+                              onChange={(e) =>
+                                patchDay(date, { lockRecipeId: e.target.value || undefined })
+                              }
+                            >
+                              <option value="">{t('lockRecipePlaceholder')}</option>
+                              {lockFavorites.map((f) => (
+                                <option key={f.id} value={f.id}>
+                                  {f.title}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {t('noFavoritesForLock')}
+                            </span>
+                          ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
       </div>
     </details>
   );

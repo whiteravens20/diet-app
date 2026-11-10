@@ -1458,6 +1458,12 @@
     }
   },
   "mealPlans": {
+    "jointWith": "Planned together with: {name}",
+    "jointApart": "Planned apart, as no dish suits both: {meals}.",
+    "deleteJointNote": "The other plan ({name}) stays as a plan of its own, without shared meals.",
+    "jointPlanWith": "Plan together with",
+    "jointPlanNone": "Nobody",
+    "jointPlanHint": "Each person gets a plan of their own on the same days. At the times of day both have, both plans hold the same dish, a portion for each. The other person's diet, meals a day and target come from their profile.",
     "splitLink": "<link>Splitting a dish</link>: split a cooked dish into portions, by weight or in pieces.",
     "title": "Meal plans",
     "subhead": "Plans that hit your calorie target — made for each profile on its own.",
@@ -1662,6 +1668,7 @@
     "rebalanceUndo": "Undo last rebalance",
     "rebalanceDismiss": "Dismiss",
     "advanced": {
+      "perDayJoint": "Change the settings of days after the plan is made, in each person's plan.",
       "toggle": "Show advanced options",
       "hint": "Shape each day individually. Untouched days follow the plan defaults.",
       "legendTitle": "What these do",

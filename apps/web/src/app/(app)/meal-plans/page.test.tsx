@@ -212,6 +212,9 @@ const daysOnTheCalendar = (plan: MealPlan): PlanCalendarDay[] =>
 /** The favourite sets the profile has, for the tests that are about them. */
 let favoriteSets: FavoriteSet[] = [];
 
+/** The account's other profiles, for the tests of a plan made together with one. */
+let otherProfiles: Profile[] = [];
+
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue the API says `supply` of. AI is off for them unless `aiMode` says otherwise. */
 async function renderPage(
   supply: CatalogueSupply = aSupply(),
@@ -233,7 +236,7 @@ async function renderPage(
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/profiles'
-        ? [profile]
+        ? [profile, ...otherProfiles]
         : path === '/users/me'
           ? { aiMode }
           : path.startsWith('/meal-plans?')
@@ -3331,5 +3334,129 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
       expect(await screen.findByText(messages.mealPlans.overlapNote)).toBeVisible();
     });
+  });
+});
+
+describe('the plan page, on a plan made together with another profile', () => {
+  const ewa: Profile = { ...profile, id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', name: 'Ewa' };
+  const SHARED = '12121212-1212-4212-8212-121212121212';
+  const HERS = '13131313-1313-4313-8313-131313131313';
+  /** A plan whose one breakfast Ewa's plan holds too, with her portion. */
+  const together = (
+    over: Partial<MealPlan['days'][number]['meals'][number]['shared']> = {},
+  ): MealPlan => {
+    const plan = aPlan({
+      joint: {
+        planId: '14141414-1414-4414-8414-141414141414',
+        profileId: ewa.id,
+        profileName: 'Ewa',
+      },
+    });
+    const meal = plan.days[0]!.meals[0]!;
+    return {
+      ...plan,
+      days: [
+        {
+          ...plan.days[0]!,
+          meals: [
+            {
+              ...meal,
+              ingredients: meal.recipe!.ingredients.map(
+                ({ ingredientId, name, quantity, unit, display, note }) => ({
+                  ingredientId,
+                  name,
+                  quantity,
+                  unit,
+                  display,
+                  note,
+                }),
+              ),
+              shared: {
+                id: SHARED,
+                apart: false,
+                with: {
+                  mealId: HERS,
+                  planId: '14141414-1414-4414-8414-141414141414',
+                  profileName: 'Ewa',
+                  servings: 1.1,
+                  calories: 540,
+                  eaten: false,
+                },
+                pot: [
+                  {
+                    ingredientId: '55555555-5555-4555-8555-555555555555',
+                    name: 'Rolled oats',
+                    quantity: 126,
+                    unit: 'g',
+                    display: { quantity: 125, unit: 'g' },
+                    note: null,
+                  },
+                ],
+                ...over,
+              },
+            },
+          ],
+        },
+      ],
+    };
+  };
+  const open = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+
+  beforeEach(() => {
+    otherProfiles = [ewa];
+    onTheDay('2026-01-05');
+  });
+  afterEach(() => {
+    otherProfiles = [];
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('is asked for with the other profile chosen, without settings of its days', async () => {
+    const generate = await renderPage(aSupply(), []);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);
+
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: messages.mealPlans.jointPlanWith }),
+      'Ewa',
+    );
+    expect(screen.getByText(messages.mealPlans.advanced.perDayJoint)).toBeInTheDocument();
+    // The options explain only what the form holds: the days are set in each plan afterwards.
+    expect(screen.queryByText(messages.mealPlans.advanced.hint)).not.toBeInTheDocument();
+    expect(screen.queryByText(messages.mealPlans.advanced.legendDayKind)).not.toBeInTheDocument();
+    expect(screen.queryByText(messages.mealPlans.advanced.perDay)).not.toBeInTheDocument();
+    await userEvent.click(generate);
+
+    const [path, body] = post.mock.calls.at(-1)! as [string, Record<string, unknown>];
+    expect(path).toBe('/meal-plans/generate');
+    expect(body).toMatchObject({ profileId: profile.id, withProfileId: ewa.id });
+    expect(body.dayOverrides).toBeUndefined();
+  });
+
+  it('offers no plan together where the account has one profile', async () => {
+    otherProfiles = [];
+    await renderPage(aSupply(), []);
+
+    expect(screen.queryByRole('combobox', { name: messages.mealPlans.jointPlanWith })).toBeNull();
+  });
+
+  it('says whose plan it was made with', async () => {
+    await open(together());
+
+    expect(screen.getByText('Planned together with: Ewa')).toBeInTheDocument();
+  });
+
+  it('says which times of day were planned apart, and why', async () => {
+    await open({
+      ...together(),
+      report: { relaxations: [], singleCandidate: [], pantry: 'empty', apart: ['breakfast'] },
+    });
+
+    expect(
+      screen.getByText('Planned apart, as no dish suits both: breakfast.'),
+    ).toBeInTheDocument();
   });
 });

@@ -1458,6 +1458,12 @@
     }
   },
   "mealPlans": {
+    "jointWith": "Wspólny plan z: {name}",
+    "jointApart": "Osobno, bo żadne danie nie pasuje obu osobom: {meals}.",
+    "deleteJointNote": "Drugi plan ({name}) zostanie zwykłym planem, bez wspólnych posiłków.",
+    "jointPlanWith": "Wspólny plan z",
+    "jointPlanNone": "Z\u00a0nikim",
+    "jointPlanHint": "Każda osoba dostaje swój plan na te same dni. O\u00a0porach, które mają obie osoby, oba plany mają to samo danie, każdy swoją porcję. Druga osoba ma dietę, liczbę posiłków i\u00a0cel ze swojego profilu.",
     "splitLink": "<link>Podział dania</link>: ugotowane danie podzielisz na porcje, zważone albo w\u00a0sztukach.",
     "title": "Plany posiłków",
     "subhead": "Plany dopasowane do celu kalorycznego — układane osobno dla każdego profilu.",
@@ -1662,6 +1668,7 @@
     "rebalanceUndo": "Cofnij ostatnie przeliczenie",
     "rebalanceDismiss": "Zamknij",
     "advanced": {
+      "perDayJoint": "Ustawienia dni zmienisz po utworzeniu, w\u00a0planie każdej osoby.",
       "toggle": "Pokaż opcje zaawansowane",
       "hint": "Dostosuj każdy dzień osobno. Dni, których nie zmienisz, korzystają z ustawień planu.",
       "legendTitle": "Co robią te opcje",

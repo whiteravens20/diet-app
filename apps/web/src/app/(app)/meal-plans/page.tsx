@@ -146,6 +146,8 @@ function MealPlansContent() {
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
   const [cookAhead, setCookAhead] = useState(false);
+  // Another profile of the account the plan is made together with: each gets a plan, the meals at the times both have shared.
+  const [withProfileId, setWithProfileId] = useState('');
   // A plan that wastes less counts the pantry: its box stays ticked while the plan is to waste less.
   const [lessWaste, setLessWaste] = useState(false);
   const [withPantry, setWithPantry] = useState(true);
@@ -526,6 +528,7 @@ function MealPlansContent() {
     const f = new FormData(event.currentTarget);
     const dates = planDates(startDate, durationDays);
     setInTheWay(null);
+    const together = list.find((one) => one.id === withProfileId && one.id !== activeId);
     generate.mutate({
       profileId: activeId,
       startDate,
@@ -540,6 +543,8 @@ function MealPlansContent() {
       respectInventory: withPantry || lessWaste,
       lessWaste,
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
+      // A joint plan is made without settings of its days.
+      ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),
     });
   }
 
@@ -668,6 +673,27 @@ function MealPlansContent() {
                 </p>
               </div>
             </div>
+            {list.length > 1 && (
+              <div className="space-y-1">
+                <Field label={t('jointPlanWith')}>
+                  <select
+                    className={cn(selectClass, 'block sm:w-64')}
+                    value={withProfileId}
+                    onChange={(e) => setWithProfileId(e.target.value)}
+                  >
+                    <option value="">{t('jointPlanNone')}</option>
+                    {list
+                      .filter((one) => one.id !== activeId)
+                      .map((one) => (
+                        <option key={one.id} value={one.id}>
+                          {one.name}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <p className="text-xs text-muted-foreground">{t('jointPlanHint')}</p>
+              </div>
+            )}
             {cannotPair && <p className="text-xs text-warning">{t('prepCannotPair')}</p>}
             {(overThem.data?.total ?? 0) > 0 && (
               <p className="text-xs text-warning">{t('overlapNote')}</p>
@@ -772,6 +798,7 @@ function MealPlansContent() {
               defaultMaxRepeats={config?.plans.maxRepeatsPerRecipe ?? null}
               value={advanced}
               onChange={setAdvanced}
+              withoutDays={withProfileId !== '' && withProfileId !== activeId}
             />
             {active && <SupplyNote diet={planDiet} mealCount={planMeals} />}
             <Button type="submit" disabled={generate.isPending}>
@@ -927,7 +954,11 @@ function MealPlansContent() {
               limitNames={limitNames}
               onDelete={() => {
                 setError(null);
-                if (window.confirm(t('deleteConfirm'))) {
+                // A plan made together with another leaves that one a plan of its own.
+                const confirm = plan.joint
+                  ? `${t('deleteConfirm')} ${t('deleteJointNote', { name: plan.joint.profileName })}`
+                  : t('deleteConfirm');
+                if (window.confirm(confirm)) {
                   remove.mutate(plan.id);
                 }
               }}

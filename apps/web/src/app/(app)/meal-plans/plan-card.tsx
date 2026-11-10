@@ -1211,6 +1211,11 @@ export function PlanCard({
                 pct: Math.round(summary.ingredientReuseScore * 100),
               })}
             </span>
+            {summary.joint && (
+              <span className="block text-sm text-muted-foreground">
+                {t('jointWith', { name: summary.joint.profileName })}
+              </span>
+            )}
           </span>
         </button>
         <div className="flex flex-wrap items-center gap-2">
@@ -1322,8 +1327,20 @@ export function PlanCard({
               </PlanPacksLine>
             )}
           </div>
-          {(plan.options.allowRelaxations.length > 0 || pantryLine || plan.options.lessWaste) && (
+          {(plan.options.allowRelaxations.length > 0 ||
+            pantryLine ||
+            plan.options.lessWaste ||
+            (plan.report?.apart.length ?? 0) > 0) && (
             <div className="space-y-1 text-xs text-muted-foreground">
+              {(plan.report?.apart.length ?? 0) > 0 && (
+                <p>
+                  {t('jointApart', {
+                    meals: fmt.list(
+                      plan.report!.apart.map((slot) => mealName(slot).toLocaleLowerCase(locale)),
+                    ),
+                  })}
+                </p>
+              )}
               {plan.options.allowRelaxations.length > 0 && (
                 <p className="flex flex-wrap items-center gap-2">
                   {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
