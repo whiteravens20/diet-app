@@ -459,6 +459,13 @@ const RerollOptions = z.object({
   allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
   /** The dish a meal gets goes on the meals cooked with it on the days that are not filled again. */
   together: z.boolean().default(false),
+  /**
+   * Of a plan of a joint plan: the other plan's same days are filled again as
+   * well, their meals at the times of day both fill the same dish, shared
+   * again. Without it this plan's days are filled again alone, and what they
+   * shared is their own from then on.
+   */
+  forAll: z.boolean().default(false),
 });
 
 /** Options of a re-roll of one day of a plan. */

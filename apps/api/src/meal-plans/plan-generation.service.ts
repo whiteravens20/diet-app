@@ -68,7 +68,7 @@ import {
 import { planBaseOf, type BaseProfile, type PlanBase } from './plan-base.js';
 import { asWeekDay } from './plan-weeks.js';
 import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
-import { writePlan } from './plan-write.js';
+import { writePlan, writePlans } from './plan-write.js';
 import { readReroll, rerollDayOf, rerollOutcome } from './reroll-reading.js';
 
 /**
@@ -329,32 +329,7 @@ export class PlanGenerationService {
         });
         made.push(plan.id);
       }
-      // Each dish both plans hold at a shared time is one shared meal of the two.
-      const meals = await tx.plannedMeal.findMany({
-        where: { day: { planId: { in: made } }, mealType: { in: shared } },
-        select: {
-          id: true,
-          mealType: true,
-          recipeId: true,
-          day: { select: { planId: true, date: true } },
-        },
-      });
-      const byPlace = new Map<string, typeof meals>();
-      for (const meal of meals) {
-        const place = `${isoDate(meal.day.date)} ${meal.mealType}`;
-        byPlace.set(place, [...(byPlace.get(place) ?? []), meal]);
-      }
-      for (const both of byPlace.values()) {
-        if (both.length !== 2 || both[0]!.recipeId !== both[1]!.recipeId) continue;
-        await tx.sharedMeal.create({
-          data: {
-            jointPlanId: joint.id,
-            date: both[0]!.day.date,
-            mealType: both[0]!.mealType,
-            meals: { connect: both.map((meal) => ({ id: meal.id })) },
-          },
-        });
-      }
+      await linkShared(tx, joint.id, made, null, shared);
       return made[0]!;
     });
     return this.plans.get(userId, locale, planId);
@@ -708,26 +683,8 @@ export class PlanGenerationService {
   }
 
   /** One way to fill the days that were prepared, by the draws of `seed`. Nothing is written. */
-  draw(
-    userId: string,
-    prepared: Awaited<ReturnType<PlanGenerationService['prepare']>>,
-    seed: number,
-  ) {
-    return this.optimiseFor(userId, prepared.profile, {
-      days: prepared.days,
-      planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
-      dietType: prepared.dietType,
-      macroSplit: prepared.macroSplit,
-      mealPrepFriendly: prepared.made.mealPrepFriendly,
-      respectExclusions: prepared.made.respectExclusions,
-      respectFavorites: prepared.made.respectFavorites,
-      respectInventory: prepared.made.respectInventory,
-      lessWaste: prepared.lessWaste,
-      maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
-      allowRelaxations: prepared.allowRelaxations,
-      dropIneligibleLocks: prepared.dropIneligibleLocks,
-      seed,
-    });
+  draw(userId: string, prepared: Prepared, seed: number) {
+    return this.drawFor(userId, prepared, seed);
   }
 
   /** Fill days of a plan again (see `prepare`), and write what the draw came to. */
@@ -746,25 +703,161 @@ export class PlanGenerationService {
           'Every day asked for is skipped or before today. A skipped day is left as it is, and days in the past are made again only when the request says so.',
       });
     }
-    const {
-      plan,
-      made,
-      dates,
-      whole,
-      days,
-      filled,
-      allowRelaxations,
-      lessWaste,
-      base,
-      dietType,
-      macroSplit,
-    } = prepared;
+    const today = clientToday ?? this.today();
+    const jointPlanId = prepared.plan.jointPlanId;
+    const partner = jointPlanId
+      ? await this.prisma.mealPlan.findFirst({
+          where: { jointPlanId, id: { not: planId }, profile: { userId } },
+          select: { id: true },
+        })
+      : null;
+    if (options.forAll && partner)
+      return this.rerollJoint(userId, prepared, partner.id, range, options, clientToday);
+
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
-    // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
+    const outcome = await this.outcomeOf(prepared, result, options);
+    // Made again for this plan alone, its new meals share nothing: the links of the meals that gave place go with
+    // them (`writePlan`), and a meal both ate that stays on its day stays shared.
+    await writePlan(this.prisma, planId, prepared.plan.revision, (tx) =>
+      this.writeReroll(tx, prepared, result, seed, outcome, today),
+    );
+  }
+
+  /**
+   * Fill the same days of the two plans of a joint plan again
+   * (`RegenerateDayRequest.forAll`), as a joint plan is made: this plan first,
+   * at the times of day both fill again held to what both may be given, then
+   * the other with those dishes locked; each such pair is a shared meal again.
+   */
+  private async rerollJoint(
+    userId: string,
+    mine: Prepared,
+    partnerId: string,
+    range: { from?: string; to?: string },
+    options: RegenerateDayRequest,
+    clientToday: string | null,
+  ): Promise<void> {
+    const theirs = await this.prepare(userId, partnerId, range, options, clientToday);
     const today = clientToday ?? this.today();
+    // The times of day both fill again, by the date of the day.
+    const theirIndex = new Map(
+      theirs.filled.map(({ dayIndex }) => [isoDate(theirs.plan.days[dayIndex]!.date), dayIndex]),
+    );
+    const sharedOn = new Map<string, MealType[]>();
+    for (const { dayIndex } of mine.filled) {
+      const date = isoDate(mine.plan.days[dayIndex]!.date);
+      const other = theirIndex.get(date);
+      if (other === undefined || mine.days[dayIndex]!.skip || theirs.days[other]!.skip) continue;
+      const slots = mine.days[dayIndex]!.mealSlots.filter((slot) =>
+        theirs.days[other]!.mealSlots.includes(slot),
+      );
+      if (slots.length > 0) sharedOn.set(date, slots);
+    }
+    const second = theirs.profile;
+    const theirRecipes = (
+      await this.loadEligibleRecipes(userId, second, {
+        respectExclusions: theirs.made.respectExclusions,
+      })
+    ).optimizerRecipes;
+    const joint = {
+      theirs: new Set(
+        theirRecipes.filter((r) => fitsDiet(r.dietTags, theirs.dietType)).map((r) => r.id),
+      ),
+      favorites: new Set(theirRecipes.filter((r) => r.isFavorite).map((r) => r.id)),
+      preferences: second.preferences,
+      profileId: second.id,
+    };
+    const seed = this.nextSeed();
+    let sharedAsked = [...new Set([...sharedOn.values()].flat())];
+    let ofMine: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>;
+    for (;;) {
+      try {
+        ofMine = await this.drawFor(userId, mine, seed, { ...joint, sharedSlots: sharedAsked });
+        break;
+      } catch (err) {
+        const named = slotsNamedBy(err).filter((slot) => sharedAsked.includes(slot));
+        if (named.length === 0) throw err;
+        sharedAsked = sharedAsked.filter((slot) => !named.includes(slot));
+      }
+    }
+    const shared = ofMine.shared;
+    // The other plan's days filled again hold this plan's dishes at the shared times.
+    const myIndex = new Map(
+      mine.filled.map(({ dayIndex }) => [isoDate(mine.plan.days[dayIndex]!.date), dayIndex]),
+    );
+    for (const [date, slots] of sharedOn) {
+      const day = theirs.days[theirIndex.get(date)!]!;
+      const locks = ofMine.assignments
+        .filter(
+          (placed) =>
+            placed.dayIndex === myIndex.get(date) &&
+            slots.includes(placed.slot) &&
+            shared.includes(placed.slot),
+        )
+        .map((placed) => ({ slot: placed.slot, recipeId: placed.recipeId }));
+      day.lockedSlots = [
+        ...(day.lockedSlots ?? []).filter((lock) => !locks.some((one) => one.slot === lock.slot)),
+        ...locks,
+      ];
+    }
+    const theirSeed = this.nextSeed();
+    const ofTheirs = await this.draw(userId, theirs, theirSeed);
+    const [mineOutcome, theirOutcome] = await Promise.all([
+      this.outcomeOf(mine, ofMine, options),
+      this.outcomeOf(theirs, ofTheirs, options),
+    ]);
+    const jointPlanId = mine.plan.jointPlanId!;
+    await writePlans(
+      this.prisma,
+      [
+        { planId: mine.plan.id, revision: mine.plan.revision },
+        { planId: theirs.plan.id, revision: theirs.plan.revision },
+      ],
+      async (tx) => {
+        await this.writeReroll(tx, mine, ofMine, seed, mineOutcome, today);
+        await this.writeReroll(tx, theirs, ofTheirs, theirSeed, theirOutcome, today);
+        const dates = [
+          ...new Set([...datesOf(mine), ...datesOf(theirs)].map((date) => date.getTime())),
+        ].map((time) => new Date(time));
+        await linkShared(tx, jointPlanId, [mine.plan.id, theirs.plan.id], dates, shared);
+      },
+    );
+  }
+
+  /** The draw of `draw`, with what planning together with another profile asks of it. */
+  private drawFor(userId: string, prepared: Prepared, seed: number, joint?: JointAsk) {
+    return this.optimiseFor(userId, prepared.profile, {
+      days: prepared.days,
+      planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
+      dietType: prepared.dietType,
+      macroSplit: prepared.macroSplit,
+      mealPrepFriendly: prepared.made.mealPrepFriendly,
+      respectExclusions: prepared.made.respectExclusions,
+      respectFavorites: prepared.made.respectFavorites,
+      respectInventory: prepared.made.respectInventory,
+      lessWaste: prepared.lessWaste,
+      maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
+      allowRelaxations: prepared.allowRelaxations,
+      dropIneligibleLocks: prepared.dropIneligibleLocks,
+      ...(joint ? { joint } : {}),
+      seed,
+    });
+  }
+
+  /**
+   * What a draw of days filled again comes to besides its meals: the meals cooked
+   * with the meals that give place, and with which recipe, and the report.
+   */
+  private async outcomeOf(
+    prepared: Prepared,
+    result: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>,
+    options: RegenerateDayRequest,
+  ) {
+    const { plan, filled, dates, whole } = prepared;
+    // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
     const cookedWith = options.together
-      ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
+      ? await this.plans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))
       : new Map<string, CookedMeal[]>();
     const moves = filled.flatMap(({ dayIndex, staying }) =>
       plan.days[dayIndex]!.meals.filter((meal) => !staying.includes(meal.id)).flatMap((meal) => {
@@ -787,63 +880,85 @@ export class PlanGenerationService {
         )
       : null;
     const report = whole ? { ...(merged ?? result.report), pantry: result.report.pantry } : merged;
+    return { cookedWith, moves, report };
+  }
 
-    await writePlan(this.prisma, planId, plan.revision, async (tx) => {
-      // A plan made again is a round of the pantry's rotation; days of it filled again are not.
-      if (whole && result.pantryRound)
-        await tx.profile.update({
-          where: { id: plan.profileId },
-          data: pantryCount(result.pantryRound),
-        });
-      for (const { dayIndex, dayId, staying } of filled) {
-        const day = days[dayIndex]!;
-        await tx.mealPlanDay.update({
-          where: { id: dayId },
-          // A lock that was dropped leaves the stored overrides of the day as well.
-          data: {
-            calorieTarget: day.calorieTarget,
-            overrides: day.overrides ? (day.overrides as Prisma.InputJsonValue) : Prisma.JsonNull,
-          },
-        });
-        await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
-        await tx.plannedMeal.createMany({
-          data: result.assignments
-            .filter((placed) => placed.dayIndex === dayIndex)
-            .map((placed) => ({
-              dayId,
-              recipeId: placed.recipeId,
-              mealType: placed.slot,
-              servings: placed.servings,
-              quantityScale: placed.quantityScale,
-            })),
-        });
-      }
-      await tx.mealPlan.update({
-        where: { id: planId },
+  /** Write the days of a plan filled again, as `outcomeOf` reads the draw. */
+  private async writeReroll(
+    tx: Prisma.TransactionClient,
+    prepared: Prepared,
+    result: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>,
+    seed: number,
+    { cookedWith, moves, report }: Awaited<ReturnType<PlanGenerationService['outcomeOf']>>,
+    today: string,
+  ): Promise<void> {
+    const {
+      plan,
+      made,
+      whole,
+      days,
+      filled,
+      allowRelaxations,
+      lessWaste,
+      base,
+      dietType,
+      macroSplit,
+    } = prepared;
+    const planId = plan.id;
+    // A plan made again is a round of the pantry's rotation; days of it filled again are not.
+    if (whole && result.pantryRound)
+      await tx.profile.update({
+        where: { id: plan.profileId },
+        data: pantryCount(result.pantryRound),
+      });
+    for (const { dayIndex, dayId, staying } of filled) {
+      const day = days[dayIndex]!;
+      await tx.mealPlanDay.update({
+        where: { id: dayId },
+        // A lock that was dropped leaves the stored overrides of the day as well.
         data: {
-          reuseScore: result.ingredientReuseScore,
-          ...(report ? { report } : {}),
-          // A plan that was made again is what it was made with this time, and the engine's alone unless a meal a model picked stayed in it.
-          ...(whole
-            ? {
-                calorieTarget: base.target,
-                dietType,
-                macroSplit: macroSplit ?? Prisma.JsonNull,
-                options: { ...made, allowRelaxations, lessWaste },
-                seed,
-              }
-            : {}),
+          calorieTarget: day.calorieTarget,
+          overrides: day.overrides ? (day.overrides as Prisma.InputJsonValue) : Prisma.JsonNull,
         },
       });
-      await this.plans.carryToOtherDays(
-        tx,
-        planId,
-        cookedWith,
-        moves,
-        new Set(filled.map((entry) => entry.dayId)),
-        today,
-      );
+      await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
+      await tx.plannedMeal.createMany({
+        data: result.assignments
+          .filter((placed) => placed.dayIndex === dayIndex)
+          .map((placed) => ({
+            dayId,
+            recipeId: placed.recipeId,
+            mealType: placed.slot,
+            servings: placed.servings,
+            quantityScale: placed.quantityScale,
+          })),
+      });
+    }
+    await tx.mealPlan.update({
+      where: { id: planId },
+      data: {
+        reuseScore: result.ingredientReuseScore,
+        ...(report ? { report } : {}),
+        // A plan that was made again is what it was made with this time, and the engine's alone unless a meal a model picked stayed in it.
+        ...(whole
+          ? {
+              calorieTarget: base.target,
+              dietType,
+              macroSplit: macroSplit ?? Prisma.JsonNull,
+              options: { ...made, allowRelaxations, lessWaste },
+              seed,
+            }
+          : {}),
+      },
     });
+    await this.plans.carryToOtherDays(
+      tx,
+      planId,
+      cookedWith,
+      moves,
+      new Set(filled.map((entry) => entry.dayId)),
+      today,
+    );
   }
 
   /**
@@ -1414,6 +1529,57 @@ interface JointAsk {
     | null;
   /** The other profile, whose pantry the plan counts as well. */
   profileId: string;
+}
+
+/** A plan read for days of it to be filled again (`prepare`). */
+type Prepared = Awaited<ReturnType<PlanGenerationService['prepare']>>;
+
+/** The dates of the days a re-roll fills again. */
+const datesOf = (prepared: Prepared): Date[] =>
+  prepared.filled.map(({ dayIndex }) => prepared.plan.days[dayIndex]!.date);
+
+/**
+ * Link each dish the two plans of a joint plan hold at the same day and shared
+ * time of day as one shared meal, of the meals linked to none: on the days of
+ * `dates`, or on every day. A pair linked already keeps its link, and how it
+ * is cooked.
+ */
+async function linkShared(
+  tx: Prisma.TransactionClient,
+  jointPlanId: string,
+  planIds: readonly string[],
+  dates: readonly Date[] | null,
+  slots: readonly MealType[],
+): Promise<void> {
+  const meals = await tx.plannedMeal.findMany({
+    where: {
+      day: { planId: { in: [...planIds] }, ...(dates ? { date: { in: [...dates] } } : {}) },
+      mealType: { in: [...slots] },
+      sharedMealId: null,
+    },
+    select: { id: true, mealType: true, recipeId: true, day: { select: { date: true } } },
+  });
+  const byPlace = new Map<string, typeof meals>();
+  for (const meal of meals) {
+    const place = `${isoDate(meal.day.date)} ${meal.mealType}`;
+    byPlace.set(place, [...(byPlace.get(place) ?? []), meal]);
+  }
+  for (const both of byPlace.values()) {
+    if (both.length !== 2 || !both[0]!.recipeId || both[0]!.recipeId !== both[1]!.recipeId)
+      continue;
+    // A link of the place whose meals gave place to these two is left with none of them.
+    await tx.sharedMeal.deleteMany({
+      where: { jointPlanId, date: both[0]!.day.date, mealType: both[0]!.mealType },
+    });
+    await tx.sharedMeal.create({
+      data: {
+        jointPlanId,
+        date: both[0]!.day.date,
+        mealType: both[0]!.mealType,
+        meals: { connect: both.map((meal) => ({ id: meal.id })) },
+      },
+    });
+  }
 }
 
 /** The times of day a refusal to fill a plan names: of a meal with no recipe left, or of the meals outside a limit. */

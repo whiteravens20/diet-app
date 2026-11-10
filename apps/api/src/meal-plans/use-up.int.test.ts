@@ -290,6 +290,7 @@ describe('the swaps that would use up what a plan opens', () => {
           replaceCustom: false,
           dropIneligibleLocks: false,
           together: false,
+          forAll: false,
         },
         plan.startDate,
       );

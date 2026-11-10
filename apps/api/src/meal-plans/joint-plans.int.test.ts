@@ -408,6 +408,68 @@ describe('a plan made together with another profile of the account', () => {
     ).toBe(0);
   });
 
+  describe('days made again', () => {
+    const again = (plan: MealPlan, forAll: boolean, date = '2026-01-06') =>
+      t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/regenerate`)
+        .set(as(user))
+        .send({ from: date, to: date, includePast: true, forAll })
+        .expect(201);
+
+    it('for both, at the times both have, hold one dish again, shared, and leave the other days as they were', async () => {
+      const adams = await together();
+      const before = await read(adams.joint!.planId);
+
+      await again(adams, true);
+
+      const mine = await read(adams.id);
+      const hers = await read(adams.joint!.planId);
+      for (const mealType of ['breakfast', 'lunch', 'dinner']) {
+        const own = at(mine, 1, mealType)!;
+        expect(at(hers, 1, mealType)!.recipe!.id).toBe(own.recipe!.id);
+        expect(own.shared!.with.mealId).toBe(at(hers, 1, mealType)!.id);
+      }
+      expect(at(hers, 1, 'snack')!.shared).toBeNull();
+      // The days not made again are as they were, still shared.
+      expect(hers.days[0]!.meals.map((meal) => meal.id)).toEqual(
+        before.days[0]!.meals.map((meal) => meal.id),
+      );
+      expect(at(mine, 2, 'lunch')!.shared).not.toBeNull();
+    });
+
+    it('for one alone keep shared a meal both ate on that day', async () => {
+      const adams = await together();
+      // A meal of today, the first day of the plan, can be eaten already.
+      const lunch = at(adams, 0, 'lunch')!;
+      await t
+        .http()
+        .patch(`/api/meal-plans/${adams.id}/meals/${lunch.id}/eaten`)
+        .set(as(user))
+        .send({ eaten: true, forAll: true })
+        .expect(200);
+
+      await again(adams, false, '2026-01-05');
+
+      const mine = at(await read(adams.id), 0, 'lunch')!;
+      expect(mine.id).toBe(lunch.id);
+      expect(mine.shared!.id).toBe(lunch.shared!.id);
+      expect(at(await read(adams.id), 0, 'dinner')!.shared).toBeNull();
+    });
+
+    it('for one alone, leave what that day shared its own, in both plans', async () => {
+      const adams = await together();
+
+      await again(adams, false);
+
+      const mine = await read(adams.id);
+      const hers = await read(adams.joint!.planId);
+      expect(mine.days[1]!.meals.every((meal) => meal.shared === null)).toBe(true);
+      expect(hers.days[1]!.meals.every((meal) => meal.shared === null)).toBe(true);
+      expect(at(mine, 0, 'lunch')!.shared).not.toBeNull();
+    });
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

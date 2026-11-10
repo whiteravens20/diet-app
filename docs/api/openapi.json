@@ -22651,6 +22651,10 @@
           "together": {
             "default": false,
             "type": "boolean"
+          },
+          "forAll": {
+            "default": false,
+            "type": "boolean"
           }
         }
       },
@@ -22682,6 +22686,10 @@
             }
           },
           "together": {
+            "default": false,
+            "type": "boolean"
+          },
+          "forAll": {
             "default": false,
             "type": "boolean"
           },
