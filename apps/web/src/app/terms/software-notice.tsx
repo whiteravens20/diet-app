@@ -47,7 +47,14 @@ export function SoftwareNotice() {
           source: linkTo(ATTRIBUTION_URL),
         })}
       </p>
-      <p>{t.rich('licence', { gnu: linkTo(LICENCE_URL) })}</p>
+      {/* The licence as this code holds it, with its additional term, and as its authors publish it. */}
+      <p>
+        {t.rich('licence', {
+          license: linkTo(`${SOURCE_URL}/blob/HEAD/LICENSE`),
+          notice: linkTo(`${SOURCE_URL}/blob/HEAD/NOTICE`),
+          gnu: linkTo(LICENCE_URL),
+        })}
+      </p>
       <p>
         {t.rich('products', {
           off: linkTo('https://world.openfoodfacts.org'),

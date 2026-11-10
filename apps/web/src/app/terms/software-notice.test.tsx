@@ -42,6 +42,15 @@ describe('what the application says of itself under the terms', () => {
         'href',
         'https://www.gnu.org/licenses/agpl-3.0.html',
       );
+      // The licence as this code holds it, its additional term beside it.
+      expect(within(notice).getByRole('link', { name: 'LICENSE' })).toHaveAttribute(
+        'href',
+        'https://github.com/whiteravens20/diet-app/blob/HEAD/LICENSE',
+      );
+      expect(within(notice).getByRole('link', { name: 'NOTICE' })).toHaveAttribute(
+        'href',
+        'https://github.com/whiteravens20/diet-app/blob/HEAD/NOTICE',
+      );
       expect(notice).toHaveTextContent(MESSAGES[locale].terms.software.warranty);
       expect(notice).toHaveTextContent(MESSAGES[locale].terms.software.changed);
     },

@@ -2841,7 +2841,7 @@
     "software": {
       "title": "O oprogramowaniu",
       "notice": "Ta instancja działa na oprogramowaniu {attribution}. Jego oryginalny kod źródłowy jest pod adresem <source>{address}</source>. Copyright (C) 2026\u00a0White Ravens.",
-      "licence": "To wolne oprogramowanie: każdy może je rozpowszechniać i zmieniać na warunkach licencji GNU Affero General Public License w wersji 3, z dodatkowym warunkiem, który zachowuje tę atrybucję. Licencja jest w plikach LICENSE i NOTICE kodu źródłowego oraz na stronie <gnu>gnu.org</gnu>. Dołączony do niego katalog przepisów i składników jest na tej samej licencji.",
+      "licence": "To wolne oprogramowanie: każdy może je rozpowszechniać i zmieniać na warunkach licencji GNU Affero General Public License w wersji 3, z dodatkowym warunkiem, który zachowuje tę atrybucję. Licencja jest w plikach <license>LICENSE</license> i <notice>NOTICE</notice> kodu źródłowego oraz na stronie <gnu>gnu.org</gnu>. Dołączony do niego katalog przepisów i składników jest na tej samej licencji.",
       "warranty": "Oprogramowanie nie ma żadnej gwarancji, nawet tej, że nada się do określonego celu. Pełną treść tego zastrzeżenia podaje licencja.",
       "changed": "Jeśli ta instancja działa na zmienionej wersji, licencja zobowiązuje jej operatora do udostępnienia Ci kodu źródłowego tej wersji.",
       "problems": "Błąd w oprogramowaniu albo pomysł na nie zgłoś w jego <issues>systemie zgłoszeń</issues>. Problem z bezpieczeństwem zgłoś prywatnie, jak opisuje <security>polityka bezpieczeństwa</security>.",
