@@ -10,6 +10,14 @@ type Texts = Record<string, string>;
 const textOf = async (download: Download): Promise<string> =>
   readFileSync(await download.path(), 'utf8');
 
+/** A document's fonts, by the names it gives them: a character the application's typeface lacked would be drawn in a built-in one, named beside it. */
+const fontsOf = (bytes: string): string[] =>
+  [
+    ...new Set(
+      [...bytes.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)].map((found) => found[1]!),
+    ),
+  ].sort();
+
 /** The plan page with the first plan of the list open. */
 async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
   const plans = messages.mealPlans as Texts;
@@ -88,15 +96,10 @@ test.describe('a shopping list, taken out of the application', () => {
     expect(file.suggestedFilename()).toMatch(
       /^shopping-list-\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.pdf$/,
     );
-    // A document names the fonts it holds. A character the application's typeface lacked would be drawn in a
-    // built-in one, which would then be named beside it.
-    const bytes = readFileSync(await file.path(), 'latin1');
-    const fonts = [
-      ...new Set(
-        [...bytes.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)].map((found) => found[1]),
-      ),
-    ].sort();
-    expect(fonts).toEqual(['Inter-Bold', 'Inter-Regular']);
+    expect(fontsOf(readFileSync(await file.path(), 'latin1'))).toEqual([
+      'Inter-Bold',
+      'Inter-Regular',
+    ]);
   });
 
   test('says what each aisle comes to, and takes what the user says is at home', async ({
@@ -143,6 +146,88 @@ test.describe('a shopping list, taken out of the application', () => {
       alreadyHaveQuantity: before === '' ? 0 : Number(before),
     });
     await expect(atHome).toHaveValue(before);
+  });
+});
+
+/** The page of the library's first recipe, open: its title. */
+async function aRecipePage(page: Page): Promise<string> {
+  const library = page.waitForResponse(
+    (res) => new URL(res.url()).pathname === '/api/recipes' && res.ok(),
+  );
+  await page.goto('/recipes');
+  const first = ((await (await library).json()) as { items: { id: string; title: string }[] })
+    .items[0]!;
+  await page.goto(`/recipes/${first.id}`);
+  await settled(page);
+  await expect(page.getByRole('heading', { level: 1, name: first.title })).toBeVisible();
+  return first.title;
+}
+
+test.describe('a recipe, sent to somebody', () => {
+  test("goes as a text to the system's sheet on a phone, and is copied on a computer or shown to be copied by hand", async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const share = messages.recipeShare as Texts;
+    const title = await aRecipePage(page);
+    // The sheet of apps is the system's, which no test can see: one that keeps what it is given stands in for it.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (data: ShareData) => {
+          (window as unknown as { shared: ShareData }).shared = data;
+        },
+      });
+    });
+    const phone = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+
+    await page
+      .getByRole('group', { name: share.label! })
+      .getByRole('button', { name: share.text!, exact: true })
+      .click();
+
+    if (phone) {
+      const shared = () =>
+        page.evaluate(() => (window as unknown as { shared?: ShareData }).shared ?? null);
+      await expect.poll(async () => (await shared())?.title).toBe(title);
+      expect((await shared())!.text!.split('\n')[0]).toBe(title);
+      return;
+    }
+    // Over plain http a browser gives a page no clipboard: the text is then shown in a window, ready to be selected.
+    const byHand = page.getByRole('dialog', { name: share.copyByHand! });
+    const copied = page.getByText(new RegExp(`^${loose(share.copied!)}$`));
+    await expect(byHand.or(copied).first()).toBeVisible();
+    if (await byHand.isVisible()) {
+      await expect(byHand.getByRole('textbox')).toHaveValue(new RegExp(`^${loose(title)}\n\n`));
+      await page.keyboard.press('Escape');
+      await expect(byHand).toBeHidden();
+    }
+  });
+
+  test('is made into a document named by its title, set in the typeface the application carries, and in no other', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const share = messages.recipeShare as Texts;
+    await aRecipePage(page);
+    // A browser whose sheet takes files would send it there: this one keeps it, as a computer does.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false });
+    });
+
+    const saved = page.waitForEvent('download');
+    await page
+      .getByRole('group', { name: share.label! })
+      .getByRole('button', { name: share.pdf!, exact: true })
+      .click();
+    const file = await saved;
+
+    expect(file.suggestedFilename()).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*\.pdf$/);
+    const bytes = readFileSync(await file.path(), 'latin1');
+    expect(bytes.startsWith('%PDF-')).toBe(true);
+    expect(fontsOf(bytes)).toEqual(['Inter-Bold', 'Inter-Regular']);
   });
 });
 

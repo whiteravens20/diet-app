@@ -2383,6 +2383,19 @@
     "portionMeal": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, your meal is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}. Below are the amounts for your meal.",
     "portionWhole": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}. Below are the amounts for all of it."
   },
+  "recipeShare": {
+    "label": "Share the recipe:",
+    "text": "Text",
+    "pdf": "PDF",
+    "making": "Generating…",
+    "copied": "Recipe copied. Paste it wherever you want to send it.",
+    "pdfFailed": "Could not generate PDF.",
+    "copyByHand": "Copy the recipe",
+    "ingredientsFor": "Ingredients for {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}",
+    "source": "From {address}",
+    "licence": "Licence: {licence}",
+    "byModel": "This recipe was made with the help of an AI model. Check the amounts and steps before cooking."
+  },
   "macrosLine": {
     "protein": "Protein",
     "fat": "Fat",

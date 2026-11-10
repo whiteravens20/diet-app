@@ -114,7 +114,13 @@ export function RecipeModal({
           </p>
         )}
         {recipe.data && (
-          <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition mealLabel={label} />
+          <RecipeView
+            recipe={recipe.data}
+            amounts={amounts}
+            servings={portion?.servings}
+            hideNutrition
+            mealLabel={label}
+          />
         )}
       </div>
     </Dialog>

@@ -2383,6 +2383,19 @@
     "portionMeal": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, Twój posiłek to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}. Poniżej ilości dla Twojego posiłku.",
     "portionWhole": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}. Poniżej ilości na całe gotowanie."
   },
+  "recipeShare": {
+    "label": "Udostępnij przepis:",
+    "text": "Tekst",
+    "pdf": "PDF",
+    "making": "Generowanie…",
+    "copied": "Skopiowano przepis. Wklej go tam, gdzie chcesz go wysłać.",
+    "pdfFailed": "Nie udało się wygenerować PDF.",
+    "copyByHand": "Skopiuj przepis",
+    "ingredientsFor": "Składniki na {servings, plural, one {{servings, number, ::group-off}\u00a0porcję} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}",
+    "source": "Źródło: {address}",
+    "licence": "Licencja: {licence}",
+    "byModel": "Przepis powstał z\u00a0pomocą modelu AI. Sprawdź ilości i\u00a0kroki przed gotowaniem."
+  },
   "macrosLine": {
     "protein": "Białko",
     "fat": "Tłuszcz",

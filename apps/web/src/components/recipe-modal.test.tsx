@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
@@ -33,8 +34,11 @@ const oats = {
   source: null as { url: string | null; license: string } | null,
 };
 
-/** The window of the recipe, opened; `answer` is what the API says of it. */
-function renderWindow(answer: () => Promise<unknown>) {
+/** The window of the recipe, opened; `answer` is what the API says of it, `meal` what a meal of a plan gives it. */
+function renderWindow(
+  answer: () => Promise<unknown>,
+  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion'> = {},
+) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never),
   );
@@ -43,7 +47,7 @@ function renderWindow(answer: () => Promise<unknown>) {
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <RecipeModal recipeId={RECIPE} onClose={() => undefined} />
+        <RecipeModal recipeId={RECIPE} onClose={() => undefined} {...meal} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
@@ -110,6 +114,36 @@ describe('the window of a recipe', () => {
       dialog.queryAllByRole('link', { hidden: true }).map((link) => link.getAttribute('href')),
     ).not.toContain('javascript:alert(1)');
     expect(dialog.queryByText(/^From /)).not.toBeInTheDocument();
+  });
+
+  it('sends the recipe with the amounts and servings of the meal it was opened from', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      amounts: [
+        {
+          ingredientId: '22222222-2222-4222-8222-222222222222',
+          name: 'Oats',
+          quantity: 180,
+          unit: 'g',
+          display: { quantity: 180, unit: 'g' },
+          note: null,
+        },
+      ],
+      portion: { servings: 3, whole: true },
+    });
+
+    await userEvent.click(
+      await dialog.findByRole('button', { name: messages.recipeShare.text, hidden: true }),
+    );
+
+    expect((writeText.mock.calls[0]![0] as string).split('\n').slice(0, 4)).toEqual([
+      'Oat bowl',
+      '',
+      'Ingredients for 3 servings:',
+      '- Oats: 180 g',
+    ]);
+    vi.unstubAllGlobals();
   });
 
   it('shows no photo over a recipe that is not there', async () => {

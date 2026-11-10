@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LabelGrid, LabelLegend, LabelLine } from '@/components/label-figures';
 import { useShownAmount } from '@/lib/ingredient-format';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
+import { RecipeShare } from '@/components/recipe-share';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { DOT } from '@/lib/figure-line';
@@ -91,11 +92,14 @@ interface FavoriteRow {
 export function RecipeView({
   recipe,
   amounts,
+  servings,
   hideNutrition = false,
   mealLabel,
 }: {
   recipe: Recipe;
   amounts?: PlannedIngredient[];
+  /** How many servings `amounts` come to, for the recipe as it is sent to somebody; the recipe's own without them. */
+  servings?: number;
   /** Fibre, sugars, salt and saturated fat of the planned meal the view was opened from. */
   mealLabel?: LabelTotals;
   /** Meal-plan modal hides the per-serving nutrition card — those numbers
@@ -252,6 +256,8 @@ export function RecipeView({
           })}
         </div>
       )}
+
+      <RecipeShare recipe={recipe} amounts={amounts} servings={servings} />
 
       {hideNutrition ? (
         <div className="space-y-1">
