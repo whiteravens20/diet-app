@@ -19,9 +19,11 @@ import { DOT } from '@/lib/figure-line';
 
 export function PasswordCard() {
   const t = useTranslations('settings');
+  const tAuth = useTranslations('auth');
   const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [mismatch, setMismatch] = useState(false);
   const change = useMutation({
     mutationFn: (body: { currentPassword: string; newPassword: string }) =>
       api.post<void>('/users/me/password', body),
@@ -37,6 +39,10 @@ export function PasswordCard() {
     setError(null);
     setDone(false);
     const f = new FormData(event.currentTarget);
+    // The new password typed twice, as it is typed blind: every session ends with a change.
+    const different = f.get('newPassword') !== f.get('confirm');
+    setMismatch(different);
+    if (different) return;
     change.mutate({
       currentPassword: String(f.get('currentPassword') ?? ''),
       newPassword: String(f.get('newPassword') ?? ''),
@@ -49,14 +55,17 @@ export function PasswordCard() {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="grid max-w-md gap-3 sm:grid-cols-2">
-          <Field label={t('currentPassword')}>
-            <Input
-              name="currentPassword"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
-          </Field>
+          {/* The current password on a row of its own: the new one and its repeat stand side by side under it. */}
+          <div className="sm:col-span-2">
+            <Field label={t('currentPassword')}>
+              <Input
+                name="currentPassword"
+                type="password"
+                required
+                autoComplete="current-password"
+              />
+            </Field>
+          </div>
           <Field label={t('newPasswordLabel')}>
             <Input
               name="newPassword"
@@ -64,6 +73,19 @@ export function PasswordCard() {
               required
               minLength={12}
               autoComplete="new-password"
+            />
+          </Field>
+          <Field
+            label={t('repeatNewPassword')}
+            error={mismatch ? tAuth('passwordsDontMatch') : undefined}
+          >
+            <Input
+              name="confirm"
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              aria-invalid={mismatch || undefined}
             />
           </Field>
           <div className="sm:col-span-2">

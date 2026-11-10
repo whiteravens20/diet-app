@@ -28,6 +28,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const tRules = useTranslations('auth.passwordRules');
   const tSecond = useTranslations('secondFactor');
   const [error, setError] = useState<string | null>(null);
+  const [mismatch, setMismatch] = useState(false);
   const [loading, setLoading] = useState(false);
   const config = useConfig();
   const turnstile = config.data?.turnstile;
@@ -55,8 +56,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setLoading(true);
     const form = new FormData(event.currentTarget);
+    // A password typed twice, as it is typed blind: an account is not made on a mistyped one.
+    const different = mode === 'register' && form.get('password') !== form.get('confirm');
+    setMismatch(different);
+    if (different) return;
+    setLoading(true);
     const body = {
       email: String(form.get('email')),
       password: String(form.get('password')),
@@ -169,6 +174,21 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </Field>
+          {mode === 'register' && (
+            <Field
+              label={t('repeatPassword')}
+              error={mismatch ? t('passwordsDontMatch') : undefined}
+            >
+              <Input
+                name="confirm"
+                type="password"
+                required
+                minLength={12}
+                autoComplete="new-password"
+                aria-invalid={mismatch || undefined}
+              />
+            </Field>
+          )}
           {/* The reset link arrives by email, so it is offered only where email is configured. */}
           {mode === 'login' && config.data?.email.enabled && (
             <p className="-mt-2 text-right text-xs">

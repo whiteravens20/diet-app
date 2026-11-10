@@ -45,6 +45,59 @@ describe('AuthForm', () => {
   });
 });
 
+describe('making an account', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function renderRegister() {
+    const client = new QueryClient();
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <AuthForm mode="register" />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  async function fillIn(password: string, repeated: string) {
+    await userEvent.type(screen.getByLabelText(messages.auth.name), 'Alex');
+    await userEvent.type(screen.getByLabelText(messages.auth.email), 'alex@example.test');
+    await userEvent.type(screen.getByLabelText(messages.auth.password), password);
+    await userEvent.type(screen.getByLabelText(messages.auth.repeatPassword), repeated);
+    await userEvent.click(screen.getByRole('button', { name: messages.auth.createAccountButton }));
+  }
+
+  it('asks for the password twice, and makes no account where the two differ, saying so at the second', async () => {
+    const post = vi.spyOn(api, 'post');
+    renderRegister();
+
+    await fillIn('Long-Enough-Passw0rd', 'Long-Enough-Passw0rd!');
+
+    expect(post).not.toHaveBeenCalled();
+    // The field's label holds what is said of it.
+    expect(screen.getByLabelText(new RegExp(`^${messages.auth.repeatPassword}`))).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.auth.passwordsDontMatch);
+  });
+
+  it('makes the account with the password once the two are the same, the repeat never sent', async () => {
+    const post = vi.spyOn(api, 'post').mockReturnValue(new Promise(() => {}));
+    renderRegister();
+
+    await fillIn('Long-Enough-Passw0rd', 'Long-Enough-Passw0rd');
+
+    expect(post).toHaveBeenCalledWith(
+      '/auth/register',
+      { email: 'alex@example.test', password: 'Long-Enough-Passw0rd', displayName: 'Alex' },
+      COOKIE_SESSION,
+    );
+    expect(screen.queryByText(messages.auth.passwordsDontMatch)).not.toBeInTheDocument();
+  });
+});
+
 const aSession = {
   user: { id: 'u' },
   tokens: { accessToken: 'a', expiresIn: 900, refreshExpiresIn: 2_592_000 },

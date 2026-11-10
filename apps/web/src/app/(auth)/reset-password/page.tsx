@@ -26,6 +26,7 @@ function ResetPasswordInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [mismatch, setMismatch] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,9 +34,10 @@ function ResetPasswordInner() {
     setLoading(true);
     const f = new FormData(event.currentTarget);
     const password = String(f.get('password'));
-    const confirm = String(f.get('confirm'));
-    if (password !== confirm) {
-      setError(t('passwordsDontMatch'));
+    // The sentence stands at the field it is about.
+    const different = password !== String(f.get('confirm'));
+    setMismatch(different);
+    if (different) {
       setLoading(false);
       return;
     }
@@ -99,13 +101,17 @@ function ResetPasswordInner() {
               autoComplete="new-password"
             />
           </Field>
-          <Field label={t('confirmPasswordField')}>
+          <Field
+            label={t('confirmPasswordField')}
+            error={mismatch ? t('passwordsDontMatch') : undefined}
+          >
             <Input
               name="confirm"
               type="password"
               required
               minLength={12}
               autoComplete="new-password"
+              aria-invalid={mismatch || undefined}
             />
           </Field>
           <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">

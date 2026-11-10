@@ -39,6 +39,7 @@ test.describe('somebody who comes to the instance for the first time', () => {
       .getByLabel(auth.email!, { exact: true })
       .fill(`browser-journey-${Date.now().toString(36)}@example.test`);
     await page.getByLabel(auth.password!, { exact: true }).fill('Browser-Test-Passw0rd');
+    await page.getByLabel(auth.repeatPassword!, { exact: true }).fill('Browser-Test-Passw0rd');
     const opened = answer('POST', '/api/auth/register');
     await page.getByRole('button', { name: auth.createAccountButton!, exact: true }).click();
     expect((await opened).status()).toBe(201);

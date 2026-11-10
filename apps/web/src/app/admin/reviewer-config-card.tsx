@@ -24,11 +24,15 @@ import { Explain } from './explain';
  */
 export function ReviewerConfigCard() {
   const t = useTranslations('admin.reviewer');
+  const tAuth = useTranslations('auth');
   const errorText = useErrorText();
   const [settings, setSettings] = useState<InstanceSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
+  // The password typed twice, as it is typed blind: a reviewer is not given a mistyped one.
+  const [repeatInput, setRepeatInput] = useState('');
+  const [mismatch, setMismatch] = useState(false);
   const [savingToggle, setSavingToggle] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -71,6 +75,7 @@ export function ReviewerConfigCard() {
       const updated = await adminApi.patchInstanceSettings({ reviewerPassword: next });
       setSettings(updated);
       setPasswordInput('');
+      setRepeatInput('');
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 400) {
         setError(t('passwordLength'));
@@ -161,6 +166,8 @@ export function ReviewerConfigCard() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (passwordInput.length === 0) return;
+                setMismatch(passwordInput !== repeatInput);
+                if (passwordInput !== repeatInput) return;
                 void setPassword(passwordInput);
               }}
             >
@@ -174,6 +181,20 @@ export function ReviewerConfigCard() {
                   minLength={12}
                   maxLength={200}
                   aria-describedby="reviewer-password-hint"
+                />
+              </Field>
+              <Field
+                label={t('repeatPassword')}
+                error={mismatch ? tAuth('passwordsDontMatch') : undefined}
+              >
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  value={repeatInput}
+                  onChange={(e) => setRepeatInput(e.target.value)}
+                  minLength={12}
+                  maxLength={200}
+                  aria-invalid={mismatch || undefined}
                 />
               </Field>
               <p id="reviewer-password-hint" className="text-xs text-muted-foreground">
