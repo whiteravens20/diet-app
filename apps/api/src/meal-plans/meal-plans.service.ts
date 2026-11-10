@@ -412,12 +412,28 @@ export class MealPlansService {
     planId: string,
     mealId: string,
     clientToday: string | null = null,
+    forAll = false,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
-    const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
-      await tx.plannedMeal.delete({ where: { id: mealId } });
-      return this.rebalanceDayInternal(meal.dayId, tx, clientToday ?? this.today());
-    });
+    const today = clientToday ?? this.today();
+    // For both: the other person's meal of a shared meal leaves their day too, unless they have eaten it.
+    const theirs = forAll ? await this.otherOfShared(userId, meal) : null;
+    const other = theirs && theirs.eatenAt === null ? theirs : null;
+    const summary = await writePlans(
+      this.prisma,
+      [
+        { planId, revision: meal.day.plan.revision },
+        ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
+      ],
+      async (tx) => {
+        if (other) {
+          await tx.plannedMeal.delete({ where: { id: other.id } });
+          await this.rebalanceDayInternal(other.dayId, tx, today);
+        }
+        await tx.plannedMeal.delete({ where: { id: mealId } });
+        return this.rebalanceDayInternal(meal.dayId, tx, today);
+      },
+    );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 

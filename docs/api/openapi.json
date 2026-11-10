@@ -5639,6 +5639,18 @@
             }
           },
           {
+            "name": "forAll",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "X-Client-Date",
             "in": "header",
             "required": false,

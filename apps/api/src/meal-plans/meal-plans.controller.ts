@@ -43,6 +43,7 @@ import {
   RerollPreview,
   SetMealEatenRequest,
   SetSharedMealRequest,
+  RemoveMealQuery,
   SubstituteSuggestion,
   SwapIngredientRequest,
   SwapIngredientResponse,
@@ -416,9 +417,10 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @Query(new ZodValidationPipe(RemoveMealQuery)) query: RemoveMealQuery,
     @ClientDate() today: string | null,
   ) {
-    return this.plans.removeMeal(user.id, locale, id, mealId, today);
+    return this.plans.removeMeal(user.id, locale, id, mealId, today, query.forAll === true);
   }
 
   /** Mark a planned meal eaten or not eaten (rebalances the day). */

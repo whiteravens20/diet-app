@@ -383,6 +383,31 @@ describe('a plan made together with another profile of the account', () => {
     });
   });
 
+  it('takes a shared meal off both days when asked for both, and off one day alone otherwise', async () => {
+    const adams = await together();
+    const [lunch, dinner] = [at(adams, 0, 'lunch')!, at(adams, 0, 'dinner')!];
+
+    await t
+      .http()
+      .delete(`/api/meal-plans/${adams.id}/meals/${lunch.id}?forAll=true`)
+      .set(as(user))
+      .expect(200);
+    await t
+      .http()
+      .delete(`/api/meal-plans/${adams.id}/meals/${dinner.id}`)
+      .set(as(user))
+      .expect(200);
+
+    const ewas = await read(adams.joint!.planId);
+    expect(at(ewas, 0, 'lunch')).toBeUndefined();
+    expect(at(ewas, 0, 'dinner')!.shared).toBeNull();
+    expect(
+      await t.prisma.sharedMeal.count({
+        where: { id: { in: [lunch.shared!.id, dinner.shared!.id] } },
+      }),
+    ).toBe(0);
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

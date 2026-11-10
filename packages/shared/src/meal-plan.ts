@@ -1527,6 +1527,18 @@ export const SetMealEatenRequest = z.object({
 });
 export type SetMealEatenRequest = z.infer<typeof SetMealEatenRequest>;
 
+/**
+ * Taking a meal off its day: `forAll`, of a shared meal, takes the other
+ * person's meal off their day as well, where they have not eaten it.
+ */
+export const RemoveMealQuery = z.object({
+  forAll: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+export type RemoveMealQuery = z.infer<typeof RemoveMealQuery>;
+
 /** How a shared meal is cooked: `apart`, each portion on its own, or in one pot split by weight. */
 export const SetSharedMealRequest = z.object({ apart: z.boolean() });
 export type SetSharedMealRequest = z.infer<typeof SetSharedMealRequest>;
