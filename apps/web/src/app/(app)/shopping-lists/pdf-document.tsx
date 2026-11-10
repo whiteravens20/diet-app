@@ -4,7 +4,6 @@
 
 import {
   Document,
-  Font,
   Page,
   Path,
   Rect,
@@ -17,39 +16,16 @@ import {
 } from '@react-pdf/renderer';
 import type { DisplayUnit } from '@diet-app/shared';
 import type { ShownItem, ShownList } from './list-view';
+import { ensureFontRegistered } from '@/lib/pdf-common';
 import { saveFile } from '@/lib/save-file';
 import { packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
 import { DOT } from '@/lib/figure-line';
 
 /*
- * Self-hosted PDF generator for the shopping list. The default @react-pdf
- * built-in fonts (Helvetica/Times/Courier) cover only basic Latin and
- * mangle Polish diacritics. We register Inter from /public, the complete
- * files (public/fonts/CREDITS.md), so the PDF is set in one typeface
- * without any third-party font CDN call at runtime — important for offline
- * self-hosted instances. A character the files lack is drawn in a built-in
- * font, one character at a time: pdf-fonts.test.ts holds the files to every
- * character the application writes.
- *
- * Registration is deferred + absolute-URL because @react-pdf internally
- * `fetch()`es the src at render time; with a relative path the resolution
- * is not always what you'd expect inside a bundler-emitted module.
- * Idempotent: registering twice with the same family is a no-op.
+ * Self-hosted PDF generator for the shopping list, set in the typeface the
+ * application carries with it (lib/pdf-common.tsx).
  */
-let fontRegistered = false;
-function ensureFontRegistered() {
-  if (fontRegistered || typeof window === 'undefined') return;
-  const origin = window.location.origin;
-  Font.register({
-    family: 'Inter',
-    fonts: [
-      { src: `${origin}/fonts/Inter-Regular.ttf`, fontWeight: 400 },
-      { src: `${origin}/fonts/Inter-Bold.ttf`, fontWeight: 700 },
-    ],
-  });
-  fontRegistered = true;
-}
 
 /*
  * Two on-disk shapes from the same generator:

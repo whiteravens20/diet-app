@@ -1,19 +1,19 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * The printed shopping list is set in the typeface the application carries
- * with it. A character the files have no glyph for is drawn in another
+ * The application's documents are set in the typeface the application
+ * carries with it. A character the files have no glyph for is drawn in another
  * typeface, or as an empty box: so the files hold every character the
  * application itself can write on the sheet, in each of its languages.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import en from '../../../../messages/en.json';
-import pl from '../../../../messages/pl.json';
+import en from '../../messages/en.json';
+import pl from '../../messages/pl.json';
 
-const FONTS = join(__dirname, '..', '..', '..', '..', 'public', 'fonts');
-const DATA = join(__dirname, '..', '..', '..', '..', '..', '..', 'data');
+const FONTS = join(__dirname, '..', '..', 'public', 'fonts');
+const DATA = join(__dirname, '..', '..', '..', '..', 'data');
 
 /** Pictures of the page, which the sheet never gets. */
 const NOT_PRINTED = new Set(['✨']);
@@ -105,14 +105,14 @@ function written(): Set<string> {
       characters,
     );
   }
-  // What a list is written with besides: the dot between an amount and its packs, what a name or a title may well hold,
-  // and the spaces one browser or another puts into a date, a time or a number.
+  // What a document is written with besides: the dot between an amount and its packs, the dash before a note, what a
+  // name, a title or a step may well hold, and the spaces one browser or another puts into a date, a time or a number.
   charactersIn('·×–—…„”“’‘→½¼¾°%&/()+\u00a0\u2009\u202f', characters);
   for (const picture of NOT_PRINTED) characters.delete(picture);
   return characters;
 }
 
-describe('the typeface of the printed shopping list', () => {
+describe('the typeface of the documents', () => {
   const wanted = [...written()].filter((character) => character >= ' ');
 
   it.each(['Inter-Regular.ttf', 'Inter-Bold.ttf'])(
