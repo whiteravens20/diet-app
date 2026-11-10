@@ -60,7 +60,12 @@ describe('the limits of a plan', () => {
     ).body;
 
     expect(made.options.allowRelaxations).toEqual(['variety_floor']);
-    expect(made.report).toEqual({ relaxations: [theSixth], singleCandidate: [], pantry: 'empty' });
+    expect(made.report).toEqual({
+      relaxations: [theSixth],
+      singleCandidate: [],
+      pantry: 'empty',
+      apart: [],
+    });
     // The limit gave way where it had to, and nowhere else.
     const breakfasts = made.days.map(
       (day) => day.meals.find((meal) => meal.mealType === 'breakfast')!.recipe!.id,
@@ -109,7 +114,12 @@ describe('the limits of a plan', () => {
   it('keeps with the plan what a later regeneration let give way', async () => {
     // Made inside its limits; then the floor is as tight as before, by way of the profile's limit for a week.
     const strict: MealPlan = (await generate({ durationDays: 6, mealCount: 2 }).expect(201)).body;
-    expect(strict.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
+    expect(strict.report).toEqual({
+      relaxations: [],
+      singleCandidate: [],
+      pantry: 'empty',
+      apart: [],
+    });
     await t.prisma.profilePreference.update({
       where: { profileId: profile.id },
       data: { maxTimesPerWeekSameMeal: 1 },
@@ -195,7 +205,12 @@ describe('the limits of a plan', () => {
         .expect(201)
     ).body;
 
-    expect(changed.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
+    expect(changed.plan.report).toEqual({
+      relaxations: [],
+      singleCandidate: [],
+      pantry: 'empty',
+      apart: [],
+    });
   });
 
   it('says of a recipe swapped in what it is outside of, where nothing else was left', async () => {
@@ -241,6 +256,7 @@ describe('the limits of a plan', () => {
         { date: '2026-01-06', slot: 'second_breakfast' },
       ],
       pantry: 'empty',
+      apart: [],
     });
   });
 

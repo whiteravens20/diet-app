@@ -170,8 +170,29 @@ export const GeneratePlanRequest = z
     allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).default([]),
     /** Per-day advanced overrides (sparse — untouched days are omitted). */
     dayOverrides: z.array(DayOverride).max(MAX_PLAN_DAYS).optional(),
+    /**
+     * Another profile of the account to plan together with: it gets a plan of
+     * its own on the same days, following its own profile (diet, meals a day,
+     * calorie target), and at the times of day both have, both plans hold the
+     * same dish, a portion sized to each. The two plans are made together, of
+     * a joint plan (`MealPlan.joint`), without settings of their days, which
+     * each changes in its own plan after. Counted as two makings of a plan.
+     */
+    withProfileId: z.string().uuid().optional(),
   })
   .superRefine((request, ctx) => {
+    if (request.withProfileId === request.profileId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['withProfileId'],
+        message: 'A plan is made together with another profile.',
+      });
+    if (request.withProfileId && request.dayOverrides?.length)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dayOverrides'],
+        message: 'A joint plan is made without settings of its days: each changes its own after.',
+      });
     // A first day outside the years there are is refused where it stands; what follows is about a plan that begins inside them.
     if (request.startDate > LAST_DAY) return;
     const lastDay = dayAfter(request.startDate, request.durationDays - 1);
@@ -259,6 +280,12 @@ export const GenerationReport = z.object({
   /** Meals for which the diet and the meal left one recipe to choose from. */
   singleCandidate: z.array(z.object({ date: z.string().date(), slot: MealType })),
   pantry: PantryUse,
+  /**
+   * Of a joint plan, the times of day both have that are planned apart in
+   * each plan: no recipe both people may be given was left for them. Empty for
+   * every other plan.
+   */
+  apart: z.array(MealType),
 });
 export type GenerationReport = z.infer<typeof GenerationReport>;
 
@@ -299,6 +326,31 @@ export const CookingChange = z
   })
   .nullable();
 export type CookingChange = z.infer<typeof CookingChange>;
+
+/** The other person's meal of a shared meal, as their plan holds it. */
+const OtherPortion = z.object({
+  mealId: z.string().uuid(),
+  planId: z.string().uuid(),
+  profileName: z.string(),
+  /** Its servings as eaten: servings times the rebalancer's multiplier. */
+  servings: z.number(),
+  calories: z.number(),
+  eaten: z.boolean(),
+});
+
+/**
+ * What a meal of a joint plan shares with the other plan: the other person's
+ * portion, and what the dish takes in all. `apart` is each portion cooked on
+ * its own; otherwise the dish is cooked in one pot and split by weight.
+ */
+export const SharedMealOf = z.object({
+  id: z.string().uuid(),
+  apart: z.boolean(),
+  with: OtherPortion,
+  /** Both portions together, or both cookings where the dish is cooked ahead: what the pot takes. */
+  pot: z.array(PlannedIngredient),
+});
+export type SharedMealOf = z.infer<typeof SharedMealOf>;
 
 /** A single scheduled meal within a plan day. */
 export const PlannedMeal = z.object({
@@ -370,6 +422,12 @@ export const PlannedMeal = z.object({
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
   /** Fibre, sugars, salt and saturated fat of the meal: nothing of them is known of a meal of one's own. */
   label: LabelTotals,
+  /**
+   * A meal of a joint plan that both people eat: the same dish at the same day
+   * and time of day of the other plan, each with a portion of their own. Null
+   * for a meal of this plan alone.
+   */
+  shared: SharedMealOf.nullable(),
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
@@ -800,6 +858,14 @@ export const MealPlan = z.object({
    */
   revision: z.number().int().min(0),
   createdAt: z.string().datetime(),
+  /**
+   * The plan of the other profile this one was made together with: their
+   * meals at the times of day both have are shared (`PlannedMeal.shared`).
+   * Null for a plan of one person, and once the other plan is deleted.
+   */
+  joint: z
+    .object({ planId: z.string().uuid(), profileId: z.string().uuid(), profileName: z.string() })
+    .nullable(),
 });
 export type MealPlan = z.infer<typeof MealPlan>;
 

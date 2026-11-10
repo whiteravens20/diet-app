@@ -79,6 +79,7 @@ model User {
   browserSignInCodes BrowserSignInCode[]
   idempotencyKeys    IdempotencyKey[]
   householdLists     HouseholdList[]
+  jointPlans         JointPlan[]
 }
 
 // One refresh token of a session. A session is the chain of tokens that
@@ -950,11 +951,48 @@ model MealPlan {
   // overlap cannot both rewrite the plan.
   revision       Int            @default(0)
   createdAt      DateTime       @default(now())
+  // Made together with the plan of another profile of the account: the meals
+  // at the times of day both have are the same dish (`SharedMeal`). Null for
+  // a plan of one person, and once the other plan is gone.
+  joint          JointPlan?     @relation(fields: [jointPlanId], references: [id], onDelete: SetNull)
+  jointPlanId    String?
 
   days          MealPlanDay[]
   shoppingLists ShoppingList[]
 
   @@index([profileId])
+  @@index([jointPlanId])
+}
+
+// Two plans of profiles of one account made together: at the times of day
+// both have, each eats the same dish, with a portion sized to their own day.
+// Deleting either plan deletes this, and leaves the other a plan of its own.
+model JointPlan {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  plans       MealPlan[]
+  sharedMeals SharedMeal[]
+
+  @@index([userId])
+}
+
+// One meal of a joint plan's day that both people eat: the same recipe in
+// each plan, a portion each. Cooked in one pot and split by weight, or `apart`:
+// each portion cooked on its own.
+model SharedMeal {
+  id          String    @id @default(uuid())
+  joint       JointPlan @relation(fields: [jointPlanId], references: [id], onDelete: Cascade)
+  jointPlanId String
+  date        DateTime  @db.Date
+  mealType    String
+  apart       Boolean   @default(false)
+
+  meals PlannedMeal[]
+
+  @@unique([jointPlanId, date, mealType])
 }
 
 model MealPlanDay {
@@ -1015,8 +1053,14 @@ model PlannedMeal {
   // gets another recipe any other way.
   modelPicked Boolean     @default(false)
   modelReason String?
+  // Eaten by both people of a joint plan: the meal of the other plan at the
+  // same day and time of day has the same link. Null for a meal of one's own
+  // plan alone, and once the link is undone for that day.
+  shared       SharedMeal? @relation(fields: [sharedMealId], references: [id], onDelete: SetNull)
+  sharedMealId String?
 
   @@index([dayId])
+  @@index([sharedMealId])
   // Cross-plan "which meals use recipe X" lookups (cascade checks, future
   // reporting) would otherwise full-scan PlannedMeal.
   @@index([recipeId])

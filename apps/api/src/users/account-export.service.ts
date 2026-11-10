@@ -319,7 +319,14 @@ export class AccountExportService {
           include: {
             days: {
               orderBy: { date: 'asc' },
-              include: { meals: { include: { recipe: { select: { slug: true, title: true } } } } },
+              include: {
+                meals: {
+                  include: {
+                    recipe: { select: { slug: true, title: true } },
+                    shared: { select: { apart: true } },
+                  },
+                },
+              },
             },
             shoppingLists: { orderBy: { createdAt: 'asc' }, include: { items: true } },
           },
@@ -339,6 +346,8 @@ export class AccountExportService {
           : 'deterministic',
         options: plan.options,
         createdAt: plan.createdAt.toISOString(),
+        // Made together with another plan of the account, which has the same id here.
+        jointPlanId: plan.jointPlanId,
         days: plan.days.map((planned) => ({
           date: isoDate(planned.date),
           calorieTarget: planned.calorieTarget,
@@ -354,6 +363,9 @@ export class AccountExportService {
             ownName: meal.customName,
             ownNutrition: meal.customMacros,
             eatenAt: meal.eatenAt?.toISOString() ?? null,
+            // A meal both plans of a joint plan hold: the other's meal has the same id here, and it is cooked apart or in one pot.
+            sharedMealId: meal.sharedMealId,
+            cookedApart: meal.shared?.apart ?? null,
           })),
         })),
         shoppingLists: plan.shoppingLists.map((shopping) => ({

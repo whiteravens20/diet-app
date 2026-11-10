@@ -86,6 +86,7 @@ export class PlanGenerationService {
 
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
+    if (req.withProfileId) return this.generateJoint(userId, locale, req, req.withProfileId);
     const profile = await this.plans.loadProfile(userId, req.profileId);
     // A profile that holds the most plans is told so before a plan is worked out for nothing.
     await refuseFullProfile(this.prisma, profile.id);
@@ -166,6 +167,197 @@ export class PlanGenerationService {
       });
     });
     return this.plans.get(userId, locale, plan.id);
+  }
+
+  /**
+   * Make two plans together (`GeneratePlanRequest.withProfileId`): the profile
+   * asked for first, as the request asks, then the other, as its own profile
+   * is, on the same days. At the times of day both have, the first plan holds
+   * only a dish both may be given, steered by both profiles' favourites and
+   * kitchens and held to the stricter of their limits; the second has those
+   * dishes locked, its portions and the rest of its days sized to its own
+   * targets, and each such meal of the two is linked as one shared meal. A time
+   * of day no dish suits both is planned apart in each plan, and both reports
+   * say so. Answers the plan of the profile asked for.
+   */
+  private async generateJoint(
+    userId: string,
+    locale: Locale,
+    req: GeneratePlanRequest,
+    withProfileId: string,
+  ): Promise<MealPlan> {
+    const profiles = [
+      await this.plans.loadProfile(userId, req.profileId),
+      await this.plans.loadProfile(userId, withProfileId),
+    ] as const;
+    for (const profile of profiles) await refuseFullProfile(this.prisma, profile.id);
+    const start = new Date(req.startDate);
+    // The second follows its own profile; the rest of what was asked holds for both.
+    const asked = [
+      { dietType: req.dietType, mealCount: req.mealCount, target: req.calorieTargetOverride },
+      { dietType: undefined, mealCount: undefined, target: undefined },
+    ];
+    const sides = await Promise.all(
+      profiles.map(async (profile, index) => {
+        const own = asked[index]!;
+        const base = this.planBase(profile, own.target);
+        const dietType = own.dietType ?? profile.dietType;
+        const days = resolvePlanDays({
+          startDate: start,
+          durationDays: req.durationDays,
+          defaultMealCount: own.mealCount ?? profile.mealCount,
+          base,
+        });
+        const diary = await diaryOfDays(this.prisma, profile.id, days);
+        const options: PlanOptions = {
+          dietType: own.dietType ?? null,
+          mealCount: own.mealCount ?? null,
+          calorieTargetOverride: own.target ?? null,
+          mealPrepFriendly: req.mealPrepFriendly,
+          respectExclusions: req.respectExclusions,
+          respectFavorites: req.respectFavorites,
+          respectInventory: req.respectInventory,
+          lessWaste: req.lessWaste,
+          maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
+          allowRelaxations: req.allowRelaxations,
+        };
+        return {
+          profile,
+          base,
+          dietType,
+          macroSplit: splitFor(dietType, profile),
+          days: days.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
+          options,
+          seed: this.nextSeed(),
+        };
+      }),
+    );
+    const [first, second] = sides as [(typeof sides)[number], (typeof sides)[number]];
+    const ask = (side: typeof first) => ({
+      planTarget: side.base.target,
+      dietType: side.dietType,
+      macroSplit: side.macroSplit,
+      mealPrepFriendly: req.mealPrepFriendly,
+      respectExclusions: req.respectExclusions,
+      respectFavorites: req.respectFavorites,
+      respectInventory: req.respectInventory,
+      lessWaste: req.lessWaste,
+      maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
+      allowRelaxations: req.allowRelaxations,
+      seed: side.seed,
+    });
+
+    // The times of day both have: without settings of their days, every day of a plan has the same.
+    const bothHave = first.days[0]!.mealSlots.filter((slot) =>
+      second.days[0]!.mealSlots.includes(slot),
+    );
+    // What the second may be given on its diet, and its favourite recipes: what the dishes of the shared times are chosen from.
+    const theirs = (
+      await this.loadEligibleRecipes(userId, second.profile, {
+        respectExclusions: req.respectExclusions,
+      })
+    ).optimizerRecipes;
+    const joint = {
+      theirs: new Set(theirs.filter((r) => fitsDiet(r.dietTags, second.dietType)).map((r) => r.id)),
+      favorites: new Set(theirs.filter((r) => r.isFavorite).map((r) => r.id)),
+      preferences: second.profile.preferences,
+      profileId: second.profile.id,
+    };
+    // A shared time the first plan cannot be filled at, held to what both may be given, is planned apart, and the
+    // plan made again without it.
+    let sharedAsked = bothHave;
+    let ofFirst: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>;
+    for (;;) {
+      try {
+        ofFirst = await this.optimiseFor(userId, first.profile, {
+          ...ask(first),
+          days: first.days,
+          joint: { ...joint, sharedSlots: sharedAsked },
+        });
+        break;
+      } catch (err) {
+        const named = slotsNamedBy(err).filter((slot) => sharedAsked.includes(slot));
+        if (named.length === 0) throw err;
+        sharedAsked = sharedAsked.filter((slot) => !named.includes(slot));
+      }
+    }
+    const shared = ofFirst.shared;
+    const apart = bothHave.filter((slot) => !shared.includes(slot));
+    // The second plan's meals at the shared times are the first plan's dishes.
+    const locked = second.days.map((day, dayIndex) => ({
+      ...day,
+      lockedSlots: ofFirst.assignments
+        .filter((placed) => placed.dayIndex === dayIndex && shared.includes(placed.slot))
+        .map((placed) => ({ slot: placed.slot, recipeId: placed.recipeId })),
+    }));
+    const ofSecond = await this.optimiseFor(userId, second.profile, {
+      ...ask(second),
+      days: locked,
+    });
+
+    const planId = await this.prisma.$transaction(async (tx) => {
+      // Held in one order, so that two joint plans of the same two profiles asked at once wait for each other.
+      for (const id of profiles.map((profile) => profile.id).sort()) await holdProfile(tx, id);
+      for (const profile of profiles) await refuseFullProfile(tx, profile.id);
+      const joint = await tx.jointPlan.create({ data: { userId } });
+      const made: string[] = [];
+      for (const [side, result] of [
+        [first, ofFirst],
+        [second, ofSecond],
+      ] as const) {
+        if (result.pantryRound)
+          await tx.profile.update({
+            where: { id: side.profile.id },
+            data: pantryCount(result.pantryRound),
+          });
+        const plan = await tx.mealPlan.create({
+          data: {
+            profileId: side.profile.id,
+            startDate: start,
+            durationDays: req.durationDays,
+            dietType: side.dietType,
+            calorieTarget: side.base.target,
+            macroSplit: side.macroSplit ?? Prisma.JsonNull,
+            reuseScore: result.ingredientReuseScore,
+            options: side.options,
+            seed: side.seed,
+            report: { ...result.report, apart },
+            jointPlanId: joint.id,
+            days: { create: buildDays(side.days, result.assignments) },
+          },
+          select: { id: true },
+        });
+        made.push(plan.id);
+      }
+      // Each dish both plans hold at a shared time is one shared meal of the two.
+      const meals = await tx.plannedMeal.findMany({
+        where: { day: { planId: { in: made } }, mealType: { in: shared } },
+        select: {
+          id: true,
+          mealType: true,
+          recipeId: true,
+          day: { select: { planId: true, date: true } },
+        },
+      });
+      const byPlace = new Map<string, typeof meals>();
+      for (const meal of meals) {
+        const place = `${isoDate(meal.day.date)} ${meal.mealType}`;
+        byPlace.set(place, [...(byPlace.get(place) ?? []), meal]);
+      }
+      for (const both of byPlace.values()) {
+        if (both.length !== 2 || both[0]!.recipeId !== both[1]!.recipeId) continue;
+        await tx.sharedMeal.create({
+          data: {
+            jointPlanId: joint.id,
+            date: both[0]!.day.date,
+            mealType: both[0]!.mealType,
+            meals: { connect: both.map((meal) => ({ id: meal.id })) },
+          },
+        });
+      }
+      return made[0]!;
+    });
+    return this.plans.get(userId, locale, planId);
   }
 
   /** The server's own day, as the API writes dates, for a request that names none; replaceable in a test. */
@@ -730,6 +922,8 @@ export class PlanGenerationService {
        * overrides stored with it, instead of refusing.
        */
       dropIneligibleLocks?: boolean;
+      /** Planned together with another profile, whose dishes at the shared times this plan chooses (`JointAsk`). */
+      joint?: JointAsk;
       seed: number;
     },
   ): Promise<{
@@ -737,11 +931,43 @@ export class PlanGenerationService {
     ingredientReuseScore: number;
     report: StoredReport;
     pantryRound?: PantryRound;
+    /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
+    shared: MealType[];
   }> {
-    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules, perishablePacks } =
-      await this.loadEligibleRecipes(ownerUserId, profile, {
-        respectExclusions: opts.respectExclusions,
-      });
+    const loaded = await this.loadEligibleRecipes(ownerUserId, profile, {
+      respectExclusions: opts.respectExclusions,
+    });
+    const { requirementsByRecipe, beforeProfileRules, perishablePacks } = loaded;
+    const joint = opts.joint;
+    // At a time of day both plans share, only a dish both may be given, without what either would rather not eat;
+    // the other's favourite recipes are favourites here too.
+    const theirDislikes = new Set(joint?.preferences?.dislikedIngredientIds ?? []);
+    const ourDislikes = new Set([
+      ...(profile.preferences?.dislikedIngredientIds ?? []),
+      ...theirDislikes,
+    ]);
+    const bothMay = (recipe: OptimizerRecipe): boolean =>
+      joint !== undefined &&
+      joint.theirs.has(recipe.id) &&
+      !recipe.ingredientIds.some((id) => ourDislikes.has(id));
+    // A time of day no dish suits both at is planned apart in each plan.
+    const sharedSlots = new Set(
+      (joint?.sharedSlots ?? []).filter((slot) =>
+        loaded.optimizerRecipes.some(
+          (recipe) =>
+            bothMay(recipe) &&
+            recipe.mealTypes.includes(slot) &&
+            fitsDiet(recipe.dietTags, opts.dietType),
+        ),
+      ),
+    );
+    const optimizerRecipes: OptimizerRecipe[] = joint
+      ? loaded.optimizerRecipes.map((recipe) =>
+          bothMay(recipe)
+            ? { ...recipe, isFavorite: recipe.isFavorite || joint.favorites.has(recipe.id) }
+            : { ...recipe, mealTypes: recipe.mealTypes.filter((slot) => !sharedSlots.has(slot)) },
+        )
+      : loaded.optimizerRecipes;
 
     // A lock pins a recipe to a slot, and a pinned recipe passes the same gate
     // as any other: it has to be among the recipes this profile may be given,
@@ -771,7 +997,10 @@ export class PlanGenerationService {
     const favoriteIngredientIds =
       opts.respectFavorites === false
         ? undefined
-        : new Set(profile.preferences?.favoriteIngredientIds ?? []);
+        : new Set([
+            ...(profile.preferences?.favoriteIngredientIds ?? []),
+            ...(joint?.preferences?.favoriteIngredientIds ?? []),
+          ]);
     // A plan that wastes less counts the pantry, whatever the request says of it.
     const countsPantry = opts.respectInventory !== false || opts.lessWaste === true;
     const pantry = await this.resolveInventoryBias(
@@ -780,6 +1009,7 @@ export class PlanGenerationService {
       opts.lessWaste === true,
       optimizerRecipes,
       requirementsByRecipe,
+      joint?.profileId,
     );
     const inventoryCoverage = pantry.coverage;
 
@@ -803,7 +1033,15 @@ export class PlanGenerationService {
       }
     }
 
-    const caps = capsOnARecipe(profile.preferences, opts.mealPrepFriendly);
+    // Planned together, the stricter of the two profiles' limits holds: the dishes it chooses go into both plans.
+    const caps = stricterCaps(
+      capsOnARecipe(profile.preferences, opts.mealPrepFriendly),
+      joint ? capsOnARecipe(joint.preferences, opts.mealPrepFriendly) : null,
+    );
+    const perKind = stricterKinds(
+      mealsPerKind(profile.preferences),
+      joint ? mealsPerKind(joint.preferences) : null,
+    );
 
     const own = sharesOf(opts.macroSplit);
     const days: OptimizerDay[] = opts.days.map((d) => {
@@ -847,7 +1085,10 @@ export class PlanGenerationService {
           mealPrepFriendly: opts.mealPrepFriendly,
           favoriteIngredientIds,
           dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
-          preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
+          preferredCuisines: new Set([
+            ...(profile.preferences?.preferredCuisines ?? []),
+            ...(joint?.preferences?.preferredCuisines ?? []),
+          ]),
           inventoryCoverage,
           maxConsecutiveDaysSameMeal: caps.consecutive,
           maxTimesPerWeekSameMeal: caps.perWeek,
@@ -855,7 +1096,7 @@ export class PlanGenerationService {
           maxRepeatsPerRecipe:
             opts.maxRepeatsPerRecipe ??
             this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
-          maxMealsPerKind: mealsPerKind(profile.preferences),
+          maxMealsPerKind: perKind,
           perishablePacks,
           allowRelaxations: new Set(opts.allowRelaxations),
           seed: opts.seed,
@@ -867,6 +1108,7 @@ export class PlanGenerationService {
         ingredientReuseScore: result.ingredientReuseScore,
         report: reportOf(result, dates, pantry.use),
         pantryRound: pantry.round,
+        shared: [...sharedSlots],
       };
     } catch (err) {
       // The plan could be filled only by letting limits give way that may
@@ -1104,10 +1346,15 @@ export class PlanGenerationService {
     lessWaste: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
+    /** Another profile whose pantry the plan counts as well: the other of a joint plan. */
+    alsoOf?: string,
   ): Promise<{ use: PantryUse; coverage?: Map<string, number>; round?: PantryRound }> {
     if (!respectInventory) return { use: 'not_asked' };
 
     const stock = await stockByIngredient(this.prisma, profileId);
+    if (alsoOf)
+      for (const [ingredientId, quantity] of await stockByIngredient(this.prisma, alsoOf))
+        stock.set(ingredientId, (stock.get(ingredientId) ?? 0) + quantity);
     if (stock.size === 0) return { use: 'empty' };
 
     const coverage = new Map<string, number>();
@@ -1147,6 +1394,73 @@ type PantryRound = 'counted' | 'left_out';
 const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({
   inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0,
 });
+
+/** What the other profile of a joint plan asks of the plan chosen first, whose dishes at the shared times both eat. */
+interface JointAsk {
+  /** The times of day both plans have. */
+  sharedSlots: readonly MealType[];
+  /** The recipes the other profile may be given, on its own diet. */
+  theirs: ReadonlySet<string>;
+  /** The other profile's favourite recipes. */
+  favorites: ReadonlySet<string>;
+  /** The other profile's preferences: what it would rather not eat, its favourites, kitchens and limits. */
+  preferences:
+    | (Parameters<typeof capsOnARecipe>[0] &
+        Parameters<typeof mealsPerKind>[0] & {
+          dislikedIngredientIds: string[];
+          favoriteIngredientIds: string[];
+          preferredCuisines: string[];
+        })
+    | null;
+  /** The other profile, whose pantry the plan counts as well. */
+  profileId: string;
+}
+
+/** The times of day a refusal to fill a plan names: of a meal with no recipe left, or of the meals outside a limit. */
+function slotsNamedBy(err: unknown): MealType[] {
+  if (!(err instanceof BadRequestException || err instanceof UnprocessableEntityException))
+    return [];
+  const answer = err.getResponse() as { error?: string; details?: unknown };
+  if (answer.error === 'NO_ELIGIBLE_RECIPE') {
+    const slot = (answer.details as UnfilledMeal | undefined)?.slot;
+    return slot ? [slot] : [];
+  }
+  if (answer.error === 'PLAN_NEEDS_RELAXATION')
+    return [...new Set((answer.details as RelaxationNeeded).meals.map((meal) => meal.slot))];
+  return [];
+}
+
+/** The tighter of two profiles' limits of how often a recipe comes, where there is a second. */
+function stricterCaps(
+  own: ReturnType<typeof capsOnARecipe>,
+  theirs: ReturnType<typeof capsOnARecipe> | null,
+): ReturnType<typeof capsOnARecipe> {
+  return theirs
+    ? {
+        consecutive: Math.min(own.consecutive, theirs.consecutive),
+        perWeek: Math.min(own.perWeek, theirs.perWeek),
+      }
+    : own;
+}
+
+/** The tighter of two profiles' limits of each kind of protein, where there is a second: a limit of either holds. */
+function stricterKinds(
+  own: ReturnType<typeof mealsPerKind>,
+  theirs: ReturnType<typeof mealsPerKind> | null,
+): ReturnType<typeof mealsPerKind> {
+  if (!theirs) return own;
+  const tighter = (a?: number, b?: number): number | undefined =>
+    a === undefined ? b : b === undefined ? a : Math.min(a, b);
+  const both = new Map(own);
+  for (const [kind, limit] of theirs) {
+    const mine = both.get(kind);
+    both.set(kind, {
+      perDay: tighter(mine?.perDay, limit.perDay),
+      perWeek: tighter(mine?.perWeek, limit.perWeek),
+    });
+  }
+  return both;
+}
 
 /** A fully-resolved day: defaults merged with overrides, ready for the optimiser. */
 interface ResolvedDay {

@@ -72,6 +72,7 @@ describe('the list of the plans of a profile', () => {
       options: underWay.options,
       revision: underWay.revision,
       createdAt: underWay.createdAt,
+      joint: null,
     });
   });
 

@@ -25,6 +25,8 @@ export const StoredReport = z.object({
   relaxations: z.array(z.object({ ...About, gaveWay: z.array(PlanRelaxation).min(1) })),
   singleCandidate: z.array(z.object(About)),
   pantry: PantryUse,
+  /** Of a joint plan, the times of day planned apart (`GenerationReport.apart`); none on a report kept before. */
+  apart: z.array(MealType).default([]),
 });
 export type StoredReport = z.infer<typeof StoredReport>;
 
@@ -48,6 +50,7 @@ export function reportOf(
     relaxations: result.report.relaxations.map((at) => ({ ...about(at), gaveWay: at.gaveWay })),
     singleCandidate: result.report.singleCandidate.map(about),
     pantry,
+    apart: [],
   };
 }
 
@@ -67,6 +70,7 @@ export function withDaysAgain(
     relaxations: [...ofOtherDays(kept.relaxations), ...fresh.relaxations],
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
     pantry: kept.pantry,
+    apart: kept.apart,
   };
 }
 
@@ -121,5 +125,6 @@ export function shownReport(kept: unknown, days: readonly MealPlanDay[]): Genera
     })),
     singleCandidate: standing(report.singleCandidate).map(({ date, slot }) => ({ date, slot })),
     pantry: report.pantry,
+    apart: report.apart,
   };
 }

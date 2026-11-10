@@ -115,6 +115,8 @@ export class MealPlansService {
     await this.prisma.$transaction(
       async (tx) => {
         const households = await releasePlanLists(tx, planId, profileId);
+        // A plan made together with another leaves it a plan of its own, whose shared meals are its own again.
+        if (plan.jointPlanId) await tx.jointPlan.deleteMany({ where: { id: plan.jointPlanId } });
         await tx.mealPlan.deleteMany({ where: { id: planId } });
         await settleHouseholds(tx, households);
       },
@@ -168,6 +170,12 @@ export class MealPlansService {
     const plans = await this.prisma.mealPlan.findMany({
       where: { id: { in: page.map((row) => row.id) } },
       include: {
+        // The plan made together with it, where there is one: what the list says of it.
+        joint: {
+          select: {
+            plans: { select: { id: true, profileId: true, profile: { select: { name: true } } } },
+          },
+        },
         days: {
           select: {
             overrides: true,
@@ -205,6 +213,32 @@ export class MealPlansService {
     planId: string,
     clientToday: string | null = null,
   ): Promise<MealPlan> {
+    const mine = await this.assemble(userId, locale, planId, clientToday);
+    const jointPlanId = mine.plan.jointPlanId;
+    if (!jointPlanId) return mine.dto;
+    // The plan made together with this one, while it is there: the meals at the same times are shared.
+    const other = await this.prisma.mealPlan.findFirst({
+      where: { jointPlanId, id: { not: planId }, profile: { userId } },
+      select: { id: true },
+    });
+    if (!other) return mine.dto;
+    const [theirs, sharedMeals] = await Promise.all([
+      this.assemble(userId, locale, other.id, clientToday),
+      this.prisma.sharedMeal.findMany({
+        where: { jointPlanId },
+        select: { id: true, apart: true },
+      }),
+    ]);
+    return joined(mine, theirs, new Map(sharedMeals.map((meal) => [meal.id, meal.apart])), locale);
+  }
+
+  /** A plan as it is answered, of its own: what it shares with another plan is added by `get`. */
+  private async assemble(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    clientToday: string | null,
+  ): Promise<Assembled> {
     const trWhere = locale === 'en' ? ['en'] : [locale, 'en'];
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
@@ -249,15 +283,18 @@ export class MealPlansService {
       diary.size > 0
         ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
         : new Map<string, DiaryEntry[]>();
-    return this.toDto(
+    return {
       plan,
-      locale,
-      restrictions,
-      diary,
-      written,
-      lists,
-      clientToday ?? this.today(),
-    );
+      dto: this.toDto(
+        plan,
+        locale,
+        restrictions,
+        diary,
+        written,
+        lists,
+        clientToday ?? this.today(),
+      ),
+    };
   }
 
   /**
@@ -1002,6 +1039,7 @@ export class MealPlansService {
       options: PlanOptions.parse(plan.options),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
+      joint: jointOf(plan),
     };
   }
 
@@ -1090,6 +1128,7 @@ export class MealPlansService {
             cooking: null,
             nutrition: mealNutrition(m),
             label: mealLabel(m),
+            shared: null,
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
@@ -1124,6 +1163,7 @@ export class MealPlansService {
           cooking: cookingOf.get(m.id) ?? null,
           nutrition: mealNutrition(m),
           label: mealLabel(m),
+          shared: null,
         };
       });
       // What the diary holds for the day is eaten, beside the meals.
@@ -1201,6 +1241,7 @@ export class MealPlansService {
       report: shownReport(plan.report, days),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
+      joint: null,
     };
   }
 }
@@ -1213,6 +1254,15 @@ const SCALE_SLACK = 1e-6;
 /** A plan as far as its summary takes: the row, and what its meals amount to. */
 type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
   days: { overrides: unknown; meals: (MealAmount & { modelPicked: boolean })[] }[];
+  joint: { plans: { id: string; profileId: string; profile: { name: string } }[] } | null;
+};
+
+/** The other plan of the joint plan a plan belongs to, while it is there. */
+const jointOf = (plan: SummarisedPlan): MealPlanSummary['joint'] => {
+  const other = plan.joint?.plans.find((one) => one.id !== plan.id);
+  return other
+    ? { planId: other.id, profileId: other.profileId, profileName: other.profile.name }
+    : null;
 };
 
 /** A plan that holds a model's pick says that a model had a part in it. */
@@ -1224,6 +1274,7 @@ const modelHadAPart = (
 interface PlanWithRelations {
   id: string;
   profileId: string;
+  jointPlanId: string | null;
   startDate: Date;
   durationDays: number;
   dietType: MealPlan['dietType'];
@@ -1237,6 +1288,7 @@ interface PlanWithRelations {
   /** Whose plan it is: the floor a day's target is compared with follows from it, and its target now. */
   profile:
     | (BaseProfile & {
+        name: string;
         sex: Sex | null;
         mealCount: number;
         preferences: LabelLimitColumns | null;
@@ -1259,10 +1311,87 @@ interface PlanWithRelations {
       eatenAt: Date | null;
       modelPicked: boolean;
       modelReason: string | null;
+      sharedMealId: string | null;
       recipe:
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
   }[];
+}
+
+/** A plan as it is answered of its own, and the rows it was read from. */
+interface Assembled {
+  plan: PlanWithRelations;
+  dto: MealPlan;
+}
+
+/** What a meal of a plan comes to in servings of its recipe: its servings times the rebalancer's multiplier. */
+const eatenServings = (meal: Pick<PlannedMeal, 'servings' | 'quantityScale'>): number =>
+  meal.servings * meal.quantityScale;
+
+/**
+ * A plan with what it shares with the plan made together with it (`theirs`):
+ * which plan that is, and for each meal both eat the other person's portion and
+ * what the pot takes, both portions together, or both cookings where the dish
+ * is cooked ahead. A meal whose dish the other plan no longer holds at that
+ * time is answered as a meal of this plan alone.
+ */
+function joined(
+  mine: Assembled,
+  theirs: Assembled,
+  apartOf: ReadonlyMap<string, boolean>,
+  locale: Locale,
+): MealPlan {
+  const meals = (assembled: Assembled) =>
+    new Map(assembled.dto.days.flatMap((day) => day.meals).map((meal) => [meal.id, meal]));
+  const myMeals = meals(mine);
+  const theirMeals = meals(theirs);
+  const theirsByShared = new Map<string, PlannedMeal>();
+  for (const day of theirs.plan.days)
+    for (const row of day.meals) {
+      const meal = theirMeals.get(row.id);
+      if (row.sharedMealId && meal) theirsByShared.set(row.sharedMealId, meal);
+    }
+  // What a meal and the others of its cooking come to, where the dish is cooked at it.
+  const cooked = (meal: PlannedMeal, of: ReadonlyMap<string, PlannedMeal>): number =>
+    meal.cookAhead === 'cook' && meal.cooking
+      ? meal.cooking.with.reduce(
+          (sum, other) => sum + (of.has(other.mealId) ? eatenServings(of.get(other.mealId)!) : 0),
+          eatenServings(meal),
+        )
+      : eatenServings(meal);
+  const rows = new Map(mine.plan.days.flatMap((day) => day.meals).map((row) => [row.id, row]));
+  const profileName = theirs.plan.profile?.name ?? '';
+  return {
+    ...mine.dto,
+    joint: { planId: theirs.dto.id, profileId: theirs.dto.profileId, profileName },
+    days: mine.dto.days.map((day) => ({
+      ...day,
+      meals: day.meals.map((meal): PlannedMeal => {
+        const row = rows.get(meal.id);
+        const sharedId = row?.sharedMealId ?? null;
+        const other = sharedId ? theirsByShared.get(sharedId) : undefined;
+        if (!sharedId || !other || !row?.recipe || other.recipe?.id !== row.recipe.id) return meal;
+        const all =
+          (cooked(meal, myMeals) + cooked(other, theirMeals)) / Math.max(1, row.recipe.servings);
+        return {
+          ...meal,
+          shared: {
+            id: sharedId,
+            apart: apartOf.get(sharedId) ?? false,
+            with: {
+              mealId: other.id,
+              planId: theirs.dto.id,
+              profileName,
+              servings: eatenServings(other),
+              calories: other.nutrition.calories,
+              eaten: other.eatenAt !== null,
+            },
+            pot: toPlannedIngredients(row.recipe.ingredients, all, locale),
+          },
+        };
+      }),
+    })),
+  };
 }
 
 /** Canonical eating order for sorting planned meals within a day. */

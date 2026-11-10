@@ -207,6 +207,8 @@ export class ProfilesService {
         where: { plan: { profileId: id }, householdId: { not: null } },
         select: { householdId: true },
       });
+      // A plan made together with one of the profile's leaves the other a plan of its own.
+      await tx.jointPlan.deleteMany({ where: { plans: { some: { profileId: id } } } });
       await tx.profile.delete({ where: { id } });
       await settleHouseholds(
         tx,

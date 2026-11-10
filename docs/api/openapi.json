@@ -14885,6 +14885,10 @@
             "items": {
               "$ref": "#/components/schemas/DayOverride"
             }
+          },
+          "withProfileId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -14942,12 +14946,19 @@
           },
           "pantry": {
             "$ref": "#/components/schemas/PantryUse"
+          },
+          "apart": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
           }
         },
         "required": [
           "relaxations",
           "singleCandidate",
-          "pantry"
+          "pantry",
+          "apart"
         ],
         "additionalProperties": false
       },
@@ -17055,6 +17066,35 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "joint": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "planId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId",
+                  "profileId",
+                  "profileName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -17075,7 +17115,8 @@
           "options",
           "report",
           "revision",
-          "createdAt"
+          "createdAt",
+          "joint"
         ],
         "additionalProperties": false
       },
@@ -17350,6 +17391,35 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "joint": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "planId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId",
+                  "profileId",
+                  "profileName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -17363,7 +17433,8 @@
           "generationMode",
           "options",
           "revision",
-          "createdAt"
+          "createdAt",
+          "joint"
         ],
         "additionalProperties": false
       },
@@ -19192,6 +19263,16 @@
           },
           "label": {
             "$ref": "#/components/schemas/LabelTotals"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedMealOf"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -19212,7 +19293,8 @@
           "cookAhead",
           "cooking",
           "nutrition",
-          "label"
+          "label",
+          "shared"
         ],
         "additionalProperties": false
       },
@@ -23336,6 +23418,65 @@
           "female",
           "non_binary"
         ]
+      },
+      "SharedMealOf": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "apart": {
+            "type": "boolean"
+          },
+          "with": {
+            "type": "object",
+            "properties": {
+              "mealId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "planId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "profileName": {
+                "type": "string"
+              },
+              "servings": {
+                "type": "number"
+              },
+              "calories": {
+                "type": "number"
+              },
+              "eaten": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mealId",
+              "planId",
+              "profileName",
+              "servings",
+              "calories",
+              "eaten"
+            ],
+            "additionalProperties": false
+          },
+          "pot": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedIngredient"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "apart",
+          "with",
+          "pot"
+        ],
+        "additionalProperties": false
       },
       "ShipConfig": {
         "type": "object",

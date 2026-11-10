@@ -138,6 +138,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           estimated: false,
           nutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
           label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+          shared: null,
         },
       ],
       dayNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
@@ -185,9 +186,10 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     maxRepeatsPerRecipe: null,
     allowRelaxations: [],
   },
-  report: { relaxations: [], singleCandidate: [], pantry: 'empty' },
+  report: { relaxations: [], singleCandidate: [], pantry: 'empty', apart: [] },
   revision: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
+  joint: null,
   ...over,
 });
 
@@ -556,6 +558,7 @@ describe('the plan page, on a plan and how it was made', () => {
           ],
           singleCandidate: [{ date: '2026-01-05', slot: 'breakfast' }],
           pantry: 'counted',
+          apart: [],
         },
       }),
     );
@@ -596,7 +599,7 @@ describe('the plan page, on a plan and how it was made', () => {
     ['left_out', messages.mealPlans.pantryLeftOut],
     ['unused', messages.mealPlans.pantryUnused],
   ] as const)('says why the pantry did not count when the reason is %s', async (pantry, line) => {
-    await open(aPlan({ report: { relaxations: [], singleCandidate: [], pantry } }));
+    await open(aPlan({ report: { relaxations: [], singleCandidate: [], pantry, apart: [] } }));
 
     expect(screen.getByText(line)).toBeInTheDocument();
   });

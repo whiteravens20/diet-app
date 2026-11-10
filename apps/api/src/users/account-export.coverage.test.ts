@@ -23,6 +23,7 @@ const IN_THE_FILE: Record<string, string> = {
   OwnProduct: 'ownProducts',
   Recipe: 'ownRecipes',
   MealPlan: 'plans',
+  JointPlan: 'plans',
   HouseholdList: 'householdLists',
   Notification: 'notifications',
   AiProviderConfig: 'aiProviders',
