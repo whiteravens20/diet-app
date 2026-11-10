@@ -521,6 +521,7 @@
     "subheadMultiple": "Calorie targets across your {count} profiles."
   },
   "diary": {
+    "mealKcalFromPot": "≈{kcal, number, ::group-off}\u00a0kcal from a shared pot",
     "title": "Diary",
     "subhead": "What was eaten each day, from the plan and beside it, against the day's target.",
     "profileLabel": "Profile",

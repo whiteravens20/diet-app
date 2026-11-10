@@ -521,6 +521,7 @@
     "subheadMultiple": "Cele kaloryczne dla {count} profili."
   },
   "diary": {
+    "mealKcalFromPot": "≈{kcal, number, ::group-off}\u00a0kcal z\u00a0podziału garnka",
     "title": "Dziennik",
     "subhead": "Co zostało zjedzone każdego dnia, z planu i poza nim, na tle celu dnia.",
     "profileLabel": "Profil",

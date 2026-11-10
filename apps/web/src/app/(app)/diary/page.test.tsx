@@ -182,6 +182,24 @@ describe('the diary', () => {
     expect(screen.getByText(texts.planOnTarget)).toBeInTheDocument();
   });
 
+  it('says of a meal from a shared pot that its energy is a portion of a split, near the plan', async () => {
+    const day = aDay();
+    await renderPage({
+      ...day,
+      plan: {
+        ...day.plan!,
+        meals: day.plan!.meals.map((meal, index) =>
+          index === 0 ? { ...meal, fromPot: true } : meal,
+        ),
+      },
+    });
+
+    const breakfast = within(screen.getByRole('region', { name: 'Breakfast' }));
+    expect(breakfast.getByText(/≈450.kcal from a shared pot/)).toBeInTheDocument();
+    const dinner = within(screen.getByRole('region', { name: 'Dinner' }));
+    expect(dinner.queryByText(/shared pot/)).toBeNull();
+  });
+
   it('opens on the day a link names, and goes to the days on either side and back to today', async () => {
     const yesterday = dayAfter(TODAY, -1);
     address.search = `profile=${PROFILE}&date=${yesterday}`;

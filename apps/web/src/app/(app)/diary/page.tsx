@@ -725,7 +725,10 @@ function MealSection({
                 <p className="text-xs text-muted-foreground">
                   {t('fromPlan')}
                   {DOT}
-                  {t('mealKcal', { kcal: meal.nutrition.calories })}
+                  {/* A portion of a shared pot is the plan's, which a split by weight comes only near. */}
+                  {meal.fromPot
+                    ? t('mealKcalFromPot', { kcal: meal.nutrition.calories })
+                    : t('mealKcal', { kcal: meal.nutrition.calories })}
                 </p>
               </div>
               <label className="flex min-h-6 items-center gap-2 text-sm">
