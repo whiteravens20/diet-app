@@ -18,7 +18,8 @@
     "reset": "Reset",
     "yes": "Yes",
     "no": "No",
-    "optional": "optional"
+    "optional": "optional",
+    "copyByHandHint": "The browser gives this page no clipboard here. Select the text and copy it."
   },
   "notFound": {
     "title": "Page not found",
@@ -1374,7 +1375,6 @@
     "copied": "Copied: {count, plural, one {{count, number, ::group-off}\u00a0entry} other {{count, number, ::group-off}\u00a0entries}} still to buy, under their aisles.",
     "copiedNothing": "Copied. Everything on this list is ticked off.",
     "copyByHand": "Copy the list",
-    "copyByHandHint": "The browser gives this page no clipboard here. Select the text and copy it.",
     "aisleEnergy": "about {kcal, number, ::group-off}\u00a0kcal",
     "atHome": "at home",
     "bestBefore": "best before {date}",

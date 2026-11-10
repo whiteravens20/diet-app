@@ -19,7 +19,7 @@ import { DOT, held } from '@/lib/figure-line';
 import { useUnitName } from '@/lib/ingredient-format';
 import { saveText } from '@/lib/save-file';
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
+import { CopyByHand } from '@/components/copy-by-hand';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
@@ -334,30 +334,7 @@ export function ListView({
           ? t(copied.entries === 0 ? 'copiedNothing' : 'copied', { count: copied.entries })
           : ''}
       </p>
-      <Dialog
-        open={byHand !== null}
-        onClose={() => setByHand(null)}
-        label={t('copyByHand')}
-        className="max-w-md"
-      >
-        <div className="space-y-3 p-4">
-          <h2 className="font-semibold">{t('copyByHand')}</h2>
-          <p className="text-sm text-muted-foreground">{t('copyByHandHint')}</p>
-          <textarea
-            readOnly
-            rows={12}
-            aria-label={t('copyByHand')}
-            className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
-            value={byHand ?? ''}
-            onFocus={(event) => event.currentTarget.select()}
-          />
-          <div className="flex justify-end">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setByHand(null)}>
-              {tCommon('close')}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+      <CopyByHand text={byHand} label={t('copyByHand')} onClose={() => setByHand(null)} />
       {list.stale && (
         <div
           role="status"

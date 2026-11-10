@@ -18,7 +18,8 @@
     "reset": "Resetuj",
     "yes": "Tak",
     "no": "Nie",
-    "optional": "opcjonalnie"
+    "optional": "opcjonalnie",
+    "copyByHandHint": "Przeglądarka nie udostępnia tej stronie schowka. Zaznacz tekst i skopiuj go."
   },
   "notFound": {
     "title": "Nie znaleziono strony",
@@ -1374,7 +1375,6 @@
     "copied": "Skopiowano: {count, plural, one {{count, number, ::group-off}\u00a0pozycja} few {{count, number, ::group-off}\u00a0pozycje} many {{count, number, ::group-off}\u00a0pozycji} other {{count, number, ::group-off}\u00a0pozycji}} do kupienia, według działów.",
     "copiedNothing": "Skopiowano. Wszystko z tej listy jest odhaczone.",
     "copyByHand": "Skopiuj listę",
-    "copyByHandHint": "Przeglądarka nie udostępnia tej stronie schowka. Zaznacz tekst i skopiuj go.",
     "aisleEnergy": "około {kcal, number, ::group-off}\u00a0kcal",
     "atHome": "w domu",
     "bestBefore": "najlepiej spożyć przed {date}",

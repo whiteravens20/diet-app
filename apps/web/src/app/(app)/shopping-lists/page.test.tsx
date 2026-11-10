@@ -259,7 +259,7 @@ describe('a shopping list, taken somewhere else', () => {
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     const byHand = within(await screen.findByRole('dialog', { name: texts.copyByHand }));
-    expect(byHand.getByText(texts.copyByHandHint)).toBeInTheDocument();
+    expect(byHand.getByText(messages.common.copyByHandHint)).toBeInTheDocument();
     expect(
       (byHand.getByRole('textbox', { name: texts.copyByHand }) as HTMLTextAreaElement).value,
     ).toContain('- White rice: 150 g');
