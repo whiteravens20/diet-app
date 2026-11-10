@@ -3443,10 +3443,25 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(screen.queryByRole('combobox', { name: messages.mealPlans.jointPlanWith })).toBeNull();
   });
 
-  it('says whose plan it was made with', async () => {
-    await open(together());
+  it('says whose plan it was made with, what the other eats of a shared meal, and marks it eaten for both', async () => {
+    const plan = together();
+    await open(plan);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
 
     expect(screen.getByText('Planned together with: Ewa')).toBeInTheDocument();
+    expect(screen.getByText(messages.mealPlans.sharedChip)).toBeInTheDocument();
+    expect(screen.getByText(spaced('Ewa: 1.1 servings · 540 kcal'))).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: ofAMeal(messages.mealPlans.eatenTogether) }),
+    );
+
+    expect(patch).toHaveBeenCalledWith(
+      `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}/eaten`,
+      {
+        eaten: true,
+        forAll: true,
+      },
+    );
   });
 
   it('says which times of day were planned apart, and why', async () => {

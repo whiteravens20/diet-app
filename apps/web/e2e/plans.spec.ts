@@ -1,7 +1,19 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Locator, Page } from '@playwright/test';
-import { barriers, expect, loose, settled, test, theFormForAPlan, type Messages } from './fixtures';
+import { signUp } from './accounts';
+import {
+  barriers,
+  expect,
+  loose,
+  settled,
+  signInHere,
+  test,
+  theFormForAPlan,
+  type Messages,
+} from './fixtures';
+
+const PASSWORD = 'Browser-Test-Passw0rd';
 
 type Texts = Record<string, string>;
 const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
@@ -89,6 +101,88 @@ test.describe('a plan and what it is made for', () => {
       .click();
     expect((await gone).status()).toBe(204);
     await expect(head).toHaveCount(0);
+  });
+});
+
+test.describe('a plan made together with another profile', () => {
+  test('is asked for in the form, holds one dish at the times of day both have, and is marked eaten for both at one press', async ({
+    browser,
+    request,
+    baseURL,
+    appLocale,
+    messages,
+  }, testInfo) => {
+    test.skip(
+      !['desktop-en', 'phone-pl'].includes(testInfo.project.name),
+      'a wide screen in one language and a narrow one in the other',
+    );
+    const plans = plansOf(messages);
+    // An account of its own: the other tests count on an account with one profile.
+    const email = `browser-joint-${Date.now().toString(36)}@example.test`;
+    const registered = await signUp(
+      request,
+      { email, password: PASSWORD, displayName: 'Joint' },
+      appLocale,
+    );
+    expect(registered.ok()).toBe(true);
+    const token = ((await registered.json()) as { tokens: { accessToken: string } }).tokens
+      .accessToken;
+    const headers = { authorization: `Bearer ${token}` };
+    const made = async (data: object): Promise<void> => {
+      const answer = await request.post('/api/profiles', { data, headers });
+      expect(answer.ok(), await answer.text()).toBe(true);
+    };
+    await made({ name: 'Adam', age: 35, sex: 'male', heightCm: 180, weightKg: 90, mealCount: 4 });
+    await made({ name: 'Ewa', age: 33, sex: 'female', heightCm: 166, weightKg: 64, mealCount: 3 });
+
+    const elsewhere = await browser.newContext({ ...testInfo.project.use, baseURL });
+    await elsewhere.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
+    const page = await elsewhere.newPage();
+    await page.goto('/login');
+    await signInHere(page, { email, password: PASSWORD }, messages);
+    await page.waitForURL('**/dashboard');
+    await page.goto('/meal-plans');
+    await settled(page);
+    await theFormForAPlan(page, messages);
+
+    await page.getByRole('combobox', { name: plans.jointPlanWith! }).selectOption({ label: 'Ewa' });
+    const answered = page.waitForResponse(
+      (res) => new URL(res.url()).pathname === '/api/meal-plans/generate',
+    );
+    await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+    const answer = await answered;
+    expect(answer.status()).toBe(201);
+    const plan = (await answer.json()) as {
+      joint: { planId: string; profileName: string } | null;
+      days: { meals: { id: string; shared: { with: { mealId: string } } | null }[] }[];
+    };
+    expect(plan.joint?.profileName).toBe('Ewa');
+
+    // The plan says with whom it is made, and a meal of its first day that both have says the other person's portion.
+    await expect(page.getByText(plans.jointWith!.replace('{name}', 'Ewa'))).toBeVisible();
+    const shared = plan.days[0]!.meals.find((meal) => meal.shared !== null);
+    expect(shared, 'a meal both have on the first day').toBeDefined();
+    const row = page.locator(`[id="meal-${shared!.id}"]`);
+    await expect(row.getByText(plans.sharedChip!, { exact: true })).toBeVisible();
+    await expect(row.getByText(new RegExp(`^${loose('Ewa: ')}`))).toBeVisible();
+
+    // One press marks it eaten in both plans.
+    const marked = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'PATCH' &&
+        new URL(res.url()).pathname.endsWith(`/meals/${shared!.id}/eaten`),
+    );
+    await row.getByRole('button', { name: ofAMeal(plans.eatenTogether!) }).click();
+    expect((await marked).request().postDataJSON()).toMatchObject({ eaten: true, forAll: true });
+    await expect(row.getByText(plans.eatenBadge!, { exact: true })).toBeVisible();
+    const theirs = (await (
+      await request.get(`/api/meal-plans/${plan.joint!.planId}`, { headers })
+    ).json()) as { days: { meals: { id: string; eatenAt: string | null }[] }[] };
+    const their = theirs.days
+      .flatMap((day) => day.meals)
+      .find((meal) => meal.id === shared!.shared!.with.mealId);
+    expect(their?.eatenAt).not.toBeNull();
+    await elsewhere.close();
   });
 });
 

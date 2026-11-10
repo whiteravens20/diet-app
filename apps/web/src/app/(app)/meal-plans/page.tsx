@@ -452,9 +452,10 @@ function MealPlansContent() {
   });
 
   const toggleEaten = useMutation({
-    mutationFn: (v: { planId: string; mealId: string; eaten: boolean }) =>
+    mutationFn: (v: { planId: string; mealId: string; eaten: boolean; forAll?: boolean }) =>
       api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, {
         eaten: v.eaten,
+        ...(v.forAll ? { forAll: true } : {}),
       }),
     onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errEaten')),
@@ -987,9 +988,9 @@ function MealPlansContent() {
               onTakeOffer={(together) => offer && takeOffer.mutate({ ...offer, together })}
               onAnotherOffer={() => offer && askFor(offer.asked, offer.seen)}
               onCancelOffer={() => setOffer(null)}
-              onToggleEaten={(mealId, eaten) => {
+              onToggleEaten={(mealId, eaten, forAll) => {
                 setError(null);
-                toggleEaten.mutate({ planId: plan.id, mealId, eaten });
+                toggleEaten.mutate({ planId: plan.id, mealId, eaten, forAll });
               }}
               onIngredientSwapped={(res, plannedMealId) => {
                 // A recipe whose text no model worded holds the catalogue's name as it is: its words can be corrected.

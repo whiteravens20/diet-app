@@ -1458,6 +1458,10 @@
     }
   },
   "mealPlans": {
+    "sharedChip": "Shared",
+    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "sharedEaten": "eaten",
+    "eatenTogether": "Eaten by both",
     "jointWith": "Planned together with: {name}",
     "jointApart": "Planned apart, as no dish suits both: {meals}.",
     "deleteJointNote": "The other plan ({name}) stays as a plan of its own, without shared meals.",

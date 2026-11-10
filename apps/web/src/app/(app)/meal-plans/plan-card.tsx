@@ -191,7 +191,8 @@ export function PlanCard({
   onTakeOffer: (together: boolean) => void;
   onAnotherOffer: () => void;
   onCancelOffer: () => void;
-  onToggleEaten: (mealId: string, eaten: boolean) => void;
+  /** Mark a meal eaten or not; `forAll`, of a shared meal, the other person's as well: "we ate". */
+  onToggleEaten: (mealId: string, eaten: boolean, forAll?: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse, plannedMealId: string) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
   /** Take a meal off its day. */
@@ -734,10 +735,31 @@ export function PlanCard({
                                 {cookWords.chip(m, day.date)}
                               </span>
                             )}
+                            {m.shared && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                                {t('sharedChip')}
+                              </span>
+                            )}
                           </span>
                         </span>
 
                         <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
+                          {/* Both eat it: one press marks it eaten for both, as the box marks it for this plan alone. */}
+                          {m.shared && !eaten && !m.shared.with.eaten && day.date <= today && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('eatenTogether'))}
+                              onClick={() => {
+                                changing.current = mealAnchor(m.id);
+                                onToggleEaten(m.id, true, true);
+                              }}
+                              disabled={busy}
+                            >
+                              {t('eatenTogether')}
+                            </Button>
+                          )}
                           {(eaten || isCustom || !changeable) && (
                             <>
                               {eaten && (
@@ -1062,6 +1084,18 @@ export function PlanCard({
                         <p className="ml-6 text-xs text-muted-foreground">
                           {cookWords.hint(m, day.date)}
                         </p>
+                      )}
+                      {m.shared && (
+                        <div className="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>
+                            {t('sharedLine', {
+                              name: m.shared.with.profileName,
+                              servings: Math.round(m.shared.with.servings * 10) / 10,
+                              kcal: Math.round(m.shared.with.calories),
+                            })}
+                            {m.shared.with.eaten && `${DOT}${t('sharedEaten')}`}
+                          </span>
+                        </div>
                       )}
                       {m.cookAhead === 'cook' && m.cooking && (
                         <div className="ml-6">

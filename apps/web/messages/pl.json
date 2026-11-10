@@ -1458,6 +1458,10 @@
     }
   },
   "mealPlans": {
+    "sharedChip": "Wspólne",
+    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0porcja} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "sharedEaten": "zjedzone",
+    "eatenTogether": "Zjedzone u\u00a0obu osób",
     "jointWith": "Wspólny plan z: {name}",
     "jointApart": "Osobno, bo żadne danie nie pasuje obu osobom: {meals}.",
     "deleteJointNote": "Drugi plan ({name}) zostanie zwykłym planem, bez wspólnych posiłków.",
