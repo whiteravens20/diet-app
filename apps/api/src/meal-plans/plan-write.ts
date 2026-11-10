@@ -20,19 +20,38 @@ export function writePlan<T>(
   readAtRevision: number,
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
+  return writePlans(prisma, [{ planId, revision: readAtRevision }], write);
+}
+
+/**
+ * Write a change of several plans together, each computed from the plan as it
+ * stood at the revision given with it, as `writePlan` writes one: the change of
+ * a meal both plans of a joint plan share is written in both or in neither.
+ * The revisions are claimed in one order, so that two such changes of the same
+ * plans wait for each other.
+ */
+export function writePlans<T>(
+  prisma: PrismaClient,
+  plans: readonly { planId: string; revision: number }[],
+  write: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    const claimed = await tx.mealPlan.updateMany({
-      where: { id: planId, revision: readAtRevision },
-      data: { revision: { increment: 1 } },
-    });
-    if (claimed.count !== 1) {
-      throw new ConflictException({
-        error: 'PLAN_CHANGED',
-        message: 'The plan changed while this request was running. Reload it and try again.',
+    for (const { planId, revision } of [...plans].sort((a, b) =>
+      a.planId.localeCompare(b.planId),
+    )) {
+      const claimed = await tx.mealPlan.updateMany({
+        where: { id: planId, revision },
+        data: { revision: { increment: 1 } },
       });
+      if (claimed.count !== 1) {
+        throw new ConflictException({
+          error: 'PLAN_CHANGED',
+          message: 'The plan changed while this request was running. Reload it and try again.',
+        });
+      }
     }
     const written = await write(tx);
-    await unlinkDiverged(tx, planId);
+    for (const { planId } of plans) await unlinkDiverged(tx, planId);
     return written;
   });
 }

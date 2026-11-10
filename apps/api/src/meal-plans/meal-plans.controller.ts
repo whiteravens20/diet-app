@@ -431,7 +431,7 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(SetMealEatenRequest)) dto: SetMealEatenRequest,
     @ClientDate() today: string | null,
   ) {
-    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today);
+    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today, dto.forAll);
   }
 
   /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */

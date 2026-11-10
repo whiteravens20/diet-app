@@ -1502,7 +1502,15 @@ export const RebalanceChange = z.object({
 export type RebalanceChange = z.infer<typeof RebalanceChange>;
 
 /** Mark a planned meal eaten (`true`) or not eaten (`false`). Repeating a request changes nothing. */
-export const SetMealEatenRequest = z.object({ eaten: z.boolean() });
+export const SetMealEatenRequest = z.object({
+  eaten: z.boolean(),
+  /**
+   * Of a shared meal (`PlannedMeal.shared`): the other person's meal is marked
+   * as well, "we ate", and their day rebalanced as this one is. Each may also
+   * mark only their own, as without it.
+   */
+  forAll: z.boolean().default(false),
+});
 export type SetMealEatenRequest = z.infer<typeof SetMealEatenRequest>;
 
 /**

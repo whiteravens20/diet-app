@@ -190,6 +190,28 @@ describe('a plan made together with another profile of the account', () => {
     expect(at(ewas, 0, 'dinner')!.shared).not.toBeNull();
   });
 
+  it('marks a shared meal eaten for both, as "we ate", and lets each mark only their own', async () => {
+    const adams = await together();
+    const lunch = at(adams, 0, 'lunch')!;
+    const eat = (eaten: boolean, forAll: boolean) =>
+      t
+        .http()
+        .patch(`/api/meal-plans/${adams.id}/meals/${lunch.id}/eaten`)
+        .set(as(user))
+        .send({ eaten, forAll })
+        .expect(200);
+
+    await eat(true, true);
+    const ewas = await read(adams.joint!.planId);
+    expect(at(await read(adams.id), 0, 'lunch')!.eatenAt).not.toBeNull();
+    expect(at(ewas, 0, 'lunch')!.eatenAt).not.toBeNull();
+    expect(at(await read(adams.id), 0, 'lunch')!.shared!.with.eaten).toBe(true);
+
+    await eat(false, false);
+    expect(at(await read(adams.id), 0, 'lunch')!.eatenAt).toBeNull();
+    expect(at(await read(ewas.id), 0, 'lunch')!.eatenAt).not.toBeNull();
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

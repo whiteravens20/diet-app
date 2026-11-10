@@ -73,7 +73,7 @@ import { planWeeks } from './plan-weeks.js';
 import { releasePlanLists, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
-import { writePlan } from './plan-write.js';
+import { writePlan, writePlans } from './plan-write.js';
 import {
   CANDIDATE,
   dislikedIn,
@@ -434,9 +434,13 @@ export class MealPlansService {
     mealId: string,
     eaten: boolean,
     clientToday: string | null = null,
+    forAll = false,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
-    if ((meal.eatenAt !== null) === eaten) {
+    // "We ate": the other person's meal of a shared meal is marked with this one, where it is not already.
+    const theirs = forAll ? await this.otherOfShared(userId, meal) : null;
+    const other = theirs && (theirs.eatenAt !== null) !== eaten ? theirs : null;
+    if ((meal.eatenAt !== null) === eaten && !other) {
       return this.buildRebalanceResult(userId, locale, planId, 'day', null);
     }
     const today = clientToday ?? this.today();
@@ -447,14 +451,45 @@ export class MealPlansService {
         message: 'A meal of a day still to come cannot be marked as eaten.',
       });
     }
-    const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
-      await tx.plannedMeal.update({
-        where: { id: mealId },
-        data: { eatenAt: eaten ? new Date() : null },
-      });
-      return this.rebalanceDayInternal(meal.dayId, tx, today);
-    });
+    const summary = await writePlans(
+      this.prisma,
+      [
+        { planId, revision: meal.day.plan.revision },
+        ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
+      ],
+      async (tx) => {
+        const at = eaten ? new Date() : null;
+        if (other) {
+          await tx.plannedMeal.update({ where: { id: other.id }, data: { eatenAt: at } });
+          await this.rebalanceDayInternal(other.dayId, tx, today);
+        }
+        if ((meal.eatenAt !== null) === eaten) return null;
+        await tx.plannedMeal.update({ where: { id: mealId }, data: { eatenAt: at } });
+        return this.rebalanceDayInternal(meal.dayId, tx, today);
+      },
+    );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+  }
+
+  /**
+   * The other person's meal of a shared meal, of the other plan of the joint
+   * plan, with its day and that plan's revision; null for a meal of one plan
+   * alone, and where the other meal no longer holds the same dish.
+   */
+  async otherOfShared(
+    userId: string,
+    meal: { id: string; sharedMealId: string | null; recipeId: string | null },
+  ) {
+    if (!meal.sharedMealId) return null;
+    const other = await this.prisma.plannedMeal.findFirst({
+      where: {
+        sharedMealId: meal.sharedMealId,
+        id: { not: meal.id },
+        day: { plan: { profile: { userId } } },
+      },
+      include: { day: { include: { plan: { select: { revision: true, profileId: true } } } } },
+    });
+    return other && other.recipeId === meal.recipeId ? other : null;
   }
 
   /**
