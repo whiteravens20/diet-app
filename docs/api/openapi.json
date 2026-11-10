@@ -6113,6 +6113,75 @@
         }
       }
     },
+    "/api/meal-plans/{id}/shared-meals/{sharedMealId}": {
+      "patch": {
+        "operationId": "MealPlans_setSharedMeal",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Say how a meal the plan shares with its joint plan is cooked: each portion apart, or in one pot.",
+        "description": "Say how a meal the plan shares with its joint plan is cooked: each portion apart, or in one pot.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sharedMealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSharedMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/meal-plans/{id}/use-up": {
       "post": {
         "operationId": "MealPlans_useUpSuggestions",
@@ -23413,6 +23482,17 @@
         },
         "required": [
           "eaten"
+        ]
+      },
+      "SetSharedMealRequest": {
+        "type": "object",
+        "properties": {
+          "apart": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "apart"
         ]
       },
       "Sex": {

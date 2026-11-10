@@ -212,6 +212,45 @@ describe('a plan made together with another profile of the account', () => {
     expect(at(await read(ewas.id), 0, 'lunch')!.eatenAt).not.toBeNull();
   });
 
+  it('says how a shared meal is cooked, the same in both plans, and of no meal it does not share', async () => {
+    const adams = await together();
+    const dinner = at(adams, 1, 'dinner')!;
+
+    const answered: MealPlan = (
+      await t
+        .http()
+        .patch(`/api/meal-plans/${adams.id}/shared-meals/${dinner.shared!.id}`)
+        .set(as(user))
+        .send({ apart: true })
+        .expect(200)
+    ).body;
+
+    expect(at(answered, 1, 'dinner')!.shared!.apart).toBe(true);
+    expect(at(await read(adams.joint!.planId), 1, 'dinner')!.shared!.apart).toBe(true);
+    expect(at(answered, 0, 'dinner')!.shared!.apart).toBe(false);
+    // Another account's shared meal is none of this plan's.
+    const stranger = await aUser(t);
+    const theirs = await aProfile(t, stranger, { name: 'A' });
+    const second = await aProfile(t, stranger, { name: 'B' });
+    const strangers = await t.app.get(PlanGenerationService).generate(
+      stranger.id,
+      'en',
+      GeneratePlanRequest.parse({
+        profileId: theirs.id,
+        withProfileId: second.id,
+        startDate: '2026-01-05',
+        durationDays: 1,
+      }),
+    );
+    const notOurs = strangers.days[0]!.meals.find((meal) => meal.shared)!.shared!.id;
+    await t
+      .http()
+      .patch(`/api/meal-plans/${adams.id}/shared-meals/${notOurs}`)
+      .set(as(user))
+      .send({ apart: true })
+      .expect(404);
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

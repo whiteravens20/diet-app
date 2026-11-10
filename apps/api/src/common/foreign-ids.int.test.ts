@@ -30,6 +30,8 @@ interface Ids {
   item: string;
   /** A plan of the account's second profile, for a household list with the first's. */
   partnerPlan: string;
+  /** A meal the two plans of the account share, as a joint plan has. */
+  sharedMeal: string;
   household: string;
   householdItem: string;
   pantry: string;
@@ -218,6 +220,12 @@ const ASKS: Ask[] = [
     () => ({ eaten: true }),
   ],
   ['take a meal off its day', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}`],
+  [
+    'say how a shared meal is cooked',
+    'patch',
+    (ids) => `/api/meal-plans/${ids.plan}/shared-meals/${ids.sharedMeal}`,
+    () => ({ apart: true }),
+  ],
   [
     'rebalance the rest of a plan',
     'post',
@@ -672,6 +680,20 @@ describe('what belongs to another account', () => {
     });
     const session = await t.prisma.refreshToken.findFirstOrThrow({ where: { userId: owner.id } });
 
+    // The two plans as a joint plan, with a meal of the first day they share.
+    const joint = await t.prisma.jointPlan.create({ data: { userId: owner.id } });
+    await t.prisma.mealPlan.updateMany({
+      where: { id: { in: [plan.id, partnerPlan.id] } },
+      data: { jointPlanId: joint.id },
+    });
+    const sharedMeal = await t.prisma.sharedMeal.create({
+      data: {
+        jointPlanId: joint.id,
+        date: new Date(plan.days[0]!.date),
+        mealType: plan.days[0]!.meals[0]!.mealType,
+      },
+    });
+
     shared = { recipe: curated.id, ingredient: rice.id, other: oats.id };
     theirs = {
       profile: profile.id,
@@ -682,6 +704,7 @@ describe('what belongs to another account', () => {
       list: list.id,
       item: item.id,
       partnerPlan: partnerPlan.id,
+      sharedMeal: sharedMeal.id,
       household: household.id,
       householdItem: household.groups[0]!.items[0]!.id,
       pantry: pantry.id,

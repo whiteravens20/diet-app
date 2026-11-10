@@ -493,6 +493,31 @@ export class MealPlansService {
   }
 
   /**
+   * Say how a shared meal of the plan is cooked: each portion apart, or in one
+   * pot split by weight. It is the same for both plans of the joint plan, and
+   * changes none of their meals.
+   */
+  async setSharedMeal(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    sharedMealId: string,
+    apart: boolean,
+  ): Promise<MealPlan> {
+    await this.planOf(userId, planId);
+    const updated = await this.prisma.sharedMeal.updateMany({
+      where: { id: sharedMealId, joint: { plans: { some: { id: planId } } } },
+      data: { apart },
+    });
+    if (updated.count !== 1)
+      throw new NotFoundException({
+        error: 'MEAL_NOT_FOUND',
+        message: 'The plan shares no such meal.',
+      });
+    return this.get(userId, locale, planId);
+  }
+
+  /**
    * Explicit rebalance. `day` rebalances one date; `plan` shares the
    * surplus/deficit across the days from that date to the end of the plan.
    * `restore` is the undo path: it writes the supplied scales verbatim (the

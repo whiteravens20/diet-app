@@ -42,6 +42,7 @@ import {
   RegenerateRequest,
   RerollPreview,
   SetMealEatenRequest,
+  SetSharedMealRequest,
   SubstituteSuggestion,
   SwapIngredientRequest,
   SwapIngredientResponse,
@@ -432,6 +433,19 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today, dto.forAll);
+  }
+
+  /** Say how a meal the plan shares with its joint plan is cooked: each portion apart, or in one pot. */
+  @Patch(':id/shared-meals/:sharedMealId')
+  @Answers(MealPlan)
+  setSharedMeal(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('sharedMealId', requiredUuid) sharedMealId: string,
+    @Body(new ZodValidationPipe(SetSharedMealRequest)) dto: SetSharedMealRequest,
+  ) {
+    return this.plans.setSharedMeal(user.id, locale, id, sharedMealId, dto.apart);
   }
 
   /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */

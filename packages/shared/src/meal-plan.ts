@@ -1513,6 +1513,10 @@ export const SetMealEatenRequest = z.object({
 });
 export type SetMealEatenRequest = z.infer<typeof SetMealEatenRequest>;
 
+/** How a shared meal is cooked: `apart`, each portion on its own, or in one pot split by weight. */
+export const SetSharedMealRequest = z.object({ apart: z.boolean() });
+export type SetSharedMealRequest = z.infer<typeof SetSharedMealRequest>;
+
 /**
  * Envelope returned by every edit that may rebalance (swap, custom-add,
  * eaten toggle, explicit rebalance). Carries the updated plan plus the rebalance

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-219 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+220 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -203,6 +203,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/:id/regenerate` | an account | Make a plan again, or the days of it that the request names. | `RegenerateRequest` | 201 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/regenerate/preview` | an account | What making a plan again, or the days of it that the request names, would do to it as it stands: the days and the meals replaced, and what is kept and why, read as the re-roll reads the plan. Nothing is drawn and nothing is written. Asked again as the choice changes in a window, so it is held to what a window asks for in a minute. | `RegenerateRequest` | 200 `RerollPreview` | 60 in a minute |
 | `POST /api/meal-plans/:id/retarget` | an account | Take the profile's target from today: the plan's target becomes the one the profile has now, its days from today get their targets from it, kinds of day and their own targets kept, the same dishes in other portions; days before today stay (`RetargetPlanRequest`). | `RetargetPlanRequest` | 200 `MealPlan` | 20 in a minute |
+| `PATCH /api/meal-plans/:id/shared-meals/:sharedMealId` | an account | Say how a meal the plan shares with its joint plan is cooked: each portion apart, or in one pot. | `SetSharedMealRequest` | 200 `MealPlan` |  |
 | `POST /api/meal-plans/:id/use-up` | an account | Swaps that would use up what the plan opens: the engine finds them, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written; a suggestion is taken as any swap is. The limit is that of making a plan: every meal of the plan is looked at. | `WeighRequest` | 200 `UseUpSuggestions` | 20 in a minute |
 | `POST /api/meal-plans/:id/weeks/even` | an account | Even out the week of a plan that a day is in: the days of it from today on that share it get the targets that bring its average back to the plan's target, their dishes in other portions (`EvenWeekRequest`). | `EvenWeekRequest` | 200 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/ai-swap-meal/preview` | an account | A recipe to put in the place of a planned meal, as `swap-meal/preview` offers one, with a model asked which of the recipes the engine puts before it to take. `aiMeta` says who picked; nothing is written. | `AiSwapMealRequest` | 201 `AiMealSwapPreview` | 30 in a minute |
