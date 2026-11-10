@@ -163,6 +163,8 @@ export class DiaryService {
               customName: true,
               customMacros: true,
               eatenAt: true,
+              // Shared and cooked in one pot: the portion is a split's, near what the plan says.
+              shared: { select: { apart: true } },
               recipe: {
                 select: {
                   id: true,
@@ -214,6 +216,7 @@ export class DiaryService {
         eaten: meal.eatenAt !== null,
         nutrition: mealNutrition(meal),
         label: mealLabel(meal),
+        fromPot: meal.shared !== null && !meal.shared.apart,
       }));
     const skipped = planDay ? isSkipped(planDay) : false;
     const eatenLabel = roundLabel(

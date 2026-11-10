@@ -251,6 +251,29 @@ describe('a plan made together with another profile of the account', () => {
       .expect(404);
   });
 
+  it('marks in the diary a shared meal cooked in one pot as a split, and one cooked apart as none', async () => {
+    const adams = await together();
+    const dinner = at(adams, 0, 'dinner')!;
+    await t
+      .http()
+      .patch(`/api/meal-plans/${adams.id}/shared-meals/${dinner.shared!.id}`)
+      .set(as(user))
+      .send({ apart: true })
+      .expect(200);
+
+    const diary = (
+      await t
+        .http()
+        .get(`/api/diary/day?profileId=${ewa.id}&date=2026-01-05`)
+        .set(as(user))
+        .expect(200)
+    ).body as { plan: { meals: { mealType: string; fromPot: boolean }[] } };
+    const fromPot = Object.fromEntries(
+      diary.plan.meals.map((meal) => [meal.mealType, meal.fromPot]),
+    );
+    expect(fromPot).toEqual({ breakfast: true, lunch: true, snack: false, dinner: false });
+  });
+
   it('is listed with the plan it was made with', async () => {
     const adams = await together();
 

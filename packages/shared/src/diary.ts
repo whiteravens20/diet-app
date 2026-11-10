@@ -182,6 +182,12 @@ export const DiaryPlanMeal = z.object({
   nutrition: Nutrition,
   /** Fibre, sugars, salt and saturated fat of the meal. */
   label: LabelTotals,
+  /**
+   * A meal of a joint plan cooked in one pot and split by weight: its figures
+   * are this person's planned portion, which a split comes only near, so they
+   * are shown as an estimate. False for every other meal, one cooked apart too.
+   */
+  fromPot: z.boolean(),
 });
 export type DiaryPlanMeal = z.infer<typeof DiaryPlanMeal>;
 

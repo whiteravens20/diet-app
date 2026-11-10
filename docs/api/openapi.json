@@ -14176,6 +14176,9 @@
           },
           "label": {
             "$ref": "#/components/schemas/LabelTotals"
+          },
+          "fromPot": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -14185,7 +14188,8 @@
           "recipeId",
           "eaten",
           "nutrition",
-          "label"
+          "label",
+          "fromPot"
         ],
         "additionalProperties": false
       },
