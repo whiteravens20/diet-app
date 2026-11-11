@@ -75,7 +75,10 @@ describe('the examples the recipe generator shows a model', () => {
     const judged = validateRecipeBatch({
       targetLocales: ['en', 'pl'],
       rawOutput: JSON.stringify({ recipes: shown.map(({ recipe }) => recipe) }),
-      resolveSlug: (slug) => bySlug.get(slug) ?? null,
+      resolveSlug: (slug) => {
+        const row = bySlug.get(slug);
+        return row ? { ...row, name: row.names.en ?? row.slug } : null;
+      },
       catalogueNames: catalogue.map((row) => ({ slug: row.slug, name: row.names.en ?? row.slug })),
     });
 

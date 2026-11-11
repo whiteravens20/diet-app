@@ -31,13 +31,22 @@
  */
 import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import { NO_LABEL_PER_100 } from '../../engine/label-totals.js';
+import { proposeTraits } from '../../engine/dish-traits.js';
 import { recipeFacts } from '../../engine/recipe-facts.js';
 import {
   classifyComplexity,
   type ComplexityBand,
   COMPLEXITY_BANDS,
 } from './recipe-generator.complexity.js';
-import { fitsDiet, type Complexity, type DietType } from '@diet-app/shared';
+import {
+  fitsDiet,
+  RecipeForm,
+  RecipeTaste,
+  StarchBase,
+  type Complexity,
+  type DietType,
+  type DishTraits,
+} from '@diet-app/shared';
 import {
   listedButNotUsed,
   mealsOfTwoKinds,
@@ -78,6 +87,9 @@ type RecipeValidationReason =
 
 export interface ResolvedIngredient {
   slug: string;
+  /** Its English name and its aisle, which the traits of a dish are proposed from. */
+  name: string;
+  category: string;
   canonicalUnit: 'g' | 'ml' | 'piece';
   gramsPerPiece: number | null;
   density: number | null;
@@ -112,6 +124,8 @@ export interface RecipeDraftCandidate {
   fatPerServing: number;
   carbsPerServing: number;
   allergens: string[];
+  /** The dish's taste, form and starch base: the model's where it gave them, each it left out or misnamed as proposed. */
+  traits: DishTraits;
 }
 
 /** Why one recipe of an answer is not written. */
@@ -444,9 +458,17 @@ export function validateRecipeBatch(opts: ValidateRecipeBatchOptions): RecipeVal
       }
     }
 
+    const proposed = proposeTraits(Object.values(titles), factLines);
+    const traits: DishTraits = {
+      taste: RecipeTaste.safeParse(raw.taste).data ?? proposed.taste,
+      form: RecipeForm.safeParse(raw.form).data ?? proposed.form,
+      starchBase: StarchBase.safeParse(raw.starchBase).data ?? proposed.starchBase,
+    };
+
     seenSlugs.add(slug);
     seenTitles.add(titleKey);
     return {
+      traits,
       slug,
       titles,
       descriptions,

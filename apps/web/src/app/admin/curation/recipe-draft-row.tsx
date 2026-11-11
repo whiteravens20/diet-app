@@ -5,8 +5,8 @@
 /** One recipe draft: what it is, as it is read and as it is edited, with its reviews. */
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { Cuisine } from '@diet-app/shared';
-import { CUISINES } from '@diet-app/shared/constants';
+import type { Cuisine, DishTraits } from '@diet-app/shared';
+import { CUISINES, RECIPE_FORMS, RECIPE_TASTES, STARCH_BASES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Input, OptionalFrame } from '@/components/ui/input';
 import {
@@ -30,6 +30,9 @@ export function RecipeDraftRow({
 }) {
   const t = useTranslations('admin.curation');
   const tCuisine = useTranslations('enums.cuisine');
+  const tTaste = useTranslations('enums.recipeTaste');
+  const tForm = useTranslations('enums.recipeForm');
+  const tStarch = useTranslations('enums.starchBase');
   const errorText = useDraftErrorText();
   const tErrors = useTranslations('errors');
   const skipReason = useSkipReasonText();
@@ -181,6 +184,12 @@ export function RecipeDraftRow({
   // The cuisine alone: like the slug it is no part of what the reviewers approved.
   const onChangeCuisine = (cuisine: Cuisine | null) => {
     void handle(() => adminApi.patchRecipeDraft(draft.id, { cuisine }, false));
+  };
+
+  // The traits of the dish, no part of the text either. One set on a draft from before drafts had them gives the
+  // other two as its ingredients and title suggest, the way the dish is read without them.
+  const onChangeTraits = (change: Partial<DishTraits>) => {
+    void handle(() => adminApi.patchRecipeDraft(draft.id, { traits: change }, false));
   };
 
   // AI_USER drafts mirror personal Recipe rows owned by the user. Editing
@@ -371,6 +380,57 @@ export function RecipeDraftRow({
                   {CUISINES.map((cuisine) => (
                     <option key={cuisine} value={cuisine}>
                       {t('cuisineOf', { cuisine: tCuisine(cuisine) })}
+                    </option>
+                  ))}
+                </select>
+                {/* What the dish is, for what may be put on its plate in a joint plan. */}
+                <select
+                  aria-label={t('traitTaste')}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  value={draft.traits?.taste ?? ''}
+                  disabled={working || draft.status === 'SHIPPED'}
+                  onChange={(e) => onChangeTraits({ taste: e.target.value as DishTraits['taste'] })}
+                >
+                  {!draft.traits && (
+                    <option value="">{t('tasteOf', { taste: t('traitProposed') })}</option>
+                  )}
+                  {RECIPE_TASTES.map((value) => (
+                    <option key={value} value={value}>
+                      {t('tasteOf', { taste: tTaste(value) })}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={t('traitForm')}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  value={draft.traits?.form ?? ''}
+                  disabled={working || draft.status === 'SHIPPED'}
+                  onChange={(e) => onChangeTraits({ form: e.target.value as DishTraits['form'] })}
+                >
+                  {!draft.traits && (
+                    <option value="">{t('formOf', { form: t('traitProposed') })}</option>
+                  )}
+                  {RECIPE_FORMS.map((value) => (
+                    <option key={value} value={value}>
+                      {t('formOf', { form: tForm(value) })}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={t('traitStarchBase')}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  value={draft.traits?.starchBase ?? ''}
+                  disabled={working || draft.status === 'SHIPPED'}
+                  onChange={(e) =>
+                    onChangeTraits({ starchBase: e.target.value as DishTraits['starchBase'] })
+                  }
+                >
+                  {!draft.traits && (
+                    <option value="">{t('starchBaseOf', { base: t('traitProposed') })}</option>
+                  )}
+                  {STARCH_BASES.map((value) => (
+                    <option key={value} value={value}>
+                      {t('starchBaseOf', { base: tStarch(value) })}
                     </option>
                   ))}
                 </select>

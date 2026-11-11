@@ -17,3 +17,4 @@ export * from './use-up.js';
 export * from './display.js';
 export * from './optimizer.js';
 export * from './rebalance.js';
+export * from './dish-traits.js';

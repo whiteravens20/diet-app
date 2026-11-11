@@ -7,6 +7,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
 import { AdminModelService } from './admin-model.service.js';
 import { DraftService } from './draft.service.js';
+import { DraftTraitsFill } from './draft-traits.js';
 import { DraftsController } from './drafts.controller.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
 import { IngredientNamerRunner } from './ingredient-namer.runner.js';
@@ -33,6 +34,7 @@ import { TranslationRunner } from './translation.runner.js';
     AdminModelService,
     RecipeImportService,
     DraftService,
+    DraftTraitsFill,
   ],
   exports: [DraftService],
 })

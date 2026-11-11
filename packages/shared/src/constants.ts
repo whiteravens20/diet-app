@@ -39,6 +39,19 @@ export const RECIPE_DIET_TAGS = [
 /** The meals of a day (`MealType`). */
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'second_breakfast'] as const;
 
+/** Whether a dish is savoury or sweet (`RecipeTaste`): what is put on its plate keeps its taste. */
+export const RECIPE_TASTES = ['savoury', 'sweet'] as const;
+
+/** What a dish is as it is eaten (`RecipeForm`): what is put on its plate has to suit it. */
+export const RECIPE_FORMS = ['plate', 'soup', 'salad', 'sandwich', 'porridge_dessert'] as const;
+
+/**
+ * The starch a dish is built on, or none (`StarchBase`): groats take in oats,
+ * quinoa and couscous, bread takes in tortillas and pancakes. Nothing put on
+ * its plate adds a second.
+ */
+export const STARCH_BASES = ['none', 'rice', 'pasta', 'potatoes', 'groats', 'bread'] as const;
+
 /** The set of active meal slots for a given meal count. */
 export const MEAL_SLOTS_BY_COUNT: Record<number, (typeof MEAL_TYPES)[number][]> = {
   2: ['breakfast', 'dinner'],

@@ -853,6 +853,13 @@
       "cuisine": "Cuisine of the recipe",
       "cuisineNone": "No cuisine",
       "cuisineOf": "Cuisine: {cuisine}",
+      "traitTaste": "Taste of the dish",
+      "traitForm": "Form of the dish",
+      "traitStarchBase": "Starch base of the dish",
+      "traitProposed": "as its ingredients and title suggest",
+      "tasteOf": "Taste: {taste}",
+      "formOf": "Form: {form}",
+      "starchBaseOf": "Base: {base}",
       "slugPrompt": "The slug names the recipe in the data files: lower-case words and numbers joined by hyphens. Changing it does not send the draft back to review.",
       "promoteButton": "Promote to curated",
       "promoteConfirm": "Promote this user-drafted recipe into the curated library?",
@@ -2361,6 +2368,12 @@
     "fieldDifficulty": "Difficulty",
     "fieldCuisine": "Cuisine",
     "cuisineNone": "None in particular",
+    "traitsLegend": "What the dish is",
+    "traitsHint": "Filled in from the title and the ingredients. It decides what may be put on the plate beside the dish in a joint plan; correct it if it is wrong.",
+    "fieldTaste": "Taste",
+    "fieldForm": "Form",
+    "fieldStarchBase": "Starch base",
+    "traitWaiting": "Once ingredients are added",
     "noIngredients": "Add at least one ingredient from the catalogue.",
     "fieldAmount": "Amount",
     "amountOf": "Amount of {name}",
@@ -2809,6 +2822,25 @@
       "easy": "Easy",
       "medium": "Medium",
       "hard": "Hard"
+    },
+    "recipeTaste": {
+      "savoury": "Savoury",
+      "sweet": "Sweet"
+    },
+    "recipeForm": {
+      "plate": "A plate",
+      "soup": "Soup",
+      "salad": "Salad",
+      "sandwich": "Sandwich",
+      "porridge_dessert": "Porridge or dessert"
+    },
+    "starchBase": {
+      "none": "None",
+      "rice": "Rice",
+      "pasta": "Pasta",
+      "potatoes": "Potatoes",
+      "groats": "Groats",
+      "bread": "Bread"
     },
     "cuisine": {
       "polish": "Polish",

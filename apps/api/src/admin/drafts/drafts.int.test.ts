@@ -13,6 +13,7 @@ import {
 } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { DraftService } from './draft.service.js';
+import { DraftTraitsFill } from './draft-traits.js';
 import { IngredientNamerRunner, type IngredientNamerStartSpec } from './ingredient-namer.runner.js';
 
 describe('the curation queue', () => {
@@ -394,6 +395,59 @@ describe('the curation queue', () => {
 
       const cleared = await admin.edit(draft.id, { cuisine: null }).expect(200);
       expect(cleared.body).toMatchObject({ cuisine: null, status: 'APPROVED' });
+    });
+
+    it('of the traits alone leaves the reviews standing, and gives a draft without them the rest as its ingredients and title suggest', async () => {
+      // An oat bowl with a banana from before drafts had traits: read as a sweet porridge on groats.
+      const draft = await aRecipeDraft(t);
+      await admin.review('recipes', draft.id, 'approve', 'en').expect(201);
+      await asReviewer.review('recipes', draft.id, 'approve').expect(201);
+
+      const set = await admin.edit(draft.id, { traits: { form: 'plate' } }).expect(200);
+
+      expect(set.body).toMatchObject({
+        traits: { taste: 'sweet', form: 'plate', starchBase: 'groats' },
+        status: 'APPROVED',
+      });
+      expect(set.body.localeReviews).toHaveLength(2);
+
+      // Once set, those left out stay as they are.
+      const again = await admin.edit(draft.id, { traits: { starchBase: 'none' } }).expect(200);
+      expect(again.body.traits).toEqual({ taste: 'sweet', form: 'plate', starchBase: 'none' });
+      expect(await recipeRow(draft.id)).toMatchObject({
+        taste: 'sweet',
+        form: 'plate',
+        starchBase: 'none',
+      });
+      await admin.edit(draft.id, { traits: { form: 'stew' } }).expect(400);
+    });
+
+    it('of a draft from before drafts had traits gives it, once, at the start, those its ingredients and title suggest', async () => {
+      // The oat bowl with a banana: a sweet porridge on groats.
+      const older = await aRecipeDraft(t);
+      const set = await aRecipeDraft(t, { taste: 'savoury', form: 'plate', starchBase: 'none' });
+      const shipped = await aRecipeDraft(t, { status: 'SHIPPED', shippedAt: new Date() });
+      const fill = t.app.get(DraftTraitsFill);
+
+      expect(await fill.fill()).toBe(1);
+
+      expect(await recipeRow(older.id)).toMatchObject({
+        taste: 'sweet',
+        form: 'porridge_dessert',
+        starchBase: 'groats',
+      });
+      expect(await recipeRow(set.id)).toMatchObject({
+        taste: 'savoury',
+        form: 'plate',
+        starchBase: 'none',
+      });
+      expect(await recipeRow(shipped.id)).toMatchObject({
+        taste: null,
+        form: null,
+        starchBase: null,
+      });
+      // A start after it finds none to give.
+      expect(await fill.fill()).toBe(0);
     });
 
     it('keeps the cuisine through an edit of the text, and refuses one the application does not know', async () => {

@@ -5,7 +5,7 @@
  * of one language to a reviewer.
  */
 import type { Prisma } from '@prisma/client';
-import { Cuisine } from '@diet-app/shared';
+import { Cuisine, DishTraits } from '@diet-app/shared';
 import type {
   IngredientNameDraft,
   IngredientNameReviewSlice,
@@ -70,6 +70,9 @@ export function toRecipeDraftDto(row: RecipeDraftRow): RecipeDraft {
     cookMinutes: row.cookMinutes,
     difficulty: row.difficulty,
     cuisine: Cuisine.safeParse(row.cuisine).data ?? null,
+    traits:
+      DishTraits.safeParse({ taste: row.taste, form: row.form, starchBase: row.starchBase }).data ??
+      null,
     complexity: row.complexity as RecipeDraft['complexity'],
     caloriesPerServing: row.caloriesPerServing,
     proteinPerServing: row.proteinPerServing,

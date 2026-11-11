@@ -205,6 +205,8 @@ export class RecipeGeneratorRunner {
       for (const c of catalogue) {
         resolverMap.set(c.slug, {
           slug: c.slug,
+          name: c.names.en ?? c.slug,
+          category: c.category,
           canonicalUnit: c.canonicalUnit,
           gramsPerPiece: c.gramsPerPiece,
           density: c.density,
@@ -644,6 +646,9 @@ export class RecipeGeneratorRunner {
             difficulty: c.difficulty,
             // A run that was pointed at a cuisine the application knows tags what it writes with it.
             cuisine: cuisineNamed(spec.cuisine),
+            taste: c.traits.taste,
+            form: c.traits.form,
+            starchBase: c.traits.starchBase,
             complexity: c.complexity,
             caloriesPerServing: c.caloriesPerServing,
             proteinPerServing: c.proteinPerServing,

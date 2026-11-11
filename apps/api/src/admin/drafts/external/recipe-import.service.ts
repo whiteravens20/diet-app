@@ -27,6 +27,7 @@ import {
   type RecipeImportResult,
   type StoredImportRejection,
 } from '@diet-app/shared';
+import { proposeTraits } from '../../../engine/dish-traits.js';
 import { recipeFacts, type RecipeFacts } from '../../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../../engine/units.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -345,6 +346,15 @@ export class RecipeImportService {
         // A source says nothing of how hard a recipe is; how much there is to it is what there is to go by.
         difficulty: complexity === 'simple' ? 'easy' : complexity === 'complex' ? 'hard' : 'medium',
         complexity,
+        // A source names none: as its ingredients and title suggest, for the administrator to approve.
+        ...proposeTraits(
+          [title],
+          lines.map((line) => ({
+            quantity: line.quantity,
+            unit: line.unit,
+            ingredient: bySlug.get(line.slug)!,
+          })),
+        ),
         ingredientsJson: sound.ingredients,
         facts,
         provenanceUrl: addressOf(recipe.url) ?? request.sourceUrl ?? null,
@@ -360,6 +370,7 @@ export class RecipeImportService {
       select: {
         slug: true,
         name: true,
+        category: true,
         canonicalUnit: true,
         gramsPerPiece: true,
         density: true,

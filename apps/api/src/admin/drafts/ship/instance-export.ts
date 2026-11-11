@@ -229,6 +229,11 @@ async function libraryRows(prisma: PrismaService): Promise<ShippedRecipe[]> {
       cookMinutes: recipe.cookMinutes,
       difficulty: recipe.difficulty,
       ...(recipe.cuisine ? { cuisine: recipe.cuisine as ShippedRecipe['cuisine'] } : {}),
+      ...(recipe.taste ? { taste: recipe.taste as ShippedRecipe['taste'] } : {}),
+      ...(recipe.form ? { form: recipe.form as ShippedRecipe['form'] } : {}),
+      ...(recipe.starchBase
+        ? { starchBase: recipe.starchBase as ShippedRecipe['starchBase'] }
+        : {}),
       ingredients: recipe.ingredients.map((line) => ({
         slug: line.ingredient.slug!,
         quantity: line.quantity,

@@ -417,6 +417,28 @@ amount, but it cannot tell a salad from a sauce: a swap that works in one and
 not in the other goes one way only, or not at all. Fresh tomatoes take the
 place of canned ones, and canned ones never that of fresh.
 
+## What a dish is
+
+A recipe may say what kind of dish it is, which decides what may be put on its
+plate beside it when two people eat it together and one of them needs more of
+something than the dish gives:
+
+```json
+"taste": "savoury", "form": "plate", "starchBase": "rice"
+```
+
+`taste` is `savoury` or `sweet`. `form` is `plate`, `soup`, `salad`,
+`sandwich` or `porridge_dessert` (a porridge, a dessert, a sweet bowl).
+`starchBase` is the starch the dish is built on: `rice`, `pasta`, `potatoes`,
+`groats` (oats, quinoa and couscous among them), `bread` (tortillas and
+pancakes among them) or `none`. A key that is left out is read as the
+ingredients and the title suggest: the starch that brings at least a tenth of
+the dish's energy, sweet only where something sweet is in it and nothing
+savoury, the form its title names in either language. Something put on the
+plate never adds a second starch, keeps the dish's taste and suits its form, so
+a key that the suggestion gets wrong is worth writing. The curation queue
+writes all three for a draft, as the administrator approved them.
+
 ## Recipes from elsewhere
 
 A recipe that was taken in from somewhere else says so:

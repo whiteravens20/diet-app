@@ -18,6 +18,7 @@ import type {
   AdminStatus,
   CatalogueUpdateState,
   Cuisine,
+  DishTraits,
   DraftRunnerState,
   FoodImportState,
   Ingredient,
@@ -143,6 +144,11 @@ export interface RecipeDraftPatch {
   difficulty?: 'easy' | 'medium' | 'hard';
   /** Null takes the cuisine away. A change of it alone leaves the reviews standing. */
   cuisine?: Cuisine | null;
+  /**
+   * The dish's taste, form and starch base to set; each left out stays, or on a draft with none yet is given as its
+   * ingredients and title suggest. A change of them alone leaves the reviews standing.
+   */
+  traits?: Partial<DishTraits>;
   ingredients?: RecipeDraftIngredientLine[];
 }
 

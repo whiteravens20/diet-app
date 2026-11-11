@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, type Difficulty, type Unit } from '@prisma/client';
+import { draftTraitsOf } from '../admin/drafts/draft-traits.js';
 import { computeFingerprint } from '../admin/drafts/fingerprint.js';
 import { servingColumns, type RecipeFacts } from '../engine/recipe-facts.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -67,6 +68,8 @@ export interface PersonalRecipe {
   difficulty: Difficulty;
   /** The cuisine the recipe was asked for, or the one of the recipe it was made from. */
   cuisine?: string | null;
+  /** The dish's taste, form and starch base where its owner set them; each left out is read as proposed. */
+  traits?: { taste: string | null; form: string | null; starchBase: string | null };
   ingredients: { ingredientId: string; quantity: number; unit: Unit; note: string | null }[];
   /** Worked out by the engine from the ingredients above. */
   facts: RecipeFacts;
@@ -416,6 +419,9 @@ export class PersonalRecipesService {
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
         cuisine: recipe.cuisine ?? null,
+        taste: recipe.traits?.taste ?? null,
+        form: recipe.traits?.form ?? null,
+        starchBase: recipe.traits?.starchBase ?? null,
         allergens: recipe.facts.allergens,
         origin: recipe.origin,
         modelAssisted: recipe.modelAssisted ?? false,
@@ -503,11 +509,20 @@ export class PersonalRecipesService {
     const texts = [...own, ...recipe.translations];
     const byLocale = <T>(pick: (text: RecipeText) => T): Record<string, T> =>
       Object.fromEntries(texts.map((row) => [row.locale, pick(row)] as const));
+    const titles = byLocale((text) => text.title);
+    const ingredientsJson = recipe.ingredients.map((line) => ({
+      slug: line.ingredient.slug!,
+      quantity: line.quantity,
+      unit: line.unit,
+      note: line.note,
+    }));
+    // As its writer set them; each left out as its ingredients and titles suggest, for the curator to approve.
+    const traits = await draftTraitsOf(tx, { ...recipe, titles, ingredientsJson });
     await tx.recipeDraft.create({
       data: {
         // Named after the recipe's content, not after a user or a moment.
         slug: `personal-${fingerprint.slice(0, 12)}`,
-        titles: byLocale((text) => text.title),
+        titles,
         descriptions: byLocale((text) => text.description),
         steps: byLocale((text) => text.steps),
         locales: [...new Set(texts.map((row) => row.locale))],
@@ -518,18 +533,14 @@ export class PersonalRecipesService {
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
         cuisine: recipe.cuisine,
+        ...traits,
         complexity: 'medium',
         caloriesPerServing: recipe.caloriesPerServing,
         proteinPerServing: recipe.proteinPerServing,
         fatPerServing: recipe.fatPerServing,
         carbsPerServing: recipe.carbsPerServing,
         allergens: recipe.allergens,
-        ingredientsJson: recipe.ingredients.map((line) => ({
-          slug: line.ingredient.slug!,
-          quantity: line.quantity,
-          unit: line.unit,
-          note: line.note,
-        })),
+        ingredientsJson,
         status: 'PENDING',
         source: 'AI_USER',
         batchId: QUEUE_BATCH,

@@ -15,6 +15,8 @@ import {
 
 const CHICKEN: ResolvedIngredient = {
   slug: 'chicken-breast',
+  name: 'chicken breast',
+  category: 'meat',
   canonicalUnit: 'g',
   gramsPerPiece: null,
   density: null,
@@ -27,6 +29,8 @@ const CHICKEN: ResolvedIngredient = {
 };
 const RICE: ResolvedIngredient = {
   slug: 'white-rice',
+  name: 'white rice',
+  category: 'other',
   canonicalUnit: 'g',
   gramsPerPiece: null,
   density: null,
@@ -39,6 +43,8 @@ const RICE: ResolvedIngredient = {
 };
 const SPINACH: ResolvedIngredient = {
   slug: 'spinach',
+  name: 'spinach',
+  category: 'other',
   canonicalUnit: 'g',
   gramsPerPiece: null,
   density: null,
@@ -51,6 +57,8 @@ const SPINACH: ResolvedIngredient = {
 };
 const PEANUT: ResolvedIngredient = {
   slug: 'peanut-butter',
+  name: 'peanut butter',
+  category: 'other',
   canonicalUnit: 'g',
   gramsPerPiece: null,
   density: null,
@@ -63,6 +71,8 @@ const PEANUT: ResolvedIngredient = {
 };
 const OLIVE: ResolvedIngredient = {
   slug: 'olive-oil',
+  name: 'olive oil',
+  category: 'fats_oils',
   canonicalUnit: 'ml',
   gramsPerPiece: null,
   density: 0.91,
@@ -75,6 +85,8 @@ const OLIVE: ResolvedIngredient = {
 };
 const GARLIC: ResolvedIngredient = {
   slug: 'garlic',
+  name: 'garlic',
+  category: 'other',
   canonicalUnit: 'piece',
   gramsPerPiece: 3,
   density: null,
@@ -87,6 +99,8 @@ const GARLIC: ResolvedIngredient = {
 };
 const LEMON: ResolvedIngredient = {
   slug: 'lemon',
+  name: 'lemon',
+  category: 'other',
   canonicalUnit: 'piece',
   gramsPerPiece: 58,
   density: null,

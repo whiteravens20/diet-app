@@ -10,8 +10,12 @@ import {
   Cuisine,
   DietType,
   Difficulty,
+  DishTraits,
   DisplayAmount,
   MealType,
+  RecipeForm,
+  RecipeTaste,
+  StarchBase,
   Unit,
 } from './enums.js';
 import { LabelTotals, Nutrition } from './nutrition.js';
@@ -96,6 +100,12 @@ export const Recipe = z.object({
    * a recipe written here.
    */
   source: RecipeSource.nullable(),
+  /**
+   * The dish's taste, form and starch base, which decide what may be put on its
+   * plate: those set on it, the rest as its ingredients and title suggest.
+   * Given by a recipe's own page (`GET /recipes/:id`), for its form.
+   */
+  traits: DishTraits.optional(),
 });
 export type Recipe = z.infer<typeof Recipe>;
 
@@ -178,6 +188,8 @@ export type OwnRecipeLine = z.infer<typeof OwnRecipeLine>;
 export const OwnRecipePreviewRequest = z.object({
   servings: z.number().int().min(1).max(RECIPE_LIMITS.servings),
   ingredients: z.array(OwnRecipeLine).min(1).max(RECIPE_LIMITS.ingredients),
+  /** The title as written so far: the form the dish is proposed is told by it. */
+  title: z.string().max(RECIPE_LIMITS.title).default(''),
 });
 export type OwnRecipePreviewRequest = z.infer<typeof OwnRecipePreviewRequest>;
 
@@ -187,6 +199,8 @@ export const OwnRecipePreview = z.object({
   labelPerServing: LabelTotals,
   allergens: z.array(Allergen),
   dietTags: z.array(DietType),
+  /** The taste, form and starch base the ingredients and title suggest, for the form's fields. */
+  traits: DishTraits,
 });
 export type OwnRecipePreview = z.infer<typeof OwnRecipePreview>;
 
@@ -207,6 +221,10 @@ export const OwnRecipeInput = OwnRecipePreviewRequest.extend({
   cookMinutes: z.number().int().min(0).max(RECIPE_LIMITS.minutes),
   difficulty: Difficulty,
   cuisine: Cuisine.nullable().default(null),
+  /** The dish's taste, form and starch base; each left null is read as its ingredients and title suggest. */
+  taste: RecipeTaste.nullable().default(null),
+  form: RecipeForm.nullable().default(null),
+  starchBase: StarchBase.nullable().default(null),
 });
 export type OwnRecipeInput = z.infer<typeof OwnRecipeInput>;
 

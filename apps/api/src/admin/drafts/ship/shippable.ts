@@ -8,7 +8,7 @@
  * draft that was stored before a rule existed, or was changed behind the
  * queue's back, stays where it is and the reason is reported.
  */
-import { Cuisine } from '@diet-app/shared';
+import { Cuisine, RecipeForm, RecipeTaste, StarchBase } from '@diet-app/shared';
 import {
   checkIngredientName,
   checkRecipe,
@@ -31,6 +31,9 @@ export interface RecipeDraftContent {
   cookMinutes: number;
   difficulty: string;
   cuisine?: string | null;
+  taste?: string | null;
+  form?: string | null;
+  starchBase?: string | null;
   ingredientsJson: unknown;
   /** Where a draft that was taken in from somewhere else is from, and its licence. */
   provenanceUrl?: string | null;
@@ -73,9 +76,17 @@ function sourceOf(from: unknown): ShippedRecipe['source'] {
 }
 
 /** A checked recipe in the shape of the catalogue's data files. */
-function inDataShape(recipe: CheckedRecipe, tagged: unknown, from: unknown): ShippedRecipe {
+function inDataShape(
+  recipe: CheckedRecipe,
+  tagged: unknown,
+  from: unknown,
+  traits: { taste?: unknown; form?: unknown; starchBase?: unknown },
+): ShippedRecipe {
   const cuisine = Cuisine.safeParse(tagged).data;
   const source = sourceOf(from);
+  const taste = RecipeTaste.safeParse(traits.taste).data;
+  const form = RecipeForm.safeParse(traits.form).data;
+  const starchBase = StarchBase.safeParse(traits.starchBase).data;
   return {
     slug: recipe.slug!,
     title: recipe.titles,
@@ -87,6 +98,10 @@ function inDataShape(recipe: CheckedRecipe, tagged: unknown, from: unknown): Shi
     difficulty: recipe.difficulty,
     // Left out for a recipe of no cuisine in particular, as the curated file leaves it out.
     ...(cuisine ? { cuisine } : {}),
+    // Each left out where it was not set: the catalogue reads it as proposed.
+    ...(taste ? { taste } : {}),
+    ...(form ? { form } : {}),
+    ...(starchBase ? { starchBase } : {}),
     // A line without a note leaves the field out, as the curated file does: the catalogue's reader takes a text there or nothing.
     ingredients: recipe.ingredients.map(({ note, ...line }) => (note ? { ...line, note } : line)),
     steps: recipe.steps,
@@ -119,7 +134,7 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
         license: draft.provenanceLicense,
       }
     : undefined;
-  return { ok: true, content: inDataShape(checked.recipe, draft.cuisine, from) };
+  return { ok: true, content: inDataShape(checked.recipe, draft.cuisine, from, draft) };
 }
 
 /**
@@ -147,7 +162,7 @@ export function recipeOfBatchRow(row: unknown): Shippable<ShippedRecipe> {
     ];
     return { ok: false, reason: reasonOf(problems), problems };
   }
-  return { ok: true, content: inDataShape(checked.recipe, fields.cuisine, fields.source) };
+  return { ok: true, content: inDataShape(checked.recipe, fields.cuisine, fields.source, fields) };
 }
 
 /** The names a draft ships, for its own languages and no other, or why it does not ship. */

@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v10';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v11';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -379,6 +379,13 @@ single violation, so be precise:
     lemon juice, \`lemon\` is. A recipe whose title, description or steps
     name a catalogue ingredient that its list lacks is rejected, and so is
     one whose list holds an ingredient that no step uses.
+16. Name what the dish is, for what may be put on its plate beside it:
+    \`taste\` is \`"savoury"\` or \`"sweet"\`; \`form\` is \`"plate"\`,
+    \`"soup"\`, \`"salad"\`, \`"sandwich"\` or \`"porridge_dessert"\` (a
+    porridge, a dessert, a sweet bowl); \`starchBase\` is the starch the
+    dish is built on, \`"rice"\`, \`"pasta"\`, \`"potatoes"\`, \`"groats"\`
+    (groats, oats, quinoa, couscous), \`"bread"\` (bread, tortilla,
+    pancakes), or \`"none"\`.
 
 Return ONLY a JSON object of this exact shape — no prose, no fences:
 
@@ -400,6 +407,9 @@ ${localeStepsHints}
       "prepMinutes": 15,
       "cookMinutes": 25,
       "difficulty": "medium",
+      "taste": "savoury",
+      "form": "plate",
+      "starchBase": "rice",
       "ingredients": [
         { "slug": "<catalogue slug>", "quantity": 250, "unit": "g" }
       ]

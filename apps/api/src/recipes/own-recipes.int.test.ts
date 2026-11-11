@@ -262,6 +262,26 @@ describe('a recipe written by hand', () => {
       source: 'AI_USER',
       status: 'PENDING',
       sourceRecipeIds: [recipe.id],
+      // Its writer set none: those its ingredients and title suggest, for the curator to approve.
+      taste: 'savoury',
+      form: 'plate',
+      starchBase: 'rice',
+    });
+  });
+
+  it('goes before the curators with the traits its writer set', async () => {
+    const recipe = (
+      await write(await written({ taste: 'savoury', form: 'salad', starchBase: 'none' })).expect(
+        201,
+      )
+    ).body as Recipe;
+
+    await t.http().post(`/api/recipes/${recipe.id}/submit`).set(as(user)).expect(204);
+
+    expect(await t.prisma.recipeDraft.findFirstOrThrow()).toMatchObject({
+      taste: 'savoury',
+      form: 'salad',
+      starchBase: 'none',
     });
   });
 });
@@ -283,8 +303,75 @@ describe('the preview of a recipe being written', () => {
       labelPerServing: roundLabel(facts.labelPerServing),
       allergens: facts.allergens,
       dietTags: facts.dietTags,
+      // Chicken with rice, no title yet: a savoury plate on rice.
+      traits: { taste: 'savoury', form: 'plate', starchBase: 'rice' },
     });
     expect(await t.prisma.recipe.count({ where: { createdByUserId: user.id } })).toBe(0);
+  });
+
+  it('proposes the form its title names', async () => {
+    const body = await written();
+    const res = await t
+      .http()
+      .post('/api/recipes/preview')
+      .set(as(user))
+      .send({
+        servings: body.servings,
+        ingredients: body.ingredients,
+        title: 'Zupa z kurczaka i ryżu',
+      })
+      .expect(200);
+    expect(res.body.traits).toEqual({ taste: 'savoury', form: 'soup', starchBase: 'rice' });
+  });
+});
+
+describe("the traits of a recipe of one's own", () => {
+  it('are those its writer set, or, left out, those its ingredients and title suggest', async () => {
+    const set = (
+      await write(await written({ taste: 'savoury', form: 'salad', starchBase: 'none' })).expect(
+        201,
+      )
+    ).body as Recipe;
+    expect(await t.prisma.recipe.findUniqueOrThrow({ where: { id: set.id } })).toMatchObject({
+      taste: 'savoury',
+      form: 'salad',
+      starchBase: 'none',
+    });
+    expect(
+      (await t.http().get(`/api/recipes/${set.id}`).set(as(user)).expect(200)).body.traits,
+    ).toEqual({
+      taste: 'savoury',
+      form: 'salad',
+      starchBase: 'none',
+    });
+
+    const other = await written({ title: 'Kurczak z ryżem na talerzu' });
+    (other.ingredients as { quantity: number }[])[2]!.quantity = 70;
+    const proposed = (await write(other).expect(201)).body as Recipe;
+    expect(await t.prisma.recipe.findUniqueOrThrow({ where: { id: proposed.id } })).toMatchObject({
+      taste: null,
+      form: null,
+      starchBase: null,
+    });
+    expect(
+      (await t.http().get(`/api/recipes/${proposed.id}`).set(as(user)).expect(200)).body.traits,
+    ).toEqual({
+      taste: 'savoury',
+      form: 'plate',
+      starchBase: 'rice',
+    });
+  });
+
+  it('changed alone, make a new version even of a recipe made by swapping an ingredient, as any change but of its words', async () => {
+    const old = (await write(await written()).expect(201)).body as Recipe;
+    // One made by swapping an ingredient takes new words in place; anything else makes a new version.
+    await t.prisma.recipe.update({ where: { id: old.id }, data: { origin: 'swap' } });
+    const changed = (await edit(old.id, await written({ form: 'salad' })).expect(200))
+      .body as Recipe;
+    expect(changed.id).not.toBe(old.id);
+    expect(await t.prisma.recipe.findUniqueOrThrow({ where: { id: changed.id } })).toMatchObject({
+      form: 'salad',
+    });
   });
 });
 

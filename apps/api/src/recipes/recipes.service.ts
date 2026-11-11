@@ -12,6 +12,7 @@ import {
   type RecipeSearchQuery,
 } from '@diet-app/shared';
 import { collatedFor } from '../common/collation.js';
+import { proposeTraits, traitsOf } from '../engine/dish-traits.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { roundLabel, storedTotals, UNKNOWN_LABEL } from '../engine/label-totals.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -189,7 +190,20 @@ export class RecipesService {
     if (row.deletedAt) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     }
-    return toRecipeDto(row, locale);
+    return {
+      ...toRecipeDto(row, locale),
+      // For its form: those set on it, the rest as its ingredients and titles suggest.
+      traits: traitsOf(row, () =>
+        proposeTraits(
+          [row.title, ...row.translations.map((translation) => translation.title)],
+          row.ingredients.map((line) => ({
+            quantity: line.quantity,
+            unit: line.unit,
+            ingredient: line.ingredient,
+          })),
+        ),
+      ),
+    };
   }
 
   /**

@@ -20,6 +20,7 @@ import {
   CookingMethod,
   Cuisine,
   Difficulty,
+  DishTraits,
   Unit,
   MealType,
   DietType,
@@ -380,6 +381,12 @@ export const RecipeDraft = z.object({
   difficulty: Difficulty,
   /** The cuisine the recipe ships with, if any. */
   cuisine: Cuisine.nullable(),
+  /**
+   * The dish's taste, form and starch base it ships with: what may be put on
+   * its plate. Null for a draft written before drafts had them, which ships
+   * with those its ingredients and title suggest.
+   */
+  traits: DishTraits.nullable(),
   complexity: Complexity,
   caloriesPerServing: z.number().nonnegative(),
   proteinPerServing: z.number().nonnegative(),
@@ -502,6 +509,12 @@ export const RecipeDraftPatch = z.object({
   difficulty: Difficulty.optional(),
   /** The cuisine to tag the recipe with, or null for none. It is no part of the text: a change of it alone leaves the reviews standing. */
   cuisine: Cuisine.nullable().optional(),
+  /**
+   * The dish's taste, form and starch base to set. Each left out keeps the draft's, or, where the draft has none, the
+   * one its ingredients and title suggest. No part of the text either: a change of them alone leaves the reviews
+   * standing.
+   */
+  traits: DishTraits.partial().optional(),
   ingredients: z.array(RecipeDraftIngredientLine).min(1).max(200).optional(),
 });
 export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;

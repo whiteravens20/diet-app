@@ -35,6 +35,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { DraftStatus, Prisma } from '@prisma/client';
+import type { DishTraits } from '@diet-app/shared';
 import type {
   AdminOverview,
   IngredientNameDraftListQuery,
@@ -59,6 +60,7 @@ import {
   type RecipeProblem,
 } from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
+import { draftTraitsOf } from './draft-traits.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
 import { readNameQueue } from './ingredient-name-queue.js';
 import {
@@ -604,24 +606,28 @@ export class DraftService {
         });
       }
 
-      const { slug: renamed, cuisine: tagged, ...changes } = patch;
+      const { slug: renamed, cuisine: tagged, traits: setTraits, ...changes } = patch;
       let slug = draft.slug;
       if (renamed !== undefined) {
         const checked = checkRecipeSlug(renamed);
         if (!checked.ok) throw invalid(checked.problems);
         slug = checked.slug;
       }
-      // The name the recipe ships under and the cuisine it is tagged with are no part of what the reviewers approved.
+      // The name the recipe ships under, the cuisine it is tagged with and the traits of the dish are no part of
+      // what the reviewers approved.
       const cuisine = tagged === undefined ? draft.cuisine : tagged;
+      const traits = setTraits
+        ? await this.traitsSet(tx, draft, setTraits)
+        : { taste: draft.taste, form: draft.form, starchBase: draft.starchBase };
       if (
-        (renamed !== undefined || tagged !== undefined) &&
+        (renamed !== undefined || tagged !== undefined || setTraits !== undefined) &&
         Object.values(changes).every((value) => value === undefined)
       ) {
         return options.dryRun
-          ? { ...draft, slug, cuisine }
+          ? { ...draft, slug, cuisine, ...traits }
           : tx.recipeDraft.update({
               where: { id },
-              data: { slug, cuisine },
+              data: { slug, cuisine, ...traits },
               include: WITH_REVIEWS,
             });
       }
@@ -641,6 +647,7 @@ export class DraftService {
           ...checked.text,
           slug,
           cuisine,
+          ...traits,
           ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)),
         };
       } else {
@@ -661,6 +668,7 @@ export class DraftService {
         data = {
           slug,
           cuisine,
+          ...traits,
           titles: recipe.titles,
           descriptions: recipe.descriptions,
           steps: recipe.steps,
@@ -869,6 +877,30 @@ export class DraftService {
       });
     }
     return { complexity, ...facts };
+  }
+
+  /**
+   * The traits a draft is given by an edit of some of them: those the edit sets, the rest the draft's, or where it has
+   * none, as its ingredients and titles suggest, the way the dish would be read without them.
+   */
+  private async traitsSet(
+    tx: Tx,
+    draft: {
+      id: string;
+      taste: string | null;
+      form: string | null;
+      starchBase: string | null;
+      titles: Prisma.JsonValue;
+      ingredientsJson: Prisma.JsonValue;
+    },
+    set: Partial<DishTraits>,
+  ): Promise<DishTraits> {
+    const read = await draftTraitsOf(tx, draft);
+    return {
+      taste: set.taste ?? read.taste,
+      form: set.form ?? read.form,
+      starchBase: set.starchBase ?? read.starchBase,
+    };
   }
 
   /** The figures of a draft: what the engine makes of its ingredients with today's ingredient table. */

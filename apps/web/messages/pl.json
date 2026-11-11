@@ -853,6 +853,13 @@
       "cuisine": "Kuchnia przepisu",
       "cuisineNone": "Bez kuchni",
       "cuisineOf": "Kuchnia: {cuisine}",
+      "traitTaste": "Smak dania",
+      "traitForm": "Forma dania",
+      "traitStarchBase": "Baza skrobiowa dania",
+      "traitProposed": "według składników i\u00a0tytułu",
+      "tasteOf": "Smak: {taste}",
+      "formOf": "Forma: {form}",
+      "starchBaseOf": "Baza: {base}",
       "slugPrompt": "Slug to nazwa przepisu w plikach danych: małe litery i cyfry łączone myślnikami. Jego zmiana nie odsyła szkicu do ponownej recenzji.",
       "promoteButton": "Przenieś do biblioteki",
       "promoteConfirm": "Przenieść ten przepis użytkownika do biblioteki?",
@@ -2361,6 +2368,12 @@
     "fieldDifficulty": "Trudność",
     "fieldCuisine": "Kuchnia",
     "cuisineNone": "Żadna konkretna",
+    "traitsLegend": "Rodzaj dania",
+    "traitsHint": "Wypełnione według tytułu i\u00a0składników. Od tego zależy, jaki dodatek może trafić na talerz w\u00a0planie wspólnym; popraw, jeśli się nie zgadza.",
+    "fieldTaste": "Smak",
+    "fieldForm": "Forma",
+    "fieldStarchBase": "Baza skrobiowa",
+    "traitWaiting": "Po dodaniu składników",
     "noIngredients": "Dodaj co najmniej jeden składnik z katalogu.",
     "fieldAmount": "Ilość",
     "amountOf": "Ilość: {name}",
@@ -2809,6 +2822,25 @@
       "easy": "Łatwy",
       "medium": "Średni",
       "hard": "Trudny"
+    },
+    "recipeTaste": {
+      "savoury": "Wytrawny",
+      "sweet": "Słodki"
+    },
+    "recipeForm": {
+      "plate": "Danie na talerzu",
+      "soup": "Zupa",
+      "salad": "Sałatka",
+      "sandwich": "Kanapka",
+      "porridge_dessert": "Owsianka lub deser"
+    },
+    "starchBase": {
+      "none": "Bez bazy",
+      "rice": "Ryż",
+      "pasta": "Makaron",
+      "potatoes": "Ziemniaki",
+      "groats": "Kasza",
+      "bread": "Pieczywo"
     },
     "cuisine": {
       "polish": "Polska",

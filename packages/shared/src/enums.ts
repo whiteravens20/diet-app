@@ -10,6 +10,9 @@ import {
   LAST_DAY,
   MEAL_TYPES,
   RECIPE_DIET_TAGS,
+  RECIPE_FORMS,
+  RECIPE_TASTES,
+  STARCH_BASES,
 } from './constants.js';
 import { UNITS } from './units.js';
 
@@ -52,6 +55,26 @@ export type WeeklyLossTarget = z.infer<typeof WeeklyLossTarget>;
 /** Meal slot within a day. The active set depends on the profile meal count (2-5). */
 export const MealType = z.enum(MEAL_TYPES);
 export type MealType = z.infer<typeof MealType>;
+
+/** Whether a dish is savoury or sweet. */
+export const RecipeTaste = z.enum(RECIPE_TASTES);
+export type RecipeTaste = z.infer<typeof RecipeTaste>;
+
+/** What a dish is as it is eaten: a plate, a soup, a salad, a sandwich, or a porridge or dessert. */
+export const RecipeForm = z.enum(RECIPE_FORMS);
+export type RecipeForm = z.infer<typeof RecipeForm>;
+
+/** The starch a dish is built on, or none. */
+export const StarchBase = z.enum(STARCH_BASES);
+export type StarchBase = z.infer<typeof StarchBase>;
+
+/** A dish's taste, form and starch base: what decides what may be put on its plate. */
+export const DishTraits = z.object({
+  taste: RecipeTaste,
+  form: RecipeForm,
+  starchBase: StarchBase,
+});
+export type DishTraits = z.infer<typeof DishTraits>;
 
 /**
  * A calendar day a client names, as `2026-03-01`: a day there is, in the

@@ -829,6 +829,12 @@ model Recipe {
   // it belongs to one. The planner leans towards the cuisines a profile prefers.
   cuisine            String?
   allergens          String[]     @default([])
+  // The dish's taste, form and starch base (`DishTraits` of the shared
+  // contract): what may be put on its plate. Null where nobody set them; the
+  // recipe is then read with the traits its ingredients and title suggest.
+  taste              String?
+  form               String?
+  starchBase         String?
   origin             RecipeOrigin @default(seed)
   // A model had a part in this recipe of a user's: it chose the ingredient
   // that was swapped in, or reworded the text around it. A recipe a model
@@ -1349,6 +1355,12 @@ model RecipeDraft {
   difficulty         Difficulty  @default(easy)
   // The cuisine the recipe will be tagged with when it ships, if any.
   cuisine            String?
+  // The dish's taste, form and starch base it ships with (`DishTraits`): from
+  // the model that wrote it, or proposed from its ingredients and title, as
+  // the administrator approves them.
+  taste              String?
+  form               String?
+  starchBase         String?
   // 'simple' | 'medium' | 'complex': the band the count of ingredients and
   // steps and the total time put the recipe in.
   complexity         String      @default("medium")

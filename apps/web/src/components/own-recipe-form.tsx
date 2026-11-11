@@ -11,6 +11,7 @@ import { useEffect, useId, useState } from 'react';
 import type {
   Cuisine,
   Difficulty,
+  DishTraits,
   Ingredient,
   MealType,
   OwnRecipeInput,
@@ -18,7 +19,13 @@ import type {
   Recipe,
   Unit,
 } from '@diet-app/shared';
-import { CUISINES, RECIPE_LIMITS } from '@diet-app/shared/constants';
+import {
+  CUISINES,
+  RECIPE_FORMS,
+  RECIPE_LIMITS,
+  RECIPE_TASTES,
+  STARCH_BASES,
+} from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
@@ -56,6 +63,8 @@ export interface OwnRecipeDraft {
   cookMinutes: number;
   difficulty: Difficulty;
   cuisine: Cuisine | null;
+  /** The dish's taste, form and starch base as the recipe has them; null for a new one, which the preview proposes. */
+  traits: DishTraits | null;
   ingredients: { ingredient: LineIngredient; quantity: number; unit: Unit; note: string | null }[];
 }
 
@@ -69,6 +78,7 @@ export const EMPTY_RECIPE: OwnRecipeDraft = {
   cookMinutes: 0,
   difficulty: 'easy',
   cuisine: null,
+  traits: null,
   ingredients: [],
 };
 
@@ -96,6 +106,9 @@ export function OwnRecipeForm({
   const tMeal = useTranslations('enums.mealType');
   const tDifficulty = useTranslations('enums.difficulty');
   const tCuisine = useTranslations('enums.cuisine');
+  const tTaste = useTranslations('enums.recipeTaste');
+  const tForm = useTranslations('enums.recipeForm');
+  const tStarch = useTranslations('enums.starchBase');
   const tAllergen = useTranslations('enums.allergen');
   const tDiet = useTranslations('enums.dietType');
   const errorText = useErrorText();
@@ -112,6 +125,8 @@ export function OwnRecipeForm({
   const [cookMinutes, setCookMinutes] = useState(String(initial.cookMinutes));
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [cuisine, setCuisine] = useState<Cuisine | ''>(initial.cuisine ?? '');
+  // What the writer chose of the dish's traits; each not chosen follows what the preview proposes.
+  const [chosen, setChosen] = useState<Partial<DishTraits>>(initial.traits ?? {});
   const [lines, setLines] = useState<Line[]>(() =>
     initial.ingredients.map((line, key) => ({
       key,
@@ -145,7 +160,8 @@ export function OwnRecipeForm({
     portions >= 1 &&
     portions <= RECIPE_LIMITS.servings &&
     measured.every((line) => Number.isFinite(line.quantity) && line.quantity > 0);
-  const previewKey = JSON.stringify([portions, measured]);
+  const askedTitle = title.trim();
+  const previewKey = JSON.stringify([portions, measured, askedTitle]);
   const [asked, setAsked] = useState<string | null>(null);
   useEffect(() => {
     if (!complete) return;
@@ -158,10 +174,14 @@ export function OwnRecipeForm({
       api.post<OwnRecipePreview>('/recipes/preview', {
         servings: portions,
         ingredients: measured,
+        title: askedTitle,
       }),
     enabled: complete && asked === previewKey,
     retry: false,
   });
+
+  // The traits shown: those chosen, else those the preview proposes.
+  const traits: Partial<DishTraits> = { ...preview.data?.traits, ...chosen };
 
   const save = useMutation({
     mutationFn: () => {
@@ -175,6 +195,9 @@ export function OwnRecipeForm({
         cookMinutes: Math.trunc(Number(cookMinutes)),
         difficulty,
         cuisine: cuisine || null,
+        taste: traits.taste ?? null,
+        form: traits.form ?? null,
+        starchBase: traits.starchBase ?? null,
         ingredients: lines.map((line, index) => ({
           ...measured[index]!,
           note: line.note.trim() === '' ? null : line.note,
@@ -364,6 +387,59 @@ export function OwnRecipeForm({
           </select>
         </Field>
       </div>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">{t('traitsLegend')}</legend>
+        <p className="text-xs text-muted-foreground">{t('traitsHint')}</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label={t('fieldTaste')}>
+            <select
+              value={traits.taste ?? ''}
+              onChange={(e) =>
+                setChosen({ ...chosen, taste: e.target.value as DishTraits['taste'] })
+              }
+              className={selectClass}
+            >
+              {traits.taste === undefined && <option value="">{t('traitWaiting')}</option>}
+              {RECIPE_TASTES.map((value) => (
+                <option key={value} value={value}>
+                  {tTaste(value)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('fieldForm')}>
+            <select
+              value={traits.form ?? ''}
+              onChange={(e) => setChosen({ ...chosen, form: e.target.value as DishTraits['form'] })}
+              className={selectClass}
+            >
+              {traits.form === undefined && <option value="">{t('traitWaiting')}</option>}
+              {RECIPE_FORMS.map((value) => (
+                <option key={value} value={value}>
+                  {tForm(value)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('fieldStarchBase')}>
+            <select
+              value={traits.starchBase ?? ''}
+              onChange={(e) =>
+                setChosen({ ...chosen, starchBase: e.target.value as DishTraits['starchBase'] })
+              }
+              className={selectClass}
+            >
+              {traits.starchBase === undefined && <option value="">{t('traitWaiting')}</option>}
+              {STARCH_BASES.map((value) => (
+                <option key={value} value={value}>
+                  {tStarch(value)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </fieldset>
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">{tDetail('ingredients')}</legend>

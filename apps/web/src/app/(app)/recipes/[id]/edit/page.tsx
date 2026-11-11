@@ -66,6 +66,7 @@ export default function EditOwnRecipePage() {
     cookMinutes: found.cookMinutes,
     difficulty: found.difficulty,
     cuisine: found.cuisine,
+    traits: found.traits ?? null,
     ingredients: found.ingredients.map((line) => ({
       // One the catalogue no longer names keeps the unit it is in; saving then says it is gone.
       ingredient: byId.get(line.ingredientId) ?? {

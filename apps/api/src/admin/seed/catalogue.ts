@@ -12,6 +12,9 @@
 import {
   Allergen,
   Cuisine,
+  RecipeForm,
+  RecipeTaste,
+  StarchBase,
   DietType,
   MealType,
   NaturalUnit,
@@ -88,6 +91,11 @@ const RecipeSeed = z.object({
   cookMinutes: z.number().int().min(0),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   cuisine: Cuisine.optional(),
+  // The dish's taste, form and starch base: what may be put on its plate. Left out, the recipe is read with the
+  // traits its ingredients and title suggest.
+  taste: RecipeTaste.optional(),
+  form: RecipeForm.optional(),
+  starchBase: StarchBase.optional(),
   ingredients: z
     .array(
       z

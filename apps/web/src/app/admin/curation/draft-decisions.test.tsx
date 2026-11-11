@@ -49,6 +49,7 @@ const aRecipeDraft = (): RecipeDraft =>
     cookMinutes: 0,
     difficulty: 'easy',
     cuisine: null,
+    traits: null,
     complexity: 'simple',
     caloriesPerServing: 320,
     proteinPerServing: 18,
@@ -493,6 +494,52 @@ describe('writing names again in the administrator’s panel', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: texts.regenerate })).toBeEnabled(),
     );
+  });
+});
+
+describe('the traits of a recipe draft in the administrator’s panel', () => {
+  it('read as proposed where the draft has none, and a change of one sends that one alone', async () => {
+    const patch = vi.spyOn(adminApi, 'patchRecipeDraft').mockResolvedValue(aRecipeDraft());
+    shown(<RecipeDraftRow draft={aRecipeDraft()} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+
+    // Each says which trait it is, and that it is the proposal.
+    const proposed = (pattern: string, key: string) =>
+      pattern.replace(`{${key}}`, texts.traitProposed);
+    const taste = screen.getByRole('combobox', { name: texts.traitTaste });
+    expect(taste).toHaveDisplayValue(proposed(texts.tasteOf, 'taste'));
+    expect(screen.getByRole('combobox', { name: texts.traitForm })).toHaveDisplayValue(
+      proposed(texts.formOf, 'form'),
+    );
+    expect(screen.getByRole('combobox', { name: texts.traitStarchBase })).toHaveDisplayValue(
+      proposed(texts.starchBaseOf, 'base'),
+    );
+    await userEvent.selectOptions(taste, 'sweet');
+
+    expect(patch).toHaveBeenCalledExactlyOnceWith(
+      aRecipeDraft().id,
+      { traits: { taste: 'sweet' } },
+      false,
+    );
+  });
+
+  it('show those it has, with no proposal left to choose', async () => {
+    shown(
+      <RecipeDraftRow
+        draft={{
+          ...aRecipeDraft(),
+          traits: { taste: 'sweet', form: 'porridge_dessert', starchBase: 'none' },
+        }}
+        onChanged={() => undefined}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+
+    const form = screen.getByRole('combobox', { name: texts.traitForm });
+    expect(form).toHaveValue('porridge_dessert');
+    expect(
+      [...form.querySelectorAll('option')].map((option) => option.getAttribute('value')),
+    ).not.toContain('');
   });
 });
 

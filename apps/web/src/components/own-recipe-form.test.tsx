@@ -39,6 +39,7 @@ const serving: OwnRecipePreview = {
   labelPerServing: { fiber: null, sugars: null, salt: null, saturatedFat: null },
   allergens: ['eggs'],
   dietTags: ['vegetarian'],
+  traits: { taste: 'savoury', form: 'plate', starchBase: 'none' },
 };
 
 /** The form, the catalogue answering a search with rice and an egg, and the API answering `answer` to a save. */
@@ -131,6 +132,9 @@ describe('the form a recipe of one’s own is written in', () => {
       await screen.findByText('412 kcal · protein 20 g · fat 11 g · carbohydrate 58 g'),
     ).toBeInTheDocument();
     expect(screen.getByText('Allergens: Eggs')).toBeInTheDocument();
+    // The traits the preview proposes fill the fields; the one the writer chooses stays theirs.
+    expect(screen.getByRole('combobox', { name: text.fieldTaste })).toHaveValue('savoury');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: text.fieldForm }), 'salad');
     await userEvent.click(screen.getByRole('button', { name: text.save }));
 
     const saves = post.mock.calls.filter(([path]) => path === '/recipes');
@@ -147,6 +151,9 @@ describe('the form a recipe of one’s own is written in', () => {
           cookMinutes: 0,
           difficulty: 'easy',
           cuisine: null,
+          taste: 'savoury',
+          form: 'salad',
+          starchBase: 'none',
           ingredients: [
             { ingredientId: rice.id, quantity: 80, unit: 'g', note: null },
             { ingredientId: egg.id, quantity: 2, unit: 'piece', note: 'beaten' },

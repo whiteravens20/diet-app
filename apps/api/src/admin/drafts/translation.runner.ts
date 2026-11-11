@@ -233,6 +233,9 @@ export class TranslationRunner {
             cookMinutes: recipe.cookMinutes,
             difficulty: recipe.difficulty,
             cuisine: recipe.cuisine,
+            taste: recipe.taste,
+            form: recipe.form,
+            starchBase: recipe.starchBase,
             complexity:
               classifyComplexity({
                 ingredientCount: recipe.lines.length,

@@ -18,7 +18,12 @@ import type {
   RecipeTextRequest,
 } from '@diet-app/shared';
 import type { Ingredient } from '@prisma/client';
-import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
+import {
+  proposeTraits,
+  recipeFacts,
+  UnitConversionError,
+  type RecipeFacts,
+} from '../engine/index.js';
 import { roundLabel } from '../engine/label-totals.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PersonalRecipesService, type PersonalRecipe } from './personal-recipes.service.js';
@@ -54,6 +59,10 @@ export class OwnRecipesService {
       labelPerServing: roundLabel(facts.labelPerServing),
       allergens: facts.allergens as Allergen[],
       dietTags: facts.dietTags as DietType[],
+      traits: proposeTraits(
+        req.title.trim() ? [req.title] : [],
+        req.ingredients.map((line, index) => ({ ...line, ingredient: ingredients[index]! })),
+      ),
     };
   }
 
@@ -88,6 +97,9 @@ export class OwnRecipesService {
         cookMinutes: true,
         difficulty: true,
         cuisine: true,
+        taste: true,
+        form: true,
+        starchBase: true,
         ingredients: {
           orderBy: { position: 'asc' },
           select: { ingredientId: true, quantity: true, unit: true, note: true },
@@ -212,6 +224,7 @@ export class OwnRecipesService {
       cookMinutes: recipe.cookMinutes,
       difficulty: recipe.difficulty,
       cuisine: input.cuisine,
+      traits: { taste: input.taste, form: input.form, starchBase: input.starchBase },
       ingredients: recipe.ingredients.map((line, index) => ({
         ingredientId: ingredients[index]!.id,
         quantity: line.quantity,
@@ -260,6 +273,9 @@ function onlyWordsDiffer(
     cookMinutes: number;
     difficulty: string;
     cuisine: string | null;
+    taste: string | null;
+    form: string | null;
+    starchBase: string | null;
     ingredients: { ingredientId: string; quantity: number; unit: string; note: string | null }[];
   },
   input: OwnRecipeInput,
@@ -272,6 +288,9 @@ function onlyWordsDiffer(
     stored.cookMinutes === input.cookMinutes &&
     stored.difficulty === input.difficulty &&
     stored.cuisine === input.cuisine &&
+    stored.taste === input.taste &&
+    stored.form === input.form &&
+    stored.starchBase === input.starchBase &&
     stored.ingredients.length === input.ingredients.length &&
     stored.ingredients.every((line, index) => {
       const given = input.ingredients[index]!;
