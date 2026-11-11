@@ -48,11 +48,11 @@ describe('what is said in Polish of a meal cooked with another', () => {
       Object.entries(said).map(([name, say]) => [
         name,
         (...args: unknown[]) => {
-          const text = (say as (...given: unknown[]) => string | null)(...args);
-          return text === null ? null : plain(text);
+          const text = (say as (...given: unknown[]) => unknown)(...args);
+          return typeof text === 'string' ? plain(text) : text;
         },
       ]),
-    ) as typeof said;
+    ) as unknown as typeof said;
   };
 
   it('names the two days of a dish cooked once', () => {
@@ -156,6 +156,23 @@ describe('what is said in Polish of a meal cooked with another', () => {
     expect(
       apart(aMeal('cooked', place({ date: TUESDAY }), place()), WEDNESDAY, TUESDAY),
     ).toBeNull();
+  });
+
+  it('marks a leftover by the day it was left on, and says what it is, and under the meal it was left of where its rest is eaten', () => {
+    const { leftoverChip, leftoverHint, on } = words();
+    const leftover = { leftover: { date: TUESDAY, mealType: 'dinner', undoable: true } } as const;
+
+    expect(leftoverChip(leftover)).toBe('Z wtorku');
+    expect(leftoverHint({ ...leftover, carriedTo: null })).toBe(
+      'Nie gotujesz: to resztka kolacji z wtorku.',
+    );
+    expect(
+      leftoverHint({ leftover: null, carriedTo: { date: WEDNESDAY, mealType: 'lunch' } }),
+    ).toBe('Reszta tego posiłku jest w środę na obiad.');
+    expect(leftoverChip({ leftover: null })).toBeNull();
+    expect(leftoverHint({ leftover: null, carriedTo: null })).toBeNull();
+    const when = on(WEDNESDAY, 'second_breakfast');
+    expect([plain(when.day), plain(when.meal)]).toEqual(['w środę', 'na drugie śniadanie']);
   });
 
   it('says nothing of a meal cooked for itself', () => {

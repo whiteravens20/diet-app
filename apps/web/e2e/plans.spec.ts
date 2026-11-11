@@ -208,6 +208,105 @@ test.describe('a plan made together with another profile', () => {
   });
 });
 
+test.describe('what is left of a meal', () => {
+  test('goes to a meal of the next day in a window that asks what was eaten and where it goes, and comes back by its undo', async ({
+    browser,
+    request,
+    baseURL,
+    appLocale,
+    messages,
+  }, testInfo) => {
+    test.skip(
+      !['desktop-en', 'phone-pl'].includes(testInfo.project.name),
+      'a wide screen in one language and a narrow one in the other',
+    );
+    const plans = plansOf(messages);
+    const left = (messages.mealPlans as unknown as { leftover: Texts }).leftover;
+    // An account of its own, whose plan begins today: the other tests count on theirs as it is.
+    const email = `browser-leftover-${Date.now().toString(36)}@example.test`;
+    const registered = await signUp(
+      request,
+      { email, password: PASSWORD, displayName: 'Leftover' },
+      appLocale,
+    );
+    expect(registered.ok()).toBe(true);
+    const token = ((await registered.json()) as { tokens: { accessToken: string } }).tokens
+      .accessToken;
+    const headers = { authorization: `Bearer ${token}` };
+    const profile = await request.post('/api/profiles', {
+      data: { name: 'Ola', age: 35, sex: 'female', heightCm: 168, weightKg: 62, mealCount: 3 },
+      headers,
+    });
+    expect(profile.ok(), await profile.text()).toBe(true);
+    const today = new Date().toLocaleDateString('sv');
+    const made = await request.post('/api/meal-plans/generate', {
+      data: {
+        profileId: ((await profile.json()) as { id: string }).id,
+        startDate: today,
+        durationDays: 2,
+      },
+      // The titles in the language of the page, which the rows are found by.
+      headers: { ...headers, 'x-client-date': today, 'accept-language': appLocale },
+    });
+    expect(made.ok(), await made.text()).toBe(true);
+    const plan = (await made.json()) as {
+      id: string;
+      days: { meals: { id: string; mealType: string; recipe: { title: string } | null }[] }[];
+    };
+    const dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
+    const lunch = plan.days[1]!.meals.find((meal) => meal.mealType === 'lunch')!;
+
+    const elsewhere = await browser.newContext({ ...testInfo.project.use, baseURL });
+    await elsewhere.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
+    const page = await elsewhere.newPage();
+    await page.goto('/login');
+    await signInHere(page, { email, password: PASSWORD }, messages);
+    await page.waitForURL('**/dashboard');
+    await anOpenPlan(page, messages);
+
+    // Today's dinner: its rest goes in the place of tomorrow's lunch, nothing of it eaten.
+    const row = page.locator(`[id="meal-${dinner.id}"]`);
+    await row.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
+    await row.getByRole('button', { name: ofAMeal(left.action!) }).click();
+    const dialog = page.getByRole('dialog', { name: left.title! });
+    await expect(dialog.getByRole('radio', { name: left.nothing!, exact: true })).toBeChecked();
+    await expect(dialog.getByRole('button', { name: left.submit!, exact: true })).toBeDisabled();
+    await dialog.getByRole('radio', { name: new RegExp(`${loose(lunch.recipe!.title)}`) }).check();
+    await expect(dialog.getByText(left.summaryGone!, { exact: true })).toBeVisible();
+    expect(await barriers(page)).toEqual([]);
+    const carried = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'POST' &&
+        new URL(res.url()).pathname === `/api/meal-plans/${plan.id}/meals/${dinner.id}/leftover`,
+    );
+    await dialog.getByRole('button', { name: left.submit!, exact: true }).click();
+    expect((await carried).status()).toBe(200);
+    await expect(dialog).toBeHidden();
+
+    // Today has no dinner now; tomorrow's lunch is the dinner, marked as a leftover of today.
+    await expect(page.locator(`[id="meal-${dinner.id}"]`)).toHaveCount(0);
+    const leftover = page.locator(`[id="meal-${lunch.id}"]`);
+    await expect(
+      leftover.getByRole('button', { name: dinner.recipe!.title, exact: true }),
+    ).toBeVisible();
+    await expect(
+      leftover.getByText(new RegExp(`^${loose(left.fromHint!.split('{')[0]!)}`)),
+    ).toBeVisible();
+
+    // Undone, the two meals are as they were.
+    await leftover.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
+    await leftover.getByRole('button', { name: ofAMeal(left.undo!) }).click();
+    const undo = page.getByRole('dialog', { name: left.undoTitle! });
+    await undo.getByRole('button', { name: left.undo!, exact: true }).click();
+    await expect(undo).toBeHidden();
+    await expect(page.locator(`[id="meal-${dinner.id}"]`)).toHaveCount(1);
+    await expect(
+      leftover.getByRole('button', { name: lunch.recipe!.title, exact: true }),
+    ).toBeVisible();
+    await elsewhere.close();
+  });
+});
+
 test.describe('a plan that is made again', () => {
   test('is asked for in one window that says what would be replaced before it asks, and one day of it gets other meals', async ({
     session,

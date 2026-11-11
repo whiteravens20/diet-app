@@ -3573,3 +3573,88 @@ describe('the plan page, on a plan made together with another profile', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('the plan page, on what is left of a meal', () => {
+  const texts = messages.mealPlans.leftover;
+  /** The one meal of the plan, as `over` says it. */
+  const withMeal = (over: Partial<MealPlan['days'][number]['meals'][number]>): MealPlan => {
+    const plan = aPlan();
+    return {
+      ...plan,
+      days: [{ ...plan.days[0]!, meals: [{ ...plan.days[0]!.meals[0]!, ...over }] }],
+    };
+  };
+  const open = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+  const action = (name: string) => screen.getByRole('button', { name: ofAMeal(name) });
+
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('offers to carry the rest of a meal of today to the next day, beside the other changes', async () => {
+    await open(withMeal({ leftoverOffer: 'ok' }));
+    await unfoldMeal();
+
+    expect(action(messages.mealPlans.swap)).toBeInTheDocument();
+    await userEvent.click(action(texts.action));
+
+    expect(await screen.findByRole('dialog', { name: texts.title })).toBeInTheDocument();
+  });
+
+  it('offers it for a meal that was eaten as well, folded with its removal, and says why the next day cannot take it', async () => {
+    await open(withMeal({ leftoverOffer: 'no_day', eatenAt: '2026-01-05T08:00:00.000Z' }));
+    await unfoldMeal();
+
+    expect(action(texts.action)).toBeDisabled();
+    expect(action(texts.action)).toHaveAccessibleDescription(texts.offNoDay);
+    expect(action(messages.mealPlans.remove)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
+  });
+
+  it('marks a leftover with the day it was left on, says what it is, and offers to carry it back instead of another dish', async () => {
+    await open(
+      withMeal({
+        leftover: { date: '2026-01-04', mealType: 'dinner', undoable: true },
+        leftoverOffer: null,
+        quantityScale: 0.5,
+      }),
+    );
+
+    expect(screen.getByText('From Sunday')).toBeInTheDocument();
+    // A part of a portion, not a portion resized.
+    expect(screen.queryByText(/×\s?0[.,]50/)).toBeNull();
+    expect(
+      screen.getByText('No cooking: this is what was left of the dinner from Sunday.'),
+    ).toBeInTheDocument();
+    await unfoldMeal();
+    expect(screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.swap) })).toBeNull();
+    expect(action(messages.mealPlans.remove)).toBeInTheDocument();
+    await userEvent.click(action(texts.undo));
+
+    expect(await screen.findByRole('dialog', { name: texts.undoTitle })).toBeInTheDocument();
+  });
+
+  it('says under the meal it was left of where the rest of it is eaten', async () => {
+    await open(
+      withMeal({
+        eatenAt: '2026-01-05T08:00:00.000Z',
+        carriedTo: { date: '2026-01-06', mealType: 'lunch' },
+      }),
+    );
+
+    expect(
+      screen.getByText('The rest of this meal is eaten on Tuesday for lunch.'),
+    ).toBeInTheDocument();
+    // Nothing else to change of it but its removal.
+    expect(
+      screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.changeMeal) }),
+    ).toBeNull();
+  });
+});

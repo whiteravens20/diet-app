@@ -1057,6 +1057,16 @@ function MealPlansContent() {
                 setRebalanceToast(null);
                 void invalidateEdited(plan.id);
               }}
+              onLeftover={(res, notice, to) => {
+                setError(null);
+                showRebalance(plan.id, res);
+                setNotice(notice);
+                // The day the leftover went to is shown, of this plan or of the next where the list holds it.
+                if (to && plans.data?.items.some((one) => one.id === to.planId)) {
+                  setOpenPlan(to.planId);
+                  setSought(to);
+                }
+              }}
               favorites={liked}
               tMeal={tMeal}
             />

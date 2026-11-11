@@ -3,7 +3,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { CookingChange, MealPlan, PlannedMeal } from '@diet-app/shared';
+import type { CookingChange, MealPlan, MealType, PlannedMeal } from '@diet-app/shared';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { useFormat } from '@/lib/use-format';
 
@@ -82,7 +82,8 @@ export function toCookTogether(
 ):
   | { amounts: PlannedMeal['ingredients']; portion: MealPortion; pot: PotPortions }
   | Record<string, never> {
-  if (!meal.shared || meal.shared.apart) return {};
+  // A leftover was cooked with the meal it was left of: there is no pot for it.
+  if (!meal.shared || meal.shared.apart || meal.leftover) return {};
   const cooked =
     meal.cookAhead === 'cook' && meal.cooking
       ? mealsOfCooking(plan, meal).map((one) => one.meal)
@@ -111,10 +112,34 @@ export function mealsOfCooking(
 /** What is said of a meal cooked with another: the day or the meal it comes from, by name. */
 export function useCookingWords() {
   const t = useTranslations('mealPlans.cooking');
+  const tLeft = useTranslations('mealPlans.leftover');
   const dayFrom = (date: string): string => t(`dayFrom.${weekdayOf(date)}`);
   const dayFor = (date: string): string => t(`dayFor.${weekdayOf(date)}`);
   const dayOn = (date: string): string => t(`dayOn.${weekdayOf(date)}`);
   return {
+    /** When a meal of `date` at `mealType` is eaten, as a sentence says it: "on Wednesday for lunch". */
+    on: (date: string, mealType: MealType): { day: string; meal: string } => ({
+      day: dayOn(date),
+      meal: t(`mealOn.${mealType}`),
+    }),
+    /** The mark of a leftover: the day it was left on. */
+    leftoverChip(meal: Pick<PlannedMeal, 'leftover'>): string | null {
+      return meal.leftover ? capitalised(dayFrom(meal.leftover.date)) : null;
+    },
+    /** What a leftover is, under it; or, under the meal it was left of, where its rest is eaten. */
+    leftoverHint(meal: Pick<PlannedMeal, 'leftover' | 'carriedTo'>): string | null {
+      if (meal.leftover)
+        return tLeft('fromHint', {
+          meal: tLeft(`mealOf.${meal.leftover.mealType}`),
+          from: dayFrom(meal.leftover.date),
+        });
+      if (meal.carriedTo)
+        return tLeft('carriedHint', {
+          day: dayOn(meal.carriedTo.date),
+          meal: t(`mealOn.${meal.carriedTo.mealType}`),
+        });
+      return null;
+    },
     /** The mark on the meal, for a day of `date`. */
     chip(meal: Cooked, date: string): string | null {
       const other = partner(meal, date);

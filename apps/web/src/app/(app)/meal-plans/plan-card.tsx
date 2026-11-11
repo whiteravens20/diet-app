@@ -81,6 +81,19 @@ const DaySettingsDialog = dynamic(
   { ssr: false },
 );
 
+/** Fetched when what is left of a meal is carried to the next day, or carried back. */
+const LeftoverDialog = dynamic(
+  () => import('./leftover-dialog').then((dialog) => dialog.LeftoverDialog),
+  { ssr: false },
+);
+const LeftoverUndoDialog = dynamic(
+  () => import('./leftover-dialog').then((dialog) => dialog.LeftoverUndoDialog),
+  { ssr: false },
+);
+
+/** Why the next day cannot take what is left of a meal, as the button's note says it. */
+const LEFTOVER_OFF = { no_day: 'offNoDay', skipped: 'offSkipped', no_meal: 'offNoMeal' } as const;
+
 interface FavoriteOption {
   recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
 }
@@ -169,6 +182,7 @@ export function PlanCard({
   onResizeDay,
   onSwapped,
   onChanged,
+  onLeftover,
 }: {
   /** The plan as the list holds it: what the head of the card says. */
   summary: MealPlanSummary;
@@ -224,6 +238,12 @@ export function PlanCard({
   onSwapped: (result: RebalanceResult, plannedMealId: string) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
   onChanged: () => void;
+  /** Told what carrying what is left of a meal to the next day, or undoing it, came to, and where it went. */
+  onLeftover: (
+    result: RebalanceResult,
+    notice: string | null,
+    to: { planId: string; date: string } | null,
+  ) => void;
 }) {
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
@@ -264,6 +284,9 @@ export function PlanCard({
   const [settingsFor, setSettingsFor] = useState<MealPlanDay | null>(null);
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
+  // The meal whose rest is being carried to the next day, or the leftover being carried back, while its window is open.
+  const [carrying, setCarrying] = useState<{ meal: PlannedMealView; date: string } | null>(null);
+  const [undoing, setUndoing] = useState<PlannedMealView | null>(null);
   // The days folded or unfolded by hand, by date: any other day follows `firstOpen` below.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   // The week of a long plan that was chosen, if any: the one that holds `firstOpen` until then.
@@ -597,6 +620,16 @@ export function PlanCard({
                 const actionsOpen = openActions === m.id;
                 // A meal of a day that is over, or that is skipped, keeps its dish.
                 const changeable = !day.skipped && day.date >= today;
+                // A leftover is cooked already: no other dish is drawn for it.
+                const swappable = !eaten && !isCustom && changeable && m.leftover === null;
+                // What else a meal can be given: its rest carried to the next day, or a leftover carried back.
+                const carries = m.leftoverOffer !== null;
+                const undoable = m.leftover?.undoable === true;
+                const carryOff =
+                  m.leftoverOffer && m.leftoverOffer !== 'ok'
+                    ? LEFTOVER_OFF[m.leftoverOffer]
+                    : null;
+                const folded = swappable || carries || undoable;
                 // What follows for the other meal of its cooking when this one leaves it.
                 const apart = cookWords.apart(m, day.date, today);
                 // The dish of the day before, for a meal that was parted from it: a press brings the two together again.
@@ -613,6 +646,7 @@ export function PlanCard({
                           one.recipe !== null &&
                           one.recipe.id !== m.recipe?.id &&
                           !one.cookAhead &&
+                          one.leftover === null &&
                           one.eatenAt === null &&
                           one.source !== 'USER_CUSTOM',
                       )
@@ -746,15 +780,22 @@ export function PlanCard({
                                 {t('onlyRecipeChip')}
                               </span>
                             )}
-                            {/* A small difference is the sizing of an ordinary day, and says nothing to the reader. */}
-                            {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM && (
-                              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                                {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
-                              </span>
-                            )}
+                            {/* A small difference is the sizing of an ordinary day, and says nothing to the reader; a leftover and the meal it was left of are parts of a portion, not resized. */}
+                            {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM &&
+                              !m.leftover &&
+                              !m.carriedTo && (
+                                <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                                  {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
+                                </span>
+                              )}
                             {m.cookAhead && (
                               <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
                                 {cookWords.chip(m, day.date)}
+                              </span>
+                            )}
+                            {m.leftover && (
+                              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                                {cookWords.leftoverChip(m)}
                               </span>
                             )}
                             {m.shared && (
@@ -782,28 +823,26 @@ export function PlanCard({
                               {t('eatenTogether')}
                             </Button>
                           )}
-                          {(eaten || isCustom || !changeable) && (
-                            <>
-                              {eaten && (
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {t('eatenBadge')}
-                                </span>
-                              )}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                aria-label={named(t('remove'))}
-                                aria-expanded={removing === m.id}
-                                onClick={() => setRemoving(removing === m.id ? null : m.id)}
-                                disabled={busy}
-                              >
-                                {t('remove')}
-                              </Button>
-                            </>
+                          {eaten && (
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {t('eatenBadge')}
+                            </span>
+                          )}
+                          {!folded && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('remove'))}
+                              aria-expanded={removing === m.id}
+                              onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                              disabled={busy}
+                            >
+                              {t('remove')}
+                            </Button>
                           )}
                           {/* The ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
-                          {eaten || isCustom || !changeable ? null : (
+                          {!folded ? null : (
                             <Button
                               type="button"
                               variant="ghost"
@@ -818,7 +857,7 @@ export function PlanCard({
                           )}
                         </span>
                       </div>
-                      {!eaten && !isCustom && changeable && (
+                      {folded && (
                         <div
                           id={`${m.id}-actions`}
                           role="group"
@@ -826,7 +865,7 @@ export function PlanCard({
                           hidden={!actionsOpen}
                           className="ml-3 flex flex-wrap items-center gap-x-1"
                         >
-                          {parted && dayBefore && (
+                          {swappable && parted && dayBefore && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -837,69 +876,98 @@ export function PlanCard({
                               {t('cooking.same', { day: fmt.weekday(dayBefore.date) })}
                             </Button>
                           )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={named(t('swap'))}
-                            onClick={() => onSwapMeal(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swap')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapToFav')}
-                            aria-label={named(t('swapToFav'))}
-                            aria-expanded={favOpen}
-                            onClick={() => {
-                              setShowAllFav(false);
-                              setOpenFav(favOpen ? null : m.id);
-                            }}
-                            disabled={busy}
-                          >
-                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
-                            aria-label={named(t('aiSwap'))}
-                            onClick={() => onAiSwapMeal?.(m.id)}
-                            disabled={busy || !onAiSwapMeal}
-                            aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
-                            className="text-primary"
-                          >
-                            <Sparkles size={14} aria-hidden />
-                            <span className="ml-1">{t('aiSwap')}</span>
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapByFav')}
-                            aria-label={named(t('swapFavIngr'))}
-                            onClick={() => onSwapByFavorites(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swapFavIngr')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSubstitute')}
-                            aria-label={named(t('substituteIngr'))}
-                            onClick={() => {
-                              if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
-                            }}
-                            disabled={busy}
-                          >
-                            {t('substituteIngr')} ⇄
-                          </Button>
+                          {swappable && (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={named(t('swap'))}
+                                onClick={() => onSwapMeal(m.id)}
+                                disabled={busy}
+                              >
+                                {t('swap')}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSwapToFav')}
+                                aria-label={named(t('swapToFav'))}
+                                aria-expanded={favOpen}
+                                onClick={() => {
+                                  setShowAllFav(false);
+                                  setOpenFav(favOpen ? null : m.id);
+                                }}
+                                disabled={busy}
+                              >
+                                {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                                aria-label={named(t('aiSwap'))}
+                                onClick={() => onAiSwapMeal?.(m.id)}
+                                disabled={busy || !onAiSwapMeal}
+                                aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
+                                className="text-primary"
+                              >
+                                <Sparkles size={14} aria-hidden />
+                                <span className="ml-1">{t('aiSwap')}</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSwapByFav')}
+                                aria-label={named(t('swapFavIngr'))}
+                                onClick={() => onSwapByFavorites(m.id)}
+                                disabled={busy}
+                              >
+                                {t('swapFavIngr')}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSubstitute')}
+                                aria-label={named(t('substituteIngr'))}
+                                onClick={() => {
+                                  if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
+                                }}
+                                disabled={busy}
+                              >
+                                {t('substituteIngr')} ⇄
+                              </Button>
+                            </>
+                          )}
+                          {carries && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('leftover.action'))}
+                              aria-describedby={carryOff ? `${m.id}-carry-off` : undefined}
+                              onClick={() => setCarrying({ meal: m, date: day.date })}
+                              disabled={busy || carryOff !== null}
+                            >
+                              {t('leftover.action')}
+                            </Button>
+                          )}
+                          {undoable && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('leftover.undo'))}
+                              onClick={() => setUndoing(m)}
+                              disabled={busy}
+                            >
+                              {t('leftover.undo')}
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
@@ -911,6 +979,14 @@ export function PlanCard({
                           >
                             {t('remove')}
                           </Button>
+                          {carryOff && (
+                            <p
+                              id={`${m.id}-carry-off`}
+                              className="basis-full px-3 text-xs text-muted-foreground"
+                            >
+                              {t(`leftover.${carryOff}`)}
+                            </p>
+                          )}
                         </div>
                       )}
                       {removing === m.id && (
@@ -1151,6 +1227,11 @@ export function PlanCard({
                           {cookWords.hint(m, day.date)}
                         </p>
                       )}
+                      {(m.leftover || m.carriedTo) && (
+                        <p className="ml-6 text-xs text-muted-foreground">
+                          {cookWords.leftoverHint(m)}
+                        </p>
+                      )}
                       {m.shared && (
                         <div className="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span>
@@ -1161,20 +1242,23 @@ export function PlanCard({
                             })}
                             {m.shared.with.eaten && `${DOT}${t('sharedEaten')}`}
                           </span>
-                          {/* Cooked apart, each portion is its own; in one pot the pot is split by weight, as near as a split comes. */}
-                          <label className="-my-2 inline-flex items-center gap-1.5 py-2">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={m.shared.apart}
-                              disabled={busy}
-                              onChange={() => onSetApart(m.shared!.id, !m.shared!.apart)}
-                            />
-                            {t('cookApart')}
-                          </label>
+                          {/* Cooked apart, each portion is its own; in one pot the pot is split by weight, as near as a split comes. A leftover is cooked already. */}
+                          {!m.leftover && (
+                            <label className="-my-2 inline-flex items-center gap-1.5 py-2">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={m.shared.apart}
+                                disabled={busy}
+                                onChange={() => onSetApart(m.shared!.id, !m.shared!.apart)}
+                              />
+                              {t('cookApart')}
+                            </label>
+                          )}
                         </div>
                       )}
-                      {((m.cookAhead === 'cook' && m.cooking) || (m.shared && !m.shared.apart)) && (
+                      {((m.cookAhead === 'cook' && m.cooking) ||
+                        (m.shared && !m.shared.apart && !m.leftover)) && (
                         <div className="ml-6">
                           <Button
                             type="button"
@@ -1557,6 +1641,26 @@ export function PlanCard({
         />
       )}
       {splitting && <SplitDialog portions={splitting} onClose={() => setSplitting(null)} />}
+      {carrying && plan && (
+        <LeftoverDialog
+          plan={plan}
+          meal={carrying.meal}
+          date={carrying.date}
+          onClose={() => setCarrying(null)}
+          onDone={(result, notice, to) => onLeftover(result, notice, to)}
+        />
+      )}
+      {undoing && (
+        <LeftoverUndoDialog
+          planId={summary.id}
+          meal={undoing}
+          onClose={() => setUndoing(null)}
+          onDone={(result) => {
+            changing.current = mealAnchor(undoing.id);
+            onLeftover(result, null, null);
+          }}
+        />
+      )}
       {settingsFor && (
         <DaySettingsDialog
           planId={summary.id}
