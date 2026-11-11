@@ -17,6 +17,9 @@
     "prepMinutes": 10,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "mackerel-fillet",
@@ -79,6 +82,9 @@
     "prepMinutes": 12,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "ground-beef",
@@ -163,6 +169,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -268,6 +277,9 @@
     "prepMinutes": 5,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -328,6 +340,9 @@
     "prepMinutes": 8,
     "cookMinutes": 10,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -400,6 +415,9 @@
     "prepMinutes": 15,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -500,6 +518,9 @@
     "prepMinutes": 8,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "canned-tuna",
@@ -557,6 +578,9 @@
     "prepMinutes": 20,
     "cookMinutes": 8,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "salad",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -655,6 +679,9 @@
     "prepMinutes": 15,
     "cookMinutes": 14,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "cod-fillet",
@@ -739,6 +766,9 @@
     "prepMinutes": 8,
     "cookMinutes": 3,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "rye-bread",
@@ -794,6 +824,9 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "buckwheat-groats",
@@ -868,6 +901,9 @@
     "prepMinutes": 20,
     "cookMinutes": 45,
     "difficulty": "hard",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "millet",
@@ -978,6 +1014,9 @@
     "prepMinutes": 3,
     "cookMinutes": 8,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "edamame",
@@ -1024,6 +1063,9 @@
     "prepMinutes": 15,
     "cookMinutes": 8,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "salad",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "tofu",
@@ -1103,6 +1145,9 @@
     "prepMinutes": 20,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "chickpeas",
@@ -1211,6 +1256,9 @@
     "prepMinutes": 5,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "kefir",
@@ -1264,6 +1312,9 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1353,6 +1404,9 @@
     "prepMinutes": 15,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "potato",
@@ -1460,6 +1514,9 @@
     "prepMinutes": 10,
     "cookMinutes": 18,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "pork-tenderloin",
@@ -1522,6 +1579,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-thigh",
@@ -1601,6 +1661,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "salmon-fillet",
@@ -1713,6 +1776,9 @@
     "prepMinutes": 5,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1763,6 +1829,9 @@
     "prepMinutes": 10,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "mackerel-fillet",
@@ -1832,6 +1901,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1928,6 +2000,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "sweet-potato",
@@ -2011,6 +2086,9 @@
     "prepMinutes": 5,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "white-rice",
@@ -2071,6 +2149,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "tofu",
@@ -2150,6 +2231,9 @@
     "prepMinutes": 5,
     "cookMinutes": 7,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -2210,6 +2294,9 @@
     "prepMinutes": 12,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -2296,6 +2383,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "tofu",
@@ -2377,6 +2467,9 @@
     "prepMinutes": 8,
     "cookMinutes": 12,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "cod-fillet",
@@ -2434,6 +2527,9 @@
     "prepMinutes": 12,
     "cookMinutes": 28,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -2520,6 +2616,9 @@
     "prepMinutes": 18,
     "cookMinutes": 38,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "cod-fillet",
@@ -2627,6 +2726,9 @@
     "prepMinutes": 10,
     "cookMinutes": 18,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-breast",
@@ -2689,6 +2791,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -2768,6 +2873,9 @@
     "prepMinutes": 8,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "cottage-cheese",
@@ -2826,6 +2934,9 @@
     "prepMinutes": 12,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -2910,6 +3021,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "hard",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "pork-tenderloin",
@@ -3018,6 +3132,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3104,6 +3221,9 @@
     "prepMinutes": 5,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3154,6 +3274,9 @@
     "prepMinutes": 15,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "canned-tuna",
@@ -3231,6 +3354,9 @@
     "prepMinutes": 25,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3329,6 +3455,9 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3384,6 +3513,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "pork-tenderloin",
@@ -3465,6 +3597,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3565,6 +3700,9 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "chicken-breast",
@@ -3627,6 +3765,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -3706,6 +3847,9 @@
     "prepMinutes": 5,
     "cookMinutes": 2,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "rye-bread",
@@ -3764,6 +3908,9 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -3841,6 +3988,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "trout-fillet",
@@ -3944,6 +4094,9 @@
     "prepMinutes": 12,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -4025,6 +4178,9 @@
     "prepMinutes": 5,
     "cookMinutes": 3,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "canned-tuna",
@@ -4085,6 +4241,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -4173,6 +4332,9 @@
     "prepMinutes": 20,
     "cookMinutes": 30,
     "difficulty": "hard",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "buckwheat-groats",
@@ -4283,6 +4445,9 @@
     "prepMinutes": 7,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "trout-fillet",
@@ -4338,6 +4503,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -4407,6 +4575,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "pork-tenderloin",
@@ -4526,6 +4697,9 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "chicken-breast",
@@ -4583,6 +4757,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "salmon-fillet",
@@ -4669,6 +4846,9 @@
     "prepMinutes": 15,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "pork-tenderloin",
@@ -4752,6 +4932,9 @@
     "prepMinutes": 5,
     "cookMinutes": 7,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -4805,6 +4988,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "ground-beef",
@@ -4887,6 +5073,9 @@
     "prepMinutes": 20,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -4997,6 +5186,9 @@
     "prepMinutes": 8,
     "cookMinutes": 12,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -5056,6 +5248,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "cottage-cheese",
@@ -5126,6 +5321,9 @@
     "prepMinutes": 15,
     "cookMinutes": 12,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "turkey-breast",
@@ -5202,6 +5400,9 @@
     "prepMinutes": 20,
     "cookMinutes": 15,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "salad",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "cod-fillet",
@@ -5310,6 +5511,9 @@
     "prepMinutes": 8,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "greek-yogurt",
@@ -5363,6 +5567,9 @@
     "prepMinutes": 5,
     "cookMinutes": 3,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "rye-bread",
@@ -5423,6 +5630,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "ground-beef",

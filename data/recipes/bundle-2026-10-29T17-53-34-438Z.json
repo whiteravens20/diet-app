@@ -17,6 +17,9 @@
     "prepMinutes": 10,
     "cookMinutes": 5,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "whole-grain-bread",
@@ -77,6 +80,9 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "millet",
@@ -156,6 +162,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -262,6 +271,9 @@
     "prepMinutes": 10,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "apple",
@@ -317,6 +329,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "bell-pepper",
@@ -401,6 +416,9 @@
     "prepMinutes": 20,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "mushrooms",
@@ -491,6 +509,9 @@
     "prepMinutes": 5,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -545,6 +566,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "salmon-fillet",
@@ -640,6 +664,9 @@
     "prepMinutes": 10,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-thigh",
@@ -694,6 +721,9 @@
     "prepMinutes": 10,
     "cookMinutes": 12,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "salmon-fillet",
@@ -770,6 +800,9 @@
     "prepMinutes": 20,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -870,6 +903,9 @@
     "prepMinutes": 12,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "tofu",
@@ -948,6 +984,9 @@
     "prepMinutes": 10,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "banana",
@@ -1007,6 +1046,9 @@
     "prepMinutes": 15,
     "cookMinutes": 5,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "tortilla-wrap",
@@ -1080,6 +1122,9 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "red-lentils",
@@ -1185,6 +1230,9 @@
     "prepMinutes": 5,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "greek-yogurt",
@@ -1237,6 +1285,9 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1312,6 +1363,9 @@
     "prepMinutes": 20,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       {
         "slug": "chickpeas",
@@ -1423,6 +1477,9 @@
     "prepMinutes": 12,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-thigh",
@@ -1505,6 +1562,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1607,6 +1667,9 @@
     "prepMinutes": 10,
     "cookMinutes": 10,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -1686,6 +1749,9 @@
     "prepMinutes": 5,
     "cookMinutes": 3,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "whole-grain-bread",
@@ -1744,6 +1810,9 @@
     "prepMinutes": 25,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "salmon-fillet",
@@ -1857,6 +1926,9 @@
     "prepMinutes": 10,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "greek-yogurt",
@@ -1922,6 +1994,9 @@
     "prepMinutes": 8,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -1982,6 +2057,9 @@
     "prepMinutes": 12,
     "cookMinutes": 5,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "salad",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -2059,6 +2137,9 @@
     "prepMinutes": 20,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "ground-beef",
@@ -2155,6 +2236,9 @@
     "prepMinutes": 5,
     "cookMinutes": 25,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "millet",
@@ -2222,6 +2306,9 @@
     "prepMinutes": 10,
     "cookMinutes": 12,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "rolled-oats",
@@ -2283,6 +2370,9 @@
     "prepMinutes": 20,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -2393,6 +2483,9 @@
     "prepMinutes": 5,
     "cookMinutes": 5,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "orange",
@@ -2440,6 +2533,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -2521,6 +2617,9 @@
     "prepMinutes": 20,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "zucchini",
@@ -2626,6 +2725,9 @@
     "prepMinutes": 5,
     "cookMinutes": 5,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "whole-grain-bread",
@@ -2686,6 +2788,9 @@
     "prepMinutes": 12,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -2772,6 +2877,9 @@
     "prepMinutes": 5,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "large-egg",
@@ -2832,6 +2940,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-thigh",
@@ -2915,6 +3026,9 @@
     "prepMinutes": 20,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "ground-beef",
@@ -3019,6 +3133,9 @@
     "prepMinutes": 5,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -3073,6 +3190,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       {
         "slug": "brown-rice",
@@ -3153,6 +3273,9 @@
     "prepMinutes": 5,
     "cookMinutes": 20,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -3214,6 +3337,9 @@
     "prepMinutes": 10,
     "cookMinutes": 35,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "millet",
@@ -3302,6 +3428,9 @@
     "prepMinutes": 10,
     "cookMinutes": 10,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "mackerel-fillet",
@@ -3381,6 +3510,9 @@
     "prepMinutes": 10,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "smoked-salmon",
@@ -3438,6 +3570,9 @@
     "prepMinutes": 10,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "red-lentils",
@@ -3514,6 +3649,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "buckwheat-groats",
@@ -3600,6 +3738,9 @@
     "prepMinutes": 5,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "millet",
@@ -3660,6 +3801,9 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "chicken-thigh",
@@ -3746,6 +3890,9 @@
     "prepMinutes": 20,
     "cookMinutes": 40,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       {
         "slug": "quinoa",
@@ -3830,6 +3977,9 @@
     "prepMinutes": 12,
     "cookMinutes": 3,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       {
         "slug": "chickpeas",
@@ -3905,6 +4055,9 @@
     "prepMinutes": 15,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "shrimp",
@@ -3992,6 +4145,9 @@
     "prepMinutes": 10,
     "cookMinutes": 15,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       {
         "slug": "bacon",

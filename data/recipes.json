@@ -11,6 +11,9 @@
     "prepMinutes": 5,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
       { "slug": "whole-milk", "quantity": 180, "unit": "ml" },
@@ -46,6 +49,9 @@
     "prepMinutes": 3,
     "cookMinutes": 7,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       { "slug": "large-egg", "quantity": 3, "unit": "piece" },
       { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
@@ -82,6 +88,9 @@
     "cookMinutes": 6,
     "difficulty": "easy",
     "cuisine": "american",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
       { "slug": "whole-milk", "quantity": 200, "unit": "ml" },
@@ -113,6 +122,9 @@
     "prepMinutes": 2,
     "cookMinutes": 9,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "large-egg", "quantity": 3, "unit": "piece" },
       { "slug": "avocado", "quantity": 1, "unit": "piece" },
@@ -146,6 +158,9 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       { "slug": "chicken-breast", "quantity": 320, "unit": "g" },
       { "slug": "white-rice", "quantity": 160, "unit": "g" },
@@ -177,6 +192,9 @@
     "prepMinutes": 10,
     "cookMinutes": 18,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "groats",
     "ingredients": [
       { "slug": "salmon-fillet", "quantity": 260, "unit": "g" },
       { "slug": "quinoa", "quantity": 140, "unit": "g" },
@@ -209,6 +227,9 @@
     "cookMinutes": 25,
     "difficulty": "easy",
     "cuisine": "mediterranean",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "chickpeas", "quantity": 480, "unit": "g" },
       { "slug": "tomato", "quantity": 3, "unit": "piece" },
@@ -242,6 +263,9 @@
     "cookMinutes": 15,
     "difficulty": "medium",
     "cuisine": "asian",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "rice",
     "ingredients": [
       { "slug": "tofu", "quantity": 300, "unit": "g" },
       { "slug": "bell-pepper", "quantity": 1, "unit": "piece" },
@@ -275,6 +299,9 @@
     "cookMinutes": 25,
     "difficulty": "medium",
     "cuisine": "italian",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "pasta",
     "ingredients": [
       { "slug": "ground-beef", "quantity": 360, "unit": "g" },
       { "slug": "pasta", "quantity": 300, "unit": "g" },
@@ -308,6 +335,9 @@
     "cookMinutes": 25,
     "difficulty": "easy",
     "cuisine": "middle_eastern",
+    "taste": "savoury",
+    "form": "soup",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "red-lentils", "quantity": 240, "unit": "g" },
       { "slug": "carrot", "quantity": 3, "unit": "piece" },
@@ -342,6 +372,9 @@
     "prepMinutes": 8,
     "cookMinutes": 18,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "chicken-breast", "quantity": 320, "unit": "g" },
       { "slug": "broccoli", "quantity": 300, "unit": "g" },
@@ -377,6 +410,9 @@
     "cookMinutes": 15,
     "difficulty": "easy",
     "cuisine": "mexican",
+    "taste": "savoury",
+    "form": "salad",
+    "starchBase": "groats",
     "ingredients": [
       { "slug": "black-beans", "quantity": 320, "unit": "g" },
       { "slug": "quinoa", "quantity": 120, "unit": "g" },
@@ -412,6 +448,9 @@
     "prepMinutes": 10,
     "cookMinutes": 30,
     "difficulty": "medium",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "potatoes",
     "ingredients": [
       { "slug": "salmon-fillet", "quantity": 260, "unit": "g" },
       { "slug": "potato", "quantity": 3, "unit": "piece" },
@@ -447,6 +486,9 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "cuisine": "mediterranean",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "greek-yogurt", "quantity": 170, "unit": "g" },
       { "slug": "almonds", "quantity": 20, "unit": "g" },
@@ -469,6 +511,9 @@
     "prepMinutes": 2,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "banana", "quantity": 1, "unit": "piece" },
       { "slug": "almonds", "quantity": 25, "unit": "g" }
@@ -490,6 +535,9 @@
     "prepMinutes": 4,
     "cookMinutes": 2,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       { "slug": "avocado", "quantity": 1, "unit": "piece" },
       { "slug": "whole-grain-bread", "quantity": 1, "unit": "piece" },
@@ -513,6 +561,9 @@
     "cookMinutes": 18,
     "difficulty": "easy",
     "cuisine": "american",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "large-egg", "quantity": 4, "unit": "piece" },
       { "slug": "cheddar-cheese", "quantity": 80, "unit": "g" },
@@ -547,6 +598,9 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "cuisine": "middle_eastern",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "chickpeas", "quantity": 150, "unit": "g" },
       { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
@@ -572,6 +626,9 @@
     "prepMinutes": 8,
     "cookMinutes": 8,
     "difficulty": "easy",
+    "taste": "savoury",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       { "slug": "tofu", "quantity": 200, "unit": "g" },
       { "slug": "spinach", "quantity": 60, "unit": "g" },
@@ -610,6 +667,9 @@
     "cookMinutes": 2,
     "difficulty": "easy",
     "cuisine": "american",
+    "taste": "sweet",
+    "form": "sandwich",
+    "starchBase": "bread",
     "ingredients": [
       { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
       { "slug": "peanut-butter", "quantity": 30, "unit": "g" },
@@ -644,6 +704,9 @@
     "prepMinutes": 5,
     "cookMinutes": 6,
     "difficulty": "easy",
+    "taste": "sweet",
+    "form": "porridge_dessert",
+    "starchBase": "groats",
     "ingredients": [
       { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
       { "slug": "apple", "quantity": 1, "unit": "piece" },
@@ -679,6 +742,9 @@
     "cookMinutes": 9,
     "difficulty": "easy",
     "cuisine": "mediterranean",
+    "taste": "savoury",
+    "form": "plate",
+    "starchBase": "none",
     "ingredients": [
       { "slug": "large-egg", "quantity": 2, "unit": "piece" },
       { "slug": "feta-cheese", "quantity": 40, "unit": "g" },
