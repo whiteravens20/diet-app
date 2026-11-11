@@ -44,6 +44,9 @@ export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Of the plans of a profile that hold a day, the one made last: as the calendar and the diary pick it. */
+export const MADE_LAST = [{ plan: { createdAt: 'desc' } }, { planId: 'asc' }] as const;
+
 /** As much of a planned meal as says what it amounts to. */
 export interface MealAmount {
   servings: number;

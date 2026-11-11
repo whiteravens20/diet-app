@@ -56,6 +56,7 @@ import {
   customMacros,
   isoDate,
   isSkipped,
+  MADE_LAST,
   mealLabel,
   mealNutrition,
   standingOf,
@@ -103,9 +104,6 @@ const PROFILE = {
   },
 } as const;
 type DiaryProfile = Prisma.ProfileGetPayload<{ select: typeof PROFILE }>;
-
-/** Of the plans that hold a day, the one made last: as the calendar picks it. */
-const MADE_LAST = [{ plan: { createdAt: 'desc' } }, { planId: 'asc' }] as const;
 
 /** What an entry holds besides where it is: what it is of, its name, its amount and its figures. */
 type Written = Pick<
