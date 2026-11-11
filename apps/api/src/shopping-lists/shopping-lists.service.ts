@@ -46,6 +46,7 @@ import {
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
+import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
 export const TRANSACTION = { timeout: 30_000, maxWait: 10_000 } as const;
@@ -370,7 +371,7 @@ type DatedLine = PlanIngredientLine & { date: Date };
 
 /** Every ingredient line the plan's menu has between two dates, as the menu is now. */
 export async function planLines(
-  db: Pick<Tx, 'mealPlanDay'>,
+  db: Pick<Tx, 'mealPlanDay' | 'ingredient'>,
   planId: string,
   from: Date,
   to: Date,
@@ -385,6 +386,8 @@ export async function planLines(
           servings: true,
           quantityScale: true,
           leftoverFromDate: true,
+          toppingKey: true,
+          toppingAmount: true,
           recipe: {
             select: {
               servings: true,
@@ -398,9 +401,24 @@ export async function planLines(
       },
     },
   });
+  // A topping is bought for the plate it is on, as its food of the catalogue.
+  const toppings = days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+    ? await toppingIngredientsOf(db)
+    : new Map<string, { id: string; unit: 'g' | 'ml' | 'piece' }>();
   const lines: DatedLine[] = [];
   for (const day of days) {
     for (const meal of day.meals) {
+      const topping = meal.toppingKey !== null ? toppings.get(meal.toppingKey) : undefined;
+      if (topping && meal.toppingAmount !== null) {
+        lines.push({
+          date: day.date,
+          ingredientId: topping.id,
+          quantity: meal.toppingAmount,
+          unit: topping.unit,
+          recipeServings: 1,
+          plannedServings: 1,
+        });
+      }
       // A custom meal has no ingredients, and a leftover was bought with the
       // meal it was left of. Whether a meal was eaten changes nothing: a list
       // says what the days need, not what is left of them.

@@ -376,6 +376,8 @@ export class AccountExportService {
                   undo: meal.leftoverUndo,
                 }
               : null,
+            // What was put on this plate alone beside a shared dish, and how much, in its food's own unit.
+            topping: meal.toppingKey ? { key: meal.toppingKey, amount: meal.toppingAmount } : null,
           })),
         })),
         shoppingLists: plan.shoppingLists.map((shopping) => ({

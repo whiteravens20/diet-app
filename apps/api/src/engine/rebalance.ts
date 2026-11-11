@@ -237,6 +237,54 @@ export function sizeDay(meals: RebalanceMeal[], target: number, aim: Macros): Re
 /** A meal a run of the planner placed, with the factor that sizes it on its day. */
 export type SizedAssignment = OptimizerAssignment & { quantityScale: number };
 
+/** What a planned day aims at of protein, fat and carbohydrate, in grams: its own aim, or the plan's split of its target. */
+export function aimOfPlanned(day: OptimizerDay, split: Macros): Macros {
+  const target = day.dailyCalorieTarget;
+  return (
+    day.macroAim ?? {
+      protein: (target * split.protein) / KCAL_PER_GRAM.protein,
+      fat: (target * split.fat) / KCAL_PER_GRAM.fat,
+      carbs: (target * split.carbs) / KCAL_PER_GRAM.carbs,
+    }
+  );
+}
+
+/**
+ * The meals of a planned day as its sizing counts them: what stays on it from
+ * its diary, locked, and the meals placed on it, each by its time of day.
+ */
+export function assignedDayMeals(
+  day: OptimizerDay,
+  placed: readonly OptimizerAssignment[],
+  recipeOf: ReadonlyMap<string, OptimizerRecipe>,
+): RebalanceMeal[] {
+  return [
+    ...(day.kept ?? []).map((meal, index) => ({
+      id: `kept:${index}`,
+      calories: meal.calories,
+      servings: 1,
+      quantityScale: 1,
+      locked: true,
+      ...(meal.macros ? { macros: meal.macros } : {}),
+    })),
+    ...placed.map((meal) => {
+      const recipe = recipeOf.get(meal.recipeId)!;
+      return {
+        id: meal.slot,
+        calories: recipe.caloriesPerServing,
+        servings: meal.servings,
+        quantityScale: 1,
+        locked: false,
+        macros: {
+          protein: recipe.proteinPerServing,
+          fat: recipe.fatPerServing,
+          carbs: recipe.carbsPerServing,
+        },
+      };
+    }),
+  ];
+}
+
 /**
  * What a run of the planner placed, with the meals of each day sized as
  * `sizeDay` sizes them: to what is left of the day's target once the meals that
@@ -255,40 +303,10 @@ export function sizeAssignments(
   days.forEach((day, dayIndex) => {
     const placed = assignments.filter((meal) => meal.dayIndex === dayIndex);
     if (placed.length === 0) return;
-    const target = day.dailyCalorieTarget;
-    const meals: RebalanceMeal[] = [
-      ...(day.kept ?? []).map((meal, index) => ({
-        id: `kept:${index}`,
-        calories: meal.calories,
-        servings: 1,
-        quantityScale: 1,
-        locked: true,
-        ...(meal.macros ? { macros: meal.macros } : {}),
-      })),
-      ...placed.map((meal) => {
-        const recipe = recipeOf.get(meal.recipeId)!;
-        return {
-          id: meal.slot,
-          calories: recipe.caloriesPerServing,
-          servings: meal.servings,
-          quantityScale: 1,
-          locked: false,
-          macros: {
-            protein: recipe.proteinPerServing,
-            fat: recipe.fatPerServing,
-            carbs: recipe.carbsPerServing,
-          },
-        };
-      }),
-    ];
     const { scales } = sizeDay(
-      meals,
-      target,
-      day.macroAim ?? {
-        protein: (target * split.protein) / KCAL_PER_GRAM.protein,
-        fat: (target * split.fat) / KCAL_PER_GRAM.fat,
-        carbs: (target * split.carbs) / KCAL_PER_GRAM.carbs,
-      },
+      assignedDayMeals(day, placed, recipeOf),
+      day.dailyCalorieTarget,
+      aimOfPlanned(day, split),
     );
     for (const meal of placed) sized.set(meal, scales.get(meal.slot)!);
   });

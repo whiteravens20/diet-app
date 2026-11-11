@@ -44,6 +44,7 @@ import {
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { localDate } from '@/lib/http';
 import { saveText } from '@/lib/save-file';
@@ -114,7 +115,8 @@ export interface SwapAsk {
 }
 
 /** What comes back when a recipe is asked for in the place of a meal. A model that was asked leaves `aiMeta`, and the note of its pick when the pick is its own. */
-export type Offered = MealSwapPreview & Partial<Pick<AiMealSwapPreview, 'aiMeta' | 'pick'>>;
+export type Offered = MealSwapPreview &
+  Partial<Pick<AiMealSwapPreview, 'aiMeta' | 'pick' | 'topping'>>;
 
 /** A recipe that was offered for a meal, with what the swap would do, and the recipes this sitting has offered for it. */
 export interface SwapOffer {
@@ -269,10 +271,12 @@ export function PlanCard({
     portion: MealPortion;
     label: PlannedMealView['label'];
     pot?: PotPortions;
+    topping: { name: string; amount: string; kcal: number } | null;
   } | null>(null);
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
   const cookWords = useCookingWords();
+  const shownAmount = useShownAmount();
   const tSplit = useTranslations('split');
   // The dish cooked ahead being split, as the portions of its meals, while its window is open.
   const [splitting, setSplitting] = useState<SplitPortion[] | null>(null);
@@ -733,6 +737,11 @@ export function PlanCard({
                                     ...toCook(plan, m),
                                     // A dish both cook in one pot is opened with what the pot takes.
                                     ...toCookTogether(plan, m),
+                                    topping: m.topping && {
+                                      name: m.topping.ingredient.name,
+                                      amount: shownAmount(m.topping.ingredient.display),
+                                      kcal: m.topping.nutrition.calories,
+                                    },
                                   })
                                 }
                                 className="text-left font-medium text-primary wrap-anywhere hover:underline"
@@ -1083,6 +1092,12 @@ export function PlanCard({
                               spelledOut
                             />
                           )}
+                          {/* A topping the model named for this plate, put on in the amount the day needs. */}
+                          {offer.preview.topping && (
+                            <p className="text-xs">
+                              {t('offerTopping', { name: offer.preview.topping.name })}
+                            </p>
+                          )}
                           <p>
                             {t.rich('offerLine', {
                               title: offer.preview.recipe.title,
@@ -1230,6 +1245,15 @@ export function PlanCard({
                       {(m.leftover || m.carriedTo) && (
                         <p className="ml-6 text-xs text-muted-foreground">
                           {cookWords.leftoverHint(m)}
+                        </p>
+                      )}
+                      {m.topping && (
+                        <p className="ml-6 text-xs">
+                          {t('toppingLine', {
+                            name: m.topping.ingredient.name,
+                            amount: shownAmount(m.topping.ingredient.display),
+                            kcal: m.topping.nutrition.calories,
+                          })}
                         </p>
                       )}
                       {m.shared && (
@@ -1735,6 +1759,7 @@ export function PlanCard({
           portion={openRecipe.portion}
           pot={openRecipe.pot}
           label={openRecipe.label}
+          topping={openRecipe.topping}
           onClose={() => setOpenRecipe(null)}
         />
       )}

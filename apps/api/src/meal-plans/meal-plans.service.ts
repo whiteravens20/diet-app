@@ -39,13 +39,21 @@ import {
   macrosForCalories,
   sharesOf,
   rebalanceDays,
+  REBALANCE_TOLERANCE,
   sizeDay,
+  topAndSizeDay,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
+import {
+  toppingAskOfDay,
+  toppingFiguresOf,
+  toppingFoodsOf,
+  type ToppingFoods,
+} from './toppings-store.js';
 import { cookingsOf, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
 import {
   dateAfter,
@@ -299,7 +307,7 @@ export class MealPlansService {
             day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
         ),
     );
-    const [restrictions, diary, lists, nextElsewhere] = await Promise.all([
+    const [restrictions, diary, lists, nextElsewhere, toppingFoods] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
       this.prisma.shoppingList.findMany({
@@ -309,6 +317,10 @@ export class MealPlansService {
       elsewhere.length > 0
         ? nextDaysOf(this.prisma, plan.profileId, elsewhere)
         : new Map<string, NextDay>(),
+      // The foods of the toppings, read only for a plan that has any.
+      plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+        ? toppingFoodsOf(this.prisma)
+        : (new Map() as ToppingFoods),
     ]);
     const nextDays = new Map([...nextElsewhere, ...ownNext]);
     // The entries themselves are read only for a plan whose days hold any.
@@ -318,7 +330,17 @@ export class MealPlansService {
         : new Map<string, DiaryEntry[]>();
     return {
       plan,
-      dto: this.toDto(plan, locale, restrictions, diary, written, lists, today, nextDays),
+      dto: this.toDto(
+        plan,
+        locale,
+        restrictions,
+        diary,
+        written,
+        lists,
+        today,
+        nextDays,
+        toppingFoods,
+      ),
     };
   }
 
@@ -725,12 +747,20 @@ export class MealPlansService {
     dayId: string,
     tx: Prisma.TransactionClient,
     today: string,
+    /** Of a day of a joint plan, the topping a model named for a meal, the one that meal may then be given. */
+    named: ReadonlyMap<string, string> = new Map(),
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: {
         plan: {
-          select: { profileId: true, dietType: true, macroSplit: true, calorieTarget: true },
+          select: {
+            profileId: true,
+            dietType: true,
+            macroSplit: true,
+            calorieTarget: true,
+            jointPlanId: true,
+          },
         },
         meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } },
       },
@@ -739,15 +769,147 @@ export class MealPlansService {
     const rows = day.meals.map(toRebalanceRow);
     const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
     const counted = [...rows, ...diaryRows(diary.get(isoDate(day.date)))];
-    const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-    const { scales, feasibility } = sizeDay(
-      counted.map(toEngineMeal),
+    if (day.plan.jointPlanId === null) {
+      const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
+      const { scales, feasibility } = sizeDay(
+        counted.map(toEngineMeal),
+        day.calorieTarget,
+        aimOfDay(day, day.plan),
+      );
+      const changes = await this.persistScales(rows, scales, tx);
+      const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
+      return { feasibility, changes, macrosBefore, macrosAfter };
+    }
+
+    // A day of a joint plan: the toppings of its shared meals not eaten are put on again as the day is sized
+    // (`topAndSizeDay`). A topping eaten with its meal counts and stays; one on a meal that is no longer a place
+    // for it goes: a meal eaten apart, a leftover now, or one whose dish the other plan's meal no longer holds,
+    // which the end of the write unlinks.
+    const linked = day.meals.filter((m) => m.sharedMealId !== null && m.recipeId !== null);
+    const partners = linked.length
+      ? await tx.sharedMeal.findMany({
+          where: { id: { in: linked.map((m) => m.sharedMealId!) } },
+          select: { id: true, meals: { select: { recipeId: true } } },
+        })
+      : [];
+    const oneDish = new Set(
+      partners
+        .filter(
+          (shared) =>
+            shared.meals.length === 2 && shared.meals[0]!.recipeId === shared.meals[1]!.recipeId,
+        )
+        .map((shared) => shared.id),
+    );
+    // In the order they are eaten, as a run of the planner takes them: the rows come in no order of their own, and
+    // a topping that brings the day as near on two plates goes on the first, wherever it was before a change.
+    const places = linked
+      .filter(
+        (m) =>
+          oneDish.has(m.sharedMealId!) &&
+          m.eatenAt === null &&
+          m.leftoverFromDate === null &&
+          m.source === 'CATALOGUE',
+      )
+      .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
+    const ask = await toppingAskOfDay(
+      tx,
+      { id: day.planId, profileId: day.plan.profileId, dietType: day.plan.dietType },
+      day.date,
+      places.map((m) => m.recipeId!),
+    );
+    const per100Of = new Map(ask.options.map((option) => [option.topping.key, option.per100]));
+    const toppingRows = (
+      of: readonly { mealId: string; key: string | null; amount: number | null }[],
+    ) =>
+      of.flatMap(({ mealId, key, amount }) => {
+        const per100 = key !== null && amount !== null ? per100Of.get(key) : undefined;
+        return per100 ? [toppingRebalanceRow(mealId, per100, amount!)] : [];
+      });
+    const stays = toppingRows(
+      day.meals
+        .filter((m) => m.eatenAt !== null)
+        .map((m) => ({ mealId: m.id, key: m.toppingKey, amount: m.toppingAmount })),
+    );
+    const macrosBefore = rowsMacros(
+      [
+        ...counted,
+        ...toppingRows(
+          day.meals.map((m) => ({ mealId: m.id, key: m.toppingKey, amount: m.toppingAmount })),
+        ),
+      ],
+      (r) => r.quantityScale,
+    );
+    const { scales, toppings } = topAndSizeDay(
+      [...counted, ...stays].map(toEngineMeal),
       day.calorieTarget,
       aimOfDay(day, day.plan),
+      places.flatMap((m) => {
+        const dish = ask.traits.get(m.recipeId!);
+        const only = named.get(m.id);
+        return dish
+          ? [{ mealId: m.id, meal: m.mealType as MealType, dish, ...(only ? { only } : {}) }]
+          : [];
+      }),
+      ask.options,
+      ask.eater,
+      ask.used,
     );
     const changes = await this.persistScales(rows, scales, tx);
-    const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
-    return { feasibility, changes, macrosBefore, macrosAfter };
+    for (const m of day.meals) {
+      if (m.eatenAt !== null) continue;
+      const chosen = toppings.find((choice) => choice.mealId === m.id);
+      const key = chosen?.key ?? null;
+      const amount = chosen?.amount ?? null;
+      if (key === m.toppingKey && amount === m.toppingAmount) continue;
+      await tx.plannedMeal.update({
+        where: { id: m.id },
+        data: { toppingKey: key, toppingAmount: amount },
+      });
+    }
+    // A meal whose dish the other plan's meal no longer holds is that person's own now as well: a topping on
+    // their plate goes too, and their day is sized again. Done once this day's toppings are written, so that
+    // their day finds none here to send it back.
+    const diverged = partners
+      .filter((shared) => !oneDish.has(shared.id))
+      .map((shared) => shared.id);
+    if (diverged.length > 0) {
+      const theirs = await tx.plannedMeal.findMany({
+        where: {
+          sharedMealId: { in: diverged },
+          toppingKey: { not: null },
+          eatenAt: null,
+          day: { planId: { not: day.planId } },
+        },
+        select: { dayId: true, day: { select: { planId: true } } },
+      });
+      for (const dayId of new Set(theirs.map((meal) => meal.dayId)))
+        await this.rebalanceDayInternal(dayId, tx, today);
+      // Their plan changed: a client that holds it reads it again.
+      for (const planId of new Set(theirs.map((meal) => meal.day.planId)))
+        await tx.mealPlan.update({ where: { id: planId }, data: { revision: { increment: 1 } } });
+    }
+    const after = [
+      ...counted,
+      ...stays,
+      ...toppingRows(
+        toppings.map((choice) => ({
+          mealId: choice.mealId,
+          key: choice.key,
+          amount: choice.amount,
+        })),
+      ),
+    ];
+    const macrosAfter = rowsMacros(after, (r) => scales.get(r.id) ?? r.quantityScale);
+    return {
+      feasibility:
+        Math.abs(macrosAfter.calories - day.calorieTarget) <=
+        REBALANCE_TOLERANCE * day.calorieTarget
+          ? 'in-window'
+          : 'best-effort',
+      changes,
+      macrosBefore,
+      macrosAfter,
+    };
   }
 
   /**
@@ -1071,6 +1233,8 @@ export class MealPlansService {
         swapHistory: true,
         modelPicked: true,
         modelReason: true,
+        toppingKey: true,
+        toppingAmount: true,
       },
     });
     const lastSwap: StoredSwap = {
@@ -1231,6 +1395,8 @@ export class MealPlansService {
     today: string,
     /** The days after today's and yesterday's, in the plans that hold them, for the leftovers of those days. */
     nextDays: ReadonlyMap<string, NextDay>,
+    /** The foods of the toppings the plan's meals have. */
+    toppingFoods: ToppingFoods,
   ): MealPlan {
     const listed = (date: Date): boolean =>
       lists.some((list) => list.fromDate <= date && date <= list.toDate);
@@ -1316,6 +1482,7 @@ export class MealPlansService {
             leftover: null,
             carriedTo: null,
             leftoverOffer: null,
+            topping: null,
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
@@ -1367,16 +1534,39 @@ export class MealPlansService {
               }
             : null,
           leftoverOffer: leftoverOfferOf(m, isoDate(day.date), today, nextDays),
+          topping: toppingOf(m, toppingFoods, locale),
         };
       });
+      // A topping opens its pack as a recipe's line does.
+      for (const m of orderedMeals) {
+        const food = m.toppingKey !== null ? toppingFoods.get(m.toppingKey) : undefined;
+        if (food && m.toppingAmount !== null)
+          packed.push({
+            factor: 1,
+            lines: [
+              {
+                ingredientId: food.id,
+                quantity: m.toppingAmount,
+                unit: food.canonicalUnit,
+                ingredient: food,
+              },
+            ],
+          });
+      }
       // What the diary holds for the day is eaten, beside the meals.
       const entered = diary.get(isoDate(day.date)) ?? null;
+      // A meal's topping is eaten with it.
+      const toppings = orderedMeals.flatMap((m) => {
+        const figures = toppingFiguresOf(m, toppingFoods);
+        return figures ? [figures.label] : [];
+      });
       const dayNutrition = sumNutrition([
         ...meals.map((m) => m.nutrition),
+        ...meals.flatMap((m) => (m.topping ? [m.topping.nutrition] : [])),
         ...(entered ? [entered.nutrition] : []),
       ]);
       const dayLabel = roundLabel(
-        sumLabels([...meals.map((m) => m.label), ...(entered ? [entered.label] : [])]),
+        sumLabels([...meals.map((m) => m.label), ...toppings, ...(entered ? [entered.label] : [])]),
       );
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
@@ -1521,6 +1711,8 @@ interface PlanWithRelations {
       leftoverUndo: unknown;
       givenLeftoverId: string | null;
       carriedToMealType: string | null;
+      toppingKey: string | null;
+      toppingAmount: number | null;
       recipe:
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
@@ -1640,6 +1832,9 @@ const StoredSwap = z.object({
       swapHistory: z.array(z.string()),
       modelPicked: z.boolean(),
       modelReason: z.string().nullable(),
+      // Left out by a swap remembered before toppings were.
+      toppingKey: z.string().nullable().optional(),
+      toppingAmount: z.number().nullable().optional(),
     }),
   ),
   /** The other plan of a joint plan the swap was made in as well, at the revision it left that plan at. */
@@ -1713,6 +1908,31 @@ export type RebalanceMealRow = {
   } | null;
 };
 
+/** The topping on a meal's plate, as its answer says it; null where it has none, or this instance lacks its food. */
+function toppingOf(
+  meal: { toppingKey: string | null; toppingAmount: number | null },
+  foods: ToppingFoods,
+  locale: Locale,
+): PlannedMeal['topping'] {
+  const food = meal.toppingKey !== null ? foods.get(meal.toppingKey) : undefined;
+  const figures = toppingFiguresOf(meal, foods);
+  if (!food || !figures) return null;
+  const [ingredient] = toPlannedIngredients(
+    [
+      {
+        ingredientId: food.id,
+        quantity: meal.toppingAmount!,
+        unit: food.canonicalUnit,
+        note: null,
+        ingredient: food,
+      },
+    ],
+    1,
+    locale,
+  );
+  return { key: meal.toppingKey!, ingredient: ingredient!, nutrition: figures.nutrition };
+}
+
 function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
   const per: MacroQuad =
     m.source === 'USER_CUSTOM' || !m.recipe
@@ -1740,6 +1960,23 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
  */
 function diaryRows(diary: DiaryOnDay | null | undefined, id = 'diary'): RebalanceRow[] {
   return diary ? [{ id, per: diary.nutrition, servings: 1, quantityScale: 1, locked: true }] : [];
+}
+
+/** A meal's topping as a row the sizing of its day counts and never moves. */
+function toppingRebalanceRow(mealId: string, per100: MacroQuad, amount: number): RebalanceRow {
+  const part = amount / 100;
+  return {
+    id: `topping:${mealId}`,
+    per: {
+      calories: per100.calories * part,
+      protein: per100.protein * part,
+      fat: per100.fat * part,
+      carbs: per100.carbs * part,
+    },
+    servings: 1,
+    quantityScale: 1,
+    locked: true,
+  };
 }
 
 const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({

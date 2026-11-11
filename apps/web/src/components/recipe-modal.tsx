@@ -28,6 +28,7 @@ export function RecipeModal({
   portion,
   pot,
   label,
+  topping,
   onClose,
 }: {
   recipeId: string | null;
@@ -42,6 +43,8 @@ export function RecipeModal({
   pot?: { mine: number; name: string; theirs: number };
   /** Fibre, sugars, salt and saturated fat of the planned meal the modal was opened from. */
   label?: LabelTotals;
+  /** What is put on this meal's plate alone, beside the dish and outside its pot. */
+  topping?: { name: string; amount: string; kcal: number } | null;
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -122,6 +125,11 @@ export function RecipeModal({
                   recipe: recipe.data.servings,
                   mine: portion.servings,
                 })}
+          </p>
+        )}
+        {recipe.data && topping && (
+          <p className="mb-4 text-sm">
+            {t('toppingNote', { name: topping.name, amount: topping.amount, kcal: topping.kcal })}
           </p>
         )}
         {recipe.data && (

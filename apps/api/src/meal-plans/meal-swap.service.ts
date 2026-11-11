@@ -30,14 +30,18 @@ import type { Env } from '../config/env.js';
 import { diaryDays } from '../diary/diary-days.js';
 import {
   energyAway,
+  energyShares,
   fitServings,
+  MACROS_OFF,
   recipeCoverage,
   requirementsPerServing,
   slotBudgets,
+  splitDistance,
+  toppingRefusal,
 } from '../engine/index.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { toRecipeDto } from '../recipes/recipes.service.js';
+import { pickIngredient, toRecipeDto } from '../recipes/recipes.service.js';
 import {
   assertMayEnter,
   CANDIDATE,
@@ -55,15 +59,18 @@ import {
   type CookedMeal,
 } from './meal-plans.service.js';
 import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import { toppingAskOfDay, toppingFoodsOf } from './toppings-store.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlans } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
 
 // What the prompt asks the model to answer with. A reason is welcome and
-// never required: a pick without one is still a pick.
+// never required: a pick without one is still a pick. A topping is named only
+// where the prompt lists some, and may be left out there too.
 const RecipePick = z.object({
   recipeId: z.string().min(1),
   reason: z.unknown().optional(),
+  topping: z.unknown().optional(),
 });
 
 /** A recipe offered for a meal holds, at the serving that comes nearest, within this share of what the meal holds now. */
@@ -208,6 +215,18 @@ export class MealSwapService {
     // Cut after filtering and ordering, so the cut never hides what was not
     // shown yet. Twenty-five keeps the prompt small enough for cheap models.
     pool = pool.slice(0, AI_SWAP_POOL);
+    // Of a meal both people eat, where a candidate would leave this person's day off its split: the toppings that
+    // pass beside it, of which the model may name one.
+    const toppings = meal.sharedMealId
+      ? await this.toppingsBeside(
+          meal.day,
+          meal.mealType as MealType,
+          slot.held,
+          slot.rest,
+          slot.aim,
+          pool,
+        )
+      : new Map<string, string[]>();
 
     const prompt = buildSwapPrompt({
       slot: meal.mealType as MealType,
@@ -216,7 +235,10 @@ export class MealSwapService {
       currentKcal: Math.round(slot.current.caloriesPerServing),
       dayWithoutIt: slot.rest,
       dayAim: slot.aim,
-      candidates: pool,
+      candidates: pool.map((candidate) => ({
+        ...candidate,
+        toppings: toppings.get(candidate.id) ?? [],
+      })),
       locale,
     });
     const { text, meta } = await this.ai.chat(
@@ -245,6 +267,11 @@ export class MealSwapService {
     // The gate: the model's pick and the engine's are judged alike.
     assertMayEnter(replacement, restrictions, meal.mealType, 'RECIPE_NOT_ELIGIBLE');
     const preview = await this.previewOf(userId, locale, slot, replacement);
+    // A topping the model named counts only where it named one of those that pass beside the dish it picked.
+    const topping =
+      pick && pick.topping && toppings.get(replacement.id)?.includes(pick.topping)
+        ? pick.topping
+        : null;
     // What the model picked goes out with a note of it, which the request that takes the offer hands back.
     const note = pick
       ? this.picks.sign(userId, {
@@ -253,9 +280,19 @@ export class MealSwapService {
           recipe: replacement.id,
           revision: preview.revision,
           reason: pick.reason,
+          ...(topping ? { topping } : {}),
         })
       : null;
-    return { ...preview, aiMeta, pick: note };
+    const food = topping ? (await toppingFoodsOf(this.prisma)).get(topping) : undefined;
+    return {
+      ...preview,
+      aiMeta,
+      pick: note,
+      topping:
+        topping && food
+          ? { key: topping, name: pickIngredient(locale, food.translations, food.name) }
+          : null,
+    };
   }
 
   /**
@@ -358,8 +395,6 @@ export class MealSwapService {
             theirPlan.planId,
             theirMeals.map((other) => other.id),
           );
-          for (const dayId of new Set(theirMeals.map((other) => other.dayId)))
-            await this.plans.rebalanceDayInternal(dayId, tx, today);
         }
         await tx.plannedMeal.update({
           where: { id: req.plannedMealId },
@@ -380,8 +415,19 @@ export class MealSwapService {
           req.plannedMealId,
           ...together.map((other) => other.id),
         ]);
-        // The swap changed the day total — pull it back toward target, on each day it changed.
-        const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today);
+        // The swap changed the day total — pull it back toward target, on each day it changed: in the other plan
+        // once both plans hold the new dish, so that a topping its shared meal needs is put on.
+        if (theirs && theirPlan) {
+          for (const dayId of new Set(theirMeals.map((other) => other.dayId)))
+            await this.plans.rebalanceDayInternal(dayId, tx, today);
+        }
+        // The topping a model named for this plate is the one it may be given, where it still passes.
+        const named = new Map(
+          picked?.kind === 'meal' && picked.topping
+            ? [[req.plannedMealId, picked.topping] as const]
+            : [],
+        );
+        const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, today, named);
         const others = await Promise.all(
           otherDays
             .filter((dayId) => dayId !== meal.dayId)
@@ -396,6 +442,52 @@ export class MealSwapService {
       },
     );
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
+  }
+
+  /**
+   * The toppings that pass beside each candidate on this person's plate at this meal, for a candidate that, at
+   * the meal's budget, would leave their day off its split: none for one that would not.
+   */
+  private async toppingsBeside(
+    day: { date: Date; plan: { id: string; profileId: string; dietType: string } },
+    meal: MealType,
+    budget: number,
+    rest: Macros,
+    aim: Macros,
+    pool: readonly {
+      id: string;
+      caloriesPerServing: number;
+      proteinPerServing: number;
+      fatPerServing: number;
+      carbsPerServing: number;
+    }[],
+  ): Promise<Map<string, string[]>> {
+    const aimed = energyShares(aim);
+    if (aimed === null || pool.length === 0) return new Map();
+    const ask = await toppingAskOfDay(
+      this.prisma,
+      day.plan,
+      day.date,
+      pool.map((candidate) => candidate.id),
+    );
+    const beside = new Map<string, string[]>();
+    for (const candidate of pool) {
+      const dish = ask.traits.get(candidate.id);
+      const factor = budget / Math.max(1, candidate.caloriesPerServing);
+      const shares = energyShares({
+        protein: rest.protein + candidate.proteinPerServing * factor,
+        fat: rest.fat + candidate.fatPerServing * factor,
+        carbs: rest.carbs + candidate.carbsPerServing * factor,
+      });
+      if (!dish || shares === null || splitDistance(shares, aimed) <= MACROS_OFF) continue;
+      const passing = ask.options
+        .filter(
+          (option) => toppingRefusal(option.topping, option.food, dish, meal, ask.eater) === null,
+        )
+        .map((option) => option.topping.key);
+      if (passing.length > 0) beside.set(candidate.id, passing);
+    }
+    return beside;
   }
 
   /**
@@ -807,6 +899,8 @@ interface SwapPromptCandidate {
   fatPerServing: number;
   carbsPerServing: number;
   ingredients: { ingredient: { name: string } }[];
+  /** The toppings that may go on this person's plate beside it; none where their day needs none. */
+  toppings: readonly string[];
 }
 
 /**
@@ -829,16 +923,20 @@ function buildSwapPrompt(input: {
       .map((x) => x.ingredient.name)
       .slice(0, 4)
       .join(', ');
-    return `- id=${c.id} | ${c.title} | ${Math.round(c.caloriesPerServing)} kcal · ${Math.round(c.proteinPerServing)}P/${Math.round(c.fatPerServing)}F/${Math.round(c.carbsPerServing)}C | ${mains}`;
+    const toppings = c.toppings.length > 0 ? ` | toppings: ${c.toppings.join(', ')}` : '';
+    return `- id=${c.id} | ${c.title} | ${Math.round(c.caloriesPerServing)} kcal · ${Math.round(c.proteinPerServing)}P/${Math.round(c.fatPerServing)}F/${Math.round(c.carbsPerServing)}C | ${mains}${toppings}`;
   });
+  const withToppings = input.candidates.some((c) => c.toppings.length > 0);
 
   const system =
     'You rank meal-swap candidates for a deterministic meal-planning app. ' +
     'You never invent ingredients or calories — your only job is to pick the ' +
     'best id from the list provided. ' +
     'Respond with valid JSON exactly matching ' +
-    '{"recipeId":"<id>","reason":"<one short sentence>"} — no prose, no ' +
-    'markdown, no other keys. The reason tells the person who will eat the ' +
+    (withToppings
+      ? '{"recipeId":"<id>","reason":"<one short sentence>","topping":"<one of that candidate\'s toppings, or left out>"}'
+      : '{"recipeId":"<id>","reason":"<one short sentence>"}') +
+    ' — no prose, no markdown, no other keys. The reason tells the person who will eat the ' +
     `meal why you picked it; write it in ${LANGUAGE[input.locale]}.`;
 
   const user = [
@@ -851,6 +949,13 @@ function buildSwapPrompt(input: {
     '1. stays closest to the slot calorie budget at one serving,',
     '2. brings the day nearest what it aims at; the candidates nearest it come first,',
     '3. is meaningfully different from the currently planned meal.',
+    ...(withToppings
+      ? [
+          '4. Two people eat this meal together, and a dish that suits both leaves this person short of part of',
+          '   their split. A candidate that does lists the toppings that may go on their plate beside it; name the',
+          '   one that goes best with it as `topping`, or leave `topping` out. Never name one it does not list.',
+        ]
+      : []),
     '',
     'Candidates:',
     ...lines,
@@ -865,8 +970,14 @@ function buildSwapPrompt(input: {
  * The recipe the model picked and why, as far as its answer says. Null when
  * the answer holds no id, so the service can fall back deterministically.
  */
-function parseAiRecipePick(text: string): { id: string; reason: string | null } | null {
+function parseAiRecipePick(
+  text: string,
+): { id: string; reason: string | null; topping: string | null } | null {
   const reply = readModelReply(text, RecipePick);
   if (!reply.ok) return null;
-  return { id: reply.value.recipeId, reason: modelText(reply.value.reason, MAX_REASON_CHARS) };
+  return {
+    id: reply.value.recipeId,
+    reason: modelText(reply.value.reason, MAX_REASON_CHARS),
+    topping: typeof reply.value.topping === 'string' ? reply.value.topping : null,
+  };
 }

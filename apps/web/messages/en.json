@@ -531,6 +531,7 @@
   },
   "diary": {
     "mealKcalFromPot": "≈{kcal, number, ::group-off}\u00a0kcal from a shared pot",
+    "mealTopping": "With a topping: {name}, {amount}",
     "title": "Diary",
     "subhead": "What was eaten each day, from the plan and beside it, against the day's target.",
     "profileLabel": "Profile",
@@ -1478,6 +1479,8 @@
   "mealPlans": {
     "sharedChip": "Shared",
     "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "toppingLine": "A topping on your plate: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
+    "offerTopping": "The model also picked a topping for your plate: {name}. The plan sets its amount, so that the day keeps its target.",
     "sharedEaten": "eaten",
     "cookApart": "Cook apart",
     "eatenTogether": "Eaten by both",
@@ -2478,6 +2481,7 @@
   },
   "recipeModal": {
     "portionPot": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}. Below are the amounts for the whole pot, {all, plural, one {{all, number, ::group-off}\u00a0serving} other {{all, number, ::group-off}\u00a0servings}}: you {mine, number, ::group-off}, {name} {theirs, number, ::group-off}.",
+    "toppingNote": "A topping on your plate alone, not in the pot: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal.",
     "title": "Recipe details",
     "close": "Close",
     "openPage": "Open original recipe",

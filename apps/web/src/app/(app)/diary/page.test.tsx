@@ -68,6 +68,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
         nutrition: { calories: 450, protein: 15, fat: 9, carbs: 75 },
         label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
         fromPot: false,
+        topping: null,
       },
       {
         id: SOUP,
@@ -78,6 +79,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
         nutrition: { calories: 600, protein: 25, fat: 20, carbs: 80 },
         label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
         fromPot: false,
+        topping: null,
       },
     ],
     calorieDelta: 150,

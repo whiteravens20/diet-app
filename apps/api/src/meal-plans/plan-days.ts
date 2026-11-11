@@ -6,6 +6,7 @@ import { storedSplit } from '../common/stored-split.js';
 import {
   dayMacros,
   energyShares,
+  MACROS_OFF,
   macroSplitOf,
   sharesOf,
   splitDistance,
@@ -193,13 +194,6 @@ export function standingOf(
           : 'under',
   };
 }
-
-/**
- * How far what a day holds may lie from the split it aims at, as the share of
- * its energy that would have to move, before it is said: more than a new plan
- * comes to on all but about one day in thirty.
- */
-const MACROS_OFF = 0.12;
 
 /**
  * What a day of a plan holds of protein, fat and carbohydrate is far from what

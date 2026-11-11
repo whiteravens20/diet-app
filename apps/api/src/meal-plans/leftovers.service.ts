@@ -40,6 +40,9 @@ const StoredMeal = z.object({
   eatenAt: z.string().nullable(),
   modelPicked: z.boolean(),
   modelReason: z.string().nullable(),
+  /** Its topping; left out by a leftover kept before toppings were. */
+  toppingKey: z.string().nullable().optional(),
+  toppingAmount: z.number().nullable().optional(),
   /** The shared meal it was part of: linked again where the other person's meal still holds the dish there. */
   shared: z
     .object({ jointPlanId: z.string(), apart: z.boolean(), otherMealId: z.string() })
@@ -104,6 +107,8 @@ const fieldsOf = (meal: StoredMeal) => ({
   eatenAt: meal.eatenAt ? new Date(meal.eatenAt) : null,
   modelPicked: meal.modelPicked,
   modelReason: meal.modelReason,
+  toppingKey: meal.toppingKey ?? null,
+  toppingAmount: meal.toppingAmount ?? null,
   sharedMealId: null,
 });
 
@@ -440,6 +445,8 @@ export class LeftoversService {
       eatenAt: meal.eatenAt?.toISOString() ?? null,
       modelPicked: meal.modelPicked,
       modelReason: meal.modelReason,
+      toppingKey: meal.toppingKey,
+      toppingAmount: meal.toppingAmount,
       shared: await this.sharedOf(tx, meal),
     };
   }
@@ -486,6 +493,9 @@ export class LeftoversService {
         modelPicked: false,
         modelReason: null,
         lastRebalanceAt: null,
+        // A leftover is the dish as it was cooked: nothing is put on its plate.
+        toppingKey: null,
+        toppingAmount: null,
         ...(alone ? { sharedMealId: null } : {}),
         leftoverFromDate: source.day.date,
         leftoverFromMealType: source.mealType,

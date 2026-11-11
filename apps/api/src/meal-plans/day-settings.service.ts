@@ -57,6 +57,7 @@ import {
   type WeekPlanDay,
 } from './plan-weeks.js';
 import { writePlan } from './plan-write.js';
+import { toppingKcal } from './toppings-store.js';
 
 /** What a meal's recipe is read for here: what a serving holds, and how long it takes. */
 const RECIPE = {
@@ -133,6 +134,7 @@ export class DaySettingsService {
               plan,
             )
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
+            (await toppingKcal(this.prisma, left)) +
             (entered?.nutrition.calories ?? 0);
     const changesMeals =
       change.added.length > 0 || change.fates.some((fate) => fate.fate !== 'stays');
@@ -384,6 +386,7 @@ export class DaySettingsService {
       0,
       change.target -
         pinned.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) -
+        (await toppingKcal(this.prisma, pinned)) -
         (prepared.diary.get(context.date)?.nutrition.calories ?? 0),
     );
     const budgets = slotBudgets(

@@ -135,6 +135,13 @@ export function energyShares(grams: Macros): Macros | null {
   return total > 0 ? { protein: protein / total, fat: fat / total, carbs: carbs / total } : null;
 }
 
+/**
+ * How far what a day holds may lie from the split it aims at, as the share of
+ * its energy that would have to move, before it is said: more than a new plan
+ * comes to on all but about one day in thirty.
+ */
+export const MACROS_OFF = 0.12;
+
 /** How far one split is from another: the share of the energy that would have to move, from 0 to 1. */
 export function splitDistance(a: Macros, b: Macros): number {
   return (

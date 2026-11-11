@@ -449,6 +449,21 @@ export const PlannedMeal = z.object({
    * leftover (`no_meal`).
    */
   leftoverOffer: z.enum(['ok', 'no_day', 'skipped', 'no_meal']).nullable(),
+  /**
+   * What is put on this meal's plate alone beside a dish both people of a joint
+   * plan eat, where this person's day would otherwise stay off its split or
+   * its calorie target: the food in the amount of this plate, and what it
+   * holds. Not in `nutrition`, which is the dish's; the day's figures count it,
+   * and so does the diary once the meal is eaten. Null where there is none.
+   */
+  topping: z
+    .object({
+      /** Which of the list of toppings it is. */
+      key: z.string(),
+      ingredient: PlannedIngredient,
+      nutrition: Nutrition,
+    })
+    .nullable(),
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
@@ -1142,6 +1157,14 @@ export type MealSwapPreview = z.infer<typeof MealSwapPreview>;
 export const AiMealSwapPreview = MealSwapPreview.extend({
   aiMeta: AiGenerationMeta,
   pick: ModelPickNote.nullable(),
+  /**
+   * Of a meal both people of a joint plan eat, where this person's day would
+   * stay off its split: the topping the model named for their plate, among
+   * those that go with the dish and fit them, named in the reader's language.
+   * Taken with the offer, it is put on the plate in the amount the day needs.
+   * Null where none was named.
+   */
+  topping: z.object({ key: z.string(), name: z.string() }).nullable(),
 });
 export type AiMealSwapPreview = z.infer<typeof AiMealSwapPreview>;
 

@@ -27,6 +27,7 @@ import {
   MAX_DIARY_ENTRIES_A_DAY,
   MEAL_SLOTS_BY_COUNT,
 } from '@diet-app/shared/constants';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { api } from '@/lib/api';
 import { useConfig } from '@/lib/use-config';
 import { localDate } from '@/lib/http';
@@ -690,6 +691,7 @@ function MealSection({
   onRemove: (entry: DiaryEntry) => void;
 }) {
   const t = useTranslations('diary');
+  const shownAmount = useShownAmount();
   const tMeal = useTranslations('enums.mealType');
   const amountOf = useEntryAmount();
   const id = useId();
@@ -730,6 +732,15 @@ function MealSection({
                     ? t('mealKcalFromPot', { kcal: meal.nutrition.calories })
                     : t('mealKcal', { kcal: meal.nutrition.calories })}
                 </p>
+                {/* What was put on this plate alone is counted with the meal. */}
+                {meal.topping && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('mealTopping', {
+                      name: meal.topping.name,
+                      amount: shownAmount(meal.topping.display),
+                    })}
+                  </p>
+                )}
               </div>
               <label className="flex min-h-6 items-center gap-2 text-sm">
                 <input

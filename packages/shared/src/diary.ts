@@ -179,9 +179,12 @@ export const DiaryPlanMeal = z.object({
   /** The recipe it is of; null for a meal of one's own. */
   recipeId: z.string().uuid().nullable(),
   eaten: z.boolean(),
+  /** What the meal holds, its topping (`topping`) with it: it is eaten with the meal. */
   nutrition: Nutrition,
-  /** Fibre, sugars, salt and saturated fat of the meal. */
+  /** Fibre, sugars, salt and saturated fat of the meal, its topping with it. */
   label: LabelTotals,
+  /** What is put on this meal's plate alone beside a dish of a joint plan, named and as it is measured; null where there is none. */
+  topping: z.object({ name: z.string(), display: DisplayAmount }).nullable(),
   /**
    * A meal of a joint plan cooked in one pot and split by weight: its figures
    * are this person's planned portion, which a split comes only near, so they

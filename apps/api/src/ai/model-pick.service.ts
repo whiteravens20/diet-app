@@ -8,7 +8,15 @@ import type { Env } from '../config/env.js';
 
 /** What a model picked: a recipe for a meal of a plan as it stood, or a substitute for an ingredient of a meal. */
 export type ModelPick =
-  | { kind: 'meal'; meal: string; recipe: string; revision: number; reason: string | null }
+  | {
+      kind: 'meal';
+      meal: string;
+      recipe: string;
+      revision: number;
+      reason: string | null;
+      /** Of a meal both people of a joint plan eat, the topping the model named for this person's plate. */
+      topping?: string | null;
+    }
   | { kind: 'ingredient'; meal: string; from: string; to: string; reason: string | null };
 
 /** What a request does with a pick: the pick itself, without the model's reason, which only the note knows. */

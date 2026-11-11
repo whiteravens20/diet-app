@@ -21,6 +21,7 @@ import {
   type RerollPreview,
   type GeneratePlanRequest,
   type Locale,
+  type Macros,
   type MacroSplit,
   type MealPlan,
   type MealType,
@@ -49,6 +50,10 @@ import {
   type OptimizerDay,
   type OptimizerRecipe,
   type SizedAssignment,
+  fullKindsOn,
+  topAssignments,
+  type ToppedAssignment,
+  type ToppingOption,
 } from '../engine/index.js';
 import { holdProfile } from '../common/hold.js';
 import type { Env } from '../config/env.js';
@@ -57,6 +62,7 @@ import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-sto
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
+import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
 import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   customMacros,
@@ -257,6 +263,8 @@ export class PlanGenerationService {
         respectExclusions: req.respectExclusions,
       })
     ).optimizerRecipes;
+    // What the plate of either may be given beside a shared dish where their day would stay off its split or target.
+    const toppingOptions = await toppingOptionsOf(this.prisma);
     const joint = {
       theirs: new Set(theirs.filter((r) => fitsDiet(r.dietTags, second.dietType)).map((r) => r.id)),
       favorites: new Set(theirs.filter((r) => r.isFavorite).map((r) => r.id)),
@@ -273,6 +281,7 @@ export class PlanGenerationService {
           ...ask(first),
           days: first.days,
           joint: { ...joint, sharedSlots: sharedAsked },
+          topped: { slots: 'shared', options: toppingOptions },
         });
         break;
       } catch (err) {
@@ -293,6 +302,7 @@ export class PlanGenerationService {
     const ofSecond = await this.optimiseFor(userId, second.profile, {
       ...ask(second),
       days: locked,
+      topped: { slots: shared, options: toppingOptions },
     });
 
     const planId = await this.prisma.$transaction(async (tx) => {
@@ -614,6 +624,14 @@ export class PlanGenerationService {
     const filled: { dayIndex: number; dayId: string; staying: string[] }[] = [];
     // A plan made again shares each week's base among its days as a new plan does.
     const scales = weekScales(plan.days.map(asWeekDay));
+    // A topping a staying meal has counts with it, eaten or about to be.
+    const toppingPer100 = new Map(
+      plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+        ? (await toppingOptionsOf(this.prisma)).map(
+            (option) => [option.topping.key, option.per100] as const,
+          )
+        : [],
+    );
     const days = plan.days.map((day, dayIndex): ResolvedDay => {
       const iso = dates[dayIndex]!;
       const o = parseDayOverrides(day.overrides);
@@ -630,14 +648,16 @@ export class PlanGenerationService {
             }
           : own;
         const servings = meal.servings * meal.quantityScale;
+        const topping = meal.toppingKey !== null ? toppingPer100.get(meal.toppingKey) : undefined;
+        const part = topping ? (meal.toppingAmount ?? 0) / 100 : 0;
         return {
           recipeId: meal.recipeId ?? undefined,
-          calories: perServing.calories * servings,
+          calories: perServing.calories * servings + (topping?.calories ?? 0) * part,
           servings,
           macros: {
-            protein: perServing.protein * servings,
-            fat: perServing.fat * servings,
-            carbs: perServing.carbs * servings,
+            protein: perServing.protein * servings + (topping?.protein ?? 0) * part,
+            fat: perServing.fat * servings + (topping?.fat ?? 0) * part,
+            carbs: perServing.carbs * servings + (topping?.carbs ?? 0) * part,
           },
         };
       };
@@ -776,11 +796,19 @@ export class PlanGenerationService {
       profileId: second.id,
     };
     const seed = this.nextSeed();
+    // What the plate of either may be given beside a shared dish, as when the plan was made.
+    const toppingOptions = await toppingOptionsOf(this.prisma);
     let sharedAsked = [...new Set([...sharedOn.values()].flat())];
     let ofMine: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>;
     for (;;) {
       try {
-        ofMine = await this.drawFor(userId, mine, seed, { ...joint, sharedSlots: sharedAsked });
+        ofMine = await this.drawFor(
+          userId,
+          mine,
+          seed,
+          { ...joint, sharedSlots: sharedAsked },
+          { slots: 'shared', options: toppingOptions },
+        );
         break;
       } catch (err) {
         const named = slotsNamedBy(err).filter((slot) => sharedAsked.includes(slot));
@@ -809,7 +837,10 @@ export class PlanGenerationService {
       ];
     }
     const theirSeed = this.nextSeed();
-    const ofTheirs = await this.draw(userId, theirs, theirSeed);
+    const ofTheirs = await this.drawFor(userId, theirs, theirSeed, undefined, {
+      slots: shared,
+      options: toppingOptions,
+    });
     const [mineOutcome, theirOutcome] = await Promise.all([
       this.outcomeOf(mine, ofMine, options),
       this.outcomeOf(theirs, ofTheirs, options),
@@ -833,7 +864,13 @@ export class PlanGenerationService {
   }
 
   /** The draw of `draw`, with what planning together with another profile asks of it. */
-  private drawFor(userId: string, prepared: Prepared, seed: number, joint?: JointAsk) {
+  private drawFor(
+    userId: string,
+    prepared: Prepared,
+    seed: number,
+    joint?: JointAsk,
+    topped?: { slots: readonly MealType[] | 'shared'; options: readonly ToppingOption[] },
+  ) {
     return this.optimiseFor(userId, prepared.profile, {
       days: prepared.days,
       planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
@@ -848,6 +885,7 @@ export class PlanGenerationService {
       allowRelaxations: prepared.allowRelaxations,
       dropIneligibleLocks: prepared.dropIneligibleLocks,
       ...(joint ? { joint } : {}),
+      ...(topped ? { topped } : {}),
       seed,
     });
   }
@@ -938,6 +976,9 @@ export class PlanGenerationService {
             mealType: placed.slot,
             servings: placed.servings,
             quantityScale: placed.quantityScale,
+            ...(placed.topping
+              ? { toppingKey: placed.topping.key, toppingAmount: placed.topping.amount }
+              : {}),
           })),
       });
     }
@@ -1046,10 +1087,15 @@ export class PlanGenerationService {
       dropIneligibleLocks?: boolean;
       /** Planned together with another profile, whose dishes at the shared times this plan chooses (`JointAsk`). */
       joint?: JointAsk;
+      /**
+       * Of a plan of a joint plan, the toppings its shared meals may be given: at the times of day named, or at
+       * the shared times of `joint`, where the day stays off its split or target (`topAssignments`).
+       */
+      topped?: { slots: readonly MealType[] | 'shared'; options: readonly ToppingOption[] };
       seed: number;
     },
   ): Promise<{
-    assignments: SizedAssignment[];
+    assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[];
     ingredientReuseScore: number;
     report: StoredReport;
     pantryRound?: PantryRound;
@@ -1225,8 +1271,18 @@ export class PlanGenerationService {
         },
         opts.lessWaste ? LESS_WASTE_WEIGHTS : SCORE_WEIGHTS,
       );
+      const sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
       return {
-        assignments: sizeAssignments(days, optimizerRecipes, result.assignments, split),
+        assignments: opts.topped
+          ? await this.topped(days, optimizerRecipes, sized, split, {
+              slots: opts.topped.slots === 'shared' ? [...sharedSlots] : opts.topped.slots,
+              options: opts.topped.options,
+              diet: opts.dietType,
+              preferences: profile.preferences,
+              perKind,
+              respectExclusions: opts.respectExclusions !== false,
+            })
+          : sized,
         ingredientReuseScore: result.ingredientReuseScore,
         report: reportOf(result, dates, pantry.use),
         pantryRound: pantry.round,
@@ -1303,6 +1359,52 @@ export class PlanGenerationService {
       if (score > 0) coverage.set(recipeId, score);
     }
     return coverage.size === 0 ? null : coverage;
+  }
+
+  /**
+   * The sized meals of a plan of a joint plan, each day's meals at `slots` its places for a topping, topped and
+   * sized again where the day stays off its split or target; the person is the profile, held to its diet,
+   * allergens, rules and the kinds of protein each day has no more meals of.
+   */
+  private async topped(
+    days: readonly OptimizerDay[],
+    recipes: readonly OptimizerRecipe[],
+    sized: readonly SizedAssignment[],
+    split: Macros,
+    ask: {
+      slots: readonly MealType[];
+      options: readonly ToppingOption[];
+      diet: string;
+      preferences: {
+        allergens: string[];
+        excludedIngredientIds: string[];
+        dislikedIngredientIds: string[];
+      } | null;
+      perKind: ReadonlyMap<string, { perDay?: number; perWeek?: number }>;
+      respectExclusions: boolean;
+    },
+  ): Promise<ToppedAssignment[]> {
+    const places = sized.filter((meal) => ask.slots.includes(meal.slot));
+    const traits = await dishTraitsOf(
+      this.prisma,
+      places.map((meal) => meal.recipeId),
+    );
+    const kindsOf = new Map(recipes.map((recipe) => [recipe.id, recipe.proteinKinds ?? []]));
+    return topAssignments(
+      days,
+      recipes,
+      sized,
+      split,
+      (meal) => (ask.slots.includes(meal.slot) ? (traits.get(meal.recipeId) ?? null) : null),
+      ask.options,
+      (dayIndex) =>
+        eaterOf(
+          ask.diet,
+          ask.preferences,
+          fullKindsOn(dayIndex, sized, (recipeId) => kindsOf.get(recipeId) ?? [], ask.perKind),
+          ask.respectExclusions,
+        ),
+    );
   }
 
   /**
@@ -1783,7 +1885,10 @@ function keptOfDiary(diary: DiaryOnDay | undefined): KeptMeal[] {
 }
 
 /** Nested `days.create` payload from resolved days + optimiser assignments. */
-function buildDays(resolved: ResolvedDay[], assignments: SizedAssignment[]) {
+function buildDays(
+  resolved: ResolvedDay[],
+  assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[],
+) {
   return resolved.map((d, dayIndex) => ({
     date: d.date,
     calorieTarget: d.calorieTarget,
@@ -1796,6 +1901,7 @@ function buildDays(resolved: ResolvedDay[], assignments: SizedAssignment[]) {
           mealType: a.slot,
           servings: a.servings,
           quantityScale: a.quantityScale,
+          ...(a.topping ? { toppingKey: a.topping.key, toppingAmount: a.topping.amount } : {}),
         })),
     },
   }));

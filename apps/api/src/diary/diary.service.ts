@@ -41,6 +41,7 @@ import {
 } from '../engine/label-totals.js';
 import {
   calculateCalories,
+  displayAmount,
   estimatedMacros,
   labelEntryFigures,
   macroSplitOf,
@@ -63,6 +64,11 @@ import {
   sumNutrition,
 } from '../meal-plans/plan-days.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  toppingFiguresOf,
+  toppingFoodsOf,
+  type ToppingFoods,
+} from '../meal-plans/toppings-store.js';
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
@@ -161,6 +167,8 @@ export class DiaryService {
               customName: true,
               customMacros: true,
               eatenAt: true,
+              toppingKey: true,
+              toppingAmount: true,
               // Shared and cooked in one pot: the portion is a split's, near what the plan says.
               shared: { select: { apart: true } },
               recipe: {
@@ -201,21 +209,41 @@ export class DiaryService {
       ),
     );
     const entered = rows.length > 0 ? [fromEntries] : [];
+    // The foods of the toppings, read only for a day that has any.
+    const toppingFoods = planDay?.meals.some((meal) => meal.toppingKey !== null)
+      ? await toppingFoodsOf(this.prisma)
+      : (new Map() as ToppingFoods);
     const meals: DiaryPlanMeal[] = [...(planDay?.meals ?? [])]
       .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType))
-      .map((meal) => ({
-        id: meal.id,
-        mealType: meal.mealType as MealType,
-        name:
-          meal.source === 'USER_CUSTOM' || !meal.recipe
-            ? (meal.customName ?? '')
-            : pickTitle(locale, meal.recipe.translations, meal.recipe.title),
-        recipeId: meal.source === 'USER_CUSTOM' ? null : (meal.recipe?.id ?? null),
-        eaten: meal.eatenAt !== null,
-        nutrition: mealNutrition(meal),
-        label: mealLabel(meal),
-        fromPot: meal.shared !== null && !meal.shared.apart,
-      }));
+      .map((meal) => {
+        // A topping is eaten with its meal.
+        const topping = toppingFiguresOf(meal, toppingFoods);
+        const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
+        return {
+          id: meal.id,
+          mealType: meal.mealType as MealType,
+          name:
+            meal.source === 'USER_CUSTOM' || !meal.recipe
+              ? (meal.customName ?? '')
+              : pickTitle(locale, meal.recipe.translations, meal.recipe.title),
+          recipeId: meal.source === 'USER_CUSTOM' ? null : (meal.recipe?.id ?? null),
+          eaten: meal.eatenAt !== null,
+          nutrition: topping
+            ? sumNutrition([mealNutrition(meal), topping.nutrition])
+            : mealNutrition(meal),
+          label: topping
+            ? roundLabel(sumLabels([mealLabel(meal), topping.label]))
+            : mealLabel(meal),
+          topping:
+            topping && food
+              ? {
+                  name: pickIngredient(locale, food.translations, food.name),
+                  display: displayAmount(meal.toppingAmount!, food.canonicalUnit, food),
+                }
+              : null,
+          fromPot: meal.shared !== null && !meal.shared.apart,
+        };
+      });
     const skipped = planDay ? isSkipped(planDay) : false;
     const eatenLabel = roundLabel(
       sumLabels([
@@ -282,6 +310,8 @@ export class DiaryService {
               quantityScale: true,
               source: true,
               customMacros: true,
+              toppingKey: true,
+              toppingAmount: true,
               recipe: {
                 select: {
                   caloriesPerServing: true,
@@ -306,11 +336,22 @@ export class DiaryService {
     for (const day of planDays)
       if (!planOf.has(isoDate(day.date))) planOf.set(isoDate(day.date), day);
     const entriesOf = new Map(sums.map((row) => [isoDate(row.date), row]));
+    // The foods of the toppings eaten, read only where any was.
+    const toppingFoods = [...planOf.values()].some((day) =>
+      day.meals.some((meal) => meal.toppingKey !== null),
+    )
+      ? await toppingFoodsOf(this.prisma)
+      : (new Map() as ToppingFoods);
     const days: DayFigures[] = [];
     for (let date = from; date <= to; date = dayAfter(date, 1)) {
       const planDay = planOf.get(date) ?? null;
       const entries = entriesOf.get(date);
-      const meals = sumNutrition((planDay?.meals ?? []).map((meal) => mealNutrition(meal)));
+      const meals = sumNutrition(
+        (planDay?.meals ?? []).flatMap((meal) => {
+          const topping = toppingFiguresOf(meal, toppingFoods);
+          return topping ? [mealNutrition(meal), topping.nutrition] : [mealNutrition(meal)];
+        }),
+      );
       const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null).target;
       const target = {
         calories: aim.calories,

@@ -32,6 +32,7 @@ import {
   type CookedMeal,
 } from './meal-plans.service.js';
 import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import { toppingFiguresOf, toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds, type PackedMeal } from './plan-menu.js';
 import { writePlan } from './plan-write.js';
@@ -222,6 +223,14 @@ export class DayVariationsService {
     // The meals of the other days, and those of this day that stay: what every way has in common.
     const rest = menu.filter((meal) => meal.dayId !== dayId || stays.has(meal.id)).flatMap(packed);
 
+    // A meal's topping counts with it, in what stays and in the day as it is.
+    const toppingFoods = day.meals.some((meal) => meal.toppingKey !== null)
+      ? await toppingFoodsOf(this.prisma)
+      : (new Map() as ToppingFoods);
+    const withTopping = (meal: (typeof day.meals)[number]) => {
+      const topping = toppingFiguresOf(meal, toppingFoods);
+      return topping ? sumNutrition([mealNutrition(meal), topping.nutrition]) : mealNutrition(meal);
+    };
     const stayingMeals: DayVariationMeal[] = day.meals
       .filter((meal) => stays.has(meal.id))
       .map((meal) => ({
@@ -231,7 +240,7 @@ export class DayVariationsService {
           : (meal.customName ?? ''),
         recipeId: meal.recipeId,
         servings: meal.servings * meal.quantityScale,
-        nutrition: mealNutrition(meal),
+        nutrition: withTopping(meal),
         stays: true,
       }));
     const inOrder = (meals: DayVariationMeal[]): DayVariationMeal[] =>
@@ -276,7 +285,7 @@ export class DayVariationsService {
     );
 
     const current = {
-      dayNutrition: withDiary(day.meals.map(mealNutrition)),
+      dayNutrition: withDiary(day.meals.map(withTopping)),
       packs: tally(menu.flatMap(packed)),
     };
     let aiMeta: DayVariations['aiMeta'] = null;

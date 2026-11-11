@@ -1059,6 +1059,12 @@ model PlannedMeal {
   // gets another recipe any other way.
   modelPicked Boolean     @default(false)
   modelReason String?
+  // A topping on this meal's plate alone (`TOPPINGS` of the engine, by key),
+  // put beside a dish both people of a joint plan eat where this person's day
+  // would otherwise stay off its split or its calorie target, and its amount in
+  // its ingredient's canonical unit. Both null where there is none.
+  toppingKey    String?
+  toppingAmount Float?
   // Eaten by both people of a joint plan: the meal of the other plan at the
   // same day and time of day has the same link. Null for a meal of one's own
   // plan alone, and once the link is undone for that day.

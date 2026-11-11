@@ -142,6 +142,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           leftover: null,
           carriedTo: null,
           leftoverOffer: null,
+          topping: null,
         },
       ],
       dayNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
@@ -3623,6 +3624,7 @@ describe('the plan page, on what is left of a meal', () => {
       withMeal({
         leftover: { date: '2026-01-04', mealType: 'dinner', undoable: true },
         leftoverOffer: null,
+        topping: null,
         quantityScale: 0.5,
       }),
     );

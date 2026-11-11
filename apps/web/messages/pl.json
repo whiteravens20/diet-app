@@ -531,6 +531,7 @@
   },
   "diary": {
     "mealKcalFromPot": "≈{kcal, number, ::group-off}\u00a0kcal z\u00a0podziału garnka",
+    "mealTopping": "Z\u00a0dodatkiem: {name}, {amount}",
     "title": "Dziennik",
     "subhead": "Co zostało zjedzone każdego dnia, z planu i poza nim, na tle celu dnia.",
     "profileLabel": "Profil",
@@ -1478,6 +1479,8 @@
   "mealPlans": {
     "sharedChip": "Wspólne",
     "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0porcja} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "toppingLine": "Dodatek na Twój talerz: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
+    "offerTopping": "Model wybrał też dodatek na Twój talerz: {name}. Ilość dobierze plan, tak by dzień trzymał cel.",
     "sharedEaten": "zjedzone",
     "cookApart": "Gotuj osobno",
     "eatenTogether": "Zjedzone u\u00a0obu osób",
@@ -2478,6 +2481,7 @@
   },
   "recipeModal": {
     "portionPot": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}. Poniżej ilości na cały garnek: {all, plural, one {{all, number, ::group-off}\u00a0porcja} few {{all, number, ::group-off}\u00a0porcje} many {{all, number, ::group-off}\u00a0porcji} other {{all, number, ::group-off}\u00a0porcji}}, z\u00a0tego Ty {mine, number, ::group-off}, {name} {theirs, number, ::group-off}.",
+    "toppingNote": "Dodatek tylko na Twój talerz, poza garnkiem: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal.",
     "title": "Szczegóły przepisu",
     "close": "Zamknij",
     "openPage": "Otwórz oryginalny przepis",

@@ -12041,6 +12041,29 @@
                 "type": "null"
               }
             ]
+          },
+          "topping": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -12056,7 +12079,8 @@
           "outsideLimits",
           "revision",
           "aiMeta",
-          "pick"
+          "pick",
+          "topping"
         ],
         "additionalProperties": false
       },
@@ -14435,6 +14459,29 @@
           "label": {
             "$ref": "#/components/schemas/LabelTotals"
           },
+          "topping": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "display": {
+                    "$ref": "#/components/schemas/DisplayAmount"
+                  }
+                },
+                "required": [
+                  "name",
+                  "display"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "fromPot": {
             "type": "boolean"
           }
@@ -14447,6 +14494,7 @@
           "eaten",
           "nutrition",
           "label",
+          "topping",
           "fromPot"
         ],
         "additionalProperties": false
@@ -19896,6 +19944,33 @@
                 "type": "null"
               }
             ]
+          },
+          "topping": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "ingredient": {
+                    "$ref": "#/components/schemas/PlannedIngredient"
+                  },
+                  "nutrition": {
+                    "$ref": "#/components/schemas/Nutrition"
+                  }
+                },
+                "required": [
+                  "key",
+                  "ingredient",
+                  "nutrition"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -19920,7 +19995,8 @@
           "shared",
           "leftover",
           "carriedTo",
-          "leftoverOffer"
+          "leftoverOffer",
+          "topping"
         ],
         "additionalProperties": false
       },
