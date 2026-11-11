@@ -480,15 +480,20 @@ describe('editing a plan', () => {
     });
 
     it('takes a pick that comes without a reason, or with one that is not text', async () => {
-      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({ text: (request) => JSON.stringify({ recipeId: firstOffered(request) }) });
+
+      const without = await aiSwap(plan.days[0]!.meals[0]!.id);
+
+      expect(without.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: null });
+
       t.model.reply({
         text: (request) =>
           JSON.stringify({ recipeId: firstOffered(request), reason: { why: 'nested' } }),
       });
 
-      const result = await aiSwap(meal.id);
+      const nested = await aiSwap(plan.days[1]!.meals[0]!.id);
 
-      expect(result.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: null });
+      expect(nested.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: null });
     });
 
     it.each([

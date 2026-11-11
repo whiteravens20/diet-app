@@ -66,7 +66,10 @@ import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './s
 
 // What each prompt asks the model to answer with. A reason is welcome and
 // never required: a pick without one is still a pick.
-const IngredientPick = z.object({ ingredientId: z.string().min(1), reason: z.unknown() });
+const IngredientPick = z.object({
+  ingredientId: z.string().min(1),
+  reason: z.unknown().optional(),
+});
 const SwapRewrite = z.object({
   description: z.string().trim().min(1),
   steps: z.array(z.string().trim().min(1)),

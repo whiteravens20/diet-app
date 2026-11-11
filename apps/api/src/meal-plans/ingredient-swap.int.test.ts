@@ -225,6 +225,16 @@ describe('the text of a recipe after an ingredient swap', () => {
       expect((await theMeal()).recipe!.byModel).toBe('changed');
     });
 
+    it('is a suggestion of the model too where it gives no reason', async () => {
+      expect(
+        await suggestion(JSON.stringify({ ingredientId: await ingredientId('tomato') })),
+      ).toMatchObject({
+        toIngredient: { name: 'Tomato' },
+        aiMeta: { usedDeterministicFallback: false, reason: null },
+        pick: expect.any(String),
+      });
+    });
+
     it("comes with no note when the engine suggested in the model's place", async () => {
       expect(await suggestion('no idea')).toMatchObject({
         aiMeta: { usedDeterministicFallback: true },

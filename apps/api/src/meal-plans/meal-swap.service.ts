@@ -61,7 +61,10 @@ import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './s
 
 // What the prompt asks the model to answer with. A reason is welcome and
 // never required: a pick without one is still a pick.
-const RecipePick = z.object({ recipeId: z.string().min(1), reason: z.unknown() });
+const RecipePick = z.object({
+  recipeId: z.string().min(1),
+  reason: z.unknown().optional(),
+});
 
 /** A recipe offered for a meal holds, at the serving that comes nearest, within this share of what the meal holds now. */
 const SWAP_ENERGY_WINDOW = 0.15;
