@@ -109,6 +109,17 @@ describe('a topping on one plate of a joint plan', () => {
     }
   });
 
+  it('reads a dish built on tofu as one whose plate beside it stays of plants', async () => {
+    const [onTofu, withChicken] = await Promise.all(
+      ['baked-tofu-with-broccoli', 'chicken-rice-broccoli'].map((slug) =>
+        t.prisma.recipe.findFirstOrThrow({ where: { slug }, select: { id: true } }),
+      ),
+    );
+    const dishes = await dishTraitsOf(t.prisma, [onTofu.id, withChicken.id]);
+    expect(dishes.get(onTofu.id)!.meatStandIn).toBe(true);
+    expect(dishes.get(withChicken.id)!.meatStandIn).toBe(false);
+  });
+
   it('is chosen knowing what the person had on the other days of the weeks around its day', async () => {
     const ewas = await together(ewa, adam);
     const adams = await read(ewas.joint!.planId);

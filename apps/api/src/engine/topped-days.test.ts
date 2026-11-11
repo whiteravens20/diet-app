@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { DishTraits, Macros } from '@diet-app/shared';
+import type { Macros } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { energyShares, MACROS_OFF, splitDistance } from './nutrition.js';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
@@ -11,7 +11,12 @@ import {
   type SizedAssignment,
 } from './rebalance.js';
 import { fullKindsOn, topAndSizeDay, topAssignments } from './topped-days.js';
-import { TOPPING_BY_KEY, type ToppingEater, type ToppingOption } from './toppings.js';
+import {
+  TOPPING_BY_KEY,
+  type ToppingDish,
+  type ToppingEater,
+  type ToppingOption,
+} from './toppings.js';
 
 const anyone: ToppingEater = {
   diet: 'balanced',
@@ -20,7 +25,12 @@ const anyone: ToppingEater = {
   disliked: new Set(),
   fullKinds: new Set(),
 };
-const PLATE: DishTraits = { taste: 'savoury', form: 'plate', starchBase: 'none' };
+const PLATE: ToppingDish = {
+  taste: 'savoury',
+  form: 'plate',
+  starchBase: 'none',
+  meatStandIn: false,
+};
 
 /** Turkey and bread, as the catalogue has them. */
 const OPTIONS: ToppingOption[] = [

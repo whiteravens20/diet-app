@@ -2,16 +2,18 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { RECIPE_FORMS, type DishTraits, type Macros } from '@diet-app/shared';
+import { RECIPE_FORMS, type Macros } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { energyShares, MACROS_OFF, splitDistance } from './nutrition.js';
 import {
   bestTopping,
+  holdsAMeatStandIn,
   LEAST_GAIN,
   TOPPING_BY_KEY,
   TOPPINGS,
   toppingRefusal,
   type Figures,
+  type ToppingDish,
   type ToppingEater,
   type ToppingFood,
   type ToppingOption,
@@ -67,11 +69,36 @@ const anyone: ToppingEater = {
   disliked: new Set(),
   fullKinds: new Set(),
 };
-const PLATE: DishTraits = { taste: 'savoury', form: 'plate', starchBase: 'none' };
-const RICE_PLATE: DishTraits = { taste: 'savoury', form: 'plate', starchBase: 'rice' };
-const SOUP: DishTraits = { taste: 'savoury', form: 'soup', starchBase: 'none' };
-const SALAD: DishTraits = { taste: 'savoury', form: 'salad', starchBase: 'none' };
-const PORRIDGE: DishTraits = { taste: 'sweet', form: 'porridge_dessert', starchBase: 'groats' };
+const PLATE: ToppingDish = {
+  taste: 'savoury',
+  form: 'plate',
+  starchBase: 'none',
+  meatStandIn: false,
+};
+const RICE_PLATE: ToppingDish = {
+  taste: 'savoury',
+  form: 'plate',
+  starchBase: 'rice',
+  meatStandIn: false,
+};
+const SOUP: ToppingDish = {
+  taste: 'savoury',
+  form: 'soup',
+  starchBase: 'none',
+  meatStandIn: false,
+};
+const SALAD: ToppingDish = {
+  taste: 'savoury',
+  form: 'salad',
+  starchBase: 'none',
+  meatStandIn: false,
+};
+const PORRIDGE: ToppingDish = {
+  taste: 'sweet',
+  form: 'porridge_dessert',
+  starchBase: 'groats',
+  meatStandIn: false,
+};
 
 const topping = (key: string) => TOPPING_BY_KEY.get(key)!;
 
@@ -129,6 +156,63 @@ describe('the one check of a topping', () => {
   it('suits the dish’s form', () => {
     expect(toppingRefusal(topping('egg'), food('egg'), SOUP, 'lunch', anyone)).toBe('form');
     expect(toppingRefusal(topping('rice'), food('rice'), SALAD, 'lunch', anyone)).toBe('form');
+  });
+
+  it('keeps the plate beside a dish built on tofu, tempeh or seitan of plants: no turkey with tofu', () => {
+    const onTofu: ToppingDish = { ...PLATE, meatStandIn: true };
+    const plants = (key: string) => food(key).dietCompatibility.includes('vegan');
+    const passing = (dish: ToppingDish, meal: 'lunch' | 'dinner' | 'breakfast') =>
+      ALL.filter((one) => toppingRefusal(one.topping, one.food, dish, meal, anyone) === null).map(
+        (one) => one.topping.key,
+      );
+    for (const meal of ['breakfast', 'lunch', 'dinner'] as const) {
+      // What a plate takes beside any such dish, less what is not of plants.
+      expect(passing(onTofu, meal)).toEqual(passing(PLATE, meal).filter(plants));
+      for (const key of passing(PLATE, meal).filter((one) => !plants(one))) {
+        expect(
+          toppingRefusal(topping(key), food(key), onTofu, meal, anyone),
+          `${key} at ${meal}`,
+        ).toBe('plant_dish');
+      }
+    }
+    expect(passing(PLATE, 'lunch').filter((key) => !plants(key))).toEqual(['egg', 'turkey']);
+    // Tuna goes on a salad or a sandwich, and not on one of tofu.
+    expect(
+      toppingRefusal(
+        topping('tuna'),
+        food('tuna'),
+        { ...SALAD, meatStandIn: true },
+        'lunch',
+        anyone,
+      ),
+    ).toBe('plant_dish');
+    expect(toppingRefusal(topping('turkey'), food('turkey'), onTofu, 'lunch', anyone)).toBe(
+      'plant_dish',
+    );
+    expect(passing(onTofu, 'lunch')).toEqual(expect.arrayContaining(['tofu', 'chickpeas']));
+    // A sweet dish on tofu keeps its fruit and nuts, and leaves the yogurt and the curd.
+    const sweetOnTofu: ToppingDish = { ...PORRIDGE, starchBase: 'none', meatStandIn: true };
+    expect(passing(sweetOnTofu, 'breakfast')).toEqual(
+      expect.arrayContaining(['banana', 'blueberries', 'walnuts']),
+    );
+    expect(
+      toppingRefusal(
+        topping('greek_yogurt'),
+        food('greek_yogurt'),
+        sweetOnTofu,
+        'breakfast',
+        anyone,
+      ),
+    ).toBe('plant_dish');
+  });
+
+  it('knows a dish built on a stand-in for meat by its ingredients, whole words of their slugs', () => {
+    expect(holdsAMeatStandIn(['tofu', 'buckwheat'])).toBe(true);
+    expect(holdsAMeatStandIn(['firm-tofu'])).toBe(true);
+    expect(holdsAMeatStandIn([null, 'smoked-tempeh-strips'])).toBe(true);
+    expect(holdsAMeatStandIn(['seitan'])).toBe(true);
+    expect(holdsAMeatStandIn(['chicken-breast', 'tofurky-roast', null])).toBe(false);
+    expect(holdsAMeatStandIn([])).toBe(false);
   });
 
   it('goes only to a meal it goes with: no rice at breakfast, no turkey breast either, no yogurt at dinner', () => {

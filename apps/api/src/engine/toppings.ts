@@ -9,9 +9,10 @@
  * A topping goes with the dish or not at all: never a second starch beside the
  * dish's own (no bread with rice), the dish's taste (nothing sweet on a savoury
  * plate, no yogurt in a soup), a form it suits, at a meal it goes with (no rice
- * at breakfast); and it fits the person whose plate it is on, who alone eats
- * it: their diet, allergens, the ingredients they rule out or dislike, and the
- * kinds of protein their limits have no more meals of.
+ * at breakfast), and beside a dish built on tofu, tempeh or seitan only a food
+ * of plants (no turkey with tofu); and it fits the person whose plate it is
+ * on, who alone eats it: their diet, allergens, the ingredients they rule out
+ * or dislike, and the kinds of protein their limits have no more meals of.
  *
  * Pure: the same day and options give the same choice.
  */
@@ -230,6 +231,19 @@ export interface ToppingFood {
   proteinKind: string | null;
 }
 
+/** A dish as the check of a topping reads it: what it is, and whether it is built on a stand-in for meat. */
+export interface ToppingDish extends DishTraits {
+  /** It holds tofu, tempeh or seitan (`holdsAMeatStandIn`): the plate beside it stays of plants. */
+  meatStandIn: boolean;
+}
+
+/** The ingredients that stand in for meat in a dish, by their slugs. */
+const MEAT_STAND_IN = /(^|-)(tofu|tempeh|seitan)($|-)/;
+
+/** Whether a dish of these ingredients (by their slugs) is built on a stand-in for meat. */
+export const holdsAMeatStandIn = (slugs: readonly (string | null)[]): boolean =>
+  slugs.some((slug) => slug !== null && MEAT_STAND_IN.test(slug));
+
 /** The person whose plate a topping would be on, as the check reads them. */
 export interface ToppingEater {
   diet: string;
@@ -248,6 +262,7 @@ export type ToppingRefusal =
   | 'taste'
   | 'form'
   | 'meal'
+  | 'plant_dish'
   | 'diet'
   | 'allergen'
   | 'excluded'
@@ -260,7 +275,7 @@ const DIETS_BY_INGREDIENT: ReadonlySet<string> = new Set(RECIPE_DIET_TAGS);
 export function toppingRefusal(
   topping: Topping,
   food: ToppingFood,
-  dish: DishTraits,
+  dish: ToppingDish,
   meal: MealType,
   eater: ToppingEater,
 ): ToppingRefusal | null {
@@ -268,6 +283,7 @@ export function toppingRefusal(
   if (topping.taste !== 'both' && topping.taste !== dish.taste) return 'taste';
   if (!topping.forms.includes(dish.form)) return 'form';
   if (!topping.meals.includes(meal)) return 'meal';
+  if (dish.meatStandIn && !food.dietCompatibility.includes('vegan')) return 'plant_dish';
   // A diet that holds recipes to their ingredients holds a topping to its own; the others take any.
   if (DIETS_BY_INGREDIENT.has(eater.diet) && !food.dietCompatibility.includes(eater.diet))
     return 'diet';
@@ -290,7 +306,7 @@ export interface Figures {
 export interface ToppingPlace {
   mealId: string;
   meal: MealType;
-  dish: DishTraits;
+  dish: ToppingDish;
   /** The one topping this place may be given, where a model named it; it still passes the check, or the place gets none. */
   only?: string;
 }

@@ -13,7 +13,7 @@
  *
  * Pure: the same day gives the same toppings and portions.
  */
-import type { DishTraits, Macros } from '@diet-app/shared';
+import type { Macros } from '@diet-app/shared';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
 import {
   aimOfPlanned,
@@ -26,6 +26,7 @@ import {
   bestTopping,
   type Figures,
   type ToppingChoice,
+  type ToppingDish,
   type ToppingEater,
   type ToppingOption,
   type ToppingPlace,
@@ -110,7 +111,7 @@ export function topAssignments(
   recipes: readonly OptimizerRecipe[],
   sized: readonly SizedAssignment[],
   split: Macros,
-  dishOf: (meal: SizedAssignment) => DishTraits | null,
+  dishOf: (meal: SizedAssignment) => ToppingDish | null,
   options: readonly ToppingOption[],
   eaterOn: (dayIndex: number) => ToppingEater,
 ): ToppedAssignment[] {

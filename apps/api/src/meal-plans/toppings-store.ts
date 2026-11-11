@@ -5,12 +5,18 @@
  * instance has, and the traits of the dishes they would go beside.
  */
 import type { Prisma } from '@prisma/client';
-import type { DishTraits, LabelTotals, Unit } from '@diet-app/shared';
+import type { LabelTotals, Unit } from '@diet-app/shared';
 import { proposeTraits, traitsOf } from '../engine/dish-traits.js';
 import { labelOfAmount } from '../engine/label-totals.js';
 import { proteinKindsOf } from '../engine/optimizer.js';
 import { fullKindsOn } from '../engine/topped-days.js';
-import { TOPPINGS, type ToppingEater, type ToppingOption } from '../engine/toppings.js';
+import {
+  holdsAMeatStandIn,
+  TOPPINGS,
+  type ToppingDish,
+  type ToppingEater,
+  type ToppingOption,
+} from '../engine/toppings.js';
 import { mealsPerKind } from './plan-limits.js';
 
 /** The toppings whose foods this instance has, in the order of the list, with what 100 of each holds. */
@@ -55,11 +61,15 @@ export async function toppingOptionsOf(
   });
 }
 
-/** The traits of the recipes asked for: those set on each, the rest as its ingredients and titles suggest. */
+/**
+ * The recipes asked for as the check of a topping reads them: the traits set
+ * on each, the rest as its ingredients and titles suggest, and whether it is
+ * built on a stand-in for meat.
+ */
 export async function dishTraitsOf(
   db: Pick<Prisma.TransactionClient, 'recipe'>,
   recipeIds: readonly string[],
-): Promise<Map<string, DishTraits>> {
+): Promise<Map<string, ToppingDish>> {
   if (recipeIds.length === 0) return new Map();
   const recipes = await db.recipe.findMany({
     where: { id: { in: [...new Set(recipeIds)] } },
@@ -92,19 +102,22 @@ export async function dishTraitsOf(
   return new Map(
     recipes.map((recipe) => [
       recipe.id,
-      traitsOf(recipe, () =>
-        proposeTraits(
-          [recipe.title, ...recipe.translations.map((translation) => translation.title)],
-          recipe.ingredients.map((line) => ({
-            quantity: line.quantity,
-            unit: line.unit as Unit,
-            ingredient: {
-              ...line.ingredient,
-              canonicalUnit: line.ingredient.canonicalUnit as Unit,
-            },
-          })),
+      {
+        ...traitsOf(recipe, () =>
+          proposeTraits(
+            [recipe.title, ...recipe.translations.map((translation) => translation.title)],
+            recipe.ingredients.map((line) => ({
+              quantity: line.quantity,
+              unit: line.unit as Unit,
+              ingredient: {
+                ...line.ingredient,
+                canonicalUnit: line.ingredient.canonicalUnit as Unit,
+              },
+            })),
+          ),
         ),
-      ),
+        meatStandIn: holdsAMeatStandIn(recipe.ingredients.map((line) => line.ingredient.slug)),
+      },
     ]),
   );
 }
@@ -181,7 +194,7 @@ export async function toppingAskOfDay(
   placeRecipeIds: readonly string[],
 ): Promise<{
   options: ToppingOption[];
-  traits: Map<string, DishTraits>;
+  traits: Map<string, ToppingDish>;
   eater: ToppingEater;
   used: Map<string, number>;
 }> {
