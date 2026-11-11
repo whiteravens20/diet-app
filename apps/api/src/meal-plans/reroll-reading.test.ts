@@ -20,6 +20,7 @@ const aMeal = (mealType: string, over: Partial<RerollMeal> = {}): RerollMeal => 
   recipeId: RECIPE,
   source: 'CATALOGUE',
   eatenAt: null,
+  leftoverFromDate: null,
   ...over,
 });
 
@@ -48,7 +49,15 @@ const asked = (over: Partial<RerollAsked> = {}): RerollAsked => ({
 });
 
 const WEDNESDAY = '2026-01-07';
-const NOTHING_KEPT = { outside: 0, past: 0, skipped: 0, eaten: 0, custom: 0, locked: 0 };
+const NOTHING_KEPT = {
+  outside: 0,
+  past: 0,
+  skipped: 0,
+  eaten: 0,
+  custom: 0,
+  leftover: 0,
+  locked: 0,
+};
 
 describe('what a re-roll would do to a plan', () => {
   it('replaces every meal of every day of a plan that lies ahead', () => {
@@ -111,6 +120,37 @@ describe('what a re-roll would do to a plan', () => {
       replaced: 3,
       kept: { eaten: 0, custom: 0 },
     });
+  });
+
+  it('keeps a leftover not eaten whatever it is told, in its place, and one that was eaten as a meal that was eaten', () => {
+    const LEFT = new Date('2026-01-06T00:00:00Z');
+    const days = week({
+      [WEDNESDAY]: {
+        mealCount: 3,
+        meals: [
+          aMeal('breakfast', { leftoverFromDate: LEFT }),
+          aMeal('lunch', { leftoverFromDate: LEFT, eatenAt: EATEN }),
+          aMeal('dinner'),
+        ],
+      },
+    });
+    const told = asked({
+      first: WEDNESDAY,
+      last: WEDNESDAY,
+      replaceEaten: true,
+      replaceCustom: true,
+    });
+    const wednesday = (over: Partial<RerollAsked>) =>
+      rerollOutcome(days, asked({ first: WEDNESDAY, last: WEDNESDAY, ...over }), WEDNESDAY);
+
+    expect(wednesday({})).toMatchObject({ replaced: 1, kept: { leftover: 1, eaten: 1 } });
+    expect(rerollOutcome(days, told, WEDNESDAY)).toMatchObject({
+      replaced: 2,
+      kept: { leftover: 1, eaten: 0 },
+    });
+    // It holds its place: no breakfast is drawn beside it.
+    const reading = readReroll(days[2]!, told, WEDNESDAY);
+    expect(reading.fate === 'again' && reading.slots).toEqual(['lunch', 'dinner']);
   });
 
   it("counts a meal of the user's own that was eaten once, kept for as long as either is kept", () => {

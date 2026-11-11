@@ -597,6 +597,11 @@ export class DaySettingsService {
       if (meal.eatenAt) return fate('stays', 'eaten');
       if (settings.skip) return fate('removed', 'skipped');
       if (meal.source === 'USER_CUSTOM' || !meal.recipe) return fate('stays', 'own');
+      // A leftover is food there is: it keeps its portion, and goes only with its time of day.
+      if (meal.leftoverFromDate)
+        return slots && !slots.includes(meal.mealType as MealType)
+          ? fate('removed', 'fewer_meals')
+          : fate('stays', 'leftover');
       if (slots && !slots.includes(meal.mealType as MealType))
         return fate('removed', 'fewer_meals');
       if (

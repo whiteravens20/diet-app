@@ -232,7 +232,7 @@ describe('making a plan again, or a part of it', () => {
       expect(said).toEqual({
         days: changed.length,
         replaced: gone.length,
-        kept: { outside: 0, past: 2, skipped: 0, eaten: 1, custom: 0, locked: 0 },
+        kept: { outside: 0, past: 2, skipped: 0, eaten: 1, custom: 0, leftover: 0, locked: 0 },
         couldGo: { past: true, eaten: true, custom: false },
         fromToday: null,
         cooking: null,

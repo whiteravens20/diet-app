@@ -544,6 +544,8 @@ export const RerollPreview = z.object({
     eaten: z.number().int().min(0),
     /** The user's own meals on those days: they stay unless `replaceCustom` is set. */
     custom: z.number().int().min(0),
+    /** The leftovers on those days that are not eaten: food there is already, they always stay. */
+    leftover: z.number().int().min(0),
     /** The meals on those days locked to the recipe they have, which they get again. */
     locked: z.number().int().min(0),
   }),
@@ -701,11 +703,12 @@ export const DayMealFate = z.object({
   fate: z.enum(['stays', 'resized', 'redrawn', 'removed']),
   /**
    * Why, where it is more than the day's new target or number of meals:
-   * `eaten` and `own` meals stay; `fewer_meals` and `skipped` are what take a
-   * meal away; `over_cook_time` and `use_up` what draw another recipe.
+   * `eaten` and `own` meals and a `leftover` stay; `fewer_meals` and `skipped`
+   * are what take a meal away; `over_cook_time` and `use_up` what draw another
+   * recipe.
    */
   because: z
-    .enum(['eaten', 'own', 'fewer_meals', 'skipped', 'over_cook_time', 'use_up'])
+    .enum(['eaten', 'own', 'leftover', 'fewer_meals', 'skipped', 'over_cook_time', 'use_up'])
     .nullable(),
 });
 export type DayMealFate = z.infer<typeof DayMealFate>;
@@ -1219,7 +1222,7 @@ export const DayVariationMeal = z.object({
   recipeId: z.string().uuid().nullable(),
   servings: z.number(),
   nutrition: Nutrition,
-  /** The meal is on the day already and stays there: it was eaten, or it is the user's own. */
+  /** The meal is on the day already and stays there: it was eaten, it is the user's own, or a leftover. */
   stays: z.boolean(),
 });
 export type DayVariationMeal = z.infer<typeof DayVariationMeal>;

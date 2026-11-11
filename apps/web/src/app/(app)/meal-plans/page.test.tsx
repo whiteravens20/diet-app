@@ -301,7 +301,7 @@ async function rerollWindow() {
 const aPreview = (over: Partial<RerollPreview> = {}): RerollPreview => ({
   days: 2,
   replaced: 2,
-  kept: { outside: 0, past: 1, skipped: 0, eaten: 0, custom: 0, locked: 0 },
+  kept: { outside: 0, past: 1, skipped: 0, eaten: 0, custom: 0, leftover: 0, locked: 0 },
   couldGo: { past: true, eaten: false, custom: false },
   fromToday: null,
   cooking: null,

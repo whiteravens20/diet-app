@@ -25,6 +25,7 @@ export function swappableRecipeOf(
     recipeId: string | null;
     source: string;
     eatenAt: Date | null;
+    leftoverFromDate: Date | null;
     day: { date: Date; overrides: unknown };
   },
   today: string,
@@ -33,6 +34,13 @@ export function swappableRecipeOf(
     throw new BadRequestException({
       error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
       message: 'Custom meals cannot be swapped or substituted.',
+    });
+  }
+  if (meal.leftoverFromDate) {
+    throw new ConflictException({
+      error: 'MEAL_IS_LEFTOVER',
+      message:
+        'A leftover is cooked already: it is not changed or carried again. Undo the move or remove it from its day.',
     });
   }
   if (meal.eatenAt) {

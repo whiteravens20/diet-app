@@ -2,16 +2,20 @@
 
 import {
   GeneratePlanRequest,
+  type DaySettingsPreview,
+  type DayVariations,
   type LeftoverOffer,
   type MealPlan,
   type PlannedMeal,
   type Profile,
   type RebalanceResult,
+  type RerollPreview,
 } from '@diet-app/shared';
+import type { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, as, aUser, race, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, as, aSwap, aUser, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -337,6 +341,111 @@ describe('a leftover: what is left of a meal, eaten the next day', () => {
     expect(dayOf(back, TODAY).meals.filter((meal) => meal.mealType === 'dinner')).toHaveLength(1);
     expect(at(back, TODAY, 'dinner')!.id).not.toBe(today.id);
     expect(at(back, TOMORROW, 'breakfast')!.leftover).toBeNull();
+  });
+
+  it('is never swapped, redrawn by a day made again, resized by its settings or written over by a favourite set', async () => {
+    const dinner = at(plan, TODAY, 'dinner')!;
+    const after = await carried(dinner, { mealType: 'lunch', left: 1 });
+    const leftover = at(after, TOMORROW, 'lunch')!;
+    const day = dayOf(after, TOMORROW);
+
+    const swapped = await aSwap(t, user, {
+      planId: plan.id,
+      plannedMealId: leftover.id,
+      strategy: 'random',
+    }).catch((error: unknown) => error);
+    expect((swapped as HttpException).getResponse()).toMatchObject({ error: 'MEAL_IS_LEFTOVER' });
+
+    const preview = (
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day.id}/regenerate/preview`)
+        .set(as(user))
+        .send({})
+        .expect(200)
+    ).body as RerollPreview;
+    expect(preview.kept.leftover).toBe(1);
+    await t
+      .http()
+      .post(`/api/meal-plans/${plan.id}/days/${day.id}/regenerate`)
+      .set(as(user))
+      .send({})
+      .expect(201);
+    const redrawn = at(await read(), TOMORROW, 'lunch')!;
+    expect(redrawn.id).toBe(leftover.id);
+    expect(redrawn.recipe!.id).toBe(dinner.recipe!.id);
+    expect(portion(redrawn)).toBeCloseTo(portion(leftover), 9);
+
+    // Every other way of the day keeps it, and so does the one taken.
+    const ways = (
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day.id}/variations`)
+        .set(as(user))
+        .send({})
+        .expect(200)
+    ).body as DayVariations;
+    expect(ways.variations.length).toBeGreaterThan(0);
+    for (const way of ways.variations)
+      expect(way.meals.find((meal) => meal.mealType === 'lunch')).toMatchObject({
+        recipeId: dinner.recipe!.id,
+        stays: true,
+      });
+    await t
+      .http()
+      .post(`/api/meal-plans/${plan.id}/days/${day.id}/variations/take`)
+      .set(as(user))
+      .send({ offer: ways.variations[0]!.offer })
+      .expect(200);
+    expect(at(await read(), TOMORROW, 'lunch')!.id).toBe(leftover.id);
+
+    const settings = (change: Record<string, unknown>) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day.id}/settings/preview`)
+        .set(as(user))
+        .send({
+          dayType: 'normal',
+          skip: false,
+          mealCount: 3,
+          calorieTarget: null,
+          cookTimeBudgetMinutes: null,
+          useUpBy: false,
+          ...change,
+        })
+        .expect(200)
+        .then((answer) =>
+          (answer.body as DaySettingsPreview).meals.find((meal) => meal.mealId === leftover.id)!,
+        );
+    expect(await settings({ dayType: 'training' })).toMatchObject({
+      fate: 'stays',
+      because: 'leftover',
+    });
+    expect(await settings({ mealCount: 2 })).toMatchObject({
+      fate: 'removed',
+      because: 'fewer_meals',
+    });
+    expect(await settings({ skip: true })).toMatchObject({ fate: 'removed', because: 'skipped' });
+
+    const set = await t
+      .http()
+      .post('/api/favorite-sets')
+      .set(as(user))
+      .send({
+        profileId: profile.id,
+        label: 'Lunch',
+        slots: { lunch: at(plan, TOMORROW, 'lunch')!.recipe!.id },
+      })
+      .expect(201);
+    expect(
+      await refusal(
+        t
+          .http()
+          .post(`/api/favorite-sets/${(set.body as { id: string }).id}/apply`)
+          .set(as(user))
+          .send({ planId: plan.id, dayDates: [TOMORROW] }),
+      ),
+    ).toBe('MEAL_IS_LEFTOVER');
   });
 
   it('lets one of two leftovers of a meal asked for at once through', async () => {

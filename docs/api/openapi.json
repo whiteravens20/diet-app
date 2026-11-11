@@ -13580,6 +13580,7 @@
                 "enum": [
                   "eaten",
                   "own",
+                  "leftover",
                   "fewer_meals",
                   "skipped",
                   "over_cook_time",
@@ -23389,6 +23390,10 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "leftover": {
+                "type": "integer",
+                "minimum": 0
+              },
               "locked": {
                 "type": "integer",
                 "minimum": 0
@@ -23400,6 +23405,7 @@
               "skipped",
               "eaten",
               "custom",
+              "leftover",
               "locked"
             ],
             "additionalProperties": false

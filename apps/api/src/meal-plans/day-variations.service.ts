@@ -399,10 +399,15 @@ export class DayVariationsService {
       // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
       const meals = await tx.plannedMeal.findMany({
         where: { dayId },
-        select: { id: true, eatenAt: true, source: true, mealType: true },
+        select: { id: true, eatenAt: true, source: true, mealType: true, leftoverFromDate: true },
       });
       const staying = meals
-        .filter((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM')
+        .filter(
+          (meal) =>
+            meal.eatenAt !== null ||
+            meal.source === 'USER_CUSTOM' ||
+            meal.leftoverFromDate !== null,
+        )
         .map((meal) => meal.id);
       await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
       await tx.plannedMeal.createMany({

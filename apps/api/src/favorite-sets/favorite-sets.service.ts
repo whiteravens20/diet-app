@@ -188,6 +188,21 @@ export class FavoriteSetsService {
         message: 'A meal that was eaten cannot be changed. Unmark it first.',
       });
     }
+    // Nor a leftover, which is food there is: it is undone or taken off its day first.
+    const leftovers = await this.prisma.plannedMeal.count({
+      where: {
+        dayId: { in: targetDayIds },
+        mealType: { in: slotEntries.map(([mealType]) => mealType) },
+        leftoverFromDate: { not: null },
+      },
+    });
+    if (leftovers > 0) {
+      throw new ConflictException({
+        error: 'MEAL_IS_LEFTOVER',
+        message:
+          'A leftover is cooked already: it is not changed or carried again. Undo the move or remove it from its day.',
+      });
+    }
 
     const cookedWith = req.together
       ? await this.mealPlans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))

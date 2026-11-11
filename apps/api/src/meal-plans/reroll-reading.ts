@@ -9,6 +9,8 @@ export interface RerollMeal {
   recipeId: string | null;
   source: string;
   eatenAt: Date | null;
+  /** Set on a leftover: food there is already, which a re-roll keeps while it is not eaten. */
+  leftoverFromDate: Date | null;
 }
 
 /** A day of a plan, as a re-roll reads it. */
@@ -58,8 +60,8 @@ export interface RerollAsked {
  * What a re-roll does with a day. A day that was not asked for, and one before
  * today unless the request takes those, stay as they are. A day that is filled
  * again keeps the meals marked as eaten and the user's own unless the request
- * lets them go; a day the user skips keeps them whatever it says, and gets
- * nothing. Of the meals that stay, those of the catalogue hold their places and
+ * lets them go, and a leftover not eaten always; a day the user skips keeps
+ * them whatever it says, and gets nothing. Of the meals that stay, those of the catalogue hold their places and
  * the user's own stand beside them; the other places of the day's meals
  * (`slots`) are filled, a place locked to a recipe with that recipe.
  */
@@ -73,9 +75,14 @@ export type RerollReading<M extends RerollMeal> =
       locks: { mealType: MealType; recipeId: string }[];
     };
 
-/** Why a meal stays on a day that is filled again: it is the user's own, or it was eaten; null where it gives place. */
-function stayingFor(meal: RerollMeal, asked: RerollAsked): 'custom' | 'eaten' | null {
+/**
+ * Why a meal stays on a day that is filled again: it is the user's own, a
+ * leftover not eaten, which always stays, or it was eaten; null where it gives
+ * place.
+ */
+function stayingFor(meal: RerollMeal, asked: RerollAsked): 'custom' | 'leftover' | 'eaten' | null {
   if (meal.source === 'USER_CUSTOM' && !asked.replaceCustom) return 'custom';
+  if (meal.leftoverFromDate !== null && meal.eatenAt === null) return 'leftover';
   if (meal.eatenAt !== null && !asked.replaceEaten) return 'eaten';
   return null;
 }
@@ -118,7 +125,7 @@ export function rerollOutcome(
   asked: RerollAsked,
   today: string,
 ): Omit<RerollPreview, 'fromToday' | 'cooking'> {
-  const kept = { outside: 0, past: 0, skipped: 0, eaten: 0, custom: 0, locked: 0 };
+  const kept = { outside: 0, past: 0, skipped: 0, eaten: 0, custom: 0, leftover: 0, locked: 0 };
   const couldGo = { past: false, eaten: false, custom: false };
   let changed = 0;
   let replaced = 0;

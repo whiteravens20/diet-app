@@ -450,7 +450,14 @@ export class PlanGenerationService {
             date: true,
             overrides: true,
             meals: {
-              select: { id: true, mealType: true, recipeId: true, source: true, eatenAt: true },
+              select: {
+                id: true,
+                mealType: true,
+                recipeId: true,
+                source: true,
+                eatenAt: true,
+                leftoverFromDate: true,
+              },
             },
           },
         },
