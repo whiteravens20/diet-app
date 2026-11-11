@@ -9,6 +9,12 @@ on:
   pull_request:
     branches: [main, dev]
 
+# A newer push to the same branch or pull request makes an older run of this workflow pointless:
+# that run is cancelled. Never on main, where every run stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: read
 
