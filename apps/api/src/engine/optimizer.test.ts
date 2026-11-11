@@ -879,3 +879,50 @@ describe('the kinds of protein a recipe counts as', () => {
     ).toEqual([]);
   });
 });
+
+describe('a split whose carbohydrate is a ceiling', () => {
+  /** A dish of these grams a serving, its energy worked out from them. */
+  const dish = (
+    id: string,
+    slot: OptimizerRecipe['mealTypes'][number],
+    protein: number,
+    fat: number,
+    carbs: number,
+  ): OptimizerRecipe => ({
+    ...recipe(id, [slot], protein * 4 + fat * 9 + carbs * 4),
+    dietTags: ['low_carb'],
+    proteinPerServing: protein,
+    fatPerServing: fat,
+    carbsPerServing: carbs,
+  });
+  const recipes = [
+    // One breakfast with a fifth of its energy from carbohydrate, three with almost none and the same protein.
+    dish('starchy', 'breakfast', 30, 22, 25),
+    dish('eggs-1', 'breakfast', 30, 32, 3),
+    dish('eggs-2', 'breakfast', 30, 32, 3),
+    dish('eggs-3', 'breakfast', 30, 32, 3),
+    // With either breakfast the day stays inside low-carb's band: a tenth to a fifth from carbohydrate.
+    dish('lunch-1', 'lunch', 40, 35, 22),
+    dish('lunch-2', 'lunch', 40, 35, 22),
+    dish('dinner-1', 'dinner', 40, 35, 22),
+    dish('dinner-2', 'dinner', 40, 35, 22),
+  ];
+  const lowCarb = { protein: 0.3, fat: 0.5, carbs: 0.2 };
+  const starchyDays = (dietType: OptimizerInput['dietType']): number =>
+    optimisePlan({
+      ...baseInput,
+      recipes,
+      days: uniformDays(7, ['breakfast', 'lunch', 'dinner'], 1500),
+      dietType,
+      macroSplit: lowCarb,
+    }).assignments.filter((placed) => placed.recipeId === 'starchy').length;
+
+  it('does not draw a low-carb day up to its carbohydrate: the breakfasts with almost none are taken as often', () => {
+    // The same split as an aim (a custom diet) pulls the days to the starchy breakfast.
+    const asAnAim = starchyDays('custom');
+    const asACeiling = starchyDays('low_carb');
+    expect(asAnAim).toBeGreaterThanOrEqual(4);
+    expect(asACeiling).toBeLessThan(asAnAim);
+    expect(asACeiling).toBeLessThanOrEqual(3);
+  });
+});

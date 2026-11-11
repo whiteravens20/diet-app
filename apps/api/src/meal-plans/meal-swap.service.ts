@@ -29,6 +29,7 @@ import { MEAL_SWAP } from '../ai/operations.js';
 import type { Env } from '../config/env.js';
 import { diaryDays } from '../diary/diary-days.js';
 import {
+  distanceOnDiet,
   energyAway,
   energyShares,
   fitServings,
@@ -36,7 +37,6 @@ import {
   recipeCoverage,
   requirementsPerServing,
   slotBudgets,
-  splitDistance,
   toppingRefusal,
 } from '../engine/index.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
@@ -479,7 +479,8 @@ export class MealSwapService {
         fat: rest.fat + candidate.fatPerServing * factor,
         carbs: rest.carbs + candidate.carbsPerServing * factor,
       });
-      if (!dish || shares === null || splitDistance(shares, aimed) <= MACROS_OFF) continue;
+      if (!dish || shares === null || distanceOnDiet(shares, aimed, ask.eater.diet) <= MACROS_OFF)
+        continue;
       const passing = ask.options
         .filter(
           (option) => toppingRefusal(option.topping, option.food, dish, meal, ask.eater) === null,

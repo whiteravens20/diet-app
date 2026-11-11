@@ -23,7 +23,7 @@ import {
   type RecipeForm,
   type StarchBase,
 } from '@diet-app/shared';
-import { energyShares, MACROS_OFF, splitDistance } from './nutrition.js';
+import { distanceOnDiet, energyShares, MACROS_OFF } from './nutrition.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
 export interface Topping {
@@ -343,7 +343,7 @@ export function bestTopping(
   if (aimed === null || target <= 0) return null;
   const distance = (held: Macros): number => {
     const shares = energyShares(held);
-    return shares === null ? Number.POSITIVE_INFINITY : splitDistance(shares, aimed);
+    return shares === null ? Number.POSITIVE_INFINITY : distanceOnDiet(shares, aimed, eater.diet);
   };
   const off = distance(day) > MACROS_OFF;
   const under = day.calories < target * (1 - REBALANCE_TOLERANCE);

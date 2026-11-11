@@ -140,7 +140,7 @@ describe('the catalogue a prompt shows', () => {
 });
 
 describe('a prompt for a diet', () => {
-  const asked = (dietTags?: ('keto' | 'vegan' | 'custom')[]): string =>
+  const asked = (dietTags?: ('keto' | 'low_carb' | 'vegan' | 'custom')[]): string =>
     buildRecipeGeneratorPrompt({
       targetLocales: ['en', 'pl'],
       targets: { simple: 1, medium: 1, complex: 1 },
@@ -150,12 +150,19 @@ describe('a prompt for a diet', () => {
     });
 
   it('says what a day on that diet aims at, as the planner has it', () => {
-    expect(asked(['keto'])).toContain(
-      'A day on the keto diet aims at about 25 % of its energy from protein, 70 % from fat and 5 % from carbohydrate.',
-    );
     expect(asked(['vegan'])).toContain(
       'A day on the vegan diet aims at about 20 % of its energy from protein, 28 % from fat and 52 % from carbohydrate.',
     );
+  });
+
+  it('says of keto and low-carb that their carbohydrate is a ceiling, as the planner has it', () => {
+    expect(asked(['keto'])).toContain(
+      'A day on the keto diet takes at most 5 % of its energy from carbohydrate and about 25 % from protein, fat carrying the rest; anywhere in that range is as good as its top. Write dishes that keep their own carbohydrate at or under 5 %',
+    );
+    expect(asked(['low_carb'])).toContain(
+      'A day on the low_carb diet takes 10 to 20 % of its energy from carbohydrate and about 30 % from protein, fat carrying the rest',
+    );
+    expect(asked(['low_carb'])).not.toContain('aims at about');
   });
 
   it('says nothing of a split when no diet is asked for, or the one a profile sets for itself', () => {

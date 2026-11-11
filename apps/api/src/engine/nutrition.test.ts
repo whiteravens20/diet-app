@@ -5,8 +5,10 @@ import {
   calculateBmr,
   calculateCalories,
   calculateMaintenance,
+  carbFloor,
   dayMacros,
   deficitForWeeklyTarget,
+  distanceOnDiet,
   effectiveDayTarget,
   energyShares,
   estimatedMacros,
@@ -507,6 +509,62 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
 
   it('is not there for nothing at all', () => {
     expect(energyShares({ protein: 0, fat: 0, carbs: 0 })).toBeNull();
+  });
+
+  it('on low-carb, holds a day from a tenth of its energy from carbohydrate up to its ceiling to its protein alone, and a day under the tenth to the tenth', () => {
+    const lowCarb = macroSplitOf('low_carb');
+    // Inside the band: protein on its share, fat the rest.
+    expect(
+      distanceOnDiet({ protein: 0.3, fat: 0.58, carbs: 0.12 }, lowCarb, 'low_carb'),
+    ).toBeCloseTo(0);
+    expect(
+      distanceOnDiet({ protein: 0.25, fat: 0.63, carbs: 0.12 }, lowCarb, 'low_carb'),
+    ).toBeCloseTo(0.05);
+    // Under the floor, as far as from the split with a tenth from carbohydrate.
+    const eggs = { protein: 0.3, fat: 0.65, carbs: 0.05 };
+    expect(splitDistance(eggs, lowCarb)).toBeCloseTo(0.15);
+    expect(distanceOnDiet(eggs, lowCarb, 'low_carb')).toBeCloseTo(0.05);
+    // Over the ceiling, as far as it always was.
+    const bread = { protein: 0.25, fat: 0.4, carbs: 0.35 };
+    expect(distanceOnDiet(bread, lowCarb, 'low_carb')).toBe(splitDistance(bread, lowCarb));
+    // The distances meet at the ceiling and at the floor.
+    const atTheCeiling = { protein: 0.27, fat: 0.53, carbs: 0.2 };
+    expect(
+      distanceOnDiet({ protein: 0.27, fat: 0.5301, carbs: 0.1999 }, lowCarb, 'low_carb'),
+    ).toBeCloseTo(splitDistance(atTheCeiling, lowCarb), 3);
+    expect(
+      distanceOnDiet({ protein: 0.27, fat: 0.63, carbs: 0.1 }, lowCarb, 'low_carb'),
+    ).toBeCloseTo(0.03);
+    expect(
+      distanceOnDiet({ protein: 0.27, fat: 0.6301, carbs: 0.0999 }, lowCarb, 'low_carb'),
+    ).toBeCloseTo(0.03, 3);
+  });
+
+  it('on keto, holds any day under its carbohydrate to its protein alone', () => {
+    const keto = macroSplitOf('keto');
+    expect(distanceOnDiet({ protein: 0.25, fat: 0.73, carbs: 0.02 }, keto, 'keto')).toBeCloseTo(0);
+    expect(distanceOnDiet({ protein: 0.3, fat: 0.7, carbs: 0 }, keto, 'keto')).toBeCloseTo(0.05);
+    const over = { protein: 0.25, fat: 0.6, carbs: 0.15 };
+    expect(distanceOnDiet(over, keto, 'keto')).toBe(splitDistance(over, keto));
+  });
+
+  it('is the plain distance on every diet whose carbohydrate is an aim', () => {
+    const eggs = { protein: 0.3, fat: 0.65, carbs: 0.05 };
+    for (const diet of [
+      'balanced',
+      'high_protein',
+      'vegetarian',
+      'vegan',
+      'mediterranean',
+      'custom',
+    ] as const) {
+      expect(carbFloor(diet)).toBeNull();
+      expect(distanceOnDiet(eggs, macroSplitOf(diet), diet)).toBe(
+        splitDistance(eggs, macroSplitOf(diet)),
+      );
+    }
+    expect(carbFloor('low_carb')).toBe(0.1);
+    expect(carbFloor('keto')).toBe(0);
   });
 
   it('is as far from another as the share of energy that would have to move', () => {

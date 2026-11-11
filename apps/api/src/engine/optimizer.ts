@@ -41,7 +41,7 @@ import {
   type ProteinKind,
   type Unit,
 } from '@diet-app/shared';
-import { energyShares, splitDistance } from './nutrition.js';
+import { distanceOnDiet, energyShares } from './nutrition.js';
 import { packPull } from './packs.js';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
@@ -691,6 +691,7 @@ function fill(
             heldOf,
             dayMacros,
             macroSplit: (spec.macroAim && energyShares(spec.macroAim)) ?? input.macroSplit,
+            dietType: input.dietType,
             weights,
             mealPrepFriendly: input.mealPrepFriendly,
             favoriteIngredientIds: input.favoriteIngredientIds,
@@ -871,6 +872,8 @@ interface PickContext {
   /** What the meals of the day hold so far, in grams. */
   dayMacros: Macros;
   macroSplit?: Macros;
+  /** The plan's diet, by which a day is near its split or not (`distanceOnDiet`). */
+  dietType: DietType;
   weights: ScoreWeights;
   mealPrepFriendly: boolean;
   favoriteIngredientIds?: ReadonlySet<string>;
@@ -1005,14 +1008,16 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
 
 /**
  * How near the day would be to the split it aims at with this meal on it,
- * from 1 (on it) down to 0 (`MACRO_REACH` away or further). It looks at the
- * day so far and the meal together, so a meal can make up for the ones before
- * it. Nothing where the plan aims at no split.
+ * from 1 (on it) down to 0 (`MACRO_REACH` away or further), as its diet
+ * measures it: on a diet whose carbohydrate is a ceiling, a day under it is
+ * near by its protein alone. It looks at the day so far and the meal
+ * together, so a meal can make up for the ones before it. Nothing where the
+ * plan aims at no split.
  */
 function macroFit(
   recipe: OptimizerRecipe,
   servings: number,
-  ctx: Pick<PickContext, 'dayMacros' | 'macroSplit'>,
+  ctx: Pick<PickContext, 'dayMacros' | 'macroSplit' | 'dietType'>,
 ): number {
   if (!ctx.macroSplit) return 0;
   const shares = energyShares({
@@ -1020,7 +1025,9 @@ function macroFit(
     fat: ctx.dayMacros.fat + recipe.fatPerServing * servings,
     carbs: ctx.dayMacros.carbs + recipe.carbsPerServing * servings,
   });
-  return shares ? 1 - Math.min(1, splitDistance(shares, ctx.macroSplit) / MACRO_REACH) : 0;
+  return shares
+    ? 1 - Math.min(1, distanceOnDiet(shares, ctx.macroSplit, ctx.dietType) / MACRO_REACH)
+    : 0;
 }
 
 /**

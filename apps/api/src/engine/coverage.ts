@@ -19,7 +19,7 @@ import {
   type Macros,
   type Supply,
 } from '@diet-app/shared';
-import { energyShares, macroSplitOf, splitDistance } from './nutrition.js';
+import { distanceOnDiet, energyShares, macroSplitOf } from './nutrition.js';
 import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from './optimizer.js';
 import { packUse } from './packs.js';
 
@@ -202,7 +202,7 @@ export function macroReachByDiet(
           sum.protein += shares.protein;
           sum.fat += shares.fat;
           sum.carbs += shares.carbs;
-          sum.distance += splitDistance(shares, split);
+          sum.distance += distanceOnDiet(shares, split, diet);
         }
       }
     } catch (err) {

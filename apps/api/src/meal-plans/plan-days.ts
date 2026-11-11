@@ -5,11 +5,11 @@ import type { DietType, LabelTotals, Macros, MealType } from '@diet-app/shared';
 import { storedSplit } from '../common/stored-split.js';
 import {
   dayMacros,
+  distanceOnDiet,
   energyShares,
   MACROS_OFF,
   macroSplitOf,
   sharesOf,
-  splitDistance,
 } from '../engine/nutrition.js';
 import { roundLabel, scaleLabel, storedTotals, UNKNOWN_LABEL } from '../engine/label-totals.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
@@ -197,7 +197,8 @@ export function standingOf(
 
 /**
  * What a day of a plan holds of protein, fat and carbohydrate is far from what
- * it aims at: `aim`, the grams of a day (`aimOfDay`), or else the plan's split.
+ * it aims at: `aim`, the grams of a day (`aimOfDay`), or else the plan's split,
+ * as the plan's diet measures it (`distanceOnDiet`).
  */
 export function macrosOff(
   held: Macros,
@@ -208,7 +209,7 @@ export function macrosOff(
   const split =
     (aim && energyShares(aim)) ??
     macroSplitOf(plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
-  return shares !== null && splitDistance(shares, split) > MACROS_OFF;
+  return shares !== null && distanceOnDiet(shares, split, plan.dietType) > MACROS_OFF;
 }
 
 /** What a day of a plan holds on average, over the days that are not skipped. */

@@ -42,10 +42,12 @@ export const KCAL_PER_KG_FAT = 7700;
  * Macro split per diet type, as fractions of total daily calories.
  * Order: protein / fat / carbs. Each row sums to 1.0.
  *
- * The low-carbohydrate day takes a fifth of its energy from carbohydrate:
- * inside what the nutrition literature calls low-carbohydrate (under 26 %)
- * with room on both sides, and above what it calls ketogenic (under 10 %).
- * Its protein stays inside the 10 to 35 % the reference intakes give for
+ * The low-carbohydrate day takes a tenth to a fifth of its energy from
+ * carbohydrate: inside what the nutrition literature calls low-carbohydrate
+ * (under 26 %), and above what it calls ketogenic (under 10 %). The ketogenic
+ * day takes at most a twentieth. For both the share is a ceiling
+ * (`carbFloor`), and a day under it, and over low-carb's floor, is held to
+ * its protein alone. Protein stays inside the 10 to 35 % the reference intakes give for
  * protein, and fat carries the rest. The high-protein day stands at the top
  * of that range and no higher.
  */
@@ -147,6 +149,34 @@ export function splitDistance(a: Macros, b: Macros): number {
   return (
     (Math.abs(a.protein - b.protein) + Math.abs(a.fat - b.fat) + Math.abs(a.carbs - b.carbs)) / 2
   );
+}
+
+/**
+ * The diets whose share of carbohydrate is a ceiling and not an aim, each with
+ * the floor under which its day is held to that floor: a low-carbohydrate day
+ * from a tenth of its energy up to its ceiling, under which the literature
+ * calls it ketogenic, and a ketogenic one anywhere under its ceiling. Inside
+ * that band a day is held to its protein, fat taking what is left.
+ */
+const CARB_FLOOR: Readonly<Partial<Record<string, number>>> = { low_carb: 0.1, keto: 0 };
+
+/** The floor of a diet whose share of carbohydrate is a ceiling (`CARB_FLOOR`), null where the share is an aim. */
+export const carbFloor = (dietType: string): number | null => CARB_FLOOR[dietType] ?? null;
+
+/**
+ * How far a day's shares stand from the split it aims at on its diet: as
+ * `splitDistance` has it, except that on a diet whose carbohydrate is a
+ * ceiling a day under it is measured against the split with its own share of
+ * carbohydrate, or with the floor's where it is under the floor
+ * (`CARB_FLOOR`), fat taking the rest. Inside the band that is as far off as
+ * its protein is; the distances meet at the ceiling and at the floor, so a day
+ * moving across either moves no step.
+ */
+export function distanceOnDiet(shares: Macros, aim: Macros, dietType: string): number {
+  const floor = carbFloor(dietType);
+  if (floor === null || shares.carbs >= aim.carbs) return splitDistance(shares, aim);
+  const carbs = Math.max(shares.carbs, Math.min(floor, aim.carbs));
+  return splitDistance(shares, { protein: aim.protein, fat: 1 - aim.protein - carbs, carbs });
 }
 
 /** Split a calorie target into target macros (grams) for a diet type; `own` is the split of the custom diet. */

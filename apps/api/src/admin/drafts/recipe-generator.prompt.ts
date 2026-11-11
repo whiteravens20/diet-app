@@ -20,11 +20,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locale, MealType, DietType, Complexity, CookingMethod } from '@diet-app/shared';
-import { macroSplitOf } from '../../engine/nutrition.js';
+import { carbFloor, macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v11';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v12';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -244,8 +244,18 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
     if (diet === 'custom') continue;
     const aim = macroSplitOf(diet);
     const percent = (share: number): number => Math.round(share * 100);
+    // Where carbohydrate is a ceiling, a day under it (and over its floor) is as near its aim as one at it.
+    const floor = carbFloor(diet);
+    const carbohydrate =
+      floor === null
+        ? null
+        : floor > 0
+          ? `takes ${percent(floor)} to ${percent(aim.carbs)} % of its energy from carbohydrate`
+          : `takes at most ${percent(aim.carbs)} % of its energy from carbohydrate`;
     constraints.push(
-      `- A day on the ${diet} diet aims at about ${percent(aim.protein)} % of its energy from protein, ${percent(aim.fat)} % from fat and ${percent(aim.carbs)} % from carbohydrate. Write dishes whose own energy is split near that; the engine works a dish's split out from your ingredient list.`,
+      carbohydrate
+        ? `- A day on the ${diet} diet ${carbohydrate} and about ${percent(aim.protein)} % from protein, fat carrying the rest; anywhere in that range is as good as its top. Write dishes that keep their own carbohydrate at or under ${percent(aim.carbs)} %, with that protein; the engine works a dish's split out from your ingredient list.`
+        : `- A day on the ${diet} diet aims at about ${percent(aim.protein)} % of its energy from protein, ${percent(aim.fat)} % from fat and ${percent(aim.carbs)} % from carbohydrate. Write dishes whose own energy is split near that; the engine works a dish's split out from your ingredient list.`,
     );
   }
   if (input.mealTypes && input.mealTypes.length > 0) {
