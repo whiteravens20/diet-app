@@ -221,6 +221,18 @@ const ASKS: Ask[] = [
   ],
   ['take a meal off its day', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}`],
   [
+    'see where what is left of a meal can go',
+    'get',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/leftover`,
+  ],
+  [
+    'carry what is left of a meal to the next day',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/leftover`,
+    () => ({ mealType: 'lunch', left: 1 }),
+  ],
+  ['undo a leftover', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/leftover`],
+  [
     'say how a shared meal is cooked',
     'patch',
     (ids) => `/api/meal-plans/${ids.plan}/shared-meals/${ids.sharedMeal}`,

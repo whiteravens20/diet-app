@@ -428,6 +428,27 @@ export const PlannedMeal = z.object({
    * for a meal of this plan alone.
    */
   shared: SharedMealOf.nullable(),
+  /**
+   * A leftover: what was left of the meal at `mealType` on `date`, eaten here
+   * in the place of the dish planned. It is cooked and bought already, so it is
+   * never resized, changed, cooked or put on a list. `undoable` while it is not
+   * eaten: undoing it brings back the dish it replaced and the meal it was left
+   * of. Null for every other meal.
+   */
+  leftover: z
+    .object({ date: z.string().date(), mealType: MealType, undoable: z.boolean() })
+    .nullable(),
+  /** Where what was left of this meal is eaten, a leftover. Null where nothing of it was carried. */
+  carriedTo: z.object({ date: z.string().date(), mealType: MealType }).nullable(),
+  /**
+   * Whether what is left of this meal can be put in as a meal of the next day:
+   * null where it cannot be at all (a meal of one's own, a leftover itself, a
+   * meal whose rest was carried already, a meal of a day other than today or
+   * yesterday); `ok`, or why the next day cannot take it: no plan holds it
+   * (`no_day`), it is skipped (`skipped`), or each of its meals is eaten or a
+   * leftover (`no_meal`).
+   */
+  leftoverOffer: z.enum(['ok', 'no_day', 'skipped', 'no_meal']).nullable(),
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
@@ -1549,6 +1570,84 @@ export type RemoveMealQuery = z.infer<typeof RemoveMealQuery>;
 /** How a shared meal is cooked: `apart`, each portion on its own, or in one pot split by weight. */
 export const SetSharedMealRequest = z.object({ apart: z.boolean() });
 export type SetSharedMealRequest = z.infer<typeof SetSharedMealRequest>;
+
+/** A portion of a meal: its servings as eaten (servings times the rebalancer's multiplier) and its kcal. */
+const Portion = z.object({ servings: z.number(), calories: z.number() });
+
+/** A meal of the next day that a leftover may take the place of. */
+const LeftoverPlace = z.object({
+  mealType: MealType,
+  /** What the meal holds now: the dish, or the name of a meal of one's own. */
+  name: z.string(),
+  calories: z.number(),
+  /** The other person of a joint plan shares it: given a leftover for one, it stays theirs alone. Null otherwise. */
+  sharedWith: z.string().nullable(),
+  /** The meal's cooking ahead, as the plan says it (`PlannedMeal.cookAhead`): what follows for its other meals when it leaves it. */
+  cookAhead: z.enum(['cook', 'cooked']).nullable(),
+  /** The other meals of that cooking. Empty where `cookAhead` is null. */
+  cookedWith: z.array(OtherMealOfCooking),
+});
+
+/**
+ * Where what is left of a meal can go, as `GET /meal-plans/:id/meals/:mealId/leftover`
+ * answers: the next day, in the plan of the person made last that holds it, and
+ * the meals of it a leftover may take the place of. Nothing is written.
+ */
+export const LeftoverOffer = z.object({
+  planId: z.string().uuid(),
+  date: z.string().date(),
+  /** The whole portion of the meal it is left of. */
+  portion: Portion,
+  places: z.array(LeftoverPlace),
+  /**
+   * Of a shared meal, the other person's side, for a leftover for both: their
+   * portion, whether they marked it eaten, and the times of day of their next
+   * day a leftover may take. Null for a meal of one plan, and where their next
+   * day is in no plan or is skipped.
+   */
+  other: z
+    .object({
+      profileName: z.string(),
+      eaten: z.boolean(),
+      portion: Portion,
+      places: z.array(MealType),
+    })
+    .nullable(),
+});
+export type LeftoverOffer = z.infer<typeof LeftoverOffer>;
+
+/**
+ * Put what is left of a meal in as a meal of the next day, in the place of the
+ * dish at `mealType`. `left` is the part of the portion left: 1 where nothing
+ * was eaten, and the meal then leaves its day; less, and the meal stays marked
+ * eaten with the part eaten. `forAll`, of a shared meal, does the same with the
+ * other person's portion, of which `theirLeft` is left, and the two leftovers
+ * are shared as well.
+ */
+export const PutLeftoverRequest = z
+  .object({
+    mealType: MealType,
+    left: z.number().gt(0).max(1),
+    forAll: z.boolean().default(false),
+    theirLeft: z.number().gt(0).max(1).optional(),
+  })
+  .refine((request) => !request.forAll || request.theirLeft !== undefined, {
+    message: 'A leftover for both says what the other person has left.',
+    path: ['theirLeft'],
+  });
+export type PutLeftoverRequest = z.infer<typeof PutLeftoverRequest>;
+
+/**
+ * Undoing a leftover: `forAll`, of a leftover made for both, undoes the other
+ * person's as well, where they have not eaten it.
+ */
+export const UndoLeftoverQuery = z.object({
+  forAll: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+export type UndoLeftoverQuery = z.infer<typeof UndoLeftoverQuery>;
 
 /**
  * Envelope returned by every edit that may rebalance (swap, custom-add,

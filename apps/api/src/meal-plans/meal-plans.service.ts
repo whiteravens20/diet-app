@@ -47,6 +47,15 @@ import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
+import {
+  dateAfter,
+  givesALeftover,
+  leftoverDays,
+  leftoverOfferOf,
+  nextDayOf,
+  nextDaysOf,
+  type NextDay,
+} from './leftovers.js';
 import { shownReport, StoredReport, withMealOutside } from './generation-report.js';
 import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
@@ -270,14 +279,38 @@ export class MealPlansService {
     });
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const [restrictions, diary, lists] = await Promise.all([
+    const today = clientToday ?? this.today();
+    // Where what is left of a meal of yesterday or today would go: the day after it, this plan's
+    // where it holds that day, otherwise that of the plan made last that holds it, asked only
+    // where a meal could give one. Where a plan made later holds the day too, the leftover goes
+    // to that one, which the window asks before anything is put there.
+    const { to } = leftoverDays(today);
+    const ownNext = new Map(
+      plan.days
+        .filter((day) => to.includes(isoDate(day.date)))
+        .map((day) => [isoDate(day.date), nextDayOf(day)] as const),
+    );
+    const elsewhere = to.filter(
+      (date) =>
+        !ownNext.has(date) &&
+        plan.days.some(
+          (day) =>
+            dateAfter(isoDate(day.date)) === date &&
+            day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
+        ),
+    );
+    const [restrictions, diary, lists, nextElsewhere] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
       this.prisma.shoppingList.findMany({
         where: { planId },
         select: { fromDate: true, toDate: true },
       }),
+      elsewhere.length > 0
+        ? nextDaysOf(this.prisma, plan.profileId, elsewhere)
+        : new Map<string, NextDay>(),
     ]);
+    const nextDays = new Map([...nextElsewhere, ...ownNext]);
     // The entries themselves are read only for a plan whose days hold any.
     const written =
       diary.size > 0
@@ -285,15 +318,7 @@ export class MealPlansService {
         : new Map<string, DiaryEntry[]>();
     return {
       plan,
-      dto: this.toDto(
-        plan,
-        locale,
-        restrictions,
-        diary,
-        written,
-        lists,
-        clientToday ?? this.today(),
-      ),
+      dto: this.toDto(plan, locale, restrictions, diary, written, lists, today, nextDays),
     };
   }
 
@@ -1199,6 +1224,8 @@ export class MealPlansService {
     lists: readonly { fromDate: Date; toDate: Date }[],
     /** The day it is for the client: what its weeks can still change starts there. */
     today: string,
+    /** The days after today's and yesterday's, in the plans that hold them, for the leftovers of those days. */
+    nextDays: ReadonlyMap<string, NextDay>,
   ): MealPlan {
     const listed = (date: Date): boolean =>
       lists.some((list) => list.fromDate <= date && date <= list.toDate);
@@ -1275,6 +1302,9 @@ export class MealPlansService {
             nutrition: mealNutrition(m),
             label: mealLabel(m),
             shared: null,
+            leftover: null,
+            carriedTo: null,
+            leftoverOffer: null,
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
@@ -1310,6 +1340,21 @@ export class MealPlansService {
           nutrition: mealNutrition(m),
           label: mealLabel(m),
           shared: null,
+          leftover: m.leftoverFromDate
+            ? {
+                date: isoDate(m.leftoverFromDate),
+                mealType: m.leftoverFromMealType as MealType,
+                undoable: m.eatenAt === null && m.leftoverUndo !== null,
+              }
+            : null,
+          // A leftover is always eaten the day after the meal it was left of.
+          carriedTo: m.givenLeftoverId
+            ? {
+                date: dateAfter(isoDate(day.date)),
+                mealType: m.carriedToMealType as MealType,
+              }
+            : null,
+          leftoverOffer: leftoverOfferOf(m, isoDate(day.date), today, nextDays),
         };
       });
       // What the diary holds for the day is eaten, beside the meals.
@@ -1458,6 +1503,12 @@ interface PlanWithRelations {
       modelPicked: boolean;
       modelReason: string | null;
       sharedMealId: string | null;
+      recipeId: string | null;
+      leftoverFromDate: Date | null;
+      leftoverFromMealType: string | null;
+      leftoverUndo: unknown;
+      givenLeftoverId: string | null;
+      carriedToMealType: string | null;
       recipe:
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
@@ -1639,6 +1690,7 @@ export type RebalanceMealRow = {
   source: 'CATALOGUE' | 'USER_CUSTOM';
   customMacros: unknown;
   eatenAt: Date | null;
+  leftoverFromDate: Date | null;
   servings: number;
   quantityScale: number;
   recipe: {
@@ -1664,8 +1716,8 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
     per,
     servings: m.servings,
     quantityScale: m.quantityScale,
-    // Pinned out of the rebalance set: user-owned custom macros or already eaten.
-    locked: m.source === 'USER_CUSTOM' || m.eatenAt != null,
+    // Pinned out of the rebalance set: user-owned custom macros, already eaten, or a leftover, which is food there is.
+    locked: m.source === 'USER_CUSTOM' || m.eatenAt != null || m.leftoverFromDate != null,
   };
 }
 

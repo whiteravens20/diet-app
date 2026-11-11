@@ -1058,6 +1058,21 @@ model PlannedMeal {
   // plan alone, and once the link is undone for that day.
   shared       SharedMeal? @relation(fields: [sharedMealId], references: [id], onDelete: SetNull)
   sharedMealId String?
+  // A leftover: what was left of the meal at this time of day of the day
+  // before, eaten here in the place of the dish planned. It is cooked and
+  // bought already, so it is never resized, changed, cooked or put on a list.
+  // Both null for every other meal.
+  leftoverFromDate     DateTime? @db.Date
+  leftoverFromMealType String?
+  // What undoing the leftover brings back: the meal it took the place of and
+  // the meal it was left of, as they were. Null for every other meal.
+  leftoverUndo Json?
+  // Of a meal eaten in part whose rest is a leftover: that leftover, eaten
+  // the next day at `carriedToMealType`, while it is there. A meal gives one.
+  givenLeftover     PlannedMeal? @relation("Leftover", fields: [givenLeftoverId], references: [id], onDelete: SetNull)
+  givenLeftoverId   String?      @unique
+  givenBy           PlannedMeal? @relation("Leftover")
+  carriedToMealType String?
 
   @@index([dayId])
   @@index([sharedMealId])

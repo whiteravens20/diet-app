@@ -366,6 +366,16 @@ export class AccountExportService {
             // A meal both plans of a joint plan hold: the other's meal has the same id here, and it is cooked apart or in one pot.
             sharedMealId: meal.sharedMealId,
             cookedApart: meal.shared?.apart ?? null,
+            // A meal eaten in part whose rest is a leftover, eaten the next day at that time of day.
+            restCarriedTo: meal.givenLeftoverId ? meal.carriedToMealType : null,
+            // A leftover: what was left of the meal at that day and time of day, and what undoing it would bring back.
+            leftoverOf: meal.leftoverFromDate
+              ? {
+                  date: isoDate(meal.leftoverFromDate),
+                  mealType: meal.leftoverFromMealType,
+                  undo: meal.leftoverUndo,
+                }
+              : null,
           })),
         })),
         shoppingLists: plan.shoppingLists.map((shopping) => ({

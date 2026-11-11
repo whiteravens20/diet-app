@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 189 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 197 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -89,10 +89,17 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `INVALID_VERIFICATION_TOKEN` | 400 | This confirmation link is invalid or has expired. | Ten link potwierdzający jest nieprawidłowy lub wygasł. |
 | `INVENTORY_ITEM_NOT_FOUND` | 404 | Inventory item not found. | Nie znaleziono pozycji w spiżarni. |
 | `ITEM_NOT_FOUND` | 404 | Shopping list item not found. | Nie znaleziono pozycji listy zakupów. |
+| `LEFTOVER_CARRIED` | 409 | What was left of this meal is carried over already. | Resztka tego posiłku jest już przeniesiona. |
+| `LEFTOVER_DAY` | 409 | Only a meal of today or yesterday gives a leftover. | Resztkę przeniesiesz z dzisiejszego albo wczorajszego posiłku. |
+| `LEFTOVER_DAY_SKIPPED` | 409 | The next day is skipped: it has no meal for the leftover. | Następny dzień jest pominięty: nie ma w nim posiłku dla resztki. |
+| `LEFTOVER_NO_DAY` | 409 | No plan of this person holds the next day. | Następnego dnia nie ma w żadnym planie tej osoby. |
+| `LEFTOVER_NO_PLACE` | 409 | The next day has no meal at that time a leftover can take the place of: it is eaten or a leftover itself. | Następny dzień nie ma o tej porze posiłku, który resztka może zastąpić: jest zjedzony albo sam jest resztką. |
+| `LEFTOVER_OWN_MEAL` | 400 | Only a dish made from a recipe gives a leftover. | Resztkę przeniesiesz tylko z dania z przepisu. |
 | `LIST_NOT_FOUND` | 404 | Shopping list not found. | Nie znaleziono listy zakupów. |
 | `LOCALE_NOT_IN_DRAFT` | 400 | This draft wasn't generated for that locale. | Ten szkic nie został przygotowany w wybranym języku. |
 | `LOCKED_RECIPE_INELIGIBLE` | 400 | A locked recipe can't go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out. | Przypiętego przepisu nie można dodać do tego planu: jest niedostępny albo wyklucza go dieta, alergeny, pomijane składniki lub oznaczenie do unikania. |
 | `MEAL_EATEN` | 409 | This meal is marked as eaten and can't be changed. Unmark it first. | Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie. |
+| `MEAL_IS_LEFTOVER` | 409 | This is a leftover, already cooked: it can't be changed or carried on. You can undo the move or remove it from the day. | To resztka, już ugotowana: nie zmienisz jej ani nie przeniesiesz dalej. Możesz cofnąć przeniesienie albo usunąć ją z dnia. |
 | `MEAL_NOT_EATEN_YET` | 409 | A meal of a day still to come cannot be marked as eaten. | Posiłku z dnia, który dopiero nadejdzie, nie można oznaczyć jako zjedzonego. |
 | `MEAL_NOT_FOUND` | 404 | Meal not found in this plan. | Nie znaleziono posiłku w tym planie. |
 | `MEAL_NOT_REBALANCEABLE` | 400 | Custom and eaten meals are never rebalanced. | Własne i zjedzone posiłki nie są przeliczane. |
@@ -102,6 +109,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `NOTHING_TO_REGENERATE` | 409 | Every one of those days is before today or skipped. Days in the past are made again only when you say so, and skipped days stay as they are. | Wszystkie te dni już minęły albo są pominięte. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz, a pominięte zostają bez zmian. |
 | `NOTHING_TO_UNDO` | 409 | There is no swap of this plan to take back. | Nie ma już zamiany, którą można cofnąć. |
 | `NOTIFICATION_NOT_FOUND` | 404 | Notification not found. | Nie znaleziono powiadomienia. |
+| `NOT_A_LEFTOVER` | 409 | This meal is not a leftover. | Ten posiłek nie jest resztką. |
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |
 | `NO_APPROVED_DRAFTS` | 409 | There are no approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |

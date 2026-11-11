@@ -7,6 +7,7 @@ import { RecipesModule } from '../recipes/recipes.module.js';
 import { DaySettingsService } from './day-settings.service.js';
 import { DayVariationsService } from './day-variations.service.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
+import { LeftoversService } from './leftovers.service.js';
 import { MealPlansController } from './meal-plans.controller.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
@@ -28,6 +29,7 @@ import { UseUpService } from './use-up.service.js';
     UseUpService,
     DayVariationsService,
     DaySettingsService,
+    LeftoversService,
   ],
   exports: [MealPlansService, PlanGenerationService, IngredientSwapService],
 })

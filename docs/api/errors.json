@@ -729,6 +729,60 @@
       "pl": "Nie znaleziono pozycji listy zakupów."
     }
   },
+  "LEFTOVER_CARRIED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "What was left of this meal is carried over already.",
+      "pl": "Resztka tego posiłku jest już przeniesiona."
+    }
+  },
+  "LEFTOVER_DAY": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Only a meal of today or yesterday gives a leftover.",
+      "pl": "Resztkę przeniesiesz z dzisiejszego albo wczorajszego posiłku."
+    }
+  },
+  "LEFTOVER_DAY_SKIPPED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The next day is skipped: it has no meal for the leftover.",
+      "pl": "Następny dzień jest pominięty: nie ma w nim posiłku dla resztki."
+    }
+  },
+  "LEFTOVER_NO_DAY": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "No plan of this person holds the next day.",
+      "pl": "Następnego dnia nie ma w żadnym planie tej osoby."
+    }
+  },
+  "LEFTOVER_NO_PLACE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The next day has no meal at that time a leftover can take the place of: it is eaten or a leftover itself.",
+      "pl": "Następny dzień nie ma o tej porze posiłku, który resztka może zastąpić: jest zjedzony albo sam jest resztką."
+    }
+  },
+  "LEFTOVER_OWN_MEAL": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Only a dish made from a recipe gives a leftover.",
+      "pl": "Resztkę przeniesiesz tylko z dania z przepisu."
+    }
+  },
   "LIST_NOT_FOUND": {
     "statuses": [
       404
@@ -763,6 +817,15 @@
     "messages": {
       "en": "This meal is marked as eaten and can't be changed. Unmark it first.",
       "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
+    }
+  },
+  "MEAL_IS_LEFTOVER": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This is a leftover, already cooked: it can't be changed or carried on. You can undo the move or remove it from the day.",
+      "pl": "To resztka, już ugotowana: nie zmienisz jej ani nie przeniesiesz dalej. Możesz cofnąć przeniesienie albo usunąć ją z dnia."
     }
   },
   "MEAL_NOT_EATEN_YET": {
@@ -844,6 +907,15 @@
     "messages": {
       "en": "Notification not found.",
       "pl": "Nie znaleziono powiadomienia."
+    }
+  },
+  "NOT_A_LEFTOVER": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This meal is not a leftover.",
+      "pl": "Ten posiłek nie jest resztką."
     }
   },
   "NOT_FOUND": {

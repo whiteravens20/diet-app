@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-220 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+223 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -198,6 +198,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/:id/days/:dayId/variations/take` | an account | Fill a day the way it was offered. | `TakeDayVariationRequest` | 200 `MealPlan` | 20 in a minute |
 | `DELETE /api/meal-plans/:id/meals/:mealId` | an account | Take a meal off its day, whichever it is (rebalances the day). | query `RemoveMealQuery` | 200 `RebalanceResult` |  |
 | `PATCH /api/meal-plans/:id/meals/:mealId/eaten` | an account | Mark a planned meal eaten or not eaten (rebalances the day). | `SetMealEatenRequest` | 200 `RebalanceResult` |  |
+| `GET /api/meal-plans/:id/meals/:mealId/leftover` | an account | Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace. |  | 200 `LeftoverOffer` | 60 in a minute |
+| `POST /api/meal-plans/:id/meals/:mealId/leftover` | an account | Put what is left of a meal in as a meal of the next day, in the place of the dish at a time of day (rebalances both days). | `PutLeftoverRequest` | 200 `RebalanceResult` | 60 in a minute |
+| `DELETE /api/meal-plans/:id/meals/:mealId/leftover` | an account | Undo a leftover not eaten: the dish it replaced and the meal it was left of come back (rebalances both days). | query `UndoLeftoverQuery` | 200 `RebalanceResult` | 60 in a minute |
 | `GET /api/meal-plans/:id/meals/:mealId/substitutes` | an account | The substitutes the catalogue's own rules name for the ingredients of a planned meal. |  | 200 a list of `SubstituteSuggestion` |  |
 | `POST /api/meal-plans/:id/rebalance` | an account | Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. | `RebalanceRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/regenerate` | an account | Make a plan again, or the days of it that the request names. | `RegenerateRequest` | 201 `MealPlan` | 20 in a minute |

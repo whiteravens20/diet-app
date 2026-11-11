@@ -5766,6 +5766,243 @@
         }
       }
     },
+    "/api/meal-plans/{id}/meals/{mealId}/leftover": {
+      "get": {
+        "operationId": "MealPlans_leftoverOffer",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace.",
+        "description": "Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeftoverOffer"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      },
+      "post": {
+        "operationId": "MealPlans_putLeftover",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Put what is left of a meal in as a meal of the next day, in the place of the dish at a time of day (rebalances both days).",
+        "description": "Put what is left of a meal in as a meal of the next day, in the place of the dish at a time of day (rebalances both days).\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutLeftoverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebalanceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      },
+      "delete": {
+        "operationId": "MealPlans_undoLeftover",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Undo a leftover not eaten: the dish it replaced and the meal it was left of come back (rebalances both days).",
+        "description": "Undo a leftover not eaten: the dish it replaced and the meal it was left of come back (rebalances both days).\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "forAll",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebalanceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}/substitutes": {
       "get": {
         "operationId": "MealPlans_substitutes",
@@ -16484,6 +16721,165 @@
         ],
         "additionalProperties": false
       },
+      "LeftoverOffer": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "portion": {
+            "type": "object",
+            "properties": {
+              "servings": {
+                "type": "number"
+              },
+              "calories": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "servings",
+              "calories"
+            ],
+            "additionalProperties": false
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mealType": {
+                  "$ref": "#/components/schemas/MealType"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "calories": {
+                  "type": "number"
+                },
+                "sharedWith": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cookAhead": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "cook",
+                        "cooked"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cookedWith": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "mealId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "date": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "mealType": {
+                        "$ref": "#/components/schemas/MealType"
+                      },
+                      "eaten": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "mealId",
+                      "date",
+                      "mealType",
+                      "eaten"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "mealType",
+                "name",
+                "calories",
+                "sharedWith",
+                "cookAhead",
+                "cookedWith"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "other": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "profileName": {
+                    "type": "string"
+                  },
+                  "eaten": {
+                    "type": "boolean"
+                  },
+                  "portion": {
+                    "type": "object",
+                    "properties": {
+                      "servings": {
+                        "type": "number"
+                      },
+                      "calories": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "servings",
+                      "calories"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "places": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/MealType"
+                    }
+                  }
+                },
+                "required": [
+                  "profileName",
+                  "eaten",
+                  "portion",
+                  "places"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "planId",
+          "date",
+          "portion",
+          "places",
+          "other"
+        ],
+        "additionalProperties": false
+      },
       "LessWasteEffect": {
         "type": "object",
         "properties": {
@@ -19366,6 +19762,74 @@
                 "type": "null"
               }
             ]
+          },
+          "leftover": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "mealType": {
+                    "$ref": "#/components/schemas/MealType"
+                  },
+                  "undoable": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "date",
+                  "mealType",
+                  "undoable"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "carriedTo": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "mealType": {
+                    "$ref": "#/components/schemas/MealType"
+                  }
+                },
+                "required": [
+                  "date",
+                  "mealType"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "leftoverOffer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "no_day",
+                  "skipped",
+                  "no_meal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -19387,7 +19851,10 @@
           "cooking",
           "nutrition",
           "label",
-          "shared"
+          "shared",
+          "leftover",
+          "carriedTo",
+          "leftoverOffer"
         ],
         "additionalProperties": false
       },
@@ -21259,6 +21726,32 @@
           "plans"
         ],
         "additionalProperties": false
+      },
+      "PutLeftoverRequest": {
+        "type": "object",
+        "properties": {
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "left": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "forAll": {
+            "default": false,
+            "type": "boolean"
+          },
+          "theirLeft": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "mealType",
+          "left"
+        ]
       },
       "QueuedPolicyReports": {
         "maxItems": 100,

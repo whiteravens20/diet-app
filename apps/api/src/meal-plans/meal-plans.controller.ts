@@ -28,6 +28,7 @@ import {
   RetargetPlanRequest,
   DayVariations,
   GeneratePlanRequest,
+  LeftoverOffer,
   MealPlan,
   MealPlanPage,
   MealSwapPreview,
@@ -36,6 +37,7 @@ import {
   PlanListQuery,
   PlanOverviewAnswer,
   PlanOverviewQuery,
+  PutLeftoverRequest,
   RebalanceRequest,
   RebalanceResult,
   RegenerateDayRequest,
@@ -50,6 +52,7 @@ import {
   SwapMealRequest,
   SwapPreview,
   TakeDayVariationRequest,
+  UndoLeftoverQuery,
   UndoSwapRequest,
   UseUpSuggestions,
   WeighRequest,
@@ -66,6 +69,7 @@ import { CountsAs } from '../rate-limit/request-weight.js';
 import { DaySettingsService } from './day-settings.service.js';
 import { DayVariationsService } from './day-variations.service.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
+import { LeftoversService } from './leftovers.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanCalendarService } from './plan-calendar.service.js';
@@ -86,6 +90,7 @@ export class MealPlansController {
     private readonly useUp: UseUpService,
     private readonly variations: DayVariationsService,
     private readonly settings: DaySettingsService,
+    private readonly leftovers: LeftoversService,
   ) {}
 
   /** The plans of a profile, a page at a time, narrowed by their days and by whether they are over. */
@@ -435,6 +440,51 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today, dto.forAll);
+  }
+
+  /** Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace. */
+  @Get(':id/meals/:mealId/leftover')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(LeftoverOffer)
+  leftoverOffer(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.leftovers.offer(user.id, locale, id, mealId, today);
+  }
+
+  /** Put what is left of a meal in as a meal of the next day, in the place of the dish at a time of day (rebalances both days). */
+  @Post(':id/meals/:mealId/leftover')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RebalanceResult)
+  putLeftover(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @Body(new ZodValidationPipe(PutLeftoverRequest)) dto: PutLeftoverRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.leftovers.put(user.id, locale, id, mealId, dto, today);
+  }
+
+  /** Undo a leftover not eaten: the dish it replaced and the meal it was left of come back (rebalances both days). */
+  @Delete(':id/meals/:mealId/leftover')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RebalanceResult)
+  undoLeftover(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @Query(new ZodValidationPipe(UndoLeftoverQuery)) query: UndoLeftoverQuery,
+    @ClientDate() today: string | null,
+  ) {
+    return this.leftovers.undo(user.id, locale, id, mealId, query.forAll === true, today);
   }
 
   /** Say how a meal the plan shares with its joint plan is cooked: each portion apart, or in one pot. */
