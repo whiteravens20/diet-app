@@ -11,9 +11,8 @@ import {
   type CookingReminderPayload,
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
-import { mealRank } from '../meal-plans/meal-plans.service.js';
 import { isoDate } from '../meal-plans/plan-days.js';
-import { cookAhead } from '../meal-plans/plan-menu.js';
+import { cookingsOf } from '../meal-plans/plan-menu.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { localClock } from './local-clock.js';
 
@@ -69,6 +68,9 @@ export class CookingReminderService {
               select: {
                 id: true,
                 mealType: true,
+                recipeId: true,
+                leftoverFromDate: true,
+                leftoverFromMealType: true,
                 recipe: {
                   select: {
                     id: true,
@@ -85,21 +87,20 @@ export class CookingReminderService {
     const dishes: CookedAhead[] = [];
     for (const plan of plans) {
       if (!PlanOptions.parse(plan.options).mealPrepFriendly) continue;
-      const inOrder = plan.days.map((day) =>
-        [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)),
-      );
-      const { cookings } = cookAhead(
-        inOrder.map((meals) => meals.map((m) => m.recipe?.id ?? null)),
-      );
+      // A leftover is cooked already, and where it stands for a meal that left its day, so is what was cooked there.
+      const { cookings } = cookingsOf(plan.days);
       for (const [first, also] of cookings) {
-        if (!first || !also || isoDate(plan.days[first.day]!.date) !== tomorrow) continue;
-        const meal = inOrder[first.day]![first.meal]!;
+        if (!first || !also || first.stand || isoDate(plan.days[first.day]!.date) !== tomorrow)
+          continue;
+        const meal = first.meal;
         dishes.push({
           planId: plan.id,
           plannedMealId: meal.id,
           dish: meal.recipe?.translations[0]?.title ?? meal.recipe?.title ?? '',
           alsoDate: isoDate(plan.days[also.day]!.date),
-          alsoMealType: MealType.parse(inOrder[also.day]![also.meal]!.mealType),
+          alsoMealType: MealType.parse(
+            also.stand ? also.meal.leftoverFromMealType : also.meal.mealType,
+          ),
         });
       }
     }

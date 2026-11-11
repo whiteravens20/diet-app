@@ -162,8 +162,9 @@ export class UseUpService {
       const date = isoDate(day.date);
       const onTheDay = day.meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []));
       for (const meal of day.meals) {
-        // A meal of the user's own takes nothing the catalogue knows of.
-        if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
+        // A meal of the user's own takes nothing the catalogue knows of, and a
+        // leftover was cooked, its packs opened, with the meal it was left of.
+        if (meal.source === 'USER_CUSTOM' || !meal.recipe || meal.leftoverFromDate) continue;
         learn(meal.recipe);
         const factor = meal.servings * meal.quantityScale;
         const amounts = new Map(

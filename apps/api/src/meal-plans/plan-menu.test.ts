@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { cookAhead, planPacks, type PackedLine } from './plan-menu.js';
+import { cookAhead, cookingsOf, planPacks, type MenuMeal, type PackedLine } from './plan-menu.js';
 
 const chicken: PackedLine['ingredient'] = {
   name: 'Chicken breast',
@@ -224,5 +224,92 @@ describe('what is cooked once for two meals', () => {
 
   it('has no cooking for a meal cooked for itself', () => {
     expect(cookAhead([['stew'], ['soup']]).cookings).toEqual([]);
+  });
+});
+
+describe('what a leftover makes of cooking ahead', () => {
+  const on = (date: string) => new Date(`${date}T00:00:00Z`);
+  const day = (date: string, ...meals: (Partial<MenuMeal> & { id: string })[]) => ({
+    date: on(date),
+    meals: meals.map((meal): MenuMeal => ({
+      mealType: 'dinner',
+      recipeId: null,
+      leftoverFromDate: null,
+      leftoverFromMealType: null,
+      ...meal,
+    })),
+  });
+  const leftover = (id: string, mealType: string, from: string) => ({
+    id,
+    mealType,
+    recipeId: 'stew',
+    leftoverFromDate: on(from),
+    leftoverFromMealType: 'dinner',
+  });
+
+  it('cooks nothing for a leftover, which was cooked with the meal it was left of', () => {
+    const { marks, cookings } = cookingsOf([
+      day('2026-01-06', { id: 'tuesday', recipeId: 'stew' }),
+      day('2026-01-07', leftover('lunch', 'lunch', '2026-01-06'), {
+        id: 'wednesday',
+        recipeId: 'stew',
+      }),
+    ]);
+
+    expect(Object.fromEntries(marks)).toEqual({
+      tuesday: 'cook',
+      lunch: null,
+      wednesday: 'cooked',
+    });
+    expect(cookings.map((places) => places.map((place) => [place.meal.id, place.stand]))).toEqual([
+      [
+        ['tuesday', false],
+        ['wednesday', false],
+      ],
+    ]);
+  });
+
+  it('stands, done, where the meal it was left of was, once that meal left its day, so what was cooked there stays cooked', () => {
+    const { marks, cookings } = cookingsOf([
+      day('2026-01-06', { id: 'breakfast', mealType: 'breakfast', recipeId: 'oats' }),
+      day('2026-01-07', leftover('lunch', 'lunch', '2026-01-06'), {
+        id: 'wednesday',
+        recipeId: 'stew',
+      }),
+    ]);
+
+    expect(Object.fromEntries(marks)).toEqual({
+      breakfast: null,
+      lunch: null,
+      wednesday: 'cooked',
+    });
+    expect(
+      cookings.map((places) => places.map((place) => [place.day, place.meal.id, place.stand])),
+    ).toEqual([
+      [
+        [0, 'lunch', true],
+        [1, 'wednesday', false],
+      ],
+    ]);
+  });
+
+  it('stands for nothing where a meal of the dish holds that place, nor where the place is of no day of the plan', () => {
+    const held = cookingsOf([
+      day('2026-01-06', { id: 'tuesday', recipeId: 'stew' }),
+      day('2026-01-07', leftover('lunch', 'lunch', '2026-01-06'), {
+        id: 'wednesday',
+        recipeId: 'stew',
+      }),
+    ]);
+    expect(held.cookings.flat().filter((place) => place.stand)).toEqual([]);
+
+    const outside = cookingsOf([
+      day('2026-01-07', leftover('lunch', 'lunch', '2026-01-06'), {
+        id: 'wednesday',
+        recipeId: 'stew',
+      }),
+    ]);
+    expect(outside.cookings).toEqual([]);
+    expect(outside.marks.get('wednesday')).toBeNull();
   });
 });

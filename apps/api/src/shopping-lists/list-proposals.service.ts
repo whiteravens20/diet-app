@@ -182,6 +182,7 @@ export class ListProposalsService {
           mealType: true,
           eatenAt: true,
           source: true,
+          leftoverFromDate: true,
           day: { select: { date: true } },
           recipe: {
             select: { title: true, translations: { select: { locale: true, title: true } } },
@@ -189,11 +190,17 @@ export class ListProposalsService {
         },
         orderBy: [{ day: { date: 'asc' } }, { mealType: 'asc' }],
       });
-      // A meal that was eaten is a record: where one uses the ingredient, the row cannot go.
+      // A meal that was eaten is a record, and a leftover is cooked: where one uses the ingredient, the row cannot go.
       if (
         meals.length === 0 ||
         meals.length > MOST_MEALS_OF_A_MERGE ||
-        meals.some((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM' || !meal.recipe)
+        meals.some(
+          (meal) =>
+            meal.eatenAt !== null ||
+            meal.leftoverFromDate !== null ||
+            meal.source === 'USER_CUSTOM' ||
+            !meal.recipe,
+        )
       )
         continue;
       let coming = 0;

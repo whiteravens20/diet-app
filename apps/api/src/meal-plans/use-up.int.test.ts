@@ -69,6 +69,18 @@ describe('the swaps that would use up what a plan opens', () => {
     await menu(1, [PORRIDGE, STEW, BAKED_TOFU]);
   });
 
+  it('never asks to change a leftover, which is cooked already', async () => {
+    // The second day's lunch is what was left of the first day's dinner.
+    await t.prisma.plannedMeal.update({
+      where: { id: mealOf(1, 'lunch').id },
+      data: { leftoverFromDate: new Date(plan.days[0]!.date), leftoverFromMealType: 'dinner' },
+    });
+
+    const { suggestions: found } = await suggestions();
+
+    expect(found.map((suggestion) => suggestion.mealType)).toEqual(['dinner']);
+  });
+
   describe('as the engine finds them', () => {
     it('name, for a meal, the recipe that takes from the pack and what is then left of it, the one that leaves the least first', async () => {
       const { suggestions: found, revision, aiMeta } = await suggestions();

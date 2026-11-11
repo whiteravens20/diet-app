@@ -10,6 +10,7 @@ import {
   type Profile,
   type RebalanceResult,
   type RerollPreview,
+  type ShoppingList,
 } from '@diet-app/shared';
 import type { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -343,6 +344,24 @@ describe('a leftover: what is left of a meal, eaten the next day', () => {
     expect(at(back, TOMORROW, 'breakfast')!.leftover).toBeNull();
   });
 
+  it('is left off the shopping list, which was bought for the meal it was left of', async () => {
+    // Every meal of tomorrow becomes a leftover of one of today: the list of tomorrow then needs nothing.
+    let now = plan;
+    for (const mealType of ['breakfast', 'lunch', 'dinner'])
+      now = await carried(at(now, TODAY, mealType)!, { mealType, left: 1 });
+    expect(dayOf(now, TOMORROW).meals.every((meal) => meal.leftover !== null)).toBe(true);
+
+    const list = (
+      await t
+        .http()
+        .post('/api/shopping-lists/generate')
+        .set(as(user))
+        .send({ planId: plan.id, fromDate: TOMORROW, toDate: TOMORROW })
+        .expect(201)
+    ).body as ShoppingList;
+    expect(list.groups).toEqual([]);
+  });
+
   it('is never swapped, redrawn by a day made again, resized by its settings or written over by a favourite set', async () => {
     const dinner = at(plan, TODAY, 'dinner')!;
     const after = await carried(dinner, { mealType: 'lunch', left: 1 });
@@ -446,6 +465,53 @@ describe('a leftover: what is left of a meal, eaten the next day', () => {
           .send({ planId: plan.id, dayDates: [TOMORROW] }),
       ),
     ).toBe('MEAL_IS_LEFTOVER');
+  });
+
+  it('keeps what was cooked ahead at the meal it was left of cooked, once that meal left its day', async () => {
+    const ahead = await aPlan(t, user, profile, {
+      startDate: YESTERDAY,
+      durationDays: 4,
+      mealPrepFriendly: true,
+    });
+    // A dish cooked yesterday for a meal of today.
+    const cook = dayOf(ahead, YESTERDAY).meals.find(
+      (meal) =>
+        meal.cookAhead === 'cook' && meal.cooking!.with.some((other) => other.date === TODAY),
+    )!;
+    expect(cook).toBeDefined();
+    const fed = cook.cooking!.with.find((other) => other.date === TODAY)!;
+    const place = dayOf(ahead, TODAY).meals.find((meal) => meal.id !== fed.mealId)!;
+
+    const after = await carried(cook, { mealType: place.mealType, left: 1 }, ahead.id);
+
+    expect(at(after, YESTERDAY, cook.mealType)).toBeUndefined();
+    const eaten = dayOf(after, TODAY).meals.find((meal) => meal.id === fed.mealId)!;
+    expect(eaten.cookAhead).toBe('cooked');
+    expect(eaten.cooking!.with).toEqual([
+      { mealId: place.id, date: YESTERDAY, mealType: cook.mealType, eaten: true },
+    ]);
+    const leftover = at(after, TODAY, place.mealType)!;
+    expect(leftover.cookAhead).toBeNull();
+    expect(leftover.cooking).toBeNull();
+  });
+
+  it('opens no pack: what it takes was opened with the meal it was left of', async () => {
+    const packed = await t.prisma.recipeIngredient.findMany({
+      where: { ingredient: { perishable: true, packSize: { not: null } } },
+      select: { recipeId: true },
+    });
+    const opening = new Set(packed.map((line) => line.recipeId));
+    const meal = dayOf(plan, TODAY).meals.find((one) => one.recipe && opening.has(one.recipe.id))!;
+    expect(meal).toBeDefined();
+    const after = await carried(meal, { mealType: 'breakfast', left: 1 });
+    const leftover = at(after, TOMORROW, 'breakfast')!;
+
+    // However much it is, the packs of the plan stay as they are.
+    await t.prisma.plannedMeal.update({
+      where: { id: leftover.id },
+      data: { quantityScale: leftover.quantityScale * 3 },
+    });
+    expect((await read()).packs).toEqual(after.packs);
   });
 
   it('lets one of two leftovers of a meal asked for at once through', async () => {

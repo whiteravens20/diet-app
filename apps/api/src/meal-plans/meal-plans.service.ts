@@ -46,7 +46,7 @@ import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
-import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
+import { cookingsOf, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
 import {
   dateAfter,
   givesALeftover,
@@ -872,40 +872,45 @@ export class MealPlansService {
             servings: true,
             quantityScale: true,
             swapHistory: true,
+            leftoverFromDate: true,
+            leftoverFromMealType: true,
             recipe: { select: { caloriesPerServing: true } },
           },
         },
       },
     });
-    const inOrder = days.map((day) =>
-      [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)),
-    );
-    const { cookings } = cookAhead(
-      inOrder.map((meals) =>
-        meals.map((meal) => (meal.source === 'USER_CUSTOM' ? null : meal.recipeId)),
-      ),
+    const { cookings } = cookingsOf(
+      days.map((day) => ({
+        date: day.date,
+        meals: day.meals.map((meal) => ({
+          ...meal,
+          recipeId: meal.source === 'USER_CUSTOM' ? null : meal.recipeId,
+        })),
+      })),
     );
     for (const places of cookings) {
-      const meals = places.map(({ day, meal }): CookedMeal => {
-        const row = inOrder[day]![meal]!;
-        return {
+      const meals = places.map(({ day, meal: row, stand }) => ({
+        stand,
+        meal: {
           id: row.id,
           dayId: days[day]!.id,
           dayIndex: day,
           date: isoDate(days[day]!.date),
-          mealType: row.mealType as MealType,
+          // A leftover standing where it was left: done with, as an eaten meal is.
+          mealType: (stand ? row.leftoverFromMealType : row.mealType) as MealType,
           recipeId: row.recipeId!,
-          eaten: row.eatenAt !== null,
+          eaten: stand || row.eatenAt !== null,
           skipped: isSkipped(days[day]!),
-          swapHistory: row.swapHistory ?? [],
+          swapHistory: stand ? [] : (row.swapHistory ?? []),
           held: row.recipe!.caloriesPerServing * row.servings * row.quantityScale,
-        };
-      });
-      for (const meal of meals)
-        found.set(
-          meal.id,
-          meals.filter((other) => other.id !== meal.id),
-        );
+        } satisfies CookedMeal,
+      }));
+      for (const { meal, stand } of meals)
+        if (!stand)
+          found.set(
+            meal.id,
+            meals.filter((other) => other.meal !== meal).map((other) => other.meal),
+          );
     }
     return found;
   }
@@ -1241,42 +1246,48 @@ export class MealPlansService {
       [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)),
     );
     const cookedOnce = options.mealPrepFriendly
-      ? cookAhead(
-          inOrder.map((meals) =>
-            meals.map((m) => (m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipe.id)),
-          ),
+      ? cookingsOf(
+          plan.days.map((day) => ({
+            date: day.date,
+            meals: day.meals.map((m) => ({
+              ...m,
+              recipeId: m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipe.id,
+            })),
+          })),
         )
       : null;
     // Each meal of a cooking: the others, and what all of them together take.
     const cookingOf = new Map<PlannedMeal['id'], NonNullable<PlannedMeal['cooking']>>();
     for (const places of cookedOnce?.cookings ?? []) {
-      const of = places.map(({ day, meal }) => ({
-        day: plan.days[day]!,
-        meal: inOrder[day]![meal]!,
-      }));
+      const of = places.map(({ day, meal, stand }) => ({ day: plan.days[day]!, meal, stand }));
       const recipe = of[0]!.meal.recipe!;
       const all =
         of.reduce((sum, { meal }) => sum + meal.servings * meal.quantityScale, 0) /
         Math.max(1, recipe.servings);
       const ingredients = toPlannedIngredients(recipe.ingredients, all, locale);
-      for (const { meal } of of)
+      for (const { meal, stand } of of) {
+        // A leftover standing where it was left is no meal of that day.
+        if (stand) continue;
         cookingOf.set(meal.id, {
           with: of
             .filter((other) => other.meal.id !== meal.id)
             .map((other) => ({
               mealId: other.meal.id,
               date: isoDate(other.day.date),
-              mealType: other.meal.mealType as MealType,
-              eaten: other.meal.eatenAt !== null,
+              mealType: (other.stand
+                ? other.meal.leftoverFromMealType
+                : other.meal.mealType) as MealType,
+              eaten: other.stand || other.meal.eatenAt !== null,
             })),
           ingredients,
         });
+      }
     }
     // What the meals with a recipe take of it, for the count of the packs the menu opens.
     const packed: PackedMeal[] = [];
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
-      const meals: PlannedMeal[] = orderedMeals.map((m, mealIndex) => {
+      const meals: PlannedMeal[] = orderedMeals.map((m) => {
         // Effective amount folds the rebalancer multiplier into the baseline.
         const factor = m.servings * m.quantityScale;
         const eatenAt = m.eatenAt ? m.eatenAt.toISOString() : null;
@@ -1310,7 +1321,8 @@ export class MealPlansService {
         const recipe = toRecipeDto(m.recipe, locale);
         // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
         const ofRecipe = factor / Math.max(1, m.recipe.servings);
-        packed.push({ factor: ofRecipe, lines: m.recipe.ingredients });
+        // A leftover was cooked, and its packs opened, with the meal it was left of.
+        if (!m.leftoverFromDate) packed.push({ factor: ofRecipe, lines: m.recipe.ingredients });
         return {
           id: m.id,
           mealType: m.mealType as MealType,
@@ -1335,7 +1347,7 @@ export class MealPlansService {
           ) as PlannedMeal['restrictionConflicts'],
           dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
-          cookAhead: cookedOnce?.marks[dayIndex]?.[mealIndex] ?? null,
+          cookAhead: cookedOnce?.marks.get(m.id) ?? null,
           cooking: cookingOf.get(m.id) ?? null,
           nutrition: mealNutrition(m),
           label: mealLabel(m),

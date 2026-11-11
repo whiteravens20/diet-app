@@ -384,6 +384,7 @@ export async function planLines(
           source: true,
           servings: true,
           quantityScale: true,
+          leftoverFromDate: true,
           recipe: {
             select: {
               servings: true,
@@ -400,9 +401,10 @@ export async function planLines(
   const lines: DatedLine[] = [];
   for (const day of days) {
     for (const meal of day.meals) {
-      // A custom meal has no ingredients. Whether a meal was eaten changes
-      // nothing: a list says what the days need, not what is left of them.
-      if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
+      // A custom meal has no ingredients, and a leftover was bought with the
+      // meal it was left of. Whether a meal was eaten changes nothing: a list
+      // says what the days need, not what is left of them.
+      if (meal.source === 'USER_CUSTOM' || !meal.recipe || meal.leftoverFromDate) continue;
       for (const line of meal.recipe.ingredients) {
         lines.push({
           date: day.date,
