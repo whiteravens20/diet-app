@@ -516,7 +516,7 @@ export class DaySettingsService {
     if (!day)
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     const date = isoDate(day.date);
-    const today = clientToday ?? isoDate(new Date());
+    const today = clientToday ?? this.plans.today();
     // Dates in this form compare as text.
     if (!pastAllowed && date < today) {
       throw new ConflictException({
