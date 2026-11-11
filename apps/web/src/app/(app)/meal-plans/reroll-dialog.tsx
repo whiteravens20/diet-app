@@ -38,6 +38,7 @@ const KEPT = [
   ['skipped', 'keptSkipped'],
   ['eaten', 'keptEaten'],
   ['custom', 'keptCustom'],
+  ['leftover', 'keptLeftover'],
   ['locked', 'keptLocked'],
 ] as const;
 

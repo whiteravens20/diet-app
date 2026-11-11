@@ -43,7 +43,12 @@ const FATE_WORDS: Record<
   DayMealFate['fate'],
   Partial<Record<NonNullable<DayMealFate['because']> | 'plain', string>>
 > = {
-  stays: { plain: 'fateStays', eaten: 'fateStaysEaten', own: 'fateStaysOwn' },
+  stays: {
+    plain: 'fateStays',
+    eaten: 'fateStaysEaten',
+    own: 'fateStaysOwn',
+    leftover: 'fateStaysLeftover',
+  },
   resized: { plain: 'fateResized' },
   redrawn: { over_cook_time: 'fateRedrawnCookTime', use_up: 'fateRedrawnUseUp' },
   removed: { fewer_meals: 'fateRemovedFewer', skipped: 'fateRemovedSkipped' },
