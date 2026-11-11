@@ -3,13 +3,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
+import { createTranslator, NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LeftoverOffer, MealPlan, PlannedMeal } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { spaced } from '@/testing/spaces';
 import messages from '../../../../messages/en.json';
+import pl from '../../../../messages/pl.json';
 import { LeftoverDialog, LeftoverUndoDialog } from './leftover-dialog';
 
 const texts = messages.mealPlans.leftover;
@@ -126,7 +127,7 @@ describe('the window that carries what is left of a meal to the next day', () =>
     expect(
       dialog.getByText(
         spaced(
-          'The leftover: 1 servings, 520 kcal. The other meals of that day not eaten fit its target.',
+          'The leftover: 1 serving, 520 kcal. The other meals of that day not eaten fit its target.',
         ),
       ),
     ).toBeInTheDocument();
@@ -224,6 +225,22 @@ describe('the window that carries what is left of a meal to the next day', () =>
     expect(
       dialog.getByText('This meal is shared: for the other person (Ewa) it stays as it is.'),
     ).toBeInTheDocument();
+  });
+
+  it('says how many servings in the form each language gives the number', () => {
+    const say = (locale: 'en' | 'pl', servings: number) =>
+      createTranslator({
+        locale,
+        messages: locale === 'en' ? messages : pl,
+        namespace: 'mealPlans.leftover',
+      })('summaryDay', { servings, kcal: 520 });
+    expect(say('en', 1)).toMatch(spaced('The leftover: 1 serving, 520 kcal.', { start: true }));
+    expect(say('en', 2)).toMatch(spaced('The leftover: 2 servings,', { start: true }));
+    expect(say('en', 0.5)).toMatch(spaced('The leftover: 0.5 servings,', { start: true }));
+    expect(say('pl', 1)).toMatch(spaced('Resztka: 1 porcja, 520 kcal.', { start: true }));
+    expect(say('pl', 2)).toMatch(spaced('Resztka: 2 porcje,', { start: true }));
+    expect(say('pl', 5)).toMatch(spaced('Resztka: 5 porcji,', { start: true }));
+    expect(say('pl', 1.5)).toMatch(spaced('Resztka: 1,5 porcji,', { start: true }));
   });
 
   it('says that the leftover went to the next plan', async () => {
