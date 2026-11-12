@@ -278,6 +278,9 @@ describe('updating the curated database', () => {
               gramsPerPiece: 300,
               density: 0.6,
               category: 'other',
+              packSize: 350,
+              perishable: true,
+              keepDays: 4,
             }
           : r,
       ),
@@ -293,6 +296,9 @@ describe('updating the curated database', () => {
       gramsPerPiece: 300,
       density: 0.6,
       category: 'other',
+      packSize: 350,
+      perishable: true,
+      keepDays: 4,
     });
     const withBroccoli = await t.prisma.recipe.findMany({
       where: { ingredients: { some: { ingredient: { slug: 'broccoli' } } } },

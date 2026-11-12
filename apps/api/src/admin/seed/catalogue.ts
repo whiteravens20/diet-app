@@ -74,6 +74,8 @@ const IngredientSeed = z.object({
   packSize: z.number().positive().optional(),
   // What is left of an opened pack does not keep for long.
   perishable: z.boolean().optional(),
+  // The days an opened pack of it can be eaten from, the day it is opened among them.
+  keepDays: z.number().int().min(1).max(365).optional(),
   storageHint: localisedString.optional(),
   source: z.string().optional(),
   // The slugs under which a food import brings this same food: those rows are left out.
@@ -310,6 +312,21 @@ export function readCatalogue(dir: string = resolveDataDir()): {
           file,
           path: `[${i}].perishable`,
           message: `"${identity(row)}" is marked as a pack that does not keep but has no packSize`,
+        });
+      }
+      // What is left of such a pack is thrown away once it no longer keeps: the count needs to know when.
+      if (row.perishable && row.keepDays === undefined) {
+        problems.push({
+          file,
+          path: `[${i}].keepDays`,
+          message: `"${identity(row)}" is marked as a pack that does not keep but has no keepDays`,
+        });
+      }
+      if (!row.perishable && row.keepDays !== undefined) {
+        problems.push({
+          file,
+          path: `[${i}].keepDays`,
+          message: `"${identity(row)}" has keepDays but is not marked as a pack that does not keep`,
         });
       }
     });

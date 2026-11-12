@@ -18,6 +18,7 @@
     "tags": ["lean", "protein"],
     "packSize": 500,
     "perishable": true,
+    "keepDays": 2,
     "storageHint": {
       "en": "Refrigerate, use within 2 days",
       "pl": "Przechowuj w lodówce, użyj w ciągu 2 dni"
@@ -43,6 +44,7 @@
     "tags": ["omega3"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 2,
     "storageHint": { "en": "Refrigerate", "pl": "Przechowuj w lodówce" },
     "importedAs": ["fish-salmon-atlantic-farm-raised-raw"]
   },
@@ -94,6 +96,7 @@
     "tags": ["protein"],
     "packSize": 500,
     "perishable": true,
+    "keepDays": 7,
     "importedAs": ["yogurt-greek-plain-nonfat"]
   },
   {
@@ -116,6 +119,7 @@
     "tags": [],
     "packSize": 1000,
     "perishable": true,
+    "keepDays": 7,
     "importedAs": ["milk-whole-3-25-milkfat-with-added-vitamin-d"]
   },
   {
@@ -213,7 +217,8 @@
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
     "packSize": 500,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 4
   },
   {
     "slug": "potato",
@@ -264,6 +269,7 @@
     "tags": ["green"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["broccoli-raw"]
   },
   {
@@ -294,6 +300,7 @@
     "tags": ["green", "leafy"],
     "packSize": 200,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["spinach-mature", "spinach-baby"]
   },
   {
@@ -334,6 +341,7 @@
     "tags": [],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 5,
     "importedAs": ["tomatoes-grape-raw"]
   },
   {
@@ -452,6 +460,7 @@
     "tags": ["fruit", "antioxidant"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["blueberries-raw"]
   },
   {
@@ -473,6 +482,7 @@
     "tags": ["plant-protein"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["chickpeas-garbanzo-beans-bengal-gram-canned-sodium-added-drained-and-rinsed"]
   },
   {
@@ -510,7 +520,8 @@
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "high_protein", "low_carb"],
     "tags": ["plant-protein"],
     "packSize": 300,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 4
   },
   {
     "slug": "black-beans",
@@ -528,6 +539,7 @@
     "tags": ["plant-protein"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["beans-black-canned-sodium-added-drained-and-rinsed"]
   },
   {
@@ -624,6 +636,7 @@
     "tags": [],
     "packSize": 500,
     "perishable": true,
+    "keepDays": 2,
     "storageHint": {
       "en": "Refrigerate, use within 2 days",
       "pl": "Przechowuj w lodówce, użyj w ciągu 2 dni"
@@ -665,7 +678,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["lean", "protein"],
     "packSize": 500,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 2
   },
   {
     "slug": "cod-fillet",
@@ -686,6 +700,7 @@
     "tags": ["lean"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 2,
     "importedAs": ["fish-cod-atlantic-wild-caught-raw"]
   },
   {
@@ -707,6 +722,7 @@
     "tags": ["pantry", "protein"],
     "packSize": 145,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["fish-tuna-light-canned-in-water-drained-solids"]
   },
   {
@@ -728,6 +744,7 @@
     "tags": ["protein"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["cottage-cheese-full-fat-large-or-small-curd"]
   },
   {
@@ -748,7 +765,8 @@
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "mediterranean"],
     "tags": [],
     "packSize": 125,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 3
   },
   {
     "slug": "butter",
@@ -825,7 +843,8 @@
     "dietCompatibility": ["balanced", "vegetarian", "vegan"],
     "tags": [],
     "packSize": 496,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 7
   },
   {
     "slug": "sweet-potato",
@@ -902,6 +921,7 @@
     "tags": [],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["mushrooms-white-button", "mushroom-crimini", "mushroom-portabella"]
   },
   {
@@ -922,6 +942,7 @@
     "tags": ["green"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["beans-snap-green-raw"]
   },
   {
@@ -942,6 +963,7 @@
     "tags": ["low-carb-swap"],
     "packSize": 600,
     "perishable": true,
+    "keepDays": 5,
     "importedAs": ["cauliflower-raw"]
   },
   {
@@ -1028,6 +1050,7 @@
     "tags": ["fruit"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["strawberries-raw"]
   },
   {
@@ -1086,6 +1109,7 @@
     "tags": ["plant-protein"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": [
       "beans-kidney-dark-red-canned-sodium-added-sugar-added-drained-and-rinsed",
       "beans-kidney-light-red-canned-sodium-added-sugar-added-drained-and-rinsed"
@@ -1147,6 +1171,7 @@
     "tags": ["lean"],
     "packSize": 250,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["crustaceans-shrimp-farm-raised-raw"]
   },
   {
@@ -1168,6 +1193,7 @@
     "tags": [],
     "packSize": 200,
     "perishable": true,
+    "keepDays": 4,
     "importedAs": ["cheese-feta-whole-milk-crumbled"]
   },
   {
@@ -1513,6 +1539,7 @@
     "tags": [],
     "packSize": 200,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["cream-sour-full-fat"]
   },
   {
@@ -1535,6 +1562,7 @@
     "tags": ["cooking"],
     "packSize": 200,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["cream-heavy"]
   },
   {
@@ -1556,7 +1584,8 @@
     "dietCompatibility": ["balanced", "vegetarian", "mediterranean"],
     "tags": [],
     "packSize": 400,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 4
   },
   {
     "slug": "curd-cheese",
@@ -1572,7 +1601,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "vegetarian"],
     "tags": ["protein"],
     "packSize": 250,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 3
   },
   {
     "slug": "gouda-cheese",
@@ -1667,7 +1697,8 @@
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan"],
     "tags": ["cooking"],
     "packSize": 400,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 4
   },
   {
     "slug": "rye-bread",
@@ -1688,7 +1719,8 @@
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
     "packSize": 500,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 5
   },
   {
     "slug": "buckwheat-groats",
@@ -1762,7 +1794,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3"],
     "packSize": 250,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 3
   },
   {
     "slug": "mackerel-fillet",
@@ -1782,7 +1815,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3"],
     "packSize": 250,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 2
   },
   {
     "slug": "trout-fillet",
@@ -1802,7 +1836,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3"],
     "packSize": 250,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 2
   },
   {
     "slug": "smoked-salmon",
@@ -1822,7 +1857,8 @@
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3"],
     "packSize": 100,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 2
   },
   {
     "slug": "pork-tenderloin",
@@ -1843,6 +1879,7 @@
     "tags": ["lean", "protein"],
     "packSize": 500,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["pork-loin-tenderloin-boneless-raw"]
   },
   {
@@ -1864,6 +1901,7 @@
     "tags": [],
     "packSize": 500,
     "perishable": true,
+    "keepDays": 2,
     "importedAs": ["chicken-thigh-meat-and-skin-raw"]
   },
   {
@@ -1884,7 +1922,8 @@
     "dietCompatibility": ["balanced", "low_carb", "keto"],
     "tags": [],
     "packSize": 150,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 5
   },
   {
     "slug": "black-olives",
@@ -1903,7 +1942,8 @@
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": ["healthy-fat"],
     "packSize": 160,
-    "perishable": true
+    "perishable": true,
+    "keepDays": 30
   },
   {
     "slug": "romaine-lettuce",
@@ -1923,6 +1963,7 @@
     "tags": ["green", "leafy", "salad"],
     "packSize": 300,
     "perishable": true,
+    "keepDays": 3,
     "importedAs": ["lettuce-cos-or-romaine-raw", "lettuce-romaine-green-raw"]
   },
   {
@@ -1943,6 +1984,7 @@
     "tags": ["pantry"],
     "packSize": 400,
     "perishable": true,
+    "keepDays": 5,
     "importedAs": [
       "tomatoes-canned-red-ripe-diced",
       "tomatoes-whole-canned-solids-and-liquids-with-salt-added"

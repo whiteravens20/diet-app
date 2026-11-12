@@ -317,6 +317,7 @@ async function applyIngredients(
       tags: ing.tags,
       packSize: ing.packSize ?? null,
       perishable: ing.perishable ?? false,
+      keepDays: ing.keepDays ?? null,
       storageHint: storage?.en ?? null,
       retiredAt: null,
     };

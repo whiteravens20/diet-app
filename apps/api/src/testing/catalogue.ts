@@ -31,9 +31,10 @@ interface FixtureIngredient {
   /** What a piece is called, for an ingredient that is counted instead of weighed. */
   displayUnit?: 'piece' | 'slice';
   density?: number;
-  /** What one buys of it at a time, for what is not bought loose, and whether an opened pack does not keep. */
+  /** What one buys of it at a time, for what is not bought loose, whether an opened pack does not keep, and for how many days it does. */
   packSize?: number;
   perishable?: boolean;
+  keepDays?: number;
   /** The kind of protein it is, for what is one. */
   proteinKind?: string;
 }
@@ -69,6 +70,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     density: 1.03,
     packSize: 1000,
     perishable: true,
+    keepDays: 7,
   },
   {
     slug: 'oat-drink',
@@ -105,6 +107,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     diets: OMNIVORE,
     packSize: 500,
     perishable: true,
+    keepDays: 2,
   },
   {
     slug: 'salmon',
@@ -117,6 +120,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     diets: OMNIVORE,
     packSize: 250,
     perishable: true,
+    keepDays: 2,
   },
   {
     slug: 'white-rice',
@@ -140,6 +144,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     displayUnit: 'slice',
     packSize: 500,
     perishable: true,
+    keepDays: 4,
   },
   {
     slug: 'firm-tofu',
@@ -172,6 +177,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     diets: [...VEGETARIAN, 'high_protein'],
     packSize: 400,
     perishable: true,
+    keepDays: 7,
   },
   {
     slug: 'peanut-butter',
@@ -468,7 +474,7 @@ export function catalogueDirectory(): string {
     ...(i.displayUnit ? { displayUnit: i.displayUnit } : {}),
     ...(i.density ? { density: i.density } : {}),
     ...(i.packSize ? { packSize: i.packSize } : {}),
-    ...(i.perishable ? { perishable: true } : {}),
+    ...(i.perishable ? { perishable: true, keepDays: i.keepDays } : {}),
     ...(i.proteinKind ? { proteinKind: i.proteinKind } : {}),
     allergens: i.allergens,
     dietCompatibility: i.diets,

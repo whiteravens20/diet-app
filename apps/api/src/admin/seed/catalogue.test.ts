@@ -102,20 +102,28 @@ describe('two recipes of the same making in the curated data', () => {
 });
 
 describe('the pack of an ingredient in the curated data', () => {
-  it('is read with whether an opened one keeps, and is none for what is sold loose', () => {
+  it('is read with whether an opened one keeps and for how many days, and is none for what is sold loose', () => {
     const { catalogue, problems } = ingredientsWith(() => undefined);
     const packOf = (slug: string) => {
-      const { packSize, perishable } = catalogue!.ingredients.find(
+      const { packSize, perishable, keepDays } = catalogue!.ingredients.find(
         (ingredient) => ingredient.slug === slug,
       )!;
-      return { packSize, perishable };
+      return { packSize, perishable, keepDays };
     };
 
     expect(problems).toEqual([]);
-    expect(packOf('chicken-breast')).toEqual({ packSize: 500, perishable: true });
+    expect(packOf('chicken-breast')).toEqual({ packSize: 500, perishable: true, keepDays: 2 });
     // Rice comes in a pack that keeps; a tomato comes in none.
-    expect(packOf('white-rice')).toEqual({ packSize: 1000, perishable: undefined });
-    expect(packOf('tomato')).toEqual({ packSize: undefined, perishable: undefined });
+    expect(packOf('white-rice')).toEqual({
+      packSize: 1000,
+      perishable: undefined,
+      keepDays: undefined,
+    });
+    expect(packOf('tomato')).toEqual({
+      packSize: undefined,
+      perishable: undefined,
+      keepDays: undefined,
+    });
   });
 
   it('cannot be one that does not keep where there is no pack: the ingredient and the field are named', () => {
@@ -131,7 +139,55 @@ describe('the pack of an ingredient in the curated data', () => {
         path: '[14].perishable',
         message: '"tomato" is marked as a pack that does not keep but has no packSize',
       },
+      {
+        file: 'ingredients.json',
+        path: '[14].keepDays',
+        message: '"tomato" is marked as a pack that does not keep but has no keepDays',
+      },
     ]);
+  });
+
+  it('that does not keep says for how many days it does: the ingredient and the field are named', () => {
+    const { catalogue, problems } = ingredientsWith((ingredients) => {
+      const chicken = ingredients.findIndex((ingredient) => ingredient.slug === 'chicken-breast');
+      delete ingredients[chicken]!.keepDays;
+    });
+
+    expect(catalogue).toBeNull();
+    expect(problems).toEqual([
+      {
+        file: 'ingredients.json',
+        path: expect.stringMatching(/^\[\d+\]\.keepDays$/),
+        message: '"chicken-breast" is marked as a pack that does not keep but has no keepDays',
+      },
+    ]);
+  });
+
+  it('that keeps has no days to keep: days given to one are refused', () => {
+    const { catalogue, problems } = ingredientsWith((ingredients) => {
+      const rice = ingredients.findIndex((ingredient) => ingredient.slug === 'white-rice');
+      ingredients[rice]!.keepDays = 30;
+    });
+
+    expect(catalogue).toBeNull();
+    expect(problems).toEqual([
+      {
+        file: 'ingredients.json',
+        path: expect.stringMatching(/^\[\d+\]\.keepDays$/),
+        message: '"white-rice" has keepDays but is not marked as a pack that does not keep',
+      },
+    ]);
+  });
+
+  it('keeps for a whole day at least: none or part of one is refused', () => {
+    for (const days of [0, 1.5]) {
+      const { catalogue, problems } = ingredientsWith((ingredients) => {
+        ingredients[0]!.keepDays = days;
+      });
+
+      expect(catalogue).toBeNull();
+      expect(problems[0]).toMatchObject({ file: 'ingredients.json', path: '[0].keepDays' });
+    }
   });
 
   it('has to hold something: a pack of nothing is refused', () => {
