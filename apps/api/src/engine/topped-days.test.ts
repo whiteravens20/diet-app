@@ -10,6 +10,7 @@ import {
   type RebalanceMeal,
   type SizedAssignment,
 } from './rebalance.js';
+import { packKitchen } from './close-packs.js';
 import { fullKindsOn, topAndSizeDay, topAssignments } from './topped-days.js';
 import {
   TOPPING_BY_KEY,
@@ -280,6 +281,29 @@ describe('the toppings of a run, day after day', () => {
       'turkey',
       'tofu',
       'turkey',
+    ]);
+  });
+  it('in a plan that wastes less, come from a pack the kitchen opened while it keeps, before one had less of late', () => {
+    // Turkey in packs of 500 g that keep two days once opened, tofu in packs of 300 g for four.
+    const packed = alike.map((one) => ({
+      ...one,
+      pack: one.topping.key === 'turkey' ? { size: 500, keepDays: 2 } : { size: 300, keepDays: 4 },
+    }));
+    const topped = topAssignments(
+      [day, day, day],
+      recipes,
+      sized,
+      energyShares(HIGH_PROTEIN)!,
+      (meal) => (meal.slot === 'lunch' ? PLATE : null),
+      packed,
+      () => anyone,
+      packKitchen(new Map(), 3),
+    );
+    // The second day takes from the pack the first opened; by the third it no longer keeps.
+    expect(topped.flatMap((one) => (one.topping ? [one.topping.key] : []))).toEqual([
+      'turkey',
+      'turkey',
+      'tofu',
     ]);
   });
 });

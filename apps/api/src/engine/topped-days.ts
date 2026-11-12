@@ -14,6 +14,7 @@
  * Pure: the same day gives the same toppings and portions.
  */
 import type { Macros } from '@diet-app/shared';
+import type { PackKitchen } from './close-packs.js';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
 import {
   aimOfPlanned,
@@ -73,6 +74,7 @@ export function topAndSizeDay(
   options: readonly ToppingOption[],
   eater: ToppingEater,
   used: ReadonlyMap<string, number> = new Map(),
+  leavesMore?: (option: ToppingOption, amount: number) => number,
 ): { scales: Map<string, number>; toppings: ToppingChoice[] } {
   const per100Of = new Map(options.map((option) => [option.topping.key, option.per100]));
   const rows = [...meals];
@@ -82,7 +84,16 @@ export function topAndSizeDay(
   const had = new Map(used);
   let open = [...places];
   while (open.length > 0) {
-    const choice = bestTopping(figuresOf(rows, scales), target, aim, open, options, eater, had);
+    const choice = bestTopping(
+      figuresOf(rows, scales),
+      target,
+      aim,
+      open,
+      options,
+      eater,
+      had,
+      leavesMore,
+    );
     if (choice === null) break;
     rows.push(toppingRow(choice.mealId, per100Of.get(choice.key)!, choice.amount));
     toppings.push(choice);
@@ -104,7 +115,9 @@ export type ToppedAssignment = SizedAssignment & {
  * day of them topped and sized again (`topAndSizeDay`): `dishOf` names the
  * traits of a meal that is a place for a topping, null for one that is not;
  * `eaterOn` is the person as the check reads them on that day. The toppings
- * of the six days before a day count as what the person had of late.
+ * of the six days before a day count as what the person had of late. In a plan
+ * that wastes less, `kitchen` holds the packs of the plans cooked together,
+ * which the toppings are chosen by (`bestTopping`) and taken from, day by day.
  */
 export function topAssignments(
   days: readonly OptimizerDay[],
@@ -114,7 +127,9 @@ export function topAssignments(
   dishOf: (meal: SizedAssignment) => ToppingDish | null,
   options: readonly ToppingOption[],
   eaterOn: (dayIndex: number) => ToppingEater,
+  kitchen?: PackKitchen,
 ): ToppedAssignment[] {
+  const optionOf = new Map(options.map((option) => [option.topping.key, option]));
   const recipeOf = new Map(recipes.map((recipe) => [recipe.id, recipe]));
   const topped = new Map<
     SizedAssignment,
@@ -141,9 +156,17 @@ export function topAssignments(
           (had, one) => had.set(one.key, (had.get(one.key) ?? 0) + 1),
           new Map<string, number>(),
         ),
+      kitchen
+        ? (option, amount) =>
+            option.pack ? kitchen.leavesMore(option.food.id, option.pack, dayIndex, amount) : 0
+        : undefined,
     );
     if (toppings.length === 0) return;
-    for (const choice of toppings) given.push({ dayIndex, key: choice.key });
+    for (const choice of toppings) {
+      given.push({ dayIndex, key: choice.key });
+      const option = optionOf.get(choice.key);
+      if (kitchen && option?.pack) kitchen.take(option.food.id, dayIndex, choice.amount);
+    }
     for (const meal of placed) {
       const choice = toppings.find((one) => one.mealId === meal.slot);
       topped.set(meal, {

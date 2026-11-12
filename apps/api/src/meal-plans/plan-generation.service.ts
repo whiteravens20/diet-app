@@ -47,8 +47,11 @@ import {
   recipeCoverage,
   requirementsPerServing,
   closePacks,
+  kitchenNeeds,
+  packKitchen,
   reuseScore,
   type ClosingPlan,
+  type PackKitchen,
   type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
@@ -1130,7 +1133,7 @@ export class PlanGenerationService {
       packs: drawn.packs,
       pantry: drawn.pantry,
     });
-    return drawn.finish(closed!);
+    return drawn.finish(closed!, kitchenOf([{ ...drawn.closing, assignments: closed! }], [drawn]));
   }
 
   /**
@@ -1386,18 +1389,25 @@ export class PlanGenerationService {
         packs: new Map([...kitchen.packs, ...perishablePacks]),
         pantry: pantry.stock,
         shared: [...sharedSlots],
-        finish: async (closed) => {
+        finish: async (closed, kitchen) => {
           const finished = closedResult(result, closed, days, optimizerRecipes);
           return {
             assignments: topped
-              ? await this.topped(days, optimizerRecipes, closed, split, {
-                  slots: topped.slots === 'shared' ? [...sharedSlots] : topped.slots,
-                  options: topped.options,
-                  diet: opts.dietType,
-                  preferences: profile.preferences,
-                  perKind,
-                  respectExclusions: opts.respectExclusions !== false,
-                })
+              ? await this.topped(
+                  days,
+                  optimizerRecipes,
+                  closed,
+                  split,
+                  {
+                    slots: topped.slots === 'shared' ? [...sharedSlots] : topped.slots,
+                    options: topped.options,
+                    diet: opts.dietType,
+                    preferences: profile.preferences,
+                    perKind,
+                    respectExclusions: opts.respectExclusions !== false,
+                  },
+                  kitchen,
+                )
               : [...closed],
             ingredientReuseScore: finished.ingredientReuseScore,
             report: reportOf(finished, dates, pantry.use),
@@ -1501,6 +1511,8 @@ export class PlanGenerationService {
       perKind: ReadonlyMap<string, { perDay?: number; perWeek?: number }>;
       respectExclusions: boolean;
     },
+    /** In a plan that wastes less, the packs of its kitchen, which the toppings are chosen by and taken from. */
+    kitchen?: PackKitchen,
   ): Promise<ToppedAssignment[]> {
     const places = sized.filter((meal) => ask.slots.includes(meal.slot));
     const traits = await dishTraitsOf(
@@ -1522,6 +1534,7 @@ export class PlanGenerationService {
           fullKindsOn(dayIndex, sized, (recipeId) => kindsOf.get(recipeId) ?? [], ask.perKind),
           ask.respectExclusions,
         ),
+      kitchen,
     );
   }
 
@@ -1792,8 +1805,12 @@ interface Drawn {
   pantry?: Map<string, number>;
   /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
   shared: MealType[];
-  /** The plan with `closed` as its meals: their toppings given, its report said. */
-  finish: (closed: readonly SizedAssignment[]) => Promise<Optimised>;
+  /**
+   * The plan with `closed` as its meals: their toppings given, its report said.
+   * `kitchen`, in a plan that wastes less, holds the packs of the plans cooked
+   * together, which the toppings are chosen by and taken from.
+   */
+  finish: (closed: readonly SizedAssignment[], kitchen?: PackKitchen) => Promise<Optimised>;
 }
 
 /**
@@ -1851,7 +1868,15 @@ async function closeTogether(
     // The first plan counts both pantries (`resolveInventoryBias`).
     pantry: first.pantry ?? second.pantry,
   });
-  return [await first.finish(mine!), await second.finish(theirs!)];
+  // One kitchen for the toppings of both: those of the first are there when the second's are chosen.
+  const kitchen = kitchenOf(
+    [
+      { ...first.closing, assignments: mine! },
+      { ...second.closing, assignments: theirs! },
+    ],
+    [first, second],
+  );
+  return [await first.finish(mine!, kitchen), await second.finish(theirs!, kitchen)];
 }
 
 /** What stays in the plans of a kitchen takes of the packs, all of them together. */
@@ -1863,6 +1888,15 @@ function fixedOf(drawn: readonly Drawn[]): Map<string, number[]> {
     else fixed.set(ingredientId, [...row]);
   }
   return fixed;
+}
+
+/** The packs of a kitchen whose plans were closed (`plans`), as their toppings are given. */
+function kitchenOf(plans: readonly ClosingPlan[], drawn: readonly Drawn[]): PackKitchen {
+  const packs = new Map(drawn.flatMap((one) => [...one.packs]));
+  return packKitchen(
+    kitchenNeeds(plans, fixedOf(drawn), packs),
+    Math.max(0, ...plans.map((plan) => plan.days.length)),
+  );
 }
 
 /** The dates of the days a re-roll fills again. */

@@ -430,6 +430,29 @@ describe('the topping a day is given', () => {
     }
   });
 
+  it('in a plan that wastes less, takes from what the packs would leave first, and opens a pack that would be left only where nothing else brings the day back', () => {
+    const nearly: Figures = { calories: 2800, protein: 158, fat: 98, carbs: 321.5 };
+    const place: ToppingPlace[] = [{ mealId: 'lunch', meal: 'lunch', dish: PLATE }];
+    const pick = (leaves: Record<string, number>, used: [string, number][] = []) =>
+      bestTopping(
+        nearly,
+        2800,
+        highProtein,
+        place,
+        ALL,
+        anyone,
+        new Map(used),
+        (one) => leaves[one.topping.key] ?? 0,
+      )!;
+
+    // Turkey and tofu would open packs and leave most of them: the egg, which keeps, comes first.
+    expect(pick({ turkey: 0.8, tofu: 0.5 }).key).toBe('egg');
+    // Turkey from a pack the kitchen would otherwise leave comes first, however often it was had of late.
+    expect(pick({ turkey: -0.3, tofu: 0.5 }, [['turkey', 2]]).key).toBe('turkey');
+    // Where every one that brings the day back leaves more, one is still given: the nearest.
+    expect(pick({ turkey: 0.8, tofu: 0.5, egg: 0.2 }).key).toBe('turkey');
+  });
+
   it('keeps the one topping that brings the day back, however often the person had it', () => {
     // Far off its split: turkey alone brings it back.
     expect(

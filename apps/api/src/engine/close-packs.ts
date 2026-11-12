@@ -680,3 +680,40 @@ export function kitchenNeeds(
   }
   return needs;
 }
+
+/** A kitchen's packs as the toppings of its plans are given. */
+export interface PackKitchen {
+  /**
+   * How much more the kitchen's packs of an ingredient leave, in packs, with
+   * `amount` more of it on `day`: less than nothing where they leave less.
+   */
+  leavesMore(ingredientId: string, pack: Pack, day: number, amount: number): number;
+  /** The kitchen takes `amount` of an ingredient on `day`. */
+  take(ingredientId: string, day: number, amount: number): void;
+}
+
+/** The kitchen whose plans take `needs` (`kitchenNeeds`) over `length` days. */
+export function packKitchen(needs: Map<string, number[]>, length: number): PackKitchen {
+  const rowOf = (ingredientId: string): number[] => {
+    let row = needs.get(ingredientId);
+    if (!row) {
+      row = Array.from({ length }, () => 0);
+      needs.set(ingredientId, row);
+    }
+    return row;
+  };
+  const leftOf = (row: readonly number[], pack: Pack): number =>
+    packsLeftOver(row, pack).reduce((sum, opened) => sum + opened.left, 0) / pack.size;
+  return {
+    leavesMore(ingredientId, pack, day, amount) {
+      if (day < 0 || day >= length || amount <= 0 || pack.size <= 0) return 0;
+      const row = rowOf(ingredientId);
+      const more = [...row];
+      more[day]! += amount;
+      return leftOf(more, pack) - leftOf(row, pack);
+    },
+    take(ingredientId, day, amount) {
+      if (day >= 0 && day < length) rowOf(ingredientId)[day]! += amount;
+    },
+  };
+}

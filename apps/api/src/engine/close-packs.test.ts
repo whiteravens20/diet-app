@@ -2,7 +2,7 @@
 
 import type { MealType, ProteinKind } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
-import { closePacks, type ClosingPlan } from './close-packs.js';
+import { closePacks, packKitchen, type ClosingPlan } from './close-packs.js';
 import { macroSplitOf } from './nutrition.js';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
 import { packsLeft, packUse, type Pack } from './packs.js';
@@ -427,5 +427,24 @@ describe('closing the packs of a plan', () => {
 
     expect(one).toEqual(two);
     expect(recipesOf(one[0]!)).toEqual(['chicken-rice', 'chicken-salad']);
+  });
+});
+
+describe('the packs of a kitchen as toppings are given', () => {
+  it('says how much more its packs leave with more of an ingredient on a day, and takes it', () => {
+    // A meal of the first day opens a pack of chicken and leaves 250 g of it, for the second day as well.
+    const kitchen = packKitchen(new Map([['chicken', [250, 0]]]), 2);
+    const chicken = PACKS.get('chicken')!;
+
+    // 100 g on the second day come from the open pack: a fifth of a pack less is left.
+    expect(kitchen.leavesMore('chicken', chicken, 1, 100)).toBeCloseTo(-0.2, 6);
+    // 300 g finish it and open another, of which 450 g are left.
+    expect(kitchen.leavesMore('chicken', chicken, 1, 300)).toBeCloseTo(0.4, 6);
+    // Feta nobody takes yet: 50 g open a pack of 200 and leave the rest.
+    expect(kitchen.leavesMore('feta', { size: 200, keepDays: 4 }, 0, 50)).toBeCloseTo(0.75, 6);
+
+    // Taken, the 250 g finish the pack: 100 g more would open another.
+    kitchen.take('chicken', 1, 250);
+    expect(kitchen.leavesMore('chicken', chicken, 1, 100)).toBeCloseTo(0.8, 6);
   });
 });

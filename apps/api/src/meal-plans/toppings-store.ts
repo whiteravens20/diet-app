@@ -8,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import type { LabelTotals, Unit } from '@diet-app/shared';
 import { proposeTraits, traitsOf } from '../engine/dish-traits.js';
 import { labelOfAmount } from '../engine/label-totals.js';
+import { keepDaysOf } from '../engine/packs.js';
 import { proteinKindsOf } from '../engine/optimizer.js';
 import { fullKindsOn } from '../engine/topped-days.js';
 import {
@@ -35,6 +36,10 @@ export async function toppingOptionsOf(
       proteinPer100: true,
       fatPer100: true,
       carbsPer100: true,
+      category: true,
+      packSize: true,
+      perishable: true,
+      keepDays: true,
     },
   });
   const bySlug = new Map(foods.map((food) => [food.slug, food]));
@@ -56,6 +61,9 @@ export async function toppingOptionsOf(
           fat: food.fatPer100,
           carbs: food.carbsPer100,
         },
+        ...(food.perishable && food.packSize
+          ? { pack: { size: food.packSize, keepDays: keepDaysOf(food) } }
+          : {}),
       },
     ];
   });

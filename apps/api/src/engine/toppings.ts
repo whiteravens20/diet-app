@@ -25,6 +25,7 @@ import {
   type StarchBase,
 } from '@diet-app/shared';
 import { distanceOnDiet, energyShares, MACROS_OFF } from './nutrition.js';
+import type { Pack } from './packs.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
 export interface Topping {
@@ -316,6 +317,8 @@ export interface ToppingOption {
   topping: Topping;
   food: ToppingFood;
   per100: Figures;
+  /** The pack it comes in, where an opened one does not keep; left out where it keeps. */
+  pack?: Pack;
 }
 
 export interface ToppingChoice {
@@ -345,6 +348,12 @@ const scaled = (per100: Figures, amount: number): Figures => ({
  * least of late (`used`, by key) is taken, then the one that brings it nearest;
  * where none brings it back, the one that brings it nearest. Null where the day
  * stands on both already, or nothing brings it nearer by `LEAST_GAIN`.
+ *
+ * In a plan that wastes less, `leavesMore` says how much more the kitchen's
+ * packs would leave with a topping (`PackKitchen`), and of those that bring the
+ * day back, one that takes from what they would leave comes first, then one
+ * that changes nothing of them, and one that leaves more only where no other
+ * brings the day back.
  */
 export function bestTopping(
   day: Figures,
@@ -354,6 +363,7 @@ export function bestTopping(
   options: readonly ToppingOption[],
   eater: ToppingEater,
   used: ReadonlyMap<string, number> = new Map(),
+  leavesMore?: (option: ToppingOption, amount: number) => number,
 ): ToppingChoice | null {
   const aimed = energyShares(aim);
   if (aimed === null || target <= 0) return null;
@@ -367,8 +377,13 @@ export function bestTopping(
 
   let best: ToppingChoice | null = null;
   let bestScore = off ? distance(day) - LEAST_GAIN : (target - day.calories) / target - LEAST_GAIN;
-  // Of those that bring the day back: the least used of late, then the nearest.
-  let back: { choice: ToppingChoice; times: number; score: number } | null = null;
+  // Of those that bring the day back: the kindest to the packs, the least used of late, then the nearest.
+  let back: { choice: ToppingChoice; packs: number; times: number; score: number } | null = null;
+  /** 0 for a topping that takes from what the packs would leave, 1 for one that changes nothing of them, 2 for one that leaves more. */
+  const packsOf = (option: ToppingOption, amount: number): number => {
+    const more = leavesMore?.(option, amount) ?? 0;
+    return more < -1e-6 ? 0 : more > 1e-6 ? 2 : 1;
+  };
   const backAt = off ? MACROS_OFF : REBALANCE_TOLERANCE;
   for (const place of places) {
     for (const option of options) {
@@ -399,13 +414,18 @@ export function bestTopping(
           bestScore = score;
           best = { mealId: place.mealId, key: option.topping.key, amount };
         }
+        if (score > backAt) continue;
         const times = used.get(option.topping.key) ?? 0;
+        const packs = packsOf(option, amount);
         if (
-          score <= backAt &&
-          (back === null || times < back.times || (times === back.times && score < back.score))
+          back === null ||
+          packs < back.packs ||
+          (packs === back.packs &&
+            (times < back.times || (times === back.times && score < back.score)))
         ) {
           back = {
             choice: { mealId: place.mealId, key: option.topping.key, amount },
+            packs,
             times,
             score,
           };
