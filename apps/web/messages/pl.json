@@ -1795,6 +1795,7 @@
     },
     "packs": {
       "line": "Produkty nietrwałe po otwarciu: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z {wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.} few {, a z {wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} many {, a z {wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} other {, a z {wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.}}",
+      "lineJoint": "Produkty nietrwałe po otwarciu, liczone razem z\u00a0drugim planem ({name}): oba jadłospisy zużywają {percent}% tego, co kupują{wasted, plural, =0 {.} one {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.} few {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} many {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} other {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.}}",
       "left": "{name}: zostaje {left} z opakowania {size}",
       "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad jedna piąta",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",

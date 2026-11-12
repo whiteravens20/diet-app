@@ -28,7 +28,8 @@ import { pickIngredient } from '../recipes/recipes.service.js';
 import { CANDIDATE, poolWhere, restrictionsFor, welcome } from './eligibility.js';
 import { holdsAbout } from './meal-swap.service.js';
 import { isoDate } from './plan-days.js';
-import { cookingsOf } from './plan-menu.js';
+import { cookingsOf, menuNeeds } from './plan-menu.js';
+import { partnerPacked } from './plan-packs-store.js';
 import { readPlanLimits } from './plan-limits.js';
 import { LANGUAGE } from './swap-shared.js';
 import { toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
@@ -178,6 +179,11 @@ export class UseUpService {
       }
       row[day]! += amount;
     };
+    // The other plan of a joint plan is cooked in the same kitchen: what it takes is counted, and is not changed here.
+    const theirs = menuNeeds(await partnerPacked(this.prisma, userId, plan), plan.days.length);
+    for (const [ingredientId, row] of theirs.needs)
+      row.forEach((amount, day) => fix(ingredientId, day, amount));
+    for (const [ingredientId, pack] of theirs.packs) packs.set(ingredientId, pack);
     const open: UseUpMeal[] = [];
     const about = new Map<
       string,

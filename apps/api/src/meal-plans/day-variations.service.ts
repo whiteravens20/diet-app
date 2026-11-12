@@ -34,7 +34,8 @@ import {
 import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
 import { toppingFiguresOf, toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 import { PlanGenerationService } from './plan-generation.service.js';
-import { cookingsOf, menuNeeds, type PackedMeal } from './plan-menu.js';
+import { menuNeeds, packedMealsOf, PACKED_LINES, type PackedMeal } from './plan-menu.js';
+import { partnerPacked } from './plan-packs-store.js';
 import { writePlan } from './plan-write.js';
 import { LANGUAGE } from './swap-shared.js';
 
@@ -44,26 +45,6 @@ const MOST_WAYS = 3;
 const DRAWS = 5;
 
 /** The lines of a recipe as the count of packs reads them. */
-const LINES = {
-  select: {
-    ingredientId: true,
-    quantity: true,
-    unit: true,
-    ingredient: {
-      select: {
-        name: true,
-        canonicalUnit: true,
-        gramsPerPiece: true,
-        density: true,
-        packSize: true,
-        perishable: true,
-        keepDays: true,
-        category: true,
-      },
-    },
-  },
-} as const;
-
 const titleOf = (
   recipe: { title: string; translations: { locale: string; title: string }[] },
   locale: Locale,
@@ -188,7 +169,7 @@ export class DayVariationsService {
           leftoverFromMealType: true,
           toppingKey: true,
           toppingAmount: true,
-          recipe: { select: { servings: true, ingredients: LINES } },
+          recipe: { select: { servings: true, ingredients: PACKED_LINES } },
         },
       }),
       this.prisma.recipe.findMany({
@@ -210,63 +191,36 @@ export class DayVariationsService {
           proteinPerServing: true,
           fatPerServing: true,
           carbsPerServing: true,
-          ingredients: LINES,
+          ingredients: PACKED_LINES,
           translations: { select: { locale: true, title: true } },
         },
       }),
     ]);
     const recipeOf = new Map(recipes.map((recipe) => [recipe.id, recipe]));
-    // The packs are counted day by day, as the plan counts them: a meal eaten from a dish cooked ahead on the day the
-    // dish is cooked, a leftover not at all (it was cooked with the meal it was left of), a topping with its meal.
-    const indexOfDay = new Map(plan.days.map((other, index) => [other.id, index]));
-    const cookedOnDay = new Map<string, number>();
-    if (PlanOptions.parse(plan.options).mealPrepFriendly)
-      for (const places of cookingsOf(
-        plan.days.map((other) => ({
-          date: other.date,
-          meals: menu
-            .filter((meal) => meal.dayId === other.id)
-            .map((meal) => ({
-              ...meal,
-              recipeId: meal.source === 'USER_CUSTOM' || !meal.recipe ? null : meal.recipeId,
-            })),
-        })),
-      ).cookings)
-        for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
+    // The packs are counted day by day, as the plan counts them (`packedMealsOf`), with the other plan of a joint
+    // plan: the two are cooked in one kitchen.
+    const mealPrepFriendly = PlanOptions.parse(plan.options).mealPrepFriendly;
     const toppingFoods = menu.some((meal) => meal.toppingKey !== null)
       ? await toppingFoodsOf(this.prisma)
       : (new Map() as ToppingFoods);
-    const packed = (meal: (typeof menu)[number]): PackedMeal[] => {
-      const onDay = indexOfDay.get(meal.dayId) ?? -1;
-      const out: PackedMeal[] = [];
-      if (meal.recipe && !meal.leftoverFromDate)
-        out.push({
-          day: cookedOnDay.get(meal.id) ?? onDay,
-          factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
-          lines: meal.recipe.ingredients,
-        });
-      const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
-      if (food && meal.toppingAmount !== null)
-        out.push({
-          day: onDay,
-          factor: 1,
-          lines: [
-            {
-              ingredientId: food.id,
-              quantity: meal.toppingAmount,
-              unit: food.canonicalUnit,
-              ingredient: food,
-            },
-          ],
-        });
-      return out;
-    };
+    const theirs = await partnerPacked(this.prisma, userId, plan);
+    const packedOf = (keep: (meal: (typeof menu)[number]) => boolean): PackedMeal[] => [
+      ...packedMealsOf(
+        plan.days.map((other) => ({
+          date: other.date,
+          meals: menu.filter((meal) => meal.dayId === other.id && keep(meal)),
+        })),
+        mealPrepFriendly,
+        toppingFoods,
+      ),
+      ...theirs,
+    ];
     const tally = (meals: readonly PackedMeal[]): PackTally => {
       const { needs, packs } = menuNeeds(meals, plan.days.length);
       return tallyOf(packUse(needs, packs));
     };
     // The meals of the other days, and those of this day that stay: what every way has in common.
-    const rest = menu.filter((meal) => meal.dayId !== dayId || stays.has(meal.id)).flatMap(packed);
+    const rest = packedOf((meal) => meal.dayId !== dayId || stays.has(meal.id));
 
     // A meal's topping counts with it, in what stays and in the day as it is.
     const withTopping = (meal: (typeof day.meals)[number]) => {
@@ -329,7 +283,7 @@ export class DayVariationsService {
 
     const current = {
       dayNutrition: withDiary(day.meals.map(withTopping)),
-      packs: tally(menu.flatMap(packed)),
+      packs: tally(packedOf(() => true)),
     };
     let aiMeta: DayVariations['aiMeta'] = null;
     let picked = false;

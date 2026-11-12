@@ -201,3 +201,108 @@ export function cookingsOf<M extends MenuMeal>(
     ),
   };
 }
+
+/** The lines of a recipe as the count of packs reads them: a select of `RecipeIngredient`. */
+export const PACKED_LINES = {
+  select: {
+    ingredientId: true,
+    quantity: true,
+    unit: true,
+    ingredient: {
+      select: {
+        name: true,
+        canonicalUnit: true,
+        gramsPerPiece: true,
+        density: true,
+        packSize: true,
+        perishable: true,
+        keepDays: true,
+        category: true,
+      },
+    },
+  },
+} as const;
+
+/** A meal of a plan as the count of its packs reads it. */
+export interface CountedMeal extends MenuMeal {
+  source: string;
+  servings: number;
+  quantityScale: number;
+  toppingKey: string | null;
+  toppingAmount: number | null;
+  /** Null for a meal of the user's own. */
+  recipe: { servings: number; ingredients: readonly PackedLine[] } | null;
+}
+
+/** The food a topping is of, as the count of packs reads it. */
+type ToppingFood = PackedLine['ingredient'] & { id: string };
+
+/**
+ * What the meals of a plan take of the packs, as every count of a plan reads
+ * them: a meal on its day, one eaten from a dish cooked ahead on the day the
+ * dish is cooked (in a plan made for cooking ahead), a leftover not at all (it
+ * was cooked with the meal it was left of), a topping with its meal, a meal of
+ * the user's own not at all. `days` are the days of the plan in order, each
+ * with the meals to count.
+ */
+export function packedMealsOf(
+  days: readonly { date: Date; meals: readonly CountedMeal[] }[],
+  mealPrepFriendly: boolean,
+  toppingFoods: ReadonlyMap<string, ToppingFood>,
+): PackedMeal[] {
+  const cookedOnDay = new Map<string, number>();
+  if (mealPrepFriendly)
+    for (const places of cookingsOf(
+      days.map((day) => ({
+        date: day.date,
+        meals: day.meals.map((meal) => ({
+          ...meal,
+          recipeId: meal.source === 'USER_CUSTOM' || !meal.recipe ? null : meal.recipeId,
+        })),
+      })),
+    ).cookings)
+      for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
+  const packed: PackedMeal[] = [];
+  days.forEach((day, dayIndex) => {
+    for (const meal of day.meals) {
+      if (meal.source !== 'USER_CUSTOM' && meal.recipe && !meal.leftoverFromDate)
+        packed.push({
+          day: cookedOnDay.get(meal.id) ?? dayIndex,
+          factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
+          lines: meal.recipe.ingredients,
+        });
+      const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
+      if (food && meal.toppingAmount !== null)
+        packed.push({
+          day: dayIndex,
+          factor: 1,
+          lines: [
+            {
+              ingredientId: food.id,
+              quantity: meal.toppingAmount,
+              unit: food.canonicalUnit,
+              ingredient: food,
+            },
+          ],
+        });
+    }
+  });
+  return packed;
+}
+
+/**
+ * The meals of another plan on the days of this one: the days of the plan made
+ * together with it, each moved to the place of its date among this plan's days;
+ * a day this plan does not have counts nothing.
+ */
+export function onDaysOf(
+  packed: readonly PackedMeal[],
+  theirDates: readonly string[],
+  ourDates: readonly string[],
+): PackedMeal[] {
+  const ours = new Map(ourDates.map((date, index) => [date, index]));
+  return packed.flatMap((meal) => {
+    const at = ours.get(theirDates[meal.day] ?? '');
+    return at === undefined ? [] : [{ ...meal, day: at }];
+  });
+}

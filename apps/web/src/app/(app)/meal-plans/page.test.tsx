@@ -1550,6 +1550,25 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.getByText(messages.mealPlans.packs.allFinished)).toBeInTheDocument();
     });
 
+    it('says of a plan made together with another that it counts the packs of both menus', async () => {
+      await opened(
+        aPlan({
+          packs: { bought: 1500, used: 980, open: [milk, chicken] },
+          joint: {
+            planId: '99999999-9999-4999-8999-999999999999',
+            profileId: '99999999-9999-4999-8999-999999999998',
+            profileName: 'Ewa',
+          },
+        }),
+      );
+
+      expect(
+        screen.getByText(
+          'Packs that do not keep once opened, counted together with the other plan (Ewa): the two menus use 65% of what they buy, and leave more than a fifth of 1 pack.',
+        ),
+      ).toBeVisible();
+    });
+
     it('says nothing of packs of a plan whose menu opens none', async () => {
       await opened(aPlan());
 

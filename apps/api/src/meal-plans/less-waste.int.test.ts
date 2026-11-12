@@ -1,11 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { MealPlan, Profile } from '@diet-app/shared';
+import { GeneratePlanRequest, type MealPlan, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 describe('a plan that wastes less', () => {
   let t: TestApp;
@@ -109,5 +111,89 @@ describe('a plan that wastes less', () => {
       expect((await generate({ startDate: '2026-02-02' })).report!.pantry).toBe('left_out');
       expect(await streak()).toBe(0);
     });
+  });
+});
+
+describe('the packs of the two plans of a joint plan', () => {
+  let t: TestApp;
+  let user: TestUser;
+  let adam: Profile;
+  let ewa: Profile;
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    await resetDatabase(t.prisma);
+    await seedCatalogue(t.prisma);
+  });
+
+  beforeEach(async () => {
+    await resetUserData(t.prisma);
+    user = await aUser(t);
+    adam = await aProfile(t, user, { name: 'Adam', mealCount: 3 });
+    ewa = await aProfile(t, user, { name: 'Ewa', mealCount: 3 });
+  });
+
+  afterAll(async () => {
+    await t.close();
+  });
+
+  const together = (lessWaste: boolean): Promise<MealPlan> =>
+    t.app.get(PlanGenerationService).generate(
+      user.id,
+      'en',
+      GeneratePlanRequest.parse({
+        profileId: adam.id,
+        withProfileId: ewa.id,
+        startDate: '2026-01-05',
+        durationDays: 3,
+        lessWaste,
+      }),
+    );
+  const read = (planId: string): Promise<MealPlan> =>
+    t.app.get(MealPlansService).get(user.id, 'en', planId);
+
+  /** Give a day of a plan exactly these recipes, one serving each: breakfast, lunch, dinner. */
+  async function menu(plan: MealPlan, day: number, slugs: [string, string, string]): Promise<void> {
+    for (const [index, mealType] of (['breakfast', 'lunch', 'dinner'] as const).entries()) {
+      const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: slugs[index]! } });
+      const meal = plan.days[day]!.meals.find((planned) => planned.mealType === mealType)!;
+      await t.prisma.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+          leftoverFromDate: null,
+          leftoverFromMealType: null,
+          toppingKey: null,
+          toppingAmount: null,
+        },
+      });
+    }
+  }
+
+  it('counts the packs of the two plans of a joint plan together, in both of them', async () => {
+    const adams = await together(false);
+    const ewas = await read(adams.joint!.planId);
+    // Chicken with rice at lunch in both, 150 g each of a pack of 500 g; the rest takes no chicken.
+    for (const plan of [adams, ewas])
+      for (const day of [0, 1, 2])
+        await menu(
+          plan,
+          day,
+          day === 0
+            ? ['scrambled-eggs-on-toast', 'chicken-rice-broccoli', 'chickpea-tomato-stew']
+            : ['scrambled-eggs-on-toast', 'tofu-rice-bowl', 'chickpea-tomato-stew'],
+        );
+
+    const [mine, theirs] = [await read(adams.id), await read(ewas.id)];
+    const chicken = (plan: MealPlan) =>
+      plan.packs.open.find((pack) => pack.name === 'Chicken breast');
+
+    // One pack for both lunches: 200 g are left, not 350 g in each plan.
+    expect(chicken(mine)).toMatchObject({ packs: 1, left: 200, wasted: true });
+    expect(theirs.packs).toEqual(mine.packs);
   });
 });

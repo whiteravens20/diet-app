@@ -1548,7 +1548,7 @@ export function PlanCard({
             )}
             {plan.averageOff.macros && <p className="text-warning">{t('planAverageMacros')}</p>}
             {plan.packs.bought > 0 && (
-              <PlanPacksLine packs={plan.packs}>
+              <PlanPacksLine packs={plan.packs} together={plan.joint?.profileName}>
                 {plan.packs.open.some((pack) => pack.wasted) && (
                   <UseUp
                     planId={plan.id}

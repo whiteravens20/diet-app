@@ -11,16 +11,31 @@ import { useAmount } from '@/lib/ingredient-format';
  * What a plan's menu uses of the packs that do not keep once they are opened,
  * in a line that unfolds into the packs it does not finish. The server counts
  * all of it; this spells it. `children` is what can be done about what is
- * left, shown with the packs.
+ * left, shown with the packs. `together` names the other person of a joint plan,
+ * whose menu the server counts with this one: the two are cooked in one kitchen.
  */
-export function PlanPacksLine({ packs, children }: { packs: PlanPacks; children?: ReactNode }) {
+export function PlanPacksLine({
+  packs,
+  together,
+  children,
+}: {
+  packs: PlanPacks;
+  together?: string;
+  children?: ReactNode;
+}) {
   const t = useTranslations('mealPlans.packs');
   const amount = useAmount();
   const wasted = packs.open.filter((pack) => pack.wasted).length;
   return (
     <details>
       <summary className="cursor-pointer">
-        {t('line', { percent: Math.round((packs.used / packs.bought) * 100), wasted })}
+        {together !== undefined
+          ? t('lineJoint', {
+              percent: Math.round((packs.used / packs.bought) * 100),
+              wasted,
+              name: together,
+            })
+          : t('line', { percent: Math.round((packs.used / packs.bought) * 100), wasted })}
       </summary>
       <div className="ml-4 mt-1 space-y-1">
         {packs.open.length === 0 ? (

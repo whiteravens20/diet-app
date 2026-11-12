@@ -54,7 +54,14 @@ import {
   toppingFoodsOf,
   type ToppingFoods,
 } from './toppings-store.js';
-import { cookingsOf, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
+import {
+  cookingsOf,
+  onDaysOf,
+  packedMealsOf,
+  planPacks,
+  type PackedLine,
+  type PackedMeal,
+} from './plan-menu.js';
 import {
   dateAfter,
   givesALeftover,
@@ -328,6 +335,11 @@ export class MealPlansService {
       diary.size > 0
         ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
         : new Map<string, DiaryEntry[]>();
+    const packed = packedMealsOf(
+      plan.days,
+      PlanOptions.parse(plan.options).mealPrepFriendly,
+      toppingFoods,
+    );
     return {
       plan,
       dto: this.toDto(
@@ -340,7 +352,9 @@ export class MealPlansService {
         today,
         nextDays,
         toppingFoods,
+        packed,
       ),
+      packed,
     };
   }
 
@@ -1397,6 +1411,8 @@ export class MealPlansService {
     nextDays: ReadonlyMap<string, NextDay>,
     /** The foods of the toppings the plan's meals have. */
     toppingFoods: ToppingFoods,
+    /** What the meals take of the packs (`packedMealsOf`). */
+    packed: readonly PackedMeal[],
   ): MealPlan {
     const listed = (date: Date): boolean =>
       lists.some((list) => list.fromDate <= date && date <= list.toDate);
@@ -1449,12 +1465,6 @@ export class MealPlansService {
         });
       }
     }
-    // What the meals with a recipe take of it, for the count of the packs the menu opens: a meal eaten from a dish
-    // cooked ahead on the day the dish is cooked.
-    const packed: PackedMeal[] = [];
-    const cookedOnDay = new Map<string, number>();
-    for (const places of cookedOnce?.cookings ?? [])
-      for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
@@ -1492,13 +1502,6 @@ export class MealPlansService {
         const recipe = toRecipeDto(m.recipe, locale);
         // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
         const ofRecipe = factor / Math.max(1, m.recipe.servings);
-        // A leftover was cooked, and its packs opened, with the meal it was left of.
-        if (!m.leftoverFromDate)
-          packed.push({
-            day: cookedOnDay.get(m.id) ?? dayIndex,
-            factor: ofRecipe,
-            lines: m.recipe.ingredients,
-          });
         return {
           id: m.id,
           mealType: m.mealType as MealType,
@@ -1546,23 +1549,6 @@ export class MealPlansService {
           topping: toppingOf(m, toppingFoods, locale),
         };
       });
-      // A topping opens its pack as a recipe's line does.
-      for (const m of orderedMeals) {
-        const food = m.toppingKey !== null ? toppingFoods.get(m.toppingKey) : undefined;
-        if (food && m.toppingAmount !== null)
-          packed.push({
-            day: dayIndex,
-            factor: 1,
-            lines: [
-              {
-                ingredientId: food.id,
-                quantity: m.toppingAmount,
-                unit: food.canonicalUnit,
-                ingredient: food,
-              },
-            ],
-          });
-      }
       // What the diary holds for the day is eaten, beside the meals.
       const entered = diary.get(isoDate(day.date)) ?? null;
       // A meal's topping is eaten with it.
@@ -1733,6 +1719,8 @@ interface PlanWithRelations {
 interface Assembled {
   plan: PlanWithRelations;
   dto: MealPlan;
+  /** What the plan's meals take of the packs, each on its day of the plan. */
+  packed: readonly PackedMeal[];
 }
 
 /** What a meal of a plan comes to in servings of its recipe: its servings times the rebalancer's multiplier. */
@@ -1802,6 +1790,19 @@ function joined(
         };
       }),
     })),
+    // The two plans are cooked in one kitchen: their packs are counted together.
+    packs: planPacks(
+      [
+        ...mine.packed,
+        ...onDaysOf(
+          theirs.packed,
+          theirs.plan.days.map((day) => isoDate(day.date)),
+          mine.plan.days.map((day) => isoDate(day.date)),
+        ),
+      ],
+      mine.plan.days.length,
+      locale,
+    ),
   };
 }
 

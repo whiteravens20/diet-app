@@ -1795,6 +1795,7 @@
     },
     "packs": {
       "line": "Packs that do not keep once opened: the menu uses {percent}% of what it buys{wasted, plural, =0 {.} one {, and leaves more than a fifth of {wasted, number, ::group-off}\u00a0pack.} other {, and leaves more than a fifth of {wasted, number, ::group-off}\u00a0packs.}}",
+      "lineJoint": "Packs that do not keep once opened, counted together with the other plan ({name}): the two menus use {percent}% of what they buy{wasted, plural, =0 {.} one {, and leave more than a fifth of {wasted, number, ::group-off}\u00a0pack.} other {, and leave more than a fifth of {wasted, number, ::group-off}\u00a0packs.}}",
       "left": "{name}: {left} left of a pack of {size}",
       "leftMuch": "{name}: {left} left of a pack of {size}, more than a fifth of it",
       "allFinished": "Every pack the menu opens is used up.",
