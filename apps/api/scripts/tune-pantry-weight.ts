@@ -5,9 +5,11 @@
  * catalogue: for each diet and each weight, with the packs weighed as "less waste" weighs them, how
  * much of a pantry a week uses, how much of what it buys in packs that do not keep, how many of those
  * packs it leaves more than a fifth of, how far its days are from the diet's split, and how many
- * different recipes it holds. The first row is a plan as it is made without "less waste". Each draw
- * stocks the pantry with ingredients of the diet's recipes, a few servings' worth of each. The weight
- * of "less waste" was chosen from this table; run it again when the catalogue has grown.
+ * different recipes it holds. The first row is a plan as it is made without "less waste"; the others
+ * are sized for their days and have their packs closed after the planner, as the application does
+ * (`closePacks`), and every row counts the meals as sized. Each draw stocks the pantry with
+ * ingredients of the diet's recipes, a few servings' worth of each. The weight of "less waste" was
+ * chosen from this table; run it again when the catalogue has grown.
  *
  *   npx tsx scripts/tune-pantry-weight.ts [data directory]
  */
@@ -15,6 +17,7 @@ import { join } from 'node:path';
 import { DietType, fitsDiet, MEAL_SLOTS_BY_COUNT } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { energyShares, macroSplitOf, splitDistance } from '../src/engine/nutrition.js';
+import { closePacks } from '../src/engine/close-packs.js';
 import {
   optimisePlan,
   recipeCoverage,
@@ -22,6 +25,7 @@ import {
   uniformDays,
 } from '../src/engine/optimizer.js';
 import { packUse } from '../src/engine/packs.js';
+import { sizeAssignments } from '../src/engine/rebalance.js';
 import { dailyNeeds, plannable } from './catalogue-plans.js';
 
 /** The pack weight "less waste" plans with, chosen with `tune-pack-weight.ts`. */
@@ -120,12 +124,13 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
             ),
           ]),
         );
+        const week = uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET);
         let result;
         try {
           result = optimisePlan(
             {
               recipes,
-              days: uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET),
+              days: week,
               macroSplit: split,
               dietType: diet,
               mealPrepFriendly: false,
@@ -141,9 +146,33 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
           continue; // No recipe for one of the meals on this diet.
         }
         plans += 1;
-        distinct += new Set(result.assignments.map((placed) => placed.recipeId)).size;
+        const sized = sizeAssignments(week, recipes, result.assignments, split);
+        const [closed] =
+          label === 'now'
+            ? [sized]
+            : closePacks({
+                plans: [
+                  {
+                    recipes,
+                    days: week,
+                    assignments: sized,
+                    split,
+                    dietType: diet,
+                    mealPrepFriendly: false,
+                    limits: { consecutive: 2, perWeek: 3 },
+                  },
+                ],
+                packs: perishablePacks,
+                pantry,
+              });
+        // What each meal is as it is eaten: its servings at the portion its day is sized to.
+        const eaten = closed!.map((placed) => ({
+          ...placed,
+          servings: placed.servings * placed.quantityScale,
+        }));
+        distinct += new Set(eaten.map((placed) => placed.recipeId)).size;
         const needs = new Map<string, number>();
-        for (const placed of result.assignments) {
+        for (const placed of eaten) {
           for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? [])
             needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + perServing * placed.servings);
         }
@@ -152,13 +181,13 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
           taken += Math.min(held, needs.get(ingredientId) ?? 0);
         }
         // What the week buys is what the pantry does not hold, the pantry taken first.
-        const week = packUse(dailyNeeds(result.assignments, byId, DAYS, pantry), perishablePacks);
-        bought += week.bought;
-        used += week.used;
-        wasted += week.open.filter((pack) => pack.wasted).length;
+        const counted = packUse(dailyNeeds(eaten, byId, DAYS, pantry), perishablePacks);
+        bought += counted.bought;
+        used += counted.used;
+        wasted += counted.open.filter((pack) => pack.wasted).length;
         for (let day = 0; day < DAYS; day += 1) {
           const held = { protein: 0, fat: 0, carbs: 0 };
-          for (const placed of result.assignments.filter((a) => a.dayIndex === day)) {
+          for (const placed of eaten.filter((a) => a.dayIndex === day)) {
             const recipe = byId.get(placed.recipeId)!;
             held.protein += recipe.proteinPerServing * placed.servings;
             held.fat += recipe.fatPerServing * placed.servings;

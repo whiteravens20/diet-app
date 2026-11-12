@@ -298,22 +298,24 @@ export const LESS_WASTE_WEIGHTS: ScoreWeights = {
 };
 
 /**
- * What `LESS_WASTE_WEIGHTS` do against `SCORE_WEIGHTS` on each diet with a
- * split of its own, as `scripts/tune-pantry-weight.ts` measured them on the
- * base catalogue (183 recipes, weeks of 2000 kcal at three to five meals a
- * day, a pantry of eight of the diet's ingredients): the rows "now" and 0.60
- * of its table, the different recipes of a week as the share they fall by.
- * Measured again whenever either set of weights changes; the configuration
+ * What a plan that wastes less does against one that does not, on each diet
+ * with a split of its own: `LESS_WASTE_WEIGHTS` against `SCORE_WEIGHTS`, and
+ * its packs closed after the planner (`closePacks`), as
+ * `scripts/tune-pantry-weight.ts` measured them on the base catalogue (183
+ * recipes, weeks of 2000 kcal at three to five meals a day, a pantry of eight
+ * of the diet's ingredients): the rows "now" and 0.60 of its table, the
+ * different recipes of a week as the share they fall by. Measured again
+ * whenever either set of weights or the closing changes; the configuration
  * serves it, so that a client says what the option costs before it is chosen.
  */
 export const LESS_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
-  balanced: { pantry: { now: 35, less: 62 }, packs: { now: 80, less: 83 }, fewerRecipes: 19 },
-  high_protein: { pantry: { now: 45, less: 66 }, packs: { now: 81, less: 84 }, fewerRecipes: 15 },
-  low_carb: { pantry: { now: 64, less: 71 }, packs: { now: 77, less: 85 }, fewerRecipes: 27 },
-  vegetarian: { pantry: { now: 36, less: 58 }, packs: { now: 84, less: 85 }, fewerRecipes: 23 },
-  vegan: { pantry: { now: 57, less: 70 }, packs: { now: 82, less: 86 }, fewerRecipes: 24 },
-  keto: { pantry: { now: 67, less: 71 }, packs: { now: 69, less: 77 }, fewerRecipes: 34 },
-  mediterranean: { pantry: { now: 55, less: 67 }, packs: { now: 72, less: 83 }, fewerRecipes: 24 },
+  balanced: { pantry: { now: 35, less: 62 }, packs: { now: 75, less: 83 }, fewerRecipes: 25 },
+  high_protein: { pantry: { now: 43, less: 67 }, packs: { now: 74, less: 82 }, fewerRecipes: 25 },
+  low_carb: { pantry: { now: 60, less: 66 }, packs: { now: 66, less: 81 }, fewerRecipes: 36 },
+  vegetarian: { pantry: { now: 36, less: 61 }, packs: { now: 79, less: 83 }, fewerRecipes: 29 },
+  vegan: { pantry: { now: 58, less: 69 }, packs: { now: 78, less: 87 }, fewerRecipes: 30 },
+  keto: { pantry: { now: 64, less: 67 }, packs: { now: 62, less: 74 }, fewerRecipes: 39 },
+  mediterranean: { pantry: { now: 53, less: 67 }, packs: { now: 65, less: 82 }, fewerRecipes: 30 },
 };
 
 /** A day that is this far from its split, or further, gets nothing for it. */
