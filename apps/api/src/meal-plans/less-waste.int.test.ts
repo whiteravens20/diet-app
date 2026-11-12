@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { GeneratePlanRequest, type MealPlan, type Profile } from '@diet-app/shared';
+import {
+  GeneratePlanRequest,
+  RegenerateDayRequest,
+  type MealPlan,
+  type Profile,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -8,6 +13,7 @@ import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
+import { menuNeeds } from './plan-menu.js';
 
 describe('a plan that wastes less', () => {
   let t: TestApp;
@@ -114,7 +120,7 @@ describe('a plan that wastes less', () => {
   });
 });
 
-describe('the packs of the two plans of a joint plan', () => {
+describe('the packs of a plan that wastes less, closed after the planner', () => {
   let t: TestApp;
   let user: TestUser;
   let adam: Profile;
@@ -174,6 +180,20 @@ describe('the packs of the two plans of a joint plan', () => {
     }
   }
 
+  it('gives a meal both eat one dish in both plans, whatever closing the packs swaps', async () => {
+    const adams = await together(true);
+    const ewas = await read(adams.joint!.planId);
+
+    const shared = adams.days.flatMap((day) => day.meals.filter((meal) => meal.shared !== null));
+    expect(shared.length).toBeGreaterThan(0);
+    for (const meal of shared) {
+      const other = ewas.days
+        .flatMap((day) => day.meals)
+        .find((one) => one.id === meal.shared!.with.mealId)!;
+      expect(other.recipe!.id).toBe(meal.recipe!.id);
+    }
+  });
+
   it('counts the packs of the two plans of a joint plan together, in both of them', async () => {
     const adams = await together(false);
     const ewas = await read(adams.joint!.planId);
@@ -195,5 +215,51 @@ describe('the packs of the two plans of a joint plan', () => {
     // One pack for both lunches: 200 g are left, not 350 g in each plan.
     expect(chicken(mine)).toMatchObject({ packs: 1, left: 200, wasted: true });
     expect(theirs.packs).toEqual(mine.packs);
+  });
+
+  it('closes the days made again with what stays in the plan and with the other plan of the kitchen', async () => {
+    const adams = await together(true);
+    const ewas = await read(adams.joint!.planId);
+    for (const plan of [adams, ewas])
+      for (const day of [0, 1, 2])
+        await menu(plan, day, [
+          'scrambled-eggs-on-toast',
+          day === 0 ? 'chicken-rice-broccoli' : 'tofu-rice-bowl',
+          'chickpea-tomato-stew',
+        ]);
+    const generation = t.app.get(PlanGenerationService);
+
+    // The second day of Adam's plan alone is made again.
+    const prepared = await generation.prepare(
+      user.id,
+      adams.id,
+      { from: '2026-01-06', to: '2026-01-06' },
+      RegenerateDayRequest.parse({}),
+      '2026-01-01',
+    );
+    const chicken = await t.prisma.ingredient.findFirstOrThrow({
+      where: { slug: 'chicken-breast' },
+    });
+    const takes = (packed: Parameters<typeof menuNeeds>[0]) =>
+      menuNeeds(packed, 3).needs.get(chicken.id) ?? [0, 0, 0];
+
+    // What stays of Adam's plan: the first and the third day; the lunch of the first takes 150 g of chicken.
+    expect(takes(prepared.fixed.own)).toEqual([150, 0, 0]);
+    // Ewa's plan, cooked in the same kitchen: her lunch of the first day as well.
+    expect(takes(prepared.fixed.partner)).toEqual([150, 0, 0]);
+
+    // A plan that does not waste less closes nothing, and reads nothing for it.
+    await t.prisma.mealPlan.update({
+      where: { id: adams.id },
+      data: { options: { ...adams.options, lessWaste: false } },
+    });
+    const plain = await generation.prepare(
+      user.id,
+      adams.id,
+      { from: '2026-01-06', to: '2026-01-06' },
+      RegenerateDayRequest.parse({}),
+      '2026-01-01',
+    );
+    expect(plain.fixed).toEqual({ own: [], partner: [] });
   });
 });

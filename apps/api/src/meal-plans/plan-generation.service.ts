@@ -46,9 +46,13 @@ import {
   proteinKindsOf,
   recipeCoverage,
   requirementsPerServing,
+  closePacks,
+  reuseScore,
+  type ClosingPlan,
   type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
+  type OptimizerResult,
   type SizedAssignment,
   fullKindsOn,
   keepDaysOf,
@@ -74,6 +78,8 @@ import {
   type DayOverridesJson,
 } from './plan-days.js';
 import { planBaseOf, type BaseProfile, type PlanBase } from './plan-base.js';
+import { menuNeeds, type PackedMeal } from './plan-menu.js';
+import { packedOfDays, partnerPacked } from './plan-packs-store.js';
 import { asWeekDay } from './plan-weeks.js';
 import { capsOnARecipe, mealsPerKind } from './plan-limits.js';
 import { writePlan, writePlans } from './plan-write.js';
@@ -276,10 +282,10 @@ export class PlanGenerationService {
     // A shared time the first plan cannot be filled at, held to what both may be given, is planned apart, and the
     // plan made again without it.
     let sharedAsked = bothHave;
-    let ofFirst: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>;
+    let drawnFirst: Drawn;
     for (;;) {
       try {
-        ofFirst = await this.optimiseFor(userId, first.profile, {
+        drawnFirst = await this.drawPlan(userId, first.profile, {
           ...ask(first),
           days: first.days,
           joint: { ...joint, sharedSlots: sharedAsked },
@@ -292,20 +298,30 @@ export class PlanGenerationService {
         sharedAsked = sharedAsked.filter((slot) => !named.includes(slot));
       }
     }
-    const shared = ofFirst.shared;
+    const shared = drawnFirst.shared;
     const apart = bothHave.filter((slot) => !shared.includes(slot));
     // The second plan's meals at the shared times are the first plan's dishes.
+    const atShared = drawnFirst.closing.assignments.filter((placed) =>
+      shared.includes(placed.slot),
+    );
     const locked = second.days.map((day, dayIndex) => ({
       ...day,
-      lockedSlots: ofFirst.assignments
-        .filter((placed) => placed.dayIndex === dayIndex && shared.includes(placed.slot))
+      lockedSlots: atShared
+        .filter((placed) => placed.dayIndex === dayIndex)
         .map((placed) => ({ slot: placed.slot, recipeId: placed.recipeId })),
     }));
-    const ofSecond = await this.optimiseFor(userId, second.profile, {
+    const drawnSecond = await this.drawPlan(userId, second.profile, {
       ...ask(second),
       days: locked,
       topped: { slots: shared, options: toppingOptions },
     });
+    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given.
+    const [ofFirst, ofSecond] = await closeTogether(
+      drawnFirst,
+      drawnSecond,
+      atShared.map(({ dayIndex, slot }) => ({ dayIndex, slot })),
+      req.lessWaste === true,
+    );
 
     const planId = await this.prisma.$transaction(async (tx) => {
       // Held in one order, so that two joint plans of the same two profiles asked at once wait for each other.
@@ -693,6 +709,26 @@ export class PlanGenerationService {
       };
     });
 
+    // In a plan that wastes less, what stays in it, and the other plan of a joint plan, take of the packs: the packs
+    // of the days filled again are closed with it.
+    const staysOn = (dayIndex: number) => {
+      const reading = readings[dayIndex]!;
+      const { meals } = plan.days[dayIndex]!;
+      if (reading.fate === 'outside' || reading.fate === 'past') return meals;
+      const staying = new Set(reading.staying.map((meal) => meal.id));
+      return meals.filter((meal) => staying.has(meal.id));
+    };
+    const fixed: { own: PackedMeal[]; partner: PackedMeal[] } = lessWaste
+      ? {
+          own: await packedOfDays(
+            this.prisma,
+            plan.days.map((day, dayIndex) => ({ date: day.date, meals: staysOn(dayIndex) })),
+            made.mealPrepFriendly,
+          ),
+          partner: await partnerPacked(this.prisma, userId, plan),
+        }
+      : { own: [], partner: [] };
+
     return {
       plan,
       profile,
@@ -708,6 +744,7 @@ export class PlanGenerationService {
       dietType,
       macroSplit,
       dropIneligibleLocks: options.dropIneligibleLocks,
+      fixed,
     };
   }
 
@@ -801,10 +838,10 @@ export class PlanGenerationService {
     // What the plate of either may be given beside a shared dish, as when the plan was made.
     const toppingOptions = await toppingOptionsOf(this.prisma);
     let sharedAsked = [...new Set([...sharedOn.values()].flat())];
-    let ofMine: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>;
+    let drawnMine: Drawn;
     for (;;) {
       try {
-        ofMine = await this.drawFor(
+        drawnMine = await this.drawnFor(
           userId,
           mine,
           seed,
@@ -818,31 +855,45 @@ export class PlanGenerationService {
         sharedAsked = sharedAsked.filter((slot) => !named.includes(slot));
       }
     }
-    const shared = ofMine.shared;
+    const shared = drawnMine.shared;
     // The other plan's days filled again hold this plan's dishes at the shared times.
     const myIndex = new Map(
       mine.filled.map(({ dayIndex }) => [isoDate(mine.plan.days[dayIndex]!.date), dayIndex]),
     );
+    const atShared: { dayIndex: number; slot: MealType }[] = [];
     for (const [date, slots] of sharedOn) {
       const day = theirs.days[theirIndex.get(date)!]!;
-      const locks = ofMine.assignments
-        .filter(
-          (placed) =>
-            placed.dayIndex === myIndex.get(date) &&
-            slots.includes(placed.slot) &&
-            shared.includes(placed.slot),
-        )
-        .map((placed) => ({ slot: placed.slot, recipeId: placed.recipeId }));
+      const placedShared = drawnMine.closing.assignments.filter(
+        (placed) =>
+          placed.dayIndex === myIndex.get(date) &&
+          slots.includes(placed.slot) &&
+          shared.includes(placed.slot),
+      );
+      const locks = placedShared.map((placed) => ({
+        slot: placed.slot,
+        recipeId: placed.recipeId,
+      }));
       day.lockedSlots = [
         ...(day.lockedSlots ?? []).filter((lock) => !locks.some((one) => one.slot === lock.slot)),
         ...locks,
       ];
+      // The same day of the other plan is at the same place among its days: the two plans have the same days.
+      for (const placed of placedShared)
+        if (theirIndex.get(date) === placed.dayIndex)
+          atShared.push({ dayIndex: placed.dayIndex, slot: placed.slot });
     }
     const theirSeed = this.nextSeed();
-    const ofTheirs = await this.drawFor(userId, theirs, theirSeed, undefined, {
+    const drawnTheirs = await this.drawnFor(userId, theirs, theirSeed, undefined, {
       slots: shared,
       options: toppingOptions,
     });
+    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given.
+    const [ofMine, ofTheirs] = await closeTogether(
+      drawnMine,
+      drawnTheirs,
+      atShared,
+      mine.lessWaste,
+    );
     const [mineOutcome, theirOutcome] = await Promise.all([
       this.outcomeOf(mine, ofMine, options),
       this.outcomeOf(theirs, ofTheirs, options),
@@ -865,15 +916,40 @@ export class PlanGenerationService {
     );
   }
 
-  /** The draw of `draw`, with what planning together with another profile asks of it. */
-  private drawFor(
+  /**
+   * The draw of `draw`: one plan made again by itself, its packs closed with what
+   * stays in it and with the other plan of a joint plan.
+   */
+  private drawFor(userId: string, prepared: Prepared, seed: number): Promise<Optimised> {
+    return this.optimiseFor(
+      userId,
+      prepared.profile,
+      this.askOf(prepared, seed, [...prepared.fixed.own, ...prepared.fixed.partner]),
+    );
+  }
+
+  /**
+   * A draw of one of the two plans of a joint plan made again together, with what
+   * planning together asks of it: its packs are closed with the other's after
+   * (`closeTogether`).
+   */
+  private drawnFor(
     userId: string,
     prepared: Prepared,
     seed: number,
     joint?: JointAsk,
     topped?: { slots: readonly MealType[] | 'shared'; options: readonly ToppingOption[] },
-  ) {
-    return this.optimiseFor(userId, prepared.profile, {
+  ): Promise<Drawn> {
+    return this.drawPlan(userId, prepared.profile, {
+      ...this.askOf(prepared, seed, prepared.fixed.own),
+      ...(joint ? { joint } : {}),
+      ...(topped ? { topped } : {}),
+    });
+  }
+
+  /** What the optimiser is asked for the days that were prepared. */
+  private askOf(prepared: Prepared, seed: number, fixed: readonly PackedMeal[]) {
+    return {
       days: prepared.days,
       planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
       dietType: prepared.dietType,
@@ -886,21 +962,16 @@ export class PlanGenerationService {
       maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
       allowRelaxations: prepared.allowRelaxations,
       dropIneligibleLocks: prepared.dropIneligibleLocks,
-      ...(joint ? { joint } : {}),
-      ...(topped ? { topped } : {}),
+      fixed,
       seed,
-    });
+    };
   }
 
   /**
    * What a draw of days filled again comes to besides its meals: the meals cooked
    * with the meals that give place, and with which recipe, and the report.
    */
-  private async outcomeOf(
-    prepared: Prepared,
-    result: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>,
-    options: RegenerateDayRequest,
-  ) {
+  private async outcomeOf(prepared: Prepared, result: Optimised, options: RegenerateDayRequest) {
     const { plan, filled, dates, whole } = prepared;
     // Each meal that gives place, with the recipe that takes its place: for the meals cooked with it.
     const cookedWith = options.together
@@ -934,7 +1005,7 @@ export class PlanGenerationService {
   private async writeReroll(
     tx: Prisma.TransactionClient,
     prepared: Prepared,
-    result: Awaited<ReturnType<PlanGenerationService['optimiseFor']>>,
+    result: Optimised,
     seed: number,
     { cookedWith, moves, report }: Awaited<ReturnType<PlanGenerationService['outcomeOf']>>,
     today: string,
@@ -1040,12 +1111,35 @@ export class PlanGenerationService {
   }
 
   /**
-   * Run the deterministic optimiser for a profile against the eligible recipes.
+   * Run the deterministic optimiser for a profile against the eligible recipes,
+   * and in a plan that wastes less close the packs it opens (`closePacks`).
    * Takes a fully-resolved per-day descriptor list (slot set + calorie
    * target + locks + skip + cook-time budget + use-up-by per day); the basic
    * flow is just a list of uniform days.
    */
   private async optimiseFor(
+    ownerUserId: string,
+    profile: Parameters<PlanGenerationService['drawPlan']>[1],
+    opts: Parameters<PlanGenerationService['drawPlan']>[2],
+  ): Promise<Optimised> {
+    const drawn = await this.drawPlan(ownerUserId, profile, opts);
+    if (!opts.lessWaste) return drawn.finish(drawn.closing.assignments);
+    const [closed] = closePacks({
+      plans: [drawn.closing],
+      fixed: drawn.fixed,
+      packs: drawn.packs,
+      pantry: drawn.pantry,
+    });
+    return drawn.finish(closed!);
+  }
+
+  /**
+   * What the optimiser places for a profile, sized, with what closing its packs
+   * needs to know and a step that finishes it: the plan's meals once closed,
+   * their toppings, its report. Two plans of a joint plan are drawn each, closed
+   * together and finished each.
+   */
+  private async drawPlan(
     ownerUserId: string,
     profile: {
       id: string;
@@ -1076,8 +1170,13 @@ export class PlanGenerationService {
       respectFavorites?: boolean;
       /** Pantry-aware bias toggle (default true). */
       respectInventory?: boolean;
-      /** Lean much harder on the pantry and the packs (`LESS_WASTE_WEIGHTS`). */
+      /** Lean much harder on the pantry and the packs (`LESS_WASTE_WEIGHTS`), and close the packs after. */
       lessWaste?: boolean;
+      /**
+       * What stays in the plan takes of the packs, and of a joint plan made again
+       * alone what the other plan takes: what closing the packs counts with.
+       */
+      fixed?: readonly PackedMeal[];
       /** Variety floor — max total uses of any recipe across the window. */
       maxRepeatsPerRecipe?: number;
       /** The limits that may give way when a meal cannot be filled inside them. */
@@ -1096,14 +1195,7 @@ export class PlanGenerationService {
       topped?: { slots: readonly MealType[] | 'shared'; options: readonly ToppingOption[] };
       seed: number;
     },
-  ): Promise<{
-    assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[];
-    ingredientReuseScore: number;
-    report: StoredReport;
-    pantryRound?: PantryRound;
-    /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
-    shared: MealType[];
-  }> {
+  ): Promise<Drawn> {
     const loaded = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
@@ -1245,6 +1337,11 @@ export class PlanGenerationService {
 
     const dates = opts.days.map((d) => d.isoDate);
     const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
+    // A plan that names no number is held to the operator's, where one is set.
+    const perPlan =
+      opts.maxRepeatsPerRecipe ??
+      this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true });
+    const disliked = new Set(profile.preferences?.dislikedIngredientIds ?? []);
     try {
       const result = optimisePlan(
         {
@@ -1254,7 +1351,7 @@ export class PlanGenerationService {
           dietType: opts.dietType,
           mealPrepFriendly: opts.mealPrepFriendly,
           favoriteIngredientIds,
-          dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
+          dislikedIngredientIds: disliked,
           preferredCuisines: new Set([
             ...(profile.preferences?.preferredCuisines ?? []),
             ...(joint?.preferences?.preferredCuisines ?? []),
@@ -1262,10 +1359,7 @@ export class PlanGenerationService {
           inventoryCoverage,
           maxConsecutiveDaysSameMeal: caps.consecutive,
           maxTimesPerWeekSameMeal: caps.perWeek,
-          // A plan that names no number is held to the operator's, where one is set.
-          maxRepeatsPerRecipe:
-            opts.maxRepeatsPerRecipe ??
-            this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+          maxRepeatsPerRecipe: perPlan,
           maxMealsPerKind: perKind,
           perishablePacks,
           allowRelaxations: new Set(opts.allowRelaxations),
@@ -1274,21 +1368,43 @@ export class PlanGenerationService {
         opts.lessWaste ? LESS_WASTE_WEIGHTS : SCORE_WEIGHTS,
       );
       const sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
+      // What stays in the plan, and what another plan of the kitchen takes, with the packs it takes them from.
+      const kitchen = menuNeeds(opts.fixed ?? [], days.length);
+      const topped = opts.topped;
       return {
-        assignments: opts.topped
-          ? await this.topped(days, optimizerRecipes, sized, split, {
-              slots: opts.topped.slots === 'shared' ? [...sharedSlots] : opts.topped.slots,
-              options: opts.topped.options,
-              diet: opts.dietType,
-              preferences: profile.preferences,
-              perKind,
-              respectExclusions: opts.respectExclusions !== false,
-            })
-          : sized,
-        ingredientReuseScore: result.ingredientReuseScore,
-        report: reportOf(result, dates, pantry.use),
-        pantryRound: pantry.round,
+        closing: {
+          recipes: optimizerRecipes,
+          days,
+          assignments: sized,
+          split,
+          dietType: opts.dietType,
+          mealPrepFriendly: opts.mealPrepFriendly,
+          limits: { consecutive: caps.consecutive, perWeek: caps.perWeek, perPlan, perKind },
+          dislikedIngredientIds: disliked,
+        },
+        fixed: kitchen.needs,
+        packs: new Map([...kitchen.packs, ...perishablePacks]),
+        pantry: pantry.stock,
         shared: [...sharedSlots],
+        finish: async (closed) => {
+          const finished = closedResult(result, closed, days, optimizerRecipes);
+          return {
+            assignments: topped
+              ? await this.topped(days, optimizerRecipes, closed, split, {
+                  slots: topped.slots === 'shared' ? [...sharedSlots] : topped.slots,
+                  options: topped.options,
+                  diet: opts.dietType,
+                  preferences: profile.preferences,
+                  perKind,
+                  respectExclusions: opts.respectExclusions !== false,
+                })
+              : [...closed],
+            ingredientReuseScore: finished.ingredientReuseScore,
+            report: reportOf(finished, dates, pantry.use),
+            pantryRound: pantry.round,
+            shared: [...sharedSlots],
+          };
+        },
       };
     } catch (err) {
       // The plan could be filled only by letting limits give way that may
@@ -1579,7 +1695,13 @@ export class PlanGenerationService {
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
     /** Another profile whose pantry the plan counts as well: the other of a joint plan. */
     alsoOf?: string,
-  ): Promise<{ use: PantryUse; coverage?: Map<string, number>; round?: PantryRound }> {
+  ): Promise<{
+    use: PantryUse;
+    coverage?: Map<string, number>;
+    round?: PantryRound;
+    /** What the pantry holds of each ingredient, where the plan counts it. */
+    stock?: Map<string, number>;
+  }> {
     if (!respectInventory) return { use: 'not_asked' };
 
     const stock = await stockByIngredient(this.prisma, profileId);
@@ -1604,11 +1726,11 @@ export class PlanGenerationService {
       },
     });
     const threshold = profile?.preferences?.inventoryBiasResetEvery ?? 5;
-    if (threshold === 0) return { use: 'counted', coverage };
+    if (threshold === 0) return { use: 'counted', coverage, stock };
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
     return currentStreak >= threshold && !lessWaste
       ? { use: 'left_out', round: 'left_out' }
-      : { use: 'counted', coverage, round: 'counted' };
+      : { use: 'counted', coverage, round: 'counted', stock };
   }
 }
 
@@ -1649,6 +1771,99 @@ interface JointAsk {
 
 /** A plan read for days of it to be filled again (`prepare`). */
 type Prepared = Awaited<ReturnType<PlanGenerationService['prepare']>>;
+
+/** A plan the optimiser made for a profile, finished: its meals with their toppings, and its report. */
+interface Optimised {
+  assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[];
+  ingredientReuseScore: number;
+  report: StoredReport;
+  pantryRound?: PantryRound;
+  /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
+  shared: MealType[];
+}
+
+/** A plan the optimiser placed, before its packs are closed (`closePacks`) and it is finished. */
+interface Drawn {
+  closing: ClosingPlan;
+  /** What stays in the plan, and another plan of its kitchen, take of the packs on each day. */
+  fixed: Map<string, number[]>;
+  packs: Map<string, Pack>;
+  /** What the pantry holds of each ingredient, where the plan counts it: closing the packs takes no less of it. */
+  pantry?: Map<string, number>;
+  /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
+  shared: MealType[];
+  /** The plan with `closed` as its meals: their toppings given, its report said. */
+  finish: (closed: readonly SizedAssignment[]) => Promise<Optimised>;
+}
+
+/**
+ * What a run of the optimiser comes to once the packs were closed after it: the
+ * meals as closed, the ingredients they share, and no word of a limit that gave
+ * way at a meal that was given another recipe, which is inside every limit.
+ */
+function closedResult(
+  result: OptimizerResult,
+  closed: readonly SizedAssignment[],
+  days: readonly OptimizerDay[],
+  recipes: OptimizerRecipe[],
+): OptimizerResult {
+  const placeOf = (meal: { dayIndex: number; slot: MealType }) => `${meal.dayIndex}:${meal.slot}`;
+  const before = new Map(result.assignments.map((meal) => [placeOf(meal), meal.recipeId]));
+  const same = new Set(
+    closed.filter((meal) => before.get(placeOf(meal)) === meal.recipeId).map(placeOf),
+  );
+  const staying = days.flatMap((day) =>
+    (day.kept ?? []).flatMap((meal) =>
+      meal.recipeId !== undefined ? [{ recipeId: meal.recipeId }] : [],
+    ),
+  );
+  return {
+    assignments: [...closed],
+    ingredientReuseScore: reuseScore([...staying, ...closed], recipes),
+    report: {
+      ...result.report,
+      relaxations: result.report.relaxations.filter((at) => same.has(placeOf(at))),
+    },
+  };
+}
+
+/**
+ * The packs of the two plans of a joint plan closed together, in a plan that
+ * wastes less: one kitchen, and a meal both eat (at `shared`) swapped in both.
+ * Otherwise the plans as they were drawn.
+ */
+async function closeTogether(
+  first: Drawn,
+  second: Drawn,
+  shared: readonly { dayIndex: number; slot: MealType }[],
+  lessWaste: boolean,
+): Promise<[Optimised, Optimised]> {
+  if (!lessWaste)
+    return [
+      await first.finish(first.closing.assignments),
+      await second.finish(second.closing.assignments),
+    ];
+  const [mine, theirs] = closePacks({
+    plans: [first.closing, second.closing],
+    shared,
+    fixed: fixedOf([first, second]),
+    packs: new Map([...first.packs, ...second.packs]),
+    // The first plan counts both pantries (`resolveInventoryBias`).
+    pantry: first.pantry ?? second.pantry,
+  });
+  return [await first.finish(mine!), await second.finish(theirs!)];
+}
+
+/** What stays in the plans of a kitchen takes of the packs, all of them together. */
+function fixedOf(drawn: readonly Drawn[]): Map<string, number[]> {
+  const fixed = new Map<string, number[]>();
+  for (const [ingredientId, row] of drawn.flatMap((one) => [...one.fixed])) {
+    const ours = fixed.get(ingredientId);
+    if (ours) row.forEach((amount, day) => (ours[day] = (ours[day] ?? 0) + amount));
+    else fixed.set(ingredientId, [...row]);
+  }
+  return fixed;
+}
 
 /** The dates of the days a re-roll fills again. */
 const datesOf = (prepared: Prepared): Date[] =>

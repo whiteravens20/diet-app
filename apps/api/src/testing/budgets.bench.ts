@@ -283,6 +283,25 @@ describe('the budgets of the server, at the reference catalogue', () => {
     expect(overBudget()).toEqual([]);
   });
 
+  it('makes a plan of four weeks and five meals a day that wastes less within 1500 ms', async () => {
+    // Its packs are closed after the planner as well.
+    await measure(
+      'POST /meal-plans/generate (28 days, 5 meals, less waste)',
+      { ms: 1500, statements: 90 },
+      async (index) => {
+        const { user, profileId } = accounts[index % ACCOUNTS]!;
+        return (
+          await ask(user, 'POST', '/api/meal-plans/generate', {
+            profileId,
+            ...FOUR_WEEKS,
+            lessWaste: true,
+          })
+        ).ms;
+      },
+    );
+    expect(overBudget()).toEqual([]);
+  });
+
   it('makes a plan of a week and three meals a day within 800 ms', async () => {
     await measure(
       'POST /meal-plans/generate (7 days, 3 meals)',
