@@ -13,6 +13,7 @@ export * from './shopping.js';
 export * from './household.js';
 export * from './pantry.js';
 export * from './packs.js';
+export * from './cook-ahead.js';
 export * from './use-up.js';
 export * from './display.js';
 export * from './optimizer.js';
