@@ -183,7 +183,7 @@ export function packPull(
 export type DailyNeeds = ReadonlyMap<string, readonly number[]>;
 
 /** A pack a plan opens and does not finish. */
-export interface OpenPack {
+interface OpenPack {
   ingredientId: string;
   packSize: number;
   /** How many packs the plan takes of the ingredient. */
@@ -207,6 +207,27 @@ export interface PackUse {
   open: OpenPack[];
 }
 
+/** What one ingredient's packs come to over a menu's days: what it buys and eats, and every pack it leaves something in. */
+function walkPacks(
+  byDay: readonly number[],
+  pack: Pack,
+): { bought: number; used: number; left: { opened: Opened; atEnd: boolean }[] } {
+  let opened: Opened | undefined;
+  let bought = 0;
+  let used = 0;
+  const left: { opened: Opened; atEnd: boolean }[] = [];
+  byDay.forEach((need, day) => {
+    if (need <= CRUMB) return;
+    const step = packStep(opened, need, pack, day);
+    if (step.thrown) left.push({ opened: step.thrown, atEnd: false });
+    opened = step.opened;
+    bought += step.bought;
+    used += step.used;
+  });
+  if (opened !== undefined) left.push({ opened, atEnd: opened.until >= byDay.length - 1 });
+  return { bought, used, left };
+}
+
 /**
  * What a plan comes to in packs, a kitchen's count: for every ingredient
  * whose opened pack does not keep, day by day, the packs it buys, what it eats
@@ -221,31 +242,19 @@ export function packUse(needs: DailyNeeds, packs: ReadonlyMap<string, Pack>): Pa
   for (const [ingredientId, byDay] of needs) {
     const pack = packs.get(ingredientId);
     if (pack === undefined || pack.size <= 0) continue;
-    let opened: Opened | undefined;
-    let ownBought = 0;
-    let ownUsed = 0;
-    const left: { opened: Opened; atEnd: boolean }[] = [];
-    byDay.forEach((need, day) => {
-      if (need <= CRUMB) return;
-      const step = packStep(opened, need, pack, day);
-      if (step.thrown) left.push({ opened: step.thrown, atEnd: false });
-      opened = step.opened;
-      ownBought += step.bought;
-      ownUsed += step.used;
-    });
-    if (opened !== undefined) left.push({ opened, atEnd: opened.until >= byDay.length - 1 });
-    if (ownBought <= 0) continue;
-    bought += ownBought;
-    used += ownUsed;
-    for (const { opened: pack_, atEnd } of left)
+    const own = walkPacks(byDay, pack);
+    if (own.bought <= 0) continue;
+    bought += own.bought;
+    used += own.used;
+    for (const { opened, atEnd } of own.left)
       open.push({
         ingredientId,
         packSize: pack.size,
-        packs: Math.round(ownBought / pack.size),
-        used: clean(ownUsed),
-        left: pack_.left,
-        wasted: beyondAccepted(pack_.left, pack.size) > 0,
-        until: pack_.until,
+        packs: Math.round(own.bought / pack.size),
+        used: clean(own.used),
+        left: opened.left,
+        wasted: beyondAccepted(opened.left, pack.size) > 0,
+        until: opened.until,
         atEnd,
       });
   }
@@ -256,6 +265,11 @@ export function packUse(needs: DailyNeeds, packs: ReadonlyMap<string, Pack>): Pa
       a.until - b.until,
   );
   return { bought: clean(bought), used: clean(used), open };
+}
+
+/** The packs one ingredient's needs leave something in: what is left in each, and the last day it is eaten from. */
+export function packsLeftOver(byDay: readonly number[], pack: Pack): Opened[] {
+  return pack.size > 0 ? walkPacks(byDay, pack).left.map(({ opened }) => opened) : [];
 }
 
 /** What a plan throws away of its packs, in packs: every pack it leaves something in, by how much of it is left. */

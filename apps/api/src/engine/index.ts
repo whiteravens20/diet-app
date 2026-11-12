@@ -14,6 +14,7 @@ export * from './household.js';
 export * from './pantry.js';
 export * from './packs.js';
 export * from './cook-ahead.js';
+export * from './close-packs.js';
 export * from './use-up.js';
 export * from './display.js';
 export * from './optimizer.js';

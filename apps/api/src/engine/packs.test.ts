@@ -12,6 +12,7 @@ import {
   packsFor,
   packsLeft,
   packsLeftBeyondAccepted,
+  packsLeftOver,
   type Opened,
   type Pack,
 } from './packs.js';
@@ -294,6 +295,16 @@ describe('what a plan comes to in packs', () => {
       expect.objectContaining({ left: 400, until: 1, atEnd: false, wasted: true, packs: 2 }),
       expect.objectContaining({ left: 400, until: 4, atEnd: true, wasted: true, packs: 2 }),
     ]);
+  });
+
+  it('names what is left in each pack of one ingredient, as the plan counts it', () => {
+    // Monday opens a pack and leaves 400 g that are gone by Thursday; Thursday's opens another and Friday finishes it.
+    const row = [200, 0, 0, 400, 200];
+    const left = packsLeftOver(row, PACKS.get('chicken')!);
+
+    expect(left).toEqual([{ left: 400, until: 1 }]);
+    expect(packsLeft(packUse(new Map([['chicken', row]]), PACKS))).toBeCloseTo(400 / 600, 6);
+    expect(packsLeftOver([0, 0, 0], PACKS.get('chicken')!)).toEqual([]);
   });
 
   it('eats from one pack on the days it keeps: two meals on two days finish it', () => {
