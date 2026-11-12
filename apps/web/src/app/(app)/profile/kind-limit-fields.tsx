@@ -98,7 +98,7 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
             key={row.key}
             className="flex flex-wrap items-end gap-2 rounded-md border border-border/60 p-2"
           >
-            <label className="space-y-1">
+            <label className="space-y-1.5">
               <span className="block text-xs">{t('kindLimitKind')}</span>
               <select
                 name="kindLimitKind"
@@ -125,7 +125,7 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
                 ))}
               </select>
             </label>
-            <label className="space-y-1">
+            <label className="space-y-1.5">
               <span className="block text-xs">{t('kindLimitPerDay')}</span>
               <OptionalFrame className="w-32">
                 <Input
@@ -139,7 +139,7 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
                 />
               </OptionalFrame>
             </label>
-            <label className="space-y-1">
+            <label className="space-y-1.5">
               <span className="block text-xs">{t('kindLimitPerWeek')}</span>
               <OptionalFrame className="w-32">
                 <Input

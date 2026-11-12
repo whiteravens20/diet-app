@@ -23,7 +23,8 @@ export function Input({ className, ...props }: ComponentProps<'input'>) {
  * The word that says a field may stay empty, cut into the top edge of its frame at the right: above
  * the edge it has the surface the field stands on (a card's, through `--field-surface`, or the
  * page's), below it the field's own, so the edge seems to stop at the word. It is the frame's
- * `::after`, so it is read with the field's name and leaves the label's own text as it is.
+ * `::after`, so it is read with the field's name and leaves the label's own text as it is. Half of
+ * it stands above the edge, so a label above the frame keeps the gap `Field` gives its own (1.5).
  */
 const OPTIONAL_MARK =
   'after:pointer-events-none after:absolute after:right-2 after:top-0 after:-translate-y-1/2 after:select-none ' +
@@ -65,7 +66,7 @@ export function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="block text-sm font-medium">{label}</span>
       {optional ? <OptionalFrame>{children}</OptionalFrame> : children}
       {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
       {error && (

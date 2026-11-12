@@ -167,7 +167,7 @@ export function AdvancedOptions({
           <label className="block text-sm font-medium" htmlFor="adv-maxRepeats">
             {t('varietyFloor')}
           </label>
-          <OptionalFrame className="mt-1 w-28">
+          <OptionalFrame className="mt-1.5 w-28">
             <input
               id="adv-maxRepeats"
               type="number"

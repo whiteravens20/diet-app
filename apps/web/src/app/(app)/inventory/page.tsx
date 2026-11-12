@@ -332,7 +332,7 @@ function AddInventoryForm({
           <div className="relative flex-1 min-w-[14rem]">
             <label
               htmlFor={ids.ingredient}
-              className="block text-xs font-medium text-muted-foreground"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
             >
               {t('ingredientLabel')}
             </label>
@@ -386,7 +386,7 @@ function AddInventoryForm({
           <div>
             <label
               htmlFor={ids.quantity}
-              className="block text-xs font-medium text-muted-foreground"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
             >
               {t('quantityLabel')}
             </label>
@@ -402,7 +402,10 @@ function AddInventoryForm({
             />
           </div>
           <div>
-            <label htmlFor={ids.unit} className="block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={ids.unit}
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
               {t('unitLabel')}
             </label>
             <select
@@ -422,7 +425,7 @@ function AddInventoryForm({
           <div>
             <label
               htmlFor={ids.bestBefore}
-              className="block text-xs font-medium text-muted-foreground"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
             >
               {t('bestBeforeLabel')}
             </label>
