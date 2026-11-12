@@ -17,8 +17,10 @@ import { WeighService } from '../ai/weigh.service.js';
 import type { Env } from '../config/env.js';
 import {
   amountsPerServing,
+  keepDaysOf,
   requirementsPerServing,
   useUpSwaps,
+  type Pack,
   type UseUpMeal,
 } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -26,8 +28,10 @@ import { pickIngredient } from '../recipes/recipes.service.js';
 import { CANDIDATE, poolWhere, restrictionsFor, welcome } from './eligibility.js';
 import { holdsAbout } from './meal-swap.service.js';
 import { isoDate } from './plan-days.js';
+import { cookingsOf } from './plan-menu.js';
 import { readPlanLimits } from './plan-limits.js';
 import { LANGUAGE } from './swap-shared.js';
+import { toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 
 /** A recipe as this service reads it: what the gate reads, what it is called, what a serving holds and takes. */
 const RECIPE = {
@@ -54,6 +58,8 @@ const RECIPE = {
           density: true,
           packSize: true,
           perishable: true,
+          keepDays: true,
+          category: true,
           proteinPer100: true,
           proteinKind: true,
           translations: { select: { locale: true, name: true } },
@@ -123,15 +129,31 @@ export class UseUpService {
     const perServing = (recipe: Row): Map<string, number> =>
       amountsPerServing(requirementsPerServing(recipe));
     // The pack of every ingredient whose opened pack does not keep, of the menu and of what could come into it, and what each is called.
-    const packs = new Map<string, number>();
+    const packs = new Map<string, Pack>();
     const known = new Map<string, Row['ingredients'][number]['ingredient']>();
     const learn = (recipe: Row): void => {
       for (const line of recipe.ingredients) {
         known.set(line.ingredientId, line.ingredient);
         if (line.ingredient.perishable && line.ingredient.packSize)
-          packs.set(line.ingredientId, line.ingredient.packSize);
+          packs.set(line.ingredientId, {
+            size: line.ingredient.packSize,
+            keepDays: keepDaysOf(line.ingredient),
+          });
       }
     };
+    // A meal eaten from a dish cooked ahead takes its ingredients on the day the dish is cooked.
+    const cookedOnDay = new Map<string, number>();
+    if (options.mealPrepFriendly)
+      for (const places of cookingsOf(
+        plan.days.map((day) => ({
+          date: day.date,
+          meals: day.meals.map((m) => ({
+            ...m,
+            recipeId: m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipeId,
+          })),
+        })),
+      ).cookings)
+        for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
 
     // The recipes the profile may be given, read once: which of them is for a meal is asked of each as the meals come.
     let everyRecipe: Row[] | null = null;
@@ -147,7 +169,15 @@ export class UseUpService {
       return everyRecipe.filter((recipe) => recipe.mealTypes.includes(mealType));
     };
 
-    const fixed = new Map<string, number>();
+    const fixed = new Map<string, number[]>();
+    const fix = (ingredientId: string, day: number, amount: number): void => {
+      let row = fixed.get(ingredientId);
+      if (!row) {
+        row = Array.from({ length: plan.days.length }, () => 0);
+        fixed.set(ingredientId, row);
+      }
+      row[day]! += amount;
+    };
     const open: UseUpMeal[] = [];
     const about = new Map<
       string,
@@ -166,6 +196,7 @@ export class UseUpService {
         // leftover was cooked, its packs opened, with the meal it was left of.
         if (meal.source === 'USER_CUSTOM' || !meal.recipe || meal.leftoverFromDate) continue;
         learn(meal.recipe);
+        const takenOn = cookedOnDay.get(meal.id) ?? dayIndex;
         const factor = meal.servings * meal.quantityScale;
         const amounts = new Map(
           [...perServing(meal.recipe)].map(([ingredientId, amount]) => [
@@ -175,8 +206,7 @@ export class UseUpService {
         );
         // What was eaten is a record, and a day that has passed is what it was.
         if (meal.eatenAt !== null || date < today) {
-          for (const [ingredientId, amount] of amounts)
-            fixed.set(ingredientId, (fixed.get(ingredientId) ?? 0) + amount);
+          for (const [ingredientId, amount] of amounts) fix(ingredientId, takenOn, amount);
           continue;
         }
         const held = meal.recipe.caloriesPerServing * factor;
@@ -195,6 +225,7 @@ export class UseUpService {
         open.push({
           id: meal.id,
           recipeId: meal.recipe.id,
+          day: takenOn,
           held,
           amounts,
           candidates: candidates.map((candidate) => ({
@@ -220,40 +251,53 @@ export class UseUpService {
     const recipeOf = new Map(
       ((everyRecipe as Row[] | null) ?? []).map((recipe) => [recipe.id, recipe]),
     );
-    let suggestions: UseUpSuggestion[] = useUpSwaps(open, fixed, packs).map((swap) => {
-      const meal = about.get(swap.mealId)!;
-      const to = recipeOf.get(swap.recipeId)!;
-      return {
-        plannedMealId: swap.mealId,
-        date: meal.date,
-        mealType: meal.mealType,
-        from: { id: meal.recipe.id, title: titleOf(meal.recipe, locale) },
-        to: { id: to.id, title: titleOf(to, locale) },
-        servings: swap.servings,
-        before: meal.before,
-        after: {
-          calories: Math.round(to.caloriesPerServing * swap.servings),
-          protein: Math.round(to.proteinPerServing * swap.servings),
-          fat: Math.round(to.fatPerServing * swap.servings),
-          carbs: Math.round(to.carbsPerServing * swap.servings),
-        },
-        takes: [...swap.takes]
-          .map(([ingredientId, taken]) => {
-            const ingredient = known.get(ingredientId)!;
-            return {
-              ingredientId,
-              name: pickIngredient(locale, ingredient.translations, ingredient.name),
-              unit: ingredient.canonicalUnit,
-              amount: Math.max(1, Math.round(taken.amount)),
-              left: Math.round(taken.left),
-            };
-          })
-          .sort((a, b) => b.amount - a.amount),
-        packs: { before: swap.before, after: swap.after },
-        reason: null,
-        pick: null,
-      };
-    });
+    // A meal's topping opens its pack on the meal's day, and no swap here changes it.
+    const toppingFoods = plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+      ? await toppingFoodsOf(this.prisma)
+      : (new Map() as ToppingFoods);
+    for (const [dayIndex, day] of plan.days.entries())
+      for (const meal of day.meals) {
+        const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
+        if (!food || meal.toppingAmount === null || !food.perishable || !food.packSize) continue;
+        packs.set(food.id, { size: food.packSize, keepDays: keepDaysOf(food) });
+        fix(food.id, dayIndex, meal.toppingAmount);
+      }
+    let suggestions: UseUpSuggestion[] = useUpSwaps(open, fixed, packs, plan.days.length).map(
+      (swap) => {
+        const meal = about.get(swap.mealId)!;
+        const to = recipeOf.get(swap.recipeId)!;
+        return {
+          plannedMealId: swap.mealId,
+          date: meal.date,
+          mealType: meal.mealType,
+          from: { id: meal.recipe.id, title: titleOf(meal.recipe, locale) },
+          to: { id: to.id, title: titleOf(to, locale) },
+          servings: swap.servings,
+          before: meal.before,
+          after: {
+            calories: Math.round(to.caloriesPerServing * swap.servings),
+            protein: Math.round(to.proteinPerServing * swap.servings),
+            fat: Math.round(to.fatPerServing * swap.servings),
+            carbs: Math.round(to.carbsPerServing * swap.servings),
+          },
+          takes: [...swap.takes]
+            .map(([ingredientId, taken]) => {
+              const ingredient = known.get(ingredientId)!;
+              return {
+                ingredientId,
+                name: pickIngredient(locale, ingredient.translations, ingredient.name),
+                unit: ingredient.canonicalUnit,
+                amount: Math.max(1, Math.round(taken.amount)),
+                left: Math.round(taken.left),
+              };
+            })
+            .sort((a, b) => b.amount - a.amount),
+          packs: { before: swap.before, after: swap.after },
+          reason: null,
+          pick: null,
+        };
+      },
+    );
     if (!req.weigh || suggestions.length === 0)
       return { revision: plan.revision, suggestions, aiMeta: null };
 

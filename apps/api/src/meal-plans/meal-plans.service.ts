@@ -1449,8 +1449,12 @@ export class MealPlansService {
         });
       }
     }
-    // What the meals with a recipe take of it, for the count of the packs the menu opens.
+    // What the meals with a recipe take of it, for the count of the packs the menu opens: a meal eaten from a dish
+    // cooked ahead on the day the dish is cooked.
     const packed: PackedMeal[] = [];
+    const cookedOnDay = new Map<string, number>();
+    for (const places of cookedOnce?.cookings ?? [])
+      for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
@@ -1489,7 +1493,12 @@ export class MealPlansService {
         // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
         const ofRecipe = factor / Math.max(1, m.recipe.servings);
         // A leftover was cooked, and its packs opened, with the meal it was left of.
-        if (!m.leftoverFromDate) packed.push({ factor: ofRecipe, lines: m.recipe.ingredients });
+        if (!m.leftoverFromDate)
+          packed.push({
+            day: cookedOnDay.get(m.id) ?? dayIndex,
+            factor: ofRecipe,
+            lines: m.recipe.ingredients,
+          });
         return {
           id: m.id,
           mealType: m.mealType as MealType,
@@ -1542,6 +1551,7 @@ export class MealPlansService {
         const food = m.toppingKey !== null ? toppingFoods.get(m.toppingKey) : undefined;
         if (food && m.toppingAmount !== null)
           packed.push({
+            day: dayIndex,
             factor: 1,
             lines: [
               {
@@ -1628,7 +1638,7 @@ export class MealPlansService {
         macros: eaten.length > 0 && macrosOff(average, plan),
       },
       ingredientReuseScore: plan.reuseScore,
-      packs: planPacks(packed, locale),
+      packs: planPacks(packed, plan.days.length, locale),
       generationMode: modelHadAPart(plan.days),
       options,
       report: shownReport(plan.report, days),

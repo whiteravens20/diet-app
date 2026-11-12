@@ -114,6 +114,35 @@ describe("the packs a plan's menu opens that do not keep", () => {
     expect(answer.body.packs).toMatchObject({ bought: 2250, used: 1190 });
   });
 
+  it('are counted day by day: a pack of chicken opened on the first day is thrown away before the fourth', async () => {
+    plan = await aPlan(t, user, profile, { durationDays: 4 });
+    await menu(0, [EGGS, CHICKEN_RICE, STEW]);
+    await menu(1, [EGGS, TOFU_BOWL, STEW]);
+    await menu(2, [EGGS, TOFU_BOWL, STEW]);
+    await menu(3, [EGGS, CHICKEN_RICE, STEW]);
+
+    const chicken = (await read()).packs.open.filter((pack) => pack.name === 'Chicken breast');
+
+    // Chicken keeps two days once opened: the 350 g Monday leaves are gone by Thursday, which opens another pack.
+    expect(chicken.map((pack) => [pack.packs, pack.left, pack.wasted])).toEqual([
+      [2, 350, true],
+      [2, 350, true],
+    ]);
+  });
+
+  it('count a meal eaten from a dish cooked ahead on the day the dish is cooked', async () => {
+    plan = await aPlan(t, user, profile, { durationDays: 3, mealPrepFriendly: true });
+    // The skillet opens the chicken on the first day; the rice of the second day is cooked for the third as well.
+    await menu(0, [EGGS, STEW, SKILLET]);
+    await menu(1, [EGGS, CHICKEN_RICE, TOFU_BOWL]);
+    await menu(2, [EGGS, CHICKEN_RICE, STEW]);
+
+    const chicken = (await read()).packs.open.filter((pack) => pack.name === 'Chicken breast');
+
+    // 180 g on the first day and 300 g cooked on the second, all from one pack while it keeps: 20 g are left.
+    expect(chicken.map((pack) => [pack.packs, pack.left, pack.wasted])).toEqual([[1, 20, false]]);
+  });
+
   it('are none for a menu that opens no such pack', async () => {
     await menu(0, [EGGS, TOFU_BOWL, STEW]);
     await menu(1, [EGGS, TOFU_BOWL, STEW]);

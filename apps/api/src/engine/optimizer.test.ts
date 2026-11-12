@@ -488,7 +488,7 @@ describe('a plan for somebody who prefers a cuisine', () => {
 
 describe('a plan and the packs it opens', () => {
   /** Chicken comes in packs of 600 g, and what is left of an opened one does not keep. */
-  const PACKS = new Map([['chicken', 600]]);
+  const PACKS = new Map([['chicken', { size: 600, keepDays: 2 }]]);
   const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
   /**
    * A day whose lunch takes `lunchGrams` of chicken, and two dinners alike in
@@ -588,7 +588,8 @@ describe('a plan and the packs it opens', () => {
     days: uniformDays(days, ['breakfast', 'lunch', 'dinner'], 2000),
     ...over,
   });
-  const TUB = new Map([['yogurt', 500]]);
+  // A tub that keeps two weeks once opened: a week of the plan to come is a week to eat from it.
+  const TUB = new Map([['yogurt', { size: 500, keepDays: 14 }]]);
   const firstDinner = (days: number, over: Partial<OptimizerInput>): string =>
     optimisePlan(withATub(days, over)).assignments.find(
       (a) => a.dayIndex === 0 && a.slot === 'dinner',
@@ -604,12 +605,24 @@ describe('a plan and the packs it opens', () => {
     expect(withPacks).toBeLessThan(without / 2);
   });
 
-  it('holds a pack against no meal that opens it with a week of the plan still to come', () => {
+  it('holds a pack against no meal that opens it with a week of the plan still to come in which it keeps', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       expect(firstDinner(8, { seed, perishablePacks: TUB }), `seed ${seed}`).toBe(
         firstDinner(8, { seed }),
       );
     }
+  });
+
+  it('holds a pack that keeps two days against the meal that opens it, however much of the plan is to come', () => {
+    // The same tub, eaten from on two days only: a week to come gives it one more day, not a week.
+    const shortLived = new Map([['yogurt', { size: 500, keepDays: 2 }]]);
+    const without = SEEDS.filter((seed) => firstDinner(8, { seed }) === 'd-yogurt').length;
+    const withPacks = SEEDS.filter(
+      (seed) => firstDinner(8, { seed, perishablePacks: shortLived }) === 'd-yogurt',
+    ).length;
+
+    expect(without).toBeGreaterThan(SEEDS.length * 0.3);
+    expect(withPacks).toBeLessThan(without);
   });
 
   it('changes nothing where no ingredient of the plan comes in such a pack', () => {
@@ -620,8 +633,12 @@ describe('a plan and the packs it opens', () => {
         optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map() })).assignments,
       ).toEqual(plain);
       expect(
-        optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map([['yogurt', 500]]) }))
-          .assignments,
+        optimisePlan(
+          aDay(200, 200, {
+            seed,
+            perishablePacks: new Map([['yogurt', { size: 500, keepDays: 7 }]]),
+          }),
+        ).assignments,
       ).toEqual(plain);
     }
   });

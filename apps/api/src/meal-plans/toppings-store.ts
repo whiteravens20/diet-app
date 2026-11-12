@@ -165,6 +165,8 @@ export async function toppingFoodsOf(db: Pick<Prisma.TransactionClient, 'ingredi
       saturatedFatPer100: true,
       packSize: true,
       perishable: true,
+      keepDays: true,
+      category: true,
       translations: { select: { locale: true, name: true } },
     },
   });

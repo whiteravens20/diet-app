@@ -51,7 +51,9 @@ import {
   type OptimizerRecipe,
   type SizedAssignment,
   fullKindsOn,
+  keepDaysOf,
   topAssignments,
+  type Pack,
   type ToppedAssignment,
   type ToppingOption,
 } from '../engine/index.js';
@@ -1436,7 +1438,7 @@ export class PlanGenerationService {
     /** Every recipe the user may be given at all, before the profile's allergens, skipped ingredients and avoided recipes took any out. */
     beforeProfileRules: Array<{ mealTypes: string[]; dietTags: string[] }>;
     /** The pack of each ingredient of the pool whose opened pack does not keep, in the ingredient's canonical unit. */
-    perishablePacks: Map<string, number>;
+    perishablePacks: Map<string, Pack>;
   }> {
     const allergens = profile.preferences?.allergens ?? [];
     const excluded =
@@ -1485,6 +1487,8 @@ export class PlanGenerationService {
                 density: true,
                 packSize: true,
                 perishable: true,
+                keepDays: true,
+                category: true,
                 proteinPer100: true,
                 proteinKind: true,
               },
@@ -1539,11 +1543,14 @@ export class PlanGenerationService {
       totalMinutes: r.prepMinutes + r.cookMinutes,
     }));
 
-    // The pack of every ingredient of the pool whose opened pack does not keep.
-    const perishablePacks = new Map<string, number>();
+    // The pack of every ingredient of the pool whose opened pack does not keep, and the days an opened one keeps.
+    const perishablePacks = new Map<string, Pack>();
     for (const line of filteredRecipes.flatMap((r) => r.ingredients)) {
       if (line.ingredient.perishable && line.ingredient.packSize)
-        perishablePacks.set(line.ingredientId, line.ingredient.packSize);
+        perishablePacks.set(line.ingredientId, {
+          size: line.ingredient.packSize,
+          keepDays: keepDaysOf(line.ingredient),
+        });
     }
 
     return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes, perishablePacks };

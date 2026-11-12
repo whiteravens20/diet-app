@@ -22,7 +22,7 @@ import {
   uniformDays,
 } from '../src/engine/optimizer.js';
 import { packUse } from '../src/engine/packs.js';
-import { plannable } from './catalogue-plans.js';
+import { dailyNeeds, plannable } from './catalogue-plans.js';
 
 /** The pack weight "less waste" plans with, chosen with `tune-pack-weight.ts`. */
 const LESS_WASTE_PACKS = 0.6;
@@ -151,14 +151,8 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
           stocked += held;
           taken += Math.min(held, needs.get(ingredientId) ?? 0);
         }
-        // What the week buys is what the pantry does not hold.
-        const toBuy = new Map(
-          [...needs].map(([ingredientId, need]) => [
-            ingredientId,
-            Math.max(0, need - (pantry.get(ingredientId) ?? 0)),
-          ]),
-        );
-        const week = packUse(toBuy, perishablePacks);
+        // What the week buys is what the pantry does not hold, the pantry taken first.
+        const week = packUse(dailyNeeds(result.assignments, byId, DAYS, pantry), perishablePacks);
         bought += week.bought;
         used += week.used;
         wasted += week.open.filter((pack) => pack.wasted).length;

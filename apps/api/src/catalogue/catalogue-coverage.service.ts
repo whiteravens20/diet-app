@@ -9,6 +9,7 @@ import {
   type MacroReach,
 } from '../engine/coverage.js';
 import { amountsPerServing, requirementsPerServing } from '../engine/optimizer.js';
+import { keepDaysOf, type Pack } from '../engine/packs.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** How long a count is handed out again before the recipes are read anew. */
@@ -93,16 +94,21 @@ export class CatalogueCoverageService {
                 density: true,
                 packSize: true,
                 perishable: true,
+                keepDays: true,
+                category: true,
               },
             },
           },
         },
       },
     });
-    const perishablePacks = new Map<string, number>();
+    const perishablePacks = new Map<string, Pack>();
     for (const line of recipes.flatMap((recipe) => recipe.ingredients)) {
       if (line.ingredient.perishable && line.ingredient.packSize)
-        perishablePacks.set(line.ingredientId, line.ingredient.packSize);
+        perishablePacks.set(line.ingredientId, {
+          size: line.ingredient.packSize,
+          keepDays: keepDaysOf(line.ingredient),
+        });
     }
     const reach = macroReachByDiet(
       recipes.map(({ ingredients, mealTypes, servings, ...recipe }) => ({

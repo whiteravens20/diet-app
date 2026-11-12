@@ -1,15 +1,17 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { packUse } from './packs.js';
+import { packUse, type Pack } from './packs.js';
 import { tallyOf, useUpSwaps, type UseUpCandidate, type UseUpMeal } from './use-up.js';
 
-/** Beef in packs of 500 g, feta in packs of 200 g, yogurt in tubs of 400 g. */
-const PACKS = new Map([
-  ['beef', 500],
-  ['feta', 200],
-  ['yogurt', 400],
+/** Beef in packs of 500 g that keep two days once opened, feta in packs of 200 g for four days, yogurt in tubs of 400 g for a week. */
+const PACKS = new Map<string, Pack>([
+  ['beef', { size: 500, keepDays: 2 }],
+  ['feta', { size: 200, keepDays: 4 }],
+  ['yogurt', { size: 400, keepDays: 7 }],
 ]);
+/** The plans here are of four days. */
+const DAYS = 4;
 const amounts = (of: Record<string, number>): Map<string, number> => new Map(Object.entries(of));
 const recipe = (
   recipeId: string,
@@ -22,8 +24,18 @@ const meal = (
   held: number,
   of: Record<string, number>,
   candidates: UseUpCandidate[] = [],
-): UseUpMeal => ({ id, recipeId, held, amounts: amounts(of), candidates });
-const NOTHING = new Map<string, number>();
+  day = 0,
+): UseUpMeal => ({ id, recipeId, day, held, amounts: amounts(of), candidates });
+/** What meals that cannot be changed take of each ingredient on each day, given as `[day, amount]`. */
+const daily = (needs: Record<string, [number, number][]>) =>
+  new Map(
+    Object.entries(needs).map(([id, list]) => {
+      const row = Array.from({ length: DAYS }, () => 0);
+      for (const [day, amount] of list) row[day]! += amount;
+      return [id, row];
+    }),
+  );
+const NOTHING = new Map<string, number[]>();
 
 describe('the swaps that use up what a plan opens', () => {
   /** A dinner of beef that takes 180 g of a pack of 500, and a lunch of lentils that could be beef as well. */
@@ -37,6 +49,7 @@ describe('the swaps that use up what a plan opens', () => {
       [beefDinner, lentilLunch([beefBowl, recipe('veg-curry', 700, { rice: 90 })])],
       NOTHING,
       PACKS,
+      DAYS,
     );
 
     expect(others).toEqual([]);
@@ -53,6 +66,7 @@ describe('the swaps that use up what a plan opens', () => {
       [beefDinner, meal('lunch-2', 'lentil-soup', 875, { lentils: 110 }, [beefBowl])],
       NOTHING,
       PACKS,
+      DAYS,
     );
 
     expect(swap).toMatchObject({ servings: 1.25, after: { bought: 500, used: 480, wasted: 0 } });
@@ -62,8 +76,8 @@ describe('the swaps that use up what a plan opens', () => {
   it('are none where the menu leaves no pack more than a fifth full', () => {
     const used = meal('dinner-1', 'beef-pasta', 700, { beef: 420 });
 
-    expect(useUpSwaps([used, lentilLunch([beefBowl])], NOTHING, PACKS)).toEqual([]);
-    expect(useUpSwaps([], NOTHING, PACKS)).toEqual([]);
+    expect(useUpSwaps([used, lentilLunch([beefBowl])], NOTHING, PACKS, DAYS)).toEqual([]);
+    expect(useUpSwaps([], NOTHING, PACKS, DAYS)).toEqual([]);
   });
 
   it('leave out a swap that finishes one pack by opening another and leaving as much of that', () => {
@@ -71,7 +85,7 @@ describe('the swaps that use up what a plan opens', () => {
     const fetaBreakfast = meal('breakfast-1', 'feta-toast', 400, { feta: 60 });
     const salad = recipe('feta-yogurt-salad', 700, { feta: 110, yogurt: 60 });
 
-    expect(useUpSwaps([fetaBreakfast, lentilLunch([salad])], NOTHING, PACKS)).toEqual([]);
+    expect(useUpSwaps([fetaBreakfast, lentilLunch([salad])], NOTHING, PACKS, DAYS)).toEqual([]);
   });
 
   it('count what the swap takes away with the recipe that leaves: a meal that held the pack does not use it up by leaving', () => {
@@ -80,12 +94,13 @@ describe('the swaps that use up what a plan opens', () => {
       recipe('beef-stew', 700, { beef: 190 }),
     ]);
 
-    expect(useUpSwaps([dinner], NOTHING, PACKS)).toEqual([]);
+    expect(useUpSwaps([dinner], NOTHING, PACKS, DAYS)).toEqual([]);
   });
 
   it('count what the meals that cannot be changed take', () => {
     // Yesterday's dinner, eaten, opened the beef: today's lunch can still use it.
-    const [swap] = useUpSwaps([lentilLunch([beefBowl])], amounts({ beef: 180 }), PACKS);
+    const today = meal('lunch-2', 'lentil-soup', 700, { lentils: 90 }, [beefBowl], 1);
+    const [swap] = useUpSwaps([today], daily({ beef: [[0, 180]] }), PACKS, DAYS);
 
     expect(swap).toMatchObject({
       mealId: 'lunch-2',
@@ -102,7 +117,7 @@ describe('the swaps that use up what a plan opens', () => {
       recipe('feta-plate', 300, { feta: 110 }),
     ]);
 
-    const swaps = useUpSwaps([beefDinner, feta, lunch, snack], NOTHING, PACKS);
+    const swaps = useUpSwaps([beefDinner, feta, lunch, snack], NOTHING, PACKS, DAYS);
 
     // The bowl takes more of the beef than the wrap; the plate brings the feta to three quarters.
     expect(swaps.map((swap) => [swap.mealId, swap.recipeId])).toEqual([
@@ -112,26 +127,37 @@ describe('the swaps that use up what a plan opens', () => {
     expect(swaps[0]!.before).toEqual(swaps[1]!.before);
   });
 
+  it('count a pack only while it keeps: three days after it was opened another meal of beef opens a new one', () => {
+    // The dinner of the first day opened the beef; a lunch of the fourth comes after the pack is thrown away.
+    const late = meal('lunch-4', 'lentil-soup', 700, { lentils: 90 }, [beefBowl], 3);
+    const early = meal('lunch-2', 'lentil-soup', 700, { lentils: 90 }, [beefBowl], 1);
+
+    expect(useUpSwaps([beefDinner, late], NOTHING, PACKS, DAYS)).toEqual([]);
+    expect(useUpSwaps([beefDinner, early], NOTHING, PACKS, DAYS)).toHaveLength(1);
+  });
+
   it('give no more than asked for', () => {
     const lunches = Array.from({ length: 8 }, (_, index) =>
       meal(`lunch-${index}`, 'lentil-soup', 700, { lentils: 90 }, [beefBowl]),
     );
 
-    expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS)).toHaveLength(5);
-    expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS, 2)).toHaveLength(2);
+    expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS, DAYS)).toHaveLength(5);
+    expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS, DAYS, 2)).toHaveLength(2);
   });
 
   it('never offer a meal the recipe it holds', () => {
     const dinner = meal('dinner-1', 'beef-pasta', 700, { beef: 180 });
     const again = meal('dinner-2', 'beef-bowl', 700, { beef: 20, rice: 80 }, [beefBowl]);
 
-    expect(useUpSwaps([dinner, again], NOTHING, PACKS)).toEqual([]);
+    expect(useUpSwaps([dinner, again], NOTHING, PACKS, DAYS)).toEqual([]);
   });
 });
 
 describe('what a menu buys in packs, in three numbers', () => {
   it('is what it buys, what it uses, and how many packs it leaves more than a fifth of', () => {
-    expect(tallyOf(packUse(amounts({ beef: 180, feta: 170, yogurt: 100 }), PACKS))).toEqual({
+    expect(
+      tallyOf(packUse(daily({ beef: [[0, 180]], feta: [[0, 170]], yogurt: [[0, 100]] }), PACKS)),
+    ).toEqual({
       bought: 1100,
       used: 450,
       wasted: 2,

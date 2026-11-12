@@ -42,7 +42,7 @@ import {
   type Unit,
 } from '@diet-app/shared';
 import { distanceOnDiet, energyShares } from './nutrition.js';
-import { packPull } from './packs.js';
+import { packPull, packStep, type Opened, type Pack } from './packs.js';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 export interface OptimizerRecipe {
@@ -178,13 +178,14 @@ export interface OptimizerInput {
    */
   maxMealsPerKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
   /**
-   * The pack of each ingredient whose opened pack does not keep, in the
-   * ingredient's own unit. A recipe that takes from a pack the plan has
-   * opened and mostly left scores higher, and one that would open a pack
-   * with little of the plan left to use it in scores lower (`packs.ts`).
-   * Omitted or empty: packs play no part in the choice.
+   * The pack of each ingredient whose opened pack does not keep: its size in
+   * the ingredient's own unit and the days an opened one keeps. A recipe that
+   * takes from a pack the plan has opened and mostly left, while it keeps,
+   * scores higher, and one that would open a pack with few of its days left
+   * in the plan to be eaten from scores lower (`packs.ts`). Omitted or
+   * empty: packs play no part in the choice.
    */
-  perishablePacks?: ReadonlyMap<string, number>;
+  perishablePacks?: ReadonlyMap<string, Pack>;
   /**
    * The limits that may give way when no recipe is left for a meal inside
    * them. `all` (the default) lets any of them. A limit that may give way
@@ -468,9 +469,11 @@ function fill(
   const usesByRecipe = new Map<string, Use[]>();
   const usesOf = (recipeId: string): readonly Use[] => usesByRecipe.get(recipeId) ?? NO_USES;
   const useCount = new Map<string, number>();
-  const heldInAll = new Map<string, number>(); // ingredientId → what the meals placed so far hold of it together
+  // What the meals placed so far take of each ingredient whose pack does not keep, on each day: a dish cooked
+  // ahead on the day it is cooked.
+  const needsByDay = new Map<string, number[]>();
   const kindDays = new Map<ProteinKind, number[]>(); // kind of protein → the day of each meal placed so far that holds it
-  const place = (day: number, recipeId: string, servings: number): void => {
+  const place = (day: number, recipeId: string, servings: number, cookedOn = day): void => {
     const use = { day, recipeId };
     uses.push(use);
     const mine = usesByRecipe.get(recipeId);
@@ -479,15 +482,43 @@ function fill(
     useCount.set(recipeId, (useCount.get(recipeId) ?? 0) + 1);
     const recipe = recipeById.get(recipeId);
     recipe?.ingredientIds.forEach((id) => planIngredients.add(id));
-    for (const [ingredientId, perServing] of recipe?.amounts ?? [])
-      heldInAll.set(ingredientId, (heldInAll.get(ingredientId) ?? 0) + perServing * servings);
+    for (const [ingredientId, perServing] of recipe?.amounts ?? []) {
+      if (!input.perishablePacks?.has(ingredientId)) continue;
+      let row = needsByDay.get(ingredientId);
+      if (!row) {
+        row = Array.from({ length: input.days.length }, () => 0);
+        needsByDay.set(ingredientId, row);
+      }
+      row[cookedOn] = (row[cookedOn] ?? 0) + perServing * servings;
+      openedCache.delete(ingredientId);
+    }
     for (const kind of recipe?.proteinKinds ?? []) {
       const days = kindDays.get(kind);
       if (days) days.push(day);
       else kindDays.set(kind, [day]);
     }
   };
-  const heldOf = (ingredientId: string): number => heldInAll.get(ingredientId) ?? 0;
+  // What is open of an ingredient on a day, after the meals of the day placed so far: the packs walked from the
+  // first day on. Kept for the day it was asked on until a meal that takes the ingredient is placed.
+  const openedCache = new Map<string, Opened | undefined>();
+  let openedOnDay = -1;
+  const openedOn =
+    (day: number) =>
+    (ingredientId: string): Opened | undefined => {
+      if (openedOnDay !== day) {
+        openedCache.clear();
+        openedOnDay = day;
+      }
+      if (openedCache.has(ingredientId)) return openedCache.get(ingredientId);
+      const pack = input.perishablePacks?.get(ingredientId);
+      const row = needsByDay.get(ingredientId);
+      let opened: Opened | undefined;
+      if (pack && row)
+        for (let d = 0; d <= day && d < row.length; d++)
+          if (row[d]! > 0) opened = packStep(opened, row[d]!, pack, d).opened;
+      openedCache.set(ingredientId, opened);
+      return opened;
+    };
   // What the draw adds to a recipe's score is the same at every meal of the run.
   const jitters = new Map<string, number>();
   const jitterOf = (recipe: OptimizerRecipe): number => {
@@ -623,6 +654,8 @@ function fill(
         (SLOT_WEIGHT[slot] / toCome.reduce((sum, other) => sum + SLOT_WEIGHT[other], 0));
 
       let recipe: OptimizerRecipe;
+      // A dish cooked the day before for this meal takes its ingredients on that day.
+      let cookedOn = day;
       const lockedId = lockedBySlot.get(slot);
       if (lockedId !== undefined) {
         const locked = recipeById.get(lockedId);
@@ -688,7 +721,7 @@ function fill(
             usesOf,
             packs: input.perishablePacks,
             daysToCome,
-            heldOf,
+            opened: openedOn(day),
             dayMacros,
             macroSplit: (spec.macroAim && energyShares(spec.macroAim)) ?? input.macroSplit,
             dietType: input.dietType,
@@ -699,6 +732,7 @@ function fill(
             inventoryCoverage: coverage,
             jitterOf,
           });
+        if (repeated !== undefined) cookedOn = day - 1;
         const gaveWay = pool.outside(recipe);
         if (gaveWay.length > 0)
           report.relaxations.push({ dayIndex: day, slot, gaveWay: [...gaveWay] });
@@ -715,7 +749,7 @@ function fill(
         },
         servings,
       );
-      place(day, recipe.id, servings);
+      place(day, recipe.id, servings, cookedOn);
       if (input.mealPrepFriendly) cook(slot, day, recipe.id);
     }
   }
@@ -865,9 +899,9 @@ interface PickContext {
   planIngredients: Set<string>;
   /** The meals of the plan so far that hold a recipe: those that stay and those already placed. */
   usesOf: (recipeId: string) => readonly Use[];
-  /** The pack of each ingredient whose opened pack does not keep, what the plan holds of an ingredient so far, and the days still to be filled after this one. */
-  packs?: ReadonlyMap<string, number>;
-  heldOf?: (ingredientId: string) => number;
+  /** The pack of each ingredient whose opened pack does not keep, what is open of an ingredient when the meal is eaten, and the days still to be filled after this one. */
+  packs?: ReadonlyMap<string, Pack>;
+  opened?: (ingredientId: string) => Opened | undefined;
   daysToCome?: number;
   /** What the meals of the day hold so far, in grams. */
   dayMacros: Macros;
@@ -978,7 +1012,7 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   // What the meal would do to the packs of the plan as it stands: nothing,
   // when none of what it takes comes in a pack that does not keep.
   let packs = 0;
-  if (ctx.packs && ctx.packs.size > 0 && ctx.heldOf && recipe.amounts) {
+  if (ctx.packs && ctx.packs.size > 0 && ctx.opened && recipe.amounts) {
     let takesFromAPack = false;
     for (const ingredientId of recipe.amounts.keys()) {
       if (ctx.packs.has(ingredientId)) {
@@ -987,7 +1021,14 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
       }
     }
     if (takesFromAPack)
-      packs = packPull(recipe.amounts, ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0, servings);
+      packs = packPull(
+        recipe.amounts,
+        ctx.opened,
+        ctx.packs,
+        ctx.day,
+        ctx.daysToCome ?? 0,
+        servings,
+      );
   }
 
   const { weights } = ctx;

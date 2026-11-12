@@ -144,14 +144,14 @@ describe('what the plans of a diet reach of its split, with the recipes there ar
   });
 
   it('says how much the weeks use of what they buy in packs that do not keep, where it is told the packs', () => {
-    // Every dish takes 150 g of chicken a serving, and chicken comes in packs of 500 g.
+    // Every dish takes 150 g of chicken a serving, and chicken comes in packs of 500 g that keep two days.
     const withChicken = allOf('even', [0.25, 0.3, 0.45]).map((known) => ({
       ...known,
       ingredientIds: ['chicken'],
       amounts: new Map([['chicken', 150]]),
     }));
 
-    const reach = macroReachByDiet(withChicken, new Map([['chicken', 500]]));
+    const reach = macroReachByDiet(withChicken, new Map([['chicken', { size: 500, keepDays: 2 }]]));
 
     // Three meals a day for a week: the packs are used but for what is left of the last.
     expect(reach.balanced!.packsUsed).toBeGreaterThan(0.8);
@@ -159,7 +159,8 @@ describe('what the plans of a diet reach of its split, with the recipes there ar
     // Not told the packs, and told of none the weeks buy.
     expect(macroReachByDiet(withChicken).balanced!.packsUsed).toBeNull();
     expect(
-      macroReachByDiet(withChicken, new Map([['yogurt', 500]])).balanced!.packsUsed,
+      macroReachByDiet(withChicken, new Map([['yogurt', { size: 500, keepDays: 7 }]])).balanced!
+        .packsUsed,
     ).toBeNull();
   });
 

@@ -21,7 +21,7 @@ import {
 } from '@diet-app/shared';
 import { distanceOnDiet, energyShares, macroSplitOf } from './nutrition.js';
 import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from './optimizer.js';
-import { packUse } from './packs.js';
+import { packUse, type Pack } from './packs.js';
 
 /**
  * The fewest recipes a catalogue needs for any diet and meal: a week without
@@ -146,7 +146,7 @@ const REACH = { draws: 5, days: 7, target: 2000 } as const;
  */
 export function macroReachByDiet(
   known: readonly ReachRecipe[],
-  perishablePacks?: ReadonlyMap<string, number>,
+  perishablePacks?: ReadonlyMap<string, Pack>,
 ): Record<DietType, MacroReach | null> {
   const recipes: OptimizerRecipe[] = known.map((recipe) => ({
     ingredientIds: [],
@@ -176,13 +176,16 @@ export function macroReachByDiet(
           seed,
         });
         if (perishablePacks) {
-          const needs = new Map<string, number>();
+          const needs = new Map<string, number[]>();
           for (const placed of assignments) {
-            for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? [])
-              needs.set(
-                ingredientId,
-                (needs.get(ingredientId) ?? 0) + perServing * placed.servings,
-              );
+            for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? []) {
+              let row = needs.get(ingredientId);
+              if (!row) {
+                row = Array.from({ length: REACH.days }, () => 0);
+                needs.set(ingredientId, row);
+              }
+              row[placed.dayIndex]! += perServing * placed.servings;
+            }
           }
           const week = packUse(needs, perishablePacks);
           packs.bought += week.bought;

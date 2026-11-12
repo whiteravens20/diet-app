@@ -17,7 +17,7 @@ import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { energyShares, macroSplitOf, splitDistance } from '../src/engine/nutrition.js';
 import { optimisePlan, SCORE_WEIGHTS, uniformDays } from '../src/engine/optimizer.js';
 import { packUse } from '../src/engine/packs.js';
-import { plannable } from './catalogue-plans.js';
+import { dailyNeeds, plannable } from './catalogue-plans.js';
 
 const WEIGHTS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4];
 const SEEDS = 20;
@@ -77,12 +77,7 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
         }
         plans += 1;
         distinct += new Set(result.assignments.map((placed) => placed.recipeId)).size;
-        const needs = new Map<string, number>();
-        for (const placed of result.assignments) {
-          for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? [])
-            needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + perServing * placed.servings);
-        }
-        const week = packUse(needs, perishablePacks);
+        const week = packUse(dailyNeeds(result.assignments, byId, DAYS), perishablePacks);
         bought += week.bought;
         used += week.used;
         opened += week.open.length;

@@ -11,13 +11,7 @@ import type {
 } from '@diet-app/shared';
 import { LIST_PROPOSALS } from '../ai/operations.js';
 import { WeighService } from '../ai/weigh.service.js';
-import {
-  convertUnit,
-  leftBeyondAccepted,
-  leftOf,
-  packsFor,
-  UnitConversionError,
-} from '../engine/index.js';
+import { convertUnit, ACCEPTED_LEFT, packsFor, UnitConversionError } from '../engine/index.js';
 import { IngredientSwapService } from '../meal-plans/ingredient-swap.service.js';
 import { LANGUAGE } from '../meal-plans/swap-shared.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -87,23 +81,20 @@ export class ListProposalsService {
     };
 
     const merges = await this.merges(userId, locale, list, rowOf, ingredients, toBuy);
+    // What one purchase of a row leaves of its last pack: the list is bought at once.
     const leftovers: Leftover[] = [];
     for (const row of rows) {
       const ingredient = ingredients.get(row.ingredientId);
       const need = toBuy(row);
-      if (
-        !ingredient?.perishable ||
-        !ingredient.packSize ||
-        need === null ||
-        leftBeyondAccepted(need, ingredient.packSize) <= 0
-      )
-        continue;
+      if (!ingredient?.perishable || !ingredient.packSize || need === null || need <= 0) continue;
+      const left = packsFor(need, ingredient.packSize) * ingredient.packSize - need;
+      if (left / ingredient.packSize - ACCEPTED_LEFT <= 1e-9) continue;
       leftovers.push({
         kind: 'leftover',
         ingredientId: row.ingredientId,
         name: row.name,
         unit: ingredient.canonicalUnit,
-        left: Math.max(1, Math.round(leftOf(need, ingredient.packSize))),
+        left: Math.max(1, Math.round(left)),
         packSize: ingredient.packSize,
         reason: null,
       });

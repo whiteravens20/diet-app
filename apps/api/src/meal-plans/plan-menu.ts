@@ -8,10 +8,12 @@ import {
   type Unit,
 } from '@diet-app/shared';
 import {
+  keepDaysOf,
   packUse,
   toCanonical,
   UnitConversionError,
   type ConvertibleIngredient,
+  type Pack,
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { isoDate } from './plan-days.js';
@@ -26,43 +28,56 @@ export interface PackedLine {
     translations?: { locale: string; name: string }[];
     packSize: number | null;
     perishable: boolean;
+    keepDays: number | null;
+    category: string;
   };
 }
 
-/** A meal that has a recipe: the lines of the recipe, and how much of the recipe the meal is (`factor`: its servings over the recipe's). */
+/**
+ * A meal that has a recipe: the lines of the recipe, how much of the recipe the meal is (`factor`: its servings over
+ * the recipe's), and the day of the plan its ingredients are taken on, by its place among the days: the day the dish
+ * is cooked, for a meal eaten from a dish cooked ahead.
+ */
 export interface PackedMeal {
+  day: number;
   factor: number;
   lines: readonly PackedLine[];
 }
 
 /**
- * What meals take of every ingredient whose opened pack does not keep, with
- * the pack of each and the ingredient itself. A line whose unit cannot be
- * converted is left out, as a shopping list leaves it out.
+ * What meals take of every ingredient whose opened pack does not keep, on each of `days` days, with the pack of each
+ * and the ingredient itself. A line whose unit cannot be converted is left out, as a shopping list leaves it out.
  */
-export function menuNeeds(meals: readonly PackedMeal[]): {
-  needs: Map<string, number>;
-  packs: Map<string, number>;
+export function menuNeeds(
+  meals: readonly PackedMeal[],
+  days: number,
+): {
+  needs: Map<string, number[]>;
+  packs: Map<string, Pack>;
   known: Map<string, PackedLine['ingredient']>;
 } {
-  const needs = new Map<string, number>();
-  const packs = new Map<string, number>();
+  const needs = new Map<string, number[]>();
+  const packs = new Map<string, Pack>();
   const known = new Map<string, PackedLine['ingredient']>();
   for (const meal of meals) {
+    if (meal.day < 0 || meal.day >= days) continue;
     for (const line of meal.lines) {
       const { packSize, perishable } = line.ingredient;
       if (!perishable || !packSize || packSize <= 0) continue;
+      let amount: number;
       try {
-        needs.set(
-          line.ingredientId,
-          (needs.get(line.ingredientId) ?? 0) +
-            toCanonical(line.quantity * meal.factor, line.unit, line.ingredient),
-        );
+        amount = toCanonical(line.quantity * meal.factor, line.unit, line.ingredient);
       } catch (err) {
         if (!(err instanceof UnitConversionError)) throw err;
         continue;
       }
-      packs.set(line.ingredientId, packSize);
+      let row = needs.get(line.ingredientId);
+      if (!row) {
+        row = Array.from({ length: days }, () => 0);
+        needs.set(line.ingredientId, row);
+      }
+      row[meal.day]! += amount;
+      packs.set(line.ingredientId, { size: packSize, keepDays: keepDaysOf(line.ingredient) });
       known.set(line.ingredientId, line.ingredient);
     }
   }
@@ -70,11 +85,11 @@ export function menuNeeds(meals: readonly PackedMeal[]): {
 }
 
 /**
- * What a menu comes to in packs that do not keep once they are opened (see
+ * What a menu of `days` days comes to in packs that do not keep once they are opened, counted day by day (see
  * `engine/packs.ts`), as a plan says it.
  */
-export function planPacks(meals: readonly PackedMeal[], locale: Locale): PlanPacks {
-  const { needs, packs, known } = menuNeeds(meals);
+export function planPacks(meals: readonly PackedMeal[], days: number, locale: Locale): PlanPacks {
+  const { needs, packs, known } = menuNeeds(meals, days);
   const use = packUse(needs, packs);
   return {
     bought: use.bought,

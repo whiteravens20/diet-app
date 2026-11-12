@@ -11,6 +11,8 @@ const chicken: PackedLine['ingredient'] = {
   density: null,
   packSize: 500,
   perishable: true,
+  keepDays: 2,
+  category: 'meat',
 };
 const milk: PackedLine['ingredient'] = {
   name: 'Milk',
@@ -19,6 +21,8 @@ const milk: PackedLine['ingredient'] = {
   density: 1.03,
   packSize: 1000,
   perishable: true,
+  keepDays: 7,
+  category: 'dairy',
 };
 const rice: PackedLine['ingredient'] = {
   name: 'Rice',
@@ -27,6 +31,8 @@ const rice: PackedLine['ingredient'] = {
   density: null,
   packSize: 1000,
   perishable: false,
+  keepDays: null,
+  category: 'grains',
 };
 const tomato: PackedLine['ingredient'] = {
   name: 'Tomato',
@@ -35,6 +41,8 @@ const tomato: PackedLine['ingredient'] = {
   density: null,
   packSize: null,
   perishable: false,
+  keepDays: null,
+  category: 'vegetables',
 };
 const egg: PackedLine['ingredient'] = {
   name: 'Egg',
@@ -43,6 +51,8 @@ const egg: PackedLine['ingredient'] = {
   density: null,
   packSize: 550,
   perishable: true,
+  keepDays: 28,
+  category: 'dairy',
 };
 const line = (
   ingredientId: string,
@@ -56,13 +66,15 @@ describe('what a menu comes to in packs that do not keep', () => {
     const packs = planPacks(
       [
         // A recipe for two that takes 340 g of chicken, planned as one serving and as one and a half.
-        { factor: 0.5, lines: [line('chicken', chicken, 340), line('rice', rice, 160)] },
+        { day: 0, factor: 0.5, lines: [line('chicken', chicken, 340), line('rice', rice, 160)] },
         {
+          day: 0,
           factor: 0.75,
           lines: [line('chicken', chicken, 340), line('tomato', tomato, 2, 'piece')],
         },
-        { factor: 1, lines: [line('milk', milk, 250)] },
+        { day: 0, factor: 1, lines: [line('milk', milk, 250)] },
       ],
+      1,
       'en',
     );
 
@@ -93,13 +105,18 @@ describe('what a menu comes to in packs that do not keep', () => {
 
   it('names an ingredient in the language it is asked in', () => {
     expect(
-      planPacks([{ factor: 1, lines: [line('chicken', chicken, 200)] }], 'pl').open[0]!.name,
+      planPacks([{ day: 0, factor: 1, lines: [line('chicken', chicken, 200)] }], 1, 'pl').open[0]!
+        .name,
     ).toBe('Pierś z kurczaka');
   });
 
   it('counts a line in pieces by what a piece weighs', () => {
     // Three eggs of a carton of ten.
-    const packs = planPacks([{ factor: 1, lines: [line('egg', egg, 3, 'piece')] }], 'en');
+    const packs = planPacks(
+      [{ day: 0, factor: 1, lines: [line('egg', egg, 3, 'piece')] }],
+      1,
+      'en',
+    );
 
     expect(packs).toMatchObject({ bought: 550, used: 165 });
     expect(packs.open[0]).toMatchObject({ left: 385, wasted: true });
@@ -107,9 +124,9 @@ describe('what a menu comes to in packs that do not keep', () => {
 
   it("leaves out a line whose unit cannot be brought to the ingredient's own", () => {
     // Chicken has no weight of a piece to count three pieces by.
-    expect(planPacks([{ factor: 1, lines: [line('chicken', chicken, 3, 'piece')] }], 'en')).toEqual(
-      { bought: 0, used: 0, open: [] },
-    );
+    expect(
+      planPacks([{ day: 0, factor: 1, lines: [line('chicken', chicken, 3, 'piece')] }], 1, 'en'),
+    ).toEqual({ bought: 0, used: 0, open: [] });
   });
 
   it('says what is left to the gram, and takes a pack that is left a fraction of one for finished', () => {
@@ -117,6 +134,7 @@ describe('what a menu comes to in packs that do not keep', () => {
     const packs = planPacks(
       [
         {
+          day: 0,
           factor: 1 / 3,
           lines: [
             line('chicken', chicken, 500),
@@ -124,8 +142,9 @@ describe('what a menu comes to in packs that do not keep', () => {
             line('chicken', chicken, 499.2),
           ],
         },
-        { factor: 1, lines: [line('milk', milk, 899.6)] },
+        { day: 0, factor: 1, lines: [line('milk', milk, 899.6)] },
       ],
+      1,
       'en',
     );
 
@@ -142,14 +161,63 @@ describe('what a menu comes to in packs that do not keep', () => {
     ]);
   });
 
+  it('counts day by day: chicken of the first day and of the fourth takes two packs, the first thrown away', () => {
+    // Chicken keeps two days once opened: what Monday leaves is gone by Thursday.
+    const packs = planPacks(
+      [
+        { day: 0, factor: 1, lines: [line('chicken', chicken, 200)] },
+        { day: 3, factor: 1, lines: [line('chicken', chicken, 200)] },
+      ],
+      4,
+      'en',
+    );
+
+    expect(packs).toMatchObject({ bought: 1000, used: 400 });
+    expect(packs.open.map((pack) => pack.left)).toEqual([300, 300]);
+  });
+
+  it('eats from one pack on the days it keeps', () => {
+    const packs = planPacks(
+      [
+        { day: 0, factor: 1, lines: [line('chicken', chicken, 250)] },
+        { day: 1, factor: 1, lines: [line('chicken', chicken, 250)] },
+      ],
+      2,
+      'en',
+    );
+
+    expect(packs).toEqual({ bought: 500, used: 500, open: [] });
+  });
+
+  it('counts by the kind of food where the database has no keep days yet: meat keeps two', () => {
+    const unknown = { ...chicken, keepDays: null };
+    const packs = planPacks(
+      [
+        { day: 0, factor: 1, lines: [line('chicken', unknown, 250)] },
+        { day: 2, factor: 1, lines: [line('chicken', unknown, 250)] },
+      ],
+      3,
+      'en',
+    );
+
+    expect(packs.bought).toBe(1000);
+  });
+
+  it('leaves out a meal on a day the menu does not have', () => {
+    expect(
+      planPacks([{ day: 5, factor: 1, lines: [line('chicken', chicken, 200)] }], 2, 'en'),
+    ).toEqual({ bought: 0, used: 0, open: [] });
+  });
+
   it('is nothing for a menu without such a pack', () => {
     expect(
       planPacks(
-        [{ factor: 1, lines: [line('rice', rice, 80), line('tomato', tomato, 240)] }],
+        [{ day: 0, factor: 1, lines: [line('rice', rice, 80), line('tomato', tomato, 240)] }],
+        1,
         'en',
       ),
     ).toEqual({ bought: 0, used: 0, open: [] });
-    expect(planPacks([], 'en')).toEqual({ bought: 0, used: 0, open: [] });
+    expect(planPacks([], 1, 'en')).toEqual({ bought: 0, used: 0, open: [] });
   });
 });
 
