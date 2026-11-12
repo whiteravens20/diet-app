@@ -40,8 +40,20 @@ export class AdminHealthService {
         used: await this.quota.instanceUsed().catch(() => 0),
         limit: this.quota.instanceLimit(),
       },
+      catalogue: { gaps: await this.catalogueGaps().catch(() => []) },
       mail: { configured: Boolean(this.config.get('SMTP_HOST', { infer: true })) },
     };
+  }
+
+  /**
+   * What the catalogue in the database lacks of what the application reads: a version brings a field with its data,
+   * and the rows have it only once "Zaktualizuj bazę" has run. A retired ingredient is in no plan to come.
+   */
+  private async catalogueGaps(): Promise<AdminHealth['catalogue']['gaps']> {
+    const keepDays = await this.prisma.ingredient.count({
+      where: { perishable: true, keepDays: null, retiredAt: null },
+    });
+    return keepDays > 0 ? [{ kind: 'keep_days', count: keepDays }] : [];
   }
 
   /** Whether the database answers, how fast, and how much it holds. */

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
@@ -19,6 +19,7 @@ const WELL: AdminHealth = {
   api: { version: '0.150.0', startedAt: '2026-10-28T09:00:00.000Z', memoryBytes: 180 * 1_048_576 },
   requests: { counted: 1000, medianMs: 12, p95Ms: 80, serverErrors: 0 },
   ai: { configured: true, used: 12, limit: 300 },
+  catalogue: { gaps: [] },
   mail: { configured: true },
 };
 
@@ -71,6 +72,38 @@ describe('how the instance stands', () => {
     expect(screen.getByText('12 of 300 in 30 days')).toBeInTheDocument();
     expect(screen.getByText(t.mailOn)).toBeInTheDocument();
   });
+
+  it('says the catalogue in the database holds all the application reads', () => {
+    shown();
+
+    expect(screen.getByText(t.catalogue).parentElement!).toHaveTextContent(t.catalogueComplete);
+  });
+
+  it('says how many packs lack the days they keep, what the count does meanwhile, and leads to the catalogue', async () => {
+    const { onToCatalogue } = shown({ catalogue: { gaps: [{ kind: 'keep_days', count: 42 }] } });
+
+    const row = screen.getByText(t.catalogue).parentElement!;
+    expect(row).toHaveTextContent(t.catalogueGaps);
+    expect(row).toHaveTextContent(
+      '42 packs that do not keep have no days they keep once opened. Until then the count of packs takes 2 days for meat and fish, 3 days for the rest.',
+    );
+    expect(row).toHaveTextContent(t.catalogueUpdate);
+    await userEvent.click(within(row).getByRole('button', { name: en.admin.tabs.catalogue }));
+    expect(onToCatalogue).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [1, '1 składnik nietrwały nie ma dni przydatności po otwarciu.'],
+    [42, '42 składniki nietrwałe nie mają dni przydatności po otwarciu.'],
+    [5, '5 składników nietrwałych nie ma dni przydatności po otwarciu.'],
+  ])(
+    'says in Polish how many of %i packs lack their days, in the form the number takes',
+    (count, text) => {
+      shown({ catalogue: { gaps: [{ kind: 'keep_days', count }] } }, COPIED, pl);
+
+      expect(screen.getByText(pl.admin.health.catalogue).parentElement!).toHaveTextContent(text);
+    },
+  );
 
   it.each(['off', 'behind', 'empty', 'silent', 'unreadable'] as const)(
     'names the state of the copy on the overview, whichever it is: %s',

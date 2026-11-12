@@ -1210,7 +1210,17 @@
       "aiReached": "Limit reached: {used} of {limit} in 30\u00a0days",
       "mail": "Mail",
       "mailOn": "Set up",
-      "mailOff": "Not set up"
+      "mailOff": "Not set up",
+      "catalogue": "Catalogue data",
+      "catalogueComplete": "Complete",
+      "catalogueGaps": "Data missing",
+      "catalogueGap": {
+        "keep_days": "{count, plural, one {{count, number, ::group-off}\u00a0pack that does not keep has no days it keeps once opened.} other {{count, number, ::group-off}\u00a0packs that do not keep have no days they keep once opened.}}"
+      },
+      "catalogueMeanwhile": {
+        "keep_days": "Until then the count of packs takes 2\u00a0days for meat and fish, 3\u00a0days for the rest."
+      },
+      "catalogueUpdate": "“Update database” in the Catalogue tab fills them in."
     },
     "products": {
       "title": "Products with a barcode",

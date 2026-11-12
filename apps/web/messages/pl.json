@@ -1210,7 +1210,17 @@
       "aiReached": "Limit wyczerpany: {used} z {limit} w 30\u00a0dni",
       "mail": "Poczta",
       "mailOn": "Włączona",
-      "mailOff": "Wyłączona"
+      "mailOff": "Wyłączona",
+      "catalogue": "Dane katalogu",
+      "catalogueComplete": "Kompletne",
+      "catalogueGaps": "Brakuje danych",
+      "catalogueGap": {
+        "keep_days": "{count, plural, one {{count, number, ::group-off}\u00a0składnik nietrwały nie ma dni przydatności po otwarciu.} few {{count, number, ::group-off}\u00a0składniki nietrwałe nie mają dni przydatności po otwarciu.} many {{count, number, ::group-off}\u00a0składników nietrwałych nie ma dni przydatności po otwarciu.} other {{count, number, ::group-off}\u00a0składnika nietrwałego nie ma dni przydatności po otwarciu.}}"
+      },
+      "catalogueMeanwhile": {
+        "keep_days": "Do tego czasu licznik opakowań liczy dla nich 2\u00a0dni dla mięsa i\u00a0ryb, 3\u00a0dni dla reszty."
+      },
+      "catalogueUpdate": "Uzupełni je „Zaktualizuj bazę” w\u00a0zakładce Katalog."
     },
     "products": {
       "title": "Produkty z kodem kreskowym",

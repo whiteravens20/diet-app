@@ -3,6 +3,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { recordWorkerPass } from '../common/worker-pass.js';
 import { RequestTimes } from '../health/request-times.js';
+import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase } from '../testing/database.js';
 import { asAdmin } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
@@ -107,6 +108,35 @@ describe('how the instance stands, for its administrator', () => {
 
       expect(times.summary().serverErrors).toBe(before);
       expect((await read()).requests.counted).toBeGreaterThan(0);
+    });
+  });
+
+  describe('the catalogue in the database', () => {
+    it('lacks nothing the application reads where it was seeded from the data', async () => {
+      await seedCatalogue(t.prisma);
+
+      expect((await read()).catalogue).toEqual({ gaps: [] });
+    });
+
+    it('says how many packs that do not keep lack their days, as after a version that brought them and before the update', async () => {
+      await seedCatalogue(t.prisma);
+      const perishable = await t.prisma.ingredient.findMany({
+        where: { perishable: true },
+        select: { id: true },
+      });
+      // One of them retired: in no plan to come, so no gap of the catalogue's.
+      await t.prisma.ingredient.update({
+        where: { id: perishable[0]!.id },
+        data: { keepDays: null, retiredAt: new Date() },
+      });
+      await t.prisma.ingredient.updateMany({
+        where: { id: { in: perishable.slice(1).map((row) => row.id) } },
+        data: { keepDays: null },
+      });
+
+      expect((await read()).catalogue).toEqual({
+        gaps: [{ kind: 'keep_days', count: perishable.length - 1 }],
+      });
     });
   });
 

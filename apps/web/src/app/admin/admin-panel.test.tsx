@@ -97,6 +97,7 @@ const HEALTH: AdminHealth = {
   api: { version: '0.150.0', startedAt: '2026-10-28T09:00:00.000Z', memoryBytes: 180 * 1_048_576 },
   requests: { counted: 1000, medianMs: 12, p95Ms: 80, serverErrors: 0 },
   ai: { configured: true, used: 12, limit: 300 },
+  catalogue: { gaps: [] },
   mail: { configured: true },
 };
 

@@ -106,6 +106,16 @@ export const WorkerState = z.enum(['ok', 'failing', 'silent', 'none']);
 export type WorkerState = z.infer<typeof WorkerState>;
 
 /**
+ * A field of the catalogue that the application reads and that rows of the
+ * database lack: for the time after a version brings it and before
+ * "Zaktualizuj bazę" writes it in. `keep_days`: ingredients whose opened pack
+ * does not keep, without the days it keeps; the count of packs takes their
+ * kind's days for them meanwhile.
+ */
+export const CatalogueGapKind = z.enum(['keep_days']);
+export type CatalogueGapKind = z.infer<typeof CatalogueGapKind>;
+
+/**
  * How the instance stands, for its administrator: nothing of an account or an
  * address. The memory and the figures of the requests are those of the process
  * that answered, when several run.
@@ -140,6 +150,10 @@ export const AdminHealth = z.object({
     configured: z.boolean(),
     used: z.number().int().min(0),
     limit: z.number().int().min(0),
+  }),
+  /** What the catalogue in the database lacks of what the application reads, how many rows of each: none where it holds all. */
+  catalogue: z.object({
+    gaps: z.array(z.object({ kind: CatalogueGapKind, count: z.number().int().min(1) })),
   }),
   mail: z.object({ configured: z.boolean() }),
 });

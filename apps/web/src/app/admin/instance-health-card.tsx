@@ -245,6 +245,31 @@ export function InstanceHealthCard({
               tone={health.mail.configured ? 'good' : 'plain'}
               state={health.mail.configured ? t('mailOn') : t('mailOff')}
             />
+            <Row
+              label={t('catalogue')}
+              tone={health.catalogue.gaps.length === 0 ? 'good' : 'warn'}
+              state={t(health.catalogue.gaps.length === 0 ? 'catalogueComplete' : 'catalogueGaps')}
+              action={
+                health.catalogue.gaps.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={onToCatalogue}
+                    className="inline-flex min-h-6 items-center gap-1 text-xs text-muted-foreground hover:underline"
+                  >
+                    {tTabs('catalogue')}
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </button>
+                )
+              }
+            >
+              {health.catalogue.gaps.map((gap) => (
+                <Detail key={gap.kind}>
+                  {t(`catalogueGap.${gap.kind}`, { count: gap.count })}{' '}
+                  {t(`catalogueMeanwhile.${gap.kind}`)}
+                </Detail>
+              ))}
+              {health.catalogue.gaps.length > 0 && <Detail>{t('catalogueUpdate')}</Detail>}
+            </Row>
           </dl>
         )}
       </CardContent>

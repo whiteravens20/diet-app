@@ -11401,6 +11401,35 @@
             ],
             "additionalProperties": false
           },
+          "catalogue": {
+            "type": "object",
+            "properties": {
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "$ref": "#/components/schemas/CatalogueGapKind"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "gaps"
+            ],
+            "additionalProperties": false
+          },
           "mail": {
             "type": "object",
             "properties": {
@@ -11421,6 +11450,7 @@
           "api",
           "requests",
           "ai",
+          "catalogue",
           "mail"
         ],
         "additionalProperties": false
@@ -12982,6 +13012,12 @@
           "underweight",
           "below_floor",
           "below_bmr"
+        ]
+      },
+      "CatalogueGapKind": {
+        "type": "string",
+        "enum": [
+          "keep_days"
         ]
       },
       "CatalogueScope": {
