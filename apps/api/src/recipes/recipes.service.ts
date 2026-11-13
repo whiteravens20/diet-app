@@ -14,6 +14,7 @@ import {
 import { collatedFor } from '../common/collation.js';
 import { proposeTraits, traitsOf } from '../engine/dish-traits.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
+import { convertUnit, UnitConversionError } from '../engine/units.js';
 import { roundLabel, storedTotals, UNKNOWN_LABEL } from '../engine/label-totals.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recipesForDiet } from './diet-where.js';
@@ -338,14 +339,36 @@ export interface RecipeLine {
 /**
  * The lines of a recipe in the amounts one planned meal takes: each scaled by
  * `factor` (the meal's servings over the recipe's), exact and as it is shown.
+ * `rests` are the rests of packs the meal finishes, by ingredient, in each
+ * ingredient's own unit: the first line of the ingredient takes its rest on top,
+ * and says how much of it that is.
  */
 export function toPlannedIngredients(
   lines: readonly RecipeLine[],
   factor: number,
   locale: Locale,
+  rests: ReadonlyMap<string, number> = new Map(),
 ): PlannedIngredient[] {
+  const given = new Set<string>();
   return lines.map((line) => {
-    const quantity = line.quantity * factor;
+    let quantity = line.quantity * factor;
+    const canonical = given.has(line.ingredientId) ? undefined : rests.get(line.ingredientId);
+    let rest: PlannedIngredient['rest'];
+    if (canonical !== undefined && canonical > 0) {
+      given.add(line.ingredientId);
+      try {
+        const inLine = convertUnit(
+          canonical,
+          line.ingredient.canonicalUnit,
+          line.unit,
+          line.ingredient,
+        );
+        quantity += inLine;
+        rest = { quantity: inLine, display: displayAmount(inLine, line.unit, line.ingredient) };
+      } catch (err) {
+        if (!(err instanceof UnitConversionError)) throw err;
+      }
+    }
     return {
       ingredientId: line.ingredientId,
       name: pickIngredient(locale, line.ingredient.translations, line.ingredient.name),
@@ -353,6 +376,7 @@ export function toPlannedIngredients(
       unit: line.unit,
       display: displayAmount(quantity, line.unit, line.ingredient),
       note: line.note,
+      ...(rest ? { rest } : {}),
     };
   });
 }

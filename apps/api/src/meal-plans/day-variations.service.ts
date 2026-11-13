@@ -169,6 +169,7 @@ export class DayVariationsService {
           leftoverFromMealType: true,
           toppingKey: true,
           toppingAmount: true,
+          rests: true,
           recipe: { select: { servings: true, ingredients: PACKED_LINES } },
         },
       }),

@@ -302,6 +302,12 @@ export const PlannedIngredient = z.object({
   /** The amount as it is shown: rounded, in grams, millilitres or pieces of the ingredient. */
   display: DisplayAmount,
   note: z.string().nullable(),
+  /**
+   * Of the amount, what is the rest of a pack that does not keep, which this meal
+   * finishes in a plan that wastes less: in `unit`, and as it is shown. Left out
+   * where there is none.
+   */
+  rest: z.object({ quantity: z.number().min(0), display: DisplayAmount }).optional(),
 });
 export type PlannedIngredient = z.infer<typeof PlannedIngredient>;
 

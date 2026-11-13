@@ -27,7 +27,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { CANDIDATE, poolWhere, restrictionsFor, welcome } from './eligibility.js';
 import { holdsAbout } from './meal-swap.service.js';
-import { isoDate } from './plan-days.js';
+import { isoDate, restsOf } from './plan-days.js';
 import { cookingsOf, menuNeeds } from './plan-menu.js';
 import { partnerPacked } from './plan-packs-store.js';
 import { readPlanLimits } from './plan-limits.js';
@@ -210,6 +210,9 @@ export class UseUpService {
             amount * factor,
           ]),
         );
+        // The rests of packs it finishes are taken from those packs whatever it becomes: what a swap would keep of
+        // them stays, and what it would lose is left there all the same.
+        for (const rest of restsOf(meal.rests)) fix(rest.ingredientId, takenOn, rest.amount);
         // What was eaten is a record, and a day that has passed is what it was.
         if (meal.eatenAt !== null || date < today) {
           for (const [ingredientId, amount] of amounts) fix(ingredientId, takenOn, amount);

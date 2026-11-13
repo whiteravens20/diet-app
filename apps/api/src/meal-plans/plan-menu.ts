@@ -17,7 +17,7 @@ import {
   type Pack,
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
-import { isoDate } from './plan-days.js';
+import { isoDate, restsOf } from './plan-days.js';
 
 /** A line of a planned meal's recipe, as the count of packs reads it. */
 export interface PackedLine {
@@ -230,6 +230,8 @@ export interface CountedMeal extends MenuMeal {
   quantityScale: number;
   toppingKey: string | null;
   toppingAmount: number | null;
+  /** The rests of packs it finishes (`restsOf`): they are taken from those packs with it. */
+  rests: unknown;
   /** Null for a meal of the user's own. */
   recipe: { servings: number; ingredients: readonly PackedLine[] } | null;
 }
@@ -265,12 +267,33 @@ export function packedMealsOf(
   const packed: PackedMeal[] = [];
   days.forEach((day, dayIndex) => {
     for (const meal of day.meals) {
-      if (meal.source !== 'USER_CUSTOM' && meal.recipe && !meal.leftoverFromDate)
+      if (meal.source !== 'USER_CUSTOM' && meal.recipe && !meal.leftoverFromDate) {
+        const day = cookedOnDay.get(meal.id) ?? dayIndex;
         packed.push({
-          day: cookedOnDay.get(meal.id) ?? dayIndex,
+          day,
           factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
           lines: meal.recipe.ingredients,
         });
+        // A rest is of an ingredient of the recipe: taken from the same pack, on the same day.
+        for (const rest of restsOf(meal.rests)) {
+          const line = meal.recipe.ingredients.find(
+            (one) => one.ingredientId === rest.ingredientId,
+          );
+          if (line)
+            packed.push({
+              day,
+              factor: 1,
+              lines: [
+                {
+                  ingredientId: rest.ingredientId,
+                  quantity: rest.amount,
+                  unit: line.ingredient.canonicalUnit,
+                  ingredient: line.ingredient,
+                },
+              ],
+            });
+        }
+      }
       const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
       if (food && meal.toppingAmount !== null)
         packed.push({

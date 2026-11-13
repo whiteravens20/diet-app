@@ -166,6 +166,7 @@ export class DiaryService {
               source: true,
               customName: true,
               customMacros: true,
+              rests: true,
               eatenAt: true,
               toppingKey: true,
               toppingAmount: true,
@@ -310,6 +311,7 @@ export class DiaryService {
               quantityScale: true,
               source: true,
               customMacros: true,
+              rests: true,
               toppingKey: true,
               toppingAmount: true,
               recipe: {
@@ -572,6 +574,7 @@ export class DiaryService {
                   source: true,
                   customName: true,
                   customMacros: true,
+                  rests: true,
                   recipe: {
                     select: {
                       id: true,

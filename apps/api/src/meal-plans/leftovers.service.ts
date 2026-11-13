@@ -21,7 +21,15 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pickTitle } from '../recipes/recipes.service.js';
 import { dateAfter, givesALeftover, takesALeftover } from './leftovers.js';
 import { MealPlansService, mealRank, type CookedMeal } from './meal-plans.service.js';
-import { isoDate, isSkipped, MADE_LAST, mealNutrition } from './plan-days.js';
+import {
+  isoDate,
+  isSkipped,
+  MADE_LAST,
+  mealNutrition,
+  restsAsJson,
+  restsOf,
+  scaleRests,
+} from './plan-days.js';
 import { writePlans } from './plan-write.js';
 
 /** A meal as it was before a leftover took its place or was left of it: what undoing the leftover writes back. */
@@ -43,6 +51,8 @@ const StoredMeal = z.object({
   /** Its topping; left out by a leftover kept before toppings were. */
   toppingKey: z.string().nullable().optional(),
   toppingAmount: z.number().nullable().optional(),
+  /** The rests of packs it finishes; left out by a leftover kept before they were. */
+  rests: z.unknown().optional(),
   /** The shared meal it was part of: linked again where the other person's meal still holds the dish there. */
   shared: z
     .object({ jointPlanId: z.string(), apart: z.boolean(), otherMealId: z.string() })
@@ -109,6 +119,7 @@ const fieldsOf = (meal: StoredMeal) => ({
   modelReason: meal.modelReason,
   toppingKey: meal.toppingKey ?? null,
   toppingAmount: meal.toppingAmount ?? null,
+  rests: restsAsJson(restsOf(meal.rests)),
   sharedMealId: null,
 });
 
@@ -447,6 +458,7 @@ export class LeftoversService {
       modelReason: meal.modelReason,
       toppingKey: meal.toppingKey,
       toppingAmount: meal.toppingAmount,
+      rests: meal.rests,
       shared: await this.sharedOf(tx, meal),
     };
   }
@@ -473,6 +485,8 @@ export class LeftoversService {
         where: { id: source.id },
         data: {
           quantityScale: source.quantityScale * (1 - left),
+          // The rests of packs were cooked into the dish: what is eaten of it holds its share of them.
+          rests: restsAsJson(scaleRests(source.rests, 1 - left)),
           eatenAt: source.eatenAt ?? new Date(),
           givenLeftoverId: target.id,
           carriedToMealType: target.mealType,
@@ -493,9 +507,10 @@ export class LeftoversService {
         modelPicked: false,
         modelReason: null,
         lastRebalanceAt: null,
-        // A leftover is the dish as it was cooked: nothing is put on its plate.
+        // A leftover is the dish as it was cooked: nothing is put on its plate, and the rests cooked into it go with it.
         toppingKey: null,
         toppingAmount: null,
+        rests: restsAsJson(scaleRests(source.rests, left)),
         ...(alone ? { sharedMealId: null } : {}),
         leftoverFromDate: source.day.date,
         leftoverFromMealType: source.mealType,

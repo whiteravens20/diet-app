@@ -19711,6 +19711,23 @@
               "string",
               "null"
             ]
+          },
+          "rest": {
+            "type": "object",
+            "properties": {
+              "quantity": {
+                "type": "number",
+                "minimum": 0
+              },
+              "display": {
+                "$ref": "#/components/schemas/DisplayAmount"
+              }
+            },
+            "required": [
+              "quantity",
+              "display"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [

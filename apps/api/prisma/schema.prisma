@@ -1068,6 +1068,11 @@ model PlannedMeal {
   // its ingredient's canonical unit. Both null where there is none.
   toppingKey    String?
   toppingAmount Float?
+  // In a plan that wastes less, the rests of packs that do not keep which this
+  // meal finishes: the ingredient (one of its recipe's), the amount of this
+  // meal's portion in the ingredient's own unit, and what it holds, set when the
+  // rest was put in. Null where there are none.
+  rests         Json?
   // Eaten by both people of a joint plan: the meal of the other plan at the
   // same day and time of day has the same link. Null for a meal of one's own
   // plan alone, and once the link is undone for that day.

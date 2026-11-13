@@ -46,6 +46,7 @@ import {
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
+import { restsOf } from '../meal-plans/plan-days.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
@@ -388,6 +389,7 @@ export async function planLines(
           leftoverFromDate: true,
           toppingKey: true,
           toppingAmount: true,
+          rests: true,
           recipe: {
             select: {
               servings: true,
@@ -434,6 +436,16 @@ export async function planLines(
           plannedServings: meal.servings * meal.quantityScale,
         });
       }
+      // The rest of a pack the meal finishes is part of what the pack is bought for.
+      for (const rest of restsOf(meal.rests))
+        lines.push({
+          date: day.date,
+          ingredientId: rest.ingredientId,
+          quantity: rest.amount,
+          unit: rest.unit,
+          recipeServings: 1,
+          plannedServings: 1,
+        });
     }
   }
   return lines;

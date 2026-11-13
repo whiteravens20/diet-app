@@ -57,6 +57,7 @@ export class PlanCalendarService {
             quantityScale: true,
             source: true,
             customMacros: true,
+            rests: true,
             eatenAt: true,
             recipe: { select: amount },
           },

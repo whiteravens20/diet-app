@@ -58,7 +58,7 @@ import {
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import { aimOfDay, isoDate, keepRestsOfRecipes, mealNutrition, sumNutrition } from './plan-days.js';
 import { toppingAskOfDay, toppingFoodsOf } from './toppings-store.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlans } from './plan-write.js';
@@ -408,6 +408,8 @@ export class MealSwapService {
             modelReason: picked?.reason ?? null,
           },
         });
+        // The meal keeps the rests of packs its new dish holds the ingredients of.
+        await keepRestsOfRecipes(tx, [req.plannedMealId]);
         const carried = await this.plans.carryDish(tx, together, replacement, today, picked);
         const otherDays = [...new Set(carried.map((other) => other.dayId))];
         // What the recipe is outside of the meals say for as long as they hold it.
@@ -519,6 +521,7 @@ export class MealSwapService {
           recipeId: true,
           source: true,
           customMacros: true,
+          rests: true,
           servings: true,
           quantityScale: true,
           recipe: {

@@ -91,6 +91,9 @@ import {
   standingOf,
   sumNutrition,
   type MealAmount,
+  restsOf,
+  restsAsJson,
+  keepRestsOfRecipes,
 } from './plan-days.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
@@ -209,6 +212,7 @@ export class MealPlansService {
                 quantityScale: true,
                 source: true,
                 customMacros: true,
+                rests: true,
                 modelPicked: true,
                 recipe: { select: amount },
               },
@@ -782,7 +786,11 @@ export class MealPlansService {
     if (!day?.plan || isSkipped(day) || isoDate(day.date) < today) return null;
     const rows = day.meals.map(toRebalanceRow);
     const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
-    const counted = [...rows, ...diaryRows(diary.get(isoDate(day.date)))];
+    const counted = [
+      ...rows,
+      ...restRebalanceRows(day.meals),
+      ...diaryRows(diary.get(isoDate(day.date))),
+    ];
     if (day.plan.jointPlanId === null) {
       const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
       const { scales, feasibility } = sizeDay(
@@ -957,7 +965,10 @@ export class MealPlansService {
       aim: aimOfDay(d, plan),
       rows: d.meals.map(toRebalanceRow),
       // Each day's own row of what its diary holds: the ids of the meals are the plan's.
-      diary: diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
+      diary: [
+        ...restRebalanceRows(d.meals),
+        ...diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
+      ],
     }));
     const allRows = dayRows.flatMap((d) => d.rows);
     const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
@@ -1014,7 +1025,7 @@ export class MealPlansService {
     diary: DiaryOnDay | null,
     plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
   ): number {
-    const rows = [...meals.map(toRebalanceRow), ...diaryRows(diary)];
+    const rows = [...meals.map(toRebalanceRow), ...restRebalanceRows(meals), ...diaryRows(diary)];
     const { scales } = sizeDay(rows.map(toEngineMeal), day.calorieTarget, aimOfDay(day, plan));
     return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
@@ -1118,6 +1129,11 @@ export class MealPlansService {
           modelReason: picked?.reason ?? null,
         },
       });
+    // Each keeps the rests of packs its new dish holds the ingredients of.
+    await keepRestsOfRecipes(
+      tx,
+      open.map((meal) => meal.id),
+    );
     return open;
   }
 
@@ -1249,6 +1265,7 @@ export class MealPlansService {
         modelReason: true,
         toppingKey: true,
         toppingAmount: true,
+        rests: true,
       },
     });
     const lastSwap: StoredSwap = {
@@ -1256,7 +1273,10 @@ export class MealPlansService {
       meals,
       ...(also ? { also: { planId: also.planId, revision: also.revision + 1 } } : {}),
     };
-    await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap } });
+    await tx.mealPlan.update({
+      where: { id: planId },
+      data: { lastSwap: lastSwap as Prisma.InputJsonValue },
+    });
   }
 
   /** Take back the last swap of a plan, on the plan as that swap left it. */
@@ -1305,8 +1325,14 @@ export class MealPlansService {
           [req.planId, swap],
           ...(together ? [[together.plan.id, together.swap] as const] : []),
         ] as const) {
-          for (const { id, ...before } of taken.meals)
-            await tx.plannedMeal.update({ where: { id }, data: before });
+          for (const { id, rests, ...before } of taken.meals)
+            await tx.plannedMeal.update({
+              where: { id },
+              data: {
+                ...before,
+                ...(rests === undefined ? {} : { rests: restsAsJson(restsOf(rests)) }),
+              },
+            });
           await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap: Prisma.JsonNull } });
         }
       },
@@ -1446,7 +1472,12 @@ export class MealPlansService {
       const all =
         of.reduce((sum, { meal }) => sum + meal.servings * meal.quantityScale, 0) /
         Math.max(1, recipe.servings);
-      const ingredients = toPlannedIngredients(recipe.ingredients, all, locale);
+      const ingredients = toPlannedIngredients(
+        recipe.ingredients,
+        all,
+        locale,
+        restAmounts(of.map(({ meal }) => meal)),
+      );
       for (const { meal, stand } of of) {
         // A leftover standing where it was left is no meal of that day.
         if (stand) continue;
@@ -1506,7 +1537,12 @@ export class MealPlansService {
           id: m.id,
           mealType: m.mealType as MealType,
           recipe,
-          ingredients: toPlannedIngredients(m.recipe.ingredients, ofRecipe, locale),
+          ingredients: toPlannedIngredients(
+            m.recipe.ingredients,
+            ofRecipe,
+            locale,
+            restAmounts([m]),
+          ),
           source: 'CATALOGUE' as const,
           customName: null,
           estimated: false,
@@ -1697,6 +1733,7 @@ interface PlanWithRelations {
       customName: string | null;
       estimated: boolean;
       customMacros: unknown;
+      rests: unknown;
       eatenAt: Date | null;
       modelPicked: boolean;
       modelReason: string | null;
@@ -1721,6 +1758,15 @@ interface Assembled {
   dto: MealPlan;
   /** What the plan's meals take of the packs, each on its day of the plan. */
   packed: readonly PackedMeal[];
+}
+
+/** What the rests of packs these meals finish come to, by ingredient, in each ingredient's own unit. */
+function restAmounts(meals: readonly { rests: unknown }[]): Map<string, number> {
+  const amounts = new Map<string, number>();
+  for (const meal of meals)
+    for (const rest of restsOf(meal.rests))
+      amounts.set(rest.ingredientId, (amounts.get(rest.ingredientId) ?? 0) + rest.amount);
+  return amounts;
 }
 
 /** What a meal of a plan comes to in servings of its recipe: its servings times the rebalancer's multiplier. */
@@ -1759,6 +1805,23 @@ function joined(
         )
       : eatenServings(meal);
   const rows = new Map(mine.plan.days.flatMap((day) => day.meals).map((row) => [row.id, row]));
+  const theirRows = new Map(
+    theirs.plan.days.flatMap((day) => day.meals).map((row) => [row.id, row]),
+  );
+  // The rows of a meal and the others of its cooking, where the dish is cooked at it.
+  const potRows = (
+    meal: PlannedMeal,
+    of: ReadonlyMap<string, { rests: unknown }>,
+  ): { rests: unknown }[] =>
+    [
+      meal.id,
+      ...(meal.cookAhead === 'cook' && meal.cooking
+        ? meal.cooking.with.map((other) => other.mealId)
+        : []),
+    ].flatMap((id) => {
+      const found = of.get(id);
+      return found ? [found] : [];
+    });
   const profileName = theirs.plan.profile?.name ?? '';
   return {
     ...mine.dto,
@@ -1785,7 +1848,12 @@ function joined(
               calories: other.nutrition.calories,
               eaten: other.eatenAt !== null,
             },
-            pot: toPlannedIngredients(row.recipe.ingredients, all, locale),
+            pot: toPlannedIngredients(
+              row.recipe.ingredients,
+              all,
+              locale,
+              restAmounts([...potRows(meal, rows), ...potRows(other, theirRows)]),
+            ),
           },
         };
       }),
@@ -1846,6 +1914,8 @@ const StoredSwap = z.object({
       // Left out by a swap remembered before toppings were.
       toppingKey: z.string().nullable().optional(),
       toppingAmount: z.number().nullable().optional(),
+      // Left out by a swap remembered before rests of packs were.
+      rests: z.unknown().optional(),
     }),
   ),
   /** The other plan of a joint plan the swap was made in as well, at the revision it left that plan at. */
@@ -1907,6 +1977,8 @@ export type RebalanceMealRow = {
   id: string;
   source: 'CATALOGUE' | 'USER_CUSTOM';
   customMacros: unknown;
+  /** The rests of packs it finishes (`restsOf`): what they hold is counted, and never moved. */
+  rests: unknown;
   eatenAt: Date | null;
   leftoverFromDate: Date | null;
   servings: number;
@@ -1971,6 +2043,19 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
  */
 function diaryRows(diary: DiaryOnDay | null | undefined, id = 'diary'): RebalanceRow[] {
   return diary ? [{ id, per: diary.nutrition, servings: 1, quantityScale: 1, locked: true }] : [];
+}
+
+/** The rests of packs a day's meals finish, as rows the sizing of the day counts and never moves: grams of a pack, not a portion. */
+function restRebalanceRows(meals: readonly { id: string; rests: unknown }[]): RebalanceRow[] {
+  return meals.flatMap((meal) =>
+    restsOf(meal.rests).map((rest, index) => ({
+      id: `rest:${meal.id}:${index}`,
+      per: rest.figures,
+      servings: 1,
+      quantityScale: 1,
+      locked: true,
+    })),
+  );
 }
 
 /** A meal's topping as a row the sizing of its day counts and never moves. */

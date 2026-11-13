@@ -29,6 +29,7 @@ const MEAL_ROW = {
   leftoverFromMealType: true,
   toppingKey: true,
   toppingAmount: true,
+  rests: true,
 } as const;
 
 /**
