@@ -30,6 +30,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftButton } from './draft-button';
@@ -50,6 +51,7 @@ const sentToCurators = (recipe: Recipe | MyRecipe): boolean =>
 /** Recipe library — search + filter; each card opens the full recipe. */
 function RecipesContent() {
   const t = useTranslations('recipes');
+  const fmt = useFormat();
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tDifficulty = useTranslations('enums.difficulty');
@@ -426,7 +428,7 @@ function RecipesContent() {
               >
                 {profileList.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {fmt.text(p.name)}
                   </option>
                 ))}
               </select>
@@ -434,7 +436,7 @@ function RecipesContent() {
             {usesFavorites && favoriteCount === 0 && (
               <span className="text-xs text-muted-foreground">
                 {t('noFavorites', {
-                  name: activeProfile?.name ?? t('noFavoritesFallback'),
+                  name: activeProfile ? fmt.text(activeProfile.name) : t('noFavoritesFallback'),
                 })}
               </span>
             )}
@@ -498,7 +500,9 @@ function RecipesContent() {
               <div key={r.id} className="relative group">
                 <Link href={`/recipes/${r.id}`} className="block h-full">
                   <Card className="h-full p-4 transition-shadow hover:shadow-md">
-                    <p className={`font-medium ${tab === 'mine' ? 'pr-20' : 'pr-7'}`}>{r.title}</p>
+                    <p className={`font-medium ${tab === 'mine' ? 'pr-20' : 'pr-7'}`}>
+                      {fmt.text(r.title)}
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t('cardMeta', {
                         kcal: r.nutritionPerServing.calories,

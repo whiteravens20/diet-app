@@ -147,9 +147,11 @@ export default function ProductsPage() {
               <CardContent className="space-y-2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="break-words font-medium">{product.name}</p>
+                    <p className="break-words font-medium">{fmt.text(product.name)}</p>
                     <p className="break-words text-xs text-muted-foreground">
-                      {[product.brand, product.pack, product.code].filter(Boolean).join(DOT)}
+                      {fmt.text(
+                        [product.brand, product.pack, product.code].filter(Boolean).join(DOT),
+                      )}
                     </p>
                   </div>
                   <span

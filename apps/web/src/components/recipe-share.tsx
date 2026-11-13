@@ -13,6 +13,7 @@ import { DOT } from '@/lib/figure-line';
 import { restOfLine, useShownAmount } from '@/lib/ingredient-format';
 import { fileNameOf, recipeText, type SharedRecipe } from '@/lib/recipe-share';
 import { saveFile } from '@/lib/save-file';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * Whether what is shared goes to the system's sheet of apps: on a phone or a
@@ -51,6 +52,7 @@ export function RecipeShare({
   const tDetail = useTranslations('recipeDetail');
   const tCommon = useTranslations('common');
   const shownAmount = useShownAmount();
+  const fmt = useFormat();
   const labelId = useId();
   const [said, setSaid] = useState<{ text: string; failed: boolean } | null>(null);
   const [byHand, setByHand] = useState<string | null>(null);
@@ -88,6 +90,19 @@ export function RecipeShare({
     };
   };
 
+  // The document is a page, laid out as the screen lays one out: its words of one letter are held to the next. A
+  // message's text keeps its plain spaces.
+  const onAPage = (shown: SharedRecipe): SharedRecipe => ({
+    ...shown,
+    title: fmt.text(shown.title),
+    ingredients: shown.ingredients.map((line) => ({
+      ...line,
+      name: fmt.text(line.name),
+      note: line.note && fmt.text(line.note),
+    })),
+    steps: shown.steps.map((step) => fmt.text(step)),
+  });
+
   async function sendText() {
     const text = recipeText(shared());
     setSaid(null);
@@ -110,7 +125,7 @@ export function RecipeShare({
     setMaking(true);
     try {
       const { recipePdf } = await import('./recipe-pdf');
-      const document = await recipePdf(shared(), tCommon('appName'));
+      const document = await recipePdf(onAPage(shared()), tCommon('appName'));
       const name = `${fileNameOf(recipe.title)}.pdf`;
       const file = new File([document], name, { type: 'application/pdf' });
       if (sheetOffered() && navigator.canShare?.({ files: [file] })) {

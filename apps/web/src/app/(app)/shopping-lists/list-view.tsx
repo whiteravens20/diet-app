@@ -517,7 +517,7 @@ function ItemRow({
         />
         <span className="min-w-0 flex-1">
           <span className={item.checked ? 'text-muted-foreground line-through' : undefined}>
-            {item.name}
+            {fmt.text(item.name)}
             {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
               <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
                 {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}

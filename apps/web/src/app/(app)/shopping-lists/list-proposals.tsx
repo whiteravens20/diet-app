@@ -94,8 +94,8 @@ export function ListProposals({
               >
                 <p>
                   {t.rich('merge', {
-                    to: proposal.to.name,
-                    from: proposal.from.name,
+                    to: fmt.text(proposal.to.name),
+                    from: fmt.text(proposal.from.name),
                     count: proposal.meals.length,
                     packs: proposal.packsSaved,
                     strong: (chunks) => <span className="font-medium">{chunks}</span>,
@@ -107,7 +107,7 @@ export function ListProposals({
                     <li key={meal.plannedMealId}>
                       {fmt.day(meal.date)}
                       {DOT}
-                      {meal.title}
+                      {fmt.text(meal.title)}
                     </li>
                   ))}
                 </ul>
@@ -128,7 +128,7 @@ export function ListProposals({
               >
                 <p>
                   {t.rich('leftover', {
-                    name: proposal.name,
+                    name: fmt.text(proposal.name),
                     left: amount(proposal.left, proposal.unit),
                     size: amount(proposal.packSize, proposal.unit),
                     strong: (chunks) => <span className="font-medium">{chunks}</span>,

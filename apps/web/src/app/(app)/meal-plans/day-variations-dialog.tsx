@@ -155,7 +155,7 @@ export function DayVariationsDialog({
                         <li key={`${meal.mealType}-${meal.recipeId ?? meal.title}`}>
                           <span className="text-muted-foreground">{mealName(meal.mealType)}</span>
                           {DOT}
-                          {meal.title}
+                          {fmt.text(meal.title)}
                           <span className="text-muted-foreground">
                             {DOT}
                             {t('mealEnergy', { kcal: meal.nutrition.calories })}

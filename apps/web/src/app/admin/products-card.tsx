@@ -107,7 +107,7 @@ function AcceptedProductsList({
       <ul className="space-y-2">
         {list.items.map((product) => (
           <li key={product.id} className="space-y-1 rounded-md border border-border p-3">
-            <p className="break-words font-medium">{product.name}</p>
+            <p className="break-words font-medium">{fmt.text(product.name)}</p>
             <p className="break-words text-xs text-muted-foreground">
               {[
                 product.brand,

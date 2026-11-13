@@ -16,6 +16,7 @@ import {
   type RecipeDraftPatch,
 } from '@/lib/admin-api';
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
+import { holdLetters } from '@/lib/held-letters';
 import { useFormat } from '@/lib/use-format';
 import { LocaleReviewMatrix } from './locale-review-matrix';
 import { useReviewSignature } from './review-signature';
@@ -456,16 +457,19 @@ function RecipePreview({ draft }: { draft: RecipeDraft }) {
   const fmt = useFormat();
   return (
     <div className="grid gap-3 md:grid-cols-2">
+      {/* Each language as it is written in it: its words of one letter held by its own rule. */}
       {draft.locales.map((locale) => (
         <div key={locale} className="space-y-1">
           <p className="text-xs text-muted-foreground">{locale}</p>
-          <p className="font-medium">{draft.titles[locale] ?? '—'}</p>
-          <p className="text-xs">{draft.descriptions[locale] ?? '—'}</p>
-          <ol className="ml-4 list-decimal text-xs">
-            {(draft.steps[locale] ?? []).map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ol>
+          <div lang={locale} className="space-y-1">
+            <p className="font-medium">{holdLetters(draft.titles[locale] ?? '—', locale)}</p>
+            <p className="text-xs">{holdLetters(draft.descriptions[locale] ?? '—', locale)}</p>
+            <ol className="ml-4 list-decimal text-xs">
+              {(draft.steps[locale] ?? []).map((s, i) => (
+                <li key={i}>{holdLetters(s, locale)}</li>
+              ))}
+            </ol>
+          </div>
         </div>
       ))}
       <div className="md:col-span-2">

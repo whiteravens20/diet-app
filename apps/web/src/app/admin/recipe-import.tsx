@@ -53,11 +53,12 @@ function useImportReasonText(): (reason: string) => string {
 /** The recipes an import did not take, each with its reasons. */
 function Refused({ rejected }: { rejected: readonly ImportRejection[] }) {
   const reasonText = useImportReasonText();
+  const fmt = useFormat();
   return (
     <ul className="space-y-1.5 text-xs">
       {rejected.map((rejection, index) => (
         <li key={`${rejection.title}-${index}`}>
-          <span className="font-medium text-foreground">{rejection.title}</span>
+          <span className="font-medium text-foreground">{fmt.text(rejection.title)}</span>
           <ul className="ml-4 list-disc text-muted-foreground">
             {rejection.reasons.map((reason, at) => (
               // Two lines of a recipe can be refused for the same reason, in the same words.

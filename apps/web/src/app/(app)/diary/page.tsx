@@ -445,6 +445,7 @@ function ProfilePicker({
   onPick: (id: string) => void;
 }) {
   const t = useTranslations('diary');
+  const fmt = useFormat();
   const id = useId();
   return (
     <div className="max-w-xs">
@@ -462,7 +463,7 @@ function ProfilePicker({
       >
         {profiles.map((profile) => (
           <option key={profile.id} value={profile.id}>
-            {profile.name}
+            {fmt.text(profile.name)}
           </option>
         ))}
       </select>
@@ -694,6 +695,7 @@ function MealSection({
   const shownAmount = useShownAmount();
   const tMeal = useTranslations('enums.mealType');
   const amountOf = useEntryAmount();
+  const fmt = useFormat();
   const id = useId();
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
   const entries = day.entries.filter((entry) => entry.mealType === slot);
@@ -722,7 +724,7 @@ function MealSection({
             <li key={meal.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-48">
                 <p id={`${id}-${meal.id}`} className="break-words text-sm font-medium">
-                  {meal.name}
+                  {fmt.text(meal.name)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {t('fromPlan')}
@@ -736,7 +738,7 @@ function MealSection({
                 {meal.topping && (
                   <p className="text-xs text-muted-foreground">
                     {t('mealTopping', {
-                      name: meal.topping.name,
+                      name: fmt.text(meal.topping.name),
                       amount: shownAmount(meal.topping.display),
                     })}
                   </p>
@@ -758,7 +760,7 @@ function MealSection({
           {entries.map((entry) => (
             <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-48">
-                <p className="break-words text-sm font-medium">{entry.name}</p>
+                <p className="break-words text-sm font-medium">{fmt.text(entry.name)}</p>
                 <p className="text-xs text-muted-foreground">
                   {held(amountOf(entry))}
                   {DOT}

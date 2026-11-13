@@ -212,9 +212,9 @@ export function RecipeView({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{recipe.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{fmt.text(recipe.title)}</h1>
         {byModel && <AiMark part={byModel} spelledOut className="mt-2" />}
-        <p className="mt-1 text-sm text-muted-foreground">{recipe.description}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{fmt.text(recipe.description)}</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {[recipe.difficulty, ...recipe.mealTypes, ...recipe.dietTags].map((tag) => (
             <span
@@ -252,7 +252,7 @@ export function RecipeView({
                   className="h-auto max-w-full py-1 wrap-anywhere"
                   onClick={() => (saved ? removeFav.mutate(p.id) : addFav.mutate(p.id))}
                 >
-                  {saved ? '★' : '☆'} {p.name}
+                  {saved ? '★' : '☆'} {fmt.text(p.name)}
                 </Button>
               );
             })}
@@ -322,7 +322,7 @@ export function RecipeView({
               >
                 {profileList.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {fmt.text(p.name)}
                   </option>
                 ))}
               </select>
@@ -336,8 +336,10 @@ export function RecipeView({
               return (
                 <li key={i.ingredientId} className="flex items-center justify-between gap-4">
                   <span className="min-w-0 flex-1 wrap-anywhere">
-                    {i.name}
-                    {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
+                    {fmt.text(i.name)}
+                    {i.note ? (
+                      <span className="text-muted-foreground"> — {fmt.text(i.note)}</span>
+                    ) : null}
                     {restOfLine(i) ? (
                       <span className="block text-xs text-muted-foreground">
                         {t('restOfPack', { amount: shownAmount(restOfLine(i)!.display) })}
@@ -399,7 +401,7 @@ export function RecipeView({
             {recipe.steps.map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="font-medium text-muted-foreground">{i + 1}.</span>
-                <span className="min-w-0 wrap-anywhere">{step}</span>
+                <span className="min-w-0 wrap-anywhere">{fmt.text(step)}</span>
               </li>
             ))}
           </ol>

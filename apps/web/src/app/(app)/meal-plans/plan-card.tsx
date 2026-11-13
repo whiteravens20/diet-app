@@ -634,7 +634,9 @@ export function PlanCard({
               {day.meals.map((m, index) => {
                 const eaten = m.eatenAt !== null;
                 const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
-                const title = isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title;
+                const title = fmt.text(
+                  isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title,
+                );
                 // A control of this meal by a name of its own: among the buttons of a plan, "Swap" alone is every meal's.
                 const named = (action: string): string => t('actionFor', { action, title });
                 const favOpen = openFav === m.id;
@@ -1024,7 +1026,9 @@ export function PlanCard({
                           <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
                           {apart && <p>{apart}</p>}
                           {m.shared && !m.shared.with.eaten && (
-                            <p>{t('removeShared', { name: m.shared.with.profileName })}</p>
+                            <p>
+                              {t('removeShared', { name: fmt.text(m.shared.with.profileName) })}
+                            </p>
                           )}
                           <ListNote listed={day.listed} />
                           <div className="flex flex-wrap gap-2 pt-1">
@@ -1093,7 +1097,9 @@ export function PlanCard({
                                     onChange={() => onOfferFor(forAll)}
                                   />
                                   {forAll
-                                    ? t('offerForAll', { name: m.shared!.with.profileName })
+                                    ? t('offerForAll', {
+                                        name: fmt.text(m.shared!.with.profileName),
+                                      })
                                     : t('offerForMe')}
                                 </label>
                               ))}
@@ -1112,12 +1118,12 @@ export function PlanCard({
                           {/* A topping the model named for this plate, put on in the amount the day needs. */}
                           {offer.preview.topping && (
                             <p className="text-xs">
-                              {t('offerTopping', { name: offer.preview.topping.name })}
+                              {t('offerTopping', { name: fmt.text(offer.preview.topping.name) })}
                             </p>
                           )}
                           <p>
                             {t.rich('offerLine', {
-                              title: offer.preview.recipe.title,
+                              title: fmt.text(offer.preview.recipe.title),
                               servings: offer.preview.servings,
                               after: offer.preview.after.calories,
                               before: offer.preview.before.calories,
@@ -1267,7 +1273,7 @@ export function PlanCard({
                       {m.topping && (
                         <p className="ml-6 text-xs">
                           {t('toppingLine', {
-                            name: m.topping.ingredient.name,
+                            name: fmt.text(m.topping.ingredient.name),
                             amount: shownAmount(m.topping.ingredient.display),
                             kcal: m.topping.nutrition.calories,
                           })}
@@ -1277,7 +1283,7 @@ export function PlanCard({
                         <div className="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span>
                             {t('sharedLine', {
-                              name: m.shared.with.profileName,
+                              name: fmt.text(m.shared.with.profileName),
                               servings: Math.round(m.shared.with.servings * 10) / 10,
                               kcal: Math.round(m.shared.with.calories),
                             })}
@@ -1301,7 +1307,10 @@ export function PlanCard({
                       {m.shared && platesOf(m).length > 0 && (
                         <p className="ml-6 text-xs text-muted-foreground">
                           {plateWords(t('plateYou'), m.ingredients)}{' '}
-                          {plateWords(m.shared.with.profileName, m.shared.with.ingredients)}
+                          {plateWords(
+                            fmt.text(m.shared.with.profileName),
+                            m.shared.with.ingredients,
+                          )}
                         </p>
                       )}
                       {((m.cookAhead === 'cook' && m.cooking) ||
@@ -1328,7 +1337,10 @@ export function PlanCard({
                                     {
                                       key: one.meal.id,
                                       label: together
-                                        ? tSplit('portionOfWho', { who: profileName, when })
+                                        ? tSplit('portionOfWho', {
+                                            who: fmt.text(profileName),
+                                            when,
+                                          })
                                         : when,
                                       kcal: one.meal.nutrition.calories,
                                       lines: one.meal.ingredients,
@@ -1338,7 +1350,7 @@ export function PlanCard({
                                           {
                                             key: one.meal.shared!.with.mealId,
                                             label: tSplit('portionOfWho', {
-                                              who: one.meal.shared!.with.profileName,
+                                              who: fmt.text(one.meal.shared!.with.profileName),
                                               when,
                                             }),
                                             kcal: one.meal.shared!.with.calories,
@@ -1398,7 +1410,7 @@ export function PlanCard({
                                         onSwapToFavorite(m.id, f.recipe.id, showAllFav);
                                       }}
                                     >
-                                      <span>{f.recipe.title}</span>
+                                      <span>{fmt.text(f.recipe.title)}</span>
                                       <span className="flex shrink-0 items-center gap-1">
                                         {crossSlot && (
                                           <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
@@ -1481,7 +1493,7 @@ export function PlanCard({
             </span>
             {summary.joint && (
               <span className="block text-sm text-muted-foreground">
-                {t('jointWith', { name: summary.joint.profileName })}
+                {t('jointWith', { name: fmt.text(summary.joint.profileName) })}
               </span>
             )}
           </span>
@@ -1573,7 +1585,10 @@ export function PlanCard({
             )}
             {plan.averageOff.macros && <p className="text-warning">{t('planAverageMacros')}</p>}
             {plan.packs.bought > 0 && (
-              <PlanPacksLine packs={plan.packs} together={plan.joint?.profileName}>
+              <PlanPacksLine
+                packs={plan.packs}
+                together={plan.joint ? fmt.text(plan.joint.profileName) : undefined}
+              >
                 {plan.packs.open.some((pack) => pack.wasted) && (
                   <UseUp
                     planId={plan.id}
@@ -1752,7 +1767,7 @@ export function PlanCard({
           meals={(plan?.days.find((day) => day.date === customDay)?.meals ?? []).map((meal) => ({
             id: meal.id,
             mealType: meal.mealType,
-            title: meal.recipe?.title ?? meal.customName ?? t('customMeal'),
+            title: fmt.text(meal.recipe?.title ?? meal.customName ?? t('customMeal')),
             apart: cookWords.apart(meal, customDay, today),
           }))}
           listed={plan?.days.find((day) => day.date === customDay)?.listed ?? false}
@@ -1839,6 +1854,7 @@ function DiaryLines({
   const t = useTranslations('mealPlans');
   const tMeal = useTranslations('enums.mealType');
   const amountOf = useEntryAmount();
+  const fmt = useFormat();
   return entries.map((entry) => (
     <li key={entry.id} className="space-y-1 py-2">
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words pl-6">
@@ -1853,7 +1869,7 @@ function DiaryLines({
           aria-label={t('openInDiary', { name: entry.name })}
           className="font-medium text-primary wrap-anywhere hover:underline"
         >
-          {entry.name}
+          {fmt.text(entry.name)}
         </Link>
         <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
           {t('fromDiaryChip')}

@@ -161,7 +161,7 @@ export default function FavoritesPage() {
                 setError(null);
               }}
             >
-              {p.name}
+              {fmt.text(p.name)}
             </Button>
           ))}
         </div>
@@ -272,7 +272,7 @@ export default function FavoritesPage() {
                             className="text-left font-medium text-primary wrap-anywhere hover:underline"
                             onClick={() => setOpenRecipe(marked.recipe.id)}
                           >
-                            {marked.recipe.title}
+                            {fmt.text(marked.recipe.title)}
                           </button>
                           <p className="text-xs text-muted-foreground">
                             {t('facts', {

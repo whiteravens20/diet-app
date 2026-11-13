@@ -15,6 +15,7 @@ import {
 import { api } from '@/lib/api';
 import { useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export function EditEntryDialog({
   onSubmit: (change: UpdateDiaryEntryRequest) => void;
 }) {
   const t = useTranslations('diary');
+  const fmt = useFormat();
   const tCommon = useTranslations('common');
   const tMeal = useTranslations('enums.mealType');
   const unitName = useUnitName();
@@ -85,7 +87,7 @@ export function EditEntryDialog({
         <div className="flex items-center justify-between border-b border-border p-4">
           <div className="min-w-0">
             <h2 className="font-semibold">{tProducts('correctTitle')}</h2>
-            <p className="break-words text-xs text-muted-foreground">{entry.name}</p>
+            <p className="break-words text-xs text-muted-foreground">{fmt.text(entry.name)}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             {tCommon('close')}
@@ -109,7 +111,7 @@ export function EditEntryDialog({
       <div className="flex items-center justify-between border-b border-border p-4">
         <div className="min-w-0">
           <h2 className="font-semibold">{t('editTitle')}</h2>
-          <p className="break-words text-xs text-muted-foreground">{entry.name}</p>
+          <p className="break-words text-xs text-muted-foreground">{fmt.text(entry.name)}</p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon('close')}
@@ -173,7 +175,9 @@ export function EditEntryDialog({
           <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-xs">
             {found ? (
               <>
-                <p className="break-words">{t('entryOwnVersion', { name: found.name })}</p>
+                <p className="break-words">
+                  {t('entryOwnVersion', { name: fmt.text(found.name) })}
+                </p>
                 <Button
                   type="button"
                   variant="outline"

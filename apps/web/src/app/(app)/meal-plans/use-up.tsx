@@ -132,8 +132,8 @@ export function UseUp({
                     {mealName(suggestion.mealType)}:
                   </span>{' '}
                   {t.rich('swap', {
-                    to: suggestion.to.title,
-                    from: suggestion.from.title,
+                    to: fmt.text(suggestion.to.title),
+                    from: fmt.text(suggestion.from.title),
                     strong: (chunks) => <span className="font-medium">{chunks}</span>,
                   })}
                 </p>
@@ -153,7 +153,7 @@ export function UseUp({
                   .map((taken) =>
                     t('takes', {
                       amount: amount(taken.amount, taken.unit),
-                      name: taken.name,
+                      name: fmt.text(taken.name),
                       left: amount(taken.left, taken.unit),
                     }),
                   )

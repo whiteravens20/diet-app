@@ -18,6 +18,7 @@ import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -44,6 +45,7 @@ function isExpiringSoon(bestBefore: string): boolean {
  */
 export default function InventoryPage() {
   const t = useTranslations('inventory');
+  const fmt = useFormat();
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
   const unitName = useUnitName();
@@ -139,7 +141,7 @@ export default function InventoryPage() {
           >
             {profileList.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {fmt.text(p.name)}
               </option>
             ))}
           </select>
@@ -188,7 +190,7 @@ export default function InventoryPage() {
                   {rows.map((item) => (
                     <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
                       <span className="flex-1 min-w-[8rem] text-sm font-medium">
-                        {item.ingredient.name}
+                        {fmt.text(item.ingredient.name)}
                         {item.bestBefore && isExpiringSoon(item.bestBefore) && (
                           <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                             {t('expiringSoon')}
@@ -279,6 +281,7 @@ function AddInventoryForm({
 }) {
   const t = useTranslations('inventory');
   const unitName = useUnitName();
+  const fmt = useFormat();
   const [search, setSearch] = useState('');
   const [pickedIngredient, setPickedIngredient] = useState<Ingredient | null>(null);
   // What ties each label of the form to its field.
@@ -339,7 +342,7 @@ function AddInventoryForm({
             {pickedIngredient ? (
               <div className="mt-1 flex items-center gap-2">
                 <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-                  {pickedIngredient.name}
+                  {fmt.text(pickedIngredient.name)}
                 </span>
                 <Button
                   type="button"
@@ -374,7 +377,7 @@ function AddInventoryForm({
                             setUnit(i.pantryUnits[0]!);
                           }}
                         >
-                          {i.name}
+                          {fmt.text(i.name)}
                         </Button>
                       </li>
                     ))}

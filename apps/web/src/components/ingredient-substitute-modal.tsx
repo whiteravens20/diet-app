@@ -63,6 +63,7 @@ export function IngredientSubstituteModal({
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
+  const fmt = useFormat();
   const tPlans = useTranslations('mealPlans');
   const worded = useErrorText();
   const tCommon = useTranslations('common');
@@ -192,7 +193,7 @@ export function IngredientSubstituteModal({
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
           <h2 className="font-semibold">{t('title')}</h2>
-          <p className="text-xs text-muted-foreground">{meal.recipe.title}</p>
+          <p className="text-xs text-muted-foreground">{fmt.text(meal.recipe.title)}</p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon('close')}
@@ -224,7 +225,7 @@ export function IngredientSubstituteModal({
                       setAiPick(null);
                     }}
                   >
-                    <span>{i.name}</span>
+                    <span>{fmt.text(i.name)}</span>
                     <span className="text-xs tabular-nums text-muted-foreground">
                       {shownAmount(i.display)}
                     </span>
@@ -240,7 +241,7 @@ export function IngredientSubstituteModal({
           <section>
             <p className="mb-1 text-sm font-medium">
               {t.rich('stepReplace', {
-                name: fromLine.name,
+                name: fmt.text(fromLine.name),
                 strong: (chunks) => <span className="text-primary">{chunks}</span>,
               })}
             </p>
@@ -302,7 +303,7 @@ export function IngredientSubstituteModal({
                     setAcceptChange(false);
                   }}
                 >
-                  {suggestion.to.name}
+                  {fmt.text(suggestion.to.name)}
                 </button>
               </p>
             )}
@@ -325,7 +326,7 @@ export function IngredientSubstituteModal({
                         setAcceptChange(false);
                       }}
                     >
-                      <span>{c.name}</span>
+                      <span>{fmt.text(c.name)}</span>
                       {aiPick?.id === c.id && (
                         <Sparkles size={12} className="text-primary" aria-hidden />
                       )}
@@ -352,14 +353,14 @@ export function IngredientSubstituteModal({
                 <p className="text-xs text-muted-foreground">
                   {t(`sizing.${preview.data.sizing}`, {
                     fromAmount: shownAmount(preview.data.from.display),
-                    fromName: preview.data.from.name,
+                    fromName: fmt.text(preview.data.from.name),
                     toAmount: shownAmount(preview.data.to.display),
-                    toName: preview.data.to.name,
+                    toName: fmt.text(preview.data.to.name),
                   })}
                 </p>
                 {preview.data.merged && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {t('merged', { name: preview.data.to.name })}
+                    {t('merged', { name: fmt.text(preview.data.to.name) })}
                   </p>
                 )}
                 <dl className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">

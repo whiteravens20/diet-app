@@ -187,7 +187,7 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
                 <option value="">{t('partChoose')}</option>
                 {ingredients.map((one) => (
                   <option key={one.ingredientId} value={one.ingredientId}>
-                    {one.name}
+                    {fmt.text(one.name)}
                   </option>
                 ))}
               </select>

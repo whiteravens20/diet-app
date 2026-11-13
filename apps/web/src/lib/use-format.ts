@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { useFormatter } from 'next-intl';
+import { useFormatter, useLocale } from 'next-intl';
 import { useMemo } from 'react';
+import { holdLetters } from './held-letters';
 
 /** The units a number is shown with, as `Intl` names them. */
 type Unit =
@@ -36,8 +37,10 @@ export interface Format {
   unit(value: number, unit: Unit, digits?: number): string;
   /** A share as a percentage: 0.42 is "42%", "42%". */
   percent(share: number): string;
-  /** Several things named one after another: "rice, oats and tofu", "ryż, owies i tofu". */
+  /** Several things named one after another: "rice, oats and tofu", "ryż, owies i tofu"; in Polish held as `text` holds. */
   list(items: readonly string[]): string;
+  /** A text from the data (a title, a name, a description, a step) as a screen shows it: in Polish its words of one letter held to the next ("Pierś z kurczaka"). */
+  text(text: string): string;
 }
 
 /**
@@ -66,6 +69,7 @@ const minus = (text: string): string => text.replace('-', '\u2212');
 
 export function useFormat(): Format {
   const format = useFormatter();
+  const locale = useLocale();
   return useMemo(
     () => ({
       day: (day) =>
@@ -131,8 +135,10 @@ export function useFormat(): Format {
         minus(
           format.number(share, { useGrouping: false, style: 'percent', maximumFractionDigits: 0 }),
         ),
-      list: (items) => format.list([...items], { type: 'conjunction' }),
+      // The joining "i" of Polish is a word of one letter too: the list is held as a whole.
+      list: (items) => holdLetters(format.list([...items], { type: 'conjunction' }), locale),
+      text: (text) => holdLetters(text, locale),
     }),
-    [format],
+    [format, locale],
   );
 }

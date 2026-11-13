@@ -158,7 +158,7 @@ export function LeftoverDialog({
         }}
       >
         <p className="text-muted-foreground">
-          {t('intro', { title: meal.recipe?.title ?? meal.customName ?? '' })}
+          {t('intro', { title: fmt.text(meal.recipe?.title ?? meal.customName ?? '') })}
         </p>
         {offer.isPending ? (
           <div className="space-y-2" role="status" aria-label={t('loading')}>
@@ -186,12 +186,12 @@ export function LeftoverDialog({
                   checked={forAll}
                   onChange={(e) => setForAll(e.target.checked)}
                 />
-                {t('forAll', { name: other.profileName })}
+                {t('forAll', { name: fmt.text(other.profileName) })}
               </label>
             )}
             {other && forAll && (
               <PortionLeft
-                legend={t('eatenLegendOf', { name: other.profileName })}
+                legend={t('eatenLegendOf', { name: fmt.text(other.profileName) })}
                 portion={other.portion}
                 said={theirs}
                 onSay={setTheirs}
@@ -225,7 +225,7 @@ export function LeftoverDialog({
                       <span>
                         {t('place', {
                           meal: name(place.mealType),
-                          name: place.name,
+                          name: fmt.text(place.name),
                           kcal: place.calories,
                         })}
                       </span>

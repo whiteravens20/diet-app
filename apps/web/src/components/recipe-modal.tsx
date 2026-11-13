@@ -11,6 +11,7 @@ import { useId } from 'react';
 import type { DisplayAmount, LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useShownAmount } from '@/lib/ingredient-format';
+import { useFormat } from '@/lib/use-format';
 import { ApiClientError } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ export function RecipeModal({
   const tDetail = useTranslations('recipeDetail');
   const tSplit = useTranslations('split');
   const shownAmount = useShownAmount();
+  const fmt = useFormat();
   const platesId = useId();
 
   const recipe = useQuery({
@@ -131,7 +133,7 @@ export function RecipeModal({
                   recipe: recipe.data.servings,
                   all: portion.servings,
                   mine: pot.mine,
-                  name: pot.name,
+                  name: fmt.text(pot.name),
                   theirs: pot.theirs,
                 })
               : t(portion.whole ? 'portionWhole' : 'portionMeal', {
@@ -142,7 +144,11 @@ export function RecipeModal({
         )}
         {recipe.data && topping && (
           <p className="mb-4 text-sm">
-            {t('toppingNote', { name: topping.name, amount: topping.amount, kcal: topping.kcal })}
+            {t('toppingNote', {
+              name: fmt.text(topping.name),
+              amount: topping.amount,
+              kcal: topping.kcal,
+            })}
           </p>
         )}
         {recipe.data && pot && pot.plates.length > 0 && (
@@ -161,7 +167,7 @@ export function RecipeModal({
                     {t('platesYou')}
                   </th>
                   <th scope="col" className="py-1 text-right font-medium">
-                    {pot.name}
+                    {fmt.text(pot.name)}
                   </th>
                 </tr>
               </thead>
@@ -169,7 +175,7 @@ export function RecipeModal({
                 {pot.plates.map((row) => (
                   <tr key={row.ingredientId} className="border-b border-border last:border-0">
                     <th scope="row" className="py-1 pr-3 text-left font-normal">
-                      {row.name}
+                      {fmt.text(row.name)}
                     </th>
                     {/* An amount in pieces says its grams too: it wraps on a narrow screen rather than leave the window. */}
                     <td className="py-1 pr-3 text-right tabular-nums">{shownAmount(row.mine)}</td>

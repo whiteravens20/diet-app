@@ -134,9 +134,9 @@ function ProductToReview({
   return (
     <li className="space-y-2 rounded-md border border-border p-3 text-sm">
       <div>
-        <p className="break-words font-medium">{product.name}</p>
+        <p className="break-words font-medium">{fmt.text(product.name)}</p>
         <p className="break-words text-xs text-muted-foreground">
-          {[product.brand, product.pack, product.code].filter(Boolean).join(DOT)}
+          {fmt.text([product.brand, product.pack, product.code].filter(Boolean).join(DOT))}
         </p>
         {product.sentAt && (
           <p className="text-xs text-muted-foreground">{fmt.moment(product.sentAt)}</p>

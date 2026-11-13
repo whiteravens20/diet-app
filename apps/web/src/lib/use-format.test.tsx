@@ -138,4 +138,21 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.list(['rice', 'oats']))).toBe('rice and oats');
     expect(shown((f) => f.list(['rice']))).toBe('rice');
   });
+
+  it('holds the Polish joining "i" to the name after it, and the names\' own words of one letter', () => {
+    expect(shown((f) => f.list(['Tofu', 'Szpinak', 'Cebula']), 'pl', { raw: true })).toBe(
+      'Tofu, Szpinak i\u00a0Cebula',
+    );
+    expect(shown((f) => f.list(['Ryż', 'Pierś z kurczaka']), 'pl', { raw: true })).toBe(
+      'Ryż i\u00a0Pierś z\u00a0kurczaka',
+    );
+    expect(shown((f) => f.list(['rice', 'a pear']), 'en', { raw: true })).toBe('rice and a pear');
+  });
+
+  it('shows a text from the data with its Polish words of one letter held to the next', () => {
+    expect(
+      shown((f) => f.text('Kasza jaglana z tofu i pieczarkami z patelni'), 'pl', { raw: true }),
+    ).toBe('Kasza jaglana z\u00a0tofu i\u00a0pieczarkami z\u00a0patelni');
+    expect(shown((f) => f.text('A bowl of oats'), 'en', { raw: true })).toBe('A bowl of oats');
+  });
 });

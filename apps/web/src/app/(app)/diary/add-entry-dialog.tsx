@@ -515,10 +515,11 @@ export function AddEntryDialog({
 /** What was picked, and a way back to the search. */
 function Picked({ name, about, onAgain }: { name: string; about: string; onAgain: () => void }) {
   const t = useTranslations('diary');
+  const fmt = useFormat();
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
       <div className="min-w-0">
-        <p className="break-words text-sm font-medium">{name}</p>
+        <p className="break-words text-sm font-medium">{fmt.text(name)}</p>
         <p className="text-xs text-muted-foreground">{about}</p>
       </div>
       <Button type="button" variant="ghost" size="sm" onClick={onAgain}>

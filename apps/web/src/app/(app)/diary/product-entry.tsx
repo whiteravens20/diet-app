@@ -215,6 +215,7 @@ export function PickedProduct({
 }) {
   const t = useTranslations('diary');
   const unitName = useUnitName();
+  const fmt = useFormat();
   const { per100 } = product;
   const usable = per100.calories !== null;
   const row = (label: string, value: number | null, inner = false): ReactNode => (
@@ -231,9 +232,9 @@ export function PickedProduct({
     <div className="space-y-2 rounded-md border border-border bg-muted/40 px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="break-words text-sm font-medium">{product.name}</p>
+          <p className="break-words text-sm font-medium">{fmt.text(product.name)}</p>
           <p className="break-words text-xs text-muted-foreground">
-            {[product.brand, product.pack].filter(Boolean).join(DOT)}
+            {fmt.text([product.brand, product.pack].filter(Boolean).join(DOT))}
           </p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onAgain}>

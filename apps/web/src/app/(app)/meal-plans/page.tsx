@@ -630,7 +630,7 @@ function MealPlansContent() {
                 setAdvanced({ days: {} });
               }}
             >
-              {p.name}
+              {fmt.text(p.name)}
             </Button>
           ))}
         </div>
@@ -650,7 +650,7 @@ function MealPlansContent() {
                 aria-hidden
                 className={cn('shrink-0 text-muted-foreground', formOpen && 'rotate-90')}
               />
-              {active ? t('generateFor', { name: active.name }) : t('generate')}
+              {active ? t('generateFor', { name: fmt.text(active.name) }) : t('generate')}
             </button>
           </CardTitle>
         </CardHeader>
@@ -710,7 +710,7 @@ function MealPlansContent() {
                       .filter((one) => one.id !== activeId)
                       .map((one) => (
                         <option key={one.id} value={one.id}>
-                          {one.name}
+                          {fmt.text(one.name)}
                         </option>
                       ))}
                   </select>
@@ -874,7 +874,7 @@ function MealPlansContent() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold tracking-tight">
-            {active ? t('plansFor', { name: active.name }) : t('plans')}
+            {active ? t('plansFor', { name: fmt.text(active.name) }) : t('plans')}
           </h2>
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex flex-wrap gap-1">
@@ -1048,7 +1048,7 @@ function MealPlansContent() {
                 setError(null);
                 setApart.mutate({ planId: plan.id, sharedMealId, apart });
               }}
-              profileName={active?.name ?? ''}
+              profileName={fmt.text(active?.name ?? '')}
               onSpread={(date) => {
                 setError(null);
                 setNotice(null);

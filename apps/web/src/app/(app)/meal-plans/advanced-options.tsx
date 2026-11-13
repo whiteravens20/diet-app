@@ -371,7 +371,7 @@ export function AdvancedOptions({
                               <option value="">{t('lockRecipePlaceholder')}</option>
                               {lockFavorites.map((f) => (
                                 <option key={f.id} value={f.id}>
-                                  {f.title}
+                                  {fmt.text(f.title)}
                                 </option>
                               ))}
                             </select>

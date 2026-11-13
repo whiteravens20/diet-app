@@ -100,7 +100,7 @@ export function PlanPrintSheet({
                   <tr key={planned.id} className="border-t border-neutral-300 align-top">
                     <td className="py-1 pr-2">{words.meal(planned.mealType)}</td>
                     <td className="py-1 pr-2">
-                      <span className="font-medium">{dishOf(planned, words)}</span>
+                      <span className="font-medium">{fmt.text(dishOf(planned, words))}</span>
                       {planned.ingredients.length > 0 && (
                         <span className="block text-2xs leading-snug">
                           {fmt.list(

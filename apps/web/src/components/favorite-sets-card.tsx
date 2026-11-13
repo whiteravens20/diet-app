@@ -14,6 +14,7 @@ import type {
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ interface FavoriteRecipe {
  */
 export function FavoriteSetsCard({ profileId }: { profileId: string }) {
   const t = useTranslations('favoriteSets');
+  const fmt = useFormat();
   const tMeal = useTranslations('enums.mealType');
   const errorText = useErrorText();
   const qc = useQueryClient();
@@ -132,14 +134,16 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
             {sets.map((s) => (
               <li key={s.id} className="flex items-start justify-between gap-4 py-2">
                 <div className="min-w-0">
-                  <p className="font-medium">{s.label}</p>
+                  <p className="font-medium">{fmt.text(s.label)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {Object.entries(s.slots)
-                      .map(
-                        ([slot, recipeId]) =>
-                          `${tMeal.has(slot) ? tMeal(slot as MealType) : slot}: ${recipeTitle(recipeId)}`,
-                      )
-                      .join(DOT)}
+                    {fmt.text(
+                      Object.entries(s.slots)
+                        .map(
+                          ([slot, recipeId]) =>
+                            `${tMeal.has(slot) ? tMeal(slot as MealType) : slot}: ${recipeTitle(recipeId)}`,
+                        )
+                        .join(DOT),
+                    )}
                   </p>
                 </div>
                 <Button
@@ -179,7 +183,7 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
                       <option value="">— {t('pickRecipe')} —</option>
                       {slotFavorites.map((f) => (
                         <option key={f.recipe.id} value={f.recipe.id}>
-                          {f.recipe.title}
+                          {fmt.text(f.recipe.title)}
                         </option>
                       ))}
                     </select>
