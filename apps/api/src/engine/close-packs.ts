@@ -668,12 +668,22 @@ export function potsOf(
 }
 
 /**
+ * Of a plan of a joint plan, the person's own plates of the shared dishes, by
+ * the meal's place among its assignments: how much of each ingredient (by its
+ * id) the plate holds against the recipe's proportion; one for any other.
+ */
+export type PlateShares = ReadonlyMap<number, ReadonlyMap<string, number>>;
+
+/**
  * What the plans of a kitchen take of each pack on each day, with what stays in
  * them (`fixed`): a meal on its day, one eaten from a dish cooked ahead on the
- * day the dish is cooked. A row for every pack of `packs`.
+ * day the dish is cooked, each ingredient of a meal on a plate of its own at
+ * its share of the plate (`shares`). A row for every pack of `packs`.
  */
 export function kitchenNeeds(
-  plans: readonly Pick<ClosingPlan, 'recipes' | 'days' | 'assignments' | 'mealPrepFriendly'>[],
+  plans: readonly (Pick<ClosingPlan, 'recipes' | 'days' | 'assignments' | 'mealPrepFriendly'> & {
+    shares?: PlateShares;
+  })[],
   fixed: DailyNeeds | undefined,
   packs: ReadonlyMap<string, Pack>,
 ): Map<string, number[]> {
@@ -700,7 +710,11 @@ export function kitchenNeeds(
       for (const [ingredientId, perServing] of recipeOf.get(meal.recipeId)?.amounts ?? []) {
         const row = needs.get(ingredientId);
         if (row && takenOn[index]! < length)
-          row[takenOn[index]!]! += perServing * meal.servings * meal.quantityScale;
+          row[takenOn[index]!]! +=
+            perServing *
+            meal.servings *
+            meal.quantityScale *
+            (plan.shares?.get(index)?.get(ingredientId) ?? 1);
       }
     });
   }

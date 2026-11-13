@@ -9,13 +9,23 @@
  * the day nearer. Of the toppings that bring the day back, the one the person
  * had least in the days around it comes first, so that the same one is not
  * put on day after day. A day that nothing brings nearer keeps what the rest
- * of it makes up, and says so as any day off its target does.
+ * of it makes up, and says so as any day off its target does. In a run of the
+ * planner each shared dish served on a plate is first given the person's own
+ * plate of it (`plateDay`), which may bring the day back with no more food.
  *
  * Pure: the same day gives the same toppings and portions.
  */
 import type { Macros } from '@diet-app/shared';
 import type { PackKitchen } from './close-packs.js';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
+import {
+  plateDay,
+  shareOnPlate,
+  withPlates,
+  type Plate,
+  type PlateDish,
+  type PlatePlace,
+} from './plates.js';
 import {
   aimOfPlanned,
   assignedDayMeals,
@@ -105,19 +115,28 @@ export function topAndSizeDay(
   return { scales, toppings };
 }
 
-/** A meal a run of the planner placed and sized, with the topping its plate is given, if any. */
+/**
+ * A meal a run of the planner placed and sized, with the topping its plate is
+ * given, if any, and the person's own plate of a shared dish served on one
+ * where it is not the recipe's (`plateDay`).
+ */
 export type ToppedAssignment = SizedAssignment & {
   topping: { key: string; amount: number } | null;
+  plate?: Plate;
 };
 
 /**
  * The meals a run of the planner placed and sized (`sizeAssignments`), each
- * day of them topped and sized again (`topAndSizeDay`): `dishOf` names the
- * traits of a meal that is a place for a topping, null for one that is not;
- * `eaterOn` is the person as the check reads them on that day. The toppings
- * of the six days before a day count as what the person had of late. In a plan
- * that wastes less, `kitchen` holds the packs of the plans cooked together,
- * which the toppings are chosen by (`bestTopping`) and taken from, day by day.
+ * day of them plated, topped and sized again: `plateDishOf` names the parts of
+ * a shared dish served on a plate, whose plate for the person is chosen first
+ * (`plateDay`), null for any other meal; `dishOf` names the traits of a meal
+ * that is a place for a topping, null for one that is not, and the day is
+ * topped and sized with its plates (`topAndSizeDay`); `eaterOn` is the person
+ * as the check reads them on that day. The toppings of the six days before a
+ * day count as what the person had of late. In a plan that wastes less,
+ * `kitchen` holds the packs of the plans cooked together, which the plates
+ * take from or give back to and the toppings are chosen by (`bestTopping`)
+ * and taken from, day by day.
  */
 export function topAssignments(
   days: readonly OptimizerDay[],
@@ -128,12 +147,13 @@ export function topAssignments(
   options: readonly ToppingOption[],
   eaterOn: (dayIndex: number) => ToppingEater,
   kitchen?: PackKitchen,
+  plateDishOf: (meal: SizedAssignment) => PlateDish | null = () => null,
 ): ToppedAssignment[] {
   const optionOf = new Map(options.map((option) => [option.topping.key, option]));
   const recipeOf = new Map(recipes.map((recipe) => [recipe.id, recipe]));
   const topped = new Map<
     SizedAssignment,
-    { quantityScale: number; topping: ToppedAssignment['topping'] }
+    { quantityScale: number; topping: ToppedAssignment['topping']; plate?: Plate }
   >();
   const given: { dayIndex: number; key: string }[] = [];
   days.forEach((day, dayIndex) => {
@@ -142,14 +162,49 @@ export function topAssignments(
       const dish = dishOf(meal);
       return dish ? [{ mealId: meal.slot, meal: meal.slot, dish }] : [];
     });
-    if (places.length === 0 || options.length === 0) return;
+    const plating: PlatePlace[] = placed.flatMap((meal) => {
+      const dish = plateDishOf(meal);
+      return dish ? [{ mealId: meal.slot, dish }] : [];
+    });
+    if ((places.length === 0 || options.length === 0) && plating.length === 0) return;
+    const rows = assignedDayMeals(day, placed, recipeOf);
+    const aim = aimOfPlanned(day, split);
+    const eater = eaterOn(dayIndex);
+    const plates =
+      plating.length > 0
+        ? plateDay(
+            rows,
+            sizeDay(rows, day.dailyCalorieTarget, aim).scales,
+            plating,
+            aim,
+            eater.diet,
+          )
+        : new Map<string, Plate>();
+    const platingOf = new Map(plating.map((place) => [place.mealId, place]));
+    // What a plate holds more or less of each ingredient comes out of the kitchen's packs, or goes back.
+    if (kitchen)
+      for (const meal of placed) {
+        const plate = plates.get(meal.slot);
+        const dish = platingOf.get(meal.slot)?.dish;
+        if (!plate || !dish) continue;
+        for (const [ingredientId, perServing] of recipeOf.get(meal.recipeId)?.amounts ?? []) {
+          const part = dish.partOf.get(ingredientId) ?? 'rest';
+          const by = shareOnPlate(plate, part) - 1;
+          if (by !== 0)
+            kitchen.take(
+              ingredientId,
+              dayIndex,
+              perServing * meal.servings * meal.quantityScale * by,
+            );
+        }
+      }
     const { scales, toppings } = topAndSizeDay(
-      assignedDayMeals(day, placed, recipeOf),
+      withPlates(rows, plates, platingOf),
       day.dailyCalorieTarget,
-      aimOfPlanned(day, split),
+      aim,
       places,
       options,
-      eaterOn(dayIndex),
+      eater,
       given
         .filter((one) => one.dayIndex >= dayIndex - 6)
         .reduce(
@@ -161,7 +216,7 @@ export function topAssignments(
             option.pack ? kitchen.leavesMore(option.food.id, option.pack, dayIndex, amount) : 0
         : undefined,
     );
-    if (toppings.length === 0) return;
+    if (toppings.length === 0 && plates.size === 0) return;
     for (const choice of toppings) {
       given.push({ dayIndex, key: choice.key });
       const option = optionOf.get(choice.key);
@@ -169,9 +224,11 @@ export function topAssignments(
     }
     for (const meal of placed) {
       const choice = toppings.find((one) => one.mealId === meal.slot);
+      const plate = plates.get(meal.slot);
       topped.set(meal, {
         quantityScale: Math.round((scales.get(meal.slot) ?? meal.quantityScale) * 100) / 100,
         topping: choice ? { key: choice.key, amount: choice.amount } : null,
+        ...(plate ? { plate } : {}),
       });
     }
   });

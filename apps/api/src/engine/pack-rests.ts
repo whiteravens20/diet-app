@@ -15,7 +15,13 @@
  * than a spoonful of its pack (`SPOONFUL`) stays in the pack.
  */
 import type { MealType } from '@diet-app/shared';
-import { kitchenNeeds, potsOf, type ClosingPlan, type Pot } from './close-packs.js';
+import {
+  kitchenNeeds,
+  potsOf,
+  type ClosingPlan,
+  type PlateShares,
+  type Pot,
+} from './close-packs.js';
 import { packUse, SPOONFUL, type DailyNeeds, type Pack } from './packs.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
@@ -42,6 +48,8 @@ export interface RestPlan extends Pick<
 > {
   /** The topping of a meal, by the meal's place among the assignments: what it takes of a pack, and its energy. */
   toppings?: ReadonlyMap<number, { ingredientId: string; amount: number; calories: number }>;
+  /** The person's own plates of the shared dishes: what each holds of each ingredient (`PlateShares`). */
+  shares?: PlateShares;
 }
 
 export interface RestInput {
@@ -93,11 +101,12 @@ export function packRests(input: RestInput): Map<number, MealRest[]>[] {
   const left = packUse(kitchenNeeds(plans, fixed, packs), packs).open;
   if (left.length === 0) return rests;
 
-  /** What a meal takes of an ingredient, at its servings and portion. */
+  /** What a meal takes of an ingredient, at its servings, portion and plate. */
   const amountOf = (plan: number, index: number, ingredientId: string): number => {
     const meal = plans[plan]!.assignments[index]!;
     const perServing = recipeOf[plan]!.get(meal.recipeId)?.amounts?.get(ingredientId) ?? 0;
-    return perServing * meal.servings * meal.quantityScale;
+    const share = plans[plan]!.shares?.get(index)?.get(ingredientId) ?? 1;
+    return perServing * meal.servings * meal.quantityScale * share;
   };
   /** The energy of a meal's dish. */
   const energyOf = (plan: number, index: number): number => {

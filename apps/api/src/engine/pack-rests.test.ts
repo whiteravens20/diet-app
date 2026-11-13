@@ -148,6 +148,18 @@ describe('the rest of a pack, into the meal that finishes it', () => {
     expect(given(rests([plan({ days: days(1, { kept: [{ calories: 280 }] }) })]))).toEqual([]);
   });
 
+  it('counts each ingredient of a meal on a plate of its own at the plate’s share of it', () => {
+    // The plate holds 99 % of the roast's chicken: 465 g of the pack, and 35 g left for the meal.
+    const plated = plan({ shares: new Map([[0, new Map([['chicken', 0.99]])]]) });
+    expect(given(rests([plated]))).toEqual([[0, [['chicken', 35]]]]);
+    // One that holds a tenth more takes 517 g: a second pack, of which too much is left.
+    const more = plan({ shares: new Map([[0, new Map([['chicken', 1.1]])]]) });
+    expect(given(rests([more]))).toEqual([]);
+    // A share of another ingredient changes nothing of the chicken.
+    const other = plan({ shares: new Map([[0, new Map([['rice', 0.5]])]]) });
+    expect(given(rests([other]))).toEqual([[0, [['chicken', 30]]]]);
+  });
+
   it('counts what stays in the plan and the toppings in the kitchen', () => {
     // Something that stays takes the 30 g on the same day: nothing is left.
     expect(given(rests([plan()], { fixed: new Map([['chicken', [30]]]) }))).toEqual([]);
@@ -216,5 +228,24 @@ describe('the rest of a pack, into the meal that finishes it', () => {
         given(rests([ours, theirs], { shared: [{ dayIndex: 0, slot: 'lunch' }] }), p),
       ),
     ).toEqual([[[0, [['chicken', 18]]]], [[0, [['chicken', 12]]]]]);
+  });
+
+  it('goes into the pot of a dish both eat on plates of their own, each plate its share by what it holds', () => {
+    const half = recipe('chicken-roast', ['lunch'], 1000, { chicken: 235 });
+    const onPlate = (share: number) =>
+      plan({
+        recipes: [half, soup, salad],
+        assignments: [placed(0, 'lunch', 'chicken-roast')],
+        shares: new Map([[0, new Map([['chicken', share]])]]),
+      });
+    // Two portions alike, one plate with a quarter more of the chicken and one with a quarter less: 294 + 176 g.
+    expect(
+      [0, 1].map((p) =>
+        given(
+          rests([onPlate(1.25), onPlate(0.75)], { shared: [{ dayIndex: 0, slot: 'lunch' }] }),
+          p,
+        ),
+      ),
+    ).toEqual([[[0, [['chicken', 19]]]], [[0, [['chicken', 11]]]]]);
   });
 });

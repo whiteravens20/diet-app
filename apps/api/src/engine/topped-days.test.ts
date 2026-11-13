@@ -12,6 +12,7 @@ import {
 } from './rebalance.js';
 import { packKitchen } from './close-packs.js';
 import { fullKindsOn, topAndSizeDay, topAssignments } from './topped-days.js';
+import { plateChange, type PlateDish } from './plates.js';
 import {
   TOPPING_BY_KEY,
   type ToppingDish,
@@ -222,6 +223,128 @@ describe('the meals of a plan topped', () => {
     expect(topped.filter((one) => one.dayIndex === 1)).toEqual(
       sized.filter((one) => one.dayIndex === 1).map((one) => ({ ...one, topping: null })),
     );
+  });
+});
+
+describe('the meals of a plan plated', () => {
+  const recipes: OptimizerRecipe[] = [
+    {
+      id: 'chicken-pasta',
+      caloriesPerServing: 1000,
+      proteinPerServing: 30,
+      fatPerServing: 35,
+      carbsPerServing: 143,
+      amounts: new Map([
+        ['chicken', 100],
+        ['pasta', 120],
+        ['oil', 25],
+      ]),
+    },
+    {
+      id: 'bean-stew',
+      caloriesPerServing: 1010,
+      proteinPerServing: 70,
+      fatPerServing: 30,
+      carbsPerServing: 100,
+    },
+  ].map((recipe) => ({
+    ...recipe,
+    mealTypes: ['lunch', 'dinner'],
+    dietTags: [],
+    ingredientIds: [],
+    difficulty: 'easy',
+    isFavorite: false,
+    totalMinutes: 30,
+  }));
+  /** The pasta's parts: a little chicken, much pasta, some broccoli and the oil of the sauce. */
+  const part = (protein: number, fat: number, carbs: number) => ({
+    protein,
+    fat,
+    carbs,
+    calories: protein * 4 + fat * 9 + carbs * 4,
+  });
+  const none = { fiber: 0, sugars: 0, salt: 0, saturatedFat: 0 };
+  const PASTA: PlateDish = {
+    parts: {
+      protein: part(20, 5, 0),
+      starch: part(8, 2, 130),
+      vegetables: part(2, 1, 13),
+      rest: part(0, 27, 0),
+    },
+    labels: { protein: none, starch: none, vegetables: none, rest: none },
+    partOf: new Map([
+      ['chicken', 'protein'],
+      ['pasta', 'starch'],
+      ['oil', 'rest'],
+    ]),
+  };
+  const day: OptimizerDay = {
+    mealSlots: ['lunch', 'dinner'],
+    dailyCalorieTarget: 2000,
+    macroAim: HIGH_PROTEIN,
+  };
+  const sized: SizedAssignment[] = [
+    { dayIndex: 0, slot: 'lunch', recipeId: 'chicken-pasta', servings: 1, quantityScale: 1 },
+    { dayIndex: 0, slot: 'dinner', recipeId: 'bean-stew', servings: 1, quantityScale: 1 },
+  ];
+  const lunchOnly = (meal: SizedAssignment) => (meal.slot === 'lunch' ? PLATE : null);
+  const run = (plated: boolean, kitchen?: ReturnType<typeof packKitchen>) =>
+    topAssignments(
+      [day],
+      recipes,
+      sized,
+      energyShares(HIGH_PROTEIN)!,
+      lunchOnly,
+      OPTIONS,
+      () => anyone,
+      kitchen,
+      (meal) => (plated && meal.slot === 'lunch' ? PASTA : null),
+    );
+
+  /** How far the day of a run is from its split: its meals at their portions and plates, with their toppings. */
+  const awayOf = (meals: ReturnType<typeof run>): number => {
+    const day = { protein: 0, fat: 0, carbs: 0 };
+    for (const meal of meals) {
+      const recipe = recipes.find((one) => one.id === meal.recipeId)!;
+      const change = meal.plate ? plateChange(PASTA, meal.plate).perServing : null;
+      const amount = meal.servings * meal.quantityScale;
+      const topping = meal.topping
+        ? OPTIONS.find((one) => one.topping.key === meal.topping!.key)
+        : null;
+      const part = (meal.topping?.amount ?? 0) / 100;
+      day.protein +=
+        (recipe.proteinPerServing + (change?.protein ?? 0)) * amount +
+        (topping?.per100.protein ?? 0) * part;
+      day.fat +=
+        (recipe.fatPerServing + (change?.fat ?? 0)) * amount + (topping?.per100.fat ?? 0) * part;
+      day.carbs +=
+        (recipe.carbsPerServing + (change?.carbs ?? 0)) * amount +
+        (topping?.per100.carbs ?? 0) * part;
+    }
+    return splitDistance(energyShares(day)!, energyShares(HIGH_PROTEIN)!);
+  };
+
+  it('give a shared dish served on a plate the person’s own plate first, and a topping only where the day stays off', () => {
+    const lunch = run(true).find((meal) => meal.slot === 'lunch')!;
+
+    expect(lunch.plate!.protein).toBeGreaterThan(1);
+    expect(lunch.plate!.starch).toBeLessThan(1);
+    // The day the topping brought back without the plate is brought back by the plate, with no more food.
+    expect(run(false).find((meal) => meal.slot === 'lunch')!.topping).not.toBeNull();
+    expect(lunch.topping).toBeNull();
+    expect(awayOf(run(true))).toBeLessThanOrEqual(MACROS_OFF);
+    // The plate is the person's at the dish both eat, and nowhere else.
+    expect(run(false).find((meal) => meal.slot === 'lunch')!.plate).toBeUndefined();
+    expect(run(true).find((meal) => meal.slot === 'dinner')!.plate).toBeUndefined();
+  });
+
+  it('take what the plate holds more of an ingredient from the kitchen’s packs, and give back what it holds less of', () => {
+    const needs = new Map<string, number[]>();
+    const lunch = run(true, packKitchen(needs, 1)).find((meal) => meal.slot === 'lunch')!;
+
+    expect(needs.get('chicken')![0]).toBeCloseTo(100 * (lunch.plate!.protein - 1), 6);
+    expect(needs.get('pasta')![0]).toBeCloseTo(120 * (lunch.plate!.starch - 1), 6);
+    expect(needs.get('oil')).toBeUndefined();
   });
 });
 
