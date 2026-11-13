@@ -282,6 +282,39 @@ describe('closing the packs of a plan', () => {
     ]);
   });
 
+  it('counts the kind of protein of the meal it swaps as gone from the day', () => {
+    // One meal of chicken a day: the lunch of chicken gives place to another of chicken that finishes the pack.
+    const poultry: ProteinKind[] = ['chicken'];
+    const big = recipe(
+      'chicken-plate',
+      ['lunch'],
+      500,
+      { chicken: 500 },
+      { proteinKinds: poultry },
+    );
+    const [after] = closePacks({
+      plans: [
+        plan({
+          recipes: [{ ...chickenRice, proteinKinds: poultry }, big, lentilSoup],
+          limits: { consecutive: 7, perWeek: 7, perKind: new Map([['chicken', { perDay: 1 }]]) },
+        }),
+      ],
+      packs: PACKS,
+    });
+    expect(recipesOf(after!)).toEqual(['chicken-plate', 'lentil-soup']);
+  });
+
+  it('takes in a kind of protein the plan had no meal of', () => {
+    const poultry: ProteinKind[] = ['chicken'];
+    const [after] = closePacks({
+      plans: [
+        plan({ recipes: [chickenRice, lentilSoup, { ...chickenSalad, proteinKinds: poultry }] }),
+      ],
+      packs: PACKS,
+    });
+    expect(recipesOf(after!)).toEqual(['chicken-rice', 'chicken-salad']);
+  });
+
   it('puts no recipe twice on one day where the plan does not allow it', () => {
     // A dinner of the lunch's own dish would finish the pack too.
     const both = recipe('chicken-rice', ['lunch', 'dinner'], 500, { chicken: 250 });
@@ -414,6 +447,52 @@ describe('closing the packs of a plan', () => {
     expect(recipesOf(first!)).toEqual(['chicken-rice', 'lentil-soup']);
   });
 
+  it('leaves a plan as it is where every meal of it stays', () => {
+    const kept = plan({
+      recipes: [
+        { ...chickenRice, isFavorite: true },
+        { ...lentilSoup, isFavorite: true },
+        chickenSalad,
+      ],
+    });
+    expect(closePacks({ plans: [kept], packs: PACKS })).toEqual([kept.assignments]);
+  });
+
+  it('takes no recipe whose serving cannot come within a tenth of the energy of the meal', () => {
+    // A feast of 2000 kcal a serving: half a serving, the least there is, is twice the soup's 500.
+    const feast = recipe('chicken-feast', ['dinner'], 2000, { chicken: 250 });
+    const [after] = closePacks({
+      plans: [plan({ recipes: [chickenRice, lentilSoup, feast] })],
+      packs: PACKS,
+    });
+    expect(recipesOf(after!)).toEqual(['chicken-rice', 'lentil-soup']);
+  });
+
+  it('counts a meal that stays on the day: its recipe for the limits, what it holds for the split', () => {
+    // The salad is eaten at breakfast already: not again the same day.
+    const eaten = plan({
+      days: days(1, {
+        kept: [
+          { recipeId: 'chicken-salad', calories: 500, macros: { protein: 25, fat: 17, carbs: 62 } },
+        ],
+      }),
+    });
+    expect(recipesOf(closePacks({ plans: [eaten], packs: PACKS })[0]!)).toEqual([
+      'chicken-rice',
+      'lentil-soup',
+    ]);
+  });
+
+  it('takes a meal both eat to be shared only where the other plan holds it', () => {
+    // The second plan has no lunch: the first plan's lunch is its own, and its packs are closed as such.
+    const [first] = closePacks({
+      plans: [plan(), plan({ assignments: [placed(0, 'dinner', 'lentil-soup')] })],
+      shared: [{ dayIndex: 0, slot: 'lunch' }],
+      packs: PACKS,
+    });
+    expect(recipesOf(first!)).toEqual(['chicken-rice', 'chicken-salad']);
+  });
+
   it('comes to the same plan every time, whatever order the recipes come in', () => {
     const other = recipe('chicken-stew', ['dinner'], 500, { chicken: 250 });
     const one = closePacks({
@@ -445,6 +524,12 @@ describe('the packs of a kitchen as toppings are given', () => {
 
     // Taken, the 250 g finish the pack: 100 g more would open another.
     kitchen.take('chicken', 1, 250);
+    expect(kitchen.leavesMore('chicken', chicken, 1, 100)).toBeCloseTo(0.8, 6);
+
+    // Nothing, or a day the plans do not have, changes nothing.
+    expect(kitchen.leavesMore('chicken', chicken, 1, 0)).toBe(0);
+    expect(kitchen.leavesMore('chicken', chicken, 2, 100)).toBe(0);
+    kitchen.take('chicken', 5, 100);
     expect(kitchen.leavesMore('chicken', chicken, 1, 100)).toBeCloseTo(0.8, 6);
   });
 });

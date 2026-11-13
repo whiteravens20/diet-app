@@ -103,8 +103,13 @@ interface Place {
   index: number;
 }
 
-/** Meals that change together: a dish cooked ahead and the meals it feeds, and a meal shared by two plans. */
-interface Unit {
+const keyOf = (place: Place): string => `${place.plan}:${place.index}`;
+
+/**
+ * Meals cooked in one pot, which change together: a dish cooked ahead and the
+ * meals it feeds, a meal shared by two plans; any other meal by itself.
+ */
+export interface Pot {
   places: Place[];
   /** The day each place takes its ingredients on: the day its dish is cooked. */
   takenOn: number[];
@@ -148,83 +153,18 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
   const byDay = plans.map(mealsByDay);
 
   // The units: a dish cooked ahead with the meals it feeds, a shared meal with its other half.
-  const parent = new Map<string, string>();
-  const keyOf = (place: Place): string => `${place.plan}:${place.index}`;
-  const find = (key: string): string => {
-    let root = key;
-    while (parent.get(root) !== root) root = parent.get(root)!;
-    parent.set(key, root);
-    return root;
-  };
-  const join = (a: Place, b: Place): void => {
-    const ra = find(keyOf(a));
-    const rb = find(keyOf(b));
-    if (ra !== rb) parent.set(rb, ra);
-  };
-  plans.forEach((_, p) =>
-    meals[p]!.forEach((__, index) =>
-      parent.set(keyOf({ plan: p, index }), keyOf({ plan: p, index })),
-    ),
-  );
-  const takenOn = new Map<string, number>();
-  plans.forEach((plan, p) => {
-    for (const cooking of cookingsOfPlan(plan))
-      for (const index of cooking) {
-        join({ plan: p, index: cooking[0]! }, { plan: p, index });
-        takenOn.set(keyOf({ plan: p, index }), plan.assignments[cooking[0]!]!.dayIndex);
-      }
-  });
-  const sharedPlace = new Set<string>();
-  if (plans.length > 1)
-    for (const { dayIndex, slot } of input.shared ?? []) {
-      const here = byDay[0]![dayIndex]?.find((index) => meals[0]![index]!.slot === slot);
-      const there = byDay[1]![dayIndex]?.find((index) => meals[1]![index]!.slot === slot);
-      if (here === undefined || there === undefined) continue;
-      if (meals[0]![here]!.recipeId !== meals[1]![there]!.recipeId) continue;
-      join({ plan: 0, index: here }, { plan: 1, index: there });
-      sharedPlace.add(keyOf({ plan: 1, index: there }));
-    }
-  const grouped = new Map<string, Place[]>();
-  plans.forEach((_, p) =>
-    meals[p]!.forEach((__, index) => {
-      const root = find(keyOf({ plan: p, index }));
-      const group = grouped.get(root);
-      if (group) group.push({ plan: p, index });
-      else grouped.set(root, [{ plan: p, index }]);
-    }),
-  );
+  const { pots, sharing } = potsOf(plans, input.shared);
   /** A meal that stays as it is: locked to its place by the user, or a favourite. */
   const stays = (place: Place): boolean => {
     const meal = meals[place.plan]![place.index]!;
     const recipe = recipeAt(place);
     if (!recipe || recipe.isFavorite || recipe.eatenOften) return true;
-    if (sharedPlace.has(keyOf(place))) return false;
+    if (sharing.has(keyOf(place))) return false;
     return (plans[place.plan]!.days[meal.dayIndex]!.lockedSlots ?? []).some(
       (lock) => lock.slot === meal.slot,
     );
   };
-  const units: Unit[] = [...grouped.values()]
-    .filter((places) => !places.some(stays))
-    .map((places) => {
-      const ordered = [...places].sort(
-        (a, b) =>
-          meals[a.plan]![a.index]!.dayIndex - meals[b.plan]![b.index]!.dayIndex ||
-          rankOf(meals[a.plan]![a.index]!.slot) - rankOf(meals[b.plan]![b.index]!.slot) ||
-          a.plan - b.plan,
-      );
-      return {
-        places: ordered,
-        takenOn: ordered.map(
-          (place) => takenOn.get(keyOf(place)) ?? meals[place.plan]![place.index]!.dayIndex,
-        ),
-      };
-    })
-    .sort(
-      (a, b) =>
-        a.takenOn[0]! - b.takenOn[0]! ||
-        rankOf(meals[a.places[0]!.plan]![a.places[0]!.index]!.slot) -
-          rankOf(meals[b.places[0]!.plan]![b.places[0]!.index]!.slot),
-    );
+  const units: Pot[] = pots.filter((pot) => !pot.places.some(stays));
   if (units.length === 0) return meals;
 
   // The kitchen: what all the plans take of each pack on each day.
@@ -277,7 +217,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
   );
   /** How the unit's meals with `sized` in their places change what the plans take of each ingredient the pantry holds. */
   const pantryChange = (
-    unit: Unit,
+    unit: Pot,
     sized: NonNullable<ReturnType<typeof sizedFor>>,
   ): Map<string, number> => {
     const change = new Map<string, number>();
@@ -420,7 +360,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
   });
 
   /** The recipe in the place of every meal of a unit, sized to what each held; null where it cannot be. */
-  const sizedFor = (unit: Unit, candidate: string) => {
+  const sizedFor = (unit: Pot, candidate: string) => {
     const out: { recipe: OptimizerRecipe; servings: number; quantityScale: number }[] = [];
     for (const place of unit.places) {
       const meal = meals[place.plan]![place.index]!;
@@ -448,7 +388,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
   };
 
   /** Whether every limit of each plan holds with the recipe at every meal of the unit, the unit's own recipe gone from them. */
-  const withinLimits = (unit: Unit, recipe: string, before: string): boolean => {
+  const withinLimits = (unit: Pot, recipe: string, before: string): boolean => {
     for (let p = 0; p < plans.length; p++) {
       const mine = unit.places.filter((place) => place.plan === p);
       if (mine.length === 0) continue;
@@ -500,7 +440,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
   };
 
   /** Whether each day the unit is on stays near enough its split with the recipes in its places. */
-  const nearTheSplit = (unit: Unit, sized: NonNullable<ReturnType<typeof sizedFor>>): boolean => {
+  const nearTheSplit = (unit: Pot, sized: NonNullable<ReturnType<typeof sizedFor>>): boolean => {
     const days = new Map<
       string,
       { p: number; day: number; swapped: Map<number, { recipe: OptimizerRecipe; amount: number }> }
@@ -525,7 +465,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
 
   /** What the unit's meals take of each pack on each day, as they are or with `sized` in their places. */
   const takenBy = (
-    unit: Unit,
+    unit: Pot,
     sized?: ReturnType<typeof sizedFor>,
   ): Map<string, Map<number, number>> => {
     const out = new Map<string, Map<number, number>>();
@@ -639,6 +579,86 @@ function cookingsOfPlan(
   return cookAhead(
     days.map((day) => day.map((index) => plan.assignments[index]!.recipeId)),
   ).cookings.map((cooking) => cooking.map(({ day, meal }) => days[day]![meal]!));
+}
+
+/**
+ * The pots of the plans of a kitchen (`Pot`), in the order their dishes are
+ * cooked: by day, then by the meal they are eaten at. `sharing` names the
+ * places of the second plan at a meal both eat, whose lock is the sharing
+ * itself, not the user's.
+ */
+export function potsOf(
+  plans: readonly Pick<ClosingPlan, 'days' | 'assignments' | 'mealPrepFriendly'>[],
+  shared: readonly { dayIndex: number; slot: MealType }[] = [],
+): { pots: Pot[]; sharing: ReadonlySet<string> } {
+  const meals = plans.map((plan) => plan.assignments);
+  const byDay = plans.map(mealsByDay);
+  const parent = new Map<string, string>();
+  const find = (key: string): string => {
+    let root = key;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    parent.set(key, root);
+    return root;
+  };
+  const join = (a: Place, b: Place): void => {
+    const ra = find(keyOf(a));
+    const rb = find(keyOf(b));
+    if (ra !== rb) parent.set(rb, ra);
+  };
+  plans.forEach((_, p) =>
+    meals[p]!.forEach((__, index) =>
+      parent.set(keyOf({ plan: p, index }), keyOf({ plan: p, index })),
+    ),
+  );
+  const takenOn = new Map<string, number>();
+  plans.forEach((plan, p) => {
+    for (const cooking of cookingsOfPlan(plan))
+      for (const index of cooking) {
+        join({ plan: p, index: cooking[0]! }, { plan: p, index });
+        takenOn.set(keyOf({ plan: p, index }), plan.assignments[cooking[0]!]!.dayIndex);
+      }
+  });
+  const sharing = new Set<string>();
+  if (plans.length > 1)
+    for (const { dayIndex, slot } of shared) {
+      const here = byDay[0]![dayIndex]?.find((index) => meals[0]![index]!.slot === slot);
+      const there = byDay[1]![dayIndex]?.find((index) => meals[1]![index]!.slot === slot);
+      if (here === undefined || there === undefined) continue;
+      if (meals[0]![here]!.recipeId !== meals[1]![there]!.recipeId) continue;
+      join({ plan: 0, index: here }, { plan: 1, index: there });
+      sharing.add(keyOf({ plan: 1, index: there }));
+    }
+  const grouped = new Map<string, Place[]>();
+  plans.forEach((_, p) =>
+    meals[p]!.forEach((__, index) => {
+      const root = find(keyOf({ plan: p, index }));
+      const group = grouped.get(root);
+      if (group) group.push({ plan: p, index });
+      else grouped.set(root, [{ plan: p, index }]);
+    }),
+  );
+  const pots = [...grouped.values()]
+    .map((places) => {
+      const ordered = [...places].sort(
+        (a, b) =>
+          meals[a.plan]![a.index]!.dayIndex - meals[b.plan]![b.index]!.dayIndex ||
+          rankOf(meals[a.plan]![a.index]!.slot) - rankOf(meals[b.plan]![b.index]!.slot) ||
+          a.plan - b.plan,
+      );
+      return {
+        places: ordered,
+        takenOn: ordered.map(
+          (place) => takenOn.get(keyOf(place)) ?? meals[place.plan]![place.index]!.dayIndex,
+        ),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.takenOn[0]! - b.takenOn[0]! ||
+        rankOf(meals[a.places[0]!.plan]![a.places[0]!.index]!.slot) -
+          rankOf(meals[b.places[0]!.plan]![b.places[0]!.index]!.slot),
+    );
+  return { pots, sharing };
 }
 
 /**
