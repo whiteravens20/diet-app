@@ -3,6 +3,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { Marked } from 'marked';
+import { holdLetters, holdsLetters } from './held-letters';
 
 /**
  * The terms of service of an instance are Markdown files its operator writes: `TOS.md`,
@@ -29,6 +30,8 @@ const TEMPLATE_DIR = path.resolve(process.cwd(), '..', '..', 'terms');
 /** One document of terms, as the page shows it. */
 interface TermsDocument {
   html: string;
+  /** The language it is written in, where that is known: a translation's code, English for the template. */
+  lang: string | null;
   /** Its second-level headings in order, with the ids the HTML gives them. */
   outline: { id: string; title: string }[];
 }
@@ -58,8 +61,12 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
 }
 
-/** One Markdown document as HTML, with the outline of its second-level headings. */
-export function renderTerms(markdown: string): TermsDocument {
+/**
+ * One Markdown document as HTML, with the outline of its second-level headings. In a
+ * language known to be Polish its words of one letter are held to the next, as every
+ * text the application shows is: in the text between the tags alone.
+ */
+export function renderTerms(markdown: string, lang: string | null = null): TermsDocument {
   const outline: TermsDocument['outline'] = [];
   const marked = new Marked({
     gfm: true,
@@ -82,11 +89,44 @@ export function renderTerms(markdown: string): TermsDocument {
       },
     },
   });
-  return { html: marked.parse(markdown, { async: false }), outline };
+  const html = marked.parse(markdown, { async: false });
+  if (lang === null) return { html, outline, lang };
+  return {
+    html: heldHtml(html, lang),
+    outline: outline.map((entry) => ({ ...entry, title: holdLetters(entry.title, lang) })),
+    lang,
+  };
 }
 
-/** `TOS.md` and its translations in `dir`, or null when it holds no `TOS.md` to read. */
-export function readTerms(dir: string): Terms | null {
+/** A word of one letter that ends a run of text, its space after it. */
+const LETTER_AT_END = /(?:^|[\s(„"»])[wziaouWZIAOU] $/u;
+
+/**
+ * HTML with the words of one letter of its text held to the next: in the text between the
+ * tags, and where such a word ends the text before a tag, to the text after it ("i <a>").
+ */
+function heldHtml(html: string, lang: string): string {
+  const parts = html.split(/(<[^>]*>)/);
+  return parts
+    .map((part, index) => {
+      if (part.startsWith('<')) return part;
+      const held = holdLetters(part, lang);
+      const after = parts.slice(index + 1).find((next) => !next.startsWith('<'));
+      return holdsLetters(lang) &&
+        after !== undefined &&
+        /^\S/u.test(after) &&
+        LETTER_AT_END.test(held)
+        ? `${held.slice(0, -1)}\u00a0`
+        : held;
+    })
+    .join('');
+}
+
+/**
+ * `TOS.md` and its translations in `dir`, or null when it holds no `TOS.md` to read.
+ * `TOS.md` is in the language `lang` names, or in one nobody has said.
+ */
+export function readTerms(dir: string, lang: string | null = null): Terms | null {
   let markdown: string;
   try {
     markdown = readFileSync(path.join(dir, 'TOS.md'), 'utf8');
@@ -104,12 +144,12 @@ export function readTerms(dir: string): Terms | null {
     const code = TRANSLATION.exec(name)?.[1];
     if (!code) continue;
     try {
-      translations[code] = renderTerms(readFileSync(path.join(dir, name), 'utf8'));
+      translations[code] = renderTerms(readFileSync(path.join(dir, name), 'utf8'), code);
     } catch {
       // Docker puts a directory where a file it was told to mount is missing.
     }
   }
-  return { terms: renderTerms(markdown), translations };
+  return { terms: renderTerms(markdown, lang), translations };
 }
 
 let loaded: Terms | undefined;
@@ -127,7 +167,8 @@ export function termsFor(locale: string): TermsDocument {
         `[terms] No TOS.md to read in ${OPERATOR_DIR}: the page shows the template that comes with the application.`,
       );
     }
-    const terms = own ?? readTerms(TEMPLATE_DIR);
+    // The template is written in English.
+    const terms = own ?? readTerms(TEMPLATE_DIR, 'en');
     if (!terms)
       throw new Error(`The template of the terms of service is missing from ${TEMPLATE_DIR}.`);
     loaded = terms;

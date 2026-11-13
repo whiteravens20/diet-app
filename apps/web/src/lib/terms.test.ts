@@ -78,6 +78,26 @@ describe('the terms as HTML', () => {
     expect(html).toContain('<h1>Terms</h1>');
     expect(html).toContain('<h3>A detail</h3>');
   });
+
+  it('holds the words of one letter of a Polish document to the next, in its text and its outline alone', () => {
+    const { html, outline, lang } = renderTerms(
+      '## O nas\n\nKonto w serwisie i [adres](https://example.test/a "w tym") a **z tego** o tym.',
+      'pl',
+    );
+
+    expect(lang).toBe('pl');
+    expect(outline).toEqual([{ id: 'section-1', title: 'O\u00a0nas' }]);
+    expect(html).toContain(
+      'Konto w\u00a0serwisie i\u00a0<a href="https://example.test/a" title="w tym">adres</a> a\u00a0<strong>z\u00a0tego</strong> o\u00a0tym.',
+    );
+  });
+
+  it('leaves a document of a language nobody has said as it was written', () => {
+    const { html, lang } = renderTerms('Konto w serwisie i a list of things');
+
+    expect(lang).toBeNull();
+    expect(html).toContain('Konto w serwisie i a list of things');
+  });
 });
 
 describe('the files of the terms', () => {
@@ -103,6 +123,17 @@ describe('the files of the terms', () => {
     expect(Object.keys(terms?.translations ?? {})).toEqual(['pl']);
     expect(terms?.translations.pl.html).toContain('<h1>Regulamin</h1>');
   });
+
+  it('say the language of a translation, and hold its words of one letter, but not those of TOS.md', () => {
+    const terms = readTerms(
+      directoryWith({ 'TOS.md': 'Terms of a service', 'TOS.pl.md': 'Regulamin w skrócie' }),
+    );
+
+    expect(terms?.terms.lang).toBeNull();
+    expect(terms?.terms.html).toContain('Terms of a service');
+    expect(terms?.translations.pl.lang).toBe('pl');
+    expect(terms?.translations.pl.html).toContain('Regulamin w\u00a0skrócie');
+  });
 });
 
 describe('the template that comes with the application', () => {
@@ -125,6 +156,7 @@ describe('the template that comes with the application', () => {
     expect(termsFor('pl').html).toContain('<h1>Terms of Service</h1>');
     expect(termsFor('en').html).toContain('<h1>Terms of Service</h1>');
     expect(termsFor('de').html).toContain('<h1>Terms of Service</h1>');
+    expect(termsFor('pl').lang).toBe('en');
     expect(warn).toHaveBeenCalledTimes(1);
   });
 });

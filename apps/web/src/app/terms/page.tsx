@@ -40,7 +40,7 @@ export default function TermsPage() {
           </p>
           <ol className="space-y-1.5">
             {terms.outline.map(({ id, title }) => (
-              <li key={id}>
+              <li key={id} lang={terms.lang ?? ''}>
                 <a href={`#${id}`} className="text-muted-foreground hover:text-foreground">
                   {title}
                 </a>
@@ -60,6 +60,8 @@ export default function TermsPage() {
 
       <div className="min-w-0 flex-1 space-y-10">
         <article
+          // A document of a language nobody has said is marked as one: a screen reader then guesses none.
+          lang={terms.lang ?? ''}
           className="space-y-4 leading-relaxed text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:rounded-md [&_blockquote]:border [&_blockquote]:border-warning/40 [&_blockquote]:bg-warning/10 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_h1]:text-3xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:text-foreground [&_h2]:scroll-mt-10 [&_h2]:pt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-foreground [&_h3]:pt-2 [&_h3]:font-semibold [&_h3]:text-foreground [&_hr]:border-border [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6 [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6"
           // Made on the server from the operator's own files: see lib/terms.ts.
           dangerouslySetInnerHTML={{ __html: terms.html }}
