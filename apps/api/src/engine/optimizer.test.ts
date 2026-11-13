@@ -658,6 +658,20 @@ describe('a plan made for cooking ahead', () => {
       seed,
     }).assignments.map((a) => a.recipeId);
 
+  it('puts one recipe on two meals of a day only where it is told it may, whatever cooking ahead says', () => {
+    const input: OptimizerInput = {
+      ...baseInput,
+      recipes: [recipe('stew', ['lunch', 'dinner'], 800)],
+      days: uniformDays(1, ['lunch', 'dinner'], 1600),
+      allowRelaxations: new Set(),
+    };
+    // Twice a day is a limit that may not give way here.
+    expect(() => optimisePlan(input)).toThrow(OptimizerError);
+    expect(
+      optimisePlan({ ...input, twiceADay: true }).assignments.map((meal) => meal.recipeId),
+    ).toEqual(['stew', 'stew']);
+  });
+
   it('has a recipe on two days running, and then another: cooked once, eaten twice', () => {
     for (const seed of SEEDS) {
       const [first, second, third, fourth] = fourLunches(true, seed);

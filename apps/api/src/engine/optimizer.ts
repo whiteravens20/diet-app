@@ -171,6 +171,8 @@ export interface OptimizerInput {
    * meals. Omitted: no such limit.
    */
   maxRepeatsPerRecipe?: number;
+  /** Whether one recipe may fill two meals of a day. Omitted: in a plan made for cooking ahead, where a dish is cooked for two. */
+  twiceADay?: boolean;
   /**
    * For each kind of protein, the most meals of one day and of any seven days
    * that may hold it, over all meals. A number left out, a kind it does not
@@ -296,6 +298,14 @@ export const LESS_WASTE_WEIGHTS: ScoreWeights = {
   packs: 0.6,
   inventoryCoverage: 0.6,
 };
+
+/**
+ * The weights of a plan that wastes nothing (`GeneratePlanRequest.noWaste`):
+ * those of `LESS_WASTE_WEIGHTS`, the packs five times as heavy, as the measures
+ * behind the level were made with: a meal that takes from an open pack wins
+ * over one that does not almost whatever else the two are.
+ */
+export const NO_WASTE_WEIGHTS: ScoreWeights = { ...LESS_WASTE_WEIGHTS, packs: 3 };
 
 /**
  * What a plan that wastes less does against one that does not, on each diet
@@ -541,7 +551,7 @@ function fill(
     consecutive: input.maxConsecutiveDaysSameMeal ?? 7,
     perWeek: input.maxTimesPerWeekSameMeal ?? 7,
     perPlan: input.maxRepeatsPerRecipe,
-    twiceADay: input.mealPrepFriendly,
+    twiceADay: input.twiceADay ?? input.mealPrepFriendly,
     perKind: input.maxMealsPerKind,
   };
 

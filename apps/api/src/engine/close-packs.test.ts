@@ -206,7 +206,7 @@ describe('closing the packs of a plan', () => {
   });
 
   it('keeps the day near its split: no further than 0.02 past where the planner left it', () => {
-    // Half of the day's energy from a dinner that is half protein takes the day 0.15 off the balanced split.
+    // Half of the day's energy from a dinner that is half protein takes the day 0.125 off the balanced split.
     const lean = recipe(
       'chicken-salad',
       ['dinner'],
@@ -320,6 +320,40 @@ describe('closing the packs of a plan', () => {
     const both = recipe('chicken-rice', ['lunch', 'dinner'], 500, { chicken: 250 });
     const [after] = closePacks({ plans: [plan({ recipes: [both, lentilSoup] })], packs: PACKS });
     expect(recipesOf(after!)).toEqual(['chicken-rice', 'lentil-soup']);
+  });
+
+  it('puts a recipe twice on one day where the plan allows it', () => {
+    const both = recipe('chicken-rice', ['lunch', 'dinner'], 500, { chicken: 250 });
+    const [after] = closePacks({
+      plans: [
+        plan({
+          recipes: [both, lentilSoup],
+          limits: { consecutive: 7, perWeek: 7, twiceADay: true },
+        }),
+      ],
+      packs: PACKS,
+    });
+    expect(recipesOf(after!)).toEqual(['chicken-rice', 'chicken-rice']);
+  });
+
+  it('takes a day as far from its split as it is told it may', () => {
+    // A dinner that takes the day 0.025 off the balanced split: past the 0.02 of a plan that wastes less.
+    const off = recipe(
+      'chicken-salad',
+      ['dinner'],
+      500,
+      { chicken: 250 },
+      { shares: { protein: 0.3, fat: 0.3, carbs: 0.4 } },
+    );
+    const drawn = plan({ recipes: [chickenRice, lentilSoup, off] });
+    expect(recipesOf(closePacks({ plans: [drawn], packs: PACKS })[0]!)).toEqual([
+      'chicken-rice',
+      'lentil-soup',
+    ]);
+    expect(recipesOf(closePacks({ plans: [drawn], packs: PACKS, splitSlack: 0.03 })[0]!)).toEqual([
+      'chicken-rice',
+      'chicken-salad',
+    ]);
   });
 
   it('swaps a dish cooked ahead at every meal it feeds, and cooks ahead as before', () => {

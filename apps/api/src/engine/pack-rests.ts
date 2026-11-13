@@ -31,6 +31,9 @@ export interface RestCaps {
 /** The rests of a plan that wastes less: half the meal's own amount, a tenth of its energy, 3 % of the day. */
 export const LESS_WASTE_RESTS: RestCaps = { ofOwn: 0.5, ofMeal: 0.1, ofDay: 0.03 };
 
+/** The rests of a plan that wastes nothing: as much again as the meal takes, 15 % more of its energy, 5 % of the day. */
+export const NO_WASTE_RESTS: RestCaps = { ofOwn: 1, ofMeal: 0.15, ofDay: 0.05 };
+
 /** A plan of the kitchen as it was finished, with what the toppings of its meals take and hold. */
 export interface RestPlan extends Pick<
   ClosingPlan,

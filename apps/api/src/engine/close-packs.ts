@@ -51,7 +51,7 @@ import { aimOfPlanned, type SizedAssignment } from './rebalance.js';
 /** A recipe in a meal's place comes, at the serving nearest the meal's energy, within this share of it. */
 const ENERGY_WINDOW = 0.1;
 /** How much further from its split than the planner left it a day may come: the share of its energy that would have to move. */
-const SPLIT_SLACK = 0.02;
+export const SPLIT_SLACK = 0.02;
 /** The most times the plan is gone over: a swap can make room for another, and the passes stop when one changes nothing. */
 const PASSES = 6;
 
@@ -61,6 +61,8 @@ interface ClosingLimits {
   perWeek: number;
   perPlan?: number;
   perKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
+  /** Whether one recipe may fill two meals of a day. Omitted: in a plan made for cooking ahead. */
+  twiceADay?: boolean;
 }
 
 /** A plan as the planner made it, with what it was made with. */
@@ -95,6 +97,8 @@ export interface ClosingInput {
   packs: ReadonlyMap<string, Pack>;
   /** What the kitchen's pantry holds of each ingredient, in its own unit, where the plans count it. */
   pantry?: ReadonlyMap<string, number>;
+  /** How much further from its split than the planner left it a day may come (`SPLIT_SLACK` when left out). */
+  splitSlack?: number;
 }
 
 /** A meal by its plan and its place among the plan's assignments. */
@@ -334,7 +338,9 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
     return shares ? distanceOnDiet(shares, aims[p]![day]!, plans[p]!.dietType) : 0;
   };
   const bounds = plans.map((plan, p) =>
-    plan.days.map((_, day) => distanceOn(p, day, heldOn(p, day)) + SPLIT_SLACK),
+    plan.days.map(
+      (_, day) => distanceOn(p, day, heldOn(p, day)) + (input.splitSlack ?? SPLIT_SLACK),
+    ),
   );
 
   // What each plan may be given for each meal, in an order that is the same on every instance.
@@ -418,7 +424,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
             consecutive: plan.limits.consecutive,
             perWeek: plan.limits.perWeek,
             perPlan: plan.limits.perPlan,
-            twiceADay: plan.mealPrepFriendly,
+            twiceADay: plan.limits.twiceADay ?? plan.mealPrepFriendly,
             perKind: plan.limits.perKind,
           },
           cookTimeBudget: plan.days[day]!.cookTimeBudgetMinutes,
