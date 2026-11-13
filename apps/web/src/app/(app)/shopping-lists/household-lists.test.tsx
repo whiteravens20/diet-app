@@ -70,6 +70,7 @@ const aHousehold = (over: Partial<HouseholdList> = {}): HouseholdList => ({
           pantryBestBefore: null,
           estimatedCalories: 360,
           packs: null,
+          buyLater: [],
           checked: false,
           shares: [
             { profileId: ADAM, profile: 'Adam', totalQuantity: 150 },

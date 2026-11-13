@@ -24,6 +24,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   isoDate,
   isStale,
+  freshOf,
   itemDto,
   loadIngredients,
   makeList,
@@ -310,15 +311,13 @@ export class HouseholdListsService {
     const answers: HouseholdList[] = [];
     for (const household of households) {
       const parts = await Promise.all(
-        household.parts.map(async (part) => ({
-          part,
-          stale: isStale(
-            part,
-            await planLines(this.prisma, part.planId, part.fromDate, part.toDate),
-            ingredients,
-          ),
-        })),
+        household.parts.map(async (part) => {
+          const lines = await planLines(this.prisma, part.planId, part.fromDate, part.toDate);
+          return { part, lines, stale: isStale(part, lines, ingredients) };
+        }),
       );
+      // One kitchen: the days of every part, for the packs of fresh meat and fish.
+      const kitchen = parts.flatMap(({ lines }) => lines);
       const rows = new Map<string, { part: StoredPart; item: StoredItem }[]>();
       for (const part of household.parts) {
         for (const item of part.items) {
@@ -326,18 +325,18 @@ export class HouseholdListsService {
           rows.set(key, [...(rows.get(key) ?? []), { part, item }]);
         }
       }
-      const items: HouseholdListItem[] = [...rows.values()].map((shares) => ({
-        ...itemDto(
-          summed(shares.map((share) => share.item)),
-          ingredients.get(shares[0]!.item.ingredientId),
-          locale,
-        ),
-        shares: shares.map(({ part, item }) => ({
-          profileId: part.plan.profileId,
-          profile: part.plan.profile.name,
-          totalQuantity: item.totalQuantity,
-        })),
-      }));
+      const items: HouseholdListItem[] = [...rows.values()].map((shares) => {
+        const item = summed(shares.map((share) => share.item));
+        const ingredient = ingredients.get(shares[0]!.item.ingredientId);
+        return {
+          ...itemDto(item, ingredient, locale, freshOf(item, ingredient, kitchen, household)),
+          shares: shares.map(({ part, item: share }) => ({
+            profileId: part.plan.profileId,
+            profile: part.plan.profile.name,
+            totalQuantity: share.totalQuantity,
+          })),
+        };
+      });
       answers.push({
         id: household.id,
         fromDate: isoDate(household.fromDate),

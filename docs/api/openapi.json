@@ -15649,6 +15649,27 @@
               }
             ]
           },
+          "buyLater": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packs": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "from": {
+                  "$ref": "#/components/schemas/CalendarDay"
+                }
+              },
+              "required": [
+                "packs",
+                "from"
+              ],
+              "additionalProperties": false
+            }
+          },
           "checked": {
             "default": false,
             "type": "boolean"
@@ -15695,6 +15716,7 @@
           "pantryBestBefore",
           "estimatedCalories",
           "packs",
+          "buyLater",
           "checked",
           "shares"
         ],
@@ -24781,6 +24803,27 @@
               }
             ]
           },
+          "buyLater": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packs": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "from": {
+                  "$ref": "#/components/schemas/CalendarDay"
+                }
+              },
+              "required": [
+                "packs",
+                "from"
+              ],
+              "additionalProperties": false
+            }
+          },
           "checked": {
             "default": false,
             "type": "boolean"
@@ -24801,6 +24844,7 @@
           "pantryBestBefore",
           "estimatedCalories",
           "packs",
+          "buyLater",
           "checked"
         ],
         "additionalProperties": false

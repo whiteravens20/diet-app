@@ -111,6 +111,14 @@ export const ShoppingListItem = z.object({
       quantity: z.number().positive(),
     })
     .nullable(),
+  /**
+   * Of a row of fresh meat or fish, which of its `packs` to buy later than the
+   * list's first day, and from which day at the earliest: bought on the first
+   * day, such a pack would no longer keep on the last day it is eaten from.
+   * Its `packs` are then counted as the plan counts them, day by day. Empty for
+   * any other row, and where every pack keeps until it is eaten.
+   */
+  buyLater: z.array(z.object({ packs: z.number().int().min(1), from: CalendarDay })).default([]),
   checked: z.boolean().default(false),
 });
 export type ShoppingListItem = z.infer<typeof ShoppingListItem>;

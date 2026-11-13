@@ -886,6 +886,50 @@ describe('shopping lists and the pantry', () => {
     });
   });
 
+  describe('fresh meat and fish', () => {
+    const chicken = 'Chicken breast';
+    /** A week of the plan without chicken, but on the days given: the chicken lunch. */
+    async function chickenOn(...days: number[]): Promise<void> {
+      for (let day = 0; day < 7; day += 1)
+        await menu(day, [EGGS_ON_TOAST, days.includes(day) ? CHICKEN_RICE : TOFU_BOWL, PORRIDGE]);
+    }
+
+    it('say which of their packs to buy later, and count a pack for a need the one before no longer keeps for', async () => {
+      // 150 g on Monday and on Saturday: a pack of 500 g holds both, but Monday's keeps two days.
+      await chickenOn(0, 5);
+      const row = rowOf(await listFor(0, 6), chicken);
+
+      expect(row.toBuyQuantity).toBe(300);
+      expect(row.packs).toMatchObject({ count: 2, size: 500 });
+      // Saturday's pack is eaten that day only: bought from Friday on, the day before, at the earliest.
+      expect(row.buyLater).toEqual([{ packs: 1, from: date(4) }]);
+    });
+
+    it('say nothing where every pack keeps until it is eaten, and count what is at home first', async () => {
+      await chickenOn(0, 1);
+      expect(rowOf(await listFor(0, 6), chicken)).toMatchObject({
+        packs: { count: 1 },
+        buyLater: [],
+      });
+
+      // At home, enough for Monday: Saturday's pack is still bought later.
+      await chickenOn(0, 5);
+      await stock('chicken-breast', 150, 'g');
+      const row = rowOf(await listFor(0, 6), chicken);
+      expect(row.alreadyHaveQuantity).toBe(150);
+      expect(row.packs).toMatchObject({ count: 1 });
+      expect(row.buyLater).toEqual([{ packs: 1, from: date(4) }]);
+    });
+
+    it('leave out what keeps closed: other rows say nothing of when to buy', async () => {
+      await chickenOn(0, 5);
+      const list = await listFor(0, 6);
+
+      for (const row of rows(list).filter((item) => item.name !== chicken))
+        expect(row.buyLater).toEqual([]);
+    });
+  });
+
   describe('the dates of a list', () => {
     it('default to the whole plan', async () => {
       const list = await lists.generate(user.id, 'en', { planId: plan.id });

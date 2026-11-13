@@ -22,15 +22,18 @@ import {
   convertUnit,
   editRow,
   energyOf,
+  freshPurchases,
   groupByAisle,
   intendedPantryEffect,
   isCounted,
+  keepDaysOf,
   packsToBuy,
   pantryEffectOnRemoval,
   pantryStock,
   quantityToClaim,
   shareAhead,
   toBuyQuantity,
+  toCanonical,
   UnitConversionError,
   withAtHome,
   type AggregatedItem,
@@ -57,6 +60,9 @@ export type Tx = Prisma.TransactionClient;
 /** An ingredient row as the shopping code reads it. */
 export type IngredientRow = ShoppingIngredient & {
   translations: { locale: string; name: string }[];
+  /** Whether an opened pack of it keeps only days, and its tags (`pantry` and `cured` for meat or fish that keeps closed). */
+  perishable: boolean;
+  tags: string[];
 };
 
 export interface StoredItem {
@@ -257,9 +263,10 @@ export class ShoppingListsService {
     const households = await householdsOf(this.prisma, lists);
 
     return lists.map((list) => {
-      const items = list.items.map((item) =>
-        itemDto(item, ingredients.get(item.ingredientId), locale),
-      );
+      const items = list.items.map((item) => {
+        const ingredient = ingredients.get(item.ingredientId);
+        return itemDto(item, ingredient, locale, freshOf(item, ingredient, lines, list));
+      });
       return {
         id: list.id,
         planId: list.planId,
@@ -288,6 +295,7 @@ export function itemDto(
   item: StoredItem,
   ingredient: IngredientRow | undefined,
   locale: Locale,
+  fresh: Fresh | null = null,
 ): ShoppingListItem {
   // A row in pieces is called what its ingredient calls a piece.
   const displayUnit: DisplayUnit =
@@ -310,9 +318,69 @@ export function itemDto(
     purchasedQuantity: item.purchasedQuantity,
     pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
     estimatedCalories: item.estimatedCalories,
-    packs: ingredient ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient) : null,
+    packs: ingredient
+      ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient, fresh?.count)
+      : null,
+    buyLater: fresh?.later ?? [],
     checked: item.checked,
   };
+}
+
+/** Tags of a meat or fish that keeps closed far longer than opened: tinned, or smoked and cured. */
+const KEEPS_CLOSED = new Set(['pantry', 'cured']);
+const DAY = 86_400_000;
+
+/** Of a row of fresh meat or fish, its packs as the list's days take them, and those to buy later than its first day. */
+export interface Fresh {
+  count: number;
+  later: { packs: number; from: string }[];
+}
+
+/**
+ * Of a row of fresh meat or fish, which keeps from its purchase about as long
+ * as from its opening: its packs as the plan counts them over the list's days
+ * (`freshPurchases`), what the row counts as at home eaten first, and those of
+ * them to buy later than the list's first day, by the day from which they
+ * are. Null for any other row: closed, it keeps longer than its days after
+ * opening say. `lines` may hold other ingredients and other days.
+ */
+export function freshOf(
+  item: Pick<StoredItem, 'ingredientId' | 'unit' | 'totalQuantity' | 'alreadyHaveQuantity'>,
+  ingredient: IngredientRow | undefined,
+  lines: readonly DatedLine[],
+  list: { fromDate: Date; toDate: Date },
+): Fresh | null {
+  if (!ingredient?.perishable || !ingredient.packSize || ingredient.packSize <= 0) return null;
+  if (ingredient.category !== 'meat' && ingredient.category !== 'fish') return null;
+  if (ingredient.tags.some((tag) => KEEPS_CLOSED.has(tag))) return null;
+  const days = Math.round((list.toDate.getTime() - list.fromDate.getTime()) / DAY) + 1;
+  const byDay = Array.from({ length: Math.max(0, days) }, () => 0);
+  try {
+    for (const line of lines) {
+      if (line.ingredientId !== ingredient.id) continue;
+      const day = Math.round((line.date.getTime() - list.fromDate.getTime()) / DAY);
+      if (day < 0 || day >= byDay.length) continue;
+      const scale = line.recipeServings > 0 ? line.plannedServings / line.recipeServings : 1;
+      byDay[day]! += toCanonical(line.quantity * scale, line.unit, ingredient);
+    }
+    const held = toCanonical(item.alreadyHaveQuantity, item.unit, ingredient);
+    const { count, later } = freshPurchases(
+      byDay,
+      { size: ingredient.packSize, keepDays: keepDaysOf(ingredient) },
+      held,
+    );
+    if (count === 0) return null;
+    return {
+      count,
+      later: later.map(({ day, packs }) => ({
+        packs,
+        from: isoDate(new Date(list.fromDate.getTime() + day * DAY)),
+      })),
+    };
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return null;
+  }
 }
 
 /** The household lists that lists are parts of, as each part names its own: two parts at least, or none. */

@@ -170,20 +170,23 @@ export interface RowPacks {
  * never less than `toBuy`: packs that are a spoonful short of the need are
  * taken to cover it, so whoever buys them has what the row needs. Null for an
  * ingredient that is not sold in packs, for a row with nothing left to buy,
- * and where the row's unit cannot be brought to the ingredient's own.
+ * and where the row's unit cannot be brought to the ingredient's own. A row of
+ * fresh meat or fish is given the count the plan's days take (`counted`,
+ * `freshPurchases`): a pack that no longer keeps for a later need is not
+ * eaten from.
  */
 export function packsToBuy(
   toBuy: number,
   row: { unit: Unit; displayUnit: DisplayUnit },
   ingredient: ShoppingIngredient,
+  counted?: number,
 ): RowPacks | null {
   const packSize = ingredient.packSize ?? 0;
   if (packSize <= 0 || toBuy <= 0) return null;
   try {
-    const count = packsFor(
-      convertUnit(toBuy, row.unit, ingredient.canonicalUnit, ingredient),
-      packSize,
-    );
+    const count =
+      counted ??
+      packsFor(convertUnit(toBuy, row.unit, ingredient.canonicalUnit, ingredient), packSize);
     const together = convertUnit(count * packSize, ingredient.canonicalUnit, row.unit, ingredient);
     const quantity = Math.max(
       row.unit === 'piece' ? Math.floor(together + 1e-6) : clean(together),
