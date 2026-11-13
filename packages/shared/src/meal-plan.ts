@@ -322,6 +322,13 @@ export const PlannedIngredient = z.object({
    * where there is none.
    */
   rest: z.object({ quantity: z.number().min(0), display: DisplayAmount }).optional(),
+  /**
+   * Of a person's own plate of a dish both people of a joint plan eat: how much
+   * of this ingredient their portion holds against the recipe's proportion at
+   * the same portion, from half to one and a half. Left out where it is the
+   * recipe's.
+   */
+  share: z.number().min(0.5).max(1.5).optional(),
 });
 export type PlannedIngredient = z.infer<typeof PlannedIngredient>;
 
@@ -356,6 +363,8 @@ const OtherPortion = z.object({
   servings: z.number(),
   calories: z.number(),
   eaten: z.boolean(),
+  /** What the other person's portion takes of each ingredient, on their own plate (`PlannedIngredient.share`). */
+  ingredients: z.array(PlannedIngredient),
 });
 
 /**

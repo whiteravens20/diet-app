@@ -342,21 +342,25 @@ export interface RecipeLine {
 
 /**
  * The lines of a recipe in the amounts one planned meal takes: each scaled by
- * `factor` (the meal's servings over the recipe's; a line's own where a
- * person's own plate, or the plates of a pot, hold its part otherwise than the
- * recipe), exact and as it is shown. `rests` are the rests of packs the meal
- * finishes, by ingredient, in each ingredient's own unit: the first line of the
- * ingredient takes its rest on top, and says how much of it that is.
+ * `factor` (the meal's servings over the recipe's; a line's own where the
+ * lines of several plates are summed), exact and as it is shown. `rests` are
+ * the rests of packs the meal finishes, by ingredient, in each ingredient's own
+ * unit: the first line of the ingredient takes its rest on top, and says how
+ * much of it that is. `shareOf` is the person's own plate of a dish both people
+ * of a joint plan eat: how much of each line it holds against the recipe's
+ * proportion, which the line is scaled by as well and says where it is not one.
  */
 export function toPlannedIngredients(
   lines: readonly RecipeLine[],
   factor: number | ((line: RecipeLine) => number),
   locale: Locale,
   rests: ReadonlyMap<string, number> = new Map(),
+  shareOf: (line: RecipeLine) => number = () => 1,
 ): PlannedIngredient[] {
   const given = new Set<string>();
   return lines.map((line) => {
-    let quantity = line.quantity * (typeof factor === 'number' ? factor : factor(line));
+    const share = shareOf(line);
+    let quantity = line.quantity * (typeof factor === 'number' ? factor : factor(line)) * share;
     const canonical = given.has(line.ingredientId) ? undefined : rests.get(line.ingredientId);
     let rest: PlannedIngredient['rest'];
     if (canonical !== undefined && canonical > 0) {
@@ -382,6 +386,7 @@ export function toPlannedIngredients(
       display: displayAmount(quantity, line.unit, line.ingredient),
       note: line.note,
       ...(rest ? { rest } : {}),
+      ...(share !== 1 ? { share } : {}),
     };
   });
 }

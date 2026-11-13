@@ -19759,6 +19759,11 @@
               "display"
             ],
             "additionalProperties": false
+          },
+          "share": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 1.5
           }
         },
         "required": [
@@ -24374,6 +24379,12 @@
               },
               "eaten": {
                 "type": "boolean"
+              },
+              "ingredients": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlannedIngredient"
+                }
               }
             },
             "required": [
@@ -24382,7 +24393,8 @@
               "profileName",
               "servings",
               "calories",
-              "eaten"
+              "eaten",
+              "ingredients"
             ],
             "additionalProperties": false
           },

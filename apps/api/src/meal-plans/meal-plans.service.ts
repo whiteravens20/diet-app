@@ -1550,9 +1550,10 @@ export class MealPlansService {
           recipe,
           ingredients: toPlannedIngredients(
             m.recipe.ingredients,
-            (line) => ofRecipe * plateShare(plateOfMeal(m.plate), line.ingredient),
+            ofRecipe,
             locale,
             restAmounts([m]),
+            (line) => plateShare(plateOfMeal(m.plate), line.ingredient),
           ),
           source: 'CATALOGUE' as const,
           customName: null,
@@ -1865,6 +1866,7 @@ function joined(
               servings: eatenServings(other),
               calories: other.nutrition.calories,
               eaten: other.eatenAt !== null,
+              ingredients: other.ingredients,
             },
             pot: toPlannedIngredients(
               row.recipe.ingredients,

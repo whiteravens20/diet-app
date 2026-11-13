@@ -3538,6 +3538,7 @@ describe('the plan page, on a plan made together with another profile', () => {
                   servings: 1.1,
                   calories: 540,
                   eaten: false,
+                  ingredients: [],
                 },
                 pot: [
                   {
