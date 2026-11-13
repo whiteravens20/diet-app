@@ -33,6 +33,7 @@ export function PlanPrintSheet({
   onDone: () => void;
 }) {
   const t = useTranslations('mealPlans.export');
+  const tLine = useTranslations('recipeDetail');
   const fmt = useFormat();
   const shownAmount = useShownAmount();
 
@@ -103,8 +104,10 @@ export function PlanPrintSheet({
                       {planned.ingredients.length > 0 && (
                         <span className="block text-2xs leading-snug">
                           {fmt.list(
-                            planned.ingredients.map(
-                              (line) => `${line.name} ${shownAmount(line.display)}`,
+                            planned.ingredients.map((line) =>
+                              line.rest
+                                ? `${line.name} ${shownAmount(line.display)} (${tLine('restOfPack', { amount: shownAmount(line.rest.display) })})`
+                                : `${line.name} ${shownAmount(line.display)}`,
                             ),
                           )}
                         </span>

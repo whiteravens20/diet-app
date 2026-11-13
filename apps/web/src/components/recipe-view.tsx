@@ -17,7 +17,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LabelGrid, LabelLegend, LabelLine } from '@/components/label-figures';
-import { useShownAmount } from '@/lib/ingredient-format';
+import { restOfLine, useShownAmount } from '@/lib/ingredient-format';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { RecipeShare } from '@/components/recipe-share';
 import { useErrorText } from '@/lib/use-error-text';
@@ -338,6 +338,11 @@ export function RecipeView({
                   <span className="min-w-0 flex-1 wrap-anywhere">
                     {i.name}
                     {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
+                    {restOfLine(i) ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {t('restOfPack', { amount: shownAmount(restOfLine(i)!.display) })}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
                     {shownAmount(i.display)}

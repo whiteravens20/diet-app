@@ -2365,7 +2365,8 @@
     "sourceLicence": "Licencja: <licence></licence>",
     "edit": "Edytuj",
     "portionFromPlan": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, Twój posiłek to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}.",
-    "portionWholeFromPlan": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}."
+    "portionWholeFromPlan": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}.",
+    "restOfPack": "w\u00a0tym {amount} reszty opakowania"
   },
   "ownRecipe": {
     "newTitle": "Napisz przepis",

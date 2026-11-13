@@ -132,6 +132,20 @@ describe('a recipe sent to somebody', () => {
     expect(text).not.toContain('Banana');
   });
 
+  it('says of an amount how much of it is the rest of a pack the meal finishes', async () => {
+    const writeText = onAComputer();
+    renderShare({
+      amounts: [{ ...planned[0]!, rest: { quantity: 30, display: { quantity: 30, unit: 'g' } } }],
+      servings: 2,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: texts.text }));
+
+    expect(lines(writeText.mock.calls[0]![0] as string)[3]).toBe(
+      '- Oats: 120 g — including 30 g left of a pack',
+    );
+  });
+
   it('gives no figures of the recipe', async () => {
     const writeText = onAComputer();
     renderShare();

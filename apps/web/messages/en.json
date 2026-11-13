@@ -2365,7 +2365,8 @@
     "sourceLicence": "Licence: <licence></licence>",
     "edit": "Edit",
     "portionFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, your meal is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.",
-    "portionWholeFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}."
+    "portionWholeFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.",
+    "restOfPack": "including {amount} left of a pack"
   },
   "ownRecipe": {
     "newTitle": "Write a recipe",

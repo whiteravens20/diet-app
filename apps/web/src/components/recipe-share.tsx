@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { CopyByHand } from '@/components/copy-by-hand';
 import { copyText } from '@/lib/clipboard';
 import { DOT } from '@/lib/figure-line';
-import { useShownAmount } from '@/lib/ingredient-format';
+import { restOfLine, useShownAmount } from '@/lib/ingredient-format';
 import { fileNameOf, recipeText, type SharedRecipe } from '@/lib/recipe-share';
 import { saveFile } from '@/lib/save-file';
 
@@ -61,11 +61,15 @@ export function RecipeShare({
     return {
       title: recipe.title,
       ingredientsHeading: t('ingredientsFor', { servings: servings ?? recipe.servings }),
-      ingredients: (amounts ?? recipe.ingredients).map((line) => ({
-        name: line.name,
-        amount: shownAmount(line.display),
-        note: line.note,
-      })),
+      ingredients: (amounts ?? recipe.ingredients).map((line) => {
+        const of = restOfLine(line);
+        const rest = of ? tDetail('restOfPack', { amount: shownAmount(of.display) }) : null;
+        return {
+          name: line.name,
+          amount: shownAmount(line.display),
+          note: line.note && rest ? `${line.note}; ${rest}` : (line.note ?? rest),
+        };
+      }),
       stepsHeading: tDetail('method'),
       steps: recipe.steps,
       notes: [

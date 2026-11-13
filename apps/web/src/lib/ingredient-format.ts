@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { useTranslations } from 'next-intl';
-import type { DisplayAmount, DisplayUnit } from '@diet-app/shared';
+import type { DisplayAmount, DisplayUnit, PlannedIngredient } from '@diet-app/shared';
 
 /**
  * Spell a quantity in the reader's language: "215 g", "2 slices", "1 handful".
@@ -47,4 +47,12 @@ function spoons(quantity: number): string {
 export function useUnitName(): (unit: DisplayUnit) => string {
   const t = useTranslations('units');
   return (unit) => t(`name.${unit}`);
+}
+
+/**
+ * Of a line of a planned meal, what of its amount is the rest of a pack the meal
+ * finishes; nothing for a line of a recipe as it is written, which has none.
+ */
+export function restOfLine(line: object): PlannedIngredient['rest'] {
+  return 'rest' in line ? (line as PlannedIngredient).rest : undefined;
 }

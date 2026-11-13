@@ -146,6 +146,26 @@ describe('the window of a recipe', () => {
     vi.unstubAllGlobals();
   });
 
+  it('says under an ingredient of the meal how much of its amount is the rest of a pack the meal finishes', async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      amounts: [
+        {
+          ingredientId: '22222222-2222-4222-8222-222222222222',
+          name: 'Oats',
+          quantity: 180,
+          unit: 'g',
+          display: { quantity: 180, unit: 'g' },
+          note: null,
+          rest: { quantity: 30, display: { quantity: 30, unit: 'g' } },
+        },
+      ],
+      portion: { servings: 3, whole: true },
+    });
+
+    expect(await dialog.findByText('including 30 g left of a pack')).toBeInTheDocument();
+    expect(dialog.getByText('180 g')).toBeInTheDocument();
+  });
+
   it('shows no photo over a recipe that is not there', async () => {
     const dialog = renderWindow(() =>
       Promise.reject(new ApiClientError(404, 'NOT_FOUND', 'No such recipe.')),
