@@ -96,7 +96,7 @@ export type StoredRest = z.infer<typeof StoredRest>;
 export const StoredPlate = z.object({
   protein: z.number().min(0.5).max(1.5),
   starch: z.number().min(0.5).max(1.5),
-  vegetables: z.number().min(0.5).max(1.5),
+  vegetables: z.number().min(1).max(1.5),
   perServing: z.object({
     calories: z.number(),
     protein: z.number(),

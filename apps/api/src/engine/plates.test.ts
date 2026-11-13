@@ -84,10 +84,41 @@ describe('a person’s plate of a shared dish', () => {
     expect(plate.protein).toBeGreaterThan(1);
     expect(plate.starch).toBeLessThan(1);
     expect(energyOf(input.parts, plate)).toBeCloseTo(energyOf(input.parts, WHOLE_PLATE), 0);
-    for (const share of Object.values(plate)) {
-      expect(share).toBeGreaterThanOrEqual(PLATE_RANGE.least);
-      expect(share).toBeLessThanOrEqual(PLATE_RANGE.most);
+    for (const part of ['protein', 'starch', 'vegetables'] as const) {
+      expect(plate[part]).toBeGreaterThanOrEqual(PLATE_RANGE[part].least);
+      expect(plate[part]).toBeLessThanOrEqual(PLATE_RANGE[part].most);
     }
+  });
+
+  it('never holds fewer vegetables than the recipe, even where a day would come a little nearer without some', () => {
+    // Dishes and days where the plate would otherwise take the vegetables down: a day near its protein, a balanced aim.
+    const dishes = [
+      {
+        protein: part(31.5, 6, 0),
+        starch: part(7.7, 0.4, 46),
+        vegetables: part(3.5, 0.6, 6),
+        rest: part(0, 10, 0),
+      },
+      {
+        protein: part(34, 4, 0),
+        starch: part(5, 0.5, 55),
+        vegetables: part(4, 0.6, 10),
+        rest: part(0, 10, 0),
+      },
+    ];
+    const days = [
+      { protein: 70, fat: 55, carbs: 250 },
+      { protein: 95, fat: 60, carbs: 205 },
+      { protein: 120, fat: 60, carbs: 170 },
+    ];
+    const aims = [
+      { aim: { protein: 0.35, fat: 0.3, carbs: 0.35 }, dietType: 'high_protein' },
+      { aim: { protein: 0.25, fat: 0.3, carbs: 0.45 }, dietType: 'balanced' },
+    ];
+    for (const parts of dishes)
+      for (const day of days)
+        for (const { aim, dietType } of aims)
+          expect(plateOf({ parts, day, aim, dietType }).vegetables).toBeGreaterThanOrEqual(1);
   });
 
   it('holds more starch for a day short of carbohydrate', () => {

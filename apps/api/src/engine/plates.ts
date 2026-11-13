@@ -5,7 +5,8 @@
  * together, stage C). A dish served on a plate has parts that lie apart, and
  * each person's portion may hold them in proportions of its own: more of the
  * protein for one, more of the starch for the other, each part of a plate from
- * half to one and a half of the recipe's proportion, the portion's energy kept.
+ * half to one and a half of the recipe's proportion, the vegetables never
+ * under it, the portion's energy kept.
  * The pot is the sum of the plates. The parts are read from the ingredients
  * alone (`partOf`): protein where the ingredient is a kind of protein other
  * than dairy, starch where it is a starch, vegetables, and the rest (fat,
@@ -30,8 +31,19 @@ export type Plate = Record<(typeof MOVING_PARTS)[number], number>;
 /** A plate in the recipe's own proportions. */
 export const WHOLE_PLATE: Plate = { protein: 1, starch: 1, vegetables: 1 };
 
-/** How far a part of a plate may move from the recipe's proportion. */
-export const PLATE_RANGE = { least: 0.5, most: 1.5 } as const;
+/**
+ * How far each part of a plate may move from the recipe's proportion: the
+ * protein and the starch from half to one and a half, the vegetables only up,
+ * since fewer of them brings a day hardly nearer its split and leaves the
+ * plate poorer.
+ */
+export const PLATE_RANGE: Readonly<
+  Record<(typeof MOVING_PARTS)[number], { least: number; most: number }>
+> = {
+  protein: { least: 0.5, most: 1.5 },
+  starch: { least: 0.5, most: 1.5 },
+  vegetables: { least: 1, most: 1.5 },
+};
 
 /** The steps a part of a plate moves by. */
 const STEP = 0.05;
@@ -76,8 +88,8 @@ const NO_ENERGY = 1;
 
 /**
  * The plate of a person's portion that brings their day nearest its split:
- * each moving part from half to one and a half of the recipe's proportion, by
- * steps of a twentieth, the portion's energy kept (the part with the most of
+ * each moving part within its range of the recipe's proportion (`PLATE_RANGE`),
+ * by steps of a twentieth, the portion's energy kept (the part with the most of
  * it takes what the others leave), the rest at the recipe's. The plate it has now
  * (the recipe's own proportions where it has none) where no other is worth the
  * change, and the recipe's where fewer than two parts can move.
@@ -86,8 +98,13 @@ export function plateOf(input: PlateInput): Plate {
   const moving = MOVING_PARTS.filter((part) => input.parts[part].calories >= NO_ENERGY);
   if (moving.length < 2) return WHOLE_PLATE;
   const energy = MOVING_PARTS.reduce((sum, part) => sum + input.parts[part].calories, 0);
-  const steps = Math.round((PLATE_RANGE.most - PLATE_RANGE.least) / STEP);
-  const levels = Array.from({ length: steps + 1 }, (_, i) => round(PLATE_RANGE.least + i * STEP));
+  /** The steps a part may take, within its range. */
+  const levelsOf = (part: (typeof MOVING_PARTS)[number]): number[] => {
+    const { least, most } = PLATE_RANGE[part];
+    return Array.from({ length: Math.round((most - least) / STEP) + 1 }, (_, i) =>
+      round(least + i * STEP),
+    );
+  };
 
   const score = (plate: Plate): number => {
     const held = { ...input.day };
@@ -122,13 +139,15 @@ export function plateOf(input: PlateInput): Plate {
         0,
       );
       const by = round((energy - others - still) / lastCalories);
-      if (by < PLATE_RANGE.least - 1e-9 || by > PLATE_RANGE.most + 1e-9) return;
+      const range = PLATE_RANGE[last];
+      if (by < range.least - 1e-9 || by > range.most + 1e-9) return;
       const candidate = { ...plate, [last]: by };
       const value = score(candidate);
       if (value < bestScore - 1e-12) [best, bestScore] = [candidate, value];
       return;
     }
-    for (const level of levels) visit(index + 1, { ...plate, [free[index]!]: level });
+    for (const level of levelsOf(free[index]!))
+      visit(index + 1, { ...plate, [free[index]!]: level });
   };
   visit(0, WHOLE_PLATE);
   return baseline - bestScore >= WORTH ? best : start;
@@ -138,7 +157,8 @@ const round = (value: number): number => Math.round(value * 1000) / 1000;
 
 const onTheRange = (plate: Plate): boolean =>
   MOVING_PARTS.every(
-    (part) => plate[part] >= PLATE_RANGE.least - 1e-9 && plate[part] <= PLATE_RANGE.most + 1e-9,
+    (part) =>
+      plate[part] >= PLATE_RANGE[part].least - 1e-9 && plate[part] <= PLATE_RANGE[part].most + 1e-9,
   );
 
 /** Whether a plate holds every part as the recipe has it. */

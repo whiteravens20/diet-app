@@ -15,6 +15,7 @@ import { aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
+import { PLATE_RANGE } from '../engine/plates.js';
 import { plateOfMeal, storedPlateOf } from './plan-days.js';
 import { plateDishesOf } from './plates-store.js';
 
@@ -82,6 +83,12 @@ describe('a person’s own plate of a dish both people of a joint plan eat', () 
         expect(line.share).toBeGreaterThanOrEqual(0.5);
         expect(line.share).toBeLessThanOrEqual(1.5);
       }
+      // The vegetables of a plate never fewer than the recipe's.
+      const { plate: stored } = await t.prisma.plannedMeal.findUniqueOrThrow({
+        where: { id: meal.id },
+        select: { plate: true },
+      });
+      expect(plateOfMeal(stored)!.vegetables).toBeGreaterThanOrEqual(1);
       // The plate moves energy between the parts of the dish, and keeps the portion's.
       const factor = meal.servings * meal.quantityScale;
       const portion = meal.recipe!.nutritionPerServing.calories * factor;
@@ -280,7 +287,7 @@ describe('a person’s own plate of a dish both people of a joint plan eat', () 
     const [most, other] = (['protein', 'starch', 'vegetables'] as const)
       .filter((part) => dish.parts[part].calories >= 1)
       .sort((a, b) => dish.parts[b].calories - dish.parts[a].calories);
-    const by = chosen[other!] > 0.51 ? -0.01 : 0.01;
+    const by = chosen[other!] - 0.01 >= PLATE_RANGE[other!].least ? -0.01 : 0.01;
     const near = {
       protein: chosen.protein,
       starch: chosen.starch,
