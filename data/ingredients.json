@@ -1855,7 +1855,7 @@
     "saturatedFatPer100": 0.9,
     "allergens": ["fish"],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
-    "tags": ["omega3"],
+    "tags": ["omega3", "cured"],
     "packSize": 100,
     "perishable": true,
     "keepDays": 2
@@ -1920,7 +1920,7 @@
     "saturatedFatPer100": 12.6,
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto"],
-    "tags": [],
+    "tags": ["cured"],
     "packSize": 150,
     "perishable": true,
     "keepDays": 5

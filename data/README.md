@@ -380,6 +380,12 @@ weight the planner gives them was chosen with
 which prints what each weight does to the packs, to the split and to the variety
 of the plans of every diet; run it again when the catalogue has grown.
 
+Fresh meat and fish keep from their purchase about as long as from their
+opening, so a shopping list counts their packs day by day as a plan does and
+says which of them to buy later and from which day. Meat and fish that keep
+closed far longer carry a tag that leaves them out: `pantry` for a tin, `cured`
+for what is smoked, salted or cured (smoked salmon, bacon).
+
 See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
 curation queue ships its batches.
 
