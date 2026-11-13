@@ -11,7 +11,7 @@
   "account": {
     "/dashboard": 208,
     "/diary": 214,
-    "/shopping-lists": 206,
+    "/shopping-lists": 207,
     "/inventory": 205,
     "/settings": 215,
     "/recipes": 210,
@@ -24,6 +24,6 @@
     "/profile": 246,
     "/products": 240,
     "/calculator": 240,
-    "/meal-plans": 271
+    "/meal-plans": 272
   }
 }
