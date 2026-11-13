@@ -26,6 +26,8 @@ import {
   isSkipped,
   MADE_LAST,
   mealNutrition,
+  plateAsJson,
+  plateOfMeal,
   restsAsJson,
   restsOf,
   scaleRests,
@@ -53,6 +55,8 @@ const StoredMeal = z.object({
   toppingAmount: z.number().nullable().optional(),
   /** The rests of packs it finishes; left out by a leftover kept before they were. */
   rests: z.unknown().optional(),
+  /** A person's own plate of a shared dish; left out by a leftover kept before plates were. */
+  plate: z.unknown().optional(),
   /** The shared meal it was part of: linked again where the other person's meal still holds the dish there. */
   shared: z
     .object({ jointPlanId: z.string(), apart: z.boolean(), otherMealId: z.string() })
@@ -120,6 +124,7 @@ const fieldsOf = (meal: StoredMeal) => ({
   toppingKey: meal.toppingKey ?? null,
   toppingAmount: meal.toppingAmount ?? null,
   rests: restsAsJson(restsOf(meal.rests)),
+  plate: plateAsJson(plateOfMeal(meal.plate)),
   sharedMealId: null,
 });
 
@@ -459,6 +464,7 @@ export class LeftoversService {
       toppingKey: meal.toppingKey,
       toppingAmount: meal.toppingAmount,
       rests: meal.rests,
+      plate: meal.plate,
       shared: await this.sharedOf(tx, meal),
     };
   }
@@ -511,6 +517,8 @@ export class LeftoversService {
         toppingKey: null,
         toppingAmount: null,
         rests: restsAsJson(scaleRests(source.rests, left)),
+        // What is left of a person's own plate holds the plate's parts.
+        plate: plateAsJson(plateOfMeal(source.plate)),
         ...(alone ? { sharedMealId: null } : {}),
         leftoverFromDate: source.day.date,
         leftoverFromMealType: source.mealType,

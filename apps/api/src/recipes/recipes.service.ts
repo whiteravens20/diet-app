@@ -333,25 +333,30 @@ export interface RecipeLine {
   ingredient: DisplayedIngredient & {
     name: string;
     translations?: { locale: string; name: string }[];
+    /** What a person's own plate of a shared dish reads a line's part from (`partOf`). */
+    slug?: string | null;
+    category?: string | null;
+    proteinKind?: string | null;
   };
 }
 
 /**
  * The lines of a recipe in the amounts one planned meal takes: each scaled by
- * `factor` (the meal's servings over the recipe's), exact and as it is shown.
- * `rests` are the rests of packs the meal finishes, by ingredient, in each
- * ingredient's own unit: the first line of the ingredient takes its rest on top,
- * and says how much of it that is.
+ * `factor` (the meal's servings over the recipe's; a line's own where a
+ * person's own plate, or the plates of a pot, hold its part otherwise than the
+ * recipe), exact and as it is shown. `rests` are the rests of packs the meal
+ * finishes, by ingredient, in each ingredient's own unit: the first line of the
+ * ingredient takes its rest on top, and says how much of it that is.
  */
 export function toPlannedIngredients(
   lines: readonly RecipeLine[],
-  factor: number,
+  factor: number | ((line: RecipeLine) => number),
   locale: Locale,
   rests: ReadonlyMap<string, number> = new Map(),
 ): PlannedIngredient[] {
   const given = new Set<string>();
   return lines.map((line) => {
-    let quantity = line.quantity * factor;
+    let quantity = line.quantity * (typeof factor === 'number' ? factor : factor(line));
     const canonical = given.has(line.ingredientId) ? undefined : rests.get(line.ingredientId);
     let rest: PlannedIngredient['rest'];
     if (canonical !== undefined && canonical > 0) {

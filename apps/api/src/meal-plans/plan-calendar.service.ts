@@ -58,6 +58,7 @@ export class PlanCalendarService {
             source: true,
             customMacros: true,
             rests: true,
+            plate: true,
             eatenAt: true,
             recipe: { select: amount },
           },

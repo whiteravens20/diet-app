@@ -54,7 +54,7 @@ import {
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { keepRestsOfRecipes } from './plan-days.js';
+import { settleNewRecipes } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -233,7 +233,7 @@ export class IngredientSwapService {
         data: { recipeId: variantId, modelPicked: false, modelReason: null },
       });
       // A rest of a pack of the ingredient that gave place goes with it.
-      await keepRestsOfRecipes(tx, [req.plannedMealId, ...together.map((other) => other.id)]);
+      await settleNewRecipes(tx, [req.plannedMealId, ...together.map((other) => other.id)]);
       // What the recipe is outside of the meals say for as long as they hold it.
       await this.plans.noteOutsideLimits(tx, req.planId, [
         req.plannedMealId,

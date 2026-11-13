@@ -380,6 +380,7 @@ export class AccountExportService {
             topping: meal.toppingKey ? { key: meal.toppingKey, amount: meal.toppingAmount } : null,
             // The rests of packs this meal finishes: the ingredient, the amount in its own unit, and what that holds.
             rests: meal.rests,
+            plate: meal.plate,
           })),
         })),
         shoppingLists: plan.shoppingLists.map((shopping) => ({

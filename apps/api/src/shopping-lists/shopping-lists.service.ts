@@ -49,7 +49,7 @@ import {
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
-import { restsOf } from '../meal-plans/plan-days.js';
+import { plateOfMeal, plateShare, restsOf } from '../meal-plans/plan-days.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
@@ -458,12 +458,21 @@ export async function planLines(
           toppingKey: true,
           toppingAmount: true,
           rests: true,
+          plate: true,
           recipe: {
             select: {
               servings: true,
               ingredients: {
                 orderBy: { position: 'asc' },
-                select: { ingredientId: true, quantity: true, unit: true },
+                select: {
+                  ingredientId: true,
+                  quantity: true,
+                  unit: true,
+                  // What a person's own plate reads a line's part from.
+                  ingredient: {
+                    select: { slug: true, name: true, category: true, proteinKind: true },
+                  },
+                },
               },
             },
           },
@@ -493,11 +502,13 @@ export async function planLines(
       // meal it was left of. Whether a meal was eaten changes nothing: a list
       // says what the days need, not what is left of them.
       if (meal.source === 'USER_CUSTOM' || !meal.recipe || meal.leftoverFromDate) continue;
+      const plate = plateOfMeal(meal.plate);
       for (const line of meal.recipe.ingredients) {
         lines.push({
           date: day.date,
           ingredientId: line.ingredientId,
-          quantity: line.quantity,
+          // A person's own plate of a shared dish takes each line at its part's share.
+          quantity: line.quantity * plateShare(plate, line.ingredient),
           unit: line.unit,
           recipeServings: meal.recipe.servings,
           // Effective amount folds the rebalancer multiplier into servings.

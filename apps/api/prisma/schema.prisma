@@ -1073,6 +1073,9 @@ model PlannedMeal {
   // meal's portion in the ingredient's own unit, and what it holds, set when the
   // rest was put in. Null where there are none.
   rests         Json?
+  // A person's own plate of a dish both people of a joint plan eat: its parts against the recipe's, and what that
+  // changes of one serving (`StoredPlate`). Null for a meal in the recipe's own proportions.
+  plate         Json?
   // Eaten by both people of a joint plan: the meal of the other plan at the
   // same day and time of day has the same link. Null for a meal of one's own
   // plan alone, and once the link is undone for that day.

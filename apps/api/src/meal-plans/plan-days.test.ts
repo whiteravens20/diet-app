@@ -62,6 +62,7 @@ describe('the rests of packs a meal finishes', () => {
   const meal = {
     servings: 1,
     quantityScale: 1,
+    plate: null,
     source: 'CATALOGUE',
     customMacros: null,
     recipe: {
@@ -97,6 +98,45 @@ describe('the rests of packs a meal finishes', () => {
       sugars: { grams: 5, atLeast: true },
       salt: { grams: 1.1, atLeast: false },
       saturatedFat: { grams: 3.3, atLeast: false },
+    });
+  });
+
+  it("count a person's own plate of a shared dish in the meal's figures and label, as large as the portion", () => {
+    // More of the protein, less of the starch: per serving 40 kcal less of carbohydrate, 40 kcal more of protein.
+    const plate = {
+      protein: 1.3,
+      starch: 0.7,
+      vegetables: 1,
+      perServing: { calories: 0, protein: 10, fat: 0, carbs: -10 },
+      labelPerServing: { fiber: -1, sugars: 0, salt: 0.2, saturatedFat: 0 },
+    };
+    expect(mealNutrition({ ...meal, rests: null, plate })).toEqual({
+      calories: 500,
+      protein: 40,
+      fat: 15,
+      carbs: 50,
+    });
+    // Two servings at three quarters: the plate's change as large as the portion.
+    expect(
+      mealNutrition({ ...meal, servings: 2, quantityScale: 0.75, rests: null, plate }),
+    ).toEqual({
+      calories: 750,
+      protein: 60,
+      fat: 23,
+      carbs: 75,
+    });
+    expect(mealLabel({ ...meal, rests: null, plate })).toEqual({
+      fiber: { grams: 3, atLeast: false },
+      sugars: { grams: 5, atLeast: false },
+      salt: { grams: 1.2, atLeast: false },
+      saturatedFat: { grams: 3, atLeast: false },
+    });
+    // A plate of another shape is none: the meal is the recipe's.
+    expect(mealNutrition({ ...meal, rests: null, plate: { protein: 3 } })).toEqual({
+      calories: 500,
+      protein: 30,
+      fat: 15,
+      carbs: 60,
     });
   });
 

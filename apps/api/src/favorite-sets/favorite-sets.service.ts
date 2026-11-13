@@ -29,7 +29,7 @@ import {
   violations,
   type Violation,
 } from '../meal-plans/eligibility.js';
-import { keepRestsOfRecipes } from '../meal-plans/plan-days.js';
+import { settleNewRecipes } from '../meal-plans/plan-days.js';
 import { writePlan } from '../meal-plans/plan-write.js';
 import { fitServings, slotBudgets } from '../engine/index.js';
 
@@ -264,7 +264,7 @@ export class FavoriteSetsService {
         }
 
         // A meal given another recipe keeps the rests of packs it holds the ingredients of.
-        await keepRestsOfRecipes(tx, written);
+        await settleNewRecipes(tx, written);
 
         // Applying a set to a skipped day un-skips it — it now has meals,
         // so a lingering `skip` flag would misrender the day and exclude it from

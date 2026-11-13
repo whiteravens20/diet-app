@@ -186,6 +186,7 @@ export class DayVariationsService {
           toppingKey: true,
           toppingAmount: true,
           rests: true,
+          plate: true,
           recipe: { select: { servings: true, ingredients: PACKED_LINES } },
         },
       }),
@@ -273,6 +274,8 @@ export class DayVariationsService {
               servings: meal.servings,
               quantityScale: meal.quantityScale,
               rests: meal.rests,
+              // An offer is made in the recipe's own proportions; a shared meal gets its plates where it is taken.
+              plate: null,
               source: 'CATALOGUE',
               customMacros: null,
               recipe,

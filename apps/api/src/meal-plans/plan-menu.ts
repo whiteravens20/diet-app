@@ -17,7 +17,7 @@ import {
   type Pack,
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
-import { isoDate, restsOf } from './plan-days.js';
+import { isoDate, plateOfMeal, plateShare, restsOf } from './plan-days.js';
 
 /** A line of a planned meal's recipe, as the count of packs reads it. */
 export interface PackedLine {
@@ -31,6 +31,9 @@ export interface PackedLine {
     perishable: boolean;
     keepDays: number | null;
     category: string;
+    /** What a person's own plate of a shared dish reads a line's part from (`plateShare`). */
+    slug?: string | null;
+    proteinKind?: string | null;
   };
 }
 
@@ -218,6 +221,8 @@ export const PACKED_LINES = {
         perishable: true,
         keepDays: true,
         category: true,
+        slug: true,
+        proteinKind: true,
       },
     },
   },
@@ -232,6 +237,8 @@ export interface CountedMeal extends MenuMeal {
   toppingAmount: number | null;
   /** The rests of packs it finishes (`restsOf`): they are taken from those packs with it. */
   rests: unknown;
+  /** A person's own plate of a shared dish (`plateOfMeal`): each line taken at its part's share. */
+  plate: unknown;
   /** Null for a meal of the user's own. */
   recipe: { servings: number; ingredients: readonly PackedLine[] } | null;
 }
@@ -269,10 +276,17 @@ export function packedMealsOf(
     for (const meal of day.meals) {
       if (meal.source !== 'USER_CUSTOM' && meal.recipe && !meal.leftoverFromDate) {
         const day = cookedOnDay.get(meal.id) ?? dayIndex;
+        const plate = plateOfMeal(meal.plate);
         packed.push({
           day,
           factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
-          lines: meal.recipe.ingredients,
+          // A person's own plate takes each line at its part's share.
+          lines: plate
+            ? meal.recipe.ingredients.map((line) => ({
+                ...line,
+                quantity: line.quantity * plateShare(plate, line.ingredient),
+              }))
+            : meal.recipe.ingredients,
         });
         // A rest is of an ingredient of the recipe: taken from the same pack, on the same day.
         for (const rest of restsOf(meal.rests)) {

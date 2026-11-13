@@ -30,6 +30,7 @@ const MEAL_ROW = {
   toppingKey: true,
   toppingAmount: true,
   rests: true,
+  plate: true,
 } as const;
 
 /**

@@ -47,7 +47,7 @@ import {
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
+import { toPlannedIngredients, toRecipeDto, type RecipeLine } from '../recipes/recipes.service.js';
 import {
   toppingAskOfDay,
   toppingFiguresOf,
@@ -93,7 +93,9 @@ import {
   type MealAmount,
   restsOf,
   restsAsJson,
-  keepRestsOfRecipes,
+  settleNewRecipes,
+  plateOfMeal,
+  plateShare,
 } from './plan-days.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
@@ -213,6 +215,7 @@ export class MealPlansService {
                 source: true,
                 customMacros: true,
                 rests: true,
+                plate: true,
                 modelPicked: true,
                 recipe: { select: amount },
               },
@@ -1130,7 +1133,7 @@ export class MealPlansService {
         },
       });
     // Each keeps the rests of packs its new dish holds the ingredients of.
-    await keepRestsOfRecipes(
+    await settleNewRecipes(
       tx,
       open.map((meal) => meal.id),
     );
@@ -1266,6 +1269,7 @@ export class MealPlansService {
         toppingKey: true,
         toppingAmount: true,
         rests: true,
+        plate: true,
       },
     });
     const lastSwap: StoredSwap = {
@@ -1469,12 +1473,19 @@ export class MealPlansService {
     for (const places of cookedOnce?.cookings ?? []) {
       const of = places.map(({ day, meal, stand }) => ({ day: plan.days[day]!, meal, stand }));
       const recipe = of[0]!.meal.recipe!;
-      const all =
-        of.reduce((sum, { meal }) => sum + meal.servings * meal.quantityScale, 0) /
-        Math.max(1, recipe.servings);
+      const servings = Math.max(1, recipe.servings);
       const ingredients = toPlannedIngredients(
         recipe.ingredients,
-        all,
+        (line) =>
+          of.reduce(
+            (sum, { meal }) =>
+              sum +
+              (meal.servings *
+                meal.quantityScale *
+                plateShare(plateOfMeal(meal.plate), line.ingredient)) /
+                servings,
+            0,
+          ),
         locale,
         restAmounts(of.map(({ meal }) => meal)),
       );
@@ -1539,7 +1550,7 @@ export class MealPlansService {
           recipe,
           ingredients: toPlannedIngredients(
             m.recipe.ingredients,
-            ofRecipe,
+            (line) => ofRecipe * plateShare(plateOfMeal(m.plate), line.ingredient),
             locale,
             restAmounts([m]),
           ),
@@ -1734,6 +1745,7 @@ interface PlanWithRelations {
       estimated: boolean;
       customMacros: unknown;
       rests: unknown;
+      plate: unknown;
       eatenAt: Date | null;
       modelPicked: boolean;
       modelReason: string | null;
@@ -1833,8 +1845,14 @@ function joined(
         const sharedId = row?.sharedMealId ?? null;
         const other = sharedId ? theirsByShared.get(sharedId) : undefined;
         if (!sharedId || !other || !row?.recipe || other.recipe?.id !== row.recipe.id) return meal;
-        const all =
-          (cooked(meal, myMeals) + cooked(other, theirMeals)) / Math.max(1, row.recipe.servings);
+        // The pot is the sum of the two plates: each person's servings, each line at its part of their plate.
+        const servings = Math.max(1, row.recipe.servings);
+        const mine = plateOfMeal(row.plate);
+        const theirsPlate = plateOfMeal(theirRows.get(other.id)?.plate);
+        const all = (line: RecipeLine): number =>
+          (cooked(meal, myMeals) * plateShare(mine, line.ingredient) +
+            cooked(other, theirMeals) * plateShare(theirsPlate, line.ingredient)) /
+          servings;
         return {
           ...meal,
           shared: {
@@ -1979,6 +1997,8 @@ export type RebalanceMealRow = {
   customMacros: unknown;
   /** The rests of packs it finishes (`restsOf`): what they hold is counted, and never moved. */
   rests: unknown;
+  /** A person's own plate of a shared dish (`plateOfMeal`): it changes what a serving holds, and scales with it. */
+  plate: unknown;
   eatenAt: Date | null;
   leftoverFromDate: Date | null;
   servings: number;
@@ -2017,15 +2037,17 @@ function toppingOf(
 }
 
 function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
-  const per: MacroQuad =
-    m.source === 'USER_CUSTOM' || !m.recipe
-      ? customMacros(m.customMacros)
-      : {
-          calories: m.recipe.caloriesPerServing,
-          protein: m.recipe.proteinPerServing,
-          fat: m.recipe.fatPerServing,
-          carbs: m.recipe.carbsPerServing,
-        };
+  const custom = m.source === 'USER_CUSTOM' || !m.recipe;
+  const plate = custom ? null : plateOfMeal(m.plate);
+  const per: MacroQuad = custom
+    ? customMacros(m.customMacros)
+    : {
+        // What its plate changes of a serving moves with it.
+        calories: m.recipe!.caloriesPerServing + (plate?.perServing.calories ?? 0),
+        protein: m.recipe!.proteinPerServing + (plate?.perServing.protein ?? 0),
+        fat: m.recipe!.fatPerServing + (plate?.perServing.fat ?? 0),
+        carbs: m.recipe!.carbsPerServing + (plate?.perServing.carbs ?? 0),
+      };
   return {
     id: m.id,
     per,

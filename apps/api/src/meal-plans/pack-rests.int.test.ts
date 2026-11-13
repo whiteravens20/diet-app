@@ -7,7 +7,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aSwap, as, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { keepRestsOfRecipes, restsOf, type StoredRest } from './plan-days.js';
+import { settleNewRecipes, restsOf, type StoredRest } from './plan-days.js';
 
 /** The fixture recipes the menus below are made of. */
 const CHICKEN_RICE = 'chicken-rice-broccoli'; // 150 g of chicken a serving, from a pack of 500 g
@@ -141,11 +141,11 @@ describe('the rest of a pack a meal finishes', () => {
     // Another dish of chicken keeps it; one without chicken loses it.
     const skillet = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: SKILLET } });
     await t.prisma.plannedMeal.update({ where: { id: lunch.id }, data: { recipeId: skillet.id } });
-    await keepRestsOfRecipes(t.prisma, [lunch.id]);
+    await settleNewRecipes(t.prisma, [lunch.id]);
     expect(await restsNow()).toEqual([rest()]);
     const tofu = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: TOFU_BOWL } });
     await t.prisma.plannedMeal.update({ where: { id: lunch.id }, data: { recipeId: tofu.id } });
-    await keepRestsOfRecipes(t.prisma, [lunch.id]);
+    await settleNewRecipes(t.prisma, [lunch.id]);
     expect(await restsNow()).toEqual([]);
 
     // A swap as the user makes one, and its undo.

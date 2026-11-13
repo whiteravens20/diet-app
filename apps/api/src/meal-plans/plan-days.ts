@@ -20,6 +20,14 @@ import {
   sumLabels,
   UNKNOWN_LABEL,
 } from '../engine/label-totals.js';
+import {
+  partOf,
+  plateChange,
+  shareOnPlate,
+  type PartIngredient,
+  type Plate,
+  type PlateDish,
+} from '../engine/plates.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 
 /**
@@ -77,6 +85,95 @@ export const StoredRest = z.object({
 });
 export type StoredRest = z.infer<typeof StoredRest>;
 
+/**
+ * A person's own plate of a dish both people of a joint plan eat (cooking
+ * together), as the meal keeps it (`PlannedMeal.plate`): how much of each part
+ * that may move its portion holds against the recipe's proportion
+ * (`engine/plates.ts`), and what that changes of one serving at a scale of
+ * one, the plate's figures and label less the recipe's, so that they follow the
+ * portion's size.
+ */
+export const StoredPlate = z.object({
+  protein: z.number().min(0.5).max(1.5),
+  starch: z.number().min(0.5).max(1.5),
+  vegetables: z.number().min(0.5).max(1.5),
+  perServing: z.object({
+    calories: z.number(),
+    protein: z.number(),
+    fat: z.number(),
+    carbs: z.number(),
+  }),
+  labelPerServing: z.object({
+    fiber: z.number(),
+    sugars: z.number(),
+    salt: z.number(),
+    saturatedFat: z.number(),
+  }),
+});
+export type StoredPlate = z.infer<typeof StoredPlate>;
+
+/** How much of a line of a meal its plate holds against the recipe's proportion: its part's share, one for the rest. */
+export function plateShare(
+  plate: StoredPlate | null,
+  ingredient: Pick<PartIngredient, 'name'> & {
+    slug?: string | null;
+    category?: string | null;
+    proteinKind?: string | null;
+  },
+): number {
+  if (!plate) return 1;
+  const part = partOf({
+    slug: ingredient.slug ?? null,
+    name: ingredient.name,
+    category: ingredient.category ?? null,
+    proteinKind: ingredient.proteinKind ?? null,
+  });
+  return part === 'rest' ? 1 : plate[part];
+}
+
+/** A person's plate of a dish as the meal keeps it: its shares, and what they change of a serving, to a tenth and a hundredth of a gram. */
+export function storedPlateOf(dish: PlateDish, plate: Plate): StoredPlate {
+  const { perServing, labelPerServing } = plateChange(dish, plate);
+  const tenth = (value: number): number => Math.round(value * 10) / 10 || 0;
+  const hundredth = (value: number): number => Math.round(value * 100) / 100 || 0;
+  return {
+    protein: plate.protein,
+    starch: plate.starch,
+    vegetables: plate.vegetables,
+    perServing: {
+      calories: tenth(perServing.calories),
+      protein: tenth(perServing.protein),
+      fat: tenth(perServing.fat),
+      carbs: tenth(perServing.carbs),
+    },
+    labelPerServing: {
+      fiber: hundredth(labelPerServing.fiber),
+      sugars: hundredth(labelPerServing.sugars),
+      salt: hundredth(labelPerServing.salt),
+      saturatedFat: hundredth(labelPerServing.saturatedFat),
+    },
+  };
+}
+
+/** How much of each ingredient of a dish (by its id) a plate holds against the recipe's proportion. */
+export function plateSharesOf(dish: PlateDish, plate: Plate): Map<string, number> {
+  return new Map(
+    [...dish.partOf].map(([ingredientId, part]) => [ingredientId, shareOnPlate(plate, part)]),
+  );
+}
+
+/** The plate a meal keeps: none where it keeps none, or none in this shape. */
+export function plateOfMeal(stored: unknown): StoredPlate | null {
+  const parsed = StoredPlate.safeParse(stored);
+  return parsed.success ? parsed.data : null;
+}
+
+/** A plate as a meal's row keeps it: none is no value at all. */
+export const plateAsJson = (
+  plate: StoredPlate | null,
+): Prisma.InputJsonValue | typeof Prisma.DbNull =>
+  plate ? (plate as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
+
 /** The rests a meal keeps: none where it keeps none, or none in this shape. */
 export function restsOf(stored: unknown): StoredRest[] {
   const parsed = z.array(StoredRest).safeParse(stored);
@@ -91,14 +188,19 @@ export const restsAsJson = (
 
 /**
  * After meals were given another recipe: each keeps the rests of packs whose
- * ingredient its new recipe holds as well, and loses the others. Run in the
- * write that changed the recipes.
+ * ingredient its new recipe holds as well, and loses the others, and loses its
+ * plate, which was of the dish before. Run in the write that changed the
+ * recipes.
  */
-export async function keepRestsOfRecipes(
+export async function settleNewRecipes(
   tx: Pick<Prisma.TransactionClient, 'plannedMeal'>,
   mealIds: readonly string[],
 ): Promise<void> {
   if (mealIds.length === 0) return;
+  await tx.plannedMeal.updateMany({
+    where: { id: { in: [...mealIds] }, plate: { not: Prisma.DbNull } },
+    data: { plate: Prisma.DbNull },
+  });
   const meals = await tx.plannedMeal.findMany({
     where: { id: { in: [...mealIds] }, rests: { not: Prisma.DbNull } },
     select: {
@@ -145,6 +247,8 @@ export interface MealAmount {
   quantityScale: number;
   /** The rests of packs it finishes (`restsOf`), counted beside its recipe. */
   rests: unknown;
+  /** A person's own plate of a shared dish (`plateOfMeal`), which changes what a serving holds. */
+  plate: unknown;
   source: string;
   customMacros: unknown;
   recipe: {
@@ -179,8 +283,10 @@ export function mealNutrition(meal: MealAmount): Amounts {
           carbs: meal.recipe.carbsPerServing,
         };
   const rests = restsOf(meal.rests);
+  const plate = meal.source === 'USER_CUSTOM' ? null : plateOfMeal(meal.plate);
   const plus = (of: keyof Amounts): number =>
-    rests.reduce((sum, rest) => sum + rest.figures[of], 0);
+    rests.reduce((sum, rest) => sum + rest.figures[of], 0) +
+    (plate ? plate.perServing[of] * factor : 0);
   return {
     calories: Math.round(per.calories * factor + plus('calories')),
     protein: Math.round(per.protein * factor + plus('protein')),
@@ -195,6 +301,8 @@ export interface MealLabelAmount {
   quantityScale: number;
   /** The rests of packs it finishes (`restsOf`), counted beside its recipe. */
   rests: unknown;
+  /** A person's own plate of a shared dish (`plateOfMeal`), which changes what a serving holds. */
+  plate: unknown;
   source: string;
   recipe: { labelPerServing: unknown } | null;
 }
@@ -208,11 +316,25 @@ export function mealLabel(meal: MealLabelAmount): LabelTotals {
   if (meal.source === 'USER_CUSTOM' || !meal.recipe) return UNKNOWN_LABEL;
   const serving = storedTotals(meal.recipe.labelPerServing);
   if (!serving) return UNKNOWN_LABEL;
-  const dish = scaleLabel(serving, meal.servings * meal.quantityScale);
+  const factor = meal.servings * meal.quantityScale;
+  const plate = plateOfMeal(meal.plate);
+  const dish = scaleLabel(plate ? plateLabel(serving, plate) : serving, factor);
   const rests = restsOf(meal.rests);
   return roundLabel(
     rests.length > 0 ? sumLabels([dish, ...rests.map((rest) => rest.label)]) : dish,
   );
+}
+
+/** A serving's label with a plate's change: each known figure moved by the plate's grams, never under none. */
+function plateLabel(serving: LabelTotals, plate: StoredPlate): LabelTotals {
+  const moved = (figure: LabelTotals[keyof LabelTotals], by: number) =>
+    figure ? { ...figure, grams: Math.max(0, figure.grams + by) } : figure;
+  return {
+    fiber: moved(serving.fiber, plate.labelPerServing.fiber),
+    sugars: moved(serving.sugars, plate.labelPerServing.sugars),
+    salt: moved(serving.salt, plate.labelPerServing.salt),
+    saturatedFat: moved(serving.saturatedFat, plate.labelPerServing.saturatedFat),
+  };
 }
 
 export function sumNutrition(items: Amounts[]): Amounts {

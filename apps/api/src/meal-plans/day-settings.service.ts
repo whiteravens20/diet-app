@@ -45,6 +45,7 @@ import {
   mealNutrition,
   parseDayOverrides,
   type DayOverridesJson,
+  plateAsJson,
 } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import {
@@ -457,6 +458,7 @@ export class DaySettingsService {
           // In a plan that wastes less, the portion its packs were closed with, and the rests of packs it finishes.
           ...(prepared.lessWaste ? { quantityScale: meal.quantityScale } : {}),
           ...(meal.rests ? { rests: meal.rests } : {}),
+          ...(meal.plate ? { plate: plateAsJson(meal.plate) } : {}),
         })),
       });
       await tx.mealPlan.update({

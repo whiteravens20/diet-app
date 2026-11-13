@@ -84,6 +84,9 @@ import {
   isoDate,
   restsOf,
   type StoredRest,
+  type StoredPlate,
+  plateAsJson,
+  plateOfMeal,
   isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
@@ -694,10 +697,13 @@ export class PlanGenerationService {
         const servings = meal.servings * meal.quantityScale;
         const topping = meal.toppingKey !== null ? toppingPer100.get(meal.toppingKey) : undefined;
         const part = topping ? (meal.toppingAmount ?? 0) / 100 : 0;
-        // The rests of packs it finishes count with it.
+        // The rests of packs it finishes count with it, and what its plate changes of its dish.
         const rests = restsOf(meal.rests);
+        const plate = meal.recipe ? plateOfMeal(meal.plate) : null;
         const plus = (of: 'calories' | 'protein' | 'fat' | 'carbs'): number =>
-          (topping?.[of] ?? 0) * part + rests.reduce((sum, rest) => sum + rest.figures[of], 0);
+          (topping?.[of] ?? 0) * part +
+          rests.reduce((sum, rest) => sum + rest.figures[of], 0) +
+          (plate ? plate.perServing[of] * servings : 0);
         return {
           recipeId: meal.recipeId ?? undefined,
           calories: perServing.calories * servings + plus('calories'),
@@ -1085,6 +1091,7 @@ export class PlanGenerationService {
               ? { toppingKey: placed.topping.key, toppingAmount: placed.topping.amount }
               : {}),
             ...(placed.rests ? { rests: placed.rests } : {}),
+            ...(placed.plate ? { plate: plateAsJson(placed.plate) } : {}),
           })),
       });
     }
@@ -1922,10 +1929,12 @@ interface JointAsk {
 /** A plan read for days of it to be filled again (`prepare`). */
 type Prepared = Awaited<ReturnType<PlanGenerationService['prepare']>>;
 
-/** A meal the planner placed, sized, with its topping and the rests of packs it finishes. */
+/** A meal the planner placed, sized, with its topping, its plate and the rests of packs it finishes. */
 type PlacedMeal = SizedAssignment & {
   topping?: ToppedAssignment['topping'];
   rests?: StoredRest[];
+  /** Of a dish both people of a joint plan eat, this person's own plate (`plateOfMeal`). */
+  plate?: StoredPlate;
 };
 
 /** A plan the optimiser made for a profile, finished: its meals with their toppings, and its report. */
@@ -2336,6 +2345,7 @@ function buildDays(resolved: ResolvedDay[], assignments: PlacedMeal[]) {
           quantityScale: a.quantityScale,
           ...(a.topping ? { toppingKey: a.topping.key, toppingAmount: a.topping.amount } : {}),
           ...(a.rests ? { rests: a.rests } : {}),
+          ...(a.plate ? { plate: plateAsJson(a.plate) } : {}),
         })),
     },
   }));

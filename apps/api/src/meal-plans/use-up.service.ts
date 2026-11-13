@@ -27,7 +27,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { CANDIDATE, poolWhere, restrictionsFor, welcome } from './eligibility.js';
 import { holdsAbout } from './meal-swap.service.js';
-import { isoDate, restsOf } from './plan-days.js';
+import { isoDate, restsOf, plateOfMeal, plateShare } from './plan-days.js';
 import { cookingsOf, menuNeeds } from './plan-menu.js';
 import { partnerPacked } from './plan-packs-store.js';
 import { readPlanLimits } from './plan-limits.js';
@@ -204,11 +204,19 @@ export class UseUpService {
         learn(meal.recipe);
         const takenOn = cookedOnDay.get(meal.id) ?? dayIndex;
         const factor = meal.servings * meal.quantityScale;
+        // A person's own plate of a shared dish takes each ingredient at its part's share.
+        const plate = plateOfMeal(meal.plate);
+        const ingredientOf = new Map(
+          meal.recipe.ingredients.map((line) => [line.ingredientId, line.ingredient]),
+        );
         const amounts = new Map(
-          [...perServing(meal.recipe)].map(([ingredientId, amount]) => [
-            ingredientId,
-            amount * factor,
-          ]),
+          [...perServing(meal.recipe)].map(([ingredientId, amount]) => {
+            const ingredient = ingredientOf.get(ingredientId);
+            return [
+              ingredientId,
+              amount * factor * (ingredient ? plateShare(plate, ingredient) : 1),
+            ];
+          }),
         );
         // The rests of packs it finishes are taken from those packs whatever it becomes: what a swap would keep of
         // them stays, and what it would lose is left there all the same.
