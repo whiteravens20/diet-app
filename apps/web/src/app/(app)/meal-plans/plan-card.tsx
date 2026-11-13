@@ -35,6 +35,7 @@ import type { SplitPortion } from '@/components/split-calculator';
 import {
   CookingNote,
   mealsOfCooking,
+  platesOf,
   toCook,
   toCookTogether,
   useCookingWords,
@@ -279,6 +280,19 @@ export function PlanCard({
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
   const cookWords = useCookingWords();
+  /** What a person's plate of a shared dish holds more and less of than the recipe, by the names of its lines. */
+  const plateWords = (who: string, lines: readonly PlannedIngredient[]): string => {
+    const more = lines.filter((line) => (line.share ?? 1) > 1).map((line) => line.name);
+    const less = lines.filter((line) => (line.share ?? 1) < 1).map((line) => line.name);
+    const changes = [
+      ...(more.length > 0 ? [t('plateMore', { foods: fmt.list(more) })] : []),
+      ...(less.length > 0 ? [t('plateLess', { foods: fmt.list(less) })] : []),
+    ];
+    return t('plateLine', {
+      who,
+      changes: changes.length > 0 ? changes.join('; ') : t('plateAsRecipe'),
+    });
+  };
   const shownAmount = useShownAmount();
   const tSplit = useTranslations('split');
   // The dish cooked ahead being split, as the portions of its meals, while its window is open.
@@ -1284,6 +1298,12 @@ export function PlanCard({
                           )}
                         </div>
                       )}
+                      {m.shared && platesOf(m).length > 0 && (
+                        <p className="ml-6 text-xs text-muted-foreground">
+                          {plateWords(t('plateYou'), m.ingredients)}{' '}
+                          {plateWords(m.shared.with.profileName, m.shared.with.ingredients)}
+                        </p>
+                      )}
                       {((m.cookAhead === 'cook' && m.cooking) ||
                         (m.shared && !m.shared.apart && !m.leftover)) && (
                         <div className="ml-6">
@@ -1311,6 +1331,7 @@ export function PlanCard({
                                         ? tSplit('portionOfWho', { who: profileName, when })
                                         : when,
                                       kcal: one.meal.nutrition.calories,
+                                      lines: one.meal.ingredients,
                                     },
                                     ...(together
                                       ? [
@@ -1321,6 +1342,7 @@ export function PlanCard({
                                               when,
                                             }),
                                             kcal: one.meal.shared!.with.calories,
+                                            lines: one.meal.shared!.with.ingredients,
                                           },
                                         ]
                                       : []),

@@ -5,9 +5,12 @@
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { SplitCalculator, type SplitPortion } from '@/components/split-calculator';
+import { partsOf, SplitCalculator, type SplitPortion } from '@/components/split-calculator';
 
-/** The window a dish cooked ahead is split in, into the meals of its cooking, by the plan's shares. */
+/**
+ * The window a dish cooked ahead, or a pot both people cook, is split in, into the portions of the plan, by the
+ * plan's shares: their energy, or what each takes of a part weighed alone.
+ */
 export function SplitDialog({
   portions,
   onClose,
@@ -26,7 +29,9 @@ export function SplitDialog({
         </Button>
       </div>
       <div className="space-y-4 p-4">
-        <p className="text-sm text-muted-foreground">{t('planIntro')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t(partsOf(portions).length > 0 ? 'planIntroParts' : 'planIntro')}
+        </p>
         <SplitCalculator portions={portions} />
       </div>
     </Dialog>

@@ -3701,6 +3701,108 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(window.getByText(spaced('125 g'))).toBeInTheDocument();
   });
 
+  describe('served on a plate of each person’s own', () => {
+    const line = (ingredientId: string, name: string, grams: number, share?: number) => ({
+      ingredientId,
+      name,
+      quantity: grams,
+      unit: 'g' as const,
+      display: { quantity: Math.round(grams / 5) * 5, unit: 'g' as const },
+      note: null,
+      ...(share !== undefined ? { share } : {}),
+    });
+    const CHICKEN = '56565656-5656-4565-8565-565656565656';
+    const RICE = '57575757-5757-4575-8575-575757575757';
+    /** Chicken and rice: more chicken and less rice on this plate, the other way round on Ewa's. */
+    const onPlates = (): MealPlan => {
+      const plan = together();
+      const meal = plan.days[0]!.meals[0]!;
+      meal.ingredients = [
+        line(CHICKEN, 'Chicken breast', 156, 1.3),
+        line(RICE, 'Basmati rice', 48, 0.8),
+      ];
+      meal.shared!.with.ingredients = [
+        line(CHICKEN, 'Chicken breast', 84, 0.7),
+        line(RICE, 'Basmati rice', 72, 1.2),
+      ];
+      return plan;
+    };
+
+    it('says what each plate holds more and less of than the recipe', async () => {
+      await open(onPlates());
+
+      expect(
+        screen.getByText(
+          'Your plate – more: Chicken breast; less: Basmati rice. Ewa – more: Basmati rice; less: Chicken breast.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('says of a plate that is the recipe’s that it is', async () => {
+      const plan = onPlates();
+      const meal = plan.days[0]!.meals[0]!;
+      meal.ingredients = meal.ingredients.map(({ share: _share, ...rest }) => rest);
+      await open(plan);
+      expect(
+        screen.getByText(
+          'Your plate – as in the recipe. Ewa – more: Basmati rice; less: Chicken breast.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('says nothing of plates where neither differs from the recipe', async () => {
+      await open(together());
+
+      expect(screen.queryByText(/^Your plate –/)).toBeNull();
+    });
+
+    it('shows both plates in the recipe of the pot, with how to split each part', async () => {
+      await open(onPlates());
+      await userEvent.click(screen.getByRole('button', { name: 'Oat porridge' }));
+
+      const window = within(
+        await screen.findByRole('dialog', { name: messages.recipeModal.title }),
+      );
+      // The window shows the plates once the recipe has come.
+      const table = await window.findByRole('table');
+      expect(within(table).getByRole('columnheader', { name: 'Ewa' })).toBeInTheDocument();
+      const chicken = within(table).getByRole('row', { name: /Chicken breast/ });
+      expect(
+        within(chicken)
+          .getAllByRole('cell')
+          .map((cell) => plain(cell.textContent)),
+      ).toEqual(['155 g', '85 g']);
+      expect(window.getByText(messages.split.partRisk)).toBeInTheDocument();
+    });
+
+    it('splits a part weighed alone by what each plate takes of it', async () => {
+      await open(onPlates());
+      await userEvent.click(screen.getByRole('button', { name: messages.split.open }));
+      const splitting = within(await screen.findByRole('dialog', { name: messages.split.title }));
+
+      // The shares come from the plan, and of one part from what each plate takes of it.
+      expect(splitting.getByText(messages.split.planIntroParts)).toBeVisible();
+      await userEvent.click(splitting.getByRole('radio', { name: messages.split.way.part }));
+      await userEvent.type(splitting.getByLabelText(messages.split.onScale), '1000');
+      // Nothing is split until the part weighed is named.
+      expect(splitting.getAllByText(messages.split.partUnknown)).toHaveLength(2);
+      await userEvent.selectOptions(
+        splitting.getByRole('combobox', { name: messages.split.partWhich }),
+        'Chicken breast',
+      );
+
+      expect(splitting.getByText(spaced('650 g'))).toBeVisible();
+      expect(splitting.getByText(spaced('350 g'))).toBeVisible();
+      expect(splitting.getByText(messages.split.partRisk)).toBeVisible();
+      await userEvent.selectOptions(
+        splitting.getByRole('combobox', { name: messages.split.partWhich }),
+        'Basmati rice',
+      );
+      expect(splitting.getByText(spaced('400 g'))).toBeVisible();
+      expect(splitting.getByText(spaced('600 g'))).toBeVisible();
+    });
+  });
+
   it('makes the plan again for both unless the window is turned to this plan alone', async () => {
     const plan = together();
     await open(plan);

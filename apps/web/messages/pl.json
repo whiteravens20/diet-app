@@ -2079,7 +2079,12 @@
     "errRetarget": "Nie udało się przyjąć celu profilu.",
     "errEvenWeek": "Nie udało się wyrównać tygodnia.",
     "listOutOfDateDay": "Lista zakupów obejmująca ten dzień będzie do odświeżenia.",
-    "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia."
+    "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia.",
+    "plateYou": "Twój talerz",
+    "plateMore": "więcej: {foods}",
+    "plateLess": "mniej: {foods}",
+    "plateLine": "{who} – {changes}.",
+    "plateAsRecipe": "jak w\u00a0przepisie"
   },
   "inventory": {
     "title": "Spiżarnia",
@@ -2515,7 +2520,11 @@
     "close": "Zamknij",
     "openPage": "Otwórz oryginalny przepis",
     "portionMeal": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, Twój posiłek to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}. Poniżej ilości dla Twojego posiłku.",
-    "portionWhole": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}. Poniżej ilości na całe gotowanie."
+    "portionWhole": "Oryginał podaje ilości na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}, to gotowanie to {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}. Poniżej ilości na całe gotowanie.",
+    "platesTitle": "Talerze",
+    "platesIntro": "Plan dzieli te składniki inaczej niż przepis, żeby dzień każdej osoby trzymał jej podział makroskładników. Resztę garnka podziel według wielkości porcji.",
+    "platesIngredient": "Składnik",
+    "platesYou": "Ty"
   },
   "recipeShare": {
     "label": "Udostępnij przepis:",
@@ -3057,6 +3066,7 @@
     "title": "Podziel ugotowane",
     "open": "Podziel ugotowane…",
     "planIntro": "Udział każdej porcji wynika z\u00a0jej kalorii w\u00a0planie.",
+    "planIntroParts": "Udział każdej porcji wynika z\u00a0planu: z\u00a0jej kalorii, a\u00a0przy jednym składniku z\u00a0tego, ile go dostaje.",
     "pageTitle": "Podział dania",
     "pageIntro": "Podziel ugotowane danie na porcje: równe albo według kalorii każdej z\u00a0nich. Danie gotowane na zapas podzielisz też w\u00a0planie, przy nim samym.",
     "portions": "Porcje",
@@ -3087,6 +3097,11 @@
     "shareOfKcal": "Udział: {share} ({kcal}\u00a0kcal)",
     "pieces": "{count, plural, one {{count, number, ::group-off}\u00a0sztuka} few {{count, number, ::group-off}\u00a0sztuki} many {{count, number, ::group-off}\u00a0sztuk} other {{count, number, ::group-off}\u00a0sztuki}}",
     "tare": "Pojemnik postaw na wadze i\u00a0wytaruj ją, zanim nałożysz porcję.",
-    "risk": "Podział garnka nigdy nie jest w\u00a0100% dokładny: w\u00a0daniu mieszanym kawałki, tłuszcz i\u00a0sos nie rozkładają się równo, a\u00a0waga ma swój błąd. Jeśli zależy Ci na dokładnych proporcjach, ugotuj porcje osobno."
+    "risk": "Podział garnka nigdy nie jest w\u00a0100% dokładny: w\u00a0daniu mieszanym kawałki, tłuszcz i\u00a0sos nie rozkładają się równo, a\u00a0waga ma swój błąd. Jeśli zależy Ci na dokładnych proporcjach, ugotuj porcje osobno.",
+    "partWhich": "Który składnik ważysz?",
+    "partChoose": "Wybierz składnik",
+    "partUnknown": "Wybierz składnik, który ważysz.",
+    "partRisk": "Mięso i\u00a0rybę najdokładniej podzielisz na surowo, przed smażeniem. Ryż, makaron i\u00a0kaszę odważ dla każdego na sucho, ugotuj razem i\u00a0podziel w\u00a0tych samych proporcjach: to podział przybliżony, bo nie każde ziarno wchłania tyle samo wody. Warzywa i\u00a0sos podziel wagą.",
+    "wayHintPartOwn": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny."
   }
 }

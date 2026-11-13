@@ -7,8 +7,10 @@ import { ExternalLink, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import type { LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
+import { useId } from 'react';
+import type { DisplayAmount, LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { useShownAmount } from '@/lib/ingredient-format';
 import { ApiClientError } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
 import { Button } from '@/components/ui/button';
@@ -39,8 +41,16 @@ export function RecipeModal({
   picked?: { reason: string | null } | null;
   /** How many servings those lines come to, and whether they are for the whole of a cooking. */
   portion?: { servings: number; whole: boolean };
-  /** Of a dish two people cook in one pot: the lines are the pot's, and these are the portions in it. */
-  pot?: { mine: number; name: string; theirs: number };
+  /**
+   * Of a dish two people cook in one pot: the lines are the pot's, and these
+   * are the portions in it, with the lines whose plates differ from the recipe.
+   */
+  pot?: {
+    mine: number;
+    name: string;
+    theirs: number;
+    plates: { ingredientId: string; name: string; mine: DisplayAmount; theirs: DisplayAmount }[];
+  };
   /** Fibre, sugars, salt and saturated fat of the planned meal the modal was opened from. */
   label?: LabelTotals;
   /** What is put on this meal's plate alone, beside the dish and outside its pot. */
@@ -49,6 +59,9 @@ export function RecipeModal({
 }) {
   const t = useTranslations('recipeModal');
   const tDetail = useTranslations('recipeDetail');
+  const tSplit = useTranslations('split');
+  const shownAmount = useShownAmount();
+  const platesId = useId();
 
   const recipe = useQuery({
     queryKey: ['recipe', recipeId],
@@ -131,6 +144,44 @@ export function RecipeModal({
           <p className="mb-4 text-sm">
             {t('toppingNote', { name: topping.name, amount: topping.amount, kcal: topping.kcal })}
           </p>
+        )}
+        {recipe.data && pot && pot.plates.length > 0 && (
+          <section className="mb-4 space-y-2" aria-labelledby={`${platesId}-title`}>
+            <h3 id={`${platesId}-title`} className="text-sm font-semibold">
+              {t('platesTitle')}
+            </h3>
+            <p className="text-sm text-muted-foreground">{t('platesIntro')}</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th scope="col" className="py-1 pr-3 font-medium">
+                    {t('platesIngredient')}
+                  </th>
+                  <th scope="col" className="py-1 pr-3 text-right font-medium">
+                    {t('platesYou')}
+                  </th>
+                  <th scope="col" className="py-1 text-right font-medium">
+                    {pot.name}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pot.plates.map((row) => (
+                  <tr key={row.ingredientId} className="border-b border-border last:border-0">
+                    <th scope="row" className="py-1 pr-3 text-left font-normal">
+                      {row.name}
+                    </th>
+                    {/* An amount in pieces says its grams too: it wraps on a narrow screen rather than leave the window. */}
+                    <td className="py-1 pr-3 text-right tabular-nums">{shownAmount(row.mine)}</td>
+                    <td className="py-1 text-right tabular-nums">{shownAmount(row.theirs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+              {tSplit('partRisk')}
+            </p>
+          </section>
         )}
         {recipe.data && (
           <RecipeView

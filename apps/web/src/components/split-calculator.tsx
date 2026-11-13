@@ -8,11 +8,23 @@ import { Field, Input } from '@/components/ui/input';
 import { foodWeight, sharesOf, splitWhole } from '@/lib/split';
 import { useFormat } from '@/lib/use-format';
 
-/** A portion a dish is split into: what it is called, and the energy it is planned to hold where that is known. */
+/**
+ * A portion a dish is split into: what it is called, the energy it is planned
+ * to hold where that is known, and what it takes of each ingredient where the
+ * plan says so, by which a part of the dish weighed alone is split.
+ */
 export interface SplitPortion {
   key: string;
   label: string;
   kcal: number | null;
+  lines?: readonly SplitLine[];
+}
+
+/** What a portion takes of an ingredient. */
+export interface SplitLine {
+  ingredientId: string;
+  name: string;
+  quantity: number;
 }
 
 type Way = 'whole' | 'part' | 'pieces';
@@ -32,8 +44,11 @@ const typed = (text: string): number | null => {
  * energy the plan gives each where `portions` are given (a dish cooked ahead),
  * otherwise portions chosen here, equal or by the energy typed for each. The
  * whole dish is weighed, or one part of it at a time, or its pieces counted;
- * a dish weighed in its pot is the scale's weight less the empty pot's. Whole
- * grams and pieces, the last portion taking what is left. Nothing is kept.
+ * a dish weighed in its pot is the scale's weight less the empty pot's. A part
+ * weighed alone of portions that say what they take of each ingredient is
+ * split by what each takes of the ingredient chosen: each plate of a dish both
+ * people eat holds its parts in proportions of its own. Whole grams and pieces,
+ * the last portion taking what is left. Nothing is kept.
  */
 export function SplitCalculator({ portions: planned }: { portions?: SplitPortion[] }) {
   const t = useTranslations('split');
@@ -47,6 +62,7 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
   const [inPot, setInPot] = useState(false);
   const [potText, setPotText] = useState('');
   const [piecesText, setPiecesText] = useState('');
+  const [ingredientId, setIngredientId] = useState('');
 
   const portions: SplitPortion[] =
     planned ??
@@ -56,7 +72,14 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
       kcal: byKcal ? typed(kcalTexts[index] ?? '') : null,
     }));
   const kcalMissing = !planned && byKcal && portions.some((portion) => portion.kcal === null);
-  const shares = sharesOf(portions.map((portion) => portion.kcal));
+  // The ingredients a part weighed alone may be, where every portion says what it takes of each.
+  const ingredients = partsOf(portions);
+  const byIngredient = way === 'part' && ingredients.length > 0;
+  const chosen = byIngredient ? ingredients.find((one) => one.ingredientId === ingredientId) : null;
+  const shares = chosen
+    ? sharesOf(portions.map((portion) => takenOf(portion, chosen.ingredientId)))
+    : sharesOf(portions.map((portion) => portion.kcal));
+  const unchosen = byIngredient && !chosen;
 
   const onScale = typed(scaleText);
   const emptyPot = inPot ? typed(potText) : null;
@@ -67,7 +90,7 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
   const wholePieces = pieces !== null && Number.isInteger(pieces) ? pieces : null;
 
   const amounts =
-    kcalMissing || (way === 'pieces' ? wholePieces === null : food === null)
+    kcalMissing || unchosen || (way === 'pieces' ? wholePieces === null : food === null)
       ? null
       : splitWhole(way === 'pieces' ? wholePieces! : food!, shares);
 
@@ -136,7 +159,9 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
               {t(`way.${option}`)}
             </label>
             <p id={`${id}-${option}`} className="ml-6 text-xs text-muted-foreground">
-              {t(`wayHint.${option}`)}
+              {option === 'part' && ingredients.length > 0
+                ? t('wayHintPartOwn')
+                : t(`wayHint.${option}`)}
             </p>
           </div>
         ))}
@@ -152,6 +177,22 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
         </Field>
       ) : (
         <div className="space-y-3">
+          {byIngredient && (
+            <Field label={t('partWhich')}>
+              <select
+                className="block h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={chosen?.ingredientId ?? ''}
+                onChange={(e) => setIngredientId(e.target.value)}
+              >
+                <option value="">{t('partChoose')}</option>
+                {ingredients.map((one) => (
+                  <option key={one.ingredientId} value={one.ingredientId}>
+                    {one.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label={t('onScale')}>
             <Input
               inputMode="decimal"
@@ -195,12 +236,16 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
                 <span className="block text-xs text-muted-foreground">
                   {kcalMissing
                     ? t('shareUnknown')
-                    : portion.kcal !== null
-                      ? t('shareOfKcal', {
-                          share: fmt.percent(shares[index]!),
-                          kcal: fmt.number(portion.kcal),
-                        })
-                      : t('share', { share: fmt.percent(shares[index]!) })}
+                    : unchosen
+                      ? t('partUnknown')
+                      : chosen
+                        ? t('share', { share: fmt.percent(shares[index]!) })
+                        : portion.kcal !== null
+                          ? t('shareOfKcal', {
+                              share: fmt.percent(shares[index]!),
+                              kcal: fmt.number(portion.kcal),
+                            })
+                          : t('share', { share: fmt.percent(shares[index]!) })}
                 </span>
               </span>
               <span className="whitespace-nowrap text-base font-semibold tabular-nums">
@@ -218,7 +263,33 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
         )}
       </section>
 
+      {byIngredient && (
+        <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">{t('partRisk')}</p>
+      )}
       <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">{t('risk')}</p>
     </div>
   );
+}
+
+/** The ingredients a part weighed alone may be: none unless every portion says what it takes of each. */
+export function partsOf(portions: readonly SplitPortion[]): SplitLine[] {
+  return portions.length > 0 && portions.every((portion) => portion.lines !== undefined)
+    ? ingredientsOf(portions)
+    : [];
+}
+
+/** The ingredients the portions take, each once, in the order of the first portion's lines. */
+function ingredientsOf(portions: readonly SplitPortion[]): SplitLine[] {
+  const seen = new Map<string, SplitLine>();
+  for (const portion of portions)
+    for (const line of portion.lines ?? [])
+      if (!seen.has(line.ingredientId)) seen.set(line.ingredientId, line);
+  return [...seen.values()];
+}
+
+/** What a portion takes of an ingredient, all its lines of it together. */
+function takenOf(portion: SplitPortion, ingredientId: string): number {
+  return (portion.lines ?? [])
+    .filter((line) => line.ingredientId === ingredientId)
+    .reduce((sum, line) => sum + line.quantity, 0);
 }

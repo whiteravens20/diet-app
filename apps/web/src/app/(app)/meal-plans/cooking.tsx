@@ -3,7 +3,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { CookingChange, MealPlan, MealType, PlannedMeal } from '@diet-app/shared';
+import type {
+  CookingChange,
+  MealPlan,
+  MealType,
+  PlannedIngredient,
+  PlannedMeal,
+} from '@diet-app/shared';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { useFormat } from '@/lib/use-format';
 
@@ -64,11 +70,46 @@ export function toCook(plan: MealPlan, meal: PlannedMeal) {
   };
 }
 
-/** The portions of a dish the two people of a joint plan cook in one pot: this plan's, and the other's by their name. */
+/** A line of a dish the two people of a joint plan eat on plates of their own: what each plate takes of it, as it is shown. */
+export interface PlateRow {
+  ingredientId: string;
+  name: string;
+  mine: PlannedIngredient['display'];
+  theirs: PlannedIngredient['display'];
+}
+
+/**
+ * The portions of a dish the two people of a joint plan cook in one pot: this
+ * plan's, and the other's by their name, with the lines a plate of either takes
+ * otherwise than the recipe has it (`platesOf`).
+ */
 export interface PotPortions {
   mine: number;
   name: string;
   theirs: number;
+  plates: PlateRow[];
+}
+
+/**
+ * The lines of a dish both people eat that a plate of either holds otherwise
+ * than the recipe's proportion: what each plate takes of them. None where both
+ * plates are the recipe's, and for a meal of one plan alone.
+ */
+export function platesOf(meal: Pick<PlannedMeal, 'ingredients' | 'shared'>): PlateRow[] {
+  const theirs = meal.shared?.with.ingredients ?? [];
+  return meal.ingredients.flatMap((line, index) => {
+    const other = theirs[index];
+    if (!other || other.ingredientId !== line.ingredientId) return [];
+    if (line.share === undefined && other.share === undefined) return [];
+    return [
+      {
+        ingredientId: line.ingredientId,
+        name: line.name,
+        mine: line.display,
+        theirs: other.display,
+      },
+    ];
+  });
 }
 
 /**
@@ -93,7 +134,13 @@ export function toCookTogether(
   return {
     amounts: meal.shared.pot,
     portion: { servings: shown(mine + theirs), whole: true },
-    pot: { mine: shown(mine), name: meal.shared.with.profileName, theirs: shown(theirs) },
+    pot: {
+      mine: shown(mine),
+      name: meal.shared.with.profileName,
+      theirs: shown(theirs),
+      // The plates of one meal: a pot cooked for several holds as many plates of each.
+      plates: cooked.length === 1 ? platesOf(meal) : [],
+    },
   };
 }
 
