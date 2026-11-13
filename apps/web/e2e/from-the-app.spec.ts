@@ -44,7 +44,7 @@ test.describe('a browser opened from the application', () => {
       `/from-the-app#code=${code}&next=${encodeURIComponent('/settings?tab=account')}`,
     );
 
-    await expect(page.getByText(email)).toBeVisible();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
     // The code has left the address before anybody did anything.
     expect(page.url()).not.toContain(code);
     await page.getByRole('button', { name: texts.signIn!, exact: true }).click();
@@ -52,7 +52,8 @@ test.describe('a browser opened from the application', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: (messages.settings as Texts).title! }),
     ).toBeVisible();
-    await expect(page.getByText(email)).toBeVisible();
+    // The address by itself: the notice of an address nobody confirmed names it within a sentence.
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
   });
 
   test('signs nobody in with a code that was used, and leads to the sign-in page', async ({
