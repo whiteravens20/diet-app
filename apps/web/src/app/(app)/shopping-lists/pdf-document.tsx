@@ -171,6 +171,8 @@ type BuildOpts = {
   list: Pick<ShownList, 'groups'>;
   /** Who needs what of a row of a household list, said under its name; null for a plan's row. */
   sharesOf: (item: ShownItem) => string | null;
+  /** Of a row of fresh meat or fish, which of its packs to buy later and from which day, under its name. */
+  laterOf: (item: ShownItem) => string[];
   appName: string;
   planTitle: string;
   dateRangeLabel: string;
@@ -226,6 +228,7 @@ function buildPretty(opts: BuildOpts) {
     haveLabel,
     boughtLabel,
     sharesOf,
+    laterOf,
   } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
@@ -253,6 +256,11 @@ function buildPretty(opts: BuildOpts) {
               )}
             </Text>
             {sharesOf(i) && <Text style={prettyStyles.pantryHint}>{sharesOf(i)}</Text>}
+            {laterOf(i).map((later) => (
+              <Text key={later} style={prettyStyles.pantryHint}>
+                {later}
+              </Text>
+            ))}
           </View>
           <Text style={prettyStyles.qty}>
             {rowAmount(i.toBuyQuantity, i, formatQty)}
@@ -322,6 +330,7 @@ function buildFoldable(opts: BuildOpts) {
     ofLabel,
     haveLabel,
     sharesOf,
+    laterOf,
   } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
@@ -345,6 +354,11 @@ function buildFoldable(opts: BuildOpts) {
             )}
           </Text>
           {sharesOf(i) && <Text style={foldableStyles.pantryHint}>{sharesOf(i)}</Text>}
+          {laterOf(i).map((later) => (
+            <Text key={later} style={foldableStyles.pantryHint}>
+              {later}
+            </Text>
+          ))}
         </View>
         <Text style={foldableStyles.qty}>
           {rowAmount(i.toBuyQuantity, i, formatQty)}

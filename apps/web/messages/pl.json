@@ -1448,6 +1448,8 @@
     "partOf": "Ta lista to część listy dla domu: {profiles}. Odhaczenie tutaj zmienia tylko część tego planu.",
     "openHousehold": "Otwórz listę dla domu",
     "csvShares": "Dla kogo",
+    "buyLater": "Z\u00a0tego {packs, plural, one {{packs, number, ::group-off}\u00a0opakowanie} few {{packs, number, ::group-off}\u00a0opakowania} many {{packs, number, ::group-off}\u00a0opakowań} other {{packs, number, ::group-off}\u00a0opakowania}} kup najwcześniej {weekday, select, mon {w\u00a0poniedziałek} tue {we\u00a0wtorek} wed {w\u00a0środę} thu {w\u00a0czwartek} fri {w\u00a0piątek} sat {w\u00a0sobotę} sun {w\u00a0niedzielę} other {}} ({date}).",
+    "csvBuyLater": "Kiedy kupić",
     "replacesPart": "Lista z tych dni jest częścią listy dla domu: {profiles}. Nowa lista zajmie jej miejsce, a lista dla domu straci część tego planu."
   },
   "householdLists": {

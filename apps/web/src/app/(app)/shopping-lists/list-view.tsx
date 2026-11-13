@@ -25,7 +25,7 @@ import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
 import { AiOffNote } from '@/components/ai-off-note';
 import { ListProposals } from './list-proposals';
-import { packsStand, packsText } from './packs';
+import { laterLines, packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
 
 /** A row as the view shows it: of a plan's list, or of a household list with what each profile needs of it. */
@@ -157,6 +157,9 @@ export function ListView({
   const unitName = useUnitName();
   const locale = useLocale();
 
+  /** Of a row of fresh meat or fish, which of its packs to buy later and from which day. */
+  const laterOf = (item: ShoppingListItem): string[] =>
+    laterLines(item, (values) => t('buyLater', values), fmt.dayShort);
   /** What is still to be obtained for a row: its need less everything the user has for it. */
   const stillToBuy = (item: ShoppingListItem): number =>
     Math.max(0, item.totalQuantity - (item.purchasedQuantity ?? item.alreadyHaveQuantity));
@@ -179,7 +182,11 @@ export function ListView({
           ...left.flatMap((item) => {
             const line = `- ${item.name}: ${rowAmount(stillToBuy(item), item, formatQty)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`;
             const shares = sharesLine(item, formatQty);
-            return shares ? [line, `  ${shares}`] : [line];
+            return [
+              line,
+              ...(shares ? [`  ${shares}`] : []),
+              ...laterOf(item).map((later) => `  ${later}`),
+            ];
           }),
         ]),
     ]
@@ -198,6 +205,7 @@ export function ListView({
   // The whole list as a table for a spreadsheet: every row, ticked or not, with its numbers as numbers.
   function downloadCsv() {
     const forEach = everyItem.some((item) => item.shares);
+    const later = everyItem.some((item) => item.buyLater.length > 0);
     const head = (
       [
         'csvAisle',
@@ -211,6 +219,7 @@ export function ListView({
         'csvTicked',
         'csvEnergy',
         ...(forEach ? (['csvShares'] as const) : []),
+        ...(later ? (['csvBuyLater'] as const) : []),
       ] as const
     ).map((column) => t(column));
     const rows = list.groups.flatMap((group) =>
@@ -226,6 +235,7 @@ export function ListView({
         tCommon(item.checked ? 'yes' : 'no'),
         item.estimatedCalories,
         ...(forEach ? [sharesLine(item, formatQty) ?? ''] : []),
+        ...(later ? [laterOf(item).join(' ')] : []),
       ]),
     );
     saveText(
@@ -260,6 +270,7 @@ export function ListView({
         notesLabel,
         foldHereLabel,
         sharesOf: (item: ShownItem) => sharesLine(item, formatQty),
+        laterOf,
         mode: action === 'print' ? ('foldable-a4' as const) : ('pretty-a4' as const),
       };
       if (action === 'download') {
@@ -519,6 +530,12 @@ function ItemRow({
               {sharesLine(item, formatQty)}
             </span>
           )}
+          {/* Fresh meat or fish for a later day: which of its packs to buy later, and from when. */}
+          {laterLines(item, (values) => t('buyLater', values), fmt.dayShort).map((later) => (
+            <span key={later} className="block text-xs text-muted-foreground">
+              {later}
+            </span>
+          ))}
         </span>
       </label>
       <span className="tabular-nums text-muted-foreground">

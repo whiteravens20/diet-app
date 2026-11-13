@@ -1448,6 +1448,8 @@
     "partOf": "This list is a part of a household list: {profiles}. A tick here changes this plan's part only.",
     "openHousehold": "Open the household list",
     "csvShares": "For whom",
+    "buyLater": "Of these, buy {packs, plural, one {{packs, number, ::group-off}\u00a0pack} other {{packs, number, ::group-off}\u00a0packs}} on {weekday, select, mon {Monday} tue {Tuesday} wed {Wednesday} thu {Thursday} fri {Friday} sat {Saturday} sun {Sunday} other {}} ({date}) at the earliest.",
+    "csvBuyLater": "When to buy",
     "replacesPart": "A list of these days is a part of a household list: {profiles}. A new list takes its place, and the household list loses this plan's part."
   },
   "householdLists": {

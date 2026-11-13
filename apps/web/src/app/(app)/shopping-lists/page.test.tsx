@@ -354,6 +354,87 @@ describe('a shopping list, taken somewhere else', () => {
   });
 });
 
+describe('a row of fresh meat or fish needed on a later day', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Chicken for Monday and for Saturday 10 January 2026: two packs, one of them bought from Friday on. */
+  const chicken = (over: Partial<Entry> = {}) =>
+    anEntry('Chicken breast', 'grains', {
+      totalQuantity: 300,
+      toBuyQuantity: 300,
+      packs: { count: 2, size: 500, sizeUnit: 'g', quantity: 1000 },
+      buyLater: [{ packs: 1, from: '2026-01-09' }],
+      ...over,
+    });
+  const later = 'Of these, buy 1 pack on Friday (Jan 9) at the earliest.';
+
+  it('says which of its packs to buy later, and from which day', async () => {
+    await renderPage(aListOf([chicken()], []));
+
+    expect(screen.getByText(spaced(later))).toBeInTheDocument();
+  });
+
+  it('says it of each day packs are bought on, and nothing once the row is ticked', async () => {
+    await renderPage(
+      aListOf(
+        [
+          chicken({
+            packs: { count: 3, size: 500, sizeUnit: 'g', quantity: 1500 },
+            buyLater: [
+              { packs: 1, from: '2026-01-07' },
+              { packs: 1, from: '2026-01-10' },
+            ],
+          }),
+        ],
+        [],
+      ),
+    );
+    expect(
+      screen.getByText(spaced('Of these, buy 1 pack on Wednesday (Jan 7) at the earliest.')),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(spaced('Of these, buy 1 pack on Saturday (Jan 10) at the earliest.')),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing of when to buy a row that is ticked', async () => {
+    await renderPage(aListOf([chicken({ checked: true, purchasedQuantity: 1000 })], []));
+
+    expect(screen.queryByText(spaced(later))).toBeNull();
+  });
+
+  it('carries it into the copied text, under the row', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await renderPage(aListOf([chicken()], []));
+
+    await userEvent.click(screen.getByRole('button', { name: texts.copy }));
+
+    const lines = String(writeText.mock.calls[0]![0])
+      .replace(/[\u2009\u202f\u00a0]/g, ' ')
+      .split('\n');
+    expect(lines.slice(-2)).toEqual(['- Chicken breast: 300 g (2 × 500 g)', `  ${later}`]);
+  });
+
+  it('has a column for it in the table, there only where a row says it', async () => {
+    const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
+    await renderPage(aListOf([chicken(), anEntry('White rice', 'grains')], []));
+
+    await userEvent.click(screen.getByRole('button', { name: texts.csv }));
+
+    const table = saved.mock.calls[0]![0].slice(1)
+      .replace(/\u00a0/g, ' ')
+      .split('\r\n');
+    expect(table[0]!.split(',').at(-1)).toBe(texts.csvBuyLater);
+    // A comma of the sentence puts it in quotes.
+    expect(table[1]!.endsWith(`,"${later}"`)).toBe(true);
+    expect(table[2]!.endsWith(',')).toBe(true);
+  });
+});
+
 describe('a row of a shopping list', () => {
   afterEach(() => {
     vi.restoreAllMocks();
