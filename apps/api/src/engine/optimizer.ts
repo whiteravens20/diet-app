@@ -338,11 +338,11 @@ export const LESS_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
 export const NO_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
   balanced: { pantry: { now: 35, less: 37 }, packs: { now: 75, less: 90 }, fewerRecipes: 53 },
   high_protein: { pantry: { now: 43, less: 40 }, packs: { now: 74, less: 90 }, fewerRecipes: 51 },
-  low_carb: { pantry: { now: 60, less: 43 }, packs: { now: 66, less: 92 }, fewerRecipes: 55 },
-  vegetarian: { pantry: { now: 36, less: 42 }, packs: { now: 79, less: 90 }, fewerRecipes: 58 },
-  vegan: { pantry: { now: 58, less: 50 }, packs: { now: 78, less: 96 }, fewerRecipes: 51 },
+  low_carb: { pantry: { now: 60, less: 43 }, packs: { now: 66, less: 91 }, fewerRecipes: 55 },
+  vegetarian: { pantry: { now: 36, less: 42 }, packs: { now: 79, less: 91 }, fewerRecipes: 58 },
+  vegan: { pantry: { now: 58, less: 50 }, packs: { now: 78, less: 95 }, fewerRecipes: 51 },
   keto: { pantry: { now: 64, less: 37 }, packs: { now: 62, less: 87 }, fewerRecipes: 61 },
-  mediterranean: { pantry: { now: 53, less: 49 }, packs: { now: 65, less: 92 }, fewerRecipes: 48 },
+  mediterranean: { pantry: { now: 53, less: 49 }, packs: { now: 65, less: 91 }, fewerRecipes: 48 },
 };
 
 /** A day that is this far from its split, or further, gets nothing for it. */
