@@ -65,6 +65,25 @@ export const LessWasteEffect = z.object({
 export type LessWasteEffect = z.infer<typeof LessWasteEffect>;
 
 /**
+ * The rules of the two levels of a plan that wastes less, as the forms say them
+ * before one is chosen: what all the rests of packs of a day may add to it, in
+ * hundredths of its target, and of a plan that wastes nothing the repeats it
+ * allows whatever the profile says and the days an opened pack is eaten within.
+ */
+export const WasteRules = z.object({
+  less: z.object({ restsOfDay: Share }),
+  none: z.object({
+    restsOfDay: Share,
+    daysInARow: z.number().int().min(1),
+    timesAWeek: z.number().int().min(1),
+    twiceADay: z.boolean(),
+    meatAndFishDays: z.number().int().min(1),
+    otherDays: z.number().int().min(1),
+  }),
+});
+export type WasteRules = z.infer<typeof WasteRules>;
+
+/**
  * Public, unauthenticated runtime configuration the web app needs before a user
  * is signed in. Served by `GET /api/config`. Deliberately exposes only
  * non-secret operator choices so the front-end can self-configure at runtime
@@ -134,6 +153,10 @@ export const PublicConfig = z.object({
      * the catalogue, the pantry and the limits of a profile move it.
      */
     lessWaste: z.record(NamedDiet, LessWasteEffect),
+    /** What a plan that wastes nothing does on each diet, as `lessWaste` is measured: `less` is the level's own. */
+    noWaste: z.record(NamedDiet, LessWasteEffect),
+    /** The rules of the two levels. */
+    waste: WasteRules,
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

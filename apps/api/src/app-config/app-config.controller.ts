@@ -15,7 +15,8 @@ import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
 import { supplyByMealCount } from '../engine/coverage.js';
-import { LESS_WASTE_EFFECT } from '../engine/optimizer.js';
+import { LESS_WASTE_EFFECT, NO_WASTE_EFFECT } from '../engine/optimizer.js';
+import { LESS_WASTE, NO_WASTE, NO_WASTE_DAYS } from '../engine/waste-levels.js';
 import { MailService } from '../mail/mail.service.js';
 import { TurnstileService } from '../auth/turnstile.service.js';
 import { PACKAGE_VERSION } from './package-version.js';
@@ -76,6 +77,18 @@ export class AppConfigController {
         ) as Record<MealCountKey, MealType[]>,
         relaxations: [...PLAN_RELAXATIONS],
         lessWaste: LESS_WASTE_EFFECT,
+        noWaste: NO_WASTE_EFFECT,
+        waste: {
+          less: { restsOfDay: Math.round(LESS_WASTE.rests.ofDay * 100) },
+          none: {
+            restsOfDay: Math.round(NO_WASTE.rests.ofDay * 100),
+            daysInARow: NO_WASTE.repeats!.daysInARow,
+            timesAWeek: NO_WASTE.repeats!.timesAWeek,
+            twiceADay: NO_WASTE.repeats!.twiceADay,
+            meatAndFishDays: NO_WASTE_DAYS.meatAndFish,
+            otherDays: NO_WASTE_DAYS.other,
+          },
+        },
       },
     };
   }

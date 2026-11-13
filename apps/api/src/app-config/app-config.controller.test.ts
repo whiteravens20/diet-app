@@ -118,6 +118,27 @@ describe('GET /api/config', () => {
     }
   });
 
+  it('publishes what a plan that wastes nothing does on every diet, and the rules it keeps', async () => {
+    const { lessWaste, noWaste, waste } = (await configOf({})).plans;
+    expect(Object.keys(noWaste).sort()).toEqual([...NamedDiet.options].sort());
+    for (const diet of NamedDiet.options) {
+      // More of the packs used than a plan that wastes less, for fewer recipes still.
+      expect(noWaste[diet].packs.less).toBeGreaterThanOrEqual(lessWaste[diet].packs.less);
+      expect(noWaste[diet].fewerRecipes).toBeGreaterThan(lessWaste[diet].fewerRecipes);
+    }
+    expect(waste).toEqual({
+      less: { restsOfDay: 3 },
+      none: {
+        restsOfDay: 5,
+        daysInARow: 3,
+        timesAWeek: 5,
+        twiceADay: true,
+        meatAndFishDays: 3,
+        otherDays: 5,
+      },
+    });
+  });
+
   it('never carries a secret', async () => {
     const body = JSON.stringify(
       await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }),

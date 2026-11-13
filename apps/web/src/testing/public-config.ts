@@ -36,6 +36,20 @@ function aLessWaste(): Record<NamedDiet, LessWasteEffect> {
   ) as Record<NamedDiet, LessWasteEffect>;
 }
 
+/** What a plan that wastes nothing does on each diet, told apart from `aLessWaste` by its figures. */
+function aNoWaste(): Record<NamedDiet, LessWasteEffect> {
+  return Object.fromEntries(
+    NamedDiet.options.map((diet, i) => [
+      diet,
+      {
+        pantry: { now: 30 + i, less: 40 + i },
+        packs: { now: 70 + i, less: 90 + i },
+        fewerRecipes: 50 + i,
+      },
+    ]),
+  ) as Record<NamedDiet, LessWasteEffect>;
+}
+
 /** Nothing switched on, nothing published by the operator, plenty of recipes; a test overrides what it is about. */
 export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConfig {
   return {
@@ -56,6 +70,18 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
       },
       relaxations: [...PLAN_RELAXATIONS],
       lessWaste: aLessWaste(),
+      noWaste: aNoWaste(),
+      waste: {
+        less: { restsOfDay: 3 },
+        none: {
+          restsOfDay: 5,
+          daysInARow: 3,
+          timesAWeek: 5,
+          twiceADay: true,
+          meatAndFishDays: 3,
+          otherDays: 5,
+        },
+      },
     },
     ...overrides,
   };

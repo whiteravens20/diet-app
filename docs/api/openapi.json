@@ -15301,6 +15301,10 @@
             "default": false,
             "type": "boolean"
           },
+          "noWaste": {
+            "default": false,
+            "type": "boolean"
+          },
           "maxRepeatsPerRecipe": {
             "type": "integer",
             "minimum": 1,
@@ -19355,6 +19359,10 @@
             "default": false,
             "type": "boolean"
           },
+          "noWaste": {
+            "default": false,
+            "type": "boolean"
+          },
           "maxRepeatsPerRecipe": {
             "anyOf": [
               {
@@ -19381,6 +19389,7 @@
           "respectFavorites",
           "respectInventory",
           "lessWaste",
+          "noWaste",
           "maxRepeatsPerRecipe",
           "allowRelaxations"
         ],
@@ -23468,6 +23477,9 @@
             "$ref": "#/components/schemas/CalendarDay"
           },
           "lessWaste": {
+            "type": "boolean"
+          },
+          "noWaste": {
             "type": "boolean"
           }
         }
