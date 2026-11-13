@@ -19,7 +19,7 @@ import {
   type PackTally,
   type WeighRequest,
 } from '@diet-app/shared';
-import { ModelPickService } from '../ai/model-pick.service.js';
+import { ModelPickService, type DayOffer } from '../ai/model-pick.service.js';
 import { DAY_VARIATIONS } from '../ai/operations.js';
 import { WeighService } from '../ai/weigh.service.js';
 import { packUse, tallyOf } from '../engine/index.js';
@@ -31,7 +31,15 @@ import {
   MealPlansService,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { aimOfDay, isoDate, mealNutrition, sumNutrition } from './plan-days.js';
+import {
+  aimOfDay,
+  isoDate,
+  mealNutrition,
+  restsAsJson,
+  restsOf,
+  sumNutrition,
+  type StoredRest,
+} from './plan-days.js';
 import { toppingFiguresOf, toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds, packedMealsOf, PACKED_LINES, type PackedMeal } from './plan-menu.js';
@@ -109,7 +117,14 @@ export class DayVariationsService {
       .map((meal) => ({ slot: meal.mealType, recipeId: meal.recipeId! }));
     const seen = new Set([signature(replaced)]);
     const ways: {
-      placed: { slot: MealType; recipeId: string; servings: number; quantityScale: number }[];
+      placed: {
+        slot: MealType;
+        recipeId: string;
+        servings: number;
+        quantityScale: number;
+        /** The rests of packs it finishes, in a plan that wastes less. */
+        rests: StoredRest[];
+      }[];
       reuse: number;
     }[] = [];
     // Each way is filled around what the day holds and what the ways before it hold, so that it is another day and
@@ -140,11 +155,12 @@ export class DayVariationsService {
       if (result.report.relaxations.some((entry) => entry.date === date)) continue;
       const placed = result.assignments
         .filter((meal) => meal.dayIndex === dayIndex)
-        .map(({ slot, recipeId, servings, quantityScale }) => ({
+        .map(({ slot, recipeId, servings, quantityScale, rests }) => ({
           slot,
           recipeId,
           servings,
           quantityScale,
+          rests: rests ?? [],
         }));
       const found = signature(placed);
       if (placed.length === 0 || seen.has(found)) continue;
@@ -253,12 +269,14 @@ export class DayVariationsService {
             title: titleOf(recipe, locale),
             recipeId: recipe.id,
             servings: amount,
-            nutrition: {
-              calories: Math.round(recipe.caloriesPerServing * amount),
-              protein: Math.round(recipe.proteinPerServing * amount),
-              fat: Math.round(recipe.fatPerServing * amount),
-              carbs: Math.round(recipe.carbsPerServing * amount),
-            },
+            nutrition: mealNutrition({
+              servings: meal.servings,
+              quantityScale: meal.quantityScale,
+              rests: meal.rests,
+              source: 'CATALOGUE',
+              customMacros: null,
+              recipe,
+            }),
             stays: false,
           };
         });
@@ -268,13 +286,38 @@ export class DayVariationsService {
           dayNutrition: withDiary(meals.map((meal) => meal.nutrition)),
           packs: tally([
             ...rest,
-            ...way.placed.map((meal) => ({
-              day: dayIndex,
-              factor:
-                (meal.servings * meal.quantityScale) /
-                Math.max(1, recipeOf.get(meal.recipeId)!.servings),
-              lines: recipeOf.get(meal.recipeId)!.ingredients,
-            })),
+            ...way.placed.flatMap((meal) => {
+              const recipe = recipeOf.get(meal.recipeId)!;
+              return [
+                {
+                  day: dayIndex,
+                  factor: (meal.servings * meal.quantityScale) / Math.max(1, recipe.servings),
+                  lines: recipe.ingredients,
+                },
+                // The rests of packs it finishes, of ingredients of its recipe.
+                ...meal.rests.flatMap((rest) => {
+                  const line = recipe.ingredients.find(
+                    (one) => one.ingredientId === rest.ingredientId,
+                  );
+                  return line
+                    ? [
+                        {
+                          day: dayIndex,
+                          factor: 1,
+                          lines: [
+                            {
+                              ingredientId: rest.ingredientId,
+                              quantity: rest.amount,
+                              unit: rest.unit,
+                              ingredient: line.ingredient,
+                            },
+                          ],
+                        },
+                      ]
+                    : [];
+                }),
+              ];
+            }),
           ]),
           reason: null,
           way,
@@ -347,12 +390,11 @@ export class DayVariationsService {
           plan: planId,
           day: dayId,
           revision: plan.revision,
-          meals: way.placed.map((meal) => [
-            meal.slot,
-            meal.recipeId,
-            meal.servings,
-            meal.quantityScale,
-          ]),
+          meals: way.placed.map((meal): DayOffer['meals'][number] =>
+            meal.rests.length > 0
+              ? [meal.slot, meal.recipeId, meal.servings, meal.quantityScale, meal.rests]
+              : [meal.slot, meal.recipeId, meal.servings, meal.quantityScale],
+          ),
           reuse: way.reuse,
           picked: picked && index === 0,
           reason: picked && index === 0 ? variation.reason : null,
@@ -418,12 +460,13 @@ export class DayVariationsService {
         .map((meal) => meal.id);
       await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
       await tx.plannedMeal.createMany({
-        data: offer.meals.map(([mealType, recipeId, servings, quantityScale]) => ({
+        data: offer.meals.map(([mealType, recipeId, servings, quantityScale, rests]) => ({
           dayId,
           recipeId,
           mealType,
           servings,
           quantityScale,
+          ...(rests ? { rests: restsAsJson(restsOf(rests)) } : {}),
           modelPicked: offer.picked,
           modelReason: offer.picked ? offer.reason : null,
         })),

@@ -36,7 +36,8 @@ export interface DayOffer {
   plan: string;
   day: string;
   revision: number;
-  meals: [meal: string, recipe: string, servings: number, quantityScale: number][];
+  /** Each meal of the way, with the rests of packs it finishes where it finishes any. */
+  meals: [meal: string, recipe: string, servings: number, quantityScale: number, rests?: unknown][];
   reuse: number;
   picked: boolean;
   reason: string | null;

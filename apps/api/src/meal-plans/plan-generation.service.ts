@@ -29,6 +29,7 @@ import {
   type PlanRelaxation,
   type RelaxationNeeded,
   type UnfilledMeal,
+  type Unit,
 } from '@diet-app/shared';
 import {
   amountsPerServing,
@@ -48,9 +49,12 @@ import {
   requirementsPerServing,
   closePacks,
   kitchenNeeds,
+  LESS_WASTE_RESTS,
   packKitchen,
+  packRests,
   reuseScore,
   type ClosingPlan,
+  type MealRest,
   type PackKitchen,
   type KeptMeal,
   type OptimizerDay,
@@ -64,6 +68,7 @@ import {
   type ToppedAssignment,
   type ToppingOption,
 } from '../engine/index.js';
+import { labelOfAmount, roundLabel } from '../engine/label-totals.js';
 import { holdProfile } from '../common/hold.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
@@ -76,6 +81,8 @@ import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.s
 import {
   customMacros,
   isoDate,
+  restsOf,
+  type StoredRest,
   isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
@@ -318,13 +325,18 @@ export class PlanGenerationService {
       days: locked,
       topped: { slots: shared, options: toppingOptions },
     });
-    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given.
-    const [ofFirst, ofSecond] = await closeTogether(
+    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given, and the
+    // rests of the packs go into the meals that finish them after.
+    const sharedMeals = atShared.map(({ dayIndex, slot }) => ({ dayIndex, slot }));
+    const together = await closeTogether(
       drawnFirst,
       drawnSecond,
-      atShared.map(({ dayIndex, slot }) => ({ dayIndex, slot })),
+      sharedMeals,
       req.lessWaste === true,
     );
+    const [ofFirst, ofSecond] = req.lessWaste
+      ? await this.withRests(together, [drawnFirst, drawnSecond], sharedMeals)
+      : together;
 
     const planId = await this.prisma.$transaction(async (tx) => {
       // Held in one order, so that two joint plans of the same two profiles asked at once wait for each other.
@@ -671,14 +683,18 @@ export class PlanGenerationService {
         const servings = meal.servings * meal.quantityScale;
         const topping = meal.toppingKey !== null ? toppingPer100.get(meal.toppingKey) : undefined;
         const part = topping ? (meal.toppingAmount ?? 0) / 100 : 0;
+        // The rests of packs it finishes count with it.
+        const rests = restsOf(meal.rests);
+        const plus = (of: 'calories' | 'protein' | 'fat' | 'carbs'): number =>
+          (topping?.[of] ?? 0) * part + rests.reduce((sum, rest) => sum + rest.figures[of], 0);
         return {
           recipeId: meal.recipeId ?? undefined,
-          calories: perServing.calories * servings + (topping?.calories ?? 0) * part,
+          calories: perServing.calories * servings + plus('calories'),
           servings,
           macros: {
-            protein: perServing.protein * servings + (topping?.protein ?? 0) * part,
-            fat: perServing.fat * servings + (topping?.fat ?? 0) * part,
-            carbs: perServing.carbs * servings + (topping?.carbs ?? 0) * part,
+            protein: perServing.protein * servings + plus('protein'),
+            fat: perServing.fat * servings + plus('fat'),
+            carbs: perServing.carbs * servings + plus('carbs'),
           },
         };
       };
@@ -890,13 +906,12 @@ export class PlanGenerationService {
       slots: shared,
       options: toppingOptions,
     });
-    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given.
-    const [ofMine, ofTheirs] = await closeTogether(
-      drawnMine,
-      drawnTheirs,
-      atShared,
-      mine.lessWaste,
-    );
+    // The two are cooked in one kitchen: their packs are closed together, before the toppings are given, and the
+    // rests of the packs go into the meals that finish them after.
+    const together = await closeTogether(drawnMine, drawnTheirs, atShared, mine.lessWaste);
+    const [ofMine, ofTheirs] = mine.lessWaste
+      ? await this.withRests(together, [drawnMine, drawnTheirs], atShared)
+      : together;
     const [mineOutcome, theirOutcome] = await Promise.all([
       this.outcomeOf(mine, ofMine, options),
       this.outcomeOf(theirs, ofTheirs, options),
@@ -1055,6 +1070,7 @@ export class PlanGenerationService {
             ...(placed.topping
               ? { toppingKey: placed.topping.key, toppingAmount: placed.topping.amount }
               : {}),
+            ...(placed.rests ? { rests: placed.rests } : {}),
           })),
       });
     }
@@ -1133,7 +1149,86 @@ export class PlanGenerationService {
       packs: drawn.packs,
       pantry: drawn.pantry,
     });
-    return drawn.finish(closed!, kitchenOf([{ ...drawn.closing, assignments: closed! }], [drawn]));
+    const finished = await drawn.finish(
+      closed!,
+      kitchenOf([{ ...drawn.closing, assignments: closed! }], [drawn]),
+    );
+    return (await this.withRests([finished], [drawn]))[0]!;
+  }
+
+  /**
+   * The plans of one kitchen, as they were finished, with the rests of packs their
+   * meals finish (`packRests`) in a plan that wastes less: each rest with what it
+   * holds, as the meal keeps it.
+   */
+  private async withRests(
+    finished: readonly Optimised[],
+    drawn: readonly Drawn[],
+    shared: readonly { dayIndex: number; slot: MealType }[] = [],
+  ): Promise<Optimised[]> {
+    const optionOf = new Map(
+      drawn.flatMap((one) => one.toppingOptions).map((option) => [option.topping.key, option]),
+    );
+    const packs = new Map(drawn.flatMap((one) => [...one.packs]));
+    for (const option of optionOf.values()) if (option.pack) packs.set(option.food.id, option.pack);
+    const foods = new Map(
+      (
+        await this.prisma.ingredient.findMany({
+          where: { id: { in: [...packs.keys()] } },
+          select: {
+            id: true,
+            canonicalUnit: true,
+            caloriesPer100: true,
+            proteinPer100: true,
+            fatPer100: true,
+            carbsPer100: true,
+            fiberPer100: true,
+            sugarsPer100: true,
+            saltPer100: true,
+            saturatedFatPer100: true,
+          },
+        })
+      ).map((food) => [food.id, food]),
+    );
+    const given = packRests({
+      plans: finished.map((plan, p) => ({
+        ...drawn[p]!.closing,
+        assignments: plan.assignments,
+        toppings: new Map(
+          plan.assignments.flatMap((meal, index) => {
+            const option = meal.topping ? optionOf.get(meal.topping.key) : undefined;
+            return option && meal.topping
+              ? [
+                  [
+                    index,
+                    {
+                      ingredientId: option.food.id,
+                      amount: meal.topping.amount,
+                      calories: (option.per100.calories * meal.topping.amount) / 100,
+                    },
+                  ] as const,
+                ]
+              : [];
+          }),
+        ),
+      })),
+      shared,
+      fixed: fixedOf(drawn),
+      packs,
+      energyPer100: new Map([...foods].map(([id, food]) => [id, food.caloriesPer100])),
+      caps: LESS_WASTE_RESTS,
+    });
+    return finished.map((plan, p) => ({
+      ...plan,
+      assignments: plan.assignments.map((meal, index) => {
+        const rests = (given[p]!.get(index) ?? []).flatMap((rest) => {
+          const food = foods.get(rest.ingredientId);
+          const kept = food ? storedRestOf(food, rest) : null;
+          return kept ? [kept] : [];
+        });
+        return rests.length > 0 ? { ...meal, rests } : meal;
+      }),
+    }));
   }
 
   /**
@@ -1388,6 +1483,7 @@ export class PlanGenerationService {
         fixed: kitchen.needs,
         packs: new Map([...kitchen.packs, ...perishablePacks]),
         pantry: pantry.stock,
+        toppingOptions: opts.topped?.options ?? [],
         shared: [...sharedSlots],
         finish: async (closed, kitchen) => {
           const finished = closedResult(result, closed, days, optimizerRecipes);
@@ -1785,9 +1881,15 @@ interface JointAsk {
 /** A plan read for days of it to be filled again (`prepare`). */
 type Prepared = Awaited<ReturnType<PlanGenerationService['prepare']>>;
 
+/** A meal the planner placed, sized, with its topping and the rests of packs it finishes. */
+type PlacedMeal = SizedAssignment & {
+  topping?: ToppedAssignment['topping'];
+  rests?: StoredRest[];
+};
+
 /** A plan the optimiser made for a profile, finished: its meals with their toppings, and its report. */
 interface Optimised {
-  assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[];
+  assignments: PlacedMeal[];
   ingredientReuseScore: number;
   report: StoredReport;
   pantryRound?: PantryRound;
@@ -1803,6 +1905,8 @@ interface Drawn {
   packs: Map<string, Pack>;
   /** What the pantry holds of each ingredient, where the plan counts it: closing the packs takes no less of it. */
   pantry?: Map<string, number>;
+  /** The toppings its meals may be given: what they take of the packs, and what they hold. */
+  toppingOptions: readonly ToppingOption[];
   /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
   shared: MealType[];
   /**
@@ -1811,6 +1915,38 @@ interface Drawn {
    * together, which the toppings are chosen by and taken from.
    */
   finish: (closed: readonly SizedAssignment[], kitchen?: PackKitchen) => Promise<Optimised>;
+}
+
+/** A rest as a meal keeps it: its amount and what that holds, to a tenth; null for one too small to keep. */
+function storedRestOf(
+  food: {
+    canonicalUnit: Unit;
+    caloriesPer100: number;
+    proteinPer100: number;
+    fatPer100: number;
+    carbsPer100: number;
+    fiberPer100: number | null;
+    sugarsPer100: number | null;
+    saltPer100: number | null;
+    saturatedFatPer100: number | null;
+  },
+  rest: MealRest,
+): StoredRest | null {
+  const tenth = (value: number): number => Math.round(value * 10) / 10;
+  const amount = tenth(rest.amount);
+  if (amount <= 0) return null;
+  return {
+    ingredientId: rest.ingredientId,
+    amount,
+    unit: food.canonicalUnit,
+    figures: {
+      calories: tenth((food.caloriesPer100 * amount) / 100),
+      protein: tenth((food.proteinPer100 * amount) / 100),
+      fat: tenth((food.fatPer100 * amount) / 100),
+      carbs: tenth((food.carbsPer100 * amount) / 100),
+    },
+    label: roundLabel(labelOfAmount(food, amount)),
+  };
 }
 
 /**
@@ -2141,10 +2277,7 @@ function keptOfDiary(diary: DiaryOnDay | undefined): KeptMeal[] {
 }
 
 /** Nested `days.create` payload from resolved days + optimiser assignments. */
-function buildDays(
-  resolved: ResolvedDay[],
-  assignments: (SizedAssignment & { topping?: ToppedAssignment['topping'] })[],
-) {
+function buildDays(resolved: ResolvedDay[], assignments: PlacedMeal[]) {
   return resolved.map((d, dayIndex) => ({
     date: d.date,
     calorieTarget: d.calorieTarget,
@@ -2158,6 +2291,7 @@ function buildDays(
           servings: a.servings,
           quantityScale: a.quantityScale,
           ...(a.topping ? { toppingKey: a.topping.key, toppingAmount: a.topping.amount } : {}),
+          ...(a.rests ? { rests: a.rests } : {}),
         })),
     },
   }));

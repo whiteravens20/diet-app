@@ -219,4 +219,32 @@ describe('the rest of a pack a meal finishes', () => {
     // The database keeps the keys of JSON in an order of its own: compared as values.
     expect(meals.map((meal) => meal.rests)).toContainEqual([rest()]);
   });
+
+  it('is put into a plan that wastes less only of an ingredient of the meal, within 3 % of a day', async () => {
+    let given = 0;
+    for (const startDate of ['2026-02-02', '2026-03-02', '2026-04-06']) {
+      const made = await aPlan(t, user, profile, { startDate, durationDays: 7, lessWaste: true });
+      const rows = await t.prisma.plannedMeal.findMany({
+        where: { day: { planId: made.id } },
+        include: { day: true, recipe: { include: { ingredients: true } } },
+      });
+      const byDay = new Map<string, number>();
+      for (const row of rows) {
+        for (const one of restsOf(row.rests)) {
+          expect(
+            row.recipe!.ingredients.some((line) => line.ingredientId === one.ingredientId),
+          ).toBe(true);
+          expect(one.amount).toBeGreaterThan(0);
+          given += 1;
+          byDay.set(row.dayId, (byDay.get(row.dayId) ?? 0) + one.figures.calories);
+        }
+      }
+      for (const [dayId, added] of byDay) {
+        const target = rows.find((row) => row.dayId === dayId)!.day.calorieTarget;
+        expect(added).toBeLessThanOrEqual(0.03 * target + 0.5);
+      }
+    }
+    // The catalogue of the tests gives the planner rests to put in: what is checked is there.
+    expect(given).toBeGreaterThan(0);
+  });
 });

@@ -454,6 +454,9 @@ export class DaySettingsService {
           recipeId: meal.recipeId,
           mealType: meal.slot,
           servings: meal.servings,
+          // In a plan that wastes less, the portion its packs were closed with, and the rests of packs it finishes.
+          ...(prepared.lessWaste ? { quantityScale: meal.quantityScale } : {}),
+          ...(meal.rests ? { rests: meal.rests } : {}),
         })),
       });
       await tx.mealPlan.update({
