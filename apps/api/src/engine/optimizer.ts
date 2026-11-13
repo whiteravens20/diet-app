@@ -329,6 +329,22 @@ export const LESS_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
   mediterranean: { pantry: { now: 53, less: 67 }, packs: { now: 65, less: 83 }, fewerRecipes: 30 },
 };
 
+/**
+ * What a plan that wastes nothing does against one that does not, measured as
+ * `LESS_WASTE_EFFECT` is: the rows "now" and "no waste" of the same table, at
+ * the level `NO_WASTE` (its weights, its days to eat an opened pack within, its
+ * repeats, its closing and its rests). `less` is the level's own figure.
+ */
+export const NO_WASTE_EFFECT: Record<NamedDiet, LessWasteEffect> = {
+  balanced: { pantry: { now: 35, less: 37 }, packs: { now: 75, less: 90 }, fewerRecipes: 53 },
+  high_protein: { pantry: { now: 43, less: 40 }, packs: { now: 74, less: 90 }, fewerRecipes: 51 },
+  low_carb: { pantry: { now: 60, less: 43 }, packs: { now: 66, less: 92 }, fewerRecipes: 55 },
+  vegetarian: { pantry: { now: 36, less: 42 }, packs: { now: 79, less: 90 }, fewerRecipes: 58 },
+  vegan: { pantry: { now: 58, less: 50 }, packs: { now: 78, less: 96 }, fewerRecipes: 51 },
+  keto: { pantry: { now: 64, less: 37 }, packs: { now: 62, less: 87 }, fewerRecipes: 61 },
+  mediterranean: { pantry: { now: 53, less: 49 }, packs: { now: 65, less: 92 }, fewerRecipes: 48 },
+};
+
 /** A day that is this far from its split, or further, gets nothing for it. */
 const MACRO_REACH = 0.5;
 

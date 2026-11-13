@@ -565,6 +565,7 @@ function MealPlansContent() {
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: withPantry || lessWaste,
       lessWaste,
+      noWaste: false,
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
       // A joint plan is made without settings of its days.
       ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),

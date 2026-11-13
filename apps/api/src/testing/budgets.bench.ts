@@ -69,8 +69,11 @@ const ONE_WEEK = {
 /** A page that is read: within 200 ms, and no more statements than a page of anything needs. */
 const READ: Budget = { ms: 200, statements: 30 };
 
-/** A plan may be made twenty times a minute by one account, so the runs are spread over several. */
-const ACCOUNTS = 6;
+/**
+ * A plan may be made twenty times a minute by one account, so the runs are spread over several: enough for the
+ * four paths that make plans, one after another.
+ */
+const ACCOUNTS = 8;
 
 const DATA = join(__dirname, '../../../../data');
 
@@ -295,6 +298,25 @@ describe('the budgets of the server, at the reference catalogue', () => {
             profileId,
             ...FOUR_WEEKS,
             lessWaste: true,
+          })
+        ).ms;
+      },
+    );
+    expect(overBudget()).toEqual([]);
+  });
+
+  it('makes a plan of four weeks and five meals a day that wastes nothing within 1500 ms', async () => {
+    // Planned with the level's days to eat a pack within and its repeats, its packs closed and their rests given.
+    await measure(
+      'POST /meal-plans/generate (28 days, 5 meals, no waste)',
+      { ms: 1500, statements: 90 },
+      async (index) => {
+        const { user, profileId } = accounts[index % ACCOUNTS]!;
+        return (
+          await ask(user, 'POST', '/api/meal-plans/generate', {
+            profileId,
+            ...FOUR_WEEKS,
+            noWaste: true,
           })
         ).ms;
       },

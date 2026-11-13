@@ -158,6 +158,18 @@ export const GeneratePlanRequest = z
      */
     lessWaste: z.boolean().default(false),
     /**
+     * Waste nothing: the stricter level of `lessWaste`, which it takes with it.
+     * Every pack is to be used within days (meat and fish within 3 at most,
+     * anything else within 5), the same dish may come up to 3 days running, 5
+     * times in seven days and twice a day whatever the profile says (its limits
+     * on kinds of protein, its allergens, what it avoids and its diet hold), a
+     * day may come a little further from its split, and the rest of a pack goes
+     * into the meal that finishes it up to as much again as that meal takes and
+     * 5 % of the day. What it does on each diet, and its rules, are in
+     * `PublicConfig.plans`. Off by default.
+     */
+    noWaste: z.boolean().default(false),
+    /**
      * Variety floor: max total times any one recipe may appear across the
      * whole plan window. Omitted = no floor.
      */
@@ -254,6 +266,8 @@ export const PlanOptions = z.object({
   respectInventory: z.boolean(),
   /** The plan wastes less (see `GeneratePlanRequest.lessWaste`); a plan made before it was offered does not. */
   lessWaste: z.boolean().default(false),
+  /** The plan wastes nothing (see `GeneratePlanRequest.noWaste`), and wastes less with it. */
+  noWaste: z.boolean().default(false),
   maxRepeatsPerRecipe: z.number().int().nullable(),
   /** The limits that may give way when the plan is made again. */
   allowRelaxations: z.array(PlanRelaxation),
@@ -535,6 +549,8 @@ export const RegenerateRequest = RerollOptions.extend({
    * plan has it; a part of the plan made again always has it as the plan does.
    */
   lessWaste: z.boolean().optional(),
+  /** Whether the plan wastes nothing (`GeneratePlanRequest.noWaste`) from now on, as `lessWaste` is kept. */
+  noWaste: z.boolean().optional(),
 }).prefault({});
 export type RegenerateRequest = z.infer<typeof RegenerateRequest>;
 

@@ -187,6 +187,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     respectFavorites: true,
     respectInventory: true,
     lessWaste: false,
+    noWaste: false,
     maxRepeatsPerRecipe: null,
     allowRelaxations: [],
   },

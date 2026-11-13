@@ -84,6 +84,24 @@ describe('a plan that wastes less', () => {
     expect(part.options.lessWaste).toBe(false);
   });
 
+  it('wastes nothing only where it is asked to, wasting less with it, kept as that is', async () => {
+    const strict = await generate({ noWaste: true });
+    expect(strict.options).toMatchObject({ lessWaste: true, noWaste: true });
+    expect((await generate({ lessWaste: true })).options).toMatchObject({ noWaste: false });
+
+    // Made again, it stays; a part of it is made as the plan is; told it wastes less no more, it wastes nothing no more.
+    expect((await again(strict)).options).toMatchObject({ lessWaste: true, noWaste: true });
+    const part = await again(strict, { from: '2026-01-06', to: '2026-01-06', noWaste: false });
+    expect(part.options).toMatchObject({ lessWaste: true, noWaste: true });
+    const plain = await again(strict, { lessWaste: false });
+    expect(plain.options).toMatchObject({ lessWaste: false, noWaste: false });
+    // And a plan made again to waste nothing wastes less as well.
+    expect((await again(plain, { noWaste: true })).options).toMatchObject({
+      lessWaste: true,
+      noWaste: true,
+    });
+  });
+
   describe('with something in the pantry', () => {
     const streak = async (): Promise<number> =>
       (await t.prisma.profile.findUniqueOrThrow({ where: { id: profile.id } })).inventoryBiasStreak;

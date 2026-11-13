@@ -35,7 +35,6 @@ import {
   amountsPerServing,
   dayMacros,
   effectiveDayTarget,
-  LESS_WASTE_WEIGHTS,
   macroSplitOf,
   macrosForCalories,
   optimisePlan,
@@ -49,12 +48,14 @@ import {
   requirementsPerServing,
   closePacks,
   kitchenNeeds,
-  LESS_WASTE_RESTS,
+  LESS_WASTE,
+  NO_WASTE,
   packKitchen,
   packRests,
   reuseScore,
   type ClosingPlan,
   type MealRest,
+  type WasteLevel,
   type PackKitchen,
   type KeptMeal,
   type OptimizerDay,
@@ -109,7 +110,9 @@ export class PlanGenerationService {
   ) {}
 
   /** Deterministically generate and persist a meal plan. */
-  async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
+  async generate(userId: string, locale: Locale, asked: GeneratePlanRequest): Promise<MealPlan> {
+    // A plan that wastes nothing wastes less as well.
+    const req = asked.noWaste ? { ...asked, lessWaste: true } : asked;
     if (req.withProfileId) return this.generateJoint(userId, locale, req, req.withProfileId);
     const profile = await this.plans.loadProfile(userId, req.profileId);
     // A profile that holds the most plans is told so before a plan is worked out for nothing.
@@ -125,6 +128,7 @@ export class PlanGenerationService {
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
       lessWaste: req.lessWaste,
+      noWaste: req.noWaste,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
       allowRelaxations: req.allowRelaxations,
     };
@@ -160,6 +164,7 @@ export class PlanGenerationService {
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
       lessWaste: req.lessWaste,
+      noWaste: req.noWaste,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
       allowRelaxations: req.allowRelaxations,
       seed,
@@ -242,6 +247,7 @@ export class PlanGenerationService {
           respectFavorites: req.respectFavorites,
           respectInventory: req.respectInventory,
           lessWaste: req.lessWaste,
+          noWaste: req.noWaste,
           maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
           allowRelaxations: req.allowRelaxations,
         };
@@ -266,6 +272,7 @@ export class PlanGenerationService {
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
       lessWaste: req.lessWaste,
+      noWaste: req.noWaste,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
       allowRelaxations: req.allowRelaxations,
       seed: side.seed,
@@ -593,7 +600,7 @@ export class PlanGenerationService {
     userId: string,
     planId: string,
     range: { from?: string; to?: string },
-    options: RegenerateDayRequest & { lessWaste?: boolean },
+    options: RegenerateDayRequest & { lessWaste?: boolean; noWaste?: boolean },
     clientToday: string | null,
   ) {
     const plan = await this.prisma.mealPlan.findUnique({
@@ -647,7 +654,11 @@ export class PlanGenerationService {
     const diary = await diaryOfDays(this.prisma, plan.profileId, plan.days);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     // Asked of the whole plan, it is kept with the plan; a part of it is made as the plan is.
-    const lessWaste = whole ? (options.lessWaste ?? made.lessWaste) : made.lessWaste;
+    // A plan made again by the whole that is told it wastes less no more wastes nothing either; one that wastes nothing wastes less.
+    const noWaste = whole
+      ? (options.noWaste ?? (options.lessWaste === false ? false : made.noWaste))
+      : made.noWaste;
+    const lessWaste = (whole ? (options.lessWaste ?? made.lessWaste) : made.lessWaste) || noWaste;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
     // A plan that is made again takes the split the profile has now; days of it that are filled again, the one the plan was made with.
@@ -759,6 +770,7 @@ export class PlanGenerationService {
       diary,
       allowRelaxations,
       lessWaste,
+      noWaste,
       base,
       dietType,
       macroSplit,
@@ -977,6 +989,7 @@ export class PlanGenerationService {
       respectFavorites: prepared.made.respectFavorites,
       respectInventory: prepared.made.respectInventory,
       lessWaste: prepared.lessWaste,
+      noWaste: prepared.noWaste,
       maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
       allowRelaxations: prepared.allowRelaxations,
       dropIneligibleLocks: prepared.dropIneligibleLocks,
@@ -1036,6 +1049,7 @@ export class PlanGenerationService {
       filled,
       allowRelaxations,
       lessWaste,
+      noWaste,
       base,
       dietType,
       macroSplit,
@@ -1085,7 +1099,7 @@ export class PlanGenerationService {
               calorieTarget: base.target,
               dietType,
               macroSplit: macroSplit ?? Prisma.JsonNull,
-              options: { ...made, allowRelaxations, lessWaste },
+              options: { ...made, allowRelaxations, lessWaste, noWaste },
               seed,
             }
           : {}),
@@ -1148,6 +1162,7 @@ export class PlanGenerationService {
       fixed: drawn.fixed,
       packs: drawn.packs,
       pantry: drawn.pantry,
+      splitSlack: drawn.level.splitSlack,
     });
     const finished = await drawn.finish(
       closed!,
@@ -1216,7 +1231,7 @@ export class PlanGenerationService {
       fixed: fixedOf(drawn),
       packs,
       energyPer100: new Map([...foods].map(([id, food]) => [id, food.caloriesPer100])),
-      caps: LESS_WASTE_RESTS,
+      caps: drawn[0]!.level.rests,
     });
     return finished.map((plan, p) => ({
       ...plan,
@@ -1270,6 +1285,8 @@ export class PlanGenerationService {
       respectInventory?: boolean;
       /** Lean much harder on the pantry and the packs (`LESS_WASTE_WEIGHTS`), and close the packs after. */
       lessWaste?: boolean;
+      /** Of a plan that wastes less, the stricter level: it wastes nothing (`NO_WASTE`). */
+      noWaste?: boolean;
       /**
        * What stays in the plan takes of the packs, and of a joint plan made again
        * alone what the other plan takes: what closing the packs counts with.
@@ -1294,8 +1311,11 @@ export class PlanGenerationService {
       seed: number;
     },
   ): Promise<Drawn> {
+    // The level of a plan that wastes less, where it is one.
+    const level = !opts.lessWaste ? null : opts.noWaste ? NO_WASTE : LESS_WASTE;
     const loaded = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
+      ...(level ? { keepDays: level.keepDays } : {}),
     });
     const { requirementsByRecipe, beforeProfileRules, perishablePacks } = loaded;
     const joint = opts.joint;
@@ -1394,10 +1414,19 @@ export class PlanGenerationService {
     }
 
     // Planned together, the stricter of the two profiles' limits holds: the dishes it chooses go into both plans.
-    const caps = stricterCaps(
+    const stricter = stricterCaps(
       capsOnARecipe(profile.preferences, opts.mealPrepFriendly),
       joint ? capsOnARecipe(joint.preferences, opts.mealPrepFriendly) : null,
     );
+    // A plan that wastes nothing allows the repeats of its level whatever the profiles say, and more where they do.
+    const repeats = level?.repeats;
+    const caps = repeats
+      ? {
+          ...stricter,
+          consecutive: Math.max(stricter.consecutive, repeats.daysInARow),
+          perWeek: Math.max(stricter.perWeek, repeats.timesAWeek),
+        }
+      : stricter;
     const perKind = stricterKinds(
       mealsPerKind(profile.preferences),
       joint ? mealsPerKind(joint.preferences) : null,
@@ -1459,11 +1488,12 @@ export class PlanGenerationService {
           maxTimesPerWeekSameMeal: caps.perWeek,
           maxRepeatsPerRecipe: perPlan,
           maxMealsPerKind: perKind,
+          ...(repeats?.twiceADay ? { twiceADay: true } : {}),
           perishablePacks,
           allowRelaxations: new Set(opts.allowRelaxations),
           seed: opts.seed,
         },
-        opts.lessWaste ? LESS_WASTE_WEIGHTS : SCORE_WEIGHTS,
+        level?.weights ?? SCORE_WEIGHTS,
       );
       const sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
       // What stays in the plan, and what another plan of the kitchen takes, with the packs it takes them from.
@@ -1477,13 +1507,20 @@ export class PlanGenerationService {
           split,
           dietType: opts.dietType,
           mealPrepFriendly: opts.mealPrepFriendly,
-          limits: { consecutive: caps.consecutive, perWeek: caps.perWeek, perPlan, perKind },
+          limits: {
+            consecutive: caps.consecutive,
+            perWeek: caps.perWeek,
+            perPlan,
+            perKind,
+            ...(repeats?.twiceADay ? { twiceADay: true } : {}),
+          },
           dislikedIngredientIds: disliked,
         },
         fixed: kitchen.needs,
         packs: new Map([...kitchen.packs, ...perishablePacks]),
         pantry: pantry.stock,
         toppingOptions: opts.topped?.options ?? [],
+        level: level ?? LESS_WASTE,
         shared: [...sharedSlots],
         finish: async (closed, kitchen) => {
           const finished = closedResult(result, closed, days, optimizerRecipes);
@@ -1650,7 +1687,11 @@ export class PlanGenerationService {
         favoriteIngredientIds: string[];
       } | null;
     },
-    options: { respectExclusions?: boolean } = {},
+    options: {
+      respectExclusions?: boolean;
+      /** The days an opened pack is to be eaten within: its own, or a level's fewer (`WasteLevel.keepDays`). */
+      keepDays?: WasteLevel['keepDays'];
+    } = {},
   ): Promise<{
     optimizerRecipes: OptimizerRecipe[];
     /**
@@ -1774,7 +1815,7 @@ export class PlanGenerationService {
       if (line.ingredient.perishable && line.ingredient.packSize)
         perishablePacks.set(line.ingredientId, {
           size: line.ingredient.packSize,
-          keepDays: keepDaysOf(line.ingredient),
+          keepDays: (options.keepDays ?? keepDaysOf)(line.ingredient),
         });
     }
 
@@ -1907,6 +1948,8 @@ interface Drawn {
   pantry?: Map<string, number>;
   /** The toppings its meals may be given: what they take of the packs, and what they hold. */
   toppingOptions: readonly ToppingOption[];
+  /** The level of a plan that wastes less it was drawn at: how its packs are closed and what rests its meals take. */
+  level: WasteLevel;
   /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
   shared: MealType[];
   /**
@@ -2003,6 +2046,7 @@ async function closeTogether(
     packs: new Map([...first.packs, ...second.packs]),
     // The first plan counts both pantries (`resolveInventoryBias`).
     pantry: first.pantry ?? second.pantry,
+    splitSlack: first.level.splitSlack,
   });
   // One kitchen for the toppings of both: those of the first are there when the second's are chosen.
   const kitchen = kitchenOf(

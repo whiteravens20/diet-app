@@ -21911,13 +21911,36 @@
                   "keto",
                   "mediterranean"
                 ]
+              },
+              "noWaste": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/components/schemas/NamedDiet"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/LessWasteEffect"
+                },
+                "required": [
+                  "balanced",
+                  "high_protein",
+                  "low_carb",
+                  "vegetarian",
+                  "vegan",
+                  "keto",
+                  "mediterranean"
+                ]
+              },
+              "waste": {
+                "$ref": "#/components/schemas/WasteRules"
               }
             },
             "required": [
               "maxRepeatsPerRecipe",
               "mealSlots",
               "relaxations",
-              "lessWaste"
+              "lessWaste",
+              "noWaste",
+              "waste"
             ],
             "additionalProperties": false
           }
@@ -25568,6 +25591,68 @@
         "required": [
           "token"
         ]
+      },
+      "WasteRules": {
+        "type": "object",
+        "properties": {
+          "less": {
+            "type": "object",
+            "properties": {
+              "restsOfDay": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "restsOfDay"
+            ],
+            "additionalProperties": false
+          },
+          "none": {
+            "type": "object",
+            "properties": {
+              "restsOfDay": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "daysInARow": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "timesAWeek": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "twiceADay": {
+                "type": "boolean"
+              },
+              "meatAndFishDays": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "otherDays": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "restsOfDay",
+              "daysInARow",
+              "timesAWeek",
+              "twiceADay",
+              "meatAndFishDays",
+              "otherDays"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "less",
+          "none"
+        ],
+        "additionalProperties": false
       },
       "WaterDay": {
         "type": "object",

@@ -143,6 +143,7 @@ describe('regenerating a plan', () => {
         respectFavorites: false,
         respectInventory: false,
         lessWaste: true,
+        noWaste: false,
         maxRepeatsPerRecipe: 3,
         allowRelaxations: [],
       });
@@ -155,6 +156,7 @@ describe('regenerating a plan', () => {
         respectFavorites: true,
         respectInventory: true,
         lessWaste: false,
+        noWaste: false,
         maxRepeatsPerRecipe: null,
         allowRelaxations: [],
       });
