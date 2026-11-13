@@ -42,7 +42,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     turnstile: { enabled: false, siteKey: null },
     email: { enabled: false, confirmationUnlocksAi: false },
     ai: { ollamaUserPolicy: 'off' },
-    instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
+    instance: { supportUrl: null, operatorContact: null, androidAppUrl: null, version: '0.0.0' },
     catalogue: { supply: aSupply() },
     accounts: { maxProfiles: 2 },
     products: { offered: false, lookups: false },

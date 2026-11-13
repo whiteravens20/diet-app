@@ -89,6 +89,17 @@ describe('validateEnv', () => {
     expect(validateEnv(valid({ MAX_PROFILES_PER_ACCOUNT: '' })).MAX_PROFILES_PER_ACCOUNT).toBe(2);
   });
 
+  it('takes the page the Android app is downloaded from only over https, and none when it is left out', () => {
+    expect(
+      validateEnv(valid({ ANDROID_APP_URL: 'https://example.org/android/' })).ANDROID_APP_URL,
+    ).toBe('https://example.org/android/');
+    expect(validateEnv(valid({ ANDROID_APP_URL: '' })).ANDROID_APP_URL).toBeUndefined();
+    // A page a download is offered from over plain http could be changed on the way.
+    expect(() => validateEnv(valid({ ANDROID_APP_URL: 'http://example.org/android/' }))).toThrow(
+      /ANDROID_APP_URL/,
+    );
+  });
+
   it('times the statements of the database only when it is told from how many milliseconds one is slow', () => {
     expect(validateEnv(valid({ SLOW_QUERY_MS: '50' })).SLOW_QUERY_MS).toBe(50);
     expect(validateEnv(valid({ SLOW_QUERY_MS: '' })).SLOW_QUERY_MS).toBeUndefined();

@@ -21790,6 +21790,17 @@
                   "null"
                 ]
               },
+              "androidAppUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "version": {
                 "type": "string"
               }
@@ -21797,6 +21808,7 @@
             "required": [
               "supportUrl",
               "operatorContact",
+              "androidAppUrl",
               "version"
             ],
             "additionalProperties": false

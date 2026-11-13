@@ -167,6 +167,11 @@
       "nutritionBody": "Kalorie i makroskładniki planu i przepisu, a także błonnik, cukry, sól i tłuszcze nasycone, pochodzą ze starannie prowadzonej bazy składników i liczy je sama aplikacja: z tych samych danych zawsze wychodzą te same liczby.",
       "aiTitle": "AI tylko, jeśli chcesz",
       "aiBody": "Model udostępniony na serwerze, jeśli administrator go włączył, albo własny klucz OpenAI, Anthropic, OpenRouter lub Ollama. Model może ułożyć przepis ze znanych składników i uszeregować propozycje planera, ale żadnej liczby nie wymyśla. Bez AI wszystko działa."
+    },
+    "android": {
+      "title": "Aplikacja na Androida",
+      "body": "Plan, dziennik, lista zakupów i\u00a0przypomnienia w\u00a0telefonie. Aplikacja jest w\u00a0fazie testów i\u00a0instaluje się spoza Sklepu Play: strona pobierania prowadzi przez instalację krok po kroku. Wymaga Androida 10\u00a0lub nowszego.",
+      "download": "Pobierz aplikację"
     }
   },
   "auth": {

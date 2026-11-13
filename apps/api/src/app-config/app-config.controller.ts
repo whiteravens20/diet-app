@@ -59,6 +59,7 @@ export class AppConfigController {
       instance: {
         supportUrl: this.config.get('SUPPORT_URL', { infer: true }) ?? null,
         operatorContact: this.config.get('OPERATOR_CONTACT', { infer: true }) ?? null,
+        androidAppUrl: this.config.get('ANDROID_APP_URL', { infer: true }) ?? null,
         version: this.config.get('APP_VERSION', { infer: true }) ?? PACKAGE_VERSION,
       },
       catalogue: { supply: supplyByMealCount(await this.coverage.recent()) },

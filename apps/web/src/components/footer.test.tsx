@@ -34,6 +34,7 @@ describe('Footer', () => {
     renderWith(<Footer />, {
       supportUrl: 'https://example.org/support',
       operatorContact: null,
+      androidAppUrl: null,
       version: '0.19.0',
     });
     expect(support()).toHaveAttribute('href', 'https://example.org/support');
@@ -46,6 +47,7 @@ describe('OperatorContact', () => {
     renderWith(<OperatorContact notPublished="No contact published." />, {
       supportUrl: null,
       operatorContact: null,
+      androidAppUrl: null,
       version: '0.19.0',
     });
     expect(screen.getByText('No contact published.')).toBeInTheDocument();
@@ -55,6 +57,7 @@ describe('OperatorContact', () => {
     renderWith(<OperatorContact notPublished="No contact published." />, {
       supportUrl: null,
       operatorContact: 'ops@example.org',
+      androidAppUrl: null,
       version: '0.19.0',
     });
     expect(screen.getByRole('link', { name: 'ops@example.org' })).toHaveAttribute(

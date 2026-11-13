@@ -138,6 +138,7 @@ Served by `GET /api/config` and read by the web app at run time.
 | ------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `SUPPORT_URL`      | the project's page  | Where the footer's "Support us" link points.                                                                                      |
 | `OPERATOR_CONTACT` | _(none)_            | E-mail address of whoever runs the instance, shown under the terms of service and to an account that waits for the instance's AI. |
+| `ANDROID_APP_URL`  | _(none)_            | Where the landing page's card about the Android app leads: the page the app is downloaded from, an https address. Unset: no card. |
 | `APP_VERSION`      | the package version | Version label in the footer.                                                                                                      |
 
 ## Web

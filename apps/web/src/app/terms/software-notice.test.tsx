@@ -15,7 +15,9 @@ function renderIn(locale: keyof typeof MESSAGES, operatorContact: string | null)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } });
   client.setQueryData(
     ['config'],
-    aPublicConfig({ instance: { supportUrl: null, operatorContact, version: '0.108.0' } }),
+    aPublicConfig({
+      instance: { supportUrl: null, operatorContact, androidAppUrl: null, version: '0.108.0' },
+    }),
   );
   render(
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]}>

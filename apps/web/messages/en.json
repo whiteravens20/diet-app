@@ -167,6 +167,11 @@
       "nutritionBody": "The calories and macros of a plan and a recipe, and their fibre, sugars, salt and saturated fat, come from a curated ingredient database and are worked out by the app itself: the same inputs always give the same numbers.",
       "aiTitle": "AI only if you want it",
       "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
+    },
+    "android": {
+      "title": "Android app",
+      "body": "Your plan, diary, shopping list and reminders on your phone. The app is being tested and is installed from outside the Play Store: the download page walks you through it step by step. It needs Android 10\u00a0or later.",
+      "download": "Download the app"
     }
   },
   "auth": {

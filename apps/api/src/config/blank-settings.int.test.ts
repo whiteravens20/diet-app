@@ -22,6 +22,7 @@ const BLANK = [
   'TURNSTILE_SECRET_KEY',
   'SUPPORT_URL',
   'OPERATOR_CONTACT',
+  'ANDROID_APP_URL',
   'APP_VERSION',
   'FDC_API_KEY',
   'SMTP_USER',
@@ -74,7 +75,12 @@ describe('settings left blank in the environment', () => {
     const { body } = await t.http().get('/api/config').expect(200);
 
     expect(body.turnstile).toEqual({ enabled: false, siteKey: null });
-    expect(body.instance).toEqual({ supportUrl: null, operatorContact: null, version });
+    expect(body.instance).toEqual({
+      supportUrl: null,
+      operatorContact: null,
+      androidAppUrl: null,
+      version,
+    });
   });
 
   it('let a reviewer sign in, with a cookie signed by a key of its own', async () => {

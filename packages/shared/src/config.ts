@@ -96,6 +96,8 @@ export const PublicConfig = z.object({
     supportUrl: z.string().url().nullable(),
     /** How to reach whoever runs this instance; null when they published nothing. */
     operatorContact: z.string().nullable(),
+    /** The page the Android app is downloaded from, for the landing page's card about it; null where the operator gave none. */
+    androidAppUrl: z.string().url().nullable(),
     /** The running version: the package version unless the operator set another label. */
     version: z.string(),
   }),

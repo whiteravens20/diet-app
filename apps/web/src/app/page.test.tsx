@@ -17,6 +17,8 @@ vi.mock('next/link', () => ({
 }));
 vi.mock('@/components/language-switcher', () => ({ LanguageSwitcher: () => null }));
 vi.mock('@/components/theme-choice', () => ({ ThemeChoice: () => null }));
+// The card about the Android app reads the instance's configuration: its own test has it.
+vi.mock('@/components/android-app-card', () => ({ AndroidAppCard: () => null }));
 
 describe('the landing page', () => {
   it.each([

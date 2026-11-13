@@ -55,6 +55,7 @@ describe('GET /api/config', () => {
     expect((await configOf({ OLLAMA_USER_POLICY: 'allowlist' })).instance).toEqual({
       supportUrl: null,
       operatorContact: null,
+      androidAppUrl: null,
       version: packageVersion,
     });
   });
@@ -64,11 +65,13 @@ describe('GET /api/config', () => {
       OLLAMA_USER_POLICY: 'off',
       SUPPORT_URL: 'https://example.org/support',
       OPERATOR_CONTACT: 'ops@example.org',
+      ANDROID_APP_URL: 'https://example.org/android/',
       APP_VERSION: '2026.10-a1b2c3d',
     });
     expect(instance).toEqual({
       supportUrl: 'https://example.org/support',
       operatorContact: 'ops@example.org',
+      androidAppUrl: 'https://example.org/android/',
       version: '2026.10-a1b2c3d',
     });
   });

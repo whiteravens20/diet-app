@@ -15,6 +15,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { AndroidAppCard } from '@/components/android-app-card';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -96,6 +97,8 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      <AndroidAppCard />
     </main>
   );
 }

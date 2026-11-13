@@ -165,6 +165,9 @@ export const envSchema = z.object({
   SUPPORT_URL: z.string().url().optional(),
   // An e-mail address shown on the terms page; unset shows that none was published.
   OPERATOR_CONTACT: z.string().email().max(200).optional(),
+  // Where the landing page's card about the Android app leads: the page the app is
+  // downloaded from, an https address; unset shows no such card.
+  ANDROID_APP_URL: z.string().url().startsWith('https://').optional(),
   // Version label shown in the footer; unset uses the package version.
   APP_VERSION: z.string().max(40).optional(),
 
