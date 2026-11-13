@@ -167,9 +167,15 @@ describe('the rest of a pack, into the meal that finishes it', () => {
         }),
       ),
     ).toEqual([]);
-    // Half a gram left.
+    // Half a gram left, and 24 g: less than a spoonful of the pack of 500 g.
     const nearly = recipe('chicken-roast', ['lunch'], 1000, { chicken: 499.5 });
     expect(given(rests([plan({ recipes: [nearly, soup, salad] })]))).toEqual([]);
+    const spoonful = recipe('chicken-roast', ['lunch'], 1000, { chicken: 476 });
+    expect(given(rests([plan({ recipes: [spoonful, soup, salad] })]))).toEqual([]);
+    const more = recipe('chicken-roast', ['lunch'], 1000, { chicken: 474 });
+    expect(given(rests([plan({ recipes: [more, soup, salad] })]))).toEqual([
+      [0, [['chicken', 26]]],
+    ]);
     // Nothing said of the energy of chicken.
     expect(given(rests([plan()], { energyPer100: new Map() }))).toEqual([]);
   });

@@ -11,11 +11,12 @@
  * most a share of the day's target, and the day stays inside its window. The
  * other meals of the day do not change. A dish cooked ahead and a meal both
  * people of a joint plan eat take the rest into the pot, each portion its
- * share by its size. A rest is taken whole or not at all.
+ * share by its size. A rest is taken whole or not at all, and one smaller
+ * than a spoonful of its pack (`SPOONFUL`) stays in the pack.
  */
 import type { MealType } from '@diet-app/shared';
 import { kitchenNeeds, potsOf, type ClosingPlan, type Pot } from './close-packs.js';
-import { packUse, type DailyNeeds, type Pack } from './packs.js';
+import { packUse, SPOONFUL, type DailyNeeds, type Pack } from './packs.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
 /** How much a rest may be. */
@@ -63,7 +64,7 @@ export interface MealRest {
   amount: number;
 }
 
-/** Less than this of an ingredient's own unit is left in a pack is no rest to speak of. */
+/** Less than this of an ingredient's own unit left in a pack, or less than a spoonful of the pack, is no rest to speak of. */
 const LEAST_REST = 1;
 
 /** The rests each meal of each plan takes, by the meal's place among its plan's assignments. */
@@ -124,8 +125,10 @@ export function packRests(input: RestInput): Map<number, MealRest[]>[] {
   const { pots } = potsOf(plans, input.shared);
   for (const pack of left) {
     const per100 = input.energyPer100.get(pack.ingredientId);
-    const keep = packs.get(pack.ingredientId)?.keepDays;
-    if (pack.left < LEAST_REST || per100 === undefined || keep === undefined) continue;
+    const sold = packs.get(pack.ingredientId);
+    const keep = sold?.keepDays;
+    const least = Math.max(LEAST_REST, SPOONFUL * (sold?.size ?? 0));
+    if (pack.left < least || per100 === undefined || keep === undefined) continue;
     // The pot that takes from the pack last while it keeps: the pots come in the order they are cooked.
     const opened = pack.until - keep + 1;
     let last: Pot | undefined;
