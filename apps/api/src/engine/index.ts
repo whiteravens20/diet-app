@@ -22,5 +22,6 @@ export * from './display.js';
 export * from './optimizer.js';
 export * from './rebalance.js';
 export * from './dish-traits.js';
+export * from './plates.js';
 export * from './toppings.js';
 export * from './topped-days.js';

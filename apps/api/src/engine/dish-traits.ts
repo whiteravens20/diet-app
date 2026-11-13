@@ -100,7 +100,7 @@ const FORMS: readonly (readonly [Exclude<RecipeForm, 'plate'>, RegExp])[] = [
 /** A porridge by name, which stays one however savoury. */
 const PORRIDGE = /porridge|oatmeal|oats|owsiank|jaglank/i;
 
-const kindOf = (ingredient: TraitsIngredient): string =>
+const kindOf = (ingredient: Pick<TraitsIngredient, 'slug' | 'name'>): string =>
   ingredient.slug ?? ingredient.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 function energyOf(line: TraitsLine): number {
@@ -113,6 +113,13 @@ function energyOf(line: TraitsLine): number {
     if (err instanceof UnitConversionError) return 0;
     throw err;
   }
+}
+
+/** The starch an ingredient is, if it is one: what a dish's base would be named for it. */
+export function starchKindOf(ingredient: Pick<TraitsIngredient, 'slug' | 'name'>): StarchBase {
+  const kind = kindOf(ingredient);
+  if (NOT_STARCH.test(kind)) return 'none';
+  return STARCHES.find(([, pattern]) => pattern.test(kind))?.[0] ?? 'none';
 }
 
 /** The starch base a dish's lines suggest. */
