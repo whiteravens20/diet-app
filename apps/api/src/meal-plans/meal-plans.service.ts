@@ -42,6 +42,8 @@ import {
   REBALANCE_TOLERANCE,
   sizeDay,
   topAndSizeDay,
+  plateDay,
+  withPlates,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
@@ -96,7 +98,11 @@ import {
   settleNewRecipes,
   plateOfMeal,
   plateShare,
+  plateAsJson,
+  storedPlateOf,
+  type StoredPlate,
 } from './plan-days.js';
+import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
 import { releasePlanLists, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
@@ -806,10 +812,11 @@ export class MealPlansService {
       return { feasibility, changes, macrosBefore, macrosAfter };
     }
 
-    // A day of a joint plan: the toppings of its shared meals not eaten are put on again as the day is sized
-    // (`topAndSizeDay`). A topping eaten with its meal counts and stays; one on a meal that is no longer a place
-    // for it goes: a meal eaten apart, a leftover now, or one whose dish the other plan's meal no longer holds,
-    // which the end of the write unlinks.
+    // A day of a joint plan: the plates of its shared meals not eaten are chosen again (`plateDay`), and their
+    // toppings put on again as the day is sized (`topAndSizeDay`). A plate or a topping eaten with its meal counts
+    // and stays, and a leftover keeps the plate it was cooked on; one on a meal that is no longer a place for it
+    // goes: a meal eaten apart, or one whose dish the other plan's meal no longer holds, which the end of the
+    // write unlinks.
     const linked = day.meals.filter((m) => m.sharedMealId !== null && m.recipeId !== null);
     const partners = linked.length
       ? await tx.sharedMeal.findMany({
@@ -842,6 +849,26 @@ export class MealPlansService {
       day.date,
       places.map((m) => m.recipeId!),
     );
+    // The meals not eaten yet, whose plates are chosen here: those of the places, if they are served on a plate.
+    const open = day.meals.filter((m) => m.eatenAt === null && m.leftoverFromDate === null);
+    const dishes = await plateDishesOf(
+      tx,
+      places.map((m) => m.recipeId!),
+    );
+    const plating = places.flatMap((m) => {
+      const dish = dishes.get(m.recipeId!);
+      return dish ? [{ mealId: m.id, dish, now: plateOfMeal(m.plate) }] : [];
+    });
+    /** The day's rows, those of the open meals with the plates given (none for any other). */
+    const rowsWith = (plates: ReadonlyMap<string, StoredPlate>): RebalanceRow[] => [
+      ...day.meals.map((m) =>
+        open.includes(m)
+          ? toRebalanceRow({ ...m, plate: plates.get(m.id) ?? null })
+          : toRebalanceRow(m),
+      ),
+      ...restRebalanceRows(day.meals),
+      ...diaryRows(diary.get(isoDate(day.date))),
+    ];
     const per100Of = new Map(ask.options.map((option) => [option.topping.key, option.per100]));
     const toppingRows = (
       of: readonly { mealId: string; key: string | null; amount: number | null }[],
@@ -864,10 +891,20 @@ export class MealPlansService {
       ],
       (r) => r.quantityScale,
     );
+    const aim = aimOfDay(day, day.plan);
+    const bare = [...rowsWith(new Map()), ...stays].map(toEngineMeal);
+    const plates = plateDay(bare, new Map(), plating, aim, day.plan.dietType);
+    const platingOf = new Map(plating.map((place) => [place.mealId, place]));
+    const storedPlates = new Map(
+      [...plates].map(([mealId, plate]) => [
+        mealId,
+        storedPlateOf(platingOf.get(mealId)!.dish, plate),
+      ]),
+    );
     const { scales, toppings } = topAndSizeDay(
-      [...counted, ...stays].map(toEngineMeal),
+      withPlates(bare, plates, platingOf),
       day.calorieTarget,
-      aimOfDay(day, day.plan),
+      aim,
       places.flatMap((m) => {
         const dish = ask.traits.get(m.recipeId!);
         const only = named.get(m.id);
@@ -885,10 +922,16 @@ export class MealPlansService {
       const chosen = toppings.find((choice) => choice.mealId === m.id);
       const key = chosen?.key ?? null;
       const amount = chosen?.amount ?? null;
-      if (key === m.toppingKey && amount === m.toppingAmount) continue;
+      const plate = open.includes(m) ? (storedPlates.get(m.id) ?? null) : plateOfMeal(m.plate);
+      const samePlate = JSON.stringify(plate) === JSON.stringify(plateOfMeal(m.plate));
+      if (key === m.toppingKey && amount === m.toppingAmount && samePlate) continue;
       await tx.plannedMeal.update({
         where: { id: m.id },
-        data: { toppingKey: key, toppingAmount: amount },
+        data: {
+          toppingKey: key,
+          toppingAmount: amount,
+          ...(samePlate ? {} : { plate: plateAsJson(plate) }),
+        },
       });
     }
     // A meal whose dish the other plan's meal no longer holds is that person's own now as well: a topping on
@@ -901,7 +944,7 @@ export class MealPlansService {
       const theirs = await tx.plannedMeal.findMany({
         where: {
           sharedMealId: { in: diverged },
-          toppingKey: { not: null },
+          OR: [{ toppingKey: { not: null } }, { plate: { not: Prisma.DbNull } }],
           eatenAt: null,
           day: { planId: { not: day.planId } },
         },
@@ -914,7 +957,7 @@ export class MealPlansService {
         await tx.mealPlan.update({ where: { id: planId }, data: { revision: { increment: 1 } } });
     }
     const after = [
-      ...counted,
+      ...rowsWith(storedPlates),
       ...stays,
       ...toppingRows(
         toppings.map((choice) => ({

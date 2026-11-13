@@ -78,6 +78,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
+import { plateDishesOf } from './plates-store.js';
 import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   customMacros,
@@ -87,6 +88,8 @@ import {
   type StoredPlate,
   plateAsJson,
   plateOfMeal,
+  plateSharesOf,
+  storedPlateOf,
   isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
@@ -1233,6 +1236,11 @@ export class PlanGenerationService {
               : [];
           }),
         ),
+        shares: new Map(
+          plan.assignments.flatMap((meal, index) =>
+            meal.shares ? [[index, meal.shares] as const] : [],
+          ),
+        ),
       })),
       shared,
       fixed: fixedOf(drawn),
@@ -1630,9 +1638,10 @@ export class PlanGenerationService {
   }
 
   /**
-   * The sized meals of a plan of a joint plan, each day's meals at `slots` its places for a topping, topped and
-   * sized again where the day stays off its split or target; the person is the profile, held to its diet,
-   * allergens, rules and the kinds of protein each day has no more meals of.
+   * The sized meals of a plan of a joint plan, each day's meals at `slots` the dishes both eat: each served on a
+   * plate given the person's own plate of it, then each a place for a topping, topped and sized again where the
+   * day stays off its split or target; the person is the profile, held to its diet, allergens, rules and the
+   * kinds of protein each day has no more meals of.
    */
   private async topped(
     days: readonly OptimizerDay[],
@@ -1651,16 +1660,20 @@ export class PlanGenerationService {
       perKind: ReadonlyMap<string, { perDay?: number; perWeek?: number }>;
       respectExclusions: boolean;
     },
-    /** In a plan that wastes less, the packs of its kitchen, which the toppings are chosen by and taken from. */
+    /** In a plan that wastes less, the packs of its kitchen, which the plates and toppings take from. */
     kitchen?: PackKitchen,
-  ): Promise<ToppedAssignment[]> {
+  ): Promise<PlacedMeal[]> {
     const places = sized.filter((meal) => ask.slots.includes(meal.slot));
     const traits = await dishTraitsOf(
       this.prisma,
       places.map((meal) => meal.recipeId),
     );
+    const plates = await plateDishesOf(
+      this.prisma,
+      places.map((meal) => meal.recipeId),
+    );
     const kindsOf = new Map(recipes.map((recipe) => [recipe.id, recipe.proteinKinds ?? []]));
-    return topAssignments(
+    const topped = topAssignments(
       days,
       recipes,
       sized,
@@ -1675,7 +1688,14 @@ export class PlanGenerationService {
           ask.respectExclusions,
         ),
       kitchen,
+      (meal) => (ask.slots.includes(meal.slot) ? (plates.get(meal.recipeId) ?? null) : null),
     );
+    return topped.map(({ plate, ...meal }) => {
+      const dish = plate ? plates.get(meal.recipeId) : undefined;
+      return plate && dish
+        ? { ...meal, plate: storedPlateOf(dish, plate), shares: plateSharesOf(dish, plate) }
+        : meal;
+    });
   }
 
   /**
@@ -1935,6 +1955,8 @@ type PlacedMeal = SizedAssignment & {
   rests?: StoredRest[];
   /** Of a dish both people of a joint plan eat, this person's own plate (`plateOfMeal`). */
   plate?: StoredPlate;
+  /** What the plate holds of each ingredient against the recipe (`plateSharesOf`): what the rests of the packs count. */
+  shares?: ReadonlyMap<string, number>;
 };
 
 /** A plan the optimiser made for a profile, finished: its meals with their toppings, and its report. */
