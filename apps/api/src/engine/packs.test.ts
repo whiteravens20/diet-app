@@ -6,6 +6,8 @@ import {
   DAYS_TO_USE_A_PACK,
   SPOONFUL,
   keepDaysOf,
+  freshPurchases,
+  packLastDays,
   packPull,
   packStep,
   packUse,
@@ -381,5 +383,59 @@ describe('what a plan comes to in packs', () => {
     // Two thirds of each chicken pack and a tenth of the carton.
     expect(packsLeft(use)).toBeCloseTo(2 * (400 / 600) + 50 / 550, 5);
     expect(packsLeftBeyondAccepted(use)).toBeCloseTo(2 * (400 / 600 - 0.2), 5);
+  });
+});
+
+describe('when the packs of fresh meat or fish are bought', () => {
+  const chicken = PACKS.get('chicken')!;
+
+  it('ends each pack on the last day it is eaten from, in the order they are opened', () => {
+    // Monday opens one and Tuesday finishes it; Thursday takes two whole packs and opens a third that Friday eats from.
+    expect(packLastDays([300, 300, 0, 1500, 200], chicken)).toEqual([1, 3, 3, 4]);
+    // A pack past its last day is thrown: the next need opens another, that day its own last.
+    expect(packLastDays([100, 0, 0, 100], chicken)).toEqual([0, 3]);
+    // A spoonful more than the open pack holds finishes it: no new pack.
+    expect(packLastDays([300, 320], chicken)).toEqual([1]);
+    expect(packLastDays([0, 0], chicken)).toEqual([]);
+  });
+
+  it('buys on the first day what keeps until it is eaten, and says from which day the rest is bought', () => {
+    // A week: chicken on Monday and Tuesday (one pack), and on Saturday and Sunday (another).
+    const week = [300, 300, 0, 0, 0, 300, 300];
+    // The second pack is eaten last on Sunday (day 6), and keeps two days: bought from Saturday (day 5) on.
+    expect(freshPurchases(week, chicken)).toEqual({ count: 2, later: [{ day: 5, packs: 1 }] });
+    // Bought on the first day, a pack keeps on the second as well: nothing later for Monday and Tuesday.
+    expect(freshPurchases([300, 300], chicken)).toEqual({ count: 1, later: [] });
+    // Two packs on Thursday, both from Wednesday on at the earliest.
+    expect(freshPurchases([0, 0, 0, 1200], chicken)).toEqual({
+      count: 2,
+      later: [{ day: 2, packs: 2 }],
+    });
+  });
+
+  it('counts a pack for each need the pack before no longer keeps for, where one pack would hold both', () => {
+    // 100 g on Monday and on Thursday: one pack would hold both, but Monday's is gone by Thursday.
+    expect(freshPurchases([100, 0, 0, 100], chicken)).toEqual({
+      count: 2,
+      later: [{ day: 2, packs: 1 }],
+    });
+  });
+
+  it('counts what is at home first, from the first day on', () => {
+    // 600 g at home cover Monday and Tuesday: what is bought is for the weekend.
+    expect(freshPurchases([300, 300, 0, 0, 0, 300, 300], chicken, 600)).toEqual({
+      count: 1,
+      later: [{ day: 5, packs: 1 }],
+    });
+    // Enough at home for the whole week: nothing to buy.
+    expect(freshPurchases([300, 300, 0, 0, 0, 300, 300], chicken, 1200)).toEqual({
+      count: 0,
+      later: [],
+    });
+    // What is at home covers the first need only: the weekend's pack is still bought later.
+    expect(freshPurchases([300, 0, 0, 0, 0, 0, 300], chicken, 300)).toEqual({
+      count: 1,
+      later: [{ day: 5, packs: 1 }],
+    });
   });
 });

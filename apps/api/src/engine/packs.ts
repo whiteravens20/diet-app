@@ -229,6 +229,61 @@ function walkPacks(
 }
 
 /**
+ * The last day each pack of an ingredient a menu buys is eaten from, in the
+ * order the packs are opened (`packStep`): a pack bought and finished on its
+ * day ends that day, and the one left open ends on the last day that takes
+ * from it while it keeps.
+ */
+export function packLastDays(byDay: readonly number[], pack: Pack): number[] {
+  const last: number[] = [];
+  let opened: Opened | undefined;
+  let open = -1;
+  byDay.forEach((need, day) => {
+    if (need <= CRUMB) return;
+    const fromOpen = opened !== undefined && opened.until >= day && opened.left > CRUMB;
+    const step = packStep(opened, need, pack, day);
+    if (fromOpen) last[open] = day;
+    const count = pack.size > 0 ? Math.round(step.bought / pack.size) : 0;
+    for (let i = 0; i < count; i += 1) last.push(day);
+    if (count > 0) open = last.length - 1;
+    opened = step.opened;
+  });
+  return last;
+}
+
+/**
+ * The packs of a food that keeps from its purchase no longer than from its
+ * opening (fresh meat and fish) a list's days take, the list's first day being
+ * day 0: how many, as the plan counts them (a pack that no longer keeps on the
+ * day of a need is not eaten from), and those of them not to be bought on the
+ * first day, by the day from which they are: a pack eaten from last on day u is
+ * bought on day u - keepDays + 1 at the earliest. What is at home (`held`) is
+ * eaten first, from the first day on.
+ */
+export function freshPurchases(
+  byDay: readonly number[],
+  pack: Pack,
+  held = 0,
+): { count: number; later: { day: number; packs: number }[] } {
+  let atHome = held;
+  const toBuy = byDay.map((need) => {
+    const taken = Math.min(atHome, Math.max(0, need));
+    atHome -= taken;
+    return need - taken;
+  });
+  const lastDays = packLastDays(toBuy, pack);
+  const byFirstDay = new Map<number, number>();
+  for (const last of lastDays) {
+    const day = last - pack.keepDays + 1;
+    if (day > 0) byFirstDay.set(day, (byFirstDay.get(day) ?? 0) + 1);
+  }
+  return {
+    count: lastDays.length,
+    later: [...byFirstDay].sort(([a], [b]) => a - b).map(([day, packs]) => ({ day, packs })),
+  };
+}
+
+/**
  * What a plan comes to in packs, a kitchen's count: for every ingredient
  * whose opened pack does not keep, day by day, the packs it buys, what it eats
  * of them, and every pack it does not finish before it no longer keeps or the
