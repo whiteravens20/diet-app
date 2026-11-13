@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
+import { createTranslator, NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CatalogueSupply,
@@ -593,14 +593,23 @@ describe('the plan page, on a plan and how it was made', () => {
       messages.mealPlans.pantryLeftOut,
       messages.mealPlans.pantryUnused,
       messages.mealPlans.planLessWaste,
+      messages.mealPlans.planNoWaste,
     ])
-      expect(screen.queryByText(line)).toBeNull();
+      expect(screen.queryByText(plain(line))).toBeNull();
   });
 
   it('says of a plan that wastes less that it does', async () => {
     await open(aPlan({ options: { ...aPlan().options, lessWaste: true } }));
 
     expect(screen.getByText(messages.mealPlans.planLessWaste)).toBeInTheDocument();
+    expect(screen.queryByText(spaced(messages.mealPlans.planNoWaste))).toBeNull();
+  });
+
+  it('says of a plan that wastes nothing that it does, and nothing else of its level', async () => {
+    await open(aPlan({ options: { ...aPlan().options, lessWaste: true, noWaste: true } }));
+
+    expect(screen.getByText(spaced(messages.mealPlans.planNoWaste))).toBeInTheDocument();
+    expect(screen.queryByText(messages.mealPlans.planLessWaste)).toBeNull();
   });
 
   it.each([
@@ -800,14 +809,40 @@ describe('the plan page, when a plan is made again', () => {
       () => Promise.resolve(plan),
     );
     const asked = await forThePlan(plan);
-    const lessWaste = asked.getByRole('checkbox', { name: messages.mealPlans.lessWaste });
+    const lessWaste = asked.getByRole('radio', { name: messages.mealPlans.lessWaste });
 
-    expect(lessWaste).not.toBeChecked();
+    expect(asked.getByRole('radio', { name: messages.mealPlans.wasteUsual })).toBeChecked();
     expect(lessWaste).toHaveAccessibleDescription(/uses about 64% of the pantry instead of 34%/);
     await userEvent.click(lessWaste);
     await recalculate(asked);
 
-    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, { lessWaste: true }]]);
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { lessWaste: true, noWaste: false }],
+    ]);
+  });
+
+  it("lets the whole plan made again waste nothing, saying what it loosens of the profile's limits", async () => {
+    const plan = threeDays();
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
+    const asked = await forThePlan(plan);
+    const noWaste = asked.getByRole('radio', { name: messages.mealPlans.noWaste });
+
+    expect(noWaste).not.toBeChecked();
+    expect(noWaste).toHaveAccessibleDescription(
+      spaced(
+        'The same recipe may come up to 3 days in a row (your profile: 2) and up to 5 times a week (your profile: 3), even twice in one day.',
+        { anywhere: true },
+      ),
+    );
+    await userEvent.click(noWaste);
+    await recalculate(asked);
+
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { lessWaste: true, noWaste: true }],
+    ]);
   });
 
   it("begins as the plan has it, on the plan's own diet, and asks for a change only", async () => {
@@ -818,19 +853,39 @@ describe('the plan page, when a plan is made again', () => {
       () => Promise.resolve(plan),
     );
     let asked = await forThePlan(plan);
-    const lessWaste = () => asked.getByRole('checkbox', { name: messages.mealPlans.lessWaste });
+    const radio = (name: string) => asked.getByRole('radio', { name });
 
-    expect(lessWaste()).toBeChecked();
-    expect(lessWaste()).toHaveAccessibleDescription(/uses about 65% of the pantry instead of 35%/);
+    expect(radio(messages.mealPlans.lessWaste)).toBeChecked();
+    expect(radio(messages.mealPlans.lessWaste)).toHaveAccessibleDescription(
+      /uses about 65% of the pantry instead of 35%/,
+    );
     await recalculate(asked);
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
     asked = await rerollWindow();
-    await userEvent.click(lessWaste());
+    await userEvent.click(radio(messages.mealPlans.wasteUsual));
     await recalculate(asked);
 
     expect(rerolls(post)).toEqual([
       [`/meal-plans/${plan.id}/regenerate`, undefined],
-      [`/meal-plans/${plan.id}/regenerate`, { lessWaste: false }],
+      [`/meal-plans/${plan.id}/regenerate`, { lessWaste: false, noWaste: false }],
+    ]);
+  });
+
+  it('begins at wasting nothing for a plan made so, and asks to waste less only when that is chosen', async () => {
+    const plan = threeDays();
+    plan.options = { ...plan.options, lessWaste: true, noWaste: true };
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
+    const asked = await forThePlan(plan);
+
+    expect(asked.getByRole('radio', { name: messages.mealPlans.noWaste })).toBeChecked();
+    await userEvent.click(asked.getByRole('radio', { name: messages.mealPlans.lessWaste }));
+    await recalculate(asked);
+
+    expect(rerolls(post)).toEqual([
+      [`/meal-plans/${plan.id}/regenerate`, { lessWaste: true, noWaste: false }],
     ]);
   });
 
@@ -844,7 +899,8 @@ describe('the plan page, when a plan is made again', () => {
     const asked = await forThePlan(plan);
 
     await userEvent.click(asked.getByLabelText(texts.day));
-    expect(asked.queryByRole('checkbox', { name: messages.mealPlans.lessWaste })).toBeNull();
+    expect(asked.queryByRole('group', { name: messages.mealPlans.wasteLevel })).toBeNull();
+    expect(asked.queryByRole('radio', { name: messages.mealPlans.lessWaste })).toBeNull();
     await waitForTheAnswerTo(post, {});
     await recalculate(asked);
 
@@ -2015,10 +2071,12 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
 });
 
 describe('the plan page, on what a plan is made for', () => {
+  const preferences = profile.preferences;
   afterEach(() => {
     vi.restoreAllMocks();
     favoriteSets = [];
     profile.customMacroSplit = null;
+    profile.preferences = preferences;
   });
 
   /** Ask for a plan and say what was sent. */
@@ -2083,50 +2141,110 @@ describe('the plan page, on what a plan is made for', () => {
     expect(await sent()).toMatchObject({ mealPrepFriendly: false });
   });
 
-  const lessWasteBox = () => screen.getByRole('checkbox', { name: messages.mealPlans.lessWaste });
+  const level = (name: string) => screen.getByRole('radio', { name });
   const pantryBox = () =>
     screen.getByRole('checkbox', { name: messages.mealPlans.preferInventory });
 
-  it("asks for a plan that wastes less when its box is ticked, and says beside it what that costs on the profile's diet, in the instance's figures", async () => {
+  it("asks for a plan that wastes less when it is chosen, and says beside it what that costs on the profile's diet, in the instance's figures", async () => {
     await renderPage();
+    const lessWaste = level(messages.mealPlans.lessWaste);
 
-    expect(lessWasteBox()).not.toBeChecked();
+    expect(screen.getByRole('group', { name: messages.mealPlans.wasteLevel })).toBeInTheDocument();
+    expect(level(messages.mealPlans.wasteUsual)).toBeChecked();
+    expect(level(messages.mealPlans.wasteUsual)).toHaveAccessibleDescription(
+      spaced(messages.mealPlans.wasteUsualHint),
+    );
     // Vegan, as the instance measured it.
-    expect(lessWasteBox()).toHaveAccessibleDescription(
+    expect(lessWaste).toHaveAccessibleDescription(
       /uses about 64% of the pantry instead of 34%, and about 84% of such packs instead of 74%\. In return a week has about 14% fewer different recipes/,
     );
-    expect(lessWasteBox()).toHaveAccessibleDescription(
+    // How much the rest of a pack may add to a day, before the plan is made.
+    expect(lessWaste).toHaveAccessibleDescription(
+      /a day may get up to 3% of its calorie target extra\./,
+    );
+    expect(lessWaste).toHaveAccessibleDescription(
       expect.stringContaining(messages.mealPlans.lessWasteLimits),
     );
-    await userEvent.click(lessWasteBox());
+    await userEvent.click(lessWaste);
 
-    expect(await sent()).toMatchObject({ lessWaste: true });
+    expect(await sent()).toMatchObject({ lessWaste: true, noWaste: false });
   });
 
-  it('asks for a plan that does not waste less while the box is left as it is', async () => {
+  it('asks for a plan that wastes nothing when it is chosen, and says what it gives, what it loosens of the profile and what it keeps', async () => {
+    await renderPage();
+    const noWaste = level(messages.mealPlans.noWaste);
+    const says = (text: string) =>
+      expect(noWaste).toHaveAccessibleDescription(spaced(text, { anywhere: true }));
+
+    says('meat and fish within 3 days at most, anything else within 5.');
+    // Vegan, as the instance measured it for this level.
+    says(
+      'uses about 94% of such packs instead of 74% and about 44% of the pantry instead of 34%. In return a week has about 54% fewer different recipes.',
+    );
+    says(
+      'The same recipe may come up to 3 days in a row (your profile: 2) and up to 5 times a week (your profile: 3), even twice in one day.',
+    );
+    says('allergens, the avoid list and the diet work as always.');
+    says('a day may get up to 5% of its calorie target extra');
+    await userEvent.click(noWaste);
+
+    expect(await sent()).toMatchObject({ lessWaste: true, noWaste: true, respectInventory: true });
+  });
+
+  it("says the profile's own limits on repeats where they are looser than the level's, and loosens nothing", async () => {
+    profile.preferences = {
+      ...profile.preferences!,
+      maxConsecutiveDaysSameMeal: 4,
+      maxTimesPerWeekSameMeal: 6,
+    };
     await renderPage();
 
-    expect(await sent()).toMatchObject({ lessWaste: false, respectInventory: true });
+    expect(level(messages.mealPlans.noWaste)).toHaveAccessibleDescription(
+      spaced('The same recipe may come up to 4 days in a row and up to 6 times a week, even', {
+        anywhere: true,
+      }),
+    );
+    expect(level(messages.mealPlans.noWaste)).not.toHaveAccessibleDescription(/your profile/);
   });
 
-  it("holds the pantry's box ticked while the plan is to waste less, and gives it back as it was", async () => {
+  it('asks for a usual plan while its choice is left as it is', async () => {
     await renderPage();
-    await userEvent.click(pantryBox());
-    expect(pantryBox()).not.toBeChecked();
 
-    await userEvent.click(lessWasteBox());
-    expect(pantryBox()).toBeChecked();
-    expect(pantryBox()).toBeDisabled();
-    await userEvent.click(lessWasteBox());
-    expect(pantryBox()).toBeEnabled();
-    expect(pantryBox()).not.toBeChecked();
-    expect(await sent()).toMatchObject({ lessWaste: false, respectInventory: false });
+    expect(await sent()).toMatchObject({
+      lessWaste: false,
+      noWaste: false,
+      respectInventory: true,
+    });
   });
+
+  it.each([
+    ['less', messages.mealPlans.lessWaste],
+    ['nothing', messages.mealPlans.noWaste],
+  ])(
+    "holds the pantry's box ticked while the plan is to waste %s, and gives it back as it was",
+    async (_, name) => {
+      await renderPage();
+      await userEvent.click(pantryBox());
+      expect(pantryBox()).not.toBeChecked();
+
+      await userEvent.click(level(name));
+      expect(pantryBox()).toBeChecked();
+      expect(pantryBox()).toBeDisabled();
+      await userEvent.click(level(messages.mealPlans.wasteUsual));
+      expect(pantryBox()).toBeEnabled();
+      expect(pantryBox()).not.toBeChecked();
+      expect(await sent()).toMatchObject({
+        lessWaste: false,
+        noWaste: false,
+        respectInventory: false,
+      });
+    },
+  );
 
   it('counts the pantry in a plan that wastes less, its box unticked before', async () => {
     await renderPage();
     await userEvent.click(pantryBox());
-    await userEvent.click(lessWasteBox());
+    await userEvent.click(level(messages.mealPlans.lessWaste));
 
     expect(await sent()).toMatchObject({ lessWaste: true, respectInventory: true });
   });
@@ -2134,16 +2252,31 @@ describe('the plan page, on what a plan is made for', () => {
   it('says the figures of the diet the form names, and words alone for the custom diet, which has none', async () => {
     profile.customMacroSplit = { protein: 30, fat: 40, carbs: 30 };
     await renderPage();
+    const lessWaste = () => level(messages.mealPlans.lessWaste);
+    const noWaste = () => level(messages.mealPlans.noWaste);
 
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'high_protein');
-    expect(lessWasteBox()).toHaveAccessibleDescription(
+    expect(lessWaste()).toHaveAccessibleDescription(
       /uses about 61% of the pantry instead of 31%, and about 81% of such packs instead of 71%\. In return a week has about 11% fewer/,
     );
+    expect(noWaste()).toHaveAccessibleDescription(
+      /uses about 91% of such packs instead of 71% and about 41% of the pantry instead of 31%\. In return a week has about 51% fewer/,
+    );
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
-    expect(lessWasteBox()).toHaveAccessibleDescription(
+    expect(lessWaste()).toHaveAccessibleDescription(
       spaced(messages.mealPlans.lessWasteHintCustom, { start: true }),
     );
-    expect(lessWasteBox()).not.toHaveAccessibleDescription(/%/);
+    expect(noWaste()).toHaveAccessibleDescription(
+      spaced(
+        createTranslator({ locale: 'en', messages })('mealPlans.noWasteHintCustom', {
+          meatDays: 3,
+          otherDays: 5,
+        }),
+        { start: true },
+      ),
+    );
+    for (const choice of [lessWaste(), noWaste()])
+      expect(choice).not.toHaveAccessibleDescription(/instead of/);
   });
 
   it('does not offer the custom diet to a profile that has said no split for it', async () => {

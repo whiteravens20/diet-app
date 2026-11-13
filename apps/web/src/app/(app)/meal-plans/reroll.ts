@@ -21,6 +21,8 @@ export interface Reroll {
   forAll?: boolean;
   /** Whether the whole plan made again wastes less; left out, as the plan has it. */
   lessWaste?: boolean;
+  /** Whether the whole plan made again wastes nothing; left out, as the plan has it. */
+  noWaste?: boolean;
 }
 
 /** What a re-roll sends: nothing at all when it asks for nothing of its own. */
@@ -36,6 +38,7 @@ export function rerollBody(v: Reroll): Record<string, unknown> | undefined {
     ...(v.together ? { together: true } : {}),
     ...(v.forAll ? { forAll: true } : {}),
     ...(v.lessWaste !== undefined ? { lessWaste: v.lessWaste } : {}),
+    ...(v.noWaste !== undefined ? { noWaste: v.noWaste } : {}),
   };
   return Object.keys(body).length > 0 ? body : undefined;
 }

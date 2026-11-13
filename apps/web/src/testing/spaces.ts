@@ -9,8 +9,14 @@
 export const plain = (text: string | null | undefined): string =>
   (text ?? '').replaceAll('\u00a0', ' ');
 
-/** A name to find an element by, each space matching a plain or a no-break one; `start` matches its beginning only. */
-export function spaced(text: string, { start = false }: { start?: boolean } = {}): RegExp {
+/**
+ * A name to find an element by, each space matching a plain or a no-break one; `start` matches its
+ * beginning only, `anywhere` any part of it.
+ */
+export function spaced(
+  text: string,
+  { start = false, anywhere = false }: { start?: boolean; anywhere?: boolean } = {},
+): RegExp {
   const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll(' ', '[ \\u00a0]');
-  return new RegExp(`^${escaped}${start ? '' : '$'}`);
+  return new RegExp(anywhere ? escaped : `^${escaped}${start ? '' : '$'}`);
 }

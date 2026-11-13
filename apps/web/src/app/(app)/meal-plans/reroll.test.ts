@@ -28,4 +28,16 @@ describe('what a re-roll sends', () => {
       allowRelaxations: [],
     });
   });
+
+  it('says a level of waste given, a level turned off included, and leaves out one not given', () => {
+    expect(rerollBody({ planId: 'p', lessWaste: true, noWaste: true })).toEqual({
+      lessWaste: true,
+      noWaste: true,
+    });
+    expect(rerollBody({ planId: 'p', lessWaste: false, noWaste: false })).toEqual({
+      lessWaste: false,
+      noWaste: false,
+    });
+    expect(rerollBody({ planId: 'p', lessWaste: true })).toEqual({ lessWaste: true });
+  });
 });

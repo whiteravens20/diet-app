@@ -50,7 +50,7 @@ import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-car
 import { RebalanceToast, type PlanWord } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
-import { LessWasteSwitch } from './less-waste';
+import { askedOf, repeatsOf, WasteLevelChoice, type WasteLevel } from './less-waste';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { LoadFailed } from '@/components/load-failed';
@@ -148,8 +148,9 @@ function MealPlansContent() {
   const [cookAhead, setCookAhead] = useState(false);
   // Another profile of the account the plan is made together with: each gets a plan, the meals at the times both have shared.
   const [withProfileId, setWithProfileId] = useState('');
-  // A plan that wastes less counts the pantry: its box stays ticked while the plan is to waste less.
-  const [lessWaste, setLessWaste] = useState(false);
+  // A plan that wastes less counts the pantry: its box stays ticked while the plan is to waste less, or nothing.
+  const [wasteLevel, setWasteLevel] = useState<WasteLevel>('usual');
+  const lessWaste = wasteLevel !== 'usual';
   const [withPantry, setWithPantry] = useState(true);
   // What this plan is made for where it differs from the profile: empty means "as the profile has it".
   const [diet, setDiet] = useState<DietType | ''>('');
@@ -564,8 +565,7 @@ function MealPlansContent() {
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: withPantry || lessWaste,
-      lessWaste,
-      noWaste: false,
+      ...askedOf(wasteLevel),
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
       // A joint plan is made without settings of its days.
       ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),
@@ -813,7 +813,12 @@ function MealPlansContent() {
                 {t('preferInventory')}
               </label>
             </fieldset>
-            <LessWasteSwitch diet={planDiet} checked={lessWaste} onChange={setLessWaste} />
+            <WasteLevelChoice
+              diet={planDiet}
+              level={wasteLevel}
+              onChange={setWasteLevel}
+              repeats={repeatsOf(active)}
+            />
             <AdvancedOptions
               dates={planDates(startDate, durationDays)}
               defaultMealCount={planMeals}
@@ -970,6 +975,7 @@ function MealPlansContent() {
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
               profileDiet={active?.dietType ?? plan.dietType}
+              profileRepeats={repeatsOf(active)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
               onReroll={(asked) => {
                 setError(null);

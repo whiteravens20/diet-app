@@ -158,6 +158,7 @@ export function PlanCard({
   busy,
   dietLabel,
   profileDiet,
+  profileRepeats,
   favorites,
   tMeal,
   onToggle,
@@ -200,6 +201,8 @@ export function PlanCard({
   dietLabel: string;
   /** The diet of the plan's profile as it is now: a whole plan made again follows it where the plan names none. */
   profileDiet: DietType;
+  /** The profile's own limits on repeats, for the whole plan made again to waste nothing. */
+  profileRepeats: { daysInARow: number; timesAWeek: number };
   favorites: FavoriteOption[];
   tMeal: ReturnType<typeof useTranslations<'enums.mealType'>>;
   onToggle: () => void;
@@ -1599,7 +1602,11 @@ export function PlanCard({
                 </p>
               )}
               {pantryLine && <p>{t(pantryLine)}</p>}
-              {plan.options.lessWaste && <p>{t('planLessWaste')}</p>}
+              {plan.options.noWaste ? (
+                <p>{t('planNoWaste')}</p>
+              ) : (
+                plan.options.lessWaste && <p>{t('planLessWaste')}</p>
+              )}
             </div>
           )}
           {conflicts > 0 && (
@@ -1707,6 +1714,7 @@ export function PlanCard({
           title={t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           start={reroll}
           profileDiet={profileDiet}
+          profileRepeats={profileRepeats}
           limitNames={limitNames}
           mealName={mealName}
           onClose={() => setReroll(null)}

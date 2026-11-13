@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CookingNote } from './cooking';
-import { LessWasteSwitch } from './less-waste';
+import { askedOf, levelOf, WasteLevelChoice, type WasteLevel } from './less-waste';
 import { type Reroll, type RerollScope } from './reroll';
 import { ListNote } from './list-note';
 
@@ -52,6 +52,7 @@ export function RerollDialog({
   title,
   start,
   profileDiet,
+  profileRepeats,
   limitNames,
   mealName,
   onClose,
@@ -63,6 +64,8 @@ export function RerollDialog({
   start: RerollStart;
   /** The diet of the plan's profile as it is now: the whole plan made again follows it where the plan names none. */
   profileDiet: DietType;
+  /** The profile's own limits on repeats, which a plan that wastes nothing loosens (`WasteLevelChoice`). */
+  profileRepeats: { daysInARow: number; timesAWeek: number };
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   mealName: (mealType: string) => string;
   onClose: () => void;
@@ -93,6 +96,7 @@ export function RerollDialog({
           plan={plan.data}
           start={start}
           profileDiet={profileDiet}
+          profileRepeats={profileRepeats}
           limitNames={limitNames}
           mealName={mealName}
           onClose={onClose}
@@ -120,6 +124,7 @@ function RerollForm({
   plan,
   start,
   profileDiet,
+  profileRepeats,
   limitNames,
   mealName,
   onClose,
@@ -128,6 +133,7 @@ function RerollForm({
   plan: MealPlan;
   start: RerollStart;
   profileDiet: DietType;
+  profileRepeats: { daysInARow: number; timesAWeek: number };
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   mealName: (mealType: string) => string;
   onClose: () => void;
@@ -161,7 +167,7 @@ function RerollForm({
   // A joint plan is made again for both, unless the user says for this plan alone.
   const [forAll, setForAll] = useState(true);
   // Only the whole plan made again can change it: days of it filled again are made as the plan is.
-  const [lessWaste, setLessWaste] = useState(plan.options.lessWaste);
+  const [wasteLevel, setWasteLevel] = useState<WasteLevel>(levelOf(plan.options));
   const wholeDiet = plan.options.dietType ?? profileDiet;
 
   // What the API is asked what a re-roll would do: the days chosen, and what of them may go as well.
@@ -248,7 +254,7 @@ function RerollForm({
           ...(couldGo.custom && replaceCustom ? { replaceCustom: true } : {}),
           ...(holdLimits && mayGiveWay.length > 0 ? { allowRelaxations: [] } : {}),
           ...(!only && shown.cooking?.changes.length ? { together: true } : {}),
-          ...(scope === 'whole' && lessWaste !== plan.options.lessWaste ? { lessWaste } : {}),
+          ...(scope === 'whole' && wasteLevel !== levelOf(plan.options) ? askedOf(wasteLevel) : {}),
           ...(plan.joint && forAll ? { forAll: true } : {}),
         });
         onClose();
@@ -277,7 +283,12 @@ function RerollForm({
             </p>
             {option.scope === 'whole' && scope === 'whole' && (
               <div className="ml-6">
-                <LessWasteSwitch diet={wholeDiet} checked={lessWaste} onChange={setLessWaste} />
+                <WasteLevelChoice
+                  diet={wholeDiet}
+                  level={wasteLevel}
+                  onChange={setWasteLevel}
+                  repeats={profileRepeats}
+                />
               </div>
             )}
             {option.scope === 'range' && scope === 'range' && (
