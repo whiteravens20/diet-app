@@ -11,7 +11,13 @@ jobs:
     name: Auto-merge Dependabot PRs
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.actor == 'dependabot[bot]'
+    # Who opened the pull request, as well as who set this run off: the second
+    # alone is whoever acted on the pull request last, and need not be the one
+    # whose changes are in it. zizmor flags any test of the second, and with the
+    # first beside it there is nothing left to pass for Dependabot; the second
+    # stays so that a push to the branch or a reopen by anyone else does not
+    # start a merge.
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]' # zizmor: ignore[bot-conditions]
     permissions:
       contents: write
       pull-requests: write
