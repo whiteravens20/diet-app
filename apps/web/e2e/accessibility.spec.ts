@@ -103,7 +103,7 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     // Its button waits for the first figures: the form is judged once they are in, as it stands then.
     await expect(
       page.getByRole('button', {
-        name: (messages.profile as Record<string, string>).saveChanges!,
+        name: (messages.profile as unknown as { autosave: Record<string, string> }).autosave.done!,
         exact: true,
       }),
     ).toBeEnabled();

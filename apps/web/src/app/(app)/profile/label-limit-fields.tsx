@@ -26,7 +26,13 @@ export function labelLimitsIn(fields: FormData): LabelLimits {
  * A box to tick for each limit of a label, and its number in grams a day once it is ticked: what
  * the profile set, or where a limit starts (`LABEL_LIMIT_STARTS`).
  */
-export function LabelLimitFields({ initial }: { initial: LabelLimits }) {
+export function LabelLimitFields({
+  initial,
+  error,
+}: {
+  initial: LabelLimits;
+  error?: string | undefined;
+}) {
   const t = useTranslations('profile');
   const [on, setOn] = useState<Record<(typeof LIMITS)[number], boolean>>(() => ({
     saltAtMost: initial.saltAtMost !== null,
@@ -72,6 +78,11 @@ export function LabelLimitFields({ initial }: { initial: LabelLimits }) {
         ))}
       </ul>
       <p className="text-xs text-muted-foreground">{t('labelLimitStarts')}</p>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }

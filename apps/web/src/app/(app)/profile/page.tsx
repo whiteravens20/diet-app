@@ -43,7 +43,8 @@ import {
 } from '@/components/profile-fields';
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
-import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
+import { boundsIn, shownToOne, shownWeight, useWeightUnit } from '@/lib/weight-unit';
+import { useAutosave, weightIn } from './autosave';
 import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
 import { LabelLimitFields, labelLimitsIn } from './label-limit-fields';
 import { PageBanner } from '@/components/page-banner';
@@ -117,20 +118,9 @@ export default function ProfilePage() {
   const list = profiles.data ?? [];
   const fmt = useFormat();
   const weightBounds = boundsIn(unit);
-  /**
-   * A weight of the form, in kilograms; null for a field left empty. A field
-   * that still shows what the profile had gives back exactly that: a weight
-   * that went through pounds and back would otherwise move by a hair with
-   * every save.
-   */
-  const weightTyped = (
-    field: FormDataEntryValue | null,
-    before: number | null | undefined,
-  ): number | null => {
-    if (field === null || String(field).trim() === '') return null;
-    const typed = Number(field);
-    return before != null && typed === shownToOne(before, unit) ? before : toKilograms(typed, unit);
-  };
+  // A profile being changed keeps each change as it is made; the form shows the profile as each change left it.
+  const autosave = useAutosave(editing, unit, form, setEditing);
+  const errorOf = editing ? autosave.errorOf : undefined;
   // How many profiles an account may hold is the instance's to say.
   const maxProfiles = useConfig().data?.accounts.maxProfiles ?? DEFAULT_PROFILES_PER_ACCOUNT;
   const atLimit = list.length >= maxProfiles;
@@ -141,11 +131,9 @@ export default function ProfilePage() {
     qc.invalidateQueries({ queryKey: ['calories'] });
   }
 
+  // A new profile is made at once, from the whole form; one being changed keeps each change as it is made.
   const save = useMutation({
-    mutationFn: (input: ProfileInput) =>
-      editing
-        ? api.put<Profile>(`/profiles/${editing.id}`, input)
-        : api.post<Profile>('/profiles', input),
+    mutationFn: (input: ProfileInput) => api.post<Profile>('/profiles', input),
     onSuccess: () => {
       recalculate();
       setEditing(null);
@@ -208,8 +196,8 @@ export default function ProfilePage() {
       age: Number(f.get('age')),
       sex: (f.get('sex') as 'male' | 'female') || null,
       heightCm: Number(f.get('heightCm')),
-      weightKg: weightTyped(f.get('weight'), editing?.weightKg) ?? 0,
-      targetWeightKg: weightTyped(f.get('targetWeight'), editing?.targetWeightKg),
+      weightKg: weightIn(f.get('weight'), editing?.weightKg, unit) ?? 0,
+      targetWeightKg: weightIn(f.get('targetWeight'), editing?.targetWeightKg, unit),
       // Left empty, the profile drinks to no target. While water is not tracked, the target and the
       // reminder to drink are out of sight and stay as the profile had them.
       waterTargetMl: tracking
@@ -397,18 +385,23 @@ export default function ProfilePage() {
             <CardTitle>
               {editing ? t('editing', { name: editing.name }) : t('newProfile')}
             </CardTitle>
+            {editing && <p className="text-sm text-muted-foreground">{t('autosave.hint')}</p>}
           </CardHeader>
           <CardContent>
             {/* Re-mount on edit-target change so default values reset. */}
             <form
               key={formKey}
               ref={form}
-              onSubmit={onSubmit}
-              onChange={onChange}
+              onSubmit={editing ? autosave.onSubmit : onSubmit}
+              onChange={(event) => {
+                onChange();
+                if (editing) autosave.onChange(event);
+              }}
+              onBlur={editing ? autosave.onBlur : undefined}
               className="space-y-6"
             >
               <FormSection title={t('section.body')}>
-                <Field label={t('name')} hint={t('nameHint')}>
+                <Field label={t('name')} hint={t('nameHint')} error={errorOf?.('name')}>
                   <Input
                     name="name"
                     required
@@ -417,7 +410,7 @@ export default function ProfilePage() {
                     defaultValue={editing?.name}
                   />
                 </Field>
-                <BodyFields initial={editing ?? undefined} unit={unit} />
+                <BodyFields initial={editing ?? undefined} unit={unit} errorOf={errorOf} />
               </FormSection>
               <FormSection title={t('section.goal')}>
                 <PaceChoice
@@ -426,7 +419,12 @@ export default function ProfilePage() {
                   unit={unit}
                   className="sm:col-span-2"
                 />
-                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')} optional>
+                <Field
+                  label={t('targetWeight', { unit })}
+                  hint={t('targetWeightHint')}
+                  error={errorOf?.('targetWeight')}
+                  optional
+                >
                   <Input
                     key={unit}
                     name="targetWeight"
@@ -460,7 +458,12 @@ export default function ProfilePage() {
                 {/* Out of sight while water is not tracked, and switched off, so that a number typed
                     wrong in it holds no save back. */}
                 <div className={cn(!tracking && 'hidden')}>
-                  <Field label={t('waterTarget')} hint={t('waterTargetHint')} optional>
+                  <Field
+                    label={t('waterTarget')}
+                    hint={t('waterTargetHint')}
+                    error={errorOf?.('waterTarget')}
+                    optional
+                  >
                     <Input
                       name="waterTarget"
                       type="number"
@@ -474,14 +477,18 @@ export default function ProfilePage() {
                     />
                   </Field>
                 </div>
-                <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
+                <OwnTargetField initial={editing?.manualCalorieTarget ?? null} errorOf={errorOf} />
                 {editing && <KeptCorrection profile={editing} />}
                 <RiskBox
                   reasons={risk}
                   acknowledged={editing?.riskAcknowledgedAt != null}
                   className="sm:col-span-2"
                 />
-                <Field label={t('weightReminderCadence')} hint={t('weightReminderCadenceHint')}>
+                <Field
+                  label={t('weightReminderCadence')}
+                  hint={t('weightReminderCadenceHint')}
+                  error={errorOf?.('weightReminderCadence')}
+                >
                   <select
                     name="weightReminderCadence"
                     defaultValue={editing?.weightReminderCadence ?? 'weekly'}
@@ -529,12 +536,14 @@ export default function ProfilePage() {
                   diet={editing?.dietType ?? 'balanced'}
                   mealCount={editing?.mealCount ?? 3}
                   split={editing?.customMacroSplit ?? null}
+                  errorOf={errorOf}
                 />
               </FormSection>
               <FormSection title={t('section.variety')}>
                 <Field
                   label={t('maxConsecutiveDaysSameMeal')}
                   hint={t('maxConsecutiveDaysSameMealHint')}
+                  error={errorOf?.('maxConsecutiveDaysSameMeal')}
                 >
                   <Input
                     name="maxConsecutiveDaysSameMeal"
@@ -545,7 +554,11 @@ export default function ProfilePage() {
                     defaultValue={editing?.preferences.maxConsecutiveDaysSameMeal ?? 2}
                   />
                 </Field>
-                <Field label={t('maxTimesPerWeekSameMeal')} hint={t('maxTimesPerWeekSameMealHint')}>
+                <Field
+                  label={t('maxTimesPerWeekSameMeal')}
+                  hint={t('maxTimesPerWeekSameMealHint')}
+                  error={errorOf?.('maxTimesPerWeekSameMeal')}
+                >
                   <Input
                     name="maxTimesPerWeekSameMeal"
                     type="number"
@@ -556,6 +569,8 @@ export default function ProfilePage() {
                   />
                 </Field>
                 <KindLimitFields
+                  onRemoved={editing ? () => autosave.changed('kindLimits') : undefined}
+                  error={errorOf?.('kindLimits')}
                   initial={
                     editing?.preferences ?? {
                       maxMealsPerDaySameKind: null,
@@ -564,7 +579,11 @@ export default function ProfilePage() {
                     }
                   }
                 />
-                <Field label={t('inventoryBiasResetEvery')} hint={t('inventoryBiasResetEveryHint')}>
+                <Field
+                  label={t('inventoryBiasResetEvery')}
+                  hint={t('inventoryBiasResetEveryHint')}
+                  error={errorOf?.('inventoryBiasResetEvery')}
+                >
                   <Input
                     name="inventoryBiasResetEvery"
                     type="number"
@@ -576,27 +595,54 @@ export default function ProfilePage() {
                 </Field>
               </FormSection>
               <FormSection title={t('labelLimits')}>
-                <LabelLimitFields initial={editing?.preferences.labelLimits ?? NO_LABEL_LIMITS} />
+                <LabelLimitFields
+                  initial={editing?.preferences.labelLimits ?? NO_LABEL_LIMITS}
+                  error={errorOf?.('labelLimits')}
+                />
               </FormSection>
               <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
-              <div className="flex items-center gap-3 sm:col-span-2">
-                {/* The first figures make the panel above taller: a press as they arrive would come down on the button and go up on what took its place, and nothing would happen. */}
-                <Button type="submit" disabled={save.isPending || shown.waiting}>
-                  {save.isPending ? t('saving') : editing ? t('saveChanges') : t('createProfile')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setError(null);
-                    setEditing(null);
-                    setCreating(false);
-                  }}
-                >
-                  {tCommon('cancel')}
-                </Button>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-              </div>
+              {editing ? (
+                <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                  {/* What is typed is kept as the button is pressed; the form closes once every change is. The first
+                      figures make the panel above taller: a press as they arrive would miss the button. */}
+                  <Button
+                    type="button"
+                    disabled={shown.waiting}
+                    onClick={async () => {
+                      if (await autosave.settle()) setEditing(null);
+                    }}
+                  >
+                    {t('autosave.done')}
+                  </Button>
+                  <p
+                    aria-live="polite"
+                    className={cn(
+                      'text-sm',
+                      autosave.status === 'failed' ? 'text-destructive' : 'text-muted-foreground',
+                    )}
+                  >
+                    {autosave.status === 'idle' ? '' : t(`autosave.${autosave.status}`)}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 sm:col-span-2">
+                  {/* The first figures make the panel above taller: a press as they arrive would come down on the button and go up on what took its place, and nothing would happen. */}
+                  <Button type="submit" disabled={save.isPending || shown.waiting}>
+                    {save.isPending ? t('saving') : t('createProfile')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setError(null);
+                      setCreating(false);
+                    }}
+                  >
+                    {tCommon('cancel')}
+                  </Button>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>

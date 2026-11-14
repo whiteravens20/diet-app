@@ -6,11 +6,11 @@ import { expect, loose, settled, test, type Messages } from './fixtures';
 type Texts = Record<string, string>;
 const textsOf = (messages: Messages, group: string): Texts => messages[group] as Texts;
 
-/** The answer to the next change of the profile, whole (`PUT`) or of its preferences (`PATCH`). */
-const changed = (page: Page, method: 'PUT' | 'PATCH'): Promise<Response> =>
+/** The answer to the next change of the profile: of some of its parts, or of its preferences. */
+const changed = (page: Page): Promise<Response> =>
   page.waitForResponse(
     (res) =>
-      res.request().method() === method &&
+      res.request().method() === 'PATCH' &&
       /^\/api\/profiles\/[^/]+(\/preferences)?$/.test(new URL(res.url()).pathname),
   );
 
@@ -38,11 +38,16 @@ test.describe('what a profile says of how it eats', () => {
     const split = (messages.profile as unknown as { split: Texts }).split;
     // A label that holds a list of choices reads with them: it is found by how it begins.
     const diet = () => page.getByLabel(new RegExp(`^${loose(profile.dietType!)}`));
-    const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
 
     await editing(page, messages);
     const before = await diet().inputValue();
+    // The diet is kept the moment it is chosen, with the split the form begins with.
+    const toCustom = changed(page);
     await diet().selectOption('custom');
+    expect(await (await toCustom).json()).toMatchObject({
+      dietType: 'custom',
+      customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+    });
 
     // The form says what the three shares add up to while they are typed: 30, 30 and 45 are 105.
     await page.getByLabel(split.protein!, { exact: true }).fill('30');
@@ -51,9 +56,10 @@ test.describe('what a profile says of how it eats', () => {
     ).toBeVisible();
     await page.getByLabel(split.fat!, { exact: true }).fill('40');
     await page.getByLabel(split.carbs!, { exact: true }).fill('30');
-    const toCustom = changed(page, 'PUT');
-    await save().click();
-    expect(await (await toCustom).json()).toMatchObject({
+    // The split is kept once its last share is left, adding up to a hundred.
+    const split30 = changed(page);
+    await page.keyboard.press('Tab');
+    expect(await (await split30).json()).toMatchObject({
       dietType: 'custom',
       customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
     });
@@ -69,9 +75,8 @@ test.describe('what a profile says of how it eats', () => {
 
     // Back to the diet it had, so that the tests after this one find the profile they expect. The split stays with it.
     await editing(page, messages);
+    const back = changed(page);
     await diet().selectOption(before);
-    const back = changed(page, 'PUT');
-    await save().click();
     expect(await (await back).json()).toMatchObject({
       dietType: before,
       customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
@@ -93,7 +98,7 @@ test.describe('what a profile says of how it eats', () => {
     await settled(page);
     await expect(cuisine()).not.toBeChecked();
 
-    const liked = changed(page, 'PATCH');
+    const liked = changed(page);
     await cuisine().check();
     expect(
       ((await (await liked).json()) as { preferences: { preferredCuisines: string[] } }).preferences
@@ -103,7 +108,7 @@ test.describe('what a profile says of how it eats', () => {
     await settled(page);
     await expect(cuisine()).toBeChecked();
 
-    const cleared = changed(page, 'PATCH');
+    const cleared = changed(page);
     await cuisine().uncheck();
     expect(
       ((await (await cleared).json()) as { preferences: { preferredCuisines: string[] } })
@@ -128,7 +133,7 @@ test.describe('what a profile says of how it eats', () => {
     await list.getByRole('textbox').fill(appLocale === 'pl' ? 'ryż' : 'rice');
     // A result is ticked, and the ticked ones go to the list together.
     await list.getByRole('checkbox').first().check();
-    const picked = changed(page, 'PATCH');
+    const picked = changed(page);
     await list.getByRole('button', { name: pickers.addTicked!.replace('{count}', '1') }).click();
     const ids = (
       (await (await picked).json()) as { preferences: { dislikedIngredientIds: string[] } }
@@ -136,7 +141,7 @@ test.describe('what a profile says of how it eats', () => {
     expect(ids).toHaveLength(1);
     await expect(list.getByRole('button', { name: remove })).toHaveCount(1);
 
-    const taken = changed(page, 'PATCH');
+    const taken = changed(page);
     await list.getByRole('button', { name: remove }).click();
     expect(
       ((await (await taken).json()) as { preferences: { dislikedIngredientIds: string[] } })
@@ -153,23 +158,21 @@ test.describe('what a profile drinks', () => {
   }) => {
     const page = session.page;
     const profile = textsOf(messages, 'profile');
-    const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
     // The field is named by its label and the line under it: it is found by how its name begins.
     const water = () => page.getByLabel(new RegExp(`^${loose(profile.waterTarget!)}`));
 
     await editing(page, messages);
     const before = await water().inputValue();
-    // Not a multiple of 50: the browser holds the form back where its field steps by 50.
+    // Not a multiple of 50: the browser would hold it back where its field steps by 50. Kept once the field is left.
     await water().fill('2125');
-    const kept = changed(page, 'PUT');
-    await save().click();
+    const kept = changed(page);
+    await page.keyboard.press('Tab');
     expect(await (await kept).json()).toMatchObject({ waterTargetMl: 2125 });
 
     // Back to the target it had, so that the tests after this one find the profile they expect.
-    await editing(page, messages);
     await water().fill(before);
-    const back = changed(page, 'PUT');
-    await save().click();
+    const back = changed(page);
+    await page.keyboard.press('Tab');
     expect(await (await back).json()).toMatchObject({
       waterTargetMl: before === '' ? null : Number(before),
     });
@@ -181,7 +184,6 @@ test.describe('what a profile drinks', () => {
   }) => {
     const page = session.page;
     const profile = textsOf(messages, 'profile');
-    const save = () => page.getByRole('button', { name: profile.saveChanges!, exact: true });
     const tracking = () =>
       page.getByRole('checkbox', { name: new RegExp(`^${loose(profile.waterTracking!)}`) });
     const water = () => page.getByLabel(new RegExp(`^${loose(profile.waterTarget!)}`));
@@ -190,9 +192,9 @@ test.describe('what a profile drinks', () => {
     const switched = async (on: boolean, first?: () => Promise<void>) => {
       await editing(page, messages);
       await first?.();
+      // Kept the moment it is ticked.
+      const kept = changed(page);
       await tracking().setChecked(on);
-      const kept = changed(page, 'PUT');
-      await save().click();
       // The profile as the API kept it.
       const saved = await (await kept).json();
       expect(saved).toMatchObject({ waterTracking: on });
@@ -201,8 +203,8 @@ test.describe('what a profile drinks', () => {
       return saved;
     };
 
-    // A number the field does not take, typed before water stops being tracked: out of sight, it
-    // holds no save back, and the profile keeps the target it had.
+    // A number the field does not take, typed before water stops being tracked: it is not kept, and
+    // the profile keeps the target it had.
     let had = '';
     const saved = await switched(false, async () => {
       had = await water().inputValue();

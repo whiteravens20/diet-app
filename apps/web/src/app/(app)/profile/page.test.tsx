@@ -127,12 +127,63 @@ describe('the profile page, on how many profiles an account may hold', () => {
   });
 });
 
-/** A press of the form's save button, once the form takes one: its first figures have to be in. */
-const pressSave = async () => {
-  const button = screen.getByRole('button', { name: messages.profile.saveChanges });
-  await waitFor(() => expect(button).toBeEnabled());
-  await userEvent.click(button);
-};
+/**
+ * The form of the account's one profile, open, on an API that keeps each change it is sent as the
+ * real one does, for an account that weighs in `unit` (the browser's own when left out). The form
+ * is ready once its first figures are in. `changes` are what the form sent, each to its route.
+ */
+async function openForm(first: Profile, unit?: 'kg' | 'lb') {
+  let kept = first;
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve(
+      (path === '/profiles'
+        ? [kept]
+        : path === '/users/me' && unit
+          ? { weightUnit: unit }
+          : path.endsWith('/calories')
+            ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } }
+            : []) as never,
+    ),
+  );
+  vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
+  const request = vi
+    .spyOn(api, 'request')
+    .mockImplementation((path: string, init?: RequestInit) => {
+      const change = JSON.parse(String(init?.body)) as Partial<Profile>;
+      kept = path.endsWith('/preferences')
+        ? { ...kept, preferences: { ...kept.preferences, ...(change as Profile['preferences']) } }
+        : { ...kept, ...change };
+      return Promise.resolve(kept as never);
+    });
+  const put = vi.spyOn(api, 'put');
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['config'], aPublicConfig());
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <QueryClientProvider client={client}>
+        <ProfilePage />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
+  );
+  await userEvent.click(await screen.findByRole('button', { name: messages.common.edit }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: messages.profile.autosave.done })).toBeEnabled(),
+  );
+  return {
+    /** The changes sent, in the order they were: the route and what was sent to it. */
+    changes: () =>
+      request.mock.calls
+        .filter(([, init]) => init?.method === 'PATCH')
+        .map(([path, init]) => [path, JSON.parse(String(init?.body))] as const),
+    /** What was sent to a route that takes a whole profile: nothing, ever. */
+    put,
+    own: `/profiles/${first.id}`,
+    preferences: `/profiles/${first.id}/preferences`,
+  };
+}
+
+/** Leaves the field being typed in, as a tab to the next one does. */
+const leave = () => userEvent.tab();
 
 describe('the profile form, on the custom diet', () => {
   afterEach(() => {
@@ -140,23 +191,13 @@ describe('the profile form, on the custom diet', () => {
   });
 
   const texts = messages.profile;
-  /** The form of the account's one profile, open. */
-  const editing = async (profile: Profile) => {
-    await renderPage([profile], 2);
-    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
-    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
-    return {
-      put,
-      save: pressSave,
-    };
-  };
   const share = (part: 'protein' | 'fat' | 'carbs') => screen.getByLabelText(texts.split[part]);
   const type = async (part: 'protein' | 'fat' | 'carbs', value: string) => {
     await userEvent.clear(share(part));
     await userEvent.type(share(part), value);
   };
 
-  it('takes no press of save until the first figures have made the panel above it as tall as it gets', async () => {
+  it('takes no press of done until the first figures have made the panel above it as tall as it gets', async () => {
     const profile = aProfile('Me');
     await renderPage([profile], 2);
     let answer: (figures: unknown) => void = () => {};
@@ -166,7 +207,7 @@ describe('the profile form, on the custom diet', () => {
       }) as never,
     );
     await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
-    const button = screen.getByRole('button', { name: texts.saveChanges });
+    const button = screen.getByRole('button', { name: texts.autosave.done });
 
     expect(button).toBeDisabled();
     await waitFor(() => expect(api.post).toHaveBeenCalled());
@@ -177,7 +218,7 @@ describe('the profile form, on the custom diet', () => {
   });
 
   it("asks for the split only on that diet, and begins with the balanced diet's", async () => {
-    await editing(aProfile('Me'));
+    await openForm(aProfile('Me'));
     expect(screen.queryByRole('group', { name: texts.customSplit })).toBeNull();
 
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
@@ -191,37 +232,53 @@ describe('the profile form, on the custom diet', () => {
     expect(screen.getByText('Adds up to 100%.')).toBeInTheDocument();
   });
 
-  it('says what the three add up to while they are typed, and sends nothing that does not add up to a hundred', async () => {
-    const { put, save } = await editing(aProfile('Me'));
+  it('keeps the custom diet at once with the split it begins with', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
+
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+
+    await waitFor(() =>
+      expect(changes()).toEqual([
+        [own, { dietType: 'custom', customMacroSplit: { protein: 25, fat: 30, carbs: 45 } }],
+      ]),
+    );
+  });
+
+  it('says what the three add up to while they are typed, and keeps nothing that does not add up to a hundred', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await waitFor(() => expect(changes()).toHaveLength(1));
 
     await type('protein', '30');
     expect(
       screen.getByText('The three add up to 105%. They have to add up to 100.'),
     ).toBeInTheDocument();
-    await save();
+    await leave();
 
-    expect(put).not.toHaveBeenCalled();
-    expect(screen.getByText(plain(texts.splitSumRefused))).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(plain(texts.splitSumRefused));
+    expect(changes()).toHaveLength(1);
   });
 
-  it('sends the split with the custom diet', async () => {
-    const { put, save } = await editing(aProfile('Me'));
+  it('keeps the split once the three add up to a hundred, and says no more that it was not kept', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
     await type('protein', '30');
     await type('fat', '40');
     await type('carbs', '30');
 
-    await save();
+    await leave();
 
-    expect(put.mock.calls[0]![1]).toMatchObject({
-      dietType: 'custom',
-      customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
-    });
+    await waitFor(() =>
+      expect(changes().at(-1)).toEqual([
+        own,
+        { customMacroSplit: { protein: 30, fat: 40, carbs: 30 } },
+      ]),
+    );
+    expect(screen.queryByText(plain(texts.splitSumRefused))).toBeNull();
   });
 
-  it('shows a profile on the custom diet the split it has, and keeps it for a profile that goes to another diet', async () => {
-    const { put, save } = await editing(
+  it('shows a profile on the custom diet the split it has, and sends only the diet for one that goes to another', async () => {
+    const { changes, own } = await openForm(
       aProfile('Me', { dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }),
     );
     expect(
@@ -231,12 +288,9 @@ describe('the profile form, on the custom diet', () => {
     ).toEqual(['30', '40', '30']);
 
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'vegan');
-    await save();
 
-    expect(put.mock.calls[0]![1]).toMatchObject({
-      dietType: 'vegan',
-      customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
-    });
+    // The API keeps the split for when the profile goes back.
+    await waitFor(() => expect(changes()).toEqual([[own, { dietType: 'vegan' }]]));
   });
 });
 
@@ -247,23 +301,12 @@ describe('the profile form, on the meals with one kind of protein', () => {
 
   const texts = messages.profile;
   const kinds = messages.enums.proteinKind;
-  /** The form of the account's one profile, open. */
-  const editing = async (profile: Profile) => {
-    await renderPage([profile], 2);
-    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
-    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
-    return {
-      put,
-      save: pressSave,
-      sent: () => (put.mock.calls[0]![1] as Profile).preferences,
-    };
-  };
   const kindFields = () => screen.getAllByLabelText(texts.kindLimitKind) as HTMLSelectElement[];
   const dayFields = () => screen.getAllByLabelText(texts.kindLimitPerDay) as HTMLInputElement[];
   const weekFields = () => screen.getAllByLabelText(texts.kindLimitPerWeek) as HTMLInputElement[];
 
-  it('are part of the variety of a plan, start without a limit and send none for fields left empty', async () => {
-    const { save, sent } = await editing(aProfile('Me'));
+  it('are part of the variety of a plan, start without a limit and keep none for a field emptied', async () => {
+    const { changes, preferences } = await openForm(aProfile('Me'));
 
     const variety = screen.getByRole('region', { name: texts.section.variety });
     const perDay = within(variety).getByLabelText(texts.maxMealsPerDaySameKind);
@@ -271,17 +314,22 @@ describe('the profile form, on the meals with one kind of protein', () => {
     expect(perDay).toHaveAttribute('placeholder', texts.noLimit);
     expect(within(variety).getByLabelText(texts.maxMealsPerWeekSameKind)).toHaveValue(null);
     expect(screen.queryByLabelText(texts.kindLimitKind)).toBeNull();
-    await save();
+    await userEvent.type(perDay, '2');
+    await userEvent.clear(perDay);
+    await leave();
 
-    expect(sent()).toMatchObject({
-      maxMealsPerDaySameKind: null,
-      maxMealsPerWeekSameKind: null,
-      kindLimits: [],
-    });
+    await waitFor(() =>
+      expect(changes()).toEqual([
+        [
+          preferences,
+          { maxMealsPerDaySameKind: null, maxMealsPerWeekSameKind: null, kindLimits: [] },
+        ],
+      ]),
+    );
   });
 
-  it('send the two numbers and the exceptions typed, leaving out an exception with no number', async () => {
-    const { save, sent } = await editing(aProfile('Me'));
+  it('keep the two numbers and the exceptions typed, leaving out an exception with no number', async () => {
+    const { changes, preferences } = await openForm(aProfile('Me'));
     await userEvent.type(screen.getByLabelText(texts.maxMealsPerDaySameKind), '2');
     await userEvent.type(screen.getByLabelText(texts.maxMealsPerWeekSameKind), '7');
 
@@ -291,17 +339,21 @@ describe('the profile form, on the meals with one kind of protein', () => {
     // A second exception, with nothing typed in it.
     await userEvent.click(screen.getByRole('button', { name: texts.addKindLimit }));
     expect(kindFields()[1]).toHaveValue('chicken');
-    await save();
 
-    expect(sent()).toMatchObject({
-      maxMealsPerDaySameKind: 2,
-      maxMealsPerWeekSameKind: 7,
-      kindLimits: [{ kind: 'fish', perDay: 1, perWeek: null }],
-    });
+    await waitFor(() =>
+      expect(changes().at(-1)).toEqual([
+        preferences,
+        {
+          maxMealsPerDaySameKind: 2,
+          maxMealsPerWeekSameKind: 7,
+          kindLimits: [{ kind: 'fish', perDay: 1, perWeek: null }],
+        },
+      ]),
+    );
   });
 
-  it('show the exceptions a profile has, offer each kind once, and take one out', async () => {
-    const { save, sent } = await editing(
+  it('show the exceptions a profile has, offer each kind once, and keep one taken out', async () => {
+    const { changes, preferences } = await openForm(
       aProfile('Me', {
         preferences: {
           ...aProfile('Me').preferences,
@@ -324,13 +376,23 @@ describe('the profile form, on the meals with one kind of protein', () => {
     await userEvent.click(
       screen.getByRole('button', { name: `Remove the exception: ${kinds.eggs}` }),
     );
-    await save();
 
-    expect(sent().kindLimits).toEqual([{ kind: 'fish', perDay: 1, perWeek: null }]);
+    await waitFor(() =>
+      expect(changes()).toEqual([
+        [
+          preferences,
+          {
+            maxMealsPerDaySameKind: null,
+            maxMealsPerWeekSameKind: null,
+            kindLimits: [{ kind: 'fish', perDay: 1, perWeek: null }],
+          },
+        ],
+      ]),
+    );
   });
 
   it('offer no other exception once every kind has one', async () => {
-    await editing(aProfile('Me'));
+    await openForm(aProfile('Me'));
 
     for (let added = 0; added < 9; added += 1)
       await userEvent.click(screen.getByRole('button', { name: texts.addKindLimit }));
@@ -488,75 +550,49 @@ describe('the profile form, on the weights of a profile', () => {
     vi.restoreAllMocks();
   });
 
-  /** The form of the account's one profile, open, for an account that weighs in `unit`. */
-  const editing = async (profile: Profile, unit: 'kg' | 'lb') => {
-    vi.spyOn(api, 'get').mockImplementation((path: string) =>
-      Promise.resolve(
-        (path === '/profiles'
-          ? [profile]
-          : path === '/users/me'
-            ? { weightUnit: unit }
-            : path.endsWith('/calories')
-              ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } }
-              : []) as never,
-      ),
-    );
-    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    client.setQueryData(['config'], aPublicConfig());
-    render(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <QueryClientProvider client={client}>
-          <ProfilePage />
-        </QueryClientProvider>
-      </NextIntlClientProvider>,
-    );
-    await userEvent.click(await screen.findByRole('button', { name: messages.common.edit }));
-    const weight = await screen.findByLabelText(`Weight (${unit})`);
-    return {
-      put,
-      weight,
-      target: screen.getByRole('spinbutton', {
-        name: new RegExp(`^Weight to work towards \\(${unit}\\)`),
-      }),
-      save: pressSave,
-    };
-  };
+  const weight = (unit: 'kg' | 'lb') => screen.getByLabelText(`Weight (${unit})`);
+  const target = (unit: 'kg' | 'lb') =>
+    screen.getByRole('spinbutton', { name: new RegExp(`^Weight to work towards \\(${unit}\\)`) });
 
   it('are typed in kilograms by an account that weighs in them, the one to work towards being left out or named', async () => {
-    const { put, weight, target, save } = await editing(aProfile('Me'), 'kg');
+    const { changes, own } = await openForm(aProfile('Me'), 'kg');
 
-    expect(weight).toHaveValue(80);
-    expect(target).toHaveValue(null);
-    await userEvent.type(target, '72.5');
-    await save();
+    expect(weight('kg')).toHaveValue(80);
+    expect(target('kg')).toHaveValue(null);
+    await userEvent.type(target('kg'), '72.5');
+    await leave();
 
-    expect(put.mock.calls[0]![1]).toMatchObject({ weightKg: 80, targetWeightKg: 72.5 });
+    await waitFor(() => expect(changes()).toEqual([[own, { targetWeightKg: 72.5 }]]));
   });
 
   it('are typed in pounds by an account that weighs in them, and kept in kilograms', async () => {
-    const { put, weight, target, save } = await editing(
-      aProfile('Me', { targetWeightKg: 70 }),
-      'lb',
+    const { changes, own } = await openForm(aProfile('Me', { targetWeightKg: 70 }), 'lb');
+
+    expect(weight('lb')).toHaveValue(176.4);
+    expect(target('lb')).toHaveValue(154.3);
+    await userEvent.clear(target('lb'));
+    await userEvent.type(target('lb'), '150');
+    // The weight typed again as it stood.
+    await userEvent.clear(weight('lb'));
+    await userEvent.type(weight('lb'), '176.4');
+    await leave();
+
+    // What was typed is converted; what stands as it stood is the weight the profile has, to the gram.
+    await waitFor(() =>
+      expect(changes()).toEqual([
+        [own, { targetWeightKg: 68.04 }],
+        [own, { weightKg: 80 }],
+      ]),
     );
-
-    expect(weight).toHaveValue(176.4);
-    expect(target).toHaveValue(154.3);
-    await userEvent.clear(target);
-    await userEvent.type(target, '150');
-    await save();
-
-    // What was typed is converted; what was left as it stood is the weight the profile had, to the gram.
-    expect(put.mock.calls[0]![1]).toMatchObject({ weightKg: 80, targetWeightKg: 68.04 });
   });
 
   it('give up the weight to work towards when its field is emptied', async () => {
-    const { put, target, save } = await editing(aProfile('Me', { targetWeightKg: 70 }), 'kg');
+    const { changes, own } = await openForm(aProfile('Me', { targetWeightKg: 70 }), 'kg');
 
-    await userEvent.clear(target);
-    await save();
+    await userEvent.clear(target('kg'));
+    await leave();
 
-    expect(put.mock.calls[0]![1]).toMatchObject({ targetWeightKg: null });
+    await waitFor(() => expect(changes()).toEqual([[own, { targetWeightKg: null }]]));
   });
 });
 
@@ -673,24 +709,20 @@ describe('the profile form, on what its figures come to', () => {
     expect(paces[4]!.closest('label')).toHaveTextContent('2069 kcal a day · slowed');
   });
 
-  it('asks again for what was typed, and sends the pace that was chosen', async () => {
-    const profile = aProfile('Me');
-    await renderPage([profile], 2);
+  it('asks again for what was typed, and keeps the pace that was chosen at once', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
     const post = vi.mocked(api.post);
-    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
-    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
     await screen.findByText('2209 kcal');
 
     await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
+
     await vi.waitFor(() =>
       expect(post).toHaveBeenLastCalledWith(
         '/profiles/calories',
         expect.objectContaining({ weeklyLossTarget: null }),
       ),
     );
-    await pressSave();
-
-    expect(put.mock.calls[0]![1]).toMatchObject({ weeklyLossTarget: null });
+    await waitFor(() => expect(changes()).toEqual([[own, { weeklyLossTarget: null }]]));
   });
 });
 
@@ -700,31 +732,40 @@ describe("the profile form, on a day's water", () => {
   });
 
   const texts = messages.profile;
-  const editing = async (profile: Profile) => {
-    await renderPage([profile], 2);
-    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
-    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
-    return { save: pressSave, sent: () => put.mock.calls[0]![1] as Profile };
-  };
   const waterField = () =>
     screen.getByRole('spinbutton', { name: (name) => name.startsWith(texts.waterTarget) });
 
-  it("shows the profile's target, and sends another typed in its place", async () => {
-    const { save, sent } = await editing(aProfile('Me'));
+  it("shows the profile's target, and keeps another typed in its place once the field is left", async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
 
     expect(waterField()).toHaveValue(2000);
     await userEvent.clear(waterField());
     await userEvent.type(waterField(), '1500');
-    await save();
-    expect(sent().waterTargetMl).toBe(1500);
+    expect(changes()).toEqual([]);
+    await leave();
+
+    await waitFor(() => expect(changes()).toEqual([[own, { waterTargetMl: 1500 }]]));
   });
 
-  it('sends no target for a field left empty', async () => {
-    const { save, sent } = await editing(aProfile('Me'));
+  it('keeps no target for a field left empty', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
 
     await userEvent.clear(waterField());
-    await save();
-    expect(sent().waterTargetMl).toBeNull();
+    await leave();
+
+    await waitFor(() => expect(changes()).toEqual([[own, { waterTargetMl: null }]]));
+  });
+
+  it('keeps no number out of its bounds, and says at the field what it takes', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+
+    await userEvent.clear(waterField());
+    await userEvent.type(waterField(), '40');
+    await leave();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Type a number from 250 to 10000.');
+    expect(changes()).toEqual([]);
+    expect(screen.getByText(texts.autosave.failed)).toBeInTheDocument();
   });
 
   const tracking = () =>
@@ -733,28 +774,18 @@ describe("the profile form, on a day's water", () => {
     screen.getByRole('checkbox', { name: (name) => name.startsWith(texts.waterReminders) });
 
   it('tracks water to begin with, and a profile that stops keeps its target and its reminder, out of sight', async () => {
-    const { save, sent } = await editing(aProfile('Me', { waterReminders: true }));
+    const { changes, own } = await openForm(aProfile('Me', { waterReminders: true }));
 
     expect(tracking()).toBeChecked();
     expect(waterField().closest('.hidden')).toBeNull();
-    // What is typed or ticked before water stops being tracked is not what the profile keeps.
-    await userEvent.clear(waterField());
-    await userEvent.type(waterField(), '40');
-    await userEvent.click(reminder());
     await userEvent.click(tracking());
 
     // The page's styles hide what carries the class; the test's document has none of them.
     expect(waterField().closest('.hidden')).not.toBeNull();
     expect(reminder().closest('.hidden')).not.toBeNull();
-    // Switched off, a number typed wrong in the field is no longer one the browser holds a save back for.
     expect(waterField()).toBeDisabled();
     expect(reminder()).toBeDisabled();
-    await save();
-    expect(sent()).toMatchObject({
-      waterTracking: false,
-      waterTargetMl: 2000,
-      waterReminders: true,
-    });
+    await waitFor(() => expect(changes()).toEqual([[own, { waterTracking: false }]]));
   });
 
   it('gives a new profile that does not track water the target and the reminder a new one starts with', async () => {
@@ -786,14 +817,96 @@ describe("the profile form, on a day's water", () => {
   });
 
   it('shows a profile that does not track water so, and tracks it again at a tick', async () => {
-    const { save, sent } = await editing(aProfile('Me', { waterTracking: false }));
+    const { changes, own } = await openForm(aProfile('Me', { waterTracking: false }));
 
     expect(tracking()).not.toBeChecked();
     expect(waterField().closest('.hidden')).not.toBeNull();
     await userEvent.click(tracking());
 
     expect(waterField().closest('.hidden')).toBeNull();
-    await save();
-    expect(sent().waterTracking).toBe(true);
+    await waitFor(() => expect(changes()).toEqual([[own, { waterTracking: true }]]));
+  });
+});
+
+describe('the profile form, on keeping each change as it is made', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.profile;
+  // A field's label holds what is said under it too: what it takes, why its change was not kept.
+  const age = () => screen.getByLabelText(new RegExp(`^${texts.age}`));
+
+  it('keeps nothing while a number is typed, and keeps it once the field is left, with nothing else of the profile', async () => {
+    const { changes, own, put } = await openForm(aProfile('Me'));
+
+    await userEvent.clear(age());
+    await userEvent.type(age(), '41');
+    expect(changes()).toEqual([]);
+    await leave();
+
+    await waitFor(() => expect(changes()).toEqual([[own, { age: 41 }]]));
+    expect(screen.getByText(texts.autosave.saved)).toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it('takes back no allergen ticked below the open form, whatever the form keeps after it', async () => {
+    const profile = aProfile('Me');
+    const { changes, own } = await openForm(profile);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({
+      ...profile,
+      preferences: { ...profile.preferences, allergens: ['peanuts'] },
+    } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: /allergen/i }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Peanuts' }));
+    await waitFor(() => expect(patch).toHaveBeenCalled());
+    await userEvent.clear(age());
+    await userEvent.type(age(), '41');
+    await leave();
+
+    // The form sends the part it changed, and nothing of the preferences it showed when it was opened.
+    await waitFor(() => expect(changes()).toEqual([[own, { age: 41 }]]));
+  });
+
+  it('says at the field why a change was not kept, and closes only once every change is', async () => {
+    const profile = aProfile('Me');
+    const { own } = await openForm(profile);
+    const request = vi.mocked(api.request);
+    const keeps = request.getMockImplementation()!;
+    request.mockImplementation((path: string, init?: RequestInit) =>
+      String(init?.body).includes('"age":99')
+        ? Promise.reject(new ApiClientError(409, 'WRITE_CONFLICT', 'the text of the API'))
+        : keeps(path, init),
+    );
+
+    await userEvent.clear(age());
+    await userEvent.type(age(), '99');
+    await userEvent.click(screen.getByRole('button', { name: texts.autosave.done }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.WRITE_CONFLICT);
+    expect(screen.getByText(texts.autosave.failed)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Edit Me' })).toBeInTheDocument();
+
+    await userEvent.clear(age());
+    await userEvent.type(age(), '42');
+    await userEvent.click(screen.getByRole('button', { name: texts.autosave.done }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit Me' })).toBeNull());
+    expect(request.mock.calls.at(-1)).toEqual([
+      own,
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ age: 42 }) }),
+    ]);
+  });
+
+  it('keeps what is typed in a field as the page goes, on a request that outlives the page', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
+
+    await userEvent.clear(age());
+    await userEvent.type(age(), '41');
+    window.dispatchEvent(new Event('pagehide'));
+
+    await waitFor(() => expect(changes()).toEqual([[own, { age: 41 }]]));
+    expect(vi.mocked(api.request).mock.calls[0]![1]).toMatchObject({ keepalive: true });
   });
 });

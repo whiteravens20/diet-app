@@ -2645,7 +2645,16 @@
     "inventoryBiasResetEvery": "Pantry-bias cool-down (plans)",
     "inventoryBiasResetEveryHint": "After this many consecutive plans that leaned on the pantry, the next round skips the pantry preference for variety. 0\u00a0disables the cool-down.",
     "saving": "Saving…",
-    "saveChanges": "Save changes",
+    "autosave": {
+      "hint": "Changes save themselves: a choice at once, a typed field once you leave it.",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "failed": "Not everything was saved. Fix the field marked in red.",
+      "required": "This field cannot be left empty.",
+      "between": "Type a number from {min} to {max}.",
+      "notKept": "This change could not be saved.",
+      "done": "Done"
+    },
     "createProfile": "Create profile",
     "section": {
       "body": "About you",

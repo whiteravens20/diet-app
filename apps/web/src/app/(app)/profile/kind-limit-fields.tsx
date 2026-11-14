@@ -53,8 +53,19 @@ export function kindLimitsIn(fields: FormData): KindLimits {
   };
 }
 
-/** The fields of the limits on meals with one kind of protein: two numbers for every kind, and exceptions for some. */
-export function KindLimitFields({ initial }: { initial: KindLimits }) {
+/**
+ * The fields of the limits on meals with one kind of protein: two numbers for every kind, and
+ * exceptions for some. `onRemoved` hears a row taken away, `error` says why a change was not kept.
+ */
+export function KindLimitFields({
+  initial,
+  onRemoved,
+  error,
+}: {
+  initial: KindLimits;
+  onRemoved?: () => void;
+  error?: string | undefined;
+}) {
   const t = useTranslations('profile');
   const tKind = useTranslations('enums.proteinKind');
   // Each row keeps a key of its own, so that a row taken out takes what was typed in it along.
@@ -158,7 +169,10 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
               variant="ghost"
               size="sm"
               aria-label={t('removeKindLimit', { kind: tKind(row.kind) })}
-              onClick={() => setRows(rows.filter((other) => other.key !== row.key))}
+              onClick={() => {
+                setRows(rows.filter((other) => other.key !== row.key));
+                onRemoved?.();
+              }}
             >
               {t('removeKindLimitShort')}
             </Button>
@@ -176,6 +190,11 @@ export function KindLimitFields({ initial }: { initial: KindLimits }) {
           >
             {t('addKindLimit')}
           </Button>
+        )}
+        {error && (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
         )}
       </fieldset>
     </>

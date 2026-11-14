@@ -2645,7 +2645,16 @@
     "inventoryBiasResetEvery": "Przerwa od spiżarni (co ile planów)",
     "inventoryBiasResetEveryHint": "Po tylu kolejnych planach opartych o spiżarnię następny pomija preferencję spiżarni dla urozmaicenia. 0\u00a0wyłącza przerwę.",
     "saving": "Zapisywanie…",
-    "saveChanges": "Zapisz zmiany",
+    "autosave": {
+      "hint": "Zmiany zapisują się same: wybór od razu, a\u00a0wpisane pole po wyjściu z\u00a0niego.",
+      "saving": "Zapisywanie…",
+      "saved": "Zapisano",
+      "failed": "Nie wszystko zapisano. Popraw pole opisane na czerwono.",
+      "required": "To pole nie może zostać puste.",
+      "between": "Wpisz liczbę od {min} do {max}.",
+      "notKept": "Nie udało się zapisać tej zmiany.",
+      "done": "Gotowe"
+    },
     "createProfile": "Utwórz profil",
     "section": {
       "body": "O Tobie",

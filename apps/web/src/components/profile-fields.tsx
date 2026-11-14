@@ -36,13 +36,24 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 
 type Body = Pick<Profile, 'age' | 'sex' | 'heightCm' | 'weightKg' | 'activityLevel'>;
 
+/** Why a field's change was not kept, by the field's name, for a form that keeps each change as it is made. */
+type ErrorOf = (field: string) => string | undefined;
+
 /**
  * The body a calorie target is worked out from: age, sex, height, weight and
  * how much it moves. A form that begins with nobody's figures begins empty: a
  * target worked out from numbers that were only standing there would look
  * like somebody's own.
  */
-export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit }) {
+export function BodyFields({
+  initial,
+  unit,
+  errorOf,
+}: {
+  initial?: Body;
+  unit: WeightUnit;
+  errorOf?: ErrorOf;
+}) {
   const t = useTranslations('profile');
   const tActivity = useTranslations('enums.activityLevel');
   const tSex = useTranslations('enums.sex');
@@ -51,7 +62,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
   const [activity, setActivity] = useState<ActivityLevel>(initial?.activityLevel ?? 'moderate');
   return (
     <>
-      <Field label={t('age')}>
+      <Field label={t('age')} error={errorOf?.('age')}>
         <Input
           name="age"
           type="number"
@@ -62,7 +73,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           defaultValue={initial?.age ?? ''}
         />
       </Field>
-      <Field label={t('sex')} hint={t('sexHint')}>
+      <Field label={t('sex')} hint={t('sexHint')} error={errorOf?.('sex')}>
         <select name="sex" className={selectClass} defaultValue={initial?.sex ?? ''}>
           <option value="">{t('preferNotToSay')}</option>
           <option value="male">{tSex('male')}</option>
@@ -70,7 +81,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           <option value="non_binary">{tSex('non_binary')}</option>
         </select>
       </Field>
-      <Field label={t('heightCm')}>
+      <Field label={t('heightCm')} error={errorOf?.('heightCm')}>
         <Input
           name="heightCm"
           type="number"
@@ -83,7 +94,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
         />
       </Field>
       {/* Typed in the unit of the account. The field is made anew when the unit is known or changes: a number under another unit's name would be another weight. */}
-      <Field label={t('weight', { unit })}>
+      <Field label={t('weight', { unit })} error={errorOf?.('weight')}>
         <Input
           key={unit}
           name="weight"
@@ -96,7 +107,7 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
           defaultValue={initial ? shownToOne(initial.weightKg, unit) : ''}
         />
       </Field>
-      <Field label={t('activityLevel')} hint={t('activityWeek')}>
+      <Field label={t('activityLevel')} hint={t('activityWeek')} error={errorOf?.('activityLevel')}>
         <select
           name="activityLevel"
           className={selectClass}
@@ -193,10 +204,21 @@ export function PaceChoice({
 }
 
 /** A calorie target of one's own, in place of the one the pace comes to. */
-export function OwnTargetField({ initial }: { initial: number | null }) {
+export function OwnTargetField({
+  initial,
+  errorOf,
+}: {
+  initial: number | null;
+  errorOf?: ErrorOf;
+}) {
   const t = useTranslations('profile');
   return (
-    <Field label={t('manualKcalOverride')} hint={t('manualKcalHint')} optional>
+    <Field
+      label={t('manualKcalOverride')}
+      hint={t('manualKcalHint')}
+      error={errorOf?.('manualCalorieTarget')}
+      optional
+    >
       <Input
         name="manualCalorieTarget"
         type="number"
@@ -251,7 +273,7 @@ export function RiskBox({
 }
 
 /** The split a profile that goes to the custom diet begins with: the balanced diet's. */
-const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
+export const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
 
 /** Whether the three shares a form holds for the custom diet add up; true on every other diet. */
 export function splitAddsUp(fields: FormData): boolean {
@@ -287,11 +309,13 @@ export function DietFields({
   mealCount: firstMealCount,
   split: firstSplit,
   meals = true,
+  errorOf,
 }: {
   diet: DietType;
   mealCount?: number;
   split: MacroSplit | null;
   meals?: boolean;
+  errorOf?: ErrorOf;
 }) {
   const t = useTranslations('profile');
   const tCatalogue = useTranslations('catalogue');
@@ -309,7 +333,7 @@ export function DietFields({
   const sum = Number(split.protein) + Number(split.fat) + Number(split.carbs);
   return (
     <>
-      <Field label={t('dietType')}>
+      <Field label={t('dietType')} error={errorOf?.('dietType')}>
         <select
           name="dietType"
           className={selectClass}
@@ -332,7 +356,7 @@ export function DietFields({
       </Field>
       {meals && (
         <>
-          <Field label={t('mealsPerDay')}>
+          <Field label={t('mealsPerDay')} error={errorOf?.('mealCount')}>
             <Input
               name="mealCount"
               type="number"
@@ -375,6 +399,11 @@ export function DietFields({
           >
             {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
           </p>
+          {errorOf?.('split') && (
+            <p role="alert" className="text-xs text-destructive">
+              {errorOf('split')}
+            </p>
+          )}
         </fieldset>
       )}
     </>
