@@ -279,17 +279,21 @@ export function useAutosave(
 
   const keep = useCallback(
     (part: Part) => {
+      // The change as it is made: of the profile whose form this is now, read from the form as it is now, whatever
+      // form is open by the time it is sent.
+      const profile = kept.current;
+      if (!profile) return;
+      const fields = form.current ? new FormData(form.current) : null;
+      const refused = refusalOf(part);
+      const change = fields && !refused ? changeOf(part, fields, profile, unit) : null;
+      if (!change) {
+        notKept.current.add(part);
+        setErrors((now) => new Map(now).set(part, refused ?? t('splitSumRefused')));
+        return;
+      }
+      /** Whether the form open is still that profile's: an answer for another one changes no other's form. */
+      const stillOpen = (): boolean => kept.current?.id === profile.id;
       queue.current = queue.current.then(async () => {
-        const profile = kept.current;
-        if (!profile) return;
-        const fields = form.current ? new FormData(form.current) : null;
-        const refused = refusalOf(part);
-        const change = fields && !refused ? changeOf(part, fields, profile, unit) : null;
-        if (!change) {
-          notKept.current.add(part);
-          setErrors((now) => new Map(now).set(part, refused ?? t('splitSumRefused')));
-          return;
-        }
         setSending((n) => n + 1);
         try {
           const answer = await api.request<Profile>(
@@ -299,11 +303,12 @@ export function useAutosave(
             // Kept even when the page is being left: a field is left as the page goes too.
             { method: 'PATCH', body: JSON.stringify(change.patch), keepalive: true },
           );
-          kept.current = answer;
           qc.setQueryData<Profile[]>(['profiles'], (shown) =>
             shown?.map((other) => (other.id === answer.id ? answer : other)),
           );
           void qc.invalidateQueries({ queryKey: ['calories'] });
+          if (!stillOpen()) return;
+          kept.current = answer;
           onKept(answer);
           notKept.current.delete(part);
           setErrors((now) => {
@@ -314,6 +319,7 @@ export function useAutosave(
           });
           setSavedOnce(true);
         } catch (error) {
+          if (!stillOpen()) return;
           notKept.current.add(part);
           setErrors((now) => new Map(now).set(part, errorText(error, t('autosave.notKept'))));
         } finally {

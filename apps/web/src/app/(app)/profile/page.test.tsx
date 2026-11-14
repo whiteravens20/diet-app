@@ -910,3 +910,56 @@ describe('the profile form, on keeping each change as it is made', () => {
     expect(vi.mocked(api.request).mock.calls[0]![1]).toMatchObject({ keepalive: true });
   });
 });
+
+describe('the profile form, on an answer that comes once another profile is being changed', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the first profile's change, and leaves the second profile's form open", async () => {
+    const first = aProfile('Anna');
+    const second = aProfile('Beata');
+    await renderPage([first, second], 2);
+    let answerFirst: (profile: Profile) => void = () => {};
+    const request = vi
+      .spyOn(api, 'request')
+      .mockImplementation((path: string, init?: RequestInit) => {
+        const change = JSON.parse(String(init?.body)) as Partial<Profile>;
+        if (path === `/profiles/${first.id}`)
+          return new Promise((resolve) => {
+            answerFirst = (profile) => resolve(profile as never);
+          });
+        return Promise.resolve({ ...second, ...change } as never);
+      });
+    const age = () => screen.getByLabelText(new RegExp(`^${messages.profile.age}`));
+
+    await userEvent.click(screen.getAllByRole('button', { name: messages.common.edit })[0]!);
+    await userEvent.clear(age());
+    await userEvent.type(age(), '41');
+    // The second profile's form opened while the first one's change is on its way.
+    await userEvent.click(screen.getAllByRole('button', { name: messages.common.edit })[1]!);
+    expect(await screen.findByRole('heading', { name: 'Edit Beata' })).toBeInTheDocument();
+    answerFirst({ ...first, age: 41 });
+
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(request.mock.calls[0]).toEqual([
+      `/profiles/${first.id}`,
+      expect.objectContaining({ body: JSON.stringify({ age: 41 }) }),
+    ]);
+    // The answer for the first one does not bring its form back.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole('heading', { name: 'Edit Beata' })).toBeInTheDocument();
+    expect(age()).toHaveValue(30);
+
+    // And a change of the second goes to the second.
+    await userEvent.clear(age());
+    await userEvent.type(age(), '52');
+    await userEvent.tab();
+    await waitFor(() =>
+      expect(request.mock.calls.at(-1)).toEqual([
+        `/profiles/${second.id}`,
+        expect.objectContaining({ body: JSON.stringify({ age: 52 }) }),
+      ]),
+    );
+  });
+});

@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import {
   DEFAULT_PROFILES_PER_ACCOUNT,
   DEFAULT_WATER_TARGET_ML,
@@ -118,8 +118,13 @@ export default function ProfilePage() {
   const list = profiles.data ?? [];
   const fmt = useFormat();
   const weightBounds = boundsIn(unit);
-  // A profile being changed keeps each change as it is made; the form shows the profile as each change left it.
-  const autosave = useAutosave(editing, unit, form, setEditing);
+  // A profile being changed keeps each change as it is made; the form shows the profile as each change left it, and
+  // an answer that comes once another profile's form is open leaves that form as it is.
+  const showKept = useCallback(
+    (kept: Profile) => setEditing((now) => (now?.id === kept.id ? kept : now)),
+    [],
+  );
+  const autosave = useAutosave(editing, unit, form, showKept);
   const errorOf = editing ? autosave.errorOf : undefined;
   // How many profiles an account may hold is the instance's to say.
   const maxProfiles = useConfig().data?.accounts.maxProfiles ?? DEFAULT_PROFILES_PER_ACCOUNT;
