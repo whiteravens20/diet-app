@@ -296,7 +296,9 @@ and no independent security review.
   workflow uses is pinned to a commit: a run fails when a pin is not the commit its version
   tag names, and the pinned versions are looked up in GitHub's advisory database
   ([codeql.yml](.github/workflows/codeql.yml),
-  [security.yml](.github/workflows/security.yml)).
+  [security.yml](.github/workflows/security.yml)). zizmor reads the workflows themselves in
+  the same runs, and what it finds goes to the repository's code scanning alerts beside
+  CodeQL's ([security.yml](.github/workflows/security.yml)).
 - On a pull request, a dependency review fails when the change brings in a dependency
   with a known high-severity vulnerability, or one whose licence is not on the list of
   licences that combine with AGPL-3.0 ([security.yml](.github/workflows/security.yml)).

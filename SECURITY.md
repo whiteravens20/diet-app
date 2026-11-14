@@ -89,6 +89,7 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] Registry signatures verified in CI (`npm audit signatures`)
 - [x] `npm audit`, Trivy (repository and image), CodeQL and dependency review in CI
 - [x] GitHub Actions pinned to commit SHAs and checked against their tags on every run
+- [x] Workflows read by zizmor on every run of the security checks, its findings in code scanning; no checkout leaves its token to the steps after it
 
 ### What This Does NOT Protect Against
 

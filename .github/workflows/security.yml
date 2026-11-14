@@ -189,3 +189,29 @@ jobs:
         run: .github/scripts/verify-pins.sh --advisories
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # The workflows themselves, read for what makes one unsafe: a checkout's token
+  # left behind for later steps, an expression pasted into a script, a condition
+  # a bot can be passed off by, a cache a release could be fed from. Findings go
+  # to the Security tab beside CodeQL's. Offline: the two jobs above already hold
+  # every pin to its tag and to the advisory database. zizmor's own version is
+  # named here because the action would otherwise fetch the newest, unsettled;
+  # it is moved by hand, with the action.
+  zizmor:
+    name: Workflow audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write # to upload the findings to code scanning
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Audit the workflows with zizmor
+        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          version: 1.32.0
+          online-audits: false
