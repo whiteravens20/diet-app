@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   type CalorieCalculation,
   type CaloriePreview,
@@ -10,6 +15,7 @@ import {
   PACES_OF_LOSS,
   type Profile,
   type ProfileInput,
+  type ProfilePatch,
   ProfilePreferences,
   type LabelLimits,
   type ProfilePreferencesPatch,
@@ -38,7 +44,10 @@ type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
  * anybody else the time is cleared. Sent as true it is set (and an earlier
  * time kept), sent as false it is withdrawn, not sent it stays as it was.
  */
-function acknowledgedAt(input: ProfileInput | ProfileUpdate, before: Date | null): Date | null {
+function acknowledgedAt(
+  input: { age: number; heightCm: number; weightKg: number; acknowledgeRisk?: boolean },
+  before: Date | null,
+): Date | null {
   if (riskOfLosingWeight(input).length === 0) return null;
   if (input.acknowledgeRisk === undefined) return before;
   return input.acknowledgeRisk ? (before ?? new Date()) : null;
@@ -164,6 +173,57 @@ export class ProfilesService {
             update: preferenceColumns(input.preferences),
           },
         },
+      },
+      include: { preferences: true },
+    });
+    return this.toDto(row);
+  }
+
+  /**
+   * Change some parts of a profile: what the patch names, and nothing else.
+   * Its preferences stay as they are, so a change of the profile sent while
+   * another of its preferences was on its way takes nothing back. The profile
+   * it makes is held to what a whole one is: on the custom diet it has its
+   * split. The word given about the risk of losing weight goes by the figures
+   * the profile has after the change.
+   */
+  async patch(userId: string, id: string, patch: ProfilePatch): Promise<Profile> {
+    const before = await this.load(userId, id);
+    const after = {
+      dietType: patch.dietType ?? before.dietType,
+      customMacroSplit:
+        patch.customMacroSplit !== undefined
+          ? patch.customMacroSplit
+          : storedSplit(before.customMacroSplit),
+      age: patch.age ?? before.age,
+      heightCm: patch.heightCm ?? before.heightCm,
+      weightKg: patch.weightKg ?? before.weightKg,
+    };
+    if (after.dietType === 'custom' && after.customMacroSplit === null)
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'VALIDATION_FAILED',
+        message: 'Request payload failed validation.',
+        issues: [
+          {
+            path: 'customMacroSplit',
+            message: 'The custom diet needs its split of protein, fat and carbohydrate.',
+            code: 'custom',
+          },
+        ],
+      });
+    const { acknowledgeRisk, customMacroSplit, ...parts } = patch;
+    const row = await this.prisma.profile.update({
+      where: { id },
+      data: {
+        ...parts,
+        ...(customMacroSplit === undefined
+          ? {}
+          : { customMacroSplit: customMacroSplit ?? Prisma.JsonNull }),
+        riskAcknowledgedAt: acknowledgedAt(
+          { ...after, acknowledgeRisk },
+          before.riskAcknowledgedAt,
+        ),
       },
       include: { preferences: true },
     });

@@ -352,6 +352,101 @@ describe('changing a profile', () => {
     });
   });
 
+  describe('in some of its parts', () => {
+    const change = (body: unknown, of: Profile = profile, by: TestUser = user) =>
+      t
+        .http()
+        .patch(`/api/profiles/${of.id}`)
+        .set(as(by))
+        .send(body as object);
+    const OWN = { protein: 30, fat: 40, carbs: 30 };
+
+    it('changes what was sent and leaves every other part as it is, its preferences too', async () => {
+      const changed: Profile = (await change({ weightKg: 72.5, mealCount: 3 }).expect(200)).body;
+
+      expect(changed).toMatchObject({ weightKg: 72.5, mealCount: 3 });
+      expect({ ...changed, weightKg: null, mealCount: null, updatedAt: null }).toEqual({
+        ...profile,
+        weightKg: null,
+        mealCount: null,
+        updatedAt: null,
+      });
+      expect(await stored()).toEqual(changed);
+    });
+
+    it('takes back no preference changed while it was on its way, as a form that keeps each change sends them', async () => {
+      // The form was opened on the profile as it was; an allergen is ticked below it, then a field of the form is left.
+      await patch({ allergens: ['gluten'] }).expect(200);
+      await change({ name: 'Anna B.' }).expect(200);
+
+      const now = await stored();
+      expect(now.name).toBe('Anna B.');
+      expect(now.preferences).toEqual({ ...profile.preferences, allergens: ['gluten'] });
+    });
+
+    it('is refused for the custom diet without a split, and changes nothing', async () => {
+      const refused = await change({ dietType: 'custom', name: 'Anna B.' }).expect(400);
+
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect(refused.body.issues[0].path).toBe('customMacroSplit');
+      expect(await stored()).toEqual(profile);
+    });
+
+    it('takes the custom diet with its split, and later on the split the profile kept', async () => {
+      await change({ dietType: 'custom', customMacroSplit: OWN }).expect(200);
+      await change({ dietType: 'vegan' }).expect(200);
+      const back: Profile = (await change({ dietType: 'custom' }).expect(200)).body;
+
+      expect(back).toMatchObject({ dietType: 'custom', customMacroSplit: OWN });
+    });
+
+    it('refuses the split taken away from a profile on the custom diet', async () => {
+      await change({ dietType: 'custom', customMacroSplit: OWN }).expect(200);
+
+      const refused = await change({ customMacroSplit: null }).expect(400);
+
+      expect(refused.body.issues[0].path).toBe('customMacroSplit');
+      expect((await stored()).customMacroSplit).toEqual(OWN);
+    });
+
+    it.each([
+      ['nothing', {}, ''],
+      ['a part out of its bounds', { weightKg: 12 }, 'weightKg'],
+      ['preferences, which have a change of their own', { preferences: { allergens: [] } }, ''],
+      ['what a profile has no part of', { colour: 'green' }, ''],
+    ])('refuses a change of %s', async (_what, body, path) => {
+      const refused = await change(body).expect(400);
+
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      if (path) expect(refused.body.issues[0].path).toBe(path);
+      expect(await stored()).toEqual(profile);
+    });
+
+    it('keeps the word given about losing weight while the figures it was given for stay a risk', async () => {
+      const minor: Profile = (await change({ age: 16 }).expect(200)).body;
+      const given: Profile = (await change({ acknowledgeRisk: true }).expect(200)).body;
+      const heavier: Profile = (await change({ weightKg: 70 }).expect(200)).body;
+      const adult: Profile = (await change({ age: 30 }).expect(200)).body;
+      const minorAgain: Profile = (await change({ age: 17 }).expect(200)).body;
+
+      expect(minor.riskAcknowledgedAt).toBeNull();
+      expect(given.riskAcknowledgedAt).not.toBeNull();
+      expect(heavier.riskAcknowledgedAt).toBe(given.riskAcknowledgedAt);
+      // Grown up, there is nothing to have said; a minor again has to say it again.
+      expect(adult.riskAcknowledgedAt).toBeNull();
+      expect(minorAgain.riskAcknowledgedAt).toBeNull();
+    });
+
+    it("is not for another account's profile", async () => {
+      const other = await aUser(t);
+
+      const refused = await change({ name: 'Mine now' }, profile, other).expect(404);
+
+      expect(refused.body.error).toBe('PROFILE_NOT_FOUND');
+      expect(await stored()).toEqual(profile);
+    });
+  });
+
   it('keeps a choice of neither of the two, and works it out as where nothing is said', async () => {
     const body = { name: 'Another', age: 30, heightCm: 180, weightKg: 80 };
     await t.prisma.profile.deleteMany({ where: { userId: user.id } });

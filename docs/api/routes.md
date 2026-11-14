@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-223 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+224 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -251,6 +251,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/profiles/:id` | an account | One profile. |  | 200 `Profile` |  |
 | `PUT /api/profiles/:id` | an account | The profile as it is from now on: every part of it. A part that is left out is refused. | `ProfileUpdate` | 200 `Profile` |  |
 | `DELETE /api/profiles/:id` | an account | Delete a profile, with its plans, lists and pantry. |  | 204 |  |
+| `PATCH /api/profiles/:id` | an account | Change some parts of the profile: what is left out stays as it is, its preferences too. | `ProfilePatch` | 200 `Profile` |  |
 | `GET /api/profiles/:id/calories` | an account | What the profile's figures come to: its calorie target and how it is worked out, and the protein, fat and carbohydrate of it. |  | 200 `CalorieCalculation` |  |
 | `POST /api/profiles/:id/keep-weight` | an account | Keep the weight once the target weight is reached: the pace becomes keeping the weight. |  | 200 `Profile` | 20 in a minute |
 | `POST /api/profiles/:id/keep-weight/later` | an account | Put the offer to keep the weight off for two weeks from the client's day ("Nie teraz"). |  | 200 `Profile` | 20 in a minute |

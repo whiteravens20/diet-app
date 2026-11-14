@@ -277,6 +277,23 @@ export const ProfileUpdate = z
 export type ProfileUpdate = z.infer<typeof ProfileUpdate>;
 
 /**
+ * A change of some parts of a profile (`PATCH /profiles/:id`), as a form that
+ * keeps each change as it is made sends it: what is sent replaces what was
+ * there, and what is left out stays as it is. The profile it makes is held to
+ * what a whole one is: on the custom diet it has its split. Its preferences
+ * change through `ProfilePreferencesPatch`. `acknowledgeRisk` left out keeps
+ * the word the profile gave, while the goal it was given for stays a risk.
+ */
+export const ProfilePatch = z
+  .object({ ...profileFields, acknowledgeRisk })
+  .partial()
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, {
+    message: 'Name at least one part of the profile to change.',
+  });
+export type ProfilePatch = z.infer<typeof ProfilePatch>;
+
+/**
  * What the calorie target of somebody is worked out from, for a client that
  * wants the figures before there is a profile, or without changing one: the
  * parts of a profile the engine reads. Nothing is kept. `acknowledgeRisk`

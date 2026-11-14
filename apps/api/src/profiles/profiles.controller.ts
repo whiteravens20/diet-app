@@ -19,6 +19,7 @@ import {
   CaloriePreviewRequest,
   Profile,
   ProfileInput,
+  ProfilePatch,
   ProfilePreferencesPatch,
   ProfileUpdate,
 } from '@diet-app/shared';
@@ -86,6 +87,17 @@ export class ProfilesController {
     @Body(new ZodValidationPipe(ProfileUpdate)) dto: ProfileUpdate,
   ) {
     return this.profiles.update(user.id, id, dto);
+  }
+
+  /** Change some parts of the profile: what is left out stays as it is, its preferences too. */
+  @Patch(':id')
+  @Answers(Profile)
+  patch(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(ProfilePatch)) dto: ProfilePatch,
+  ) {
+    return this.profiles.patch(user.id, id, dto);
   }
 
   /** Change some of the profile's preferences: what is left out stays as it is. */

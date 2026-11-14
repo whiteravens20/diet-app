@@ -99,6 +99,12 @@ const ASKS: Ask[] = [
   ['read what a profile should eat', 'get', (ids) => `/api/profiles/${ids.profile}/calories`],
   ['rewrite a profile', 'put', (ids) => `/api/profiles/${ids.profile}`, () => WHOLE_PROFILE],
   [
+    'change some parts of a profile',
+    'patch',
+    (ids) => `/api/profiles/${ids.profile}`,
+    () => ({ name: 'Taken' }),
+  ],
+  [
     'change the preferences of a profile',
     'patch',
     (ids) => `/api/profiles/${ids.profile}/preferences`,

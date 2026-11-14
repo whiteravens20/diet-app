@@ -7850,6 +7850,55 @@
             "$ref": "#/components/responses/Refused"
           }
         }
+      },
+      "patch": {
+        "operationId": "Profiles_patch",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Change some parts of the profile: what is left out stays as it is, its preferences too.",
+        "description": "Change some parts of the profile: what is left out stays as it is, its preferences too.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
       }
     },
     "/api/profiles/{id}/calories": {
@@ -21177,6 +21226,124 @@
           "heightCm",
           "weightKg"
         ]
+      },
+      "ProfilePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 13,
+            "maximum": 120
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "heightCm": {
+            "type": "number",
+            "minimum": 100,
+            "maximum": 250
+          },
+          "weightKg": {
+            "type": "number",
+            "minimum": 30,
+            "maximum": 400
+          },
+          "activityLevel": {
+            "$ref": "#/components/schemas/ActivityLevel"
+          },
+          "dietType": {
+            "$ref": "#/components/schemas/DietType"
+          },
+          "weeklyLossTarget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeeklyLossTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetWeightKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 30,
+                "maximum": 400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waterTargetMl": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 250,
+                "maximum": 10000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waterTracking": {
+            "type": "boolean"
+          },
+          "manualCalorieTarget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 6000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "weightReminderCadence": {
+            "$ref": "#/components/schemas/WeightReminderCadence"
+          },
+          "cookingReminders": {
+            "type": "boolean"
+          },
+          "waterReminders": {
+            "type": "boolean"
+          },
+          "customMacroSplit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MacroSplitInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgeRisk": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "ProfilePreferences": {
         "type": "object",
