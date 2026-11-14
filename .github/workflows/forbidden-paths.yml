@@ -28,7 +28,10 @@ name: Forbidden Paths
 # tracked file).
 
 on:
-  pull_request_target:
+  # The base branch's copy runs, so a pull request cannot edit the check away. It
+  # checks out nothing and runs nothing of the pull request: the file names come
+  # from the API and are only matched and quoted, as data.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [opened, synchronize, reopened, ready_for_review]
     # Both the canonical `main` and the integration `dev` branch are
     # protected. PRs that target any other branch (rare in this repo) are
