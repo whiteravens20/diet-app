@@ -1821,7 +1821,8 @@
       "left": "{name}: {left} left of a pack of {size}",
       "leftMuch": "{name}: {left} left of a pack of {size}, more than a fifth of it",
       "allFinished": "Every pack the menu opens is used up.",
-      "explain": "Counted from the menu; what was in the freezer when the plan was made goes first, and the rest of what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal."
+      "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal.",
+      "explainFreezer": "Counted from the menu; what was in the freezer when the plan was made goes first, and the rest of what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal."
     },
     "freezer": {
       "freeze": "Freeze the rest of the pack at once: {name}, {portion}.",

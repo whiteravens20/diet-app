@@ -86,7 +86,8 @@ export function PlanPacksLine({
             })}
           </p>
         )}
-        <p>{t('explain')}</p>
+        {/* What the freezer held goes first only in a plan that took something out of it. */}
+        <p>{t(packs.fromFreezer.length > 0 ? 'explainFreezer' : 'explain')}</p>
         {children}
       </div>
     </details>

@@ -1596,6 +1596,8 @@ describe('the plan page, on how a day stands against its target', () => {
         'Chicken breast: 20 g left of a pack of 500 g',
       ]);
       expect(screen.getByText(messages.mealPlans.packs.explain)).toBeInTheDocument();
+      // A plan that takes nothing out of the freezer does not say that what it held goes first.
+      expect(screen.queryByText(messages.mealPlans.packs.explainFreezer)).toBeNull();
     });
 
     it('says so when one pack is left much of, and when none is', async () => {
@@ -1621,6 +1623,56 @@ describe('the plan page, on how a day stands against its target', () => {
         screen.getByText('Packs that do not keep once opened: the menu uses 100% of what it buys.'),
       );
       expect(screen.getByText(messages.mealPlans.packs.allFinished)).toBeInTheDocument();
+    });
+
+    it('says what goes into the freezer and what comes out of it, and that what the freezer held goes first', async () => {
+      await opened(
+        aPlan({
+          packs: {
+            bought: 500,
+            used: 500,
+            open: [],
+            frozen: [
+              {
+                ingredientId: chicken.ingredientId,
+                name: 'Chicken breast',
+                unit: 'g',
+                date: '2026-01-05',
+                mealId: null,
+                amount: 120,
+                thawed: [],
+                left: 120,
+                inPantry: false,
+              },
+            ],
+            fromFreezer: [
+              {
+                ingredientId: chicken.ingredientId,
+                name: 'Chicken breast',
+                unit: 'g',
+                date: '2026-01-05',
+                mealId: null,
+                amount: 286,
+                eaten: 150,
+              },
+            ],
+          },
+        }),
+      );
+
+      await userEvent.click(
+        screen.getByText('Packs that do not keep once opened: the menu uses 100% of what it buys.'),
+      );
+      expect(
+        screen.getByText('Into the freezer: Chicken breast, 120 g (Mon).'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'From the freezer, of what it held when the plan was made: Chicken breast, a portion of 286 g, of which the plan eats 150 g.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText(messages.mealPlans.packs.explainFreezer)).toBeInTheDocument();
+      expect(screen.queryByText(messages.mealPlans.packs.explain)).toBeNull();
     });
 
     it('says of a plan made together with another that it counts the packs of both menus', async () => {

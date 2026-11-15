@@ -1821,7 +1821,8 @@
       "left": "{name}: zostaje {left} z opakowania {size}",
       "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad jedna piąta",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
-      "explain": "Policzone z jadłospisu; to, co było w zamrażarce, gdy plan powstał, idzie najpierw, a resztę tego, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
+      "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku.",
+      "explainFreezer": "Policzone z jadłospisu; to, co było w zamrażarce, gdy plan powstał, idzie najpierw, a resztę tego, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
     },
     "freezer": {
       "freeze": "Zamroź od razu resztę opakowania: {name}, {portion}.",
