@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 
 /**
  * Step 2 of password reset — read the `token` query param from the email link,
@@ -92,28 +92,22 @@ function ResetPasswordInner() {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
-          <Field label={t('newPasswordField')}>
-            <Input
-              name="password"
-              type="password"
-              required
-              minLength={12}
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field
+          <PasswordField
+            label={t('newPasswordField')}
+            name="password"
+            required
+            minLength={12}
+            autoComplete="new-password"
+          />
+          <PasswordField
             label={t('confirmPasswordField')}
             error={mismatch ? t('passwordsDontMatch') : undefined}
-          >
-            <Input
-              name="confirm"
-              type="password"
-              required
-              minLength={12}
-              autoComplete="new-password"
-              aria-invalid={mismatch || undefined}
-            />
-          </Field>
+            name="confirm"
+            required
+            minLength={12}
+            autoComplete="new-password"
+            aria-invalid={mismatch || undefined}
+          />
           <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">
             <li>• {tRules('minLength')}</li>
             <li>• {tRules('case')}</li>

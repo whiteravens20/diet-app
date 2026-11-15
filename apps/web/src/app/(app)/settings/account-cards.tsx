@@ -14,6 +14,7 @@ import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { cn } from '@/lib/utils';
 import { DOT } from '@/lib/figure-line';
 
@@ -57,37 +58,29 @@ export function PasswordCard() {
         <form onSubmit={onSubmit} className="grid max-w-md gap-3 sm:grid-cols-2">
           {/* The current password on a row of its own: the new one and its repeat stand side by side under it. */}
           <div className="sm:col-span-2">
-            <Field label={t('currentPassword')}>
-              <Input
-                name="currentPassword"
-                type="password"
-                required
-                autoComplete="current-password"
-              />
-            </Field>
-          </div>
-          <Field label={t('newPasswordLabel')}>
-            <Input
-              name="newPassword"
-              type="password"
+            <PasswordField
+              label={t('currentPassword')}
+              name="currentPassword"
               required
-              minLength={12}
-              autoComplete="new-password"
+              autoComplete="current-password"
             />
-          </Field>
-          <Field
+          </div>
+          <PasswordField
+            label={t('newPasswordLabel')}
+            name="newPassword"
+            required
+            minLength={12}
+            autoComplete="new-password"
+          />
+          <PasswordField
             label={t('repeatNewPassword')}
             error={mismatch ? tAuth('passwordsDontMatch') : undefined}
-          >
-            <Input
-              name="confirm"
-              type="password"
-              required
-              minLength={12}
-              autoComplete="new-password"
-              aria-invalid={mismatch || undefined}
-            />
-          </Field>
+            name="confirm"
+            required
+            minLength={12}
+            autoComplete="new-password"
+            aria-invalid={mismatch || undefined}
+          />
           <div className="sm:col-span-2">
             <Button type="submit" disabled={change.isPending}>
               {change.isPending ? t('changingPassword') : t('changePassword')}
@@ -191,14 +184,12 @@ export function EmailCard({ me }: { me: SessionUser }) {
               <Field label={t('changeEmailNew')}>
                 <Input name="newEmail" type="email" required autoComplete="email" />
               </Field>
-              <Field label={t('currentPassword')}>
-                <Input
-                  name="currentPassword"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                />
-              </Field>
+              <PasswordField
+                label={t('currentPassword')}
+                name="currentPassword"
+                required
+                autoComplete="current-password"
+              />
               <div className="flex items-center gap-2 sm:col-span-2">
                 <Button type="submit" disabled={change.isPending}>
                   {change.isPending ? t('changeEmailSending') : t('changeEmailSubmit')}
@@ -240,6 +231,9 @@ export function DangerZoneCard({ me }: { me: SessionUser }) {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Each confirmation starts the password's field again, hidden: there is no form here whose sending would hide it,
+  // so that the Enter key of a field never starts a deletion.
+  const [attempt, setAttempt] = useState(0);
 
   const remove = useMutation({
     mutationFn: () => api.delete<void>('/users/me', { currentPassword: password }),
@@ -251,6 +245,7 @@ export function DangerZoneCard({ me }: { me: SessionUser }) {
 
   function confirm() {
     if (email.trim().toLowerCase() !== me.email.toLowerCase() || !password) return;
+    setAttempt((count) => count + 1);
     remove.mutate();
   }
 
@@ -278,14 +273,13 @@ export function DangerZoneCard({ me }: { me: SessionUser }) {
                   placeholder={t('deleteAccountTypeEmailPlaceholder', { email: me.email })}
                 />
               </Field>
-              <Field label={t('deleteAccountTypePassword')}>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </Field>
+              <PasswordField
+                key={attempt}
+                label={t('deleteAccountTypePassword')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
             </div>
             <div className="flex items-center gap-2">
               <Button

@@ -19,6 +19,14 @@
     "yes": "Yes",
     "no": "No",
     "optional": "optional",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "passwordShown": "The password is visible.",
+    "passwordHidden": "The password is hidden.",
+    "showKey": "Show key",
+    "hideKey": "Hide key",
+    "keyShown": "The key is visible.",
+    "keyHidden": "The key is hidden.",
     "copyByHandHint": "The browser gives this page no clipboard here. Select the text and copy it."
   },
   "notFound": {

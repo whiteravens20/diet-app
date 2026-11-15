@@ -9,6 +9,7 @@ import type { AuthResponse, LoginResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { SecondStepCode } from '@/components/second-step-code';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { api, COOKIE_SESSION } from '@/lib/api';
@@ -165,29 +166,23 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           <Field label={t('email')}>
             <Input name="email" type="email" required autoComplete="email" />
           </Field>
-          <Field label={t('password')}>
-            <Input
-              name="password"
-              type="password"
-              required
-              minLength={mode === 'register' ? 12 : 1}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
-          </Field>
+          <PasswordField
+            label={t('password')}
+            name="password"
+            required
+            minLength={mode === 'register' ? 12 : 1}
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          />
           {mode === 'register' && (
-            <Field
+            <PasswordField
               label={t('repeatPassword')}
               error={mismatch ? t('passwordsDontMatch') : undefined}
-            >
-              <Input
-                name="confirm"
-                type="password"
-                required
-                minLength={12}
-                autoComplete="new-password"
-                aria-invalid={mismatch || undefined}
-              />
-            </Field>
+              name="confirm"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              aria-invalid={mismatch || undefined}
+            />
           )}
           {/* The reset link arrives by email, so it is offered only where email is configured. */}
           {mode === 'login' && config.data?.email.enabled && (

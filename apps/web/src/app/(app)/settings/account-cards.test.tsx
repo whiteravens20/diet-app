@@ -4,17 +4,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../../../messages/en.json';
-import { PasswordCard } from './account-cards';
+import { DangerZoneCard, PasswordCard } from './account-cards';
 
-function renderCard() {
+function renderCard(card: ReactNode = <PasswordCard />) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient()}>
-        <PasswordCard />
-      </QueryClientProvider>
+      <QueryClientProvider client={new QueryClient()}>{card}</QueryClientProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -49,5 +49,31 @@ describe('changing the password', () => {
       currentPassword: 'Old-Passw0rd-123',
       newPassword: 'New-Passw0rd-456',
     });
+  });
+});
+
+describe('deleting the account', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('hides the password again once the deletion is confirmed, the password sent as typed', async () => {
+    const remove = vi.spyOn(api, 'delete').mockReturnValue(new Promise(() => {}));
+    renderCard(<DangerZoneCard me={{ email: 'owner@example.test' } as SessionUser} />);
+    await userEvent.click(screen.getByRole('button', { name: messages.settings.deleteAccount }));
+    await userEvent.type(
+      screen.getByLabelText(messages.settings.deleteAccountTypeEmail),
+      'owner@example.test',
+    );
+    const password = () => screen.getByLabelText(messages.settings.deleteAccountTypePassword);
+    await userEvent.type(password(), 'Owner-Passw0rd-123');
+    await userEvent.click(screen.getByRole('button', { name: messages.common.showPassword }));
+    expect(password()).toHaveAttribute('type', 'text');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.settings.deleteAccountConfirm }),
+    );
+
+    expect(remove).toHaveBeenCalledWith('/users/me', { currentPassword: 'Owner-Passw0rd-123' });
+    expect(password()).toHaveAttribute('type', 'password');
+    expect(password()).toHaveValue('Owner-Passw0rd-123');
   });
 });

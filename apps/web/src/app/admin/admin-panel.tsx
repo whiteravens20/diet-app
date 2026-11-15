@@ -8,6 +8,7 @@ import { RefreshCw, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
@@ -194,9 +195,12 @@ export function AdminPanel() {
             <Field label={t('adminUser')}>
               <Input name="user" required autoComplete="username" defaultValue="admin" />
             </Field>
-            <Field label={t('adminPassword')}>
-              <Input name="password" type="password" required autoComplete="current-password" />
-            </Field>
+            <PasswordField
+              label={t('adminPassword')}
+              name="password"
+              required
+              autoComplete="current-password"
+            />
             {needsCode && (
               <Field label={t('code')}>
                 <Input

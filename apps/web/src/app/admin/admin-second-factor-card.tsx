@@ -10,6 +10,7 @@ import { AuthenticatorSetup } from '@/components/authenticator-setup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { adminApi } from '@/lib/admin-api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Explain } from './explain';
@@ -156,15 +157,13 @@ export function AdminSecondFactorCard({
 
         {step.at === 'password' && (
           <form onSubmit={onPassword} className="max-w-sm space-y-3">
-            <Field label={t('adminPassword')}>
-              <Input
-                name="password"
-                type="password"
-                required
-                autoFocus
-                autoComplete="current-password"
-              />
-            </Field>
+            <PasswordField
+              label={t('adminPassword')}
+              name="password"
+              required
+              autoFocus
+              autoComplete="current-password"
+            />
             {problem}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>
@@ -200,15 +199,13 @@ export function AdminSecondFactorCard({
 
         {step.at === 'off' && (
           <form onSubmit={onOff} className="max-w-sm space-y-3">
-            <Field label={t('adminPassword')}>
-              <Input
-                name="password"
-                type="password"
-                required
-                autoFocus
-                autoComplete="current-password"
-              />
-            </Field>
+            <PasswordField
+              label={t('adminPassword')}
+              name="password"
+              required
+              autoFocus
+              autoComplete="current-password"
+            />
             <Field label={tSecond('code')}>
               <Input
                 name="code"

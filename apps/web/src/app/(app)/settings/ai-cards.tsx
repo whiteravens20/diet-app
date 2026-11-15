@@ -20,6 +20,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { OperatorContact } from '@/components/operator-contact';
 import { cn } from '@/lib/utils';
@@ -436,20 +437,19 @@ function ProviderForm({
           />
         </Field>
       ) : (
-        <Field label={t('aiApiKey')}>
-          <Input
-            name="apiKey"
-            type="password"
-            required
-            placeholder="sk-…"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(e) => {
-              setApiKey(e.target.value);
-              reset();
-            }}
-          />
-        </Field>
+        <PasswordField
+          label={t('aiApiKey')}
+          secret="key"
+          name="apiKey"
+          required
+          placeholder="sk-…"
+          autoComplete="off"
+          value={apiKey}
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            reset();
+          }}
+        />
       )}
       <Field label={t('aiPriority')} optional>
         <Input

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { Copy, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { adminApi, type InstanceSettingsDto } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
@@ -171,32 +171,26 @@ export function ReviewerConfigCard() {
                 void setPassword(passwordInput);
               }}
             >
-              <Field label={passwordSet ? t('rotatePassword') : t('setPassword')}>
-                <Input
-                  type="password"
-                  autoComplete="new-password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder={t('passwordPlaceholder')}
-                  minLength={12}
-                  maxLength={200}
-                  aria-describedby="reviewer-password-hint"
-                />
-              </Field>
-              <Field
+              <PasswordField
+                label={passwordSet ? t('rotatePassword') : t('setPassword')}
+                autoComplete="new-password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder={t('passwordPlaceholder')}
+                minLength={12}
+                maxLength={200}
+                aria-describedby="reviewer-password-hint"
+              />
+              <PasswordField
                 label={t('repeatPassword')}
                 error={mismatch ? tAuth('passwordsDontMatch') : undefined}
-              >
-                <Input
-                  type="password"
-                  autoComplete="new-password"
-                  value={repeatInput}
-                  onChange={(e) => setRepeatInput(e.target.value)}
-                  minLength={12}
-                  maxLength={200}
-                  aria-invalid={mismatch || undefined}
-                />
-              </Field>
+                autoComplete="new-password"
+                value={repeatInput}
+                onChange={(e) => setRepeatInput(e.target.value)}
+                minLength={12}
+                maxLength={200}
+                aria-invalid={mismatch || undefined}
+              />
               <p id="reviewer-password-hint" className="text-xs text-muted-foreground">
                 {t('passwordHint')}
               </p>

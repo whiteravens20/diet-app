@@ -19,6 +19,14 @@
     "yes": "Tak",
     "no": "Nie",
     "optional": "opcjonalnie",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło",
+    "passwordShown": "Hasło jest widoczne.",
+    "passwordHidden": "Hasło jest ukryte.",
+    "showKey": "Pokaż klucz",
+    "hideKey": "Ukryj klucz",
+    "keyShown": "Klucz jest widoczny.",
+    "keyHidden": "Klucz jest ukryty.",
     "copyByHandHint": "Przeglądarka nie udostępnia tej stronie schowka. Zaznacz tekst i skopiuj go."
   },
   "notFound": {

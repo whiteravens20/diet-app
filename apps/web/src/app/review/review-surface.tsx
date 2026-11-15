@@ -9,6 +9,7 @@ import type { Locale, ReviewerSessionDto } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { reviewApi, type ReviewStatusDto } from '@/lib/review-api';
@@ -152,15 +153,13 @@ function ReviewLoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
               maxLength={80}
             />
           </Field>
-          <Field label={t('loginPassword')}>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              maxLength={200}
-            />
-          </Field>
+          <PasswordField
+            label={t('loginPassword')}
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            maxLength={200}
+          />
           <Button
             type="submit"
             className="w-full"

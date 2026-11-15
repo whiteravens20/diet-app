@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SecondStepCode } from '@/components/second-step-code';
 import { Field, Input } from '@/components/ui/input';
+import { PasswordField } from '@/components/ui/password-field';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
@@ -208,15 +209,13 @@ export function SecondFactorCard() {
 
         {step.at === 'password' && (
           <form onSubmit={onPassword} className="max-w-sm space-y-3">
-            <Field label={t('password')}>
-              <Input
-                name="currentPassword"
-                type="password"
-                required
-                autoFocus
-                autoComplete="current-password"
-              />
-            </Field>
+            <PasswordField
+              label={t('password')}
+              name="currentPassword"
+              required
+              autoFocus
+              autoComplete="current-password"
+            />
             {problem}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>
@@ -282,15 +281,13 @@ export function SecondFactorCard() {
         {step.at === 'proof' && (
           <form onSubmit={(event) => onProof(event, step.to)} className="max-w-sm space-y-3">
             <p className="text-sm">{t(step.to === 'off' ? 'switchOffBody' : 'newCodesBody')}</p>
-            <Field label={t('password')}>
-              <Input
-                name="currentPassword"
-                type="password"
-                required
-                autoFocus
-                autoComplete="current-password"
-              />
-            </Field>
+            <PasswordField
+              label={t('password')}
+              name="currentPassword"
+              required
+              autoFocus
+              autoComplete="current-password"
+            />
             <SecondStepCode />
             {problem}
             <div className="flex gap-2">
