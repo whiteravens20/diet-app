@@ -443,10 +443,40 @@ describe('shopping lists and the pantry', () => {
   describe('what is in the freezer', () => {
     beforeEach(() => menu(0, [EGGS_ON_TOAST, TOFU_BOWL, CHICKEN_RICE]));
 
-    it('is counted on like what is fresh, leaves the freezer when the list takes it, and goes back there', async () => {
+    /** The plan takes out of the freezer its portion of chicken, as one made with it there would. */
+    const thawsChicken = async () => {
+      const kept = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: {
+          report: {
+            ...(kept.report as object),
+            freezer: {
+              from: date(0),
+              stock: [{ ingredientId: (await ingredient('chicken-breast')).id, amount: 286 }],
+            },
+          },
+        },
+      });
+    };
+
+    it('is not counted on where the plan leaves it in the freezer', async () => {
+      await stock('chicken-breast', 286, 'g', '2026-02-04', true);
+
+      const list = await listFor(0);
+
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({
+        alreadyHaveQuantity: 0,
+        toBuyQuantity: 150,
+      });
+      expect(await pantry('chicken-breast')).toEqual(['286 g frozen']);
+    });
+
+    it('is counted on where the plan takes it out, leaves the freezer when the list takes it, and goes back there', async () => {
       // The day takes 150 g of chicken: 100 g at home fresh, which goes off first, and 286 g frozen.
       await stock('chicken-breast', 100, 'g', '2026-01-06');
       await stock('chicken-breast', 286, 'g', '2026-02-04', true);
+      await thawsChicken();
 
       const list = await listFor(0);
 
@@ -472,6 +502,7 @@ describe('shopping lists and the pantry', () => {
 
     it('gets back what the list counted on once a purchase covers the need, and what is bought goes to what is fresh', async () => {
       await stock('chicken-breast', 286, 'g', '2026-02-04', true);
+      await thawsChicken();
       const list = await listFor(0);
       expect(rowOf(list, 'Chicken breast')).toMatchObject({ alreadyHaveQuantity: 150 });
       expect(await pantry('chicken-breast')).toEqual(['136 g frozen']);

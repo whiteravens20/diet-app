@@ -29,6 +29,7 @@
 import {
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
+  THAWED_KEEPS_DAYS,
   type DietType,
   type Macros,
   type MealType,
@@ -45,7 +46,14 @@ import {
   type OptimizerDay,
   type OptimizerRecipe,
 } from './optimizer.js';
-import { packsLeftOver, SPOONFUL, type DailyNeeds, type Pack } from './packs.js';
+import {
+  packsLeftOver,
+  SPOONFUL,
+  thawHeld,
+  type DailyNeeds,
+  type Held,
+  type Pack,
+} from './packs.js';
 import { aimOfPlanned, type SizedAssignment } from './rebalance.js';
 
 /** A recipe in a meal's place comes, at the serving nearest the meal's energy, within this share of it. */
@@ -97,6 +105,11 @@ export interface ClosingInput {
   packs: ReadonlyMap<string, Pack>;
   /** What the kitchen's pantry holds of each ingredient, in its own unit, where the plans count it. */
   pantry?: ReadonlyMap<string, number>;
+  /**
+   * The portions the kitchen holds in the freezer, by ingredient (`thawHeld`): eaten first, within the days they
+   * keep thawed, what they leave a rest like a pack's. An ingredient here has its pack in `packs`.
+   */
+  held?: ReadonlyMap<string, Held>;
   /** How much further from its split than the planner left it a day may come (`SPLIT_SLACK` when left out). */
   splitSlack?: number;
 }
@@ -187,13 +200,18 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
       ([ingredientId, perServing]) => [ingredientId, perServing * servings * scale] as const,
     );
   };
-  // What each ingredient's packs leave, all of them in packs, and each by the last day it is eaten from.
+  // What each ingredient's packs leave, all of them in packs, and each by the last day it is eaten from. A portion
+  // held frozen is eaten first, within the days it keeps thawed, and what it leaves is a rest like a pack's.
+  const held = input.held ?? new Map<string, Held>();
   const lotOf = (ingredientId: string, row: number[]): Lot => {
     const size = packs.get(ingredientId)!.size;
-    const over = packsLeftOver(row, packs.get(ingredientId)!).map((opened) => ({
+    const thawed = held.has(ingredientId) ? thawHeld(row, held.get(ingredientId)!) : null;
+    const over = packsLeftOver(thawed?.rest ?? row, packs.get(ingredientId)!).map((opened) => ({
       until: opened.until,
       share: opened.left / size,
     }));
+    if (thawed && thawed.left > 1e-6)
+      over.push({ until: thawed.day + THAWED_KEEPS_DAYS - 1, share: thawed.left / size });
     return { row, over, left: over.reduce((sum, pack) => sum + pack.share, 0) };
   };
   const lots = new Map(

@@ -22,7 +22,13 @@ export interface WasteLevel {
   keepDays: (ingredient: { keepDays?: number | null; category?: string | null }) => number;
   /** The repeats it allows whatever the profile says: the most days running and times in seven days of one dish, and whether twice a day. */
   repeats?: { daysInARow: number; timesAWeek: number; twiceADay: boolean };
+  /** Whether what the plan does not eat fresh of an opened pack of the ingredient goes in the freezer (`Pack.freezes`). */
+  freezes?: (ingredient: { category?: string | null }) => boolean;
 }
+
+/** Meat and fish: what spoils within days once opened, and keeps in a freezer. */
+const isMeatOrFish = (ingredient: { category?: string | null }): boolean =>
+  ingredient.category === 'meat' || ingredient.category === 'fish';
 
 /** "Mniej marnowania": the planner leans on the pantry and the packs, within the profile's limits. */
 export const LESS_WASTE: WasteLevel = {
@@ -40,7 +46,11 @@ export const NO_WASTE_DAYS = { meatAndFish: 3, other: 5 } as const;
  * most, anything else within 5), the same dish up to 3 days running, 5 times
  * in seven days and twice a day, whatever the profile says, and a day a little
  * further from its split. The profile's limits on kinds of protein, its
- * allergens, what it avoids and its diet hold as ever.
+ * allergens, what it avoids and its diet hold as ever. No meat or fish is
+ * wasted: what is not eaten fresh goes in the freezer the day its pack is
+ * opened. The closing weighs its packs as any others: weighed first, meat and
+ * fish left two to three times as many rests of other foods (measured on
+ * 2026-11-14), and the freezer keeps them anyway.
  */
 export const NO_WASTE: WasteLevel = {
   weights: NO_WASTE_WEIGHTS,
@@ -49,9 +59,8 @@ export const NO_WASTE: WasteLevel = {
   keepDays: (ingredient) =>
     Math.min(
       keepDaysOf(ingredient),
-      ingredient.category === 'meat' || ingredient.category === 'fish'
-        ? NO_WASTE_DAYS.meatAndFish
-        : NO_WASTE_DAYS.other,
+      isMeatOrFish(ingredient) ? NO_WASTE_DAYS.meatAndFish : NO_WASTE_DAYS.other,
     ),
   repeats: { daysInARow: 3, timesAWeek: 5, twiceADay: true },
+  freezes: isMeatOrFish,
 };

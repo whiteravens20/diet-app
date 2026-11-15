@@ -486,6 +486,15 @@
       "pl": "Brak dostępu."
     }
   },
+  "FROZEN_REST_GONE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The plan no longer freezes this rest, or eats all of it itself. The plan has been reloaded.",
+      "pl": "Plan nie zamraża już tej resztki albo zjada ją całą sam. Plan został odświeżony."
+    }
+  },
   "HOUSEHOLD_LIST_NOT_FOUND": {
     "statuses": [
       404

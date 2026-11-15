@@ -965,6 +965,10 @@ model MealPlan {
   // a plan of one person, and once the other plan is gone.
   joint          JointPlan?     @relation(fields: [jointPlanId], references: [id], onDelete: SetNull)
   jointPlanId    String?
+  // The rests of meat and fish the plan puts in the freezer that "Dodaj do
+  // spiżarni" added to the profile's pantry (`KeptFrozen` in the plan service):
+  // each rest's ingredient, day and amount, so that a rest is added once.
+  frozenKept     Json           @default("[]")
 
   days          MealPlanDay[]
   shoppingLists ShoppingList[]

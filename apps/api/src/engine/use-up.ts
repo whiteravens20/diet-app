@@ -120,7 +120,8 @@ export function useUpSwaps(
     for (const candidate of meal.candidates)
       for (const ingredientId of candidate.amounts.keys()) add(ingredientId, meal.day, 0);
   }
-  const use = packUse(needs, packs);
+  // What the packs leave, a rest a freezer would take among it: what uses it up is better than the freezer.
+  const use = packUse(needs, packs, false);
   const before = tallyOf(use);
   const beyondBefore = packsLeftBeyondAccepted(use);
   if (beyondBefore <= 0) return [];
@@ -143,7 +144,7 @@ export function useUpSwaps(
         ]),
       );
       const with_ = changed(changed(needs, meal.day, meal.amounts, -1), meal.day, taken, 1);
-      const withUse = packUse(with_, packs);
+      const withUse = packUse(with_, packs, false);
       const beyond = packsLeftBeyondAccepted(withUse);
       if (beyondBefore - beyond < SPOONFUL) continue;
       const after = tallyOf(withUse);

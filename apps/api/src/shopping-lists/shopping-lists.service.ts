@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import {
   MAX_LISTS_PER_PLAN,
+  PlanOptions,
   type DisplayUnit,
   type GenerateShoppingListRequest,
   type Locale,
@@ -51,6 +52,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { plateOfMeal, plateShare, restsOf } from '../meal-plans/plan-days.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
+import { freezerOf } from '../meal-plans/generation-report.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
 export const TRANSACTION = { timeout: 30_000, maxWait: 10_000 } as const;
@@ -261,11 +263,12 @@ export class ShoppingListsService {
     const to = new Date(Math.max(...lists.map((list) => list.toDate.getTime())));
     const lines = await planLines(this.prisma, lists[0]!.planId, from, to);
     const households = await householdsOf(this.prisma, lists);
+    const freezes = await freezesOf(this.prisma, [lists[0]!.planId]);
 
     return lists.map((list) => {
       const items = list.items.map((item) => {
         const ingredient = ingredients.get(item.ingredientId);
-        return itemDto(item, ingredient, locale, freshOf(item, ingredient, lines, list));
+        return itemDto(item, ingredient, locale, freshOf(item, ingredient, lines, list, freezes));
       });
       return {
         id: list.id,
@@ -330,6 +333,21 @@ export function itemDto(
 const KEEPS_CLOSED = new Set(['pantry', 'cured']);
 const DAY = 86_400_000;
 
+/**
+ * Whether the plans of a kitchen put what they do not eat fresh of meat and fish in the freezer: one of them wastes
+ * nothing (`NO_WASTE`). Its packs are then counted with the freezer, as the plan counts them.
+ */
+export async function freezesOf(
+  db: Pick<Tx, 'mealPlan'>,
+  planIds: readonly string[],
+): Promise<boolean> {
+  const plans = await db.mealPlan.findMany({
+    where: { id: { in: [...planIds] } },
+    select: { options: true },
+  });
+  return plans.some((plan) => PlanOptions.parse(plan.options).noWaste);
+}
+
 /** Of a row of fresh meat or fish, its packs as the list's days take them, and those to buy later than its first day. */
 export interface Fresh {
   count: number;
@@ -342,13 +360,17 @@ export interface Fresh {
  * (`freshPurchases`), what the row counts as at home eaten first, and those of
  * them to buy later than the list's first day, by the day from which they
  * are. Null for any other row: closed, it keeps longer than its days after
- * opening say. `lines` may hold other ingredients and other days.
+ * opening say. `lines` may hold other ingredients and other days. Of a plan
+ * that wastes nothing (`freezes`), what a pack holds beyond the days it keeps
+ * goes in the freezer and a later need takes it from there before a new pack
+ * is bought, as the plan counts it.
  */
 export function freshOf(
   item: Pick<StoredItem, 'ingredientId' | 'unit' | 'totalQuantity' | 'alreadyHaveQuantity'>,
   ingredient: IngredientRow | undefined,
   lines: readonly DatedLine[],
   list: { fromDate: Date; toDate: Date },
+  freezes = false,
 ): Fresh | null {
   if (!ingredient?.perishable || !ingredient.packSize || ingredient.packSize <= 0) return null;
   if (ingredient.category !== 'meat' && ingredient.category !== 'fish') return null;
@@ -366,7 +388,11 @@ export function freshOf(
     const held = toCanonical(item.alreadyHaveQuantity, item.unit, ingredient);
     const { count, later } = freshPurchases(
       byDay,
-      { size: ingredient.packSize, keepDays: keepDaysOf(ingredient) },
+      {
+        size: ingredient.packSize,
+        keepDays: keepDaysOf(ingredient),
+        ...(freezes ? { freezes: true } : {}),
+      },
       held,
     );
     if (count === 0) return null;
@@ -776,9 +802,16 @@ export async function makeList(
   // here of an ingredient is what its row finds.
   const ingredientIds = items.map((item) => item.ingredientId);
   await lockPantries(tx, profileId, ingredientIds);
+  // What is frozen is at home for the list only where the plan takes it out of the freezer, whole (`StoredReport.freezer`).
+  const made = await tx.mealPlan.findUnique({ where: { id: plan.id }, select: { report: true } });
+  const thawed = [...(freezerOf(made?.report)?.stock.keys() ?? [])];
   const pantry = new Map<string, { unit: Unit; quantity: number; bestBefore: Date | null }[]>();
   for (const row of await tx.inventoryItem.findMany({
-    where: { profileId, ingredientId: { in: ingredientIds } },
+    where: {
+      profileId,
+      ingredientId: { in: ingredientIds },
+      OR: [{ frozen: false }, { ingredientId: { in: thawed } }],
+    },
     select: { ingredientId: true, unit: true, quantity: true, bestBefore: true },
   })) {
     pantry.set(row.ingredientId, [...(pantry.get(row.ingredientId) ?? []), row]);

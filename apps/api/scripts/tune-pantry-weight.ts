@@ -9,7 +9,9 @@
  * are sized for their days, have their packs closed after the planner and the rests of packs put
  * into the meals that finish them, as the application does (`closePacks`, `packRests`), at the level
  * "less waste" (`LESS_WASTE`) with the pantry weight of the row; the last row is a plan that wastes
- * nothing (`NO_WASTE`). Every row counts the meals as sized, and the packs as a kitchen keeps them.
+ * nothing (`NO_WASTE`), whose meat and fish not eaten fresh go in the freezer: what is frozen and
+ * not eaten in the week counts as not used. Every row counts the meals as sized, and the packs as a
+ * kitchen keeps them.
  * Each draw stocks the pantry with ingredients of the diet's recipes, a few servings' worth of each.
  * The weight of "less waste" was chosen from this table; run it again when the catalogue has grown.
  *
@@ -58,14 +60,17 @@ const ingredientOf = new Map(
 const energyPer100 = new Map(
   catalogue.ingredients.map((ingredient) => [ingredient.slug, ingredient.caloriesPer100]),
 );
-/** The packs as a level plans with them: each eaten within its level's days. */
+/** The packs as a level plans with them: each eaten within its level's days, and frozen where the level freezes it. */
 const packsAt = (level: WasteLevel): Map<string, Pack> =>
   new Map(
     [...perishablePacks].map(([id, pack]) => [
       id,
-      { ...pack, keepDays: level.keepDays(ingredientOf.get(id) ?? {}) },
+      { ...frozenAt(level, id, pack), keepDays: level.keepDays(ingredientOf.get(id) ?? {}) },
     ]),
   );
+/** A pack as a kitchen keeps it at a level: what the level freezes of it goes in the freezer. */
+const frozenAt = (level: WasteLevel | null, id: string, pack: Pack): Pack =>
+  level?.freezes?.(ingredientOf.get(id) ?? {}) ? { ...pack, freezes: true } : pack;
 const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 
 /** A draw that is the same every run: a linear congruential generator from the seed. */
@@ -219,7 +224,10 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
             const row = weekNeeds.get(rest.ingredientId);
             if (row) row[closed![index]!.dayIndex]! += rest.amount;
           }
-        const counted = packUse(weekNeeds, perishablePacks);
+        const counted = packUse(
+          weekNeeds,
+          new Map([...perishablePacks].map(([id, pack]) => [id, frozenAt(level, id, pack)])),
+        );
         bought += counted.bought;
         used += counted.used;
         wasted += counted.open.filter((pack) => pack.wasted).length;

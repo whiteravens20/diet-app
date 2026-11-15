@@ -64,7 +64,9 @@ import {
   type SizedAssignment,
   fullKindsOn,
   keepDaysOf,
+  thawHeld,
   topAssignments,
+  type Held,
   type Pack,
   type ToppedAssignment,
   type ToppingOption,
@@ -76,7 +78,7 @@ import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
-import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
+import { keptFreezer, reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
 import { plateDishesOf } from './plates-store.js';
 import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
@@ -1028,7 +1030,7 @@ export class PlanGenerationService {
 
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
-    // of it is made again; what the pantry had to do with it is said of a whole plan.
+    // of it is made again; what the pantry had to do with it, and what its freezer held, are said of a whole plan.
     const before = StoredReport.nullable().parse(plan.report ?? null);
     const merged = before
       ? withDaysAgain(
@@ -1037,7 +1039,13 @@ export class PlanGenerationService {
           filled.map(({ dayIndex }) => dates[dayIndex]!),
         )
       : null;
-    const report = whole ? { ...(merged ?? result.report), pantry: result.report.pantry } : merged;
+    const report = whole
+      ? {
+          ...(merged ?? result.report),
+          pantry: result.report.pantry,
+          freezer: result.report.freezer,
+        }
+      : merged;
     return { cookedWith, moves, report };
   }
 
@@ -1166,17 +1174,27 @@ export class PlanGenerationService {
     opts: Parameters<PlanGenerationService['drawPlan']>[2],
   ): Promise<Optimised> {
     const drawn = await this.drawPlan(ownerUserId, profile, opts);
-    if (!opts.lessWaste) return drawn.finish(drawn.closing.assignments);
+    if (!opts.lessWaste && drawn.held.size === 0) return drawn.finish(drawn.closing.assignments);
     const [closed] = closePacks({
       plans: [drawn.closing],
       fixed: drawn.fixed,
-      packs: drawn.packs,
+      // A plan that does not waste less closes nothing but the portions it takes out of the freezer.
+      packs: opts.lessWaste ? drawn.packs : heldPacks(drawn.packs, drawn.held),
       pantry: drawn.pantry,
-      splitSlack: drawn.level.splitSlack,
+      held: drawn.held,
+      ...(opts.lessWaste ? { splitSlack: drawn.level.splitSlack } : {}),
     });
+    const thawed = eatenWhole(
+      drawn.held,
+      [{ ...drawn.closing, assignments: closed! }],
+      drawn.fixed,
+      drawn.packs,
+    );
+    if (!opts.lessWaste) return drawn.finish(closed!, undefined, thawed);
     const finished = await drawn.finish(
       closed!,
       kitchenOf([{ ...drawn.closing, assignments: closed! }], [drawn]),
+      thawed,
     );
     return (await this.withRests([finished], [drawn]))[0]!;
   }
@@ -1330,7 +1348,7 @@ export class PlanGenerationService {
     const level = !opts.lessWaste ? null : opts.noWaste ? NO_WASTE : LESS_WASTE;
     const loaded = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
-      ...(level ? { keepDays: level.keepDays } : {}),
+      ...(level ? { keepDays: level.keepDays, freezes: level.freezes } : {}),
     });
     const { requirementsByRecipe, beforeProfileRules, perishablePacks } = loaded;
     const joint = opts.joint;
@@ -1478,6 +1496,21 @@ export class PlanGenerationService {
     });
 
     const dates = opts.days.map((d) => d.isoDate);
+    // What the freezer holds now, where the plan counts the pantry: a portion of each food, taken out whole for the
+    // first meal from today on that takes it, and only where the plan eats it whole within the days it keeps thawed
+    // (`eatenWhole`); the rest stays frozen.
+    const thawFrom = [dates[0]!, this.today()].sort()[1]!;
+    const frozenStock = countsPantry
+      ? await stockByIngredient(this.prisma, profile.id, { frozen: true })
+      : new Map<string, number>();
+    const fromDay = dates.findIndex((date) => date >= thawFrom);
+    const held = new Map<string, Held>(
+      fromDay < 0
+        ? []
+        : [...frozenStock]
+            .filter(([ingredientId]) => perishablePacks.has(ingredientId))
+            .map(([ingredientId, amount]) => [ingredientId, { amount, from: fromDay }] as const),
+    );
     const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
     // A plan that names no number is held to the operator's, where one is set.
     const perPlan =
@@ -1534,10 +1567,11 @@ export class PlanGenerationService {
         fixed: kitchen.needs,
         packs: new Map([...kitchen.packs, ...perishablePacks]),
         pantry: pantry.stock,
+        held,
         toppingOptions: opts.topped?.options ?? [],
         level: level ?? LESS_WASTE,
         shared: [...sharedSlots],
-        finish: async (closed, kitchen) => {
+        finish: async (closed, kitchen, thawed) => {
           const finished = closedResult(result, closed, days, optimizerRecipes);
           return {
             assignments: topped
@@ -1558,7 +1592,15 @@ export class PlanGenerationService {
                 )
               : [...closed],
             ingredientReuseScore: finished.ingredientReuseScore,
-            report: reportOf(finished, dates, pantry.use),
+            report: reportOf(
+              finished,
+              dates,
+              pantry.use,
+              keptFreezer(
+                new Map([...frozenStock].filter(([ingredientId]) => thawed?.has(ingredientId))),
+                thawFrom,
+              ),
+            ),
             pantryRound: pantry.round,
             shared: [...sharedSlots],
           };
@@ -1718,6 +1760,8 @@ export class PlanGenerationService {
       respectExclusions?: boolean;
       /** The days an opened pack is to be eaten within: its own, or a level's fewer (`WasteLevel.keepDays`). */
       keepDays?: WasteLevel['keepDays'];
+      /** Whether a level puts what is not eaten fresh of an ingredient's pack in the freezer (`WasteLevel.freezes`). */
+      freezes?: WasteLevel['freezes'];
     } = {},
   ): Promise<{
     optimizerRecipes: OptimizerRecipe[];
@@ -1843,6 +1887,7 @@ export class PlanGenerationService {
         perishablePacks.set(line.ingredientId, {
           size: line.ingredient.packSize,
           keepDays: (options.keepDays ?? keepDaysOf)(line.ingredient),
+          ...(options.freezes?.(line.ingredient) ? { freezes: true } : {}),
         });
     }
 
@@ -1983,12 +2028,19 @@ interface Drawn {
   level: WasteLevel;
   /** Of a joint ask, the times of day the plan holds a dish both may be given at. */
   shared: MealType[];
+  /** The portions of the profile's freezer the plan may take out (`thawHeld`), where it counts the pantry. */
+  held: Map<string, Held>;
   /**
    * The plan with `closed` as its meals: their toppings given, its report said.
    * `kitchen`, in a plan that wastes less, holds the packs of the plans cooked
-   * together, which the toppings are chosen by and taken from.
+   * together, which the toppings are chosen by and taken from. `thawed` are the
+   * foods whose portion in the freezer the plan takes out: it eats them whole.
    */
-  finish: (closed: readonly SizedAssignment[], kitchen?: PackKitchen) => Promise<Optimised>;
+  finish: (
+    closed: readonly SizedAssignment[],
+    kitchen?: PackKitchen,
+    thawed?: ReadonlySet<string>,
+  ) => Promise<Optimised>;
 }
 
 /** A rest as a meal keeps it: its amount and what that holds, to a tenth; null for one too small to keep. */
@@ -2057,7 +2109,9 @@ function closedResult(
 /**
  * The packs of the two plans of a joint plan closed together, in a plan that
  * wastes less: one kitchen, and a meal both eat (at `shared`) swapped in both.
- * Otherwise the plans as they were drawn.
+ * A plan that does not waste less closes only the portions its kitchen takes
+ * out of the freezer, the two freezers as one; without any, the plans stay as
+ * they were drawn.
  */
 async function closeTogether(
   first: Drawn,
@@ -2065,20 +2119,42 @@ async function closeTogether(
   shared: readonly { dayIndex: number; slot: MealType }[],
   lessWaste: boolean,
 ): Promise<[Optimised, Optimised]> {
-  if (!lessWaste)
+  const held = new Map(first.held);
+  for (const [ingredientId, portion] of second.held) {
+    const ours = held.get(ingredientId);
+    held.set(ingredientId, ours ? { ...ours, amount: ours.amount + portion.amount } : portion);
+  }
+  if (!lessWaste && held.size === 0)
     return [
       await first.finish(first.closing.assignments),
       await second.finish(second.closing.assignments),
     ];
+  const packs = new Map([...first.packs, ...second.packs]);
+  const fixed = fixedOf([first, second]);
   const [mine, theirs] = closePacks({
     plans: [first.closing, second.closing],
     shared,
-    fixed: fixedOf([first, second]),
-    packs: new Map([...first.packs, ...second.packs]),
+    fixed,
+    packs: lessWaste ? packs : heldPacks(packs, held),
     // The first plan counts both pantries (`resolveInventoryBias`).
     pantry: first.pantry ?? second.pantry,
-    splitSlack: first.level.splitSlack,
+    held,
+    ...(lessWaste ? { splitSlack: first.level.splitSlack } : {}),
   });
+  const thawed = eatenWhole(
+    held,
+    [
+      { ...first.closing, assignments: mine! },
+      { ...second.closing, assignments: theirs! },
+    ],
+    fixed,
+    packs,
+  );
+  if (!lessWaste)
+    return [
+      await first.finish(mine!, undefined, thawed),
+      await second.finish(theirs!, undefined, thawed),
+    ];
   // One kitchen for the toppings of both: those of the first are there when the second's are chosen.
   const kitchen = kitchenOf(
     [
@@ -2087,7 +2163,37 @@ async function closeTogether(
     ],
     [first, second],
   );
-  return [await first.finish(mine!, kitchen), await second.finish(theirs!, kitchen)];
+  return [
+    await first.finish(mine!, kitchen, thawed),
+    await second.finish(theirs!, kitchen, thawed),
+  ];
+}
+
+/** Of a kitchen's packs, those of the foods it holds a portion of in the freezer. */
+const heldPacks = (packs: ReadonlyMap<string, Pack>, held: ReadonlyMap<string, Held>) =>
+  new Map([...packs].filter(([ingredientId]) => held.has(ingredientId)));
+
+/**
+ * Of the portions a kitchen holds in the freezer, the foods its plans eat whole within the days a portion keeps
+ * thawed (`thawHeld`): only those are taken out; any other stays frozen.
+ */
+function eatenWhole(
+  held: ReadonlyMap<string, Held>,
+  plans: Parameters<typeof kitchenNeeds>[0],
+  fixed: Map<string, number[]>,
+  packs: ReadonlyMap<string, Pack>,
+): Set<string> {
+  if (held.size === 0) return new Set();
+  const needs = kitchenNeeds(plans, fixed, packs);
+  return new Set(
+    [...held]
+      .filter(([ingredientId, portion]) => {
+        const row = needs.get(ingredientId);
+        const thawed = row ? thawHeld(row, portion) : null;
+        return thawed !== null && thawed.left < 1;
+      })
+      .map(([ingredientId]) => ingredientId),
+  );
 }
 
 /** What stays in the plans of a kitchen takes of the packs, all of them together. */

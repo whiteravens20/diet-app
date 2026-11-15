@@ -28,6 +28,7 @@ import {
   RetargetPlanRequest,
   DayVariations,
   GeneratePlanRequest,
+  KeepFrozenRequest,
   LeftoverOffer,
   MealPlan,
   MealPlanPage,
@@ -345,6 +346,24 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.generation.retarget(user.id, locale, id, dto.revision, today);
+  }
+
+  /**
+   * "Dodaj do spiżarni": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as
+   * frozen, once (`KeepFrozenRequest`).
+   */
+  @Post(':id/frozen')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
+  keepFrozen(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(KeepFrozenRequest)) dto: KeepFrozenRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.keepFrozen(user.id, locale, id, dto, today);
   }
 
   /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */

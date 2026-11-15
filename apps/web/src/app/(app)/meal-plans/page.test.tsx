@@ -176,7 +176,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   targetMacros: { protein: 100, fat: 62, carbs: 260 },
   averageOff: { calories: null, macros: false },
   ingredientReuseScore: 0,
-  packs: { bought: 0, used: 0, open: [] },
+  packs: { bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] },
   generationMode: 'deterministic',
   options: {
     dietType: null,
@@ -1569,7 +1569,17 @@ describe('the plan page, on how a day stands against its target', () => {
     } as const;
 
     it('says how much of what the menu buys it uses, and how many packs it leaves more than a fifth of', async () => {
-      await opened(aPlan({ packs: { bought: 2200, used: 1520, open: [feta, milk, chicken] } }));
+      await opened(
+        aPlan({
+          packs: {
+            bought: 2200,
+            used: 1520,
+            open: [feta, milk, chicken],
+            frozen: [],
+            fromFreezer: [],
+          },
+        }),
+      );
 
       const line = screen.getByText(
         'Packs that do not keep once opened: the menu uses 69% of what it buys, and leaves more than a fifth of 2 packs.',
@@ -1589,7 +1599,11 @@ describe('the plan page, on how a day stands against its target', () => {
     });
 
     it('says so when one pack is left much of, and when none is', async () => {
-      await opened(aPlan({ packs: { bought: 1500, used: 980, open: [milk, chicken] } }));
+      await opened(
+        aPlan({
+          packs: { bought: 1500, used: 980, open: [milk, chicken], frozen: [], fromFreezer: [] },
+        }),
+      );
 
       expect(
         screen.getByText(
@@ -1599,7 +1613,9 @@ describe('the plan page, on how a day stands against its target', () => {
     });
 
     it('says that every pack is used up when the menu finishes them all', async () => {
-      await opened(aPlan({ packs: { bought: 500, used: 500, open: [] } }));
+      await opened(
+        aPlan({ packs: { bought: 500, used: 500, open: [], frozen: [], fromFreezer: [] } }),
+      );
 
       await userEvent.click(
         screen.getByText('Packs that do not keep once opened: the menu uses 100% of what it buys.'),
@@ -1610,7 +1626,7 @@ describe('the plan page, on how a day stands against its target', () => {
     it('says of a plan made together with another that it counts the packs of both menus', async () => {
       await opened(
         aPlan({
-          packs: { bought: 1500, used: 980, open: [milk, chicken] },
+          packs: { bought: 1500, used: 980, open: [milk, chicken], frozen: [], fromFreezer: [] },
           joint: {
             planId: '99999999-9999-4999-8999-999999999999',
             profileId: '99999999-9999-4999-8999-999999999998',
@@ -2577,7 +2593,9 @@ describe('the plan page, on what the planner proposes for a plan', () => {
   });
 
   it('offers, with the packs a plan leaves more than a fifth of, to look for what would use them up', async () => {
-    const plan = aPlan({ packs: { bought: 500, used: 150, open: [chicken] } });
+    const plan = aPlan({
+      packs: { bought: 500, used: 150, open: [chicken], frozen: [], fromFreezer: [] },
+    });
     await opened(plan);
     const post = vi
       .spyOn(api, 'post')
@@ -2591,7 +2609,15 @@ describe('the plan page, on what the planner proposes for a plan', () => {
 
   it('does not offer that for a plan whose packs are used well enough', async () => {
     await opened(
-      aPlan({ packs: { bought: 500, used: 480, open: [{ ...chicken, left: 20, wasted: false }] } }),
+      aPlan({
+        packs: {
+          bought: 500,
+          used: 480,
+          open: [{ ...chicken, left: 20, wasted: false }],
+          frozen: [],
+          fromFreezer: [],
+        },
+      }),
     );
 
     expect(screen.queryByRole('button', { name: messages.mealPlans.useUp.ask })).toBeNull();

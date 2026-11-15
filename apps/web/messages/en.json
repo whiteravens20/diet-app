@@ -337,6 +337,7 @@
     "PROFILE_NOT_FOUND": "Profile not found.",
     "PROFILE_LIMIT_REACHED": "You've reached the maximum number of profiles.",
     "PLAN_NOT_FOUND": "Meal plan not found.",
+    "FROZEN_REST_GONE": "The plan no longer freezes this rest, or eats all of it itself. The plan has been reloaded.",
     "PLAN_CHANGED": "The plan changed in the meantime. It has been reloaded; try again.",
     "PLAN_TARGET_TYPED": "This plan keeps the target typed when it was made: the profile's target does not change it.",
     "DAY_NOT_FOUND": "Day not found in this plan.",

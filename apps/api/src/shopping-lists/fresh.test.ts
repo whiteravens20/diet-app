@@ -65,6 +65,11 @@ describe('the packs of a row of fresh meat or fish', () => {
     expect(freshOf(row, undefined, lines, week)).toBeNull();
   });
 
+  it('of a plan that wastes nothing take a later need from the freezer: no pack to buy later', () => {
+    // What the first pack holds beyond its two days goes in the freezer on Monday, and Saturday takes from it.
+    expect(freshOf(row, chicken, lines, week, true)).toEqual({ count: 1, later: [] });
+  });
+
   it('are none when what is at home covers every need', () => {
     expect(freshOf({ ...row, alreadyHaveQuantity: 300 }, chicken, lines, week)).toBeNull();
   });

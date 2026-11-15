@@ -19,6 +19,7 @@
  * Only an ingredient whose opened pack does not keep counts. Rice from a
  * kilogram bag is not wasted by a plan that takes a cup of it.
  */
+import { THAWED_KEEPS_DAYS } from '@diet-app/shared';
 
 /** The share of a pack that may be left without that counting as waste. */
 export const ACCEPTED_LEFT = 0.2;
@@ -43,6 +44,12 @@ export interface Pack {
   size: number;
   /** The days an opened one is eaten from, the day it is opened among them. */
   keepDays: number;
+  /**
+   * What the plan does not eat of an opened pack while it keeps is put in the freezer the day the pack is opened,
+   * never thrown away, and a need after that takes from the freezer first (`freezerWalk`): meat and fish in a plan
+   * that wastes nothing.
+   */
+  freezes?: boolean;
 }
 
 /**
@@ -179,6 +186,114 @@ export function packPull(
   return Math.max(-1, Math.min(1, clean(pull / (1 - ACCEPTED_LEFT))));
 }
 
+/** What the freezer holds of one pack's rest: put in the day the pack is opened. */
+export interface Frozen {
+  /** The day the pack is opened and its rest put in the freezer. */
+  day: number;
+  /** What is put in the freezer. */
+  amount: number;
+  /** What the days after take of it, each on the day it is eaten: it is taken out of the freezer the day before. */
+  thawed: { day: number; amount: number }[];
+}
+
+/** What is left in the freezer of a rest once the days of a menu are over: what no need of the menu took. */
+export const frozenLeft = (frozen: Frozen): number =>
+  clean(frozen.amount - frozen.thawed.reduce((sum, taken) => sum + taken.amount, 0));
+
+/**
+ * One ingredient's packs over a menu's days, with a freezer (`Pack.freezes`): a need is taken from the pack that is
+ * open while it keeps, then from the freezer, from what was put in on a day before the need's own, the oldest first,
+ * and only then from new packs. What a pack holds that the menu does not eat while it keeps, a spoonful or more, is
+ * put in the freezer on the day it is opened; nothing is thrown away. `lastDays` are the last days each pack bought
+ * is eaten from fresh, in the order the packs are opened, as `packLastDays` gives them.
+ */
+export function freezerWalk(
+  byDay: readonly number[],
+  pack: Pack,
+): { bought: number; eaten: number; frozen: Frozen[]; lastDays: number[] } {
+  const spoon = SPOONFUL * pack.size;
+  const frozen: Frozen[] = [];
+  const lastDays: number[] = [];
+  let fresh: { left: number; until: number; opened: number; index: number } | undefined;
+  let bought = 0;
+  let eaten = 0;
+  const freeze = (open: { left: number; opened: number }): void => {
+    if (open.left > spoon + CRUMB)
+      frozen.push({ day: open.opened, amount: clean(open.left), thawed: [] });
+  };
+  byDay.forEach((need, day) => {
+    if (fresh !== undefined && fresh.until < day) {
+      freeze(fresh);
+      fresh = undefined;
+    }
+    let rest = Math.max(0, need);
+    if (rest <= CRUMB) return;
+    let fromFresh = 0;
+    if (fresh !== undefined && fresh.left > CRUMB) {
+      fromFresh = Math.min(fresh.left, rest);
+      fresh.left -= fromFresh;
+      rest -= fromFresh;
+      lastDays[fresh.index] = day;
+    }
+    for (const portion of frozen) {
+      if (rest <= CRUMB) break;
+      if (portion.day >= day) continue;
+      const take = Math.min(frozenLeft(portion), rest);
+      if (take <= CRUMB) continue;
+      portion.thawed.push({ day, amount: clean(take) });
+      rest -= take;
+    }
+    eaten += Math.max(0, need) - rest;
+    if (rest <= CRUMB) return;
+    if (fresh !== undefined && fromFresh > 0 && rest <= spoon) {
+      // The open pack does for a spoonful more: it is finished.
+      eaten += rest;
+      fresh.left = 0;
+      return;
+    }
+    const count = packsFor(rest, pack.size);
+    bought += count * pack.size;
+    eaten += rest;
+    for (let i = 0; i < count; i += 1) lastDays.push(day);
+    fresh = {
+      left: Math.max(0, count * pack.size - rest),
+      until: day + pack.keepDays - 1,
+      opened: day,
+      index: lastDays.length - 1,
+    };
+  });
+  if (fresh !== undefined) freeze(fresh);
+  return { bought: clean(bought), eaten: clean(eaten), frozen, lastDays };
+}
+
+/** A portion of an ingredient the kitchen holds in the freezer: taken out whole for the first need from day `from` on. */
+export interface Held {
+  amount: number;
+  from: number;
+}
+
+/**
+ * What a portion held in the freezer does to one ingredient's needs: it comes out whole for the first day from
+ * `held.from` on that needs the ingredient, and is eaten first on that day and the next, `THAWED_KEEPS_DAYS` in all.
+ * `rest` is what the days still need after it, `left` what is left of it once those days are over. Null where no day
+ * from `held.from` on needs the ingredient: the portion stays frozen.
+ */
+export function thawHeld(
+  byDay: readonly number[],
+  held: Held,
+): { day: number; eaten: number; left: number; rest: number[] } | null {
+  const day = byDay.findIndex((need, at) => at >= held.from && need > CRUMB);
+  if (day < 0 || held.amount <= CRUMB) return null;
+  const rest = [...byDay];
+  let left = held.amount;
+  for (let at = day; at < Math.min(rest.length, day + THAWED_KEEPS_DAYS) && left > CRUMB; at += 1) {
+    const taken = Math.min(left, Math.max(0, rest[at]!));
+    rest[at] = clean(rest[at]! - taken);
+    left -= taken;
+  }
+  return { day, eaten: clean(held.amount - left), left: clean(Math.max(0, left)), rest };
+}
+
 /** What a menu takes of each ingredient on each of its days, in the ingredient's own unit: `needs.get(ingredientId)[day]`. */
 export type DailyNeeds = ReadonlyMap<string, readonly number[]>;
 
@@ -199,12 +314,20 @@ interface OpenPack {
   atEnd: boolean;
 }
 
+/** The rest of a pack of an ingredient put in the freezer (`Pack.freezes`). */
+interface FrozenRest extends Frozen {
+  ingredientId: string;
+  packSize: number;
+}
+
 /** What a plan buys in packs that do not keep, against what it eats of them. */
 export interface PackUse {
   bought: number;
   used: number;
-  /** The packs that are not finished, the one with the most left first. */
+  /** The packs that are not finished, the one with the most left first. A pack whose rest is frozen is none of them. */
   open: OpenPack[];
+  /** The rests put in the freezer, of the packs that freeze, by the day each is put in. */
+  frozen: FrozenRest[];
 }
 
 /** What one ingredient's packs come to over a menu's days: what it buys and eats, and every pack it leaves something in. */
@@ -235,6 +358,7 @@ function walkPacks(
  * from it while it keeps.
  */
 export function packLastDays(byDay: readonly number[], pack: Pack): number[] {
+  if (pack.freezes) return freezerWalk(byDay, pack).lastDays;
   const last: number[] = [];
   let opened: Opened | undefined;
   let open = -1;
@@ -288,15 +412,30 @@ export function freshPurchases(
  * whose opened pack does not keep, day by day, the packs it buys, what it eats
  * of them, and every pack it does not finish before it no longer keeps or the
  * plan ends. Grams and millilitres are added up as they are: the sum says how
- * much of what is bought is eaten, not what it weighs.
+ * much of what is bought is eaten, not what it weighs. A pack that freezes is
+ * counted with the freezer (`freezerWalk`), unless `freezer` is false: what is
+ * left of it is then what it leaves, as the closing of packs and the rests of a
+ * plan see it, which try to have it eaten fresh first.
  */
-export function packUse(needs: DailyNeeds, packs: ReadonlyMap<string, Pack>): PackUse {
+export function packUse(
+  needs: DailyNeeds,
+  packs: ReadonlyMap<string, Pack>,
+  freezer = true,
+): PackUse {
   const open: OpenPack[] = [];
+  const frozen: FrozenRest[] = [];
   let bought = 0;
   let used = 0;
   for (const [ingredientId, byDay] of needs) {
     const pack = packs.get(ingredientId);
     if (pack === undefined || pack.size <= 0) continue;
+    if (freezer && pack.freezes) {
+      const walked = freezerWalk(byDay, pack);
+      bought += walked.bought;
+      used += walked.eaten;
+      for (const rest of walked.frozen) frozen.push({ ...rest, ingredientId, packSize: pack.size });
+      continue;
+    }
     const own = walkPacks(byDay, pack);
     if (own.bought <= 0) continue;
     bought += own.bought;
@@ -319,7 +458,8 @@ export function packUse(needs: DailyNeeds, packs: ReadonlyMap<string, Pack>): Pa
       (a.ingredientId < b.ingredientId ? -1 : a.ingredientId > b.ingredientId ? 1 : 0) ||
       a.until - b.until,
   );
-  return { bought: clean(bought), used: clean(used), open };
+  frozen.sort((a, b) => a.day - b.day || (a.ingredientId < b.ingredientId ? -1 : 1));
+  return { bought: clean(bought), used: clean(used), open, frozen };
 }
 
 /** The packs one ingredient's needs leave something in: what is left in each, and the last day it is eaten from. */

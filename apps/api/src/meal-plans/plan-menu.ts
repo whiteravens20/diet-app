@@ -9,6 +9,8 @@ import {
 } from '@diet-app/shared';
 import {
   cookAhead,
+  frozenLeft,
+  thawHeld,
   keepDaysOf,
   packUse,
   toCanonical,
@@ -18,6 +20,7 @@ import {
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { isoDate, plateOfMeal, plateShare, restsOf } from './plan-days.js';
+import type { Freezer } from './generation-report.js';
 
 /** A line of a planned meal's recipe, as the count of packs reads it. */
 export interface PackedLine {
@@ -46,6 +49,9 @@ export interface PackedMeal {
   day: number;
   factor: number;
   lines: readonly PackedLine[];
+  /** The meal, and its place among the meals of its day: what a pack it opens or a rest it takes is said at. */
+  mealId?: string;
+  rank?: number;
 }
 
 /**
@@ -55,6 +61,7 @@ export interface PackedMeal {
 export function menuNeeds(
   meals: readonly PackedMeal[],
   days: number,
+  freezes?: (ingredient: { category?: string | null }) => boolean,
 ): {
   needs: Map<string, number[]>;
   packs: Map<string, Pack>;
@@ -81,7 +88,11 @@ export function menuNeeds(
         needs.set(line.ingredientId, row);
       }
       row[meal.day]! += amount;
-      packs.set(line.ingredientId, { size: packSize, keepDays: keepDaysOf(line.ingredient) });
+      packs.set(line.ingredientId, {
+        size: packSize,
+        keepDays: keepDaysOf(line.ingredient),
+        ...(freezes?.(line.ingredient) ? { freezes: true } : {}),
+      });
       known.set(line.ingredientId, line.ingredient);
     }
   }
@@ -89,11 +100,52 @@ export function menuNeeds(
 }
 
 /**
- * What a menu of `days` days comes to in packs that do not keep once they are opened, counted day by day (see
- * `engine/packs.ts`), as a plan says it.
+ * What a menu comes to in packs that do not keep once they are opened, counted day by day (see `engine/packs.ts`), as
+ * a plan says it: on the days of `dates`, in order. What the pantry held in the freezer of an ingredient when the plan
+ * was made (`freezer`) is one portion, thawed whole for the first meal from its day on that takes the ingredient and
+ * eaten like a pack just opened, within the days it keeps; the packs are counted for what is left to eat. A plan that
+ * wastes nothing puts what it does not eat fresh of meat and fish in the freezer (`freezes`), in portions: each rest
+ * is said with the meal that opens its pack, and each later day that takes a portion of it with that day's first meal
+ * that takes the ingredient.
  */
-export function planPacks(meals: readonly PackedMeal[], days: number, locale: Locale): PlanPacks {
-  const { needs, packs, known } = menuNeeds(meals, days);
+export function planPacks(
+  meals: readonly PackedMeal[],
+  dates: readonly string[],
+  locale: Locale,
+  freezes?: (ingredient: { category?: string | null }) => boolean,
+  freezer?: Freezer | null,
+): PlanPacks {
+  const { needs, packs, known } = menuNeeds(meals, dates.length, freezes);
+  /** The first meal of a day, in the order they are eaten, that takes the ingredient. */
+  const mealOf = (ingredientId: string, day: number): string | null =>
+    meals
+      .filter(
+        (meal) =>
+          meal.day === day &&
+          meal.mealId !== undefined &&
+          meal.lines.some((line) => line.ingredientId === ingredientId),
+      )
+      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))[0]?.mealId ?? null;
+  const fromFreezer: PlanPacks['fromFreezer'] = [];
+  const from = freezer ? dates.findIndex((date) => date >= freezer.from) : -1;
+  for (const [ingredientId, held] of from < 0 ? [] : freezer!.stock) {
+    const row = needs.get(ingredientId);
+    const ingredient = known.get(ingredientId);
+    if (!row || !ingredient || Math.round(held) < 1) continue;
+    // Thawed whole for its first meal, and eaten within the days it keeps thawed.
+    const thawed = thawHeld(row, { amount: held, from });
+    if (!thawed) continue;
+    needs.set(ingredientId, thawed.rest);
+    fromFreezer.push({
+      ingredientId,
+      name: pickIngredient(locale, ingredient.translations, ingredient.name),
+      unit: ingredient.canonicalUnit,
+      date: dates[thawed.day]!,
+      mealId: mealOf(ingredientId, thawed.day),
+      amount: Math.round(held),
+      eaten: Math.round(thawed.eaten),
+    });
+  }
   const use = packUse(needs, packs);
   return {
     bought: use.bought,
@@ -113,6 +165,32 @@ export function planPacks(meals: readonly PackedMeal[], days: number, locale: Lo
           wasted: pack.wasted,
         };
       }),
+    frozen: use.frozen
+      .filter((rest) => Math.round(rest.amount) >= 1)
+      .map((rest) => {
+        const ingredient = known.get(rest.ingredientId)!;
+        return {
+          ingredientId: rest.ingredientId,
+          name: pickIngredient(locale, ingredient.translations, ingredient.name),
+          unit: ingredient.canonicalUnit,
+          date: dates[rest.day]!,
+          mealId: mealOf(rest.ingredientId, rest.day),
+          amount: Math.round(rest.amount),
+          thawed: rest.thawed
+            .filter((taken) => Math.round(taken.amount) >= 1)
+            .map((taken) => ({
+              date: dates[taken.day]!,
+              mealId: mealOf(rest.ingredientId, taken.day),
+              amount: Math.round(taken.amount),
+            })),
+          left: Math.max(0, Math.round(frozenLeft(rest))),
+          // Read from the plan by whoever reads it (`keptMarked`).
+          inPantry: false,
+        };
+      }),
+    fromFreezer: fromFreezer.sort((a, b) =>
+      a.date === b.date ? a.name.localeCompare(b.name) : a.date < b.date ? -1 : 1,
+    ),
   };
 }
 
@@ -279,6 +357,8 @@ export function packedMealsOf(
         const plate = plateOfMeal(meal.plate);
         packed.push({
           day,
+          mealId: meal.id,
+          rank: rankOf(meal.mealType),
           factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
           // A person's own plate takes each line at its part's share.
           lines: plate

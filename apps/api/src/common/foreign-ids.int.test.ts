@@ -394,6 +394,12 @@ const ASKS: Ask[] = [
     (ids) => `/api/meal-plans/${ids.plan}/retarget`,
     () => ({ revision: 0 }),
   ],
+  [
+    'give the pantry a rest a plan freezes',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/frozen`,
+    (_ids, shared) => ({ ingredientId: shared.ingredient, date: '2026-01-05' }),
+  ],
 
   ['read the week of a profile in sum', 'get', (ids) => `/api/diary/week?profileId=${ids.profile}`],
   [

@@ -5606,6 +5606,80 @@
         }
       }
     },
+    "/api/meal-plans/{id}/frozen": {
+      "post": {
+        "operationId": "MealPlans_keepFrozen",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, once (`KeepFrozenRequest`).",
+        "description": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, once (`KeepFrozenRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepFrozenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}": {
       "delete": {
         "operationId": "MealPlans_removeMeal",
@@ -16569,6 +16643,22 @@
           "error"
         ]
       },
+      "KeepFrozenRequest": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "date"
+        ]
+      },
       "KindLimit": {
         "type": "object",
         "properties": {
@@ -19344,6 +19434,111 @@
         ],
         "additionalProperties": false
       },
+      "PlanFreezerStock": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "mealId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "eaten": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "ingredientId",
+          "name",
+          "unit",
+          "date",
+          "mealId",
+          "amount",
+          "eaten"
+        ],
+        "additionalProperties": false
+      },
+      "PlanFrozenRest": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "mealId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "thawed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanThaw"
+            }
+          },
+          "left": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inPantry": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "name",
+          "unit",
+          "date",
+          "mealId",
+          "amount",
+          "thawed",
+          "left",
+          "inPantry"
+        ],
+        "additionalProperties": false
+      },
       "PlanOpenPack": {
         "type": "object",
         "properties": {
@@ -19705,12 +19900,26 @@
             "items": {
               "$ref": "#/components/schemas/PlanOpenPack"
             }
+          },
+          "frozen": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanFrozenRest"
+            }
+          },
+          "fromFreezer": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanFreezerStock"
+            }
           }
         },
         "required": [
           "bought",
           "used",
-          "open"
+          "open",
+          "frozen",
+          "fromFreezer"
         ],
         "additionalProperties": false
       },
@@ -19733,6 +19942,35 @@
           "past",
           "upcoming"
         ]
+      },
+      "PlanThaw": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "mealId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "date",
+          "mealId",
+          "amount"
+        ],
+        "additionalProperties": false
       },
       "PlanWeek": {
         "type": "object",

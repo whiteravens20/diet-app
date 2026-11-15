@@ -854,6 +854,78 @@ export const PlanOpenPack = z.object({
 });
 export type PlanOpenPack = z.infer<typeof PlanOpenPack>;
 
+/** What a meal takes out of the freezer: taken out the day before its date, or on the day where that is not a day of the plan. */
+export const PlanThaw = z.object({
+  date: CalendarDay,
+  /** The meal, the first of its day that takes the ingredient; null where none is a recipe's. */
+  mealId: z.string().uuid().nullable(),
+  /** To the gram or millilitre. */
+  amount: z.number().int().min(1),
+});
+export type PlanThaw = z.infer<typeof PlanThaw>;
+
+/**
+ * The rest of a pack of meat or fish a plan that wastes nothing does not eat
+ * fresh: put in the freezer the day the pack is opened, as the meal that opens
+ * it is cooked, never thrown away, in portions frozen apart: one for each later
+ * day of the plan that takes from it (`thawed`), taken out whole the day
+ * before, and one of what no meal of the plan takes (`left`), which "Dodaj do
+ * spiżarni" adds to the pantry as frozen. Nothing thawed is frozen again.
+ */
+export const PlanFrozenRest = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** What the rest is counted in: grams or millilitres. */
+  unit: Unit,
+  /** The day its pack is opened and the rest put in the freezer. */
+  date: CalendarDay,
+  /** The meal that opens the pack, the first of its day that takes the ingredient; null where none is a recipe's. */
+  mealId: z.string().uuid().nullable(),
+  /** What is put in the freezer, to the gram or millilitre. */
+  amount: z.number().int().min(1),
+  /** The portions later meals of the plan take, each taken out of the freezer whole the day before its date. */
+  thawed: z.array(PlanThaw),
+  /** What is still in the freezer once the plan is over: what the pantry is given. */
+  left: z.number().int().min(0),
+  /** Given to the pantry already ("Dodaj do spiżarni", `KeepFrozenRequest`): it is given once. */
+  inPantry: z.boolean(),
+});
+export type PlanFrozenRest = z.infer<typeof PlanFrozenRest>;
+
+/**
+ * "Dodaj do spiżarni" of a rest the plan puts in the freezer (`PlanFrozenRest`): what is left of it once the plan is
+ * over goes into the pantry as frozen, dated `FROZEN_KEEPS_DAYS` from the day it went in, once. Asked again, the plan
+ * is answered as it is; a rest the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`.
+ */
+export const KeepFrozenRequest = z.object({
+  ingredientId: z.string().uuid(),
+  /** The day the rest goes in the freezer (`PlanFrozenRest.date`). */
+  date: CalendarDay,
+});
+export type KeepFrozenRequest = z.infer<typeof KeepFrozenRequest>;
+
+/**
+ * What the pantry held in the freezer of an ingredient when the plan was made,
+ * taken as one portion: out of the freezer whole the day before the first meal
+ * from that day on that takes the ingredient, and once thawed eaten like a pack
+ * just opened, within the days it keeps, before anything is bought of it.
+ */
+export const PlanFreezerStock = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** What it is counted in: grams or millilitres. */
+  unit: Unit,
+  /** The day of the first meal that takes it: it comes out of the freezer the day before. */
+  date: CalendarDay,
+  /** That meal, the first of its day that takes the ingredient; null where none is a recipe's. */
+  mealId: z.string().uuid().nullable(),
+  /** The whole portion, to the gram or millilitre. */
+  amount: z.number().int().min(1),
+  /** What the plan eats of it while it keeps thawed; the rest is left. */
+  eaten: z.number().int().min(0),
+});
+export type PlanFreezerStock = z.infer<typeof PlanFreezerStock>;
+
 /**
  * What a plan's menu comes to in packs that do not keep once they are opened:
  * the whole packs it takes (`bought`) against what it uses of them (`used`),
@@ -867,6 +939,10 @@ export const PlanPacks = z.object({
   bought: z.number().min(0),
   used: z.number().min(0),
   open: z.array(PlanOpenPack),
+  /** What a plan that wastes nothing puts in the freezer of meat and fish, the earliest first; none in any other plan. */
+  frozen: z.array(PlanFrozenRest),
+  /** What the plan takes of what the pantry held in the freezer when it was made: counted before the packs above. */
+  fromFreezer: z.array(PlanFreezerStock),
 });
 export type PlanPacks = z.infer<typeof PlanPacks>;
 

@@ -25,6 +25,7 @@ import {
   isoDate,
   isStale,
   freshOf,
+  freezesOf,
   itemDto,
   loadIngredients,
   makeList,
@@ -318,6 +319,10 @@ export class HouseholdListsService {
       );
       // One kitchen: the days of every part, for the packs of fresh meat and fish.
       const kitchen = parts.flatMap(({ lines }) => lines);
+      const freezes = await freezesOf(
+        this.prisma,
+        household.parts.map((part) => part.planId),
+      );
       const rows = new Map<string, { part: StoredPart; item: StoredItem }[]>();
       for (const part of household.parts) {
         for (const item of part.items) {
@@ -329,7 +334,12 @@ export class HouseholdListsService {
         const item = summed(shares.map((share) => share.item));
         const ingredient = ingredients.get(shares[0]!.item.ingredientId);
         return {
-          ...itemDto(item, ingredient, locale, freshOf(item, ingredient, kitchen, household)),
+          ...itemDto(
+            item,
+            ingredient,
+            locale,
+            freshOf(item, ingredient, kitchen, household, freezes),
+          ),
           shares: shares.map(({ part, item: share }) => ({
             profileId: part.plan.profileId,
             profile: part.plan.profile.name,

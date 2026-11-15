@@ -6,12 +6,15 @@ import {
   DAYS_TO_USE_A_PACK,
   SPOONFUL,
   keepDaysOf,
+  freezerWalk,
   freshPurchases,
+  frozenLeft,
   packLastDays,
   packPull,
   packStep,
   packUse,
   packsFor,
+  thawHeld,
   packsLeft,
   packsLeftBeyondAccepted,
   packsLeftOver,
@@ -320,7 +323,7 @@ describe('what a plan comes to in packs', () => {
         }),
         PACKS,
       ),
-    ).toEqual({ bought: 600, used: 600, open: [] });
+    ).toEqual({ bought: 600, used: 600, open: [], frozen: [] });
   });
 
   it('says a pack is still kept when the plan ends on one of its days, and thrown when it ended before', () => {
@@ -355,7 +358,7 @@ describe('what a plan comes to in packs', () => {
   it('takes a need that is a spoonful over its packs for the packs, all of them eaten', () => {
     expect(
       packUse(daily(1, { salmon: [[0, 1008]] }), new Map([['salmon', { size: 250, keepDays: 2 }]])),
-    ).toEqual({ bought: 1000, used: 1000, open: [] });
+    ).toEqual({ bought: 1000, used: 1000, open: [], frozen: [] });
   });
 
   it('is nothing for a plan that uses nothing that comes in such a pack', () => {
@@ -363,8 +366,9 @@ describe('what a plan comes to in packs', () => {
       bought: 0,
       used: 0,
       open: [],
+      frozen: [],
     });
-    expect(packUse(new Map(), PACKS)).toEqual({ bought: 0, used: 0, open: [] });
+    expect(packUse(new Map(), PACKS)).toEqual({ bought: 0, used: 0, open: [], frozen: [] });
   });
 
   it('comes to what is left in packs, all of it and beyond the accepted fifth of each', () => {
@@ -437,5 +441,152 @@ describe('when the packs of fresh meat or fish are bought', () => {
       count: 1,
       later: [{ day: 5, packs: 1 }],
     });
+  });
+});
+
+describe('a pack that freezes, as meat and fish in a plan that wastes nothing', () => {
+  /** Chicken in packs of 600 g that keep two days, put in the freezer for what is not eaten fresh. */
+  const chicken: Pack = { size: 600, keepDays: 2, freezes: true };
+  const row = (days: number, needs: [number, number][]) => {
+    const out = Array.from({ length: days }, () => 0);
+    for (const [day, amount] of needs) out[day]! += amount;
+    return out;
+  };
+
+  it('puts what the plan does not eat while the pack keeps in the freezer, on the day it is opened, and throws nothing away', () => {
+    const walked = freezerWalk(
+      row(7, [
+        [0, 250],
+        [1, 150],
+      ]),
+      chicken,
+    );
+
+    expect(walked).toMatchObject({ bought: 600, eaten: 400 });
+    expect(walked.frozen).toEqual([{ day: 0, amount: 200, thawed: [] }]);
+    const use = packUse(
+      new Map([
+        [
+          'chicken',
+          row(7, [
+            [0, 250],
+            [1, 150],
+          ]),
+        ],
+      ]),
+      new Map([['chicken', chicken]]),
+    );
+    expect(use.open).toEqual([]);
+    expect(use.frozen).toEqual([
+      { ingredientId: 'chicken', packSize: 600, day: 0, amount: 200, thawed: [] },
+    ]);
+  });
+
+  it('takes a need after the pack no longer keeps from the freezer before a pack is bought, the day after it went in at the soonest', () => {
+    const walked = freezerWalk(
+      row(7, [
+        [0, 250],
+        [4, 200],
+        [5, 300],
+      ]),
+      chicken,
+    );
+
+    // Day 4 takes 200 of the 350 frozen; day 5 takes the other 150 and opens a pack for the rest of its 300.
+    expect(walked.frozen[0]).toEqual({
+      day: 0,
+      amount: 350,
+      thawed: [
+        { day: 4, amount: 200 },
+        { day: 5, amount: 150 },
+      ],
+    });
+    expect(frozenLeft(walked.frozen[0]!)).toBe(0);
+    expect(walked.bought).toBe(1200);
+    // The second pack, opened on day 5 for 150 g, keeps its 450 g to the end: frozen too.
+    expect(walked.frozen[1]).toEqual({ day: 5, amount: 450, thawed: [] });
+  });
+
+  it('freezes no rest under a spoonful of its pack', () => {
+    expect(freezerWalk(row(3, [[0, 580]]), chicken).frozen).toEqual([]);
+  });
+
+  it('counts as a pack does without a freezer where the plan eats every pack fresh', () => {
+    const needs = row(4, [
+      [0, 300],
+      [1, 300],
+      [2, 600],
+    ]);
+    const plain = packUse(
+      new Map([['chicken', needs]]),
+      new Map([['chicken', { size: 600, keepDays: 2 }]]),
+    );
+    const freezing = packUse(new Map([['chicken', needs]]), new Map([['chicken', chicken]]));
+
+    expect(freezing).toEqual({ ...plain, frozen: [] });
+  });
+
+  it('is counted as it leaves its packs where the count asks without the freezer: what a rest or a closing could still eat', () => {
+    const needs = new Map([['chicken', row(7, [[0, 250]])]]);
+    const use = packUse(needs, new Map([['chicken', chicken]]), false);
+
+    expect(use.frozen).toEqual([]);
+    expect(use.open).toMatchObject([{ ingredientId: 'chicken', left: 350 }]);
+  });
+
+  it('buys later only the packs that are eaten fresh: a need the freezer feeds buys nothing', () => {
+    // A pack on day 0, and on day 4 what the freezer holds is enough.
+    expect(
+      packLastDays(
+        row(7, [
+          [0, 250],
+          [4, 300],
+        ]),
+        chicken,
+      ),
+    ).toEqual([0]);
+    expect(
+      freshPurchases(
+        row(7, [
+          [0, 250],
+          [4, 300],
+        ]),
+        chicken,
+      ),
+    ).toEqual({ count: 1, later: [] });
+    // Without the freezer the day 4 need opens a pack of its own, bought from day 3.
+    expect(
+      freshPurchases(
+        row(7, [
+          [0, 250],
+          [4, 300],
+        ]),
+        { size: 600, keepDays: 2 },
+      ),
+    ).toEqual({
+      count: 2,
+      later: [{ day: 3, packs: 1 }],
+    });
+  });
+});
+
+describe('a portion held in the freezer', () => {
+  it('comes out whole for the first day from its own on that needs it, and is eaten within two days', () => {
+    expect(thawHeld([0, 150, 100, 200], { amount: 286, from: 0 })).toEqual({
+      day: 1,
+      eaten: 250,
+      left: 36,
+      rest: [0, 0, 0, 200],
+    });
+    expect(thawHeld([0, 150, 200], { amount: 300, from: 0 })).toEqual({
+      day: 1,
+      eaten: 300,
+      left: 0,
+      rest: [0, 0, 50],
+    });
+  });
+
+  it('stays frozen where no day from its own on needs the food', () => {
+    expect(thawHeld([150, 0, 0], { amount: 286, from: 1 })).toBeNull();
   });
 });

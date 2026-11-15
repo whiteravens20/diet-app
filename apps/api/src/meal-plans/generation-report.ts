@@ -27,8 +27,56 @@ export const StoredReport = z.object({
   pantry: PantryUse,
   /** Of a joint plan, the times of day planned apart (`GenerationReport.apart`); none on a report kept before. */
   apart: z.array(MealType).default([]),
+  /**
+   * What the pantry held in the freezer when the plan was made, of each ingredient, in its canonical unit: what
+   * the plan's meals from `from` on take first (`planPacks`). Null where it held nothing, and on a report kept before.
+   */
+  freezer: z
+    .object({
+      from: z.string().date(),
+      stock: z.array(z.object({ ingredientId: z.string(), amount: z.number().positive() })),
+    })
+    .nullable()
+    .default(null),
 });
 export type StoredReport = z.infer<typeof StoredReport>;
+
+/** What the pantry held in the freezer when the plan was made (`StoredReport.freezer`), as `planPacks` takes it. */
+export interface Freezer {
+  from: string;
+  stock: ReadonlyMap<string, number>;
+}
+
+/** The freezer a kept report holds, or null. */
+export function freezerOf(kept: unknown): Freezer | null {
+  const freezer = StoredReport.nullable().parse(kept ?? null)?.freezer;
+  return freezer
+    ? {
+        from: freezer.from,
+        stock: new Map(freezer.stock.map((held) => [held.ingredientId, held.amount])),
+      }
+    : null;
+}
+
+/** The freezers of the two plans of one kitchen as one: what both held, from the later of their days on. */
+export function oneFreezer(a: Freezer | null, b: Freezer | null): Freezer | null {
+  if (!a || !b) return a ?? b;
+  const stock = new Map(a.stock);
+  for (const [ingredientId, amount] of b.stock)
+    stock.set(ingredientId, (stock.get(ingredientId) ?? 0) + amount);
+  return { from: a.from > b.from ? a.from : b.from, stock };
+}
+
+/** What the pantry holds in the freezer, as a report keeps it: from `from` on, or null for nothing. */
+export function keptFreezer(
+  stock: ReadonlyMap<string, number>,
+  from: string,
+): StoredReport['freezer'] {
+  const held = [...stock]
+    .filter(([, amount]) => amount > 0)
+    .map(([ingredientId, amount]) => ({ ingredientId, amount }));
+  return held.length > 0 ? { from, stock: held } : null;
+}
 
 /**
  * The report of a run in the terms of the plan: `dates` are the dates of the
@@ -38,6 +86,7 @@ export function reportOf(
   result: OptimizerResult,
   dates: readonly string[],
   pantry: PantryUse,
+  freezer: StoredReport['freezer'] = null,
 ): StoredReport {
   const about = (at: { dayIndex: number; slot: MealType }) => ({
     date: dates[at.dayIndex]!,
@@ -51,13 +100,15 @@ export function reportOf(
     singleCandidate: result.report.singleCandidate.map(about),
     pantry,
     apart: [],
+    freezer,
   };
 }
 
 /**
  * The report of a plan after some of its days were filled again: what it said
  * of those days gives place to what the run over them found. What the pantry
- * had to do with the plan stays what it was when the plan was made.
+ * had to do with the plan, and what its freezer held, stay what they were when
+ * the plan was made.
  */
 export function withDaysAgain(
   kept: StoredReport,
@@ -71,6 +122,7 @@ export function withDaysAgain(
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
     pantry: kept.pantry,
     apart: kept.apart,
+    freezer: kept.freezer,
   };
 }
 

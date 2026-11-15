@@ -3,6 +3,7 @@
 import {
   GeneratePlanRequest,
   RegenerateDayRequest,
+  RegenerateRequest,
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
@@ -210,6 +211,170 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         .find((one) => one.id === meal.shared!.with.mealId)!;
       expect(other.recipe!.id).toBe(meal.recipe!.id);
     }
+  });
+
+  it('leaves in the freezer a portion the plan cannot eat whole within two days', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      await t.prisma.inventoryItem.create({
+        data: {
+          profileId: adam.id,
+          ingredientId: chicken.id,
+          quantity: 5000,
+          unit: 'g',
+          bestBefore: new Date('2026-02-04'),
+          frozen: true,
+        },
+      });
+
+      const plan = await generation.generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
+      );
+
+      const { report } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      expect((report as { freezer: unknown }).freezer).toBeNull();
+      expect(plan.packs.fromFreezer).toEqual([]);
+    } finally {
+      generation.today = today;
+    }
+  });
+
+  it('takes first the portion the freezer held as the plan keeps it, until the plan is made again as a whole', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      const plan = await generation.generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
+      );
+      // As a plan made with 286 g of chicken in the freezer, which it eats whole, keeps it.
+      const freezer = { from: '2026-01-05', stock: [{ ingredientId: chicken.id, amount: 286 }] };
+      const made = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: { report: { ...(made.report as object), freezer } },
+      });
+      const chickenOnTuesday = async (one: MealPlan): Promise<string> => {
+        for (const day of [0, 1, 2])
+          await menu(one, day, [
+            'scrambled-eggs-on-toast',
+            day === 1 ? 'chicken-rice-broccoli' : 'tofu-rice-bowl',
+            'chickpea-tomato-stew',
+          ]);
+        return one.days[1]!.meals.find((meal) => meal.mealType === 'lunch')!.id;
+      };
+      const lunch = await chickenOnTuesday(plan);
+      const kept = async () =>
+        (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).report as {
+          freezer: unknown;
+        };
+
+      // The whole portion comes out for Tuesday's lunch; changed since, the menu eats 150 g of it, and says so.
+      const read1 = await read(plan.id);
+      expect(read1.packs.fromFreezer).toEqual([
+        {
+          ingredientId: chicken.id,
+          name: 'Chicken breast',
+          unit: 'g',
+          date: '2026-01-06',
+          mealId: lunch,
+          amount: 286,
+          eaten: 150,
+        },
+      ]);
+      // Nothing of it is bought.
+      expect(read1.packs.open.find((pack) => pack.name === 'Chicken breast')).toBeUndefined();
+
+      // A day of the plan made again: the plan says what it was made with.
+      await generation.regenerate(
+        user.id,
+        'en',
+        plan.id,
+        RegenerateRequest.parse({ from: '2026-01-07', to: '2026-01-07' }),
+      );
+      expect((await kept()).freezer).toEqual(freezer);
+
+      // Made again as a whole, it finds the freezer empty.
+      await generation.regenerate(user.id, 'en', plan.id, RegenerateRequest.parse({}));
+      expect((await kept()).freezer).toBeNull();
+      await chickenOnTuesday(await read(plan.id));
+      expect((await read(plan.id)).packs.fromFreezer).toEqual([]);
+    } finally {
+      generation.today = today;
+    }
+  });
+
+  it('gives the pantry what is left of a rest it freezes, once, as frozen and dated a month on', async () => {
+    const plan = await t.app.get(PlanGenerationService).generate(
+      user.id,
+      'en',
+      GeneratePlanRequest.parse({
+        profileId: adam.id,
+        startDate: '2026-01-05',
+        durationDays: 3,
+        noWaste: true,
+      }),
+    );
+    // Monday's lunch alone takes chicken: 150 g of a pack of 500 g, which keeps two days.
+    for (const day of [0, 1, 2])
+      await menu(plan, day, [
+        'scrambled-eggs-on-toast',
+        day === 0 ? 'chicken-rice-broccoli' : 'tofu-rice-bowl',
+        'chickpea-tomato-stew',
+      ]);
+    const chicken = await t.prisma.ingredient.findFirstOrThrow({
+      where: { slug: 'chicken-breast' },
+    });
+    const lunch = plan.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!;
+    expect((await read(plan.id)).packs.frozen).toEqual([
+      {
+        ingredientId: chicken.id,
+        name: 'Chicken breast',
+        unit: 'g',
+        date: '2026-01-05',
+        mealId: lunch.id,
+        amount: 350,
+        thawed: [],
+        left: 350,
+        inPantry: false,
+      },
+    ]);
+    const keep = (date: string) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/frozen`)
+        .set(as(user))
+        .send({ ingredientId: chicken.id, date });
+    const pantry = () =>
+      t.prisma.inventoryItem.findMany({
+        where: { profileId: adam.id },
+        select: { quantity: true, unit: true, frozen: true, bestBefore: true },
+      });
+
+    // Asked twice at the same moment, and once more: given once.
+    const answers = await Promise.all([keep('2026-01-05'), keep('2026-01-05')]);
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
+    expect((await keep('2026-01-05')).body.packs.frozen[0]).toMatchObject({ inPantry: true });
+    expect(await pantry()).toEqual([
+      { quantity: 350, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
+    ]);
+
+    // A day the plan freezes nothing of it.
+    const gone = await keep('2026-01-06');
+    expect(gone.status).toBe(409);
+    expect(gone.body.error).toBe('FROZEN_REST_GONE');
   });
 
   it('counts the packs of the two plans of a joint plan together, in both of them', async () => {

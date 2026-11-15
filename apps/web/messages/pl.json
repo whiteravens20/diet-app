@@ -337,6 +337,7 @@
     "PROFILE_NOT_FOUND": "Nie znaleziono profilu.",
     "PROFILE_LIMIT_REACHED": "Osiągnięto maksymalną liczbę profili.",
     "PLAN_NOT_FOUND": "Nie znaleziono planu posiłków.",
+    "FROZEN_REST_GONE": "Plan nie zamraża już tej resztki albo zjada ją całą sam. Plan został odświeżony.",
     "PLAN_CHANGED": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie.",
     "PLAN_TARGET_TYPED": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia.",
     "DAY_NOT_FOUND": "Nie znaleziono dnia w tym planie.",

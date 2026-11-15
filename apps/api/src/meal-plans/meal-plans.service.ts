@@ -10,13 +10,16 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
+  dayAfter,
   fitsDiet,
+  FROZEN_KEEPS_DAYS,
   MAX_MEALS_ON_A_PLAN_DAY,
   PlanOptions,
   TARGET_MOVED_LEAST_KCAL,
   type AddCustomMealRequest,
   type CookingChange,
   type DiaryEntry,
+  type KeepFrozenRequest,
   type Locale,
   type MealPlan,
   type MealPlanDay,
@@ -25,6 +28,7 @@ import {
   type MealType,
   type PlanListQuery,
   type PlannedMeal,
+  type PlanPacks,
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
@@ -48,6 +52,8 @@ import {
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
+import { NO_WASTE } from '../engine/waste-levels.js';
+import { assertRoomInPantry, assertWithinCeiling, lockPantry } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto, type RecipeLine } from '../recipes/recipes.service.js';
 import {
@@ -73,7 +79,13 @@ import {
   nextDaysOf,
   type NextDay,
 } from './leftovers.js';
-import { shownReport, StoredReport, withMealOutside } from './generation-report.js';
+import {
+  freezerOf,
+  oneFreezer,
+  shownReport,
+  StoredReport,
+  withMealOutside,
+} from './generation-report.js';
 import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js';
@@ -242,6 +254,89 @@ export class MealPlansService {
       total,
       totalPages: Math.ceil(total / query.pageSize),
     };
+  }
+
+  /**
+   * "Dodaj do spiżarni" of a rest of meat or fish the plan puts in the freezer (`KeepFrozenRequest`): what is left of
+   * it once the plan is over goes into the profile's pantry as frozen, dated `FROZEN_KEEPS_DAYS` from the day it went
+   * in, or with the date of the frozen row it joins where that is sooner, and the plan keeps that it gave it. A rest
+   * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`.
+   */
+  async keepFrozen(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    asked: KeepFrozenRequest,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
+    const plan = await this.get(userId, locale, planId, clientToday);
+    const rest = plan.packs.frozen.find(
+      (one) => one.ingredientId === asked.ingredientId && one.date === asked.date,
+    );
+    if (!rest || rest.left < 1)
+      throw new ConflictException({
+        error: 'FROZEN_REST_GONE',
+        message: 'The plan no longer puts this rest in the freezer, or eats all of it itself.',
+      });
+    if (rest.inPantry) return plan;
+    await this.prisma.$transaction(async (tx) => {
+      // One at a time for a plan: the second finds the rest given.
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${planId} FOR UPDATE`);
+      const { profileId, frozenKept } = await tx.mealPlan.findUniqueOrThrow({
+        where: { id: planId },
+        select: { profileId: true, frozenKept: true },
+      });
+      const kept = KeptFrozen.parse(frozenKept);
+      if (kept.some((one) => one.ingredientId === rest.ingredientId && one.date === rest.date))
+        return;
+      await lockPantry(tx, profileId, rest.ingredientId);
+      const bestBefore = new Date(dayAfter(rest.date, FROZEN_KEEPS_DAYS));
+      const held = await tx.inventoryItem.findUnique({
+        where: {
+          profileId_ingredientId_unit_frozen: {
+            profileId,
+            ingredientId: rest.ingredientId,
+            unit: rest.unit,
+            frozen: true,
+          },
+        },
+      });
+      if (held) {
+        assertWithinCeiling(held.quantity + rest.left, rest.unit);
+        await tx.inventoryItem.update({
+          where: { id: held.id },
+          data: {
+            quantity: held.quantity + rest.left,
+            // What was frozen first decides.
+            bestBefore:
+              held.bestBefore && held.bestBefore < bestBefore ? held.bestBefore : bestBefore,
+          },
+        });
+      } else {
+        assertWithinCeiling(rest.left, rest.unit);
+        await assertRoomInPantry(tx, profileId);
+        await tx.inventoryItem.create({
+          data: {
+            profileId,
+            ingredientId: rest.ingredientId,
+            unit: rest.unit,
+            quantity: rest.left,
+            bestBefore,
+            frozen: true,
+          },
+        });
+      }
+      await tx.mealPlan.update({
+        where: { id: planId },
+        data: {
+          frozenKept: [
+            ...kept,
+            { ingredientId: rest.ingredientId, date: rest.date, amount: rest.left },
+          ] satisfies KeptFrozen,
+        },
+      });
+    });
+    return this.get(userId, locale, planId, clientToday);
   }
 
   async get(
@@ -1715,7 +1810,16 @@ export class MealPlansService {
         macros: eaten.length > 0 && macrosOff(average, plan),
       },
       ingredientReuseScore: plan.reuseScore,
-      packs: planPacks(packed, plan.days.length, locale),
+      packs: keptMarked(
+        planPacks(
+          packed,
+          plan.days.map((day) => isoDate(day.date)),
+          locale,
+          options.noWaste ? NO_WASTE.freezes : undefined,
+          freezerOf(plan.report),
+        ),
+        plan.frozenKept,
+      ),
       generationMode: modelHadAPart(plan.days),
       options,
       report: shownReport(plan.report, days),
@@ -1763,6 +1867,8 @@ interface PlanWithRelations {
   reuseScore: number;
   options: unknown;
   report: unknown;
+  /** The rests of meat and fish it freezes that the pantry was given (`KeptFrozen`). */
+  frozenKept: unknown;
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it, and its target now. */
@@ -1921,19 +2027,46 @@ function joined(
         };
       }),
     })),
-    // The two plans are cooked in one kitchen: their packs are counted together.
-    packs: planPacks(
-      [
-        ...mine.packed,
-        ...onDaysOf(
-          theirs.packed,
-          theirs.plan.days.map((day) => isoDate(day.date)),
-          mine.plan.days.map((day) => isoDate(day.date)),
-        ),
-      ],
-      mine.plan.days.length,
-      locale,
+    // The two plans are cooked in one kitchen: their packs are counted together. What went into the pantry went
+    // into the pantry of the plan read.
+    packs: keptMarked(
+      planPacks(
+        [
+          ...mine.packed,
+          ...onDaysOf(
+            theirs.packed,
+            theirs.plan.days.map((day) => isoDate(day.date)),
+            mine.plan.days.map((day) => isoDate(day.date)),
+          ),
+        ],
+        mine.plan.days.map((day) => isoDate(day.date)),
+        locale,
+        PlanOptions.parse(mine.plan.options).noWaste ? NO_WASTE.freezes : undefined,
+        oneFreezer(freezerOf(mine.plan.report), freezerOf(theirs.plan.report)),
+      ),
+      mine.plan.frozenKept,
     ),
+  };
+}
+
+/**
+ * The rests of meat and fish a plan freezes that "Dodaj do spiżarni" gave the pantry (`MealPlan.frozenKept`): each
+ * by its ingredient and the day it went in, with what was given. Anything that is not one reads as none.
+ */
+const KeptFrozen = z
+  .array(z.object({ ingredientId: z.string(), date: z.string().date(), amount: z.number() }))
+  .catch([]);
+type KeptFrozen = z.infer<typeof KeptFrozen>;
+
+/** The packs of a plan, each rest it freezes marked where the pantry was given it already. */
+function keptMarked(packs: PlanPacks, kept: unknown): PlanPacks {
+  const given = new Set(KeptFrozen.parse(kept).map((rest) => `${rest.ingredientId} ${rest.date}`));
+  return {
+    ...packs,
+    frozen: packs.frozen.map((rest) => ({
+      ...rest,
+      inPantry: given.has(`${rest.ingredientId} ${rest.date}`),
+    })),
   };
 }
 

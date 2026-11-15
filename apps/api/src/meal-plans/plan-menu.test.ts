@@ -3,6 +3,10 @@
 import { describe, expect, it } from 'vitest';
 import { cookingsOf, planPacks, type MenuMeal, type PackedLine } from './plan-menu.js';
 
+/** The days of a plan of `n` days, from a Monday. */
+const days = (n: number): string[] =>
+  Array.from({ length: n }, (_, i) => `2026-01-${String(5 + i).padStart(2, '0')}`);
+
 const chicken: PackedLine['ingredient'] = {
   name: 'Chicken breast',
   translations: [{ locale: 'pl', name: 'Pierś z kurczaka' }],
@@ -74,7 +78,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         },
         { day: 0, factor: 1, lines: [line('milk', milk, 250)] },
       ],
-      1,
+      days(1),
       'en',
     );
 
@@ -105,8 +109,8 @@ describe('what a menu comes to in packs that do not keep', () => {
 
   it('names an ingredient in the language it is asked in', () => {
     expect(
-      planPacks([{ day: 0, factor: 1, lines: [line('chicken', chicken, 200)] }], 1, 'pl').open[0]!
-        .name,
+      planPacks([{ day: 0, factor: 1, lines: [line('chicken', chicken, 200)] }], days(1), 'pl')
+        .open[0]!.name,
     ).toBe('Pierś z kurczaka');
   });
 
@@ -114,7 +118,7 @@ describe('what a menu comes to in packs that do not keep', () => {
     // Three eggs of a carton of ten.
     const packs = planPacks(
       [{ day: 0, factor: 1, lines: [line('egg', egg, 3, 'piece')] }],
-      1,
+      days(1),
       'en',
     );
 
@@ -125,8 +129,12 @@ describe('what a menu comes to in packs that do not keep', () => {
   it("leaves out a line whose unit cannot be brought to the ingredient's own", () => {
     // Chicken has no weight of a piece to count three pieces by.
     expect(
-      planPacks([{ day: 0, factor: 1, lines: [line('chicken', chicken, 3, 'piece')] }], 1, 'en'),
-    ).toEqual({ bought: 0, used: 0, open: [] });
+      planPacks(
+        [{ day: 0, factor: 1, lines: [line('chicken', chicken, 3, 'piece')] }],
+        days(1),
+        'en',
+      ),
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
   });
 
   it('says what is left to the gram, and takes a pack that is left a fraction of one for finished', () => {
@@ -144,7 +152,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         },
         { day: 0, factor: 1, lines: [line('milk', milk, 899.6)] },
       ],
-      1,
+      days(1),
       'en',
     );
 
@@ -168,7 +176,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         { day: 0, factor: 1, lines: [line('chicken', chicken, 200)] },
         { day: 3, factor: 1, lines: [line('chicken', chicken, 200)] },
       ],
-      4,
+      days(4),
       'en',
     );
 
@@ -182,11 +190,11 @@ describe('what a menu comes to in packs that do not keep', () => {
         { day: 0, factor: 1, lines: [line('chicken', chicken, 250)] },
         { day: 1, factor: 1, lines: [line('chicken', chicken, 250)] },
       ],
-      2,
+      days(2),
       'en',
     );
 
-    expect(packs).toEqual({ bought: 500, used: 500, open: [] });
+    expect(packs).toEqual({ bought: 500, used: 500, open: [], frozen: [], fromFreezer: [] });
   });
 
   it('counts by the kind of food where the database has no keep days yet: meat keeps two', () => {
@@ -196,7 +204,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         { day: 0, factor: 1, lines: [line('chicken', unknown, 250)] },
         { day: 2, factor: 1, lines: [line('chicken', unknown, 250)] },
       ],
-      3,
+      days(3),
       'en',
     );
 
@@ -205,19 +213,25 @@ describe('what a menu comes to in packs that do not keep', () => {
 
   it('leaves out a meal on a day the menu does not have', () => {
     expect(
-      planPacks([{ day: 5, factor: 1, lines: [line('chicken', chicken, 200)] }], 2, 'en'),
-    ).toEqual({ bought: 0, used: 0, open: [] });
+      planPacks([{ day: 5, factor: 1, lines: [line('chicken', chicken, 200)] }], days(2), 'en'),
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
   });
 
   it('is nothing for a menu without such a pack', () => {
     expect(
       planPacks(
         [{ day: 0, factor: 1, lines: [line('rice', rice, 80), line('tomato', tomato, 240)] }],
-        1,
+        days(1),
         'en',
       ),
-    ).toEqual({ bought: 0, used: 0, open: [] });
-    expect(planPacks([], 1, 'en')).toEqual({ bought: 0, used: 0, open: [] });
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
+    expect(planPacks([], days(1), 'en')).toEqual({
+      bought: 0,
+      used: 0,
+      open: [],
+      frozen: [],
+      fromFreezer: [],
+    });
   });
 });
 
@@ -305,5 +319,153 @@ describe('what a leftover makes of cooking ahead', () => {
     ]);
     expect(outside.cookings).toEqual([]);
     expect(outside.marks.get('wednesday')).toBeNull();
+  });
+});
+
+describe('the packs of a plan that wastes nothing', () => {
+  const freezes = (ingredient: { category?: string | null }): boolean =>
+    ingredient.category === 'meat' || ingredient.category === 'fish';
+  const meal = (day: number, mealId: string, rank: number, grams: number) => ({
+    day,
+    mealId,
+    rank,
+    factor: 1,
+    lines: [line('chicken', chicken, grams), line('rice', rice, 80)],
+  });
+  const ids = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+  it('say what goes in the freezer with the meal that opens its pack, what a later meal takes of it and what is left', () => {
+    // 500 g packs that keep two days: Monday's breakfast, the first meal of the day, opens one, its lunch takes from
+    // it too, and Friday's dinner takes 100 g of what was frozen.
+    const packs = planPacks(
+      [meal(0, ids(2), 2, 100), meal(0, ids(1), 0, 100), meal(4, ids(3), 4, 100)],
+      days(7),
+      'en',
+      freezes,
+    );
+
+    expect(packs.open).toEqual([]);
+    expect(packs.frozen).toEqual([
+      {
+        ingredientId: 'chicken',
+        name: 'Chicken breast',
+        unit: 'g',
+        date: '2026-01-05',
+        mealId: ids(1),
+        amount: 300,
+        thawed: [{ date: '2026-01-09', mealId: ids(3), amount: 100 }],
+        left: 200,
+        // Whoever reads the plan says whether the pantry was given it.
+        inPantry: false,
+      },
+    ]);
+  });
+
+  it('freeze nothing in a plan that does not waste nothing: what is left is left', () => {
+    const packs = planPacks([meal(0, ids(1), 0, 200)], days(7), 'en');
+
+    expect(packs.frozen).toEqual([]);
+    expect(packs.open).toMatchObject([{ ingredientId: 'chicken', left: 300 }]);
+  });
+});
+
+describe('what the pantry held in the freezer when a plan was made', () => {
+  const meal = (day: number, mealId: string, rank: number, grams: number) => ({
+    day,
+    mealId,
+    rank,
+    factor: 1,
+    lines: [line('chicken', chicken, grams)],
+  });
+  const ids = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const freezer = (from: string, grams: number) => ({ from, stock: new Map([['chicken', grams]]) });
+
+  it('is thawed whole for the first meal that takes it, and eaten while it keeps, before a pack is bought', () => {
+    // 286 g frozen: Monday's 150 g; thawed, chicken keeps two days, and Wednesday's 150 g open a pack.
+    const packs = planPacks(
+      [meal(0, ids(1), 2, 150), meal(2, ids(2), 4, 150)],
+      days(7),
+      'en',
+      undefined,
+      freezer('2026-01-05', 286),
+    );
+
+    expect(packs.fromFreezer).toEqual([
+      {
+        ingredientId: 'chicken',
+        name: 'Chicken breast',
+        unit: 'g',
+        date: '2026-01-05',
+        mealId: ids(1),
+        amount: 286,
+        eaten: 150,
+      },
+    ]);
+    expect(packs.bought).toBe(500);
+    expect(packs.used).toBe(150);
+    expect(packs.open).toMatchObject([{ ingredientId: 'chicken', left: 350 }]);
+  });
+
+  it('eats a portion over the days it keeps thawed, and buys nothing while it lasts', () => {
+    const packs = planPacks(
+      [meal(0, ids(1), 2, 150), meal(1, ids(2), 2, 120)],
+      days(7),
+      'en',
+      undefined,
+      freezer('2026-01-05', 286),
+    );
+
+    expect(packs.fromFreezer[0]).toMatchObject({ date: '2026-01-05', amount: 286, eaten: 270 });
+    expect(packs.bought).toBe(0);
+  });
+
+  it('is thawed for no meal before the day the plan was made, and for none of what the menu does not take', () => {
+    const packs = planPacks(
+      [meal(0, ids(1), 2, 150), meal(2, ids(2), 2, 150)],
+      days(7),
+      'en',
+      undefined,
+      {
+        from: '2026-01-06',
+        stock: new Map([
+          ['chicken', 286],
+          ['salmon', 200],
+        ]),
+      },
+    );
+
+    expect(packs.fromFreezer).toEqual([
+      expect.objectContaining({
+        ingredientId: 'chicken',
+        date: '2026-01-07',
+        mealId: ids(2),
+        eaten: 150,
+      }),
+    ]);
+    expect(packs.bought).toBe(500);
+  });
+
+  it('comes before the freezer of a plan that wastes nothing, whose own rests are counted on what is left to eat', () => {
+    // Monday thaws the 286 g and eats 150 g of it; Thursday's 300 g open a pack, whose 200 g are frozen.
+    const packs = planPacks(
+      [meal(0, ids(1), 2, 150), meal(3, ids(2), 2, 300)],
+      days(7),
+      'en',
+      (ingredient) => ingredient.category === 'meat',
+      freezer('2026-01-05', 286),
+    );
+
+    expect(packs.fromFreezer).toMatchObject([{ date: '2026-01-05', amount: 286, eaten: 150 }]);
+    expect(packs.frozen).toMatchObject([
+      { date: '2026-01-08', mealId: ids(2), amount: 200, thawed: [], left: 200 },
+    ]);
+    expect(packs.open).toEqual([]);
+  });
+
+  it('is none where the pantry held nothing in the freezer', () => {
+    expect(planPacks([meal(0, ids(1), 2, 150)], days(7), 'en').fromFreezer).toEqual([]);
+    expect(
+      planPacks([meal(0, ids(1), 2, 150)], days(7), 'en', undefined, null).fromFreezer,
+    ).toEqual([]);
   });
 });

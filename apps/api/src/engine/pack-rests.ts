@@ -98,7 +98,8 @@ export function packRests(input: RestInput): Map<number, MealRest[]>[] {
   for (const plan of plans)
     for (const [index, topping] of plan.toppings ?? [])
       take(topping.ingredientId, plan.assignments[index]!.dayIndex, topping.amount);
-  const left = packUse(kitchenNeeds(plans, fixed, packs), packs).open;
+  // What the packs leave as they are, a rest a freezer would take among it: a rest eaten in its meal is better.
+  const left = packUse(kitchenNeeds(plans, fixed, packs), packs, false).open;
   if (left.length === 0) return rests;
 
   /** What a meal takes of an ingredient, at its servings, portion and plate. */

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-224 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+225 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -196,6 +196,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/:id/days/:dayId/settings/preview` | an account | What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go. Nothing is written. Asked again as the settings are changed in a window, so it is held to what a window asks for in a minute. | `DaySettings` | 200 `DaySettingsPreview` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/variations` | an account | Other ways to fill a day: the engine makes them as it makes a day again, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written. One request makes the day up to eight times over, so it is held to half of what making a day again is. | `WeighRequest` | 200 `DayVariations` | 10 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/variations/take` | an account | Fill a day the way it was offered. | `TakeDayVariationRequest` | 200 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/:id/frozen` | an account | "Dodaj do spiżarni": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, once (`KeepFrozenRequest`). | `KeepFrozenRequest` | 200 `MealPlan` | 20 in a minute |
 | `DELETE /api/meal-plans/:id/meals/:mealId` | an account | Take a meal off its day, whichever it is (rebalances the day). | query `RemoveMealQuery` | 200 `RebalanceResult` |  |
 | `PATCH /api/meal-plans/:id/meals/:mealId/eaten` | an account | Mark a planned meal eaten or not eaten (rebalances the day). | `SetMealEatenRequest` | 200 `RebalanceResult` |  |
 | `GET /api/meal-plans/:id/meals/:mealId/leftover` | an account | Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace. |  | 200 `LeftoverOffer` | 60 in a minute |

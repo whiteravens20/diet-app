@@ -346,6 +346,8 @@ export class AccountExportService {
           ? 'ai_assisted'
           : 'deterministic',
         options: plan.options,
+        // The rests of meat and fish the plan froze that were given to the pantry: ingredient, day and amount.
+        frozenKept: plan.frozenKept,
         createdAt: plan.createdAt.toISOString(),
         // Made together with another plan of the account, which has the same id here.
         jointPlanId: plan.jointPlanId,

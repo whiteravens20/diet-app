@@ -235,7 +235,8 @@ export class DayVariationsService {
     ];
     const tally = (meals: readonly PackedMeal[]): PackTally => {
       const { needs, packs } = menuNeeds(meals, plan.days.length);
-      return tallyOf(packUse(needs, packs));
+      // Ways of a day are told apart by what their packs leave, a rest a freezer would take among it.
+      return tallyOf(packUse(needs, packs, false));
     };
     // The meals of the other days, and those of this day that stay: what every way has in common.
     const rest = packedOf((meal) => meal.dayId !== dayId || stays.has(meal.id));
