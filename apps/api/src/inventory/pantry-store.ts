@@ -73,6 +73,7 @@ const Moves = z.array(
     unit: z.enum(['g', 'ml', 'piece']),
     quantity: z.number().finite(),
     bestBefore: z.string().date().optional(),
+    frozen: z.literal(true).optional(),
   }),
 );
 
@@ -96,19 +97,20 @@ export async function settlePantry(
 ): Promise<PantryMove[]> {
   const before = await tx.inventoryItem.findMany({
     where: { profileId, ingredientId: ingredient.id },
-    select: { id: true, unit: true, quantity: true, bestBefore: true },
+    select: { id: true, unit: true, quantity: true, bestBefore: true, frozen: true },
   });
   const result = settle(before, ingredient, moves, target);
 
-  const after = new Map(result.rows.map((row) => [row.unit, row]));
+  const slot = (row: { unit: string; frozen?: boolean }) => `${row.unit} ${row.frozen === true}`;
+  const after = new Map(result.rows.map((row) => [slot(row), row]));
   for (const row of before) {
-    const next = after.get(row.unit);
+    const next = after.get(slot(row));
     if (!next) {
       await tx.inventoryItem.delete({ where: { id: row.id } });
     } else if (next.quantity !== row.quantity) {
       await tx.inventoryItem.update({ where: { id: row.id }, data: { quantity: next.quantity } });
     }
-    after.delete(row.unit);
+    after.delete(slot(row));
   }
   for (const row of after.values()) {
     await assertRoomInPantry(tx, profileId);
@@ -119,6 +121,7 @@ export async function settlePantry(
         unit: row.unit,
         quantity: row.quantity,
         bestBefore: row.bestBefore,
+        frozen: row.frozen === true,
       },
     });
   }

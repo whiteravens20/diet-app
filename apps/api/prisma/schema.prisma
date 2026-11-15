@@ -1167,10 +1167,12 @@ model InventoryItem {
   quantity     Float
   unit         Unit
   bestBefore   DateTime?  @db.Date
+  // In the freezer: a rest of meat or fish a plan that wastes nothing froze, apart from what is fresh.
+  frozen       Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@unique([profileId, ingredientId, unit])
+  @@unique([profileId, ingredientId, unit, frozen])
   @@index([ingredientId])
 }
 

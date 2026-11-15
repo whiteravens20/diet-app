@@ -28,6 +28,8 @@ export const InventoryItem = z.object({
   display: DisplayAmount,
   /** ISO date (yyyy-mm-dd). Null = no expiry tracked. */
   bestBefore: z.string().date().nullable().default(null),
+  /** In the freezer, apart from what is fresh: a rest of meat or fish a plan that wastes nothing froze. */
+  frozen: z.boolean().default(false),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -35,8 +37,8 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
 
 /**
  * Upsert payload. Posting with an `ingredientId + unit` that already exists
- * for this profile aggregates (`quantity += body.quantity`). Posting a fresh
- * combination creates a new row. `bestBefore` overwrites when supplied; when
+ * for this profile, fresh or frozen as `frozen` says, aggregates
+ * (`quantity += body.quantity`). Posting a fresh combination creates a new row. `bestBefore` overwrites when supplied; when
  * it is omitted, the existing row keeps its own on aggregate. An amount of
  * what is counted, given in grams or millilitres, is turned into pieces and
  * goes to its row in pieces.
@@ -55,6 +57,8 @@ export const UpsertInventoryItem = z.object({
     .max(Math.max(...Object.values(MAX_QUANTITY))),
   unit: Unit,
   bestBefore: CalendarDay.nullable().optional(),
+  /** Into the freezer: a row of its own beside the fresh one of the same ingredient and unit (`FROZEN_KEEPS_DAYS`). */
+  frozen: z.boolean().optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
 

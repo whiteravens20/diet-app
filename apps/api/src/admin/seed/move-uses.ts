@@ -118,7 +118,14 @@ export async function moveUses(
         }),
     db.inventoryItem.findMany({
       where: { ingredientId: from.id },
-      select: { id: true, profileId: true, quantity: true, unit: true, bestBefore: true },
+      select: {
+        id: true,
+        profileId: true,
+        quantity: true,
+        unit: true,
+        bestBefore: true,
+        frozen: true,
+      },
     }),
     db.shoppingListItem.findMany({
       where: { ingredientId: from.id },
@@ -181,7 +188,12 @@ export async function moveUses(
     const quantity = scaled(row.quantity, factor);
     const joined = await db.inventoryItem.findUnique({
       where: {
-        profileId_ingredientId_unit: { profileId: row.profileId, ingredientId: to.id, unit },
+        profileId_ingredientId_unit_frozen: {
+          profileId: row.profileId,
+          ingredientId: to.id,
+          unit,
+          frozen: row.frozen,
+        },
       },
     });
     if (joined) {

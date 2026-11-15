@@ -83,6 +83,7 @@ describe('shopping lists and the pantry', () => {
     quantity: number,
     unit: 'g' | 'ml' | 'piece',
     bestBefore: string | null = null,
+    frozen = false,
   ): Promise<void> {
     await t.prisma.inventoryItem.create({
       data: {
@@ -91,6 +92,7 @@ describe('shopping lists and the pantry', () => {
         quantity,
         unit,
         bestBefore: bestBefore ? new Date(bestBefore) : null,
+        frozen,
       },
     });
   }
@@ -100,7 +102,12 @@ describe('shopping lists and the pantry', () => {
     const rows = await t.prisma.inventoryItem.findMany({
       where: { profileId: profile.id, ingredientId: (await ingredient(slug)).id },
     });
-    return rows.map((row) => `${Math.round(row.quantity * 1000) / 1000} ${row.unit}`).sort();
+    return rows
+      .map(
+        (row) =>
+          `${Math.round(row.quantity * 1000) / 1000} ${row.unit}${row.frozen ? ' frozen' : ''}`,
+      )
+      .sort();
   }
 
   /** A list for one day of the plan, or for a run of days. */
@@ -430,6 +437,49 @@ describe('shopping lists and the pantry', () => {
         alreadyHaveQuantity: 235,
         toBuyQuantity: 15,
       });
+    });
+  });
+
+  describe('what is in the freezer', () => {
+    beforeEach(() => menu(0, [EGGS_ON_TOAST, TOFU_BOWL, CHICKEN_RICE]));
+
+    it('is counted on like what is fresh, leaves the freezer when the list takes it, and goes back there', async () => {
+      // The day takes 150 g of chicken: 100 g at home fresh, which goes off first, and 286 g frozen.
+      await stock('chicken-breast', 100, 'g', '2026-01-06');
+      await stock('chicken-breast', 286, 'g', '2026-02-04', true);
+
+      const list = await listFor(0);
+
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({
+        alreadyHaveQuantity: 150,
+        toBuyQuantity: 0,
+        checked: true,
+      });
+      expect(await pantry('chicken-breast')).toEqual(['236 g frozen']);
+
+      await lists.remove(user.id, list.id, BEFORE);
+
+      expect(await pantry('chicken-breast')).toEqual(['100 g', '286 g frozen']);
+      const back = await t.prisma.inventoryItem.findMany({
+        where: { profileId: profile.id },
+        orderBy: { quantity: 'asc' },
+      });
+      expect(back.map((row) => row.bestBefore?.toISOString().slice(0, 10))).toEqual([
+        '2026-01-06',
+        '2026-02-04',
+      ]);
+    });
+
+    it('gets back what the list counted on once a purchase covers the need, and what is bought goes to what is fresh', async () => {
+      await stock('chicken-breast', 286, 'g', '2026-02-04', true);
+      const list = await listFor(0);
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({ alreadyHaveQuantity: 150 });
+      expect(await pantry('chicken-breast')).toEqual(['136 g frozen']);
+
+      // A pack bought after all (the row's number counts what was at home too): the day's 150 g come from it.
+      await edit(list, 'Chicken breast', { purchasedQuantity: 650 });
+
+      expect(await pantry('chicken-breast')).toEqual(['286 g frozen', '350 g']);
     });
   });
 

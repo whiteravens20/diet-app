@@ -43,12 +43,18 @@ const row = (
   bestBefore: bestBefore ? new Date(bestBefore) : null,
 });
 
+/** A row in the freezer. */
+const frozen = (unit: PantryRow['unit'], quantity: number, bestBefore: string): PantryRow => ({
+  ...row(unit, quantity, bestBefore),
+  frozen: true,
+});
+
 /** Rows as plain text, in a fixed order, for comparing. */
 const shown = (rows: readonly PantryRow[]): string[] =>
   rows
     .map(
       (r) =>
-        `${r.quantity} ${r.unit}${r.bestBefore ? ` until ${r.bestBefore.toISOString().slice(0, 10)}` : ''}`,
+        `${r.quantity} ${r.unit}${r.frozen ? ' frozen' : ''}${r.bestBefore ? ` until ${r.bestBefore.toISOString().slice(0, 10)}` : ''}`,
     )
     .sort();
 
@@ -217,6 +223,70 @@ describe('putting into the pantry', () => {
   });
 });
 
+describe('the freezer', () => {
+  it('counts what is frozen in the stock, with its date', () => {
+    expect(
+      pantryStock([row('g', 100, '2026-11-20'), frozen('g', 286, '2026-12-14')], RICE),
+    ).toEqual({ quantity: 386, bestBefore: new Date('2026-11-20') });
+  });
+
+  it('takes what is fresh and goes off first, then what is frozen, and gives each back to its own row', () => {
+    const rows = [row('g', 100, '2026-11-20'), frozen('g', 286, '2026-12-14')];
+
+    const taken = settle(rows, RICE, [], -200);
+
+    expect(shown(taken.rows)).toEqual(['186 g frozen until 2026-12-14']);
+    expect(taken.moves).toEqual([
+      { unit: 'g', quantity: -100, bestBefore: '2026-11-20' },
+      { unit: 'g', quantity: -100, bestBefore: '2026-12-14', frozen: true },
+    ]);
+    const back = settle(taken.rows, RICE, taken.moves, 0);
+    expect(shown(back.rows)).toEqual(['100 g until 2026-11-20', '286 g frozen until 2026-12-14']);
+    expect(back.moves).toEqual([]);
+  });
+
+  it('takes what is frozen before what is fresh when the frozen goes off first', () => {
+    const taken = settle(
+      [row('g', 300, '2026-12-20'), frozen('g', 286, '2026-12-14')],
+      RICE,
+      [],
+      -100,
+    );
+
+    expect(shown(taken.rows)).toEqual(['186 g frozen until 2026-12-14', '300 g until 2026-12-20']);
+  });
+
+  it('takes what is fresh before what is frozen of the same date', () => {
+    const taken = settle(
+      [frozen('g', 100, '2026-12-14'), row('g', 100, '2026-12-14')],
+      RICE,
+      [],
+      -50,
+    );
+
+    expect(shown(taken.rows)).toEqual(['100 g frozen until 2026-12-14', '50 g until 2026-12-14']);
+  });
+
+  it('gives a frozen row it emptied back as frozen, with its date', () => {
+    const taken = settle([frozen('g', 286, '2026-12-14')], RICE, [], -300);
+    expect(taken.rows).toEqual([]);
+
+    const back = settle(taken.rows, RICE, taken.moves, 0);
+
+    expect(shown(back.rows)).toEqual(['286 g frozen until 2026-12-14']);
+  });
+
+  it('puts what is bought beyond the need into what is fresh, never into the freezer', () => {
+    expect(
+      shown(settle([row('g', 50), frozen('g', 286, '2026-12-14')], RICE, [], 100).rows),
+    ).toEqual(['150 g', '286 g frozen until 2026-12-14']);
+    expect(shown(settle([frozen('g', 286, '2026-12-14')], RICE, [], 100).rows)).toEqual([
+      '100 g',
+      '286 g frozen until 2026-12-14',
+    ]);
+  });
+});
+
 describe('a purchase edited while its row is ticked', () => {
   it('returns to the row it took from before making new stock', () => {
     // Four eggs taken for the plan; then the user notes one egg more than needed.
@@ -275,20 +345,30 @@ describe('any sequence of ticks, edits and unticks by several shopping rows', ()
   const INGREDIENTS = [EGG, RICE, MILK];
   const DATES = [null, '2026-10-20', '2026-11-05', '2026-12-01'];
 
-  /** Random rows of one ingredient: none, one unit, or several. */
+  /** Random rows of one ingredient: none, one unit, or several, fresh and in the freezer. */
   function pantry(random: () => number, ingredient: PantryIngredient): PantryRow[] {
     const units: PantryRow['unit'][] =
       ingredient === EGG ? ['g', 'piece'] : ingredient === MILK ? ['ml', 'g'] : ['g'];
-    return units
-      .filter(() => random() < 0.7)
-      .map((unit) =>
-        row(
-          unit,
-          Math.round(random() * (unit === 'piece' ? 12 : 600) * 4) / 4,
-          DATES[Math.floor(random() * DATES.length)]!,
-        ),
-      );
+    return [false, true].flatMap((inFreezer) =>
+      units
+        .filter(() => random() < (inFreezer ? 0.4 : 0.7))
+        .map((unit) => ({
+          ...row(
+            unit,
+            Math.round(random() * (unit === 'piece' ? 12 : 600) * 4) / 4,
+            DATES[Math.floor(random() * DATES.length)]!,
+          ),
+          ...(inFreezer ? { frozen: true } : {}),
+        })),
+    );
   }
+
+  /** What the freezer holds, in the canonical unit. */
+  const inFreezer = (rows: readonly PantryRow[], ingredient: PantryIngredient): number =>
+    pantryStock(
+      rows.filter((r) => r.frozen),
+      ingredient,
+    ).quantity;
 
   it('never makes or loses stock: the pantry is what it was plus what the ledgers say', () => {
     for (let seed = 1; seed <= 300; seed += 1) {
@@ -317,6 +397,10 @@ describe('any sequence of ticks, edits and unticks by several shopping rows', ()
         expect(netEffect(result.moves, ingredient)).toBeCloseTo(before + result.applied, 4);
         // No row below zero.
         for (const r of result.rows) expect(r.quantity).toBeGreaterThanOrEqual(0);
+        // What is bought never goes into the freezer: it holds no more than it did.
+        expect(inFreezer(result.rows, ingredient)).toBeLessThanOrEqual(
+          inFreezer(initial, ingredient) + 1e-6,
+        );
         // Putting in always succeeds in full.
         if (asked > 0) expect(result.applied).toBeCloseTo(asked, 4);
 

@@ -238,6 +238,18 @@ export const TARGET_REACHED_LATER_DAYS = 14;
 export const COOKING_REMINDER_HOUR = 18;
 
 /**
+ * How long a rest of meat or fish put in the freezer is kept in the pantry, in days from the day it went in: the
+ * shortest time a frozen kind keeps its quality (bacon, a month) for every one, so that the next plans take it first.
+ */
+export const FROZEN_KEEPS_DAYS = 30;
+
+/**
+ * The days a portion taken out of the freezer is eaten within, the day of the first meal that takes it included:
+ * thawed, it is eaten up, never frozen again. A plan that cannot eat a portion whole within them leaves it frozen.
+ */
+export const THAWED_KEEPS_DAYS = 2;
+
+/**
  * When water is reminded of, by the account's clock: from the first hour to
  * before the last, while the day holds more than `WATER_REMINDER_BEHIND_ML`
  * less than an even pace to the target from `WATER_PACE_FROM_HOUR` to

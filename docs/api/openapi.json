@@ -16534,6 +16534,10 @@
               }
             ]
           },
+          "frozen": {
+            "default": false,
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -16550,6 +16554,7 @@
           "unit",
           "display",
           "bestBefore",
+          "frozen",
           "createdAt",
           "updatedAt"
         ],
@@ -25623,6 +25628,9 @@
                 "type": "null"
               }
             ]
+          },
+          "frozen": {
+            "type": "boolean"
           },
           "profileId": {
             "type": "string",

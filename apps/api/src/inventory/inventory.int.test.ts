@@ -78,6 +78,33 @@ describe('the pantry', () => {
     ).toEqual(['200 g', '3 piece']);
   });
 
+  it('keeps what is frozen in a row of its own beside what is fresh, each with its own date, and adds frozen to frozen', async () => {
+    await add('chicken-breast', 500, 'g', { bestBefore: '2026-01-07' });
+    await add('chicken-breast', 286, 'g', { frozen: true, bestBefore: '2026-02-04' });
+    const again = await add('chicken-breast', 100, 'g', { frozen: true });
+
+    expect(again.status).toBe(201);
+    expect(again.body).toMatchObject({
+      quantity: 386,
+      unit: 'g',
+      frozen: true,
+      bestBefore: '2026-02-04',
+    });
+    const rows = await t
+      .http()
+      .get(`/api/inventory?profileId=${profile.id}`)
+      .set(as(user))
+      .expect(200);
+    expect(
+      rows.body
+        .map(
+          (row: { quantity: number; frozen: boolean; bestBefore: string }) =>
+            `${row.quantity} ${row.frozen ? 'frozen' : 'fresh'} ${row.bestBefore}`,
+        )
+        .sort(),
+    ).toEqual(['386 frozen 2026-02-04', '500 fresh 2026-01-07']);
+  });
+
   it('keeps what is counted in its pieces alone, turning an amount in grams into them', async () => {
     // An egg weighs 55 g: 110 g are two of them.
     await add('large-egg', 6, 'piece');

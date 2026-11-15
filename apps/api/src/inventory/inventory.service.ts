@@ -105,8 +105,14 @@ export class InventoryService {
         const unit = isCounted(ingredient) ? 'piece' : body.unit;
         const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
 
+        const frozen = body.frozen ?? false;
         const where = {
-          profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit },
+          profileId_ingredientId_unit_frozen: {
+            profileId,
+            ingredientId: body.ingredientId,
+            unit,
+            frozen,
+          },
         };
         const saved = await this.prisma.$transaction(async (tx) => {
           await lockPantry(tx, profileId, body.ingredientId);
@@ -121,6 +127,7 @@ export class InventoryService {
               quantity,
               unit,
               bestBefore: this.parseDate(body.bestBefore),
+              frozen,
             },
             update: {
               quantity: { increment: quantity },
@@ -224,6 +231,7 @@ export class InventoryService {
       quantity: number;
       unit: 'g' | 'ml' | 'piece';
       bestBefore: Date | null;
+      frozen: boolean;
       createdAt: Date;
       updatedAt: Date;
       ingredient: Parameters<typeof toIngredientDto>[0];
@@ -237,6 +245,7 @@ export class InventoryService {
       unit: row.unit,
       display: displayStock(row.quantity, row.unit, row.ingredient),
       bestBefore: row.bestBefore ? row.bestBefore.toISOString().slice(0, 10) : null,
+      frozen: row.frozen,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
