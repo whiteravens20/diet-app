@@ -11,6 +11,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { CookingReminderService } from './cooking-reminder.service.js';
 import { WaterReminderService } from './water-reminder.service.js';
 
@@ -155,6 +156,82 @@ describe('the reminders that keep the hours of an account', () => {
         expect(dish.dish.length).toBeGreaterThan(0);
         expect(['2026-11-10', '2026-11-11']).toContain(dish.alsoDate);
       }
+    });
+
+    it('says the evening before what tomorrow takes out of the freezer, in a plan that does not cook ahead', async () => {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      await t.prisma.inventoryItem.create({
+        data: {
+          profileId: profile.id,
+          ingredientId: chicken.id,
+          quantity: 286,
+          unit: 'g',
+          bestBefore: new Date('2026-12-09'),
+          frozen: true,
+        },
+      });
+      const generation = t.app.get(PlanGenerationService);
+      const today = generation.today;
+      generation.today = () => '2026-11-09';
+      const plan = await aPlan(t, user, profile, {
+        startDate: '2026-11-10',
+        durationDays: 3,
+      }).finally(() => (generation.today = today));
+      // As a plan that eats the portion whole keeps it.
+      const kept = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: {
+          report: {
+            ...(kept.report as object),
+            freezer: { from: '2026-11-10', stock: [{ ingredientId: chicken.id, amount: 286 }] },
+          },
+        },
+      });
+      // Chicken at Wednesday's lunch alone: the whole 286 g the freezer held come out for it.
+      const [tofu, chickenRice] = await Promise.all(
+        ['tofu-rice-bowl', 'chicken-rice-broccoli'].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      for (const [index, day] of plan.days.entries())
+        for (const meal of day.meals)
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: {
+              recipeId: (index === 1 && meal.mealType === 'lunch' ? chickenRice! : tofu!).id,
+              servings: 1,
+              quantityScale: 1,
+              source: 'CATALOGUE',
+              leftoverFromDate: null,
+              leftoverFromMealType: null,
+              toppingKey: null,
+              toppingAmount: null,
+            },
+          });
+      const lunch = plan.days[1]!.meals.find((meal) => meal.mealType === 'lunch')!;
+
+      // Monday evening: Tuesday takes nothing out of the freezer, and cooks nothing ahead.
+      expect(await cooking.scan(at('2026-11-09T18:05:00Z'))).toBe(0);
+      expect(await cooking.scan(at('2026-11-10T18:05:00Z'))).toBe(1);
+
+      const [made] = await reminders('cooking_reminder');
+      expect(made!.payload).toEqual({
+        date: '2026-11-11',
+        dishes: [],
+        thaw: [
+          {
+            planId: plan.id,
+            plannedMealId: lunch.id,
+            mealType: 'lunch',
+            name: 'Chicken breast',
+            amount: 286,
+            unit: 'g',
+          },
+        ],
+      });
     });
 
     it('reminds nobody who switched it off, nor of a plan that is not for cooking ahead', async () => {

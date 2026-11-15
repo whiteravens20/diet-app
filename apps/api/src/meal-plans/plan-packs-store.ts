@@ -1,11 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Prisma } from '@prisma/client';
-import { PlanOptions } from '@diet-app/shared';
+import { PlanOptions, type Locale, type PlanPacks } from '@diet-app/shared';
+import { NO_WASTE } from '../engine/waste-levels.js';
+import { freezerOf, oneFreezer } from './generation-report.js';
 import { isoDate } from './plan-days.js';
 import {
   onDaysOf,
   packedMealsOf,
+  planPacks,
   PACKED_LINES,
   type CountedMeal,
   type PackedMeal,
@@ -102,5 +105,46 @@ export async function partnerPacked(
     await packedOfDays(db, other.days, PlanOptions.parse(other.options).mealPrepFriendly),
     other.days.map((day) => isoDate(day.date)),
     plan.days.map((day) => isoDate(day.date)),
+  );
+}
+
+/**
+ * What a plan's menu comes to in packs, as reading the plan says it (`planPacks`): the other plan of its kitchen
+ * counted with it, and what the freezer held when each was made taken first. Null for a plan the user does not have.
+ */
+export async function packsOfPlan(
+  db: Db,
+  userId: string,
+  planId: string,
+  locale: Locale,
+): Promise<PlanPacks | null> {
+  const plan = await db.mealPlan.findFirst({
+    where: { id: planId, profile: { userId } },
+    select: {
+      id: true,
+      options: true,
+      report: true,
+      jointPlanId: true,
+      days: { orderBy: { date: 'asc' }, select: { date: true, meals: { select: MEAL_ROW } } },
+    },
+  });
+  if (!plan) return null;
+  const options = PlanOptions.parse(plan.options);
+  const [own, theirs, other] = await Promise.all([
+    packedOfDays(db, plan.days, options.mealPrepFriendly),
+    partnerPacked(db, userId, plan),
+    plan.jointPlanId
+      ? db.mealPlan.findFirst({
+          where: { jointPlanId: plan.jointPlanId, id: { not: plan.id }, profile: { userId } },
+          select: { report: true },
+        })
+      : null,
+  ]);
+  return planPacks(
+    [...own, ...theirs],
+    plan.days.map((day) => isoDate(day.date)),
+    locale,
+    options.noWaste ? NO_WASTE.freezes : undefined,
+    oneFreezer(freezerOf(plan.report), other ? freezerOf(other.report) : null),
   );
 }

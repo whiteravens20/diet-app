@@ -78,11 +78,34 @@ export const CookedAhead = z.object({
 });
 export type CookedAhead = z.infer<typeof CookedAhead>;
 
-/** Payload for `type='cooking_reminder'`: the dishes cooked ahead on `date`, one reminder a day. */
-export const CookingReminderPayload = z.object({
-  date: CalendarDay,
-  dishes: z.array(CookedAhead).min(1),
+/** What a meal of `date` takes out of the freezer, taken out the evening before (`PlanThaw`). */
+export const ThawAhead = z.object({
+  planId: z.string().uuid(),
+  /** The meal that takes it; null where none is a recipe's. */
+  plannedMealId: z.string().uuid().nullable(),
+  mealType: MealType.nullable(),
+  /** The ingredient's name in the account's language when the reminder was made. */
+  name: z.string(),
+  amount: z.number().int().min(1),
+  /** Grams or millilitres. */
+  unit: z.enum(['g', 'ml']),
 });
+export type ThawAhead = z.infer<typeof ThawAhead>;
+
+/**
+ * Payload for `type='cooking_reminder'`: the dishes cooked ahead on `date`, and what its meals take out of the
+ * freezer, one reminder a day.
+ */
+export const CookingReminderPayload = z
+  .object({
+    date: CalendarDay,
+    dishes: z.array(CookedAhead),
+    /** None on a reminder made before it was said. */
+    thaw: z.array(ThawAhead).default([]),
+  })
+  .refine((payload) => payload.dishes.length + payload.thaw.length > 0, {
+    message: 'A reminder says at least one dish or one thing to take out of the freezer.',
+  });
 export type CookingReminderPayload = z.infer<typeof CookingReminderPayload>;
 
 /** Payload for `type='water_reminder'`: what the day held against its target when it was made. */
