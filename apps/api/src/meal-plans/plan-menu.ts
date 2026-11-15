@@ -306,6 +306,23 @@ export const PACKED_LINES = {
   },
 } as const;
 
+/** `PACKED_LINES` with each ingredient's name in `locale`, and in English where it has none: packs named to a reader. */
+export const packedLinesIn = (locale: Locale) =>
+  ({
+    select: {
+      ...PACKED_LINES.select,
+      ingredient: {
+        select: {
+          ...PACKED_LINES.select.ingredient.select,
+          translations: {
+            where: { locale: { in: locale === 'en' ? ['en'] : [locale, 'en'] } },
+            select: { locale: true, name: true },
+          },
+        },
+      },
+    },
+  }) as const;
+
 /** A meal of a plan as the count of its packs reads it. */
 export interface CountedMeal extends MenuMeal {
   source: string;

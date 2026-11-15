@@ -159,6 +159,8 @@ describe('the reminders that keep the hours of an account', () => {
     });
 
     it('says the evening before what tomorrow takes out of the freezer, in a plan that does not cook ahead', async () => {
+      // An account in Polish reads the food's Polish name.
+      await t.prisma.user.update({ where: { id: user.id }, data: { locale: 'pl' } });
       const chicken = await t.prisma.ingredient.findFirstOrThrow({
         where: { slug: 'chicken-breast' },
       });
@@ -226,7 +228,7 @@ describe('the reminders that keep the hours of an account', () => {
             planId: plan.id,
             plannedMealId: lunch.id,
             mealType: 'lunch',
-            name: 'Chicken breast',
+            name: 'Pierś z kurczaka',
             amount: 286,
             unit: 'g',
           },

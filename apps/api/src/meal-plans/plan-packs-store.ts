@@ -8,8 +8,8 @@ import { isoDate } from './plan-days.js';
 import {
   onDaysOf,
   packedMealsOf,
+  packedLinesIn,
   planPacks,
-  PACKED_LINES,
   type CountedMeal,
   type PackedMeal,
 } from './plan-menu.js';
@@ -39,12 +39,14 @@ const MEAL_ROW = {
 /**
  * What the meals of a plan's days take of the packs (`packedMealsOf`), with
  * their recipes' lines and their toppings' foods read here. `days` are all the
- * days of the plan in order, each with the meals to count.
+ * days of the plan in order, each with the meals to count; the foods are named
+ * in `locale`.
  */
 export async function packedOfDays(
   db: Db,
   days: readonly { date: Date; meals: readonly MealRow[] }[],
   mealPrepFriendly: boolean,
+  locale: Locale = 'en',
 ): Promise<PackedMeal[]> {
   const meals = days.flatMap((day) => day.meals);
   const recipeIds = [
@@ -58,7 +60,7 @@ export async function packedOfDays(
     recipeIds.length > 0
       ? db.recipe.findMany({
           where: { id: { in: recipeIds } },
-          select: { id: true, servings: true, ingredients: PACKED_LINES },
+          select: { id: true, servings: true, ingredients: packedLinesIn(locale) },
         })
       : [],
     meals.some((meal) => meal.toppingKey !== null)
@@ -88,6 +90,7 @@ export async function partnerPacked(
   db: Db,
   userId: string,
   plan: { id: string; jointPlanId: string | null; days: readonly { date: Date }[] },
+  locale: Locale = 'en',
 ): Promise<PackedMeal[]> {
   if (!plan.jointPlanId) return [];
   const other = await db.mealPlan.findFirst({
@@ -102,7 +105,7 @@ export async function partnerPacked(
   });
   if (!other) return [];
   return onDaysOf(
-    await packedOfDays(db, other.days, PlanOptions.parse(other.options).mealPrepFriendly),
+    await packedOfDays(db, other.days, PlanOptions.parse(other.options).mealPrepFriendly, locale),
     other.days.map((day) => isoDate(day.date)),
     plan.days.map((day) => isoDate(day.date)),
   );
@@ -131,8 +134,8 @@ export async function packsOfPlan(
   if (!plan) return null;
   const options = PlanOptions.parse(plan.options);
   const [own, theirs, other] = await Promise.all([
-    packedOfDays(db, plan.days, options.mealPrepFriendly),
-    partnerPacked(db, userId, plan),
+    packedOfDays(db, plan.days, options.mealPrepFriendly, locale),
+    partnerPacked(db, userId, plan, locale),
     plan.jointPlanId
       ? db.mealPlan.findFirst({
           where: { jointPlanId: plan.jointPlanId, id: { not: plan.id }, profile: { userId } },
