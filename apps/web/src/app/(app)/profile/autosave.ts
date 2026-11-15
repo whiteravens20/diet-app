@@ -17,6 +17,7 @@ import type {
   WeightUnit,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { shownToOne, toKilograms } from '@/lib/weight-unit';
 import { A_FIRST_SPLIT, splitAddsUp, splitIn } from '@/components/profile-fields';
@@ -201,13 +202,20 @@ function changeOf(part: Part, fields: FormData, kept: Profile, unit: WeightUnit)
   }
 }
 
+/** How often a change that met no connection is sent again while the form is open. */
+const SEND_AGAIN_MS = 5_000;
+
+/** Whether a change never reached the server: no connection, as opposed to the server refusing it. */
+const unreached = (error: unknown): boolean =>
+  error instanceof ApiClientError && error.status === 0;
+
 /** Whether a field takes its change the moment it is made: a choice, a box, a switch. A field typed into waits until it is left. */
 const changesAtOnce = (field: HTMLInputElement | HTMLSelectElement): boolean =>
   field instanceof HTMLSelectElement || field.type === 'checkbox' || field.type === 'radio';
 
 export interface Autosave {
-  /** What the form says of its changes: being kept, kept, or one of them not kept. */
-  status: 'idle' | 'saving' | 'saved' | 'failed';
+  /** What the form says of its changes: being kept, kept, one of them refused, or one that met no connection. */
+  status: 'idle' | 'saving' | 'saved' | 'failed' | 'offline';
   /** Why the part a field changes was not kept, where it was not; by the part's name. */
   errorOf: (part: string) => string | undefined;
   /** For the form: a change of a field. */
@@ -241,6 +249,11 @@ export function useAutosave(
   const typed = useRef(new Set<Part>());
   // The parts not kept, as the changes on their way leave them: what the form shows of them follows.
   const notKept = useRef(new Set<Part>());
+  // The parts whose change met no connection: said once for the form, and sent again while it is open.
+  const offline = useRef(new Set<Part>());
+  const [unsent, setUnsent] = useState(false);
+  // Whether a sending again is on its way, so that a slow network does not pile them up.
+  const again = useRef(false);
   const [sending, setSending] = useState(0);
   const [errors, setErrors] = useState<ReadonlyMap<Part, string>>(new Map());
   const [savedOnce, setSavedOnce] = useState(false);
@@ -250,14 +263,22 @@ export function useAutosave(
     setOf(profile?.id);
     setErrors(new Map());
     setSavedOnce(false);
+    setUnsent(false);
   }
   useEffect(() => {
     kept.current = profile;
     typed.current.clear();
     notKept.current.clear();
+    offline.current.clear();
     // Only another profile begins again: the same one comes back as each change leaves it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
+
+  /** A part whose change was answered, or refused before it went, no longer waits for a connection. */
+  const reached = useCallback((part: Part) => {
+    offline.current.delete(part);
+    if (offline.current.size === 0) setUnsent(false);
+  }, []);
 
   /** Why the fields of `part` cannot be kept as they are: the first that holds what it may not. */
   const refusalOf = useCallback(
@@ -288,6 +309,7 @@ export function useAutosave(
       const change = fields && !refused ? changeOf(part, fields, profile, unit) : null;
       if (!change) {
         notKept.current.add(part);
+        reached(part);
         setErrors((now) => new Map(now).set(part, refused ?? t('splitSumRefused')));
         return;
       }
@@ -311,6 +333,7 @@ export function useAutosave(
           kept.current = answer;
           onKept(answer);
           notKept.current.delete(part);
+          reached(part);
           setErrors((now) => {
             if (!now.has(part)) return now;
             const next = new Map(now);
@@ -321,14 +344,44 @@ export function useAutosave(
         } catch (error) {
           if (!stillOpen()) return;
           notKept.current.add(part);
+          if (unreached(error)) {
+            // No connection: the form says so once, the field says nothing, and the change goes again.
+            offline.current.add(part);
+            setUnsent(true);
+            setErrors((now) => {
+              if (!now.has(part)) return now;
+              const next = new Map(now);
+              next.delete(part);
+              return next;
+            });
+            return;
+          }
+          reached(part);
           setErrors((now) => new Map(now).set(part, errorText(error, t('autosave.notKept'))));
         } finally {
           setSending((n) => n - 1);
         }
       });
     },
-    [errorText, form, onKept, qc, refusalOf, t, unit],
+    [errorText, form, onKept, qc, reached, refusalOf, t, unit],
   );
+
+  /** Sends once more every change that met no connection, unless the last sending again is still on its way. */
+  const sendAgain = useCallback(() => {
+    if (again.current || offline.current.size === 0) return;
+    again.current = true;
+    for (const part of [...offline.current]) keep(part);
+    void queue.current.finally(() => {
+      again.current = false;
+    });
+  }, [keep]);
+
+  // As long as the form is open, a change that met no connection is sent again every little while.
+  useEffect(() => {
+    if (!unsent) return;
+    const timer = setInterval(sendAgain, SEND_AGAIN_MS);
+    return () => clearInterval(timer);
+  }, [unsent, sendAgain]);
 
   /** A part kept once the form shows what the change made of it: a box that shows a field, a row taken away. */
   const changed = useCallback(
@@ -376,20 +429,33 @@ export function useAutosave(
 
   const settle = useCallback(async () => {
     for (const part of [...typed.current]) keepTyped(part);
+    // What met no connection goes once more at once.
+    for (const part of [...offline.current]) keep(part);
     await queue.current;
     return notKept.current.size === 0;
-  }, [keepTyped]);
+  }, [keep, keepTyped]);
 
-  // What is typed and not yet kept is kept as the page goes: a tab closed, the browser sent elsewhere.
+  // What is typed and not yet kept is kept as the page goes, and what met no connection is sent once more: a tab
+  // closed, the browser sent elsewhere.
   useEffect(() => {
     const leaving = () => {
       for (const part of [...typed.current]) keepTyped(part);
+      for (const part of [...offline.current]) keep(part);
     };
     window.addEventListener('pagehide', leaving);
     return () => window.removeEventListener('pagehide', leaving);
-  }, [keepTyped]);
+  }, [keep, keepTyped]);
 
-  const status = sending > 0 ? 'saving' : errors.size > 0 ? 'failed' : savedOnce ? 'saved' : 'idle';
+  const status =
+    sending > 0
+      ? 'saving'
+      : unsent
+        ? 'offline'
+        : errors.size > 0
+          ? 'failed'
+          : savedOnce
+            ? 'saved'
+            : 'idle';
   return {
     status,
     errorOf: (part) => errors.get(part as Part),

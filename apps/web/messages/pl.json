@@ -2679,6 +2679,7 @@
       "required": "To pole nie może zostać puste.",
       "between": "Wpisz liczbę od {min} do {max}.",
       "notKept": "Nie udało się zapisać tej zmiany.",
+      "offline": "Nie zapisano: brak połączenia. Zapisze się, gdy wróci sieć.",
       "done": "Gotowe"
     },
     "createProfile": "Utwórz profil",

@@ -899,6 +899,79 @@ describe('the profile form, on keeping each change as it is made', () => {
     ]);
   });
 
+  /** From now on every change meets no connection, until `connected` is set: the answers as they were before. */
+  const withoutConnection = () => {
+    const request = vi.mocked(api.request);
+    const keeps = request.getMockImplementation()!;
+    const network = { connected: false };
+    request.mockImplementation((path: string, init?: RequestInit) =>
+      network.connected
+        ? keeps(path, init)
+        : Promise.reject(new ApiClientError(0, 'NETWORK', 'no connection')),
+    );
+    const sent = () => request.mock.calls.filter(([, init]) => init?.method === 'PATCH');
+    return { network, sent };
+  };
+
+  it('says once for the form that a change met no connection, and sends it again at done, which closes once it is kept', async () => {
+    const { own } = await openForm(aProfile('Me'));
+    const { network, sent } = withoutConnection();
+
+    await userEvent.clear(age());
+    await userEvent.type(age(), '41');
+    await leave();
+
+    expect(await screen.findByText(texts.autosave.offline)).toBeInTheDocument();
+    // Nothing is wrong with what the field holds: it says nothing.
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Still no connection: done tries again and the form stays open.
+    await userEvent.click(screen.getByRole('button', { name: texts.autosave.done }));
+    expect(sent()).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Edit Me' })).toBeInTheDocument();
+    expect(screen.getByText(texts.autosave.offline)).toBeInTheDocument();
+
+    network.connected = true;
+    await userEvent.click(screen.getByRole('button', { name: texts.autosave.done }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit Me' })).toBeNull());
+    expect(sent().at(-1)).toEqual([
+      own,
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ age: 41 }) }),
+    ]);
+  });
+
+  it('sends a change that met no connection again every five seconds while the form is open, until it is kept', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { own } = await openForm(aProfile('Me'));
+      const { network, sent } = withoutConnection();
+
+      await userEvent.clear(age());
+      await userEvent.type(age(), '41');
+      await leave();
+      expect(await screen.findByText(texts.autosave.offline)).toBeInTheDocument();
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(sent()).toHaveLength(2);
+      expect(screen.getByText(texts.autosave.offline)).toBeInTheDocument();
+
+      network.connected = true;
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await screen.findByText(texts.autosave.saved)).toBeInTheDocument();
+      expect(sent().at(-1)).toEqual([
+        own,
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ age: 41 }) }),
+      ]);
+
+      // Kept, it goes no more.
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(sent()).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps what is typed in a field as the page goes, on a request that outlives the page', async () => {
     const { changes, own } = await openForm(aProfile('Me'));
 

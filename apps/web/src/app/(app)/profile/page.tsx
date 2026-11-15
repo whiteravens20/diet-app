@@ -623,7 +623,9 @@ export default function ProfilePage() {
                     aria-live="polite"
                     className={cn(
                       'text-sm',
-                      autosave.status === 'failed' ? 'text-destructive' : 'text-muted-foreground',
+                      autosave.status === 'failed' || autosave.status === 'offline'
+                        ? 'text-destructive'
+                        : 'text-muted-foreground',
                     )}
                   >
                     {autosave.status === 'idle' ? '' : t(`autosave.${autosave.status}`)}

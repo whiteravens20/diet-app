@@ -2679,6 +2679,7 @@
       "required": "This field cannot be left empty.",
       "between": "Type a number from {min} to {max}.",
       "notKept": "This change could not be saved.",
+      "offline": "Not saved: no connection. It is saved once the network is back.",
       "done": "Done"
     },
     "createProfile": "Create profile",
