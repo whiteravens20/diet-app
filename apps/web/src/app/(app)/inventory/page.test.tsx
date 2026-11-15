@@ -172,4 +172,63 @@ describe('a row of the pantry', () => {
     expect(screen.getByLabelText(texts.quantityOf.replace('{name}', 'Garlic'))).toHaveValue(3);
     expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', 'Garlic'))).toHaveValue('');
   });
+
+  describe('in the freezer', () => {
+    const chicken = Ingredient.parse({
+      ...dumplings,
+      id: '2dad81f3-0d9d-44e1-9ef3-000000000004',
+      name: 'Chicken breast',
+      category: 'meat',
+      canonicalUnit: 'g',
+      gramsPerPiece: null,
+      displayUnit: null,
+      recipeUnits: ['g'],
+      pantryUnits: ['g'],
+    });
+    const grams = (quantity: number, frozen: boolean, bestBefore: string): InventoryItem =>
+      InventoryItem.parse({
+        id: `7c0ffee0-0d9d-44e1-9ef3-00000000000${frozen ? 'b' : 'a'}`,
+        ingredient: chicken,
+        quantity,
+        unit: 'g',
+        display: { quantity, unit: 'g' },
+        bestBefore,
+        frozen,
+        createdAt: '2026-11-14T00:00:00.000Z',
+        updatedAt: '2026-11-14T00:00:00.000Z',
+      });
+
+    it('stands after the fresh row of its food, says it is frozen, and each field says which row it is of', async () => {
+      await open(
+        [],
+        [
+          aRow(dumplings, 12, null),
+          grams(286, true, '2026-12-14'),
+          grams(100, false, '2026-11-16'),
+        ],
+      );
+
+      const fresh = screen.getByLabelText(texts.quantityOf.replace('{name}', chicken.name));
+      const frozen = screen.getByLabelText(
+        texts.quantityOf.replace('{name}', texts.frozenName.replace('{name}', chicken.name)),
+      );
+      expect(fresh).toHaveValue(100);
+      expect(frozen).toHaveValue(286);
+      expect(fresh.compareDocumentPosition(frozen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        screen.getByLabelText(
+          texts.bestBeforeOf.replace('{name}', texts.frozenName.replace('{name}', chicken.name)),
+        ),
+      ).toHaveValue('2026-12-14');
+      expect(screen.getAllByText(texts.frozen)).toHaveLength(1);
+    });
+
+    it('leaves its food to be added fresh', async () => {
+      await open([chicken], [aRow(dumplings, 12, null), grams(286, true, '2026-12-14')]);
+
+      await pick(chicken);
+
+      expect(screen.getByRole('button', { name: texts.clearPick })).toBeInTheDocument();
+    });
+  });
 });

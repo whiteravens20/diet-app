@@ -4,7 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Trash } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
 import { UNITS } from '@diet-app/shared/units';
@@ -45,6 +45,7 @@ function isExpiringSoon(bestBefore: string): boolean {
  */
 export default function InventoryPage() {
   const t = useTranslations('inventory');
+  const locale = useLocale();
   const fmt = useFormat();
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
@@ -120,6 +121,13 @@ export default function InventoryPage() {
     bucket.push(item);
     grouped.set(item.ingredient.category, bucket);
   }
+  // By name, a food's frozen row right after its fresh one.
+  for (const bucket of grouped.values())
+    bucket.sort(
+      (a, b) =>
+        a.ingredient.name.localeCompare(b.ingredient.name, locale) ||
+        Number(a.frozen) - Number(b.frozen),
+    );
 
   return (
     <div className="space-y-8">
@@ -160,7 +168,8 @@ export default function InventoryPage() {
       {activeProfileId && (
         <AddInventoryForm
           profileId={activeProfileId}
-          existingIds={new Set(items.map((i) => i.ingredient.id))}
+          // What is frozen stands apart: fresh of the same food can still be added.
+          existingIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
           onSubmit={(body) => {
             setError(null);
             upsert.mutate(body);
@@ -187,71 +196,82 @@ export default function InventoryPage() {
               </CardHeader>
               <CardContent>
                 <ul className="divide-y divide-border">
-                  {rows.map((item) => (
-                    <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
-                      <span className="flex-1 min-w-[8rem] text-sm font-medium">
-                        {fmt.text(item.ingredient.name)}
-                        {item.bestBefore && isExpiringSoon(item.bestBefore) && (
-                          <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                            {t('expiringSoon')}
-                          </span>
-                        )}
-                      </span>
-                      {/* An amount and its unit stay on one line, however the row wraps. */}
-                      <span className="flex items-center gap-3">
-                        {/* The field shows the amount as the API rounds it; leaving it
-                            untouched must not write the rounded number over the exact one. */}
-                        <Input
-                          key={`${item.id}-${item.display.quantity}`}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          defaultValue={item.display.quantity}
-                          className="w-24"
-                          aria-label={t('quantityOf', { name: item.ingredient.name })}
-                          onBlur={(e) => {
-                            const next = Number(e.currentTarget.value);
-                            if (
-                              !Number.isFinite(next) ||
-                              next < 0 ||
-                              next === item.display.quantity
-                            )
-                              return;
-                            patch.mutate({ id: item.id, quantity: next });
-                          }}
-                        />
-                        <span className="min-w-14 text-xs text-muted-foreground">
-                          {unitName(item.display.unit)}
-                          {/* What the pieces weigh, a piece taken at its average. */}
-                          {item.display.grams !== undefined &&
-                            ` (${amount(item.display.grams, 'g')})`}
+                  {rows.map((item) => {
+                    // A food in the freezer has a row of its own beside the fresh one: each field says which it is.
+                    const name = item.frozen
+                      ? t('frozenName', { name: fmt.text(item.ingredient.name) })
+                      : fmt.text(item.ingredient.name);
+                    return (
+                      <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
+                        <span className="flex-1 min-w-[8rem] text-sm font-medium">
+                          {fmt.text(item.ingredient.name)}
+                          {item.frozen && (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-foreground">
+                              {t('frozen')}
+                            </span>
+                          )}
+                          {item.bestBefore && isExpiringSoon(item.bestBefore) && (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                              {t('expiringSoon')}
+                            </span>
+                          )}
                         </span>
-                      </span>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {t('bestBeforeLabel')}
-                        <Input
-                          type="date"
-                          defaultValue={item.bestBefore ?? ''}
-                          className="w-40"
-                          aria-label={t('bestBeforeOf', { name: item.ingredient.name })}
-                          onBlur={(e) => {
-                            const next = e.currentTarget.value || null;
-                            if (next === (item.bestBefore ?? null)) return;
-                            patch.mutate({ id: item.id, bestBefore: next });
-                          }}
-                        />
-                      </label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t('removeLabel', { name: item.ingredient.name })}
-                        onClick={() => remove.mutate(item.id)}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </li>
-                  ))}
+                        {/* An amount and its unit stay on one line, however the row wraps. */}
+                        <span className="flex items-center gap-3">
+                          {/* The field shows the amount as the API rounds it; leaving it
+                            untouched must not write the rounded number over the exact one. */}
+                          <Input
+                            key={`${item.id}-${item.display.quantity}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            defaultValue={item.display.quantity}
+                            className="w-24"
+                            aria-label={t('quantityOf', { name })}
+                            onBlur={(e) => {
+                              const next = Number(e.currentTarget.value);
+                              if (
+                                !Number.isFinite(next) ||
+                                next < 0 ||
+                                next === item.display.quantity
+                              )
+                                return;
+                              patch.mutate({ id: item.id, quantity: next });
+                            }}
+                          />
+                          <span className="min-w-14 text-xs text-muted-foreground">
+                            {unitName(item.display.unit)}
+                            {/* What the pieces weigh, a piece taken at its average. */}
+                            {item.display.grams !== undefined &&
+                              ` (${amount(item.display.grams, 'g')})`}
+                          </span>
+                        </span>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {t('bestBeforeLabel')}
+                          <Input
+                            type="date"
+                            defaultValue={item.bestBefore ?? ''}
+                            className="w-40"
+                            aria-label={t('bestBeforeOf', { name })}
+                            onBlur={(e) => {
+                              const next = e.currentTarget.value || null;
+                              if (next === (item.bestBefore ?? null)) return;
+                              patch.mutate({ id: item.id, bestBefore: next });
+                            }}
+                          />
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t('removeLabel', { name })}
+                          onClick={() => remove.mutate(item.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </CardContent>
             </Card>

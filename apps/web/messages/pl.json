@@ -2103,6 +2103,8 @@
     "bestBeforeLabel": "Najlepiej spożyć przed",
     "bestBeforeOf": "Najlepiej spożyć przed: {name}",
     "expiringSoon": "wkrótce minie termin",
+    "frozen": "zamrożone",
+    "frozenName": "{name}, zamrożone",
     "addButton": "Dodaj",
     "removeLabel": "Usuń {name}",
     "errAdd": "Nie udało się dodać pozycji.",

@@ -2103,6 +2103,8 @@
     "bestBeforeLabel": "Best before",
     "bestBeforeOf": "Best-before date of {name}",
     "expiringSoon": "expiring soon",
+    "frozen": "frozen",
+    "frozenName": "{name}, frozen",
     "addButton": "Add",
     "removeLabel": "Remove {name}",
     "errAdd": "Could not add the item.",
