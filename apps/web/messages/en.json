@@ -1831,7 +1831,7 @@
       "portionLater": "{amount} for later",
       "keep": "Add to the pantry",
       "keepFor": "Add to the pantry as frozen: {name}, {amount}",
-      "inPantry": "In the pantry as frozen.",
+      "inPantry": "Added to the pantry as frozen.",
       "thawTomorrow": "Take out of the freezer for tomorrow: {items}.",
       "thawToday": "Take out of the freezer as early as you can that day: {items}.",
       "thawItem": "{name}, a portion of {amount}",

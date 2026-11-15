@@ -1831,7 +1831,7 @@
       "portionLater": "{amount} na później",
       "keep": "Dodaj do spiżarni",
       "keepFor": "Dodaj do spiżarni jako zamrożone: {name}, {amount}",
-      "inPantry": "Jest w spiżarni jako zamrożone.",
+      "inPantry": "Dodano do spiżarni jako zamrożone.",
       "thawTomorrow": "Wyjmij z zamrażarki na jutro: {items}.",
       "thawToday": "Tego dnia wyjmij z zamrażarki jak najwcześniej: {items}.",
       "thawItem": "{name}, porcja {amount}",
