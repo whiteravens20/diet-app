@@ -251,7 +251,8 @@ function MealPlansContent() {
     invalidate().then(() => setEdited(qc.getQueryData<MealPlan>(['meal-plan', planId]) ?? null));
   const fail = (fallback: string) => (e: unknown) => {
     // Another request changed the plan first, so the one on screen is stale.
-    if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') void invalidate();
+    if (e instanceof ApiClientError && (e.code === 'PLAN_CHANGED' || e.code === 'FROZEN_REST_GONE'))
+      void invalidate();
     setError((e instanceof ApiClientError ? unfilledMeal(e) : null) ?? errorText(e, fallback));
   };
   // A plan that could not be made names the meal it had no recipe for, and
@@ -490,6 +491,16 @@ function MealPlansContent() {
     onError: fail(t('errCookApart')),
   });
 
+  const keepFrozen = useMutation({
+    mutationFn: (v: { planId: string; ingredientId: string; date: string }) =>
+      api.post<MealPlan>(`/meal-plans/${v.planId}/frozen`, {
+        ingredientId: v.ingredientId,
+        date: v.date,
+      }),
+    onSuccess: (_plan, v) => void invalidateEdited(v.planId),
+    onError: fail(t('errKeepFrozen')),
+  });
+
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
@@ -542,6 +553,7 @@ function MealPlansContent() {
     toggleEaten.isPending ||
     removeMeal.isPending ||
     setApart.isPending ||
+    keepFrozen.isPending ||
     rebalance.isPending ||
     remove.isPending;
 
@@ -1047,6 +1059,10 @@ function MealPlansContent() {
               onSetApart={(sharedMealId, apart) => {
                 setError(null);
                 setApart.mutate({ planId: plan.id, sharedMealId, apart });
+              }}
+              onKeepFrozen={(ingredientId, date) => {
+                setError(null);
+                keepFrozen.mutate({ planId: plan.id, ingredientId, date });
               }}
               profileName={fmt.text(active?.name ?? '')}
               onSpread={(date) => {

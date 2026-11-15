@@ -131,6 +131,43 @@ describe('NotificationsBell', () => {
       );
     });
 
+    it('says what to take out of the freezer for tomorrow, alone or after the dishes cooked ahead', () => {
+      const thaw = [
+        {
+          planId: PLAN,
+          plannedMealId: PLAN,
+          mealType: 'lunch',
+          name: 'Chicken breast',
+          amount: 150,
+          unit: 'g',
+        },
+        {
+          planId: PLAN,
+          plannedMealId: null,
+          mealType: null,
+          name: 'Salmon',
+          amount: 120,
+          unit: 'g',
+        },
+      ];
+      expect(said('cooking_reminder', { date: '2026-11-10', dishes: [], thaw })).toBe(
+        'Take out of the freezer tonight for tomorrow: Chicken breast, a portion of 150 g for lunch; Salmon, a portion of 120 g.',
+      );
+      expect(
+        said(
+          'cooking_reminder',
+          { date: '2026-11-10', dishes: [], thaw },
+          pl as typeof messages,
+          'pl',
+        ),
+      ).toBe(
+        'Wyjmij dziś z zamrażarki na jutro: Chicken breast, porcja 150 g na obiad; Salmon, porcja 120 g.',
+      );
+      expect(said('cooking_reminder', { ...cooking, thaw: thaw.slice(1) })).toBe(
+        'Tomorrow you cook ahead: Porridge and Stew, also for the day after; Chicken with rice, also for dinner. Take out of the freezer tonight for tomorrow: Salmon, a portion of 120 g.',
+      );
+    });
+
     it('says what the day drank against its target', () => {
       expect(said('water_reminder', { day: '2026-11-09', ml: 600, target: 2000 })).toBe(
         'Water today: 0.6 L of 2 L.',

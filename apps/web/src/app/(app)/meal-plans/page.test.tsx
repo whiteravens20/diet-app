@@ -3942,3 +3942,140 @@ describe('the plan page, on what is left of a meal', () => {
     ).toBeNull();
   });
 });
+
+describe('the plan page, on what a plan puts in the freezer and takes out of it', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const CHICKEN = '66666666-6666-4666-8666-666666666666';
+  const texts = messages.mealPlans.freezer;
+  /** Two days of porridge for breakfast; Monday's opens a pack of chicken, Tuesday's takes 100 g of what was frozen. */
+  const twoDays = (rest: Partial<MealPlan['packs']['frozen'][number]> = {}): MealPlan => {
+    const plan = aPlan();
+    const monday = plan.days[0]!;
+    const tuesday = {
+      ...monday,
+      id: '22222222-2222-4222-8222-222222222223',
+      date: '2026-01-06',
+      meals: [{ ...monday.meals[0]!, id: '33333333-3333-4333-8333-333333333334' }],
+    };
+    return {
+      ...plan,
+      durationDays: 2,
+      days: [monday, tuesday],
+      packs: {
+        bought: 500,
+        used: 250,
+        open: [],
+        frozen: [
+          {
+            ingredientId: CHICKEN,
+            name: 'Chicken breast',
+            unit: 'g',
+            date: '2026-01-05',
+            mealId: monday.meals[0]!.id,
+            amount: 350,
+            thawed: [{ date: '2026-01-06', mealId: tuesday.meals[0]!.id, amount: 100 }],
+            left: 250,
+            inPantry: false,
+            ...rest,
+          },
+        ],
+        fromFreezer: [],
+      },
+    };
+  };
+  const opened = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('2-day plan · Vegan'));
+    await screen.findAllByRole('button', { name: 'Oat porridge' });
+  };
+
+  it('says with the meal that opens the pack to freeze its rest in the portions the plan takes, and gives the pantry the one for later', async () => {
+    const plan = twoDays();
+    await opened(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(twoDays({ inPantry: true }) as never);
+
+    expect(
+      screen.getByText(
+        'Freeze the rest of the pack at once in separate portions: Chicken breast, 100 g (Tue) and 250 g for later.',
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Add to the pantry as frozen: Chicken breast, 250\u00a0g',
+      }),
+    );
+
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/frozen`, {
+      ingredientId: CHICKEN,
+      date: '2026-01-05',
+    });
+  });
+
+  it('says a rest the pantry was given is there, and offers it no more', async () => {
+    await opened(twoDays({ inPantry: true }));
+
+    expect(screen.getByText(texts.inPantry)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Add to the pantry/ })).toBeNull();
+  });
+
+  it('offers nothing for the pantry of a rest the plan eats whole', async () => {
+    await opened(
+      twoDays({
+        amount: 100,
+        left: 0,
+        thawed: [{ date: '2026-01-06', mealId: null, amount: 100 }],
+      }),
+    );
+
+    expect(
+      screen.getByText('Freeze the rest of the pack at once: Chicken breast, 100 g (Tue).'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Add to the pantry/ })).toBeNull();
+  });
+
+  it('says the day before what to take out of the freezer, and marks that day in its head', async () => {
+    await opened(twoDays());
+
+    expect(
+      screen.getByText(
+        'Take out of the freezer for tomorrow: Chicken breast, a portion of 100 g (breakfast).',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(texts.thawChip)).toHaveLength(1);
+  });
+
+  it('says on its own day to take out the whole portion the freezer held, for the first meal that takes it', async () => {
+    const plan = twoDays();
+    await opened({
+      ...plan,
+      packs: {
+        ...plan.packs,
+        frozen: [],
+        fromFreezer: [
+          {
+            ingredientId: CHICKEN,
+            name: 'Chicken breast',
+            unit: 'g',
+            date: '2026-01-05',
+            mealId: plan.days[0]!.meals[0]!.id,
+            amount: 286,
+            eaten: 150,
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText(
+        'Take out of the freezer as early as you can that day: Chicken breast, a portion of 286 g (breakfast).',
+      ),
+    ).toBeInTheDocument();
+  });
+});

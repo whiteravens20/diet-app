@@ -20,6 +20,7 @@ import type {
 import { WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { held } from '@/lib/figure-line';
+import { useAmount } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
@@ -60,6 +61,7 @@ export function useNotificationText(): (notification: Notification) => string {
   const t = useTranslations('notifications');
   const tBody = useTranslations('notifications.weight_reminder');
   const fmt = useFormat();
+  const amount = useAmount();
   const liters = (ml: number) => fmt.unit(ml / 1000, 'liter', 2);
   return (n) => {
     if (n.type === 'water_reminder') {
@@ -67,7 +69,8 @@ export function useNotificationText(): (notification: Notification) => string {
       return t('water_reminder', { drunk: liters(ml), target: liters(target) });
     }
     if (n.type === 'cooking_reminder') {
-      const { date, dishes } = n.payload as CookingReminderPayload;
+      // A reminder made before it said what to take out of the freezer has no `thaw`.
+      const { date, dishes, thaw = [] } = n.payload as CookingReminderPayload;
       // The dishes by what else they cover: the day after, or another meal of the day.
       const groups = new Map<string, CookedAhead[]>();
       for (const dish of dishes) {
@@ -80,7 +83,17 @@ export function useNotificationText(): (notification: Notification) => string {
           cover: t(`cookingCover.${cover}` as 'cookingCover.nextDay'),
         }),
       );
-      return t('cooking_reminder', { groups: said.join('; ') });
+      const thawed = thaw.map((taken) =>
+        t(taken.mealType ? 'thawItemMeal' : 'thawItem', {
+          name: fmt.text(taken.name),
+          amount: amount(taken.amount, taken.unit),
+          meal: taken.mealType ? t(`cookingCover.${taken.mealType}` as 'cookingCover.lunch') : '',
+        }),
+      );
+      return [
+        ...(said.length > 0 ? [t('cooking_reminder', { groups: said.join('; ') })] : []),
+        ...(thawed.length > 0 ? [t('thaw_reminder', { items: thawed.join('; ') })] : []),
+      ].join(' ');
     }
     if (n.type === 'weight_reminder') {
       const p = (n.payload ?? null) as WeightReminderPayload | null;

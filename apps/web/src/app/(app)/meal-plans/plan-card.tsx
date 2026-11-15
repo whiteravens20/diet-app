@@ -18,6 +18,7 @@ import {
   type MealPlanSummary,
   type MealSwapPreview,
   type PantryUse,
+  type PlanFrozenRest,
   type PlannedIngredient,
   type PlanRelaxation,
   type RebalanceResult,
@@ -45,7 +46,8 @@ import {
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
-import { useShownAmount } from '@/lib/ingredient-format';
+import { useAmount, useShownAmount } from '@/lib/ingredient-format';
+import { frozenOfDay, thawsByDay, type ThawLine } from './freezer';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { localDate } from '@/lib/http';
 import { saveText } from '@/lib/save-file';
@@ -181,6 +183,7 @@ export function PlanCard({
   onRemoveMeal,
   onOfferFor,
   onSetApart,
+  onKeepFrozen,
   profileName,
   onSpread,
   onResizeDay,
@@ -234,6 +237,8 @@ export function PlanCard({
   onOfferFor: (forAll: boolean) => void;
   /** Say how a shared meal is cooked: each portion apart, or in one pot. */
   onSetApart: (sharedMealId: string, apart: boolean) => void;
+  /** "Dodaj do spiżarni": give the pantry what is left of a rest the plan freezes, once. */
+  onKeepFrozen: (ingredientId: string, date: string) => void;
   /** The name of the profile whose plan this is: what a portion of a shared pot is called beside the other's. */
   profileName: string;
   /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
@@ -294,6 +299,8 @@ export function PlanCard({
     });
   };
   const shownAmount = useShownAmount();
+  const amount = useAmount();
+  const tFreezer = useTranslations('mealPlans.freezer');
   const tSplit = useTranslations('split');
   // The dish cooked ahead being split, as the portions of its meals, while its window is open.
   const [splitting, setSplitting] = useState<SplitPortion[] | null>(null);
@@ -390,9 +397,75 @@ export function PlanCard({
     ) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
+  // What each day says to take out of the freezer, and the words for it.
+  const thaws = plan ? thawsByDay(plan, today) : new Map<string, never>();
+  const thawItems = (lines: readonly ThawLine[]): string =>
+    lines
+      .map((line) =>
+        line.mealType
+          ? tFreezer('thawItemMeal', {
+              name: fmt.text(line.name),
+              amount: amount(line.amount, line.unit),
+              meal: mealName(line.mealType).toLocaleLowerCase(locale),
+            })
+          : tFreezer('thawItem', {
+              name: fmt.text(line.name),
+              amount: amount(line.amount, line.unit),
+            }),
+      )
+      .join('; ');
+  /**
+   * A rest of meat or fish the plan freezes, said where it goes in: in the portions the plan takes later, each with its
+   * day, and the one for later, frozen apart; with "Dodaj do spiżarni" for that one.
+   */
+  const frozenLine = (rest: PlanFrozenRest, indented: boolean) => {
+    const name = fmt.text(rest.name);
+    const portions = [
+      ...rest.thawed.map((taken) =>
+        tFreezer('portionOn', {
+          amount: amount(taken.amount, rest.unit),
+          day: fmt.weekday(taken.date, 'short'),
+        }),
+      ),
+      ...(rest.left > 0
+        ? [tFreezer('portionLater', { amount: amount(rest.left, rest.unit) })]
+        : []),
+    ];
+    return (
+      <div
+        key={`${rest.ingredientId} ${rest.date}`}
+        className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-xs', indented && 'ml-6')}
+      >
+        <span>
+          {portions.length === 1
+            ? tFreezer('freeze', { name, portion: portions[0]! })
+            : tFreezer('freezePortions', { name, portions: fmt.list(portions) })}
+        </span>
+        {rest.left > 0 &&
+          (rest.inPantry ? (
+            <span className="text-muted-foreground">{tFreezer('inPantry')}</span>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-my-1"
+              disabled={busy}
+              aria-label={tFreezer('keepFor', { name, amount: amount(rest.left, rest.unit) })}
+              onClick={() => onKeepFrozen(rest.ingredientId, rest.date)}
+            >
+              {tFreezer('keep')}
+            </Button>
+          ))}
+      </div>
+    );
+  };
   // One day of the open plan: what it is and what it comes to stand in its head, which unfolds the rest.
   const dayCard = (plan: MealPlan, day: MealPlanDay) => {
     const dayOpen = toggled[day.date] ?? day.date === firstOpen;
+    const thawsHere = thaws.get(day.date);
+    const thawing = (thawsHere?.forTomorrow.length ?? 0) + (thawsHere?.forToday.length ?? 0) > 0;
+    const frozenHere = frozenOfDay(plan, day);
     // What the diary holds for a meal the day has none of stands where that meal would in the day:
     // before the first meal that comes after it, or after the last one.
     const withoutMeal = (day.diary?.items ?? [])
@@ -438,6 +511,12 @@ export function PlanCard({
               {day.macrosOff && !day.skipped && (
                 <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium text-warning">
                   {t('macrosOffChip')}
+                </span>
+              )}
+              {/* What has to come out of the freezer that day is not to stay behind a fold either. */}
+              {thawing && (
+                <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-foreground">
+                  {tFreezer('thawChip')}
                 </span>
               )}
               {/* What the profile has ruled out is not to stay behind a fold. */}
@@ -507,6 +586,17 @@ export function PlanCard({
             </div>
             <DaySettingsLine day={day} />
             {day.date < today && <p className="text-xs text-muted-foreground">{t('dayIsOver')}</p>}
+            {thawsHere && thawsHere.forToday.length > 0 && (
+              <p className="text-xs">
+                {tFreezer('thawToday', { items: thawItems(thawsHere.forToday) })}
+              </p>
+            )}
+            {thawsHere && thawsHere.forTomorrow.length > 0 && (
+              <p className="text-xs">
+                {tFreezer('thawTomorrow', { items: thawItems(thawsHere.forTomorrow) })}
+              </p>
+            )}
+            {frozenHere.ofDay.map((rest) => frozenLine(rest, false))}
             {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
             {(day.diary || day.date <= today) && (
               <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
@@ -1270,6 +1360,7 @@ export function PlanCard({
                           {cookWords.leftoverHint(m)}
                         </p>
                       )}
+                      {(frozenHere.byMeal.get(m.id) ?? []).map((rest) => frozenLine(rest, true))}
                       {m.topping && (
                         <p className="ml-6 text-xs">
                           {t('toppingLine', {

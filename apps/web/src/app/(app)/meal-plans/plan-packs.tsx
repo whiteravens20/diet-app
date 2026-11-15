@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { PlanPacks } from '@diet-app/shared';
 import { useAmount } from '@/lib/ingredient-format';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * What a plan's menu uses of the packs that do not keep once they are opened,
@@ -24,7 +25,9 @@ export function PlanPacksLine({
   children?: ReactNode;
 }) {
   const t = useTranslations('mealPlans.packs');
+  const tFreezer = useTranslations('mealPlans.freezer');
   const amount = useAmount();
+  const fmt = useFormat();
   const wasted = packs.open.filter((pack) => pack.wasted).length;
   return (
     <details>
@@ -39,7 +42,7 @@ export function PlanPacksLine({
       </summary>
       <div className="ml-4 mt-1 space-y-1">
         {packs.open.length === 0 ? (
-          <p>{t('allFinished')}</p>
+          packs.frozen.length === 0 && <p>{t('allFinished')}</p>
         ) : (
           <ul className="space-y-0.5">
             {packs.open.map((pack) => (
@@ -52,6 +55,36 @@ export function PlanPacksLine({
               </li>
             ))}
           </ul>
+        )}
+        {packs.frozen.length > 0 && (
+          <p>
+            {tFreezer('intoFreezer', {
+              items: packs.frozen
+                .map((rest) =>
+                  tFreezer('intoFreezerItem', {
+                    name: fmt.text(rest.name),
+                    amount: amount(rest.amount, rest.unit),
+                    day: fmt.weekday(rest.date, 'short'),
+                  }),
+                )
+                .join('; '),
+            })}
+          </p>
+        )}
+        {packs.fromFreezer.length > 0 && (
+          <p>
+            {tFreezer('fromFreezer', {
+              items: packs.fromFreezer
+                .map((held) =>
+                  tFreezer(held.eaten < held.amount ? 'fromFreezerItemLeft' : 'fromFreezerItem', {
+                    name: fmt.text(held.name),
+                    amount: amount(held.amount, held.unit),
+                    eaten: amount(held.eaten, held.unit),
+                  }),
+                )
+                .join('; '),
+            })}
+          </p>
         )}
         <p>{t('explain')}</p>
         {children}
