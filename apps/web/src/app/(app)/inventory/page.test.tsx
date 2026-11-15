@@ -173,6 +173,27 @@ describe('a row of the pantry', () => {
     expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', 'Garlic'))).toHaveValue('');
   });
 
+  it('takes neither an empty amount nor one under nothing, and shows again the amount kept', async () => {
+    const row = aRow(dumplings, 12, null);
+    await open([], [row]);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({} as never);
+    const amount = screen.getByLabelText(texts.quantityOf.replace('{name}', dumplings.name));
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, '-5');
+    await userEvent.tab();
+    expect(amount).toHaveValue(12);
+    await userEvent.clear(amount);
+    await userEvent.tab();
+    expect(amount).toHaveValue(12);
+    expect(patch).not.toHaveBeenCalled();
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, '10');
+    await userEvent.tab();
+    expect(patch).toHaveBeenCalledWith(`/inventory/${row.id}`, { quantity: 10 });
+  });
+
   describe('in the freezer', () => {
     const chicken = Ingredient.parse({
       ...dumplings,

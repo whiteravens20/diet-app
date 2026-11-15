@@ -229,13 +229,14 @@ export default function InventoryPage() {
                             className="w-24"
                             aria-label={t('quantityOf', { name })}
                             onBlur={(e) => {
-                              const next = Number(e.currentTarget.value);
-                              if (
-                                !Number.isFinite(next) ||
-                                next < 0 ||
-                                next === item.display.quantity
-                              )
+                              const typed = e.currentTarget.value.trim();
+                              const next = Number(typed);
+                              // An empty field or a number under nothing is not taken: the field shows what is kept.
+                              if (typed === '' || !Number.isFinite(next) || next < 0) {
+                                e.currentTarget.value = String(item.display.quantity);
                                 return;
+                              }
+                              if (next === item.display.quantity) return;
                               patch.mutate({ id: item.id, quantity: next });
                             }}
                           />
