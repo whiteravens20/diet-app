@@ -464,6 +464,14 @@ export class AccountExportService {
       }),
     );
 
+    // When the account wrote a product of its own or sent one to the base, which the limits of a day count. Which
+    // product it was is kept nowhere.
+    yield* list(
+      'productChanges',
+      (page) => this.prisma.ownProductChange.findMany({ where: { userId }, ...page }),
+      (change) => ({ kind: change.kind, at: change.at.toISOString() }),
+    );
+
     yield `,${field('complete', true)}}`;
   }
 }

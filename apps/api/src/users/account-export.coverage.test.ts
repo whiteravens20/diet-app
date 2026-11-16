@@ -28,6 +28,7 @@ const IN_THE_FILE: Record<string, string> = {
   Notification: 'notifications',
   AiProviderConfig: 'aiProviders',
   AiUsageLog: 'aiCalls',
+  OwnProductChange: 'productChanges',
   RefreshToken: 'sessions',
   SecondFactor: 'account',
 };
@@ -41,7 +42,6 @@ const LEFT_OUT: Record<string, string> = {
   EmailVerificationToken: 'a link that confirms the address: it proves who somebody is',
   EmailChangeToken: 'a link that moves the account to a new address: it proves who somebody is',
   Product: "a product the base accepted from the account: it is nobody's any more",
-  OwnProductChange: 'when the account wrote or sent a product, kept for the limits of a day',
   ProductLookup: 'that the account asked about a code, kept for the limits of a lookup; no code',
 };
 
