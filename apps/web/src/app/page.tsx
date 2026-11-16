@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  TriangleAlert,
+  TriangleExclamationPoint,
   Utensils,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -73,7 +73,7 @@ export default function Landing() {
           </Link>
         </div>
         <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm text-warning">
-          <TriangleAlert size={18} className="mt-0.5 shrink-0" />
+          <TriangleExclamationPoint size={18} className="mt-0.5 shrink-0" />
           <p>
             <span className="font-semibold">{t('devWarning.title')}</span> {t('devWarning.body')}
           </p>

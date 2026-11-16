@@ -11,7 +11,7 @@ import {
   FolderSync,
   LoaderCircle,
   RotateCcwClock,
-  TriangleAlert,
+  TriangleExclamationPoint,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,7 +91,11 @@ function MirrorCopy({ mirror }: { mirror: InstanceMirror }) {
   const t = useTranslations('admin.mirror');
   const fmt = useFormat();
   const faulty = mirrorNeedsAttention(mirror);
-  const Icon = faulty ? TriangleAlert : mirror.state === 'current' ? CircleCheck : CircleDashed;
+  const Icon = faulty
+    ? TriangleExclamationPoint
+    : mirror.state === 'current'
+      ? CircleCheck
+      : CircleDashed;
   const titleId = useId();
   return (
     <section aria-labelledby={titleId} className="space-y-2 border-t border-border pt-4">
