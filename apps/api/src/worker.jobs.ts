@@ -79,12 +79,12 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
       },
     ],
     [
-      'removal of the calls of models and the writes of products made more than a year ago',
+      'removal of the calls of models made more than a year ago and the writes of products more than a day ago',
       async () => {
         const removed = await pruneLimitLogs(prisma);
         if (removed > 0)
           logger.log(
-            `Removed ${removed} call(s) of models and write(s) of products older than a year.`,
+            `Removed ${removed} call(s) of models older than a year and write(s) of products older than a day.`,
           );
       },
     ],

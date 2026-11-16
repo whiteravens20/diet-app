@@ -110,10 +110,12 @@ describe('the worker', () => {
     expect((await t.prisma.idempotencyKey.findMany()).map((kept) => kept.key)).toEqual(['new']);
   });
 
-  it('removes the calls of models and the writes of products made more than a year ago, and keeps the newer ones', async () => {
+  it('removes the calls of models made more than a year ago and the writes of products more than a day ago, and keeps the newer ones', async () => {
     const user = await aUser(t);
     const longAgo = new Date(Date.now() - 367 * 86_400_000);
     const lately = new Date(Date.now() - 365 * 86_400_000);
+    const yesterday = new Date(Date.now() - 25 * 3_600_000);
+    const thisMorning = new Date(Date.now() - 23 * 3_600_000);
     const call = {
       userId: user.id,
       provider: 'openai',
@@ -127,10 +129,11 @@ describe('the worker', () => {
         { ...call, model: 'new', createdAt: lately },
       ],
     });
+    // Kept no longer than the day the limits of products read.
     await t.prisma.ownProductChange.createMany({
       data: [
-        { userId: user.id, kind: 'written', at: longAgo },
-        { userId: user.id, kind: 'sent', at: lately },
+        { userId: user.id, kind: 'written', at: yesterday },
+        { userId: user.id, kind: 'sent', at: thisMorning },
       ],
     });
 

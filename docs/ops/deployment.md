@@ -234,8 +234,9 @@ entry for today or a day at most a year back, so once that year is full it grows
 entries a day; a weight is taken at most a year before it is noted, so the weights of a profile
 grow the same way, by at most 10 a day. Longer lists come a page at a time (recipes, plans, the
 drafts of the admin panel), and two show only their newest entries: the 1000 newest weights of
-a profile and the 50 newest unread notifications. The calls of models and the writes of
-products that the limits of an account count are removed after a year.
+a profile and the 50 newest unread notifications. The calls of models that the limits of an
+account count are removed after a year, and its writes and sendings of products after a day,
+which is all their limits read.
 
 ### What a page may load
 
