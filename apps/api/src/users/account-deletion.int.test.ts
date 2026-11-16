@@ -122,6 +122,37 @@ describe('deleting an account', () => {
     });
     // That it asked Open Food Facts about a code.
     await t.prisma.productLookup.create({ data: { userId: user.id } });
+    // A product of its own, and the record of its writing that the limits of a day count.
+    await t.prisma.ownProduct.create({
+      data: {
+        userId: user.id,
+        name: `${name}'s bread`,
+        searchText: `${name} bread`,
+        unit: 'g',
+        calories: 250,
+      },
+    });
+    await t.prisma.ownProductChange.create({ data: { userId: user.id, kind: 'written' } });
+    await t.prisma.waterEntry.create({
+      data: { profileId: first.id, day: new Date('2026-01-05'), ml: 250 },
+    });
+    // A plan of two profiles together, a shopping list of a household, a code that signs a browser in, and a
+    // request answered once.
+    await t.prisma.jointPlan.create({ data: { userId: user.id } });
+    await t.prisma.householdList.create({
+      data: { userId: user.id, fromDate: new Date('2026-01-05'), toDate: new Date('2026-01-06') },
+    });
+    await t.prisma.browserSignInCode.create({
+      data: {
+        userId: user.id,
+        codeHash: `${name}-browser`,
+        sessionId: `${name}-session`,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    await t.prisma.idempotencyKey.create({
+      data: { userId: user.id, key: `${name}-key`, digest: 'x', resultId: 'x' },
+    });
     await t.prisma.notification.create({
       data: { profileId: second.id, type: 'weight_reminder', payload: { profileId: second.id } },
     });
@@ -306,6 +337,13 @@ describe('deleting an account', () => {
       'DiaryEntry.profileId',
       'DiaryEntry.recipeId',
       'ProductLookup.userId',
+      'OwnProduct.userId',
+      'OwnProductChange.userId',
+      'WaterEntry.profileId',
+      'JointPlan.userId',
+      'HouseholdList.userId',
+      'BrowserSignInCode.userId',
+      'IdempotencyKey.userId',
       'SecondFactor.userId',
       'RecoveryCode.secondFactorId',
       'SignInChallenge.userId',
