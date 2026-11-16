@@ -8,6 +8,14 @@ import type { PlanPacks } from '@diet-app/shared';
 import { useAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 
+/** Items of one food together, in the order the server gives them: each food where it first comes, its items in order. */
+function byFood<T extends { ingredientId: string }>(items: readonly T[]): T[][] {
+  const foods = new Map<string, T[]>();
+  for (const item of items)
+    foods.set(item.ingredientId, [...(foods.get(item.ingredientId) ?? []), item]);
+  return [...foods.values()];
+}
+
 /**
  * What a plan's menu uses of the packs that do not keep once they are opened,
  * in a line that unfolds into the packs it does not finish. The server counts
@@ -45,26 +53,51 @@ export function PlanPacksLine({
           packs.frozen.length === 0 && <p>{t('allFinished')}</p>
         ) : (
           <ul className="space-y-0.5">
-            {packs.open.map((pack) => (
-              <li key={pack.ingredientId} className={pack.wasted ? 'text-warning' : undefined}>
-                {t(pack.wasted ? 'leftMuch' : 'left', {
-                  name: pack.name,
-                  left: amount(pack.left, pack.unit),
-                  size: amount(pack.packSize, pack.unit),
-                })}
-              </li>
-            ))}
+            {/* One line a food, its rests added up. */}
+            {byFood(packs.open).map((food) => {
+              const first = food[0]!;
+              const much = food.filter((pack) => pack.wasted).length;
+              const said = {
+                name: first.name,
+                left: amount(
+                  food.reduce((sum, pack) => sum + pack.left, 0),
+                  first.unit,
+                ),
+                size: amount(first.packSize, first.unit),
+              };
+              return (
+                <li key={first.ingredientId} className={much > 0 ? 'text-warning' : undefined}>
+                  {food.length === 1
+                    ? t(much > 0 ? 'leftMuch' : 'left', said)
+                    : t(
+                        much === 0
+                          ? 'leftTotal'
+                          : much === food.length
+                            ? 'leftTotalAllMuch'
+                            : 'leftTotalMuch',
+                        { ...said, count: food.length, much },
+                      )}
+                </li>
+              );
+            })}
           </ul>
         )}
         {packs.frozen.length > 0 && (
           <p>
             {tFreezer('intoFreezer', {
-              items: packs.frozen
-                .map((rest) =>
+              // One item a food: each of its rests with the day it goes in.
+              items: byFood(packs.frozen)
+                .map((rests) =>
                   tFreezer('intoFreezerItem', {
-                    name: fmt.text(rest.name),
-                    amount: amount(rest.amount, rest.unit),
-                    day: fmt.weekday(rest.date, 'short'),
+                    name: fmt.text(rests[0]!.name),
+                    rests: fmt.list(
+                      rests.map((rest) =>
+                        tFreezer('intoFreezerRest', {
+                          amount: amount(rest.amount, rest.unit),
+                          day: fmt.weekday(rest.date, 'short'),
+                        }),
+                      ),
+                    ),
                   }),
                 )
                 .join('; '),

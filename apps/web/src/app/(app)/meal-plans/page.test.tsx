@@ -1603,6 +1603,57 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.queryByText(messages.mealPlans.packs.explainFreezer)).toBeNull();
     });
 
+    it('names a food left of in several packs once, its rests added up, and says of how many much is left', async () => {
+      const pack = (ingredientId: string, name: string, packSize: number, left: number) => ({
+        ingredientId,
+        name,
+        unit: 'g' as const,
+        packSize,
+        packs: 3,
+        left,
+        wasted: left > packSize / 5,
+      });
+      const chicken = (left: number) => pack('c', 'Chicken breast', 500, left);
+      const spinach = (left: number) => pack('s', 'Spinach', 200, left);
+      const turkey = (left: number) => pack('t', 'Turkey breast', 500, left);
+      const tofu = (left: number) => pack('f', 'Firm tofu', 400, left);
+      await opened(
+        aPlan({
+          packs: {
+            bought: 4000,
+            used: 2800,
+            // As the server gives them: every pack left, the one with the most left first.
+            open: [
+              chicken(291),
+              turkey(230),
+              turkey(230),
+              spinach(51),
+              chicken(126),
+              chicken(126),
+              tofu(40),
+              tofu(30),
+              spinach(10),
+            ],
+            frozen: [],
+            fromFreezer: [],
+          },
+        }),
+      );
+
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+      const details = screen.getByText(/^Packs that do not keep once opened/).closest('details')!;
+      expect(
+        within(details)
+          .getAllByRole('listitem')
+          .map((line) => plain(line.textContent)),
+      ).toEqual([
+        'Chicken breast: 543 g left in total of 3 packs of 500 g, more than a fifth of each',
+        'Turkey breast: 460 g left in total of 2 packs of 500 g, more than a fifth of each',
+        'Spinach: 61 g left in total of 2 packs of 200 g, more than a fifth of one of them',
+        'Firm tofu: 70 g left in total of 2 packs of 400 g',
+      ]);
+    });
+
     it('says so when one pack is left much of, and when none is', async () => {
       await opened(
         aPlan({
@@ -1635,6 +1686,7 @@ describe('the plan page, on how a day stands against its target', () => {
             bought: 500,
             used: 500,
             open: [],
+            // As the server gives them: by the day each goes in. Chicken goes in twice, on Monday and on Thursday.
             frozen: [
               {
                 ingredientId: chicken.ingredientId,
@@ -1645,6 +1697,28 @@ describe('the plan page, on how a day stands against its target', () => {
                 amount: 120,
                 thawed: [],
                 left: 120,
+                inPantry: false,
+              },
+              {
+                ingredientId: '55555555-5555-4555-8555-555555555555',
+                name: 'Turkey breast',
+                unit: 'g',
+                date: '2026-01-07',
+                mealId: null,
+                amount: 230,
+                thawed: [],
+                left: 230,
+                inPantry: false,
+              },
+              {
+                ingredientId: chicken.ingredientId,
+                name: 'Chicken breast',
+                unit: 'g',
+                date: '2026-01-08',
+                mealId: null,
+                amount: 300,
+                thawed: [],
+                left: 300,
                 inPantry: false,
               },
             ],
@@ -1666,8 +1740,11 @@ describe('the plan page, on how a day stands against its target', () => {
       await userEvent.click(
         screen.getByText('Packs that do not keep once opened: the menu uses 100% of what it buys.'),
       );
+      // One item a food, each of its rests with the day it goes in.
       expect(
-        screen.getByText('Into the freezer: Chicken breast, 120 g (Mon).'),
+        screen.getByText(
+          'Into the freezer: Chicken breast, 120 g (Mon) and 300 g (Thu); Turkey breast, 230 g (Wed).',
+        ),
       ).toBeInTheDocument();
       expect(
         screen.getByText(

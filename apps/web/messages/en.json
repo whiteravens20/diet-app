@@ -1829,6 +1829,9 @@
       "lineJoint": "Packs that do not keep once opened, counted together with the other plan ({name}): the two menus use {percent}% of what they buy{wasted, plural, =0 {.} one {, and leave more than a fifth of {wasted, number, ::group-off}\u00a0pack.} other {, and leave more than a fifth of {wasted, number, ::group-off}\u00a0packs.}}",
       "left": "{name}: {left} left of a pack of {size}",
       "leftMuch": "{name}: {left} left of a pack of {size}, more than a fifth of it",
+      "leftTotal": "{name}: {left} left in total of {count, number, ::group-off} packs of {size}",
+      "leftTotalMuch": "{name}: {left} left in total of {count, number, ::group-off} packs of {size}, more than a fifth of {much, plural, one {one of them} other {{much, number, ::group-off} of them}}",
+      "leftTotalAllMuch": "{name}: {left} left in total of {count, number, ::group-off} packs of {size}, more than a fifth of each",
       "allFinished": "Every pack the menu opens is used up.",
       "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal.",
       "explainFreezer": "Counted from the menu; what was in the freezer when the plan was made goes first, and the rest of what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal."
@@ -1847,7 +1850,8 @@
       "thawItemMeal": "{name}, a portion of {amount} ({meal})",
       "thawChip": "Thawing",
       "intoFreezer": "Into the freezer: {items}.",
-      "intoFreezerItem": "{name}, {amount} ({day})",
+      "intoFreezerItem": "{name}, {rests}",
+      "intoFreezerRest": "{amount} ({day})",
       "fromFreezer": "From the freezer, of what it held when the plan was made: {items}.",
       "fromFreezerItem": "{name}, a portion of {amount}",
       "fromFreezerItemLeft": "{name}, a portion of {amount}, of which the plan eats {eaten}"

@@ -1829,6 +1829,9 @@
       "lineJoint": "Produkty nietrwałe po otwarciu, liczone razem z\u00a0drugim planem ({name}): oba jadłospisy zużywają {percent}% tego, co kupują{wasted, plural, =0 {.} one {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.} few {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} many {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} other {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.}}",
       "left": "{name}: zostaje {left} z opakowania {size}",
       "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad jedna piąta",
+      "leftTotal": "{name}: zostaje razem {left} z {count, number, ::group-off} opakowań po {size}",
+      "leftTotalMuch": "{name}: zostaje razem {left} z {count, number, ::group-off} opakowań po {size}, z {much, plural, one {jednego} few {{much, number, ::group-off}} many {{much, number, ::group-off}} other {{much, number, ::group-off}}} ponad jedna piąta",
+      "leftTotalAllMuch": "{name}: zostaje razem {left} z {count, number, ::group-off} opakowań po {size}, z każdego ponad jedna piąta",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
       "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku.",
       "explainFreezer": "Policzone z jadłospisu; to, co było w zamrażarce, gdy plan powstał, idzie najpierw, a resztę tego, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
@@ -1847,7 +1850,8 @@
       "thawItemMeal": "{name}, porcja {amount} ({meal})",
       "thawChip": "Rozmrażanie",
       "intoFreezer": "Do zamrażarki: {items}.",
-      "intoFreezerItem": "{name}, {amount} ({day})",
+      "intoFreezerItem": "{name}, {rests}",
+      "intoFreezerRest": "{amount} ({day})",
       "fromFreezer": "Z zamrażarki, z tego, co w niej było, gdy plan powstał: {items}.",
       "fromFreezerItem": "{name}, porcja {amount}",
       "fromFreezerItemLeft": "{name}, porcja {amount}, z niej plan zje {eaten}"
