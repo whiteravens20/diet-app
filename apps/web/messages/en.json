@@ -3013,8 +3013,53 @@
     "source": "Source",
     "docs": "Docs",
     "terms": "Terms",
+    "privacy": "Privacy",
     "support": "Support us",
     "copyright": "© White Ravens"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "back": "← Back to the home page",
+    "lead": "What this instance keeps, what it sends out, and what stays in the browser and on the phone. Backups, the server's logs and who runs the instance are in the <terms>terms</terms>.",
+    "account": {
+      "title": "Your account",
+      "address": "The email address is encrypted, and the password kept only in a form it cannot be read back from.",
+      "secrets": "The keys of AI providers you add are encrypted and never sent back to the browser or the phone. The secret of two-step sign-in is encrypted as well, and the recovery codes are kept only in an unreadable form.",
+      "panel": "The admin panel has no list of accounts and shows no profile, diary or weight.",
+      "export": "Everything the account keeps can be downloaded as one file in Settings, on the \"Account and data\" tab.",
+      "deletion": "Deleting the account removes it at once with its profiles, plans, diary and the rest of its data. Only the day's count of AI calls, without the account, and the products accepted into the shared base, without who added them, stay."
+    },
+    "kept": {
+      "title": "How long",
+      "notifications": "Notifications: read ones 60 days, unread ones a year.",
+      "ai": "The record of AI calls: a year.",
+      "limits": "When a product was written or sent and when a barcode was asked about (without the code): a day.",
+      "recipe": "A deleted recipe of your own: 7 days."
+    },
+    "out": {
+      "title": "What leaves the instance",
+      "ai": "A request to an AI model's provider carries only what the task needs: a recipe's ingredients, a plan's meals, a profile's diet and preferences or the calories of the diary. Never a name, an email address, a weight, a height or an age.",
+      "lookups": "A barcode the instance does not know is looked up in Open Food Facts in the instance's own name: Open Food Facts sees neither you nor your account.",
+      "noLookups": "This instance does not ask Open Food Facts about barcodes.",
+      "mail": "Emails are sent by the operator's mail server.",
+      "noMail": "This instance sends no mail.",
+      "turnstile": "The sign-in, sign-up and new password pages load Cloudflare Turnstile's check, which sees your IP address and your browser.",
+      "proxy": "A proxy in front of the instance may log the addresses of requests, which carry the ids of profiles and plans and the words searched for. How long, the terms say."
+    },
+    "browser": {
+      "title": "The browser",
+      "sources": "The page loads scripts, fonts and images from this instance alone. There is no analytics and no tracking.",
+      "session": "The session's key lives only in the open page's memory, and the cookie that renews it cannot be read by scripts.",
+      "storage": "The browser's storage keeps the chosen look. What belongs to the account is gone at sign-out."
+    },
+    "phone": {
+      "title": "The Android app",
+      "permissions": "It may use the internet, the camera (the scanner reads a code on the phone), notifications, installing its own updates, the local network (a server at home) and the fingerprint (the optional unlock).",
+      "none": "It uses no Google Play services and no analytics, and nothing of it goes into Android's backup.",
+      "session": "The session is sealed by a key of the phone's keystore.",
+      "updates": "It asks GitHub whether there is a newer version.",
+      "unlock": "With the fingerprint unlock turned on, the recent apps screen shows nothing of it."
+    }
   },
   "terms": {
     "toc": "On this page",

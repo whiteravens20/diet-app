@@ -6,7 +6,8 @@
     "/register": 190,
     "/forgot-password": 190,
     "/from-the-app": 190,
-    "/terms": 190
+    "/terms": 190,
+    "/privacy": 190
   },
   "account": {
     "/dashboard": 208,
