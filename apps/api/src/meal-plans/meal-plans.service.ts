@@ -261,6 +261,8 @@ export class MealPlansService {
    * it once the plan is over goes into the profile's pantry as frozen, dated `FROZEN_KEEPS_DAYS` from the day it went
    * in, or with the date of the frozen row it joins where that is sooner, and the plan keeps that it gave it. A rest
    * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`.
+   * The two plans of a joint plan share one kitchen and its rests: a rest goes into the pantry of the plan it was
+   * given from, once, and both plans keep that it was given.
    */
   async keepFrozen(
     userId: string,
@@ -280,15 +282,27 @@ export class MealPlansService {
       });
     if (rest.inPantry) return plan;
     await this.prisma.$transaction(async (tx) => {
-      // One at a time for a plan: the second finds the rest given.
-      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${planId} FOR UPDATE`);
-      const { profileId, frozenKept } = await tx.mealPlan.findUniqueOrThrow({
+      // One at a time for a kitchen: the plans of a joint plan are held in one order, and the second finds the rest
+      // given from either.
+      const { jointPlanId } = await tx.mealPlan.findUniqueOrThrow({
         where: { id: planId },
-        select: { profileId: true, frozenKept: true },
+        select: { jointPlanId: true },
       });
-      const kept = KeptFrozen.parse(frozenKept);
-      if (kept.some((one) => one.ingredientId === rest.ingredientId && one.date === rest.date))
-        return;
+      await tx.$queryRaw(
+        jointPlanId
+          ? Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "jointPlanId" = ${jointPlanId} ORDER BY "id" FOR UPDATE`
+          : Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${planId} FOR UPDATE`,
+      );
+      const kitchen = await tx.mealPlan.findMany({
+        where: jointPlanId ? { jointPlanId, profile: { userId } } : { id: planId },
+        select: { id: true, profileId: true, frozenKept: true },
+      });
+      const given = (one: { frozenKept: unknown }) =>
+        KeptFrozen.parse(one.frozenKept).some(
+          (kept) => kept.ingredientId === rest.ingredientId && kept.date === rest.date,
+        );
+      if (kitchen.some(given)) return;
+      const { profileId } = kitchen.find((one) => one.id === planId)!;
       await lockPantry(tx, profileId, rest.ingredientId);
       const bestBefore = new Date(dayAfter(rest.date, FROZEN_KEEPS_DAYS));
       const held = await tx.inventoryItem.findUnique({
@@ -326,15 +340,16 @@ export class MealPlansService {
           },
         });
       }
-      await tx.mealPlan.update({
-        where: { id: planId },
-        data: {
-          frozenKept: [
-            ...kept,
-            { ingredientId: rest.ingredientId, date: rest.date, amount: rest.left },
-          ] satisfies KeptFrozen,
-        },
-      });
+      for (const one of kitchen)
+        await tx.mealPlan.update({
+          where: { id: one.id },
+          data: {
+            frozenKept: [
+              ...KeptFrozen.parse(one.frozenKept),
+              { ingredientId: rest.ingredientId, date: rest.date, amount: rest.left },
+            ] satisfies KeptFrozen,
+          },
+        });
     });
     return this.get(userId, locale, planId, clientToday);
   }
@@ -2028,7 +2043,7 @@ function joined(
       }),
     })),
     // The two plans are cooked in one kitchen: their packs are counted together, and the kitchen freezes where
-    // either plan does. What went into the pantry went into the pantry of the plan read.
+    // either plan does. A rest "Dodaj do spiżarni" gave a pantry is marked in both plans.
     packs: keptMarked(
       planPacks(
         [

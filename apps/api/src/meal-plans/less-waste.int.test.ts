@@ -461,6 +461,23 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     }
     return [adams, ewas];
   }
+  const keepChicken = async (planId: string) => {
+    const chicken = await t.prisma.ingredient.findFirstOrThrow({
+      where: { slug: 'chicken-breast' },
+    });
+    return t
+      .http()
+      .post(`/api/meal-plans/${planId}/frozen`)
+      .set(as(user))
+      .send({ ingredientId: chicken.id, date: '2026-01-05' });
+  };
+  /** The frozen chicken of every pantry: whose, and how much. */
+  const frozenChicken = () =>
+    t.prisma.inventoryItem.findMany({
+      where: { ingredient: { slug: 'chicken-breast' }, frozen: true },
+      select: { profileId: true, quantity: true },
+    });
+
   it('freezes in a joint plan that wastes less what is left of a pack both plans take from, in both of them', async () => {
     const [adams, ewas] = await chickenKitchen(true);
 
@@ -477,6 +494,32 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
       ]);
     const rests = (plan: MealPlan) => plan.packs.frozen.map(({ mealId: _, ...rest }) => rest);
     expect(rests(theirs)).toEqual(rests(mine));
+  });
+
+  it('gives a pantry the rest a joint plan freezes once: to the plan it is given from, marked given in both', async () => {
+    const [adams, ewas] = await chickenKitchen(true);
+
+    expect((await keepChicken(adams.id)).status).toBe(200);
+    expect(await frozenChicken()).toEqual([{ profileId: adam.id, quantity: 200 }]);
+    for (const plan of [adams, ewas])
+      expect((await read(plan.id)).packs.frozen).toMatchObject([{ amount: 200, inPantry: true }]);
+
+    // Given again from the other plan of the kitchen: nothing more goes into any pantry.
+    const again = await keepChicken(ewas.id);
+    expect(again.status).toBe(200);
+    expect(again.body.packs.frozen).toMatchObject([{ amount: 200, inPantry: true }]);
+    expect(await frozenChicken()).toEqual([{ profileId: adam.id, quantity: 200 }]);
+  });
+
+  it('gives a pantry the rest of a joint plan once when both plans give it at the same moment', async () => {
+    const [adams, ewas] = await chickenKitchen(true);
+
+    const answers = await Promise.all([keepChicken(adams.id), keepChicken(ewas.id)]);
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
+    const given = await frozenChicken();
+    expect(given).toHaveLength(1);
+    expect(given[0]!.quantity).toBe(200);
+    expect([adam.id, ewa.id]).toContain(given[0]!.profileId);
   });
 
   it('freezes in both plans of a kitchen where one of them was made again alone as usual', async () => {
