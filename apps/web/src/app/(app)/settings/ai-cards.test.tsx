@@ -1,13 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AiMode, AiQuotaStatus, SessionUser } from '@diet-app/shared';
+import type { AiMode, AiProviderConfig, AiQuotaStatus, SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../../../messages/en.json';
-import { AiAssistantCard } from './ai-cards';
+import { AiAssistantCard, AiProvidersCard } from './ai-cards';
 
 const s = messages.settings;
 
@@ -131,5 +132,88 @@ describe("the choice of the operator's AI in Settings", () => {
         /^New accounts have used their part of the instance's requests for now\. From .* this account has its full limit\.$/,
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("the choice of the endpoints OpenRouter may send an account's requests to", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const openRouter: AiProviderConfig = {
+    id: '22222222-2222-4222-8222-222222222222',
+    provider: 'openrouter',
+    model: 'some/model',
+    priority: 0,
+    enabled: true,
+    hasKey: true,
+    keyUnreadable: false,
+    baseUrl: null,
+    dataPolicy: 'any',
+  };
+
+  /** The providers card of an account with `saved`; what it saves is caught. */
+  async function opened(saved: AiProviderConfig[]) {
+    vi.spyOn(api, 'get').mockImplementation(((path: string) =>
+      Promise.resolve(path === '/ai/providers' ? saved : [])) as never);
+    const put = vi
+      .spyOn(api, 'put')
+      .mockImplementation(((_path: string, body: unknown) =>
+        Promise.resolve({ ...openRouter, ...(body as object) })) as never);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <AiProvidersCard />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    if (saved.length) await screen.findByText(`· ${saved[0]!.model}`);
+    await userEvent.click(screen.getByRole('button', { name: s.aiAddProvider }));
+    return put;
+  }
+  const choices = () => screen.queryByRole('group', { name: s.aiDataPolicy });
+  const choice = (label: string) =>
+    within(choices()!).getByRole('radio', { name: new RegExp(`^${label}`) });
+
+  it('is offered for OpenRouter alone, starts at no training on the data, and is saved as chosen', async () => {
+    const put = await opened([]);
+    expect(choices()).toBeNull();
+
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'openrouter');
+    expect(choice(s.aiDataPolicyNoTraining)).toBeChecked();
+    expect(within(choices()!).getByText(s.aiDataPolicyRefused)).toBeInTheDocument();
+    await userEvent.click(choice(s.aiDataPolicyNoRetention));
+    await userEvent.type(screen.getByRole('textbox', { name: s.aiModel }), 'some/model');
+    await userEvent.type(screen.getByLabelText(s.aiApiKey), 'sk-or-test');
+    await userEvent.click(screen.getByRole('button', { name: s.aiSave }));
+
+    expect(put).toHaveBeenCalledWith(
+      '/ai/providers',
+      expect.objectContaining({ provider: 'openrouter', dataPolicy: 'no_retention' }),
+    );
+  });
+
+  it("starts from the saved configuration's choice, which its row names", async () => {
+    await opened([openRouter]);
+
+    expect(screen.getByText(s.aiDataPolicyAny)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'openrouter');
+    expect(choice(s.aiDataPolicyAny)).toBeChecked();
+  });
+
+  it('is not sent for another provider', async () => {
+    const put = await opened([]);
+
+    await userEvent.type(screen.getByRole('textbox', { name: s.aiModel }), 'gpt-4o-mini');
+    await userEvent.type(screen.getByLabelText(s.aiApiKey), 'sk-test');
+    await userEvent.click(screen.getByRole('button', { name: s.aiSave }));
+
+    expect(put).toHaveBeenCalledWith(
+      '/ai/providers',
+      expect.objectContaining({ provider: 'openai' }),
+    );
+    expect(put.mock.calls[0]![1]).not.toHaveProperty('dataPolicy', expect.anything());
   });
 });
