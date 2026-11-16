@@ -52,7 +52,7 @@ import {
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
-import { levelOf } from '../engine/waste-levels.js';
+import { kitchenFreezes, levelOf } from '../engine/waste-levels.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto, type RecipeLine } from '../recipes/recipes.service.js';
@@ -2027,8 +2027,8 @@ function joined(
         };
       }),
     })),
-    // The two plans are cooked in one kitchen: their packs are counted together. What went into the pantry went
-    // into the pantry of the plan read.
+    // The two plans are cooked in one kitchen: their packs are counted together, and the kitchen freezes where
+    // either plan does. What went into the pantry went into the pantry of the plan read.
     packs: keptMarked(
       planPacks(
         [
@@ -2041,7 +2041,10 @@ function joined(
         ],
         mine.plan.days.map((day) => isoDate(day.date)),
         locale,
-        levelOf(PlanOptions.parse(mine.plan.options))?.freezes,
+        kitchenFreezes(
+          PlanOptions.parse(mine.plan.options),
+          PlanOptions.parse(theirs.plan.options),
+        ),
         oneFreezer(freezerOf(mine.plan.report), freezerOf(theirs.plan.report)),
       ),
       mine.plan.frozenKept,

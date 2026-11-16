@@ -15,6 +15,7 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds } from './plan-menu.js';
+import { packsOfPlan } from './plan-packs-store.js';
 
 describe('a plan that wastes less', () => {
   let t: TestApp;
@@ -476,6 +477,38 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
       ]);
     const rests = (plan: MealPlan) => plan.packs.frozen.map(({ mealId: _, ...rest }) => rest);
     expect(rests(theirs)).toEqual(rests(mine));
+  });
+
+  it('freezes in both plans of a kitchen where one of them was made again alone as usual', async () => {
+    const [adams, ewas] = await chickenKitchen(true);
+    // Ewa's plan made again alone, as a plan that does not waste less; then the same chicken lunch again.
+    await t.app
+      .get(PlanGenerationService)
+      .regenerate(user.id, 'en', ewas.id, RegenerateRequest.parse({ lessWaste: false }));
+    const remade = await read(ewas.id);
+    expect(remade.options).toMatchObject({ lessWaste: false, noWaste: false });
+    for (const day of [0, 1, 2])
+      await menu(
+        remade,
+        day,
+        day === 0
+          ? ['scrambled-eggs-on-toast', 'chicken-rice-broccoli', 'chickpea-tomato-stew']
+          : ['scrambled-eggs-on-toast', 'tofu-rice-bowl', 'chickpea-tomato-stew'],
+      );
+    await t.prisma.plannedMeal.updateMany({
+      where: { day: { planId: ewas.id } },
+      data: { rests: [] },
+    });
+
+    // Adam's plan still wastes less, and the kitchen they share freezes: as each plan reads, and as its reminder counts.
+    for (const plan of [adams, ewas]) {
+      const { packs } = await read(plan.id);
+      expect(packs.frozen).toMatchObject([{ name: 'Chicken breast', amount: 200 }]);
+      expect(packs.open.find((pack) => pack.name === 'Chicken breast')).toBeUndefined();
+      expect((await packsOfPlan(t.prisma, user.id, plan.id, 'en'))!.frozen).toMatchObject([
+        { name: 'Chicken breast', amount: 200 },
+      ]);
+    }
   });
 
   it('closes the days made again with what stays in the plan and with the other plan of the kitchen', async () => {

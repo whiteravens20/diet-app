@@ -73,3 +73,8 @@ export const NO_WASTE: WasteLevel = {
 /** The level a plan is made at, by its options: none for a plan made as usual. A plan that wastes nothing wastes less. */
 export const levelOf = (options: { lessWaste?: boolean; noWaste?: boolean }): WasteLevel | null =>
   options.noWaste ? NO_WASTE : options.lessWaste ? LESS_WASTE : null;
+
+/** What the kitchen of plans cooked together puts in the freezer: what any of them does (`WasteLevel.freezes`). */
+export const kitchenFreezes = (
+  ...plans: { lessWaste?: boolean; noWaste?: boolean }[]
+): WasteLevel['freezes'] => plans.map(levelOf).find((level) => level?.freezes)?.freezes;

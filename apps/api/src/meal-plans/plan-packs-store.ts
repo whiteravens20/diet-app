@@ -2,7 +2,7 @@
 
 import type { Prisma } from '@prisma/client';
 import { PlanOptions, type Locale, type PlanPacks } from '@diet-app/shared';
-import { levelOf } from '../engine/waste-levels.js';
+import { kitchenFreezes } from '../engine/waste-levels.js';
 import { freezerOf, oneFreezer } from './generation-report.js';
 import { isoDate } from './plan-days.js';
 import {
@@ -113,7 +113,8 @@ export async function partnerPacked(
 
 /**
  * What a plan's menu comes to in packs, as reading the plan says it (`planPacks`): the other plan of its kitchen
- * counted with it, and what the freezer held when each was made taken first. Null for a plan the user does not have.
+ * counted with it, freezing where either plan does, and what the freezer held when each was made taken first. Null
+ * for a plan the user does not have.
  */
 export async function packsOfPlan(
   db: Db,
@@ -139,7 +140,7 @@ export async function packsOfPlan(
     plan.jointPlanId
       ? db.mealPlan.findFirst({
           where: { jointPlanId: plan.jointPlanId, id: { not: plan.id }, profile: { userId } },
-          select: { report: true },
+          select: { report: true, options: true },
         })
       : null,
   ]);
@@ -147,7 +148,8 @@ export async function packsOfPlan(
     [...own, ...theirs],
     plan.days.map((day) => isoDate(day.date)),
     locale,
-    levelOf(options)?.freezes,
+    // One kitchen freezes where either plan of it does.
+    kitchenFreezes(options, ...(other ? [PlanOptions.parse(other.options)] : [])),
     oneFreezer(freezerOf(plan.report), other ? freezerOf(other.report) : null),
   );
 }
