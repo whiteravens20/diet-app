@@ -5,7 +5,13 @@
 /** How the instance stands, at a glance: what the panel's overview shows of its copy, its database, its tasks and its API. */
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import { ChevronRight, CircleCheck, CircleDashed, RefreshCw, TriangleAlert } from 'lucide-react';
+import {
+  ChevronRight,
+  CircleCheck,
+  CircleDashed,
+  RefreshCw,
+  TriangleExclamationPoint,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +25,7 @@ const SLOW_MS = 2000;
 
 type Tone = 'good' | 'warn' | 'plain';
 
-const ICON = { good: CircleCheck, warn: TriangleAlert, plain: CircleDashed } as const;
+const ICON = { good: CircleCheck, warn: TriangleExclamationPoint, plain: CircleDashed } as const;
 
 function Row({
   label,

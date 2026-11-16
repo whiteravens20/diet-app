@@ -4,7 +4,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CircleCheck, Database, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Database, RefreshCw, TriangleExclamationPoint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminApi, type AdminStats, type DbUpdateState } from '@/lib/admin-api';
@@ -141,7 +141,7 @@ export function CatalogueDbCard({
           <Row label={t('status')}>
             {seed.updateAvailable ? (
               <span className="inline-flex items-center gap-1 text-warning">
-                <TriangleAlert className="h-4 w-4" /> {t('updateAvailable')}
+                <TriangleExclamationPoint className="h-4 w-4" /> {t('updateAvailable')}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-success">

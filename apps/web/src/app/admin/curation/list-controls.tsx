@@ -62,13 +62,18 @@ export function Pagination({
     <div className="flex items-center justify-between text-xs text-muted-foreground">
       <span>{t('showing', { from, to, total })}</span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <Button
+          variant="outline"
+          size="sm"
+          unavailable={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
           {t('prev')}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          disabled={page >= last}
+          unavailable={page >= last}
           onClick={() => onPage(page + 1)}
         >
           {t('next')}

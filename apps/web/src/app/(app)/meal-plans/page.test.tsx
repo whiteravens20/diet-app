@@ -1300,7 +1300,10 @@ describe('the list of plans on the plan page', () => {
       get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans?'));
 
     expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: messages.mealPlans.pageNewer })).toBeDisabled();
+    expect(screen.getByRole('button', { name: messages.mealPlans.pageNewer })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.pageOlder }));
 
     expect(await screen.findByText('Page 2 of 3')).toBeInTheDocument();

@@ -151,7 +151,8 @@ export function ReviewQueue({ locale, kind, onDecided }: QueueProps) {
       setCursor((c) => Math.min(c, next.length - 1));
     }
   };
-  // A step with a button leaves the focus on the button; the keys keep it on the draft.
+  // A step with a button leaves the focus on the button, which stays there at either end; the keys keep it on the
+  // draft.
   const step = (by: 1 | -1): void => {
     setDecided(false);
     setCursor(safeCursor + by);
@@ -191,7 +192,7 @@ export function ReviewQueue({ locale, kind, onDecided }: QueueProps) {
             variant="outline"
             aria-label={t('previous')}
             aria-keyshortcuts={keys ? 'ArrowLeft K' : undefined}
-            disabled={!place.previous}
+            unavailable={!place.previous}
             onClick={place.previous}
           >
             <ChevronLeft className="h-3 w-3" aria-hidden />
@@ -202,7 +203,7 @@ export function ReviewQueue({ locale, kind, onDecided }: QueueProps) {
             variant="outline"
             aria-label={t('next')}
             aria-keyshortcuts={keys ? 'ArrowRight J' : undefined}
-            disabled={!place.next}
+            unavailable={!place.next}
             onClick={place.next}
           >
             <ChevronRight className="h-3 w-3" aria-hidden />
