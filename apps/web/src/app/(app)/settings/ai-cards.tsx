@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import {
+  type AiDataPolicy,
   type AiMode,
   type AiProvider,
   type AiProviderConfig,
@@ -27,6 +28,13 @@ import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/use-format';
 
 const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
+
+/** The choices of OpenRouter's endpoints, the default first, with their texts. */
+const DATA_POLICIES = [
+  { policy: 'no_training', label: 'aiDataPolicyNoTraining', hint: 'aiDataPolicyNoTrainingHint' },
+  { policy: 'no_retention', label: 'aiDataPolicyNoRetention', hint: 'aiDataPolicyNoRetentionHint' },
+  { policy: 'any', label: 'aiDataPolicyAny', hint: 'aiDataPolicyAnyHint' },
+] as const satisfies readonly { policy: AiDataPolicy; label: string; hint: string }[];
 
 export function AiAssistantCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
@@ -252,6 +260,11 @@ export function AiProvidersCard() {
                 <div>
                   <span className="font-medium capitalize">{p.provider}</span>{' '}
                   <span className="text-xs text-muted-foreground">· {p.model}</span>
+                  {p.dataPolicy && (
+                    <span className="block text-xs text-muted-foreground">
+                      {t(DATA_POLICIES.find((c) => c.policy === p.dataPolicy)!.label)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {p.keyUnreadable ? (
@@ -281,6 +294,7 @@ export function AiProvidersCard() {
 
         {editing ? (
           <ProviderForm
+            saved={list}
             onCancel={() => {
               setEditing(false);
               setError(null);
@@ -309,11 +323,14 @@ export function AiProvidersCard() {
  * may know the model id), but the dropdown is the happy path.
  */
 function ProviderForm({
+  saved,
   onCancel,
   onSubmit,
   saving,
   error,
 }: {
+  /** The account's saved configurations: a new save of one starts from its choices. */
+  saved: AiProviderConfig[];
   onCancel: () => void;
   onSubmit: (dto: AiProviderConfigInput) => void;
   saving: boolean;
@@ -326,6 +343,9 @@ function ProviderForm({
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [priority, setPriority] = useState(0);
+  const [dataPolicy, setDataPolicy] = useState<AiDataPolicy>(
+    () => saved.find((p) => p.provider === 'openrouter')?.dataPolicy ?? 'no_training',
+  );
   const [testResult, setTestResult] = useState<AiTestConnectionResponse | null>(null);
 
   const test = useMutation({
@@ -356,6 +376,7 @@ function ProviderForm({
       model: model.trim(),
       apiKey: apiKey.trim() || undefined,
       baseUrl: baseUrl.trim() || undefined,
+      dataPolicy: provider === 'openrouter' ? dataPolicy : undefined,
       priority,
       enabled: true,
     });
@@ -450,6 +471,34 @@ function ProviderForm({
             reset();
           }}
         />
+      )}
+      {provider === 'openrouter' && (
+        <fieldset className="space-y-2 sm:col-span-2">
+          <legend className="text-sm font-medium">{t('aiDataPolicy')}</legend>
+          {DATA_POLICIES.map((choice) => (
+            <label
+              key={choice.policy}
+              className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors',
+                dataPolicy === choice.policy && 'border-primary bg-primary/5',
+              )}
+            >
+              <input
+                type="radio"
+                name="dataPolicy"
+                value={choice.policy}
+                checked={dataPolicy === choice.policy}
+                onChange={() => setDataPolicy(choice.policy)}
+                className="mt-1"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="font-medium">{t(choice.label)}</span>
+                <span className="text-xs text-muted-foreground">{t(choice.hint)}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground">{t('aiDataPolicyRefused')}</p>
+        </fieldset>
       )}
       <Field label={t('aiPriority')} optional>
         <Input

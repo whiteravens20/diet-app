@@ -9,6 +9,7 @@
  * "the value is an empty string".
  */
 import {
+  AiDataPolicy,
   DEFAULT_PROFILES_PER_ACCOUNT,
   FdcDataTypes,
   MAX_PLAN_DAYS,
@@ -78,6 +79,10 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
+  // Which of OpenRouter's endpoints may serve a request made with the
+  // instance's key: any, only those that do not train on its data, or only
+  // those that keep none. The other providers have no such choice.
+  AI_ADMIN_DATA_POLICY: AiDataPolicy.default('no_training'),
   OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
   // Whether/how a user may point their own BYOK Ollama config at a host:
   //   off       — users can't configure Ollama (operator default still serves
@@ -345,6 +350,13 @@ const ACCESS_WORDS: Record<OperatorAiAccess, string> = {
   approved: 'the accounts approved in the admin panel',
 };
 
+/** Which of OpenRouter's endpoints `AI_ADMIN_DATA_POLICY` lets serve a request, as the start-up summary says it. */
+const POLICY_WORDS: Record<AiDataPolicy, string> = {
+  any: 'any endpoint',
+  no_training: 'only endpoints that do not train on the data',
+  no_retention: 'only endpoints that keep no data',
+};
+
 /** How many calls of the instance's limit the new accounts may make together. */
 export function newAccountsLimit(
   env: Pick<Env, 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT' | 'AI_ADMIN_NEW_ACCOUNTS_PERCENT'>,
@@ -369,6 +381,7 @@ export function describePosture(
     | 'SMTP_PORT'
     | 'SMTP_REQUIRE_TLS'
     | 'AI_DEFAULT_PROVIDER'
+    | 'AI_ADMIN_DATA_POLICY'
     | 'AI_ADMIN_USER_MONTHLY_LIMIT'
     | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
     | 'AI_ADMIN_ACCESS'
@@ -400,11 +413,18 @@ export function describePosture(
         ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}, encrypted`
         : `! mail: ${env.SMTP_HOST}:${env.SMTP_PORT} without TLS (SMTP_REQUIRE_TLS=false): the mail password and every reset link cross that path in the clear`,
     env.AI_DEFAULT_PROVIDER
-      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, for ${ACCESS_WORDS[env.AI_ADMIN_ACCESS]}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days` +
+      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}${env.AI_DEFAULT_PROVIDER === 'openrouter' ? ` (${POLICY_WORDS[env.AI_ADMIN_DATA_POLICY]})` : ''}, for ${ACCESS_WORDS[env.AI_ADMIN_ACCESS]}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days` +
         (env.AI_ADMIN_NEW_ACCOUNT_DAYS > 0
           ? `, ${newAccountsLimit(env)} of them for the accounts younger than ${env.AI_ADMIN_NEW_ACCOUNT_DAYS} days together`
           : '')
       : 'operator AI provider: none',
+    ...(env.AI_DEFAULT_PROVIDER &&
+    env.AI_DEFAULT_PROVIDER !== 'openrouter' &&
+    env.AI_ADMIN_DATA_POLICY !== 'no_training'
+      ? [
+          `! operator AI provider: AI_ADMIN_DATA_POLICY=${env.AI_ADMIN_DATA_POLICY} binds OpenRouter alone, and the provider is ${env.AI_DEFAULT_PROVIDER}`,
+        ]
+      : []),
     ...(env.AI_DEFAULT_PROVIDER && env.AI_ADMIN_ACCESS === 'confirmed' && !env.SMTP_HOST
       ? [
           '! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up',

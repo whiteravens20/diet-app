@@ -87,7 +87,7 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
               type="button"
               size="sm"
               variant="outline"
-              disabled={to >= yesterday}
+              unavailable={to >= yesterday}
               onClick={() => setTo(dayAfter(to, WEEK_DAYS))}
             >
               {t('next')}
