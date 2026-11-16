@@ -173,6 +173,10 @@ by the optional `mirror` service; see
 The web app listens on `127.0.0.1:3000` of the host and passes every `/api`
 request on to the API, which is reached only inside the stack. Put your own
 reverse proxy (Traefik / Caddy / nginx) in front of it and terminate TLS there.
+Its access log, where it keeps one, holds every request's address with the visitor's
+IP address, and the application's addresses carry the ids of profiles and plans, dates
+and the words people search for: keep it no longer than you need, and say how long in
+your terms.
 
 **Updating** — the compose file changes with the application, so take its new version
 before the images, and add to `.env` the settings the new `.env.example` adds; migrations
