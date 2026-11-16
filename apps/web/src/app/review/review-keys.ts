@@ -3,9 +3,7 @@
 'use client';
 
 import { useEffect, useRef, useSyncExternalStore, type KeyboardEvent, type RefObject } from 'react';
-
-/** Where a reviewer's browser keeps that the keys are on. */
-const WANTED = 'diet-app.review.keys';
+import { PANEL_KEYS } from '@/lib/session';
 
 // What was chosen on this page, in a browser that keeps nothing for it.
 let unkept: boolean | null = null;
@@ -13,7 +11,7 @@ const listeners = new Set<() => void>();
 
 function kept(): boolean {
   try {
-    return localStorage.getItem(WANTED) === 'on';
+    return localStorage.getItem(PANEL_KEYS.reviewKeys) === 'on';
   } catch {
     return false;
   }
@@ -42,8 +40,8 @@ export function useReviewKeysWanted(): [boolean, (wanted: boolean) => void] {
   );
   const choose = (next: boolean): void => {
     try {
-      if (next) localStorage.setItem(WANTED, 'on');
-      else localStorage.removeItem(WANTED);
+      if (next) localStorage.setItem(PANEL_KEYS.reviewKeys, 'on');
+      else localStorage.removeItem(PANEL_KEYS.reviewKeys);
       unkept = null;
     } catch {
       unkept = next;

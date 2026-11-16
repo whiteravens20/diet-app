@@ -16,6 +16,39 @@
 import type { AuthResponse } from '@diet-app/shared';
 import { isAccountPage, signInPath } from './return-path';
 
+/**
+ * Everything the application keeps in a browser's storage, by whose it is.
+ *
+ * An account's keys belong to the session that wrote them. They go when it ends in this browser (signed out, the
+ * account deleted, a new address, the session refused, or replaced by another), and a page loaded without a session
+ * finds none: the next person at this browser finds nothing of the last one. The panels' keys are the
+ * administrator's and a reviewer's, who sign in apart from any account, and an account's sign-out leaves them.
+ */
+export const ACCOUNT_KEYS = {
+  /** The account that put the notice of an unconfirmed address aside, and until when. */
+  confirmEmailLater: 'diet-app.confirm-email.later',
+  /** The notifications already shown at the bottom of the screen. */
+  notificationsSaid: 'diet-app.notifications.said',
+  /** That the note on turning the water card off was closed. */
+  waterNoteClosed: 'water-card-note-closed',
+} as const;
+
+export const PANEL_KEYS = {
+  /** The name the administrator's queue records decisions under. */
+  reviewSignature: 'admin.reviewSignature',
+  /** That a reviewer wants the keys of the review page on. */
+  reviewKeys: 'diet-app.review.keys',
+} as const;
+
+/** Removes every key of an account from this browser. */
+export function forgetAccountKeys(): void {
+  try {
+    for (const key of Object.values(ACCOUNT_KEYS)) localStorage.removeItem(key);
+  } catch {
+    // A browser that refuses its storage kept nothing in it either.
+  }
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MARKER_COOKIE = 'diet_session';
 const CHANNEL = 'diet-app.session';
@@ -64,6 +97,7 @@ function forgotten(): void {
   accessToken = null;
   sessionId = null;
   unreachable = false;
+  forgetAccountKeys();
   // The marker is ours to drop; the refresh cookie is the API's, and is dead with the session.
   if (typeof document !== 'undefined')
     document.cookie = `${MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict`;
@@ -218,6 +252,7 @@ export const session = {
   replaced(to: string): void {
     accessToken = null;
     sessionId = null;
+    forgetAccountKeys();
     channel?.postMessage({ type: 'replaced' } satisfies Message);
     session.load(to);
   },
@@ -256,3 +291,7 @@ export const session = {
     return () => listeners.delete(listener);
   },
 };
+
+// A page loaded without a session finds nothing an account kept in this
+// browser: a session that ran out while no page was open is gone too.
+if (typeof document !== 'undefined' && !session.exists()) forgetAccountKeys();

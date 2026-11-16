@@ -14,15 +14,16 @@ import {
   useWaterFromReminder,
   WaterAmounts,
 } from '@/components/notifications-bell';
+import { ACCOUNT_KEYS } from '@/lib/session';
 
-/** Where a browser keeps which notifications it has said once already. */
-const SAID = 'diet-app.notifications.said';
 /** How long a notification stays on the page before it goes by itself. */
 const STAYS_MS = 10_000;
 
 function saidBefore(): readonly string[] {
   try {
-    const kept = JSON.parse(localStorage.getItem(SAID) ?? '[]') as unknown;
+    const kept = JSON.parse(
+      localStorage.getItem(ACCOUNT_KEYS.notificationsSaid) ?? '[]',
+    ) as unknown;
     return Array.isArray(kept) ? kept.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
@@ -56,7 +57,7 @@ export function NotificationToast() {
     const now = list.map((notification) => notification.id);
     setSaid(now);
     try {
-      localStorage.setItem(SAID, JSON.stringify(now));
+      localStorage.setItem(ACCOUNT_KEYS.notificationsSaid, JSON.stringify(now));
     } catch {
       // A browser that keeps nothing says a notification again on the next page.
     }

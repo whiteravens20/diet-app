@@ -1,5 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import type { AuthResponse } from '@diet-app/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -350,6 +352,114 @@ describe('the session of the browser', () => {
     expect(other.heard).toContainEqual({ type: 'signed-out' });
     expect(fetchMock).not.toHaveBeenCalled();
     other.close();
+  });
+
+  describe('what an account kept in this browser', () => {
+    // Every key the application writes in a browser's storage: an account's, and the panels', whose people sign in
+    // apart from any account.
+    const ACCOUNT = [
+      'diet-app.confirm-email.later',
+      'diet-app.notifications.said',
+      'water-card-note-closed',
+    ];
+    const PANELS = ['admin.reviewSignature', 'diet-app.review.keys'];
+    const keepEverything = () => {
+      for (const key of [...ACCOUNT, ...PANELS]) localStorage.setItem(key, 'kept');
+    };
+    const left = () => Object.keys({ ...localStorage }).sort();
+    const thePanels = () => [...PANELS].sort();
+
+    it("is listed as the application writes it, an account's keys apart from the panels'", async () => {
+      const { ACCOUNT_KEYS, PANEL_KEYS } = await import('./session');
+
+      expect(Object.values(ACCOUNT_KEYS)).toEqual(ACCOUNT);
+      expect(Object.values(PANEL_KEYS)).toEqual(PANELS);
+    });
+
+    it('is written only under the keys listed', () => {
+      const src = join(__dirname, '..');
+      const sources = (dir: string): { path: string; text: string }[] =>
+        readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) return sources(full);
+          if (!/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name)) return [];
+          return [{ path: relative(src, full), text: readFileSync(full, 'utf8') }];
+        });
+      const writes = sources(src).flatMap(({ path, text }) =>
+        [...text.matchAll(/(?:localStorage|sessionStorage)\.setItem\(\s*([^,)]+)/g)].map(
+          (write) => `${path}: ${write[1]!.trim()}`,
+        ),
+      );
+
+      // The notice of the address, the notifications, the water card's note, the queue's name, the reviewer's keys.
+      expect(writes.length).toBeGreaterThanOrEqual(5);
+      expect(writes.filter((write) => !/: (?:ACCOUNT_KEYS|PANEL_KEYS)\.\w+$/.test(write))).toEqual(
+        [],
+      );
+    });
+
+    it('goes when the reader ends the session, and the panels keep theirs', async () => {
+      const session = await aPage(true);
+      session.begin(anAnswer('access-1'));
+      keepEverything();
+
+      session.end('/');
+
+      expect(left()).toEqual(thePanels());
+    });
+
+    it('goes when another tab signs out', async () => {
+      const session = await aPage(true);
+      session.begin(anAnswer('access-1'));
+      keepEverything();
+      const other = anotherTab();
+
+      other.tab.postMessage({ type: 'signed-out' });
+      await aMoment();
+
+      expect(left()).toEqual(thePanels());
+      other.close();
+    });
+
+    it('goes when the server refuses the session', async () => {
+      const session = await aPage(true);
+      keepEverything();
+      fetchMock.mockResolvedValue(answered(401));
+
+      await session.refresh();
+
+      expect(left()).toEqual(thePanels());
+    });
+
+    it('goes when this tab replaces the session with another', async () => {
+      const session = await aPage(true);
+      session.begin(anAnswer('access-of-the-old-session'));
+      keepEverything();
+
+      session.replaced('/dashboard');
+
+      expect(left()).toEqual(thePanels());
+    });
+
+    it('is not found by a page loaded without a session, and stays while one goes on', async () => {
+      keepEverything();
+      await aPage(true);
+      expect(left()).toEqual([...ACCOUNT, ...PANELS].sort());
+
+      await aPage(false);
+
+      expect(left()).toEqual(thePanels());
+    });
+
+    it('asks nothing of a browser that refuses its storage', async () => {
+      const { forgetAccountKeys } = await import('./session');
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('The operation is insecure.', 'SecurityError');
+      });
+
+      expect(() => forgetAccountKeys()).not.toThrow();
+      vi.restoreAllMocks();
+    });
   });
 
   describe('moving between pages', () => {

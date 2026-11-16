@@ -20,6 +20,7 @@ import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { waterCardAnchor } from '@/lib/water-card-anchor';
+import { ACCOUNT_KEYS } from '@/lib/session';
 
 /** As high as the chart of the days, so that the card does not jump when the chart arrives. */
 const CHART_HEIGHT = 132;
@@ -205,16 +206,13 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
   );
 }
 
-/** Where this browser keeps that the note on turning the water card off was closed. */
-const NOTE_CLOSED = 'water-card-note-closed';
-
 // Closed on this page, in a browser that keeps nothing for it.
 let closedUnkept = false;
 const noteListeners = new Set<() => void>();
 
 function noteKeptClosed(): boolean {
   try {
-    return window.localStorage.getItem(NOTE_CLOSED) === '1';
+    return window.localStorage.getItem(ACCOUNT_KEYS.waterNoteClosed) === '1';
   } catch {
     return false;
   }
@@ -242,7 +240,7 @@ function useNoteClosed(): [boolean, () => void] {
   );
   const close = (): void => {
     try {
-      window.localStorage.setItem(NOTE_CLOSED, '1');
+      window.localStorage.setItem(ACCOUNT_KEYS.waterNoteClosed, '1');
     } catch {
       closedUnkept = true;
     }

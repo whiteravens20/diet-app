@@ -12,9 +12,8 @@ import { api } from '@/lib/api';
 import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { cn } from '@/lib/utils';
+import { ACCOUNT_KEYS } from '@/lib/session';
 
-/** Where a browser keeps until when the notice is put aside, and for which account. */
-const LATER = 'diet-app.confirm-email.later';
 /** How long "Not now" puts the notice aside on a browser. */
 const LATER_MS = 30 * 86_400_000;
 
@@ -24,7 +23,7 @@ const LATER_MS = 30 * 86_400_000;
  */
 function putAside(): string | null {
   try {
-    const kept = JSON.parse(localStorage.getItem(LATER) ?? 'null') as {
+    const kept = JSON.parse(localStorage.getItem(ACCOUNT_KEYS.confirmEmailLater) ?? 'null') as {
       account?: unknown;
       until?: unknown;
     } | null;
@@ -107,7 +106,10 @@ export function ConfirmEmailNotice() {
   const later = (): void => {
     setAside(me.id);
     try {
-      localStorage.setItem(LATER, JSON.stringify({ account: me.id, until: Date.now() + LATER_MS }));
+      localStorage.setItem(
+        ACCOUNT_KEYS.confirmEmailLater,
+        JSON.stringify({ account: me.id, until: Date.now() + LATER_MS }),
+      );
     } catch {
       // A browser that keeps nothing shows the notice again on the next page.
     }

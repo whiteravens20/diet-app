@@ -7,12 +7,11 @@ import { useTranslations } from 'next-intl';
 import { createContext, useCallback, useContext, useId, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
-
-const STORED = 'admin.reviewSignature';
+import { PANEL_KEYS } from '@/lib/session';
 
 function read(): string {
   try {
-    return window.localStorage.getItem(STORED) ?? '';
+    return window.localStorage.getItem(PANEL_KEYS.reviewSignature) ?? '';
   } catch {
     return '';
   }
@@ -20,7 +19,7 @@ function read(): string {
 
 function write(value: string): void {
   try {
-    window.localStorage.setItem(STORED, value);
+    window.localStorage.setItem(PANEL_KEYS.reviewSignature, value);
   } catch {
     // It is asked for again next time.
   }
