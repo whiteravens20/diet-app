@@ -270,7 +270,7 @@ services:
   # network of its own. See docs/ops/deployment.md, "A copy of the instance's
   # own files".
   mirror:
-    image: alpine/git:2.54.0@sha256:e8ceedc73bd80992ae8d58a7d24c58b8322146c354f1d2e81a97db4452068ec0
+    image: alpine/git:2.54.0@sha256:6a1fdb962814ca11508ca8d1bab94375b5b7ac4e4a9a40981c29fc32c02f095d
     container_name: diet-app-mirror
     profiles: ['mirror']
     restart: unless-stopped
