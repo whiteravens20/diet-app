@@ -59,6 +59,7 @@ function setup(input: {
     apiKey: 'key',
     keyUnreadable: false,
     baseUrl: null,
+    dataPolicy: 'no_training',
     // Unless a test says otherwise, an entry is the user's own in both senses.
     owner: entry.mode === 'admin' ? 'operator' : 'user',
     mode: 'byok',
@@ -169,6 +170,23 @@ describe('AiRouterService.chat', () => {
     expect(calls[0]!.opts.reasoning).toBe('none');
     expect(calls[1]!.opts.reasoning).toBe('low');
     expect(calls[2]!.opts.reasoning).toBeUndefined();
+  });
+
+  it("passes on each entry's choice of the endpoints that may serve it", async () => {
+    const { router, calls } = setup({
+      chain: [
+        { provider: 'openrouter', dataPolicy: 'no_retention' },
+        { provider: 'openrouter', dataPolicy: 'any' },
+      ],
+      behaviour: {
+        openrouter: async (opts) =>
+          opts.dataPolicy === 'any' ? answer('ok') : fails('none serves it')(opts),
+      },
+    });
+
+    await router.chat('user-1', MESSAGES, OPERATION);
+
+    expect(calls.map((c) => c.opts.dataPolicy)).toEqual(['no_retention', 'any']);
   });
 
   it('moves on to the next provider when one fails, in the order of the chain', async () => {

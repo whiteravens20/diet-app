@@ -52,6 +52,45 @@ describe('the provider configurations of an account', () => {
     ]);
   });
 
+  describe("of OpenRouter, which name the endpoints that may serve the account's requests", () => {
+    const openRouter = (as_: TestUser, more: Record<string, unknown> = {}) =>
+      t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(as_))
+        .send({ provider: 'openrouter', apiKey: 'sk-or-test', model: 'some/model', ...more });
+
+    it('name those that do not train on the data until the account chooses otherwise', async () => {
+      const made: AiProviderConfig = (await openRouter(user).expect(200)).body;
+      expect(made.dataPolicy).toBe('no_training');
+
+      const chosen: AiProviderConfig = (
+        await openRouter(user, { dataPolicy: 'no_retention' }).expect(200)
+      ).body;
+      expect(chosen.dataPolicy).toBe('no_retention');
+      expect(await listed(user)).toMatchObject([{ id: made.id, dataPolicy: 'no_retention' }]);
+    });
+
+    it('keep the choice when a client that does not know it saves the configuration again', async () => {
+      await openRouter(user, { dataPolicy: 'any' }).expect(200);
+
+      await openRouter(user, { model: 'another/model' }).expect(200);
+
+      expect(await listed(user)).toMatchObject([{ model: 'another/model', dataPolicy: 'any' }]);
+    });
+
+    it('refuse a choice that is not one of the three', async () => {
+      await openRouter(user, { dataPolicy: 'everything' }).expect(400);
+      expect(await t.prisma.aiProviderConfig.count({ where: { userId: user.id } })).toBe(0);
+    });
+
+    it('are not a matter of another provider, which says it has no such choice', async () => {
+      await save(user, 'local-model').expect(200);
+
+      expect(await listed(user)).toMatchObject([{ provider: 'ollama', dataPolicy: null }]);
+    });
+  });
+
   it("are each account's own: two accounts have one each for the same provider", async () => {
     const other = await aUser(t);
     await save(user, 'mine').expect(200);

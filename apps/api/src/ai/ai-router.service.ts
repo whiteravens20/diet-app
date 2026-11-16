@@ -139,6 +139,7 @@ export class AiRouterService {
           temperature: operation.temperature,
           timeoutMs,
           reasoning: operation.reasoning,
+          dataPolicy: cfg.dataPolicy,
         });
         if (result.truncated) {
           this.logger.warn(

@@ -1264,6 +1264,15 @@ enum AiProviderKind {
   ollama
 }
 
+// Which of OpenRouter's endpoints may serve a request, by what they do with
+// its data: any, only those that do not train on it, or only those that keep
+// none.
+enum AiDataPolicy {
+  any
+  no_training
+  no_retention
+}
+
 model AiProviderConfig {
   id             String         @id @default(uuid())
   // Null userId = admin-level default available to everyone.
@@ -1277,6 +1286,8 @@ model AiProviderConfig {
   // Required at the API layer when provider = ollama (the user picks the host
   // explicitly). Other providers ignore it.
   baseUrl        String?
+  // OpenRouter alone has the choice; the other providers ignore it.
+  dataPolicy     AiDataPolicy   @default(no_training)
   priority       Int            @default(0)
   enabled        Boolean        @default(true)
   createdAt      DateTime       @default(now())

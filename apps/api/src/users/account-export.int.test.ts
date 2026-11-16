@@ -462,6 +462,26 @@ describe('everything an account holds, as one file', () => {
     expect(file.account.operatorAiApprovedAt).toBe(approvedAt.toISOString());
   });
 
+  it("says which of OpenRouter's endpoints may serve the account's own key, and that another provider has no such choice", async () => {
+    for (const config of [
+      {
+        provider: 'openrouter',
+        apiKey: 'sk-or-test',
+        model: 'some/model',
+        dataPolicy: 'no_retention',
+      },
+      { provider: 'openai', apiKey: 'sk-test', model: 'gpt' },
+    ])
+      await t.http().put('/api/ai/providers').set(as(user)).send(config).expect(200);
+
+    const { file } = await fileOf();
+
+    expect(file.aiProviders).toEqual([
+      expect.objectContaining({ provider: 'openai', dataPolicy: null }),
+      expect.objectContaining({ provider: 'openrouter', dataPolicy: 'no_retention' }),
+    ]);
+  });
+
   it('holds nothing of another account', async () => {
     const other = await aUser(t);
     const { profile: theirs, plan: theirPlan } = await filled(other);

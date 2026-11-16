@@ -388,6 +388,7 @@ export class IngredientNamerRunner {
           maxTokens: limits.maxTokens,
           temperature: limits.temperature,
           timeoutMs: limits.timeoutMs,
+          dataPolicy: this.config.get('AI_ADMIN_DATA_POLICY', { infer: true }),
         });
         if (result.truncated) {
           // A cut-off answer is not worth parsing: its JSON does not close.

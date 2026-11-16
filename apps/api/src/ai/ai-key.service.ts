@@ -2,7 +2,12 @@
 
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
+import type {
+  AiDataPolicy,
+  AiMode,
+  AiProviderConfig,
+  AiProviderConfigInput,
+} from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { adminAccessOf } from './ai-quota.service.js';
@@ -24,6 +29,8 @@ export interface ResolvedProviderConfig {
   keyUnreadable: boolean;
   /** Per-config base URL — Ollama only. Null for other providers. */
   baseUrl: string | null;
+  /** Which of OpenRouter's endpoints may serve a request; the other providers ignore it. */
+  dataPolicy: AiDataPolicy;
   /** Who set the entry up. An address in a user's entry is checked before it is dialled. */
   owner: 'operator' | 'user';
   /**
@@ -92,6 +99,11 @@ export class AiKeyService {
       priority: input.priority,
       enabled: input.enabled,
       baseUrl,
+      // Left out, as by a client that does not know it, a new configuration
+      // takes the column's default and a saved one keeps what it has.
+      ...(input.provider === 'openrouter' && input.dataPolicy
+        ? { dataPolicy: input.dataPolicy }
+        : {}),
     };
     const row = await this.prisma.aiProviderConfig.upsert({
       where: { userId_provider: { userId, provider: input.provider } },
@@ -170,6 +182,7 @@ export class AiKeyService {
           apiKey: opened?.ok ? opened.key : null,
           keyUnreadable: opened !== null && !opened.ok,
           baseUrl: r.baseUrl,
+          dataPolicy: r.dataPolicy,
           owner: 'user' as const,
           mode:
             r.provider === 'ollama' && isOperatorOllama(r.baseUrl ?? operatorOllama, operatorOllama)
@@ -203,6 +216,7 @@ export class AiKeyService {
         apiKey: apiKey ?? null,
         keyUnreadable: false,
         baseUrl,
+        dataPolicy: this.config.get('AI_ADMIN_DATA_POLICY', { infer: true }),
         owner: 'operator',
         mode: 'admin',
       },
@@ -218,6 +232,7 @@ export class AiKeyService {
     userId: string | null;
     encryptedKey: string | null;
     baseUrl: string | null;
+    dataPolicy: AiDataPolicy;
   }): AiProviderConfig {
     return {
       id: row.id,
@@ -229,6 +244,7 @@ export class AiKeyService {
       keyUnreadable:
         row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey, row.userId).ok,
       baseUrl: row.baseUrl,
+      dataPolicy: row.provider === 'openrouter' ? row.dataPolicy : null,
     };
   }
 }

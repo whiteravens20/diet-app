@@ -111,6 +111,7 @@ const options = (overrides: Partial<CompletionOptions> = {}): CompletionOptions 
   maxTokens: 321,
   temperature: 0.2,
   timeoutMs: 5_000,
+  dataPolicy: 'any',
   ...overrides,
 });
 
@@ -189,6 +190,69 @@ describe('asking for a JSON object', () => {
     expect(sent[0]!.body.system).toBe('answer briefly');
     expect(sent[0]!.body.messages).toEqual([{ role: 'user', content: 'hello' }]);
   });
+});
+
+describe('the endpoints OpenRouter may send a request to', () => {
+  const openrouter = cases.openrouter!.adapter;
+
+  it('are those that do not train on the data, those that keep none, or any, as chosen', async () => {
+    transport(() => json(200, openAiAnswer('{}')));
+
+    await openrouter.chat(messages, options({ dataPolicy: 'no_training' }));
+    await openrouter.chat(messages, options({ dataPolicy: 'no_retention' }));
+    await openrouter.chat(messages, options({ dataPolicy: 'any' }));
+
+    expect(sent[0]!.body.provider).toEqual({ data_collection: 'deny' });
+    expect(sent[1]!.body.provider).toEqual({ data_collection: 'deny', zdr: true });
+    // Any endpoint is the request as it was before there was a choice.
+    expect(sent[2]!.body).not.toHaveProperty('provider');
+  });
+
+  it('stay the same when a model that cannot answer without thinking is asked again', async () => {
+    const refusal = {
+      error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' },
+    };
+    transport((request) =>
+      request.body.reasoning ? json(400, refusal) : json(200, openAiAnswer('{}')),
+    );
+
+    await openrouter.chat(messages, options({ reasoning: 'none', dataPolicy: 'no_retention' }));
+
+    expect(sent).toHaveLength(2);
+    expect(sent[1]!.body.provider).toEqual({ data_collection: 'deny', zdr: true });
+  });
+
+  it("fail the request, in OpenRouter's words and asked once, when none of them serves the model", async () => {
+    // As OpenRouter answered on 2026-11-16 for a model whose only endpoints train on the data.
+    transport(() =>
+      json(404, {
+        error: {
+          code: 404,
+          message:
+            'No endpoints found matching your data policy (Free model training). Configure: https://openrouter.ai/settings/privacy',
+        },
+      }),
+    );
+
+    const failed = await failure(
+      openrouter.chat(messages, options({ reasoning: 'none', dataPolicy: 'no_training' })),
+    );
+    expect(failed.message).toContain('No endpoints found matching your data policy');
+    expect(failed.timedOut).toBe(false);
+    expect(sent).toHaveLength(1);
+  });
+
+  it.each(['openai', 'anthropic'])(
+    'are no matter of %s, which is sent nothing of them',
+    async (name) => {
+      const { adapter, answer } = cases[name]!;
+      transport(() => json(200, answer('{}')));
+
+      await adapter.chat(messages, options({ dataPolicy: 'no_retention' }));
+
+      expect(sent[0]!.body).not.toHaveProperty('provider');
+    },
+  );
 });
 
 describe('asking for an answer without thinking first', () => {

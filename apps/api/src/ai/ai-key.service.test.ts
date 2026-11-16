@@ -24,6 +24,7 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     AI_DEFAULT_PROVIDER: undefined,
     AI_DEFAULT_MODEL: undefined,
     AI_ADMIN_ACCESS: 'approved',
+    AI_ADMIN_DATA_POLICY: 'no_training',
     OPENAI_API_KEY: undefined,
     ANTHROPIC_API_KEY: undefined,
     OPENROUTER_API_KEY: undefined,
@@ -416,6 +417,31 @@ describe('AiKeyService.resolveChain', () => {
         mode: 'admin',
       }),
     ]);
+  });
+
+  it("carries the choice of OpenRouter's endpoints: a user's own from the entry, the operator's from the environment", async () => {
+    const prisma = makePrisma();
+    prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
+      {
+        userId: 'user-1',
+        provider: 'openrouter',
+        model: 'some/model',
+        priority: 0,
+        encryptedKey: sealKey('sk-or', ENC_KEY, 'user-1'),
+        baseUrl: null,
+        dataPolicy: 'any',
+      },
+    ]);
+    const config = makeConfig({
+      AI_DEFAULT_PROVIDER: 'openrouter',
+      AI_DEFAULT_MODEL: 'some/model',
+      OPENROUTER_API_KEY: 'sk-or-admin',
+      AI_ADMIN_DATA_POLICY: 'no_retention',
+    });
+    const service = makeService(prisma, config);
+
+    expect((await service.resolveChain('user-1', 'byok'))[0]!.dataPolicy).toBe('any');
+    expect((await service.resolveChain('user-1', 'admin'))[0]!.dataPolicy).toBe('no_retention');
   });
 
   it('admin mode returns an empty chain when no env provider is configured', async () => {

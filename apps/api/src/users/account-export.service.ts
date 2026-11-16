@@ -83,6 +83,8 @@ export class AccountExportService {
         provider: config.provider,
         model: config.model,
         baseUrl: config.baseUrl,
+        // Which of OpenRouter's endpoints may serve its requests; the others have no such choice.
+        dataPolicy: config.provider === 'openrouter' ? config.dataPolicy : null,
         enabled: config.enabled,
         // The key is the account's to keep to itself: the file says that there is one.
         hasKey: config.encryptedKey !== null,
