@@ -160,7 +160,7 @@ describe("the calendar of a profile's plans", () => {
   it('leafs to the month after and the one before, and back to the month it is', async () => {
     const { asked } = await open();
     const thisMonth = screen.getByRole('button', { name: texts.thisMonth });
-    expect(thisMonth).toBeDisabled();
+    expect(thisMonth).toHaveAttribute('aria-disabled', 'true');
 
     await userEvent.click(screen.getByRole('button', { name: texts.next }));
     expect(screen.getByRole('heading', { name: 'February 2026' })).toBeInTheDocument();
@@ -174,6 +174,9 @@ describe("the calendar of a profile's plans", () => {
 
     await userEvent.click(thisMonth);
     expect(screen.getByRole('heading', { name: 'January 2026' })).toBeInTheDocument();
+    // The button that brought the month back keeps the focus, though there is nothing more it can do.
+    expect(thisMonth).toHaveAttribute('aria-disabled', 'true');
+    expect(thisMonth).toHaveFocus();
   });
 
   it('says that the plans could not be read, keeps its size with days that cannot be chosen, and reads them again when asked', async () => {

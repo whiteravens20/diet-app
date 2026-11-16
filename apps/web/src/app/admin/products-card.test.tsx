@@ -411,12 +411,14 @@ describe('the card of products in the panel', () => {
       shown(IMPORTED);
 
       expect(await screen.findByText('Bread of page 1')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: t.prev })).toBeDisabled();
+      expect(screen.getByRole('button', { name: t.prev })).toHaveAttribute('aria-disabled', 'true');
       await userEvent.click(screen.getByRole('button', { name: t.next }));
 
       expect(await screen.findByText('Bread of page 2')).toBeInTheDocument();
       expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: t.next })).toBeDisabled();
+      expect(screen.getByRole('button', { name: t.next })).toHaveAttribute('aria-disabled', 'true');
+      // The last page leaves the focus on the button that went to it.
+      expect(screen.getByRole('button', { name: t.next })).toHaveFocus();
       expect(list).toHaveBeenLastCalledWith(2);
     });
   });

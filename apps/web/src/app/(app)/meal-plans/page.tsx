@@ -1101,7 +1101,7 @@ function MealPlansContent() {
               type="button"
               variant="outline"
               size="sm"
-              disabled={page <= 1}
+              unavailable={page <= 1}
               onClick={() => setPage(page - 1)}
             >
               {t('pageNewer')}
@@ -1113,7 +1113,7 @@ function MealPlansContent() {
               type="button"
               variant="outline"
               size="sm"
-              disabled={page >= plans.data!.totalPages}
+              unavailable={page >= plans.data!.totalPages}
               onClick={() => setPage(page + 1)}
             >
               {t('pageOlder')}
