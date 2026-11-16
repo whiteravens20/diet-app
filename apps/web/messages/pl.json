@@ -3035,7 +3035,7 @@
       "secrets": "Klucze dostawców AI, które dodasz, są zaszyfrowane i nigdy nie wracają do przeglądarki ani telefonu. Sekret logowania dwuetapowego też jest zaszyfrowany, a kody zapasowe są zapisane tylko w postaci nieczytelnej.",
       "panel": "Panel administratora nie ma listy kont i nie pokazuje profili, dziennika ani wagi.",
       "export": "Wszystko, co przechowuje konto, pobierzesz jako jeden plik w ustawieniach, na karcie „Konto i dane”.",
-      "deletion": "Usunięcie konta od razu usuwa je razem z profilami, planami, dziennikiem i resztą danych. Zostają tylko dzienna liczba wywołań AI bez wskazania konta i produkty przyjęte do wspólnej bazy, bez informacji, kto je dodał."
+      "deletion": "Usunięcie konta od razu usuwa je razem z profilami, planami, dziennikiem i resztą danych. Zostają tylko dzienna liczba wywołań AI bez wskazania konta oraz produkty i przepisy przyjęte do wspólnej bazy, bez informacji, kto je dodał."
     },
     "kept": {
       "title": "Jak długo",
@@ -3056,16 +3056,16 @@
     },
     "browser": {
       "title": "Przeglądarka",
-      "sources": "Strona ładuje skrypty, czcionki i obrazy tylko z tej instancji. Nie ma analityki ani śledzenia.",
+      "sources": "Strona ładuje skrypty, czcionki i obrazy tylko z tej instancji, poza sprawdzeniem Cloudflare Turnstile tam, gdzie instancja je włącza. Nie ma analityki ani śledzenia.",
       "session": "Klucz sesji jest tylko w pamięci otwartej strony, a ciasteczko, które go odnawia, nie jest dostępne dla skryptów.",
-      "storage": "W pamięci przeglądarki zostaje wybrany wygląd. To, co dotyczy konta, znika po wylogowaniu."
+      "storage": "W pamięci przeglądarki zostają wybrany wygląd i język, a w panelu administratora i na stronie recenzji ich ustawienia. To, co dotyczy konta, znika po wylogowaniu."
     },
     "phone": {
       "title": "Aplikacja Android",
       "permissions": "Ma dostęp do internetu, aparatu (skaner odczytuje kod na telefonie), powiadomień, instalowania własnych aktualizacji, sieci lokalnej (serwer w domu) i odcisku palca (opcjonalne odblokowanie).",
       "none": "Nie korzysta z usług Google Play ani z analityki, a nic z niej nie trafia do kopii zapasowej Androida.",
       "session": "Sesja jest zapieczętowana kluczem z magazynu kluczy telefonu.",
-      "updates": "Sprawdza na GitHubie, czy jest nowsza wersja.",
+      "updates": "Pyta GitHuba o nowszą wersję i nie wysyła przy tym nic o koncie; można to wyłączyć w ustawieniach konta w aplikacji.",
       "unlock": "Gdy włączysz odblokowanie odciskiem palca, ekran ostatnich aplikacji nie pokazuje jej treści."
     }
   },
