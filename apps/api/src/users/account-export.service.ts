@@ -472,6 +472,13 @@ export class AccountExportService {
       (change) => ({ kind: change.kind, at: change.at.toISOString() }),
     );
 
+    // When the account asked about a code, which the limits of a lookup count. Which code it was is kept nowhere.
+    yield* list(
+      'productLookups',
+      (page) => this.prisma.productLookup.findMany({ where: { userId }, ...page }),
+      (lookup) => ({ at: lookup.at.toISOString() }),
+    );
+
     yield `,${field('complete', true)}}`;
   }
 }

@@ -41,6 +41,7 @@ interface Exported {
   notifications: Record<string, unknown>[];
   aiCalls: Record<string, unknown>[];
   productChanges: Record<string, unknown>[];
+  productLookups: Record<string, unknown>[];
   complete: boolean;
 }
 
@@ -163,6 +164,7 @@ describe('everything an account holds, as one file', () => {
       },
     });
     await t.prisma.ownProductChange.create({ data: { userId: of.id, kind: 'written' } });
+    await t.prisma.productLookup.create({ data: { userId: of.id } });
     return { profile, plan };
   }
 
@@ -208,6 +210,7 @@ describe('everything an account holds, as one file', () => {
       'notifications',
       'aiCalls',
       'productChanges',
+      'productLookups',
     ] as const)
       expect(file[list], list).toEqual([]);
     // The last thing in the file: a file that was cut short does not have it.
@@ -283,6 +286,8 @@ describe('everything an account holds, as one file', () => {
     ]);
     // When a product was written, and nothing of which product it was.
     expect(file.productChanges).toEqual([{ kind: 'written', at: expect.any(String) }]);
+    // When a code was asked about, and nothing of which code it was.
+    expect(file.productLookups).toEqual([{ at: expect.any(String) }]);
 
     expect(file.plans).toHaveLength(1);
     const [exported] = file.plans;
