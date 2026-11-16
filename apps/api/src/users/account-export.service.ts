@@ -83,6 +83,8 @@ export class AccountExportService {
         provider: config.provider,
         model: config.model,
         baseUrl: config.baseUrl,
+        // Which of OpenRouter's endpoints may serve its requests; the others have no such choice.
+        dataPolicy: config.provider === 'openrouter' ? config.dataPolicy : null,
         enabled: config.enabled,
         // The key is the account's to keep to itself: the file says that there is one.
         hasKey: config.encryptedKey !== null,
@@ -470,6 +472,13 @@ export class AccountExportService {
       'productChanges',
       (page) => this.prisma.ownProductChange.findMany({ where: { userId }, ...page }),
       (change) => ({ kind: change.kind, at: change.at.toISOString() }),
+    );
+
+    // When the account asked about a code, which the limits of a lookup count. Which code it was is kept nowhere.
+    yield* list(
+      'productLookups',
+      (page) => this.prisma.productLookup.findMany({ where: { userId }, ...page }),
+      (lookup) => ({ at: lookup.at.toISOString() }),
     );
 
     yield `,${field('complete', true)}}`;

@@ -5,7 +5,7 @@
  * OpenRouter, Ollama) implements this single interface so the router can treat
  * them interchangeably and fail over between them.
  */
-import type { AiProvider } from '@diet-app/shared';
+import type { AiDataPolicy, AiProvider } from '@diet-app/shared';
 import type { Reasoning } from './operations.js';
 
 export interface ChatMessage {
@@ -43,6 +43,11 @@ export interface CompletionOptions {
    * it writes a word.
    */
   reasoning?: Reasoning;
+  /**
+   * Which of OpenRouter's endpoints may serve the request, by what they do
+   * with its data. OpenRouter alone has the choice; the others ignore it.
+   */
+  dataPolicy: AiDataPolicy;
 }
 
 export interface CompletionResult {

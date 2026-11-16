@@ -38,6 +38,7 @@ const chat = (opts: Partial<CompletionOptions> = {}) =>
     maxTokens: 300,
     temperature: 0.2,
     timeoutMs: 5_000,
+    dataPolicy: 'no_training',
     ...opts,
   });
 

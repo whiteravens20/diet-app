@@ -41,6 +41,7 @@ interface Exported {
   notifications: Record<string, unknown>[];
   aiCalls: Record<string, unknown>[];
   productChanges: Record<string, unknown>[];
+  productLookups: Record<string, unknown>[];
   complete: boolean;
 }
 
@@ -163,6 +164,7 @@ describe('everything an account holds, as one file', () => {
       },
     });
     await t.prisma.ownProductChange.create({ data: { userId: of.id, kind: 'written' } });
+    await t.prisma.productLookup.create({ data: { userId: of.id } });
     return { profile, plan };
   }
 
@@ -208,6 +210,7 @@ describe('everything an account holds, as one file', () => {
       'notifications',
       'aiCalls',
       'productChanges',
+      'productLookups',
     ] as const)
       expect(file[list], list).toEqual([]);
     // The last thing in the file: a file that was cut short does not have it.
@@ -283,6 +286,8 @@ describe('everything an account holds, as one file', () => {
     ]);
     // When a product was written, and nothing of which product it was.
     expect(file.productChanges).toEqual([{ kind: 'written', at: expect.any(String) }]);
+    // When a code was asked about, and nothing of which code it was.
+    expect(file.productLookups).toEqual([{ at: expect.any(String) }]);
 
     expect(file.plans).toHaveLength(1);
     const [exported] = file.plans;
@@ -455,6 +460,26 @@ describe('everything an account holds, as one file', () => {
     const { file } = await fileOf();
 
     expect(file.account.operatorAiApprovedAt).toBe(approvedAt.toISOString());
+  });
+
+  it("says which of OpenRouter's endpoints may serve the account's own key, and that another provider has no such choice", async () => {
+    for (const config of [
+      {
+        provider: 'openrouter',
+        apiKey: 'sk-or-test',
+        model: 'some/model',
+        dataPolicy: 'no_retention',
+      },
+      { provider: 'openai', apiKey: 'sk-test', model: 'gpt' },
+    ])
+      await t.http().put('/api/ai/providers').set(as(user)).send(config).expect(200);
+
+    const { file } = await fileOf();
+
+    expect(file.aiProviders).toEqual([
+      expect.objectContaining({ provider: 'openai', dataPolicy: null }),
+      expect.objectContaining({ provider: 'openrouter', dataPolicy: 'no_retention' }),
+    ]);
   });
 
   it('holds nothing of another account', async () => {

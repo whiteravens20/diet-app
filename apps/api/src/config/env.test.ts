@@ -308,6 +308,22 @@ describe("who may use the operator's AI provider", () => {
   });
 });
 
+describe("the endpoints of OpenRouter that may serve the instance's requests", () => {
+  it('are those that do not train on the data, unless the instance says otherwise', () => {
+    expect(validateEnv(valid()).AI_ADMIN_DATA_POLICY).toBe('no_training');
+    expect(validateEnv(valid({ AI_ADMIN_DATA_POLICY: 'no_retention' })).AI_ADMIN_DATA_POLICY).toBe(
+      'no_retention',
+    );
+    expect(validateEnv(valid({ AI_ADMIN_DATA_POLICY: 'any' })).AI_ADMIN_DATA_POLICY).toBe('any');
+  });
+
+  it('are refused at start-up when they are not one of the three', () => {
+    expect(() => validateEnv(valid({ AI_ADMIN_DATA_POLICY: 'no-training' }))).toThrow(
+      /AI_ADMIN_DATA_POLICY/,
+    );
+  });
+});
+
 describe('describePosture', () => {
   const env = () =>
     validateEnv(
@@ -337,6 +353,34 @@ describe('describePosture', () => {
     ).toContain(
       'operator AI provider: openai, for every account, at most 40 calls per user and 1000 for the whole instance in 30 days',
     );
+  });
+
+  it('says which endpoints the instance lets serve its requests when the provider is OpenRouter, and warns that the choice binds it alone', () => {
+    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openrouter' })).toContain(
+      'operator AI provider: openrouter (only endpoints that do not train on the data), for the accounts approved in the admin panel, at most 40 calls per user and 1000 for the whole instance in 30 days, 100 of them for the accounts younger than 7 days together',
+    );
+    expect(
+      describePosture({
+        ...env(),
+        AI_DEFAULT_PROVIDER: 'openrouter',
+        AI_ADMIN_DATA_POLICY: 'no_retention',
+      }).find((line) => line.startsWith('operator AI provider')),
+    ).toMatch(/^operator AI provider: openrouter \(only endpoints that keep no data\),/);
+    // The default binds no other provider, and says nothing; a choice made for another one is a mistake.
+    expect(
+      describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai' }).filter((line) =>
+        line.startsWith('!'),
+      ),
+    ).toEqual([]);
+    expect(
+      describePosture({
+        ...env(),
+        AI_DEFAULT_PROVIDER: 'anthropic',
+        AI_ADMIN_DATA_POLICY: 'no_retention',
+      }).filter((line) => line.startsWith('!')),
+    ).toEqual([
+      '! operator AI provider: AI_ADMIN_DATA_POLICY=no_retention binds OpenRouter alone, and the provider is anthropic',
+    ]);
   });
 
   it('warns that a confirmed address lets every account in where there is no mail to confirm it with', () => {

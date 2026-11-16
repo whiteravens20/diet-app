@@ -400,6 +400,7 @@ export class RecipeGeneratorRunner {
           maxTokens: limits.maxTokens,
           temperature: limits.temperature,
           timeoutMs: limits.timeoutMs,
+          dataPolicy: this.config.get('AI_ADMIN_DATA_POLICY', { infer: true }),
         });
       } catch (err) {
         failure = describe(err);

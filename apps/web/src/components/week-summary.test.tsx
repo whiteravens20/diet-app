@@ -120,12 +120,17 @@ describe("a profile's week in sum", () => {
   it('goes back a week at a time in the diary, and no further forward than yesterday', async () => {
     const { get } = shown(aWeek(), true);
     const next = await screen.findByRole('button', { name: texts.next });
-    expect(next).toBeDisabled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
 
     await userEvent.click(screen.getByRole('button', { name: texts.previous }));
     expect(get).toHaveBeenCalledWith(
       `/diary/week?profileId=${PROFILE.id}&to=${dayAfter(yesterday, -7)}`,
     );
-    expect(screen.getByRole('button', { name: texts.next })).toBeEnabled();
+    expect(next).not.toHaveAttribute('aria-disabled');
+
+    // Back at the week that ends yesterday, the button that went there keeps the focus.
+    await userEvent.click(next);
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next).toHaveFocus();
   });
 });

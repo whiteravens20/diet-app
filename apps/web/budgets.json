@@ -6,14 +6,15 @@
     "/register": 190,
     "/forgot-password": 190,
     "/from-the-app": 190,
-    "/terms": 190
+    "/terms": 190,
+    "/privacy": 190
   },
   "account": {
-    "/dashboard": 208,
+    "/dashboard": 209,
     "/diary": 214,
     "/shopping-lists": 207,
     "/inventory": 205,
-    "/settings": 215,
+    "/settings": 216,
     "/recipes": 210,
     "/favorites": 210,
     "/admin": 220,

@@ -651,7 +651,7 @@ function Pagination({
           type="button"
           size="sm"
           variant="outline"
-          disabled={page <= 1}
+          unavailable={page <= 1}
           onClick={() => onChange(page - 1)}
         >
           {t('pagination.prev')}
@@ -682,7 +682,7 @@ function Pagination({
           type="button"
           size="sm"
           variant="outline"
-          disabled={page >= totalPages}
+          unavailable={page >= totalPages}
           onClick={() => onChange(page + 1)}
         >
           {t('pagination.next')}

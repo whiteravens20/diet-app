@@ -54,6 +54,7 @@ test.describe('a page shown in Polish leaves no word of one letter loose', () =>
     '/forgot-password',
     '/from-the-app',
     '/terms',
+    '/privacy',
     '/review',
   ]) {
     test(path, async ({ anonymous }) => {
