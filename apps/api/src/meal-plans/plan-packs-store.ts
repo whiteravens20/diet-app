@@ -2,7 +2,7 @@
 
 import type { Prisma } from '@prisma/client';
 import { PlanOptions, type Locale, type PlanPacks } from '@diet-app/shared';
-import { NO_WASTE } from '../engine/waste-levels.js';
+import { levelOf } from '../engine/waste-levels.js';
 import { freezerOf, oneFreezer } from './generation-report.js';
 import { isoDate } from './plan-days.js';
 import {
@@ -147,7 +147,7 @@ export async function packsOfPlan(
     [...own, ...theirs],
     plan.days.map((day) => isoDate(day.date)),
     locale,
-    options.noWaste ? NO_WASTE.freezes : undefined,
+    levelOf(options)?.freezes,
     oneFreezer(freezerOf(plan.report), other ? freezerOf(other.report) : null),
   );
 }

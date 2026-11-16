@@ -377,6 +377,46 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     expect(gone.body.error).toBe('FROZEN_REST_GONE');
   });
 
+  it('freezes what it does not eat fresh of meat and fish where it wastes less, and nothing in a plan made as usual', async () => {
+    const chicken = await t.prisma.ingredient.findFirstOrThrow({
+      where: { slug: 'chicken-breast' },
+    });
+    for (const [lessWaste, startDate] of [
+      [true, '2026-01-05'],
+      [false, '2026-01-12'],
+    ] as const) {
+      const plan = await t.app
+        .get(PlanGenerationService)
+        .generate(
+          user.id,
+          'en',
+          GeneratePlanRequest.parse({ profileId: adam.id, startDate, durationDays: 3, lessWaste }),
+        );
+      // The first day's lunch alone takes chicken: 150 g of a pack of 500 g, which keeps two days.
+      for (const day of [0, 1, 2])
+        await menu(plan, day, [
+          'scrambled-eggs-on-toast',
+          day === 0 ? 'chicken-rice-broccoli' : 'tofu-rice-bowl',
+          'chickpea-tomato-stew',
+        ]);
+      await t.prisma.plannedMeal.updateMany({
+        where: { day: { planId: plan.id } },
+        data: { rests: [] },
+      });
+      const { packs } = await read(plan.id);
+      const left = packs.open.filter((pack) => pack.ingredientId === chicken.id);
+      if (lessWaste) {
+        expect(packs.frozen).toMatchObject([
+          { ingredientId: chicken.id, date: startDate, amount: 350, left: 350 },
+        ]);
+        expect(left).toEqual([]);
+      } else {
+        expect(packs.frozen).toEqual([]);
+        expect(left).toMatchObject([{ packSize: 500, left: 350, wasted: true }]);
+      }
+    }
+  });
+
   it('counts the packs of the two plans of a joint plan together, in both of them', async () => {
     const adams = await together(false);
     const ewas = await read(adams.joint!.planId);
@@ -398,6 +438,44 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     // One pack for both lunches: 200 g are left, not 350 g in each plan.
     expect(chicken(mine)).toMatchObject({ packs: 1, left: 200, wasted: true });
     expect(theirs.packs).toEqual(mine.packs);
+  });
+
+  /** The two plans of a joint plan with chicken at the first day's lunch alone in each: 150 g each, of a pack of 500 g. */
+  async function chickenKitchen(lessWaste: boolean): Promise<[MealPlan, MealPlan]> {
+    const adams = await together(lessWaste);
+    const ewas = await read(adams.joint!.planId);
+    for (const plan of [adams, ewas]) {
+      for (const day of [0, 1, 2])
+        await menu(
+          plan,
+          day,
+          day === 0
+            ? ['scrambled-eggs-on-toast', 'chicken-rice-broccoli', 'chickpea-tomato-stew']
+            : ['scrambled-eggs-on-toast', 'tofu-rice-bowl', 'chickpea-tomato-stew'],
+        );
+      await t.prisma.plannedMeal.updateMany({
+        where: { day: { planId: plan.id } },
+        data: { rests: [] },
+      });
+    }
+    return [adams, ewas];
+  }
+  it('freezes in a joint plan that wastes less what is left of a pack both plans take from, in both of them', async () => {
+    const [adams, ewas] = await chickenKitchen(true);
+
+    const [mine, theirs] = [await read(adams.id), await read(ewas.id)];
+    expect(mine.packs.open.find((pack) => pack.name === 'Chicken breast')).toBeUndefined();
+    // The same rest in both, each said with the plan's own lunch that opens the pack.
+    for (const plan of [mine, theirs])
+      expect(plan.packs.frozen).toMatchObject([
+        {
+          name: 'Chicken breast',
+          amount: 200,
+          mealId: plan.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!.id,
+        },
+      ]);
+    const rests = (plan: MealPlan) => plan.packs.frozen.map(({ mealId: _, ...rest }) => rest);
+    expect(rests(theirs)).toEqual(rests(mine));
   });
 
   it('closes the days made again with what stays in the plan and with the other plan of the kitchen', async () => {

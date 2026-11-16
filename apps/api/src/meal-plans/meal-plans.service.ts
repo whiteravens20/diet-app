@@ -52,7 +52,7 @@ import {
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
-import { NO_WASTE } from '../engine/waste-levels.js';
+import { levelOf } from '../engine/waste-levels.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto, type RecipeLine } from '../recipes/recipes.service.js';
@@ -1815,7 +1815,7 @@ export class MealPlansService {
           packed,
           plan.days.map((day) => isoDate(day.date)),
           locale,
-          options.noWaste ? NO_WASTE.freezes : undefined,
+          levelOf(options)?.freezes,
           freezerOf(plan.report),
         ),
         plan.frozenKept,
@@ -2041,7 +2041,7 @@ function joined(
         ],
         mine.plan.days.map((day) => isoDate(day.date)),
         locale,
-        PlanOptions.parse(mine.plan.options).noWaste ? NO_WASTE.freezes : undefined,
+        levelOf(PlanOptions.parse(mine.plan.options))?.freezes,
         oneFreezer(freezerOf(mine.plan.report), freezerOf(theirs.plan.report)),
       ),
       mine.plan.frozenKept,

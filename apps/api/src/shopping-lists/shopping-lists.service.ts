@@ -41,6 +41,7 @@ import {
   type PlanIngredientLine,
   type ShoppingIngredient,
 } from '../engine/index.js';
+import { levelOf } from '../engine/waste-levels.js';
 import {
   assertWithinCeiling,
   lockPantries,
@@ -335,7 +336,7 @@ const DAY = 86_400_000;
 
 /**
  * Whether the plans of a kitchen put what they do not eat fresh of meat and fish in the freezer: one of them wastes
- * nothing (`NO_WASTE`). Its packs are then counted with the freezer, as the plan counts them.
+ * less or nothing (`WasteLevel.freezes`). Its packs are then counted with the freezer, as the plan counts them.
  */
 export async function freezesOf(
   db: Pick<Tx, 'mealPlan'>,
@@ -345,7 +346,7 @@ export async function freezesOf(
     where: { id: { in: [...planIds] } },
     select: { options: true },
   });
-  return plans.some((plan) => PlanOptions.parse(plan.options).noWaste);
+  return plans.some((plan) => levelOf(PlanOptions.parse(plan.options))?.freezes !== undefined);
 }
 
 /** Of a row of fresh meat or fish, its packs as the list's days take them, and those to buy later than its first day. */
@@ -361,7 +362,7 @@ export interface Fresh {
  * them to buy later than the list's first day, by the day from which they
  * are. Null for any other row: closed, it keeps longer than its days after
  * opening say. `lines` may hold other ingredients and other days. Of a plan
- * that wastes nothing (`freezes`), what a pack holds beyond the days it keeps
+ * that wastes less or nothing (`freezes`), what a pack holds beyond the days it keeps
  * goes in the freezer and a later need takes it from there before a new pack
  * is bought, as the plan counts it.
  */

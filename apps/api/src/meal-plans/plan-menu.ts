@@ -104,7 +104,7 @@ export function menuNeeds(
  * a plan says it: on the days of `dates`, in order. What the pantry held in the freezer of an ingredient when the plan
  * was made (`freezer`) is one portion, thawed whole for the first meal from its day on that takes the ingredient and
  * eaten like a pack just opened, within the days it keeps; the packs are counted for what is left to eat. A plan that
- * wastes nothing puts what it does not eat fresh of meat and fish in the freezer (`freezes`), in portions: each rest
+ * wastes less or nothing puts what it does not eat fresh of meat and fish in the freezer (`freezes`), in portions: each rest
  * is said with the meal that opens its pack, and each later day that takes a portion of it with that day's first meal
  * that takes the ingredient.
  */

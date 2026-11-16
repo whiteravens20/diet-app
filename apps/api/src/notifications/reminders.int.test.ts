@@ -236,6 +236,58 @@ describe('the reminders that keep the hours of an account', () => {
       });
     });
 
+    it('says the evening before what tomorrow takes of a rest a plan that wastes less froze', async () => {
+      const plan = await aPlan(t, user, profile, {
+        startDate: '2026-11-10',
+        durationDays: 3,
+        lessWaste: true,
+      });
+      // Chicken at Tuesday's and Thursday's lunch: 150 g each of a pack of 500 g, which keeps two days. What Tuesday
+      // leaves goes in the freezer, and Thursday takes its portion out.
+      const [tofu, chickenRice] = await Promise.all(
+        ['tofu-rice-bowl', 'chicken-rice-broccoli'].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      for (const [index, day] of plan.days.entries())
+        for (const meal of day.meals)
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: {
+              recipeId: (index !== 1 && meal.mealType === 'lunch' ? chickenRice! : tofu!).id,
+              servings: 1,
+              quantityScale: 1,
+              source: 'CATALOGUE',
+              leftoverFromDate: null,
+              leftoverFromMealType: null,
+              toppingKey: null,
+              toppingAmount: null,
+              rests: [],
+            },
+          });
+      const lunch = plan.days[2]!.meals.find((meal) => meal.mealType === 'lunch')!;
+
+      // Tuesday evening: Wednesday takes nothing out of the freezer.
+      expect(await cooking.scan(at('2026-11-10T18:05:00Z'))).toBe(0);
+      expect(await cooking.scan(at('2026-11-11T18:05:00Z'))).toBe(1);
+
+      const [made] = await reminders('cooking_reminder');
+      expect(made!.payload).toEqual({
+        date: '2026-11-12',
+        dishes: [],
+        thaw: [
+          {
+            planId: plan.id,
+            plannedMealId: lunch.id,
+            mealType: 'lunch',
+            name: 'Chicken breast',
+            amount: 150,
+            unit: 'g',
+          },
+        ],
+      });
+    });
+
     it('reminds nobody who switched it off, nor of a plan that is not for cooking ahead', async () => {
       await aPlan(t, user, profile, { startDate: '2026-11-10', durationDays: 4 });
       expect(await cooking.scan(at('2026-11-09T18:30:00Z'))).toBe(0);

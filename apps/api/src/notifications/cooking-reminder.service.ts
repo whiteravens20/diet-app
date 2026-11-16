@@ -13,6 +13,7 @@ import {
   type ThawAhead,
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
+import { levelOf } from '../engine/waste-levels.js';
 import { freezerOf } from '../meal-plans/generation-report.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { cookingsOf } from '../meal-plans/plan-menu.js';
@@ -120,7 +121,11 @@ export class CookingReminderService {
     const thaw: ThawAhead[] = [];
     for (const plan of plans) {
       // Only a plan that freezes, or was made with something in the freezer, or shares its kitchen, has anything to thaw.
-      if (!PlanOptions.parse(plan.options).noWaste && !freezerOf(plan.report) && !plan.jointPlanId)
+      if (
+        !levelOf(PlanOptions.parse(plan.options))?.freezes &&
+        !freezerOf(plan.report) &&
+        !plan.jointPlanId
+      )
         continue;
       const packs = await packsOfPlan(this.prisma, user.id, plan.id, locale as Locale);
       if (!packs) continue;

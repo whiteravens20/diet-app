@@ -28,7 +28,7 @@ export const InventoryItem = z.object({
   display: DisplayAmount,
   /** ISO date (yyyy-mm-dd). Null = no expiry tracked. */
   bestBefore: z.string().date().nullable().default(null),
-  /** In the freezer, apart from what is fresh: a rest of meat or fish a plan that wastes nothing froze. */
+  /** In the freezer, apart from what is fresh: a rest of meat or fish a plan that wastes less or nothing froze. */
   frozen: z.boolean().default(false),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

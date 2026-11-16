@@ -1002,6 +1002,34 @@ describe('shopping lists and the pantry', () => {
       expect(row.buyLater).toEqual([{ packs: 1, from: date(4) }]);
     });
 
+    it('of a plan that wastes less take a later need from the freezer: one pack, none bought later', async () => {
+      // Monday leaves 350 g of its pack, frozen that day; Saturday takes its 150 g from there.
+      await chickenOn(0, 5);
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: { options: { ...plan.options, lessWaste: true } },
+      });
+      const row = rowOf(await listFor(0, 6), chicken);
+
+      expect(row.packs).toMatchObject({ count: 1, size: 500 });
+      expect(row.buyLater).toEqual([]);
+    });
+
+    it('are counted as the plan counts its packs when the list is read, in a list made before the plan froze', async () => {
+      await chickenOn(0, 5);
+      const made = await listFor(0, 6);
+      expect(rowOf(made, chicken)).toMatchObject({ packs: { count: 2 } });
+      // The plan freezes what it does not eat fresh from now on, as a plan that wastes less made before the change.
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: { options: { ...plan.options, lessWaste: true } },
+      });
+
+      const row = rowOf(await lists.get(user.id, 'en', made.id), chicken);
+      expect(row.packs).toMatchObject({ count: 1, size: 500 });
+      expect(row.buyLater).toEqual([]);
+    });
+
     it('leave out what keeps closed: other rows say nothing of when to buy', async () => {
       await chickenOn(0, 5);
       const list = await listFor(0, 6);

@@ -30,12 +30,17 @@ export interface WasteLevel {
 const isMeatOrFish = (ingredient: { category?: string | null }): boolean =>
   ingredient.category === 'meat' || ingredient.category === 'fish';
 
-/** "Mniej marnowania": the planner leans on the pantry and the packs, within the profile's limits. */
+/**
+ * "Mniej marnowania": the planner leans on the pantry and the packs, within the
+ * profile's limits. No meat or fish is wasted: what is not eaten fresh goes in
+ * the freezer the day its pack is opened, the menu the same as without it.
+ */
 export const LESS_WASTE: WasteLevel = {
   weights: LESS_WASTE_WEIGHTS,
   splitSlack: SPLIT_SLACK,
   rests: LESS_WASTE_RESTS,
   keepDays: keepDaysOf,
+  freezes: isMeatOrFish,
 };
 
 /** The days a pack of meat or fish, and any other, is eaten within in a plan that wastes nothing, at most. */
@@ -64,3 +69,7 @@ export const NO_WASTE: WasteLevel = {
   repeats: { daysInARow: 3, timesAWeek: 5, twiceADay: true },
   freezes: isMeatOrFish,
 };
+
+/** The level a plan is made at, by its options: none for a plan made as usual. A plan that wastes nothing wastes less. */
+export const levelOf = (options: { lessWaste?: boolean; noWaste?: boolean }): WasteLevel | null =>
+  options.noWaste ? NO_WASTE : options.lessWaste ? LESS_WASTE : null;

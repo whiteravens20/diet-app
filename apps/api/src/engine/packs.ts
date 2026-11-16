@@ -47,7 +47,7 @@ export interface Pack {
   /**
    * What the plan does not eat of an opened pack while it keeps is put in the freezer the day the pack is opened,
    * never thrown away, and a need after that takes from the freezer first (`freezerWalk`): meat and fish in a plan
-   * that wastes nothing.
+   * that wastes less or nothing.
    */
   freezes?: boolean;
 }

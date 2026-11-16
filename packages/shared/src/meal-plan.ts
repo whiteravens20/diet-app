@@ -153,7 +153,9 @@ export const GeneratePlanRequest = z
      * recipes in a week and days a little further from their split. Such a
      * plan counts the pantry whatever `respectInventory` says, and is never
      * the round of the rotation that leaves it out; the limits of the profile
-     * and of the plan hold as ever. What it does on each diet is in
+     * and of the plan hold as ever. The meat and fish it does not eat fresh go
+     * in the freezer the day their pack is opened (`PlanPacks.frozen`), its
+     * menu the same as without. What it does on each diet is in
      * `PublicConfig.plans.lessWaste`. Off by default.
      */
     lessWaste: z.boolean().default(false),
@@ -939,7 +941,7 @@ export const PlanPacks = z.object({
   bought: z.number().min(0),
   used: z.number().min(0),
   open: z.array(PlanOpenPack),
-  /** What a plan that wastes nothing puts in the freezer of meat and fish, the earliest first; none in any other plan. */
+  /** What a plan that wastes less or nothing puts in the freezer of meat and fish, the earliest first; none in any other plan. */
   frozen: z.array(PlanFrozenRest),
   /** What the plan takes of what the pantry held in the freezer when it was made: counted before the packs above. */
   fromFreezer: z.array(PlanFreezerStock),
