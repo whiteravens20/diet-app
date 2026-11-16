@@ -3051,7 +3051,7 @@
       "noLookups": "This instance does not ask Open Food Facts about barcodes.",
       "mail": "Emails are sent by the operator's mail server.",
       "noMail": "This instance sends no mail.",
-      "turnstile": "The sign-in, sign-up and new password pages load Cloudflare Turnstile's check, which sees your IP address and your browser.",
+      "turnstile": "Signing in, signing up and setting a new password, on the web and in the app, load Cloudflare Turnstile's check, which sees your IP address and the browser it runs in.",
       "proxy": "A proxy in front of the instance may log the addresses of requests, which carry the ids of profiles and plans and the words searched for. How long, the terms say."
     },
     "browser": {

@@ -3051,7 +3051,7 @@
       "noLookups": "Ta instancja nie pyta Open Food Facts o kody kreskowe.",
       "mail": "Wiadomości e-mail wysyła serwer pocztowy operatora.",
       "noMail": "Ta instancja nie wysyła poczty.",
-      "turnstile": "Strony logowania, rejestracji i ustawiania nowego hasła ładują sprawdzenie Cloudflare Turnstile, które widzi Twój adres IP i przeglądarkę.",
+      "turnstile": "Logowanie, rejestracja i ustawianie nowego hasła, na stronie i w aplikacji, ładują sprawdzenie Cloudflare Turnstile, które widzi Twój adres IP i przeglądarkę, w której działa.",
       "proxy": "Serwer pośredniczący przed instancją może zapisywać adresy żądań, a w nich identyfikatory profili i planów oraz wyszukiwane słowa. Jak długo, mówi regulamin."
     },
     "browser": {
