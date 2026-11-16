@@ -165,6 +165,9 @@ function RecipesContent() {
       tab === 'mine'
         ? api.get<MyRecipesPage>(`/recipes/mine?page=${page}&pageSize=${PAGE_SIZE}`)
         : api.get<RecipeSearchPage>(`/recipes${queryString}`),
+    // The page shown stays while the next of the same tab comes: the button pressed for it keeps the focus.
+    placeholderData: (shown, query) =>
+      query?.queryKey[0] === (tab === 'mine' ? 'recipes:mine' : 'recipes') ? shown : undefined,
   });
 
   const deleteRecipe = useMutation({

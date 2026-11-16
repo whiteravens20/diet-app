@@ -234,10 +234,14 @@ describe('the recipe library, a page at a time', () => {
       'true',
     );
 
-    await userEvent.click(pages.getByRole('button', { name: texts.pagination.next }));
+    const next = pages.getByRole('button', { name: texts.pagination.next });
+    await userEvent.click(next);
 
     expect(await askedWith('page', '2')).toEqual({ page: '2', pageSize: '36' });
     expect(await screen.findByText('Page 2 of 6')).toBeInTheDocument();
+    // The list stays while the next page comes, so the button pressed keeps the focus.
+    expect(next).toBeInTheDocument();
+    expect(next).toHaveFocus();
   });
 });
 

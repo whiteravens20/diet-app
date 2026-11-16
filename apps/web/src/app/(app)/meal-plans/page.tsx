@@ -185,6 +185,8 @@ function MealPlansContent() {
       return api.get<MealPlanPage>(`/meal-plans?${qp}`);
     },
     enabled: Boolean(activeId),
+    // The page shown stays while the next of the same profile comes: the button pressed for it keeps the focus.
+    placeholderData: (shown, query) => (query?.queryKey[1] === activeId ? shown : undefined),
   });
   const formOpen = formAsked ?? (plans.data?.total === 0 && !status && !from && !to);
   // The days the new plan would hold: what is said of them is worked out from them, or asked once the form is open.

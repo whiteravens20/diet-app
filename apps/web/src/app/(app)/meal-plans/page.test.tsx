@@ -1304,10 +1304,14 @@ describe('the list of plans on the plan page', () => {
       'aria-disabled',
       'true',
     );
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.pageOlder }));
+    const older = screen.getByRole('button', { name: messages.mealPlans.pageOlder });
+    await userEvent.click(older);
 
     expect(await screen.findByText('Page 2 of 3')).toBeInTheDocument();
     expect(asked().at(-1)).toBe(`/meal-plans?profileId=${profile.id}&page=2`);
+    // The list stays while the next page comes, so the button pressed keeps the focus.
+    expect(older).toBeInTheDocument();
+    expect(older).toHaveFocus();
 
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.statusPast }));
     expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();

@@ -133,4 +133,34 @@ describe("a profile's week in sum", () => {
     expect(next).toHaveAttribute('aria-disabled', 'true');
     expect(next).toHaveFocus();
   });
+
+  it('keeps the focus on the button pressed while a week not read yet comes', async () => {
+    const earlier = dayAfter(yesterday, -7);
+    let comes: (week: WeekSummary) => void = () => {};
+    vi.spyOn(api, 'get').mockImplementation((path: string) => {
+      if (path === '/users/me') return Promise.resolve({ weightUnit: 'kg' } as never);
+      if (path.endsWith(`to=${earlier}`))
+        return new Promise((resolve) => (comes = resolve as (week: WeekSummary) => void)) as never;
+      return Promise.resolve(aWeek() as never);
+    });
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <WeekSummaryCard profile={PROFILE} weeks />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    const previous = await screen.findByRole('button', { name: texts.previous });
+
+    await userEvent.click(previous);
+    // While the week before is on its way, the buttons stay where they are.
+    expect(previous).toBeInTheDocument();
+    expect(previous).toHaveFocus();
+    comes(aWeek({ from: dayAfter(earlier, -6), to: earlier, eaten: null, counted: 0, empty: 7 }));
+    expect(await screen.findByText(texts.nothing)).toBeInTheDocument();
+    expect(previous).toBeInTheDocument();
+    expect(previous).toHaveFocus();
+  });
 });
