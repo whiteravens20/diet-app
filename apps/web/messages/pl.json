@@ -1549,6 +1549,7 @@
     "lessWaste": "Mniej marnowania",
     "lessWasteHint": "Plan mocniej sięga po zapasy ze spiżarni i dokańcza otwarte opakowania, które szybko się psują: w tej diecie zużywa zwykle ok. {pantryLess}% zapasów zamiast {pantryNow}% i ok. {packsLess}% takich opakowań zamiast {packsNow}%. W zamian tydzień ma ok. {fewer}% mniej różnych przepisów, a dni bardziej odbiegają od podziału makroskładników.",
     "lessWasteHintCustom": "Plan mocniej sięga po zapasy ze spiżarni i dokańcza otwarte opakowania, które szybko się psują. W zamian tydzień ma mniej różnych przepisów, a dni bardziej odbiegają od podziału makroskładników.",
+    "lessWasteFreezer": "Mięso i ryby, których nie zje na świeżo, każe zamrozić w dniu otwarcia opakowania: nic z nich nie trafia do kosza.",
     "lessWasteLimits": "Lista unikanych, alergeny i limity planu działają jak zawsze, a ścisły limit powtórzeń zostawia na to mniej miejsca.",
     "wasteLevel": "Marnowanie jedzenia",
     "wasteUsual": "Zwykły plan",

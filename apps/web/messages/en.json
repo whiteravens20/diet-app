@@ -1549,6 +1549,7 @@
     "lessWaste": "Waste less",
     "lessWasteHint": "The plan leans harder on what the pantry holds and finishes opened packs that spoil soon: on this diet it typically uses about {pantryLess}% of the pantry instead of {pantryNow}%, and about {packsLess}% of such packs instead of {packsNow}%. In return a week has about {fewer}% fewer different recipes, and its days stray further from the macro split.",
     "lessWasteHintCustom": "The plan leans harder on what the pantry holds and finishes opened packs that spoil soon. In return a week has fewer different recipes, and its days stray further from the macro split.",
+    "lessWasteFreezer": "Meat and fish it does not eat fresh it has you freeze on the day the pack is opened: none of it goes in the bin.",
     "lessWasteLimits": "The avoid list, allergens and the plan's limits work as always; a strict cap on repeats leaves it less room.",
     "wasteLevel": "Food waste",
     "wasteUsual": "Usual plan",

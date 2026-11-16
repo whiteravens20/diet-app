@@ -2330,6 +2330,11 @@ describe('the plan page, on what a plan is made for', () => {
     expect(lessWaste()).toHaveAccessibleDescription(
       /uses about 61% of the pantry instead of 31%, and about 81% of such packs instead of 71%\. In return a week has about 11% fewer/,
     );
+    // Both levels freeze the meat and fish they do not eat fresh, and say so.
+    for (const choice of [lessWaste(), noWaste()])
+      expect(choice).toHaveAccessibleDescription(
+        /Meat and fish it does not eat fresh it has you freeze on the day the pack is opened: none of it goes in the bin\./,
+      );
     expect(noWaste()).toHaveAccessibleDescription(
       /uses about 91% of such packs instead of 71% and about 41% of the pantry instead of 31%\. In return a week has about 51% fewer/,
     );

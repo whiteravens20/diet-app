@@ -92,6 +92,7 @@ export function WasteLevelChoice({
                 fewer: less.fewerRecipes,
               })
             : t('lessWasteHintCustom'),
+          t('lessWasteFreezer'),
           ...(rules ? [t('lessWasteRests', { rests: rules.less.restsOfDay })] : []),
           t('lessWasteLimits'),
         ])}
