@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
+import type { AiDataPolicy } from '@diet-app/shared';
 import OpenAI from 'openai';
 import {
   AiProviderError,
@@ -13,13 +14,30 @@ import type { Reasoning } from '../operations.js';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
+/** Which endpoints OpenRouter is to route a request to, by what they do with its data. */
+interface EndpointRule {
+  /** Only endpoints that do not train on the data; they may still keep it. */
+  data_collection: 'deny';
+  /** Only endpoints that keep no data. */
+  zdr?: true;
+}
+
 /**
- * A request as OpenRouter takes it: the OpenAI one, and a field of its own
- * that it turns into each vendor's setting for thinking and leaves out for a
- * model that has none.
+ * A request as OpenRouter takes it: the OpenAI one, a field of its own that it
+ * turns into each vendor's setting for thinking and leaves out for a model
+ * that has none, and the rule of the endpoints that may serve it. A request no
+ * endpoint of the model serves is refused, unbilled.
  */
 type OpenRouterRequest = OpenAI.Chat.ChatCompletionCreateParamsNonStreaming & {
   reasoning?: { effort: Reasoning };
+  provider?: EndpointRule;
+};
+
+/** The rule each choice asks for; `any` asks for none, and the account's settings alone apply. */
+const ENDPOINT_RULES: Record<AiDataPolicy, EndpointRule | undefined> = {
+  any: undefined,
+  no_training: { data_collection: 'deny' },
+  no_retention: { data_collection: 'deny', zdr: true },
 };
 
 /** OpenRouter adapter — OpenAI-compatible API, routed across many models. */
@@ -68,6 +86,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
       timeout: timeoutMs,
       maxRetries: 0,
     });
+    const rule = ENDPOINT_RULES[opts.dataPolicy];
     const request: OpenRouterRequest = {
       model: opts.model,
       messages,
@@ -75,6 +94,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
       max_tokens: opts.maxTokens,
       ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       ...(reasoning ? { reasoning: { effort: reasoning } } : {}),
+      ...(rule ? { provider: rule } : {}),
     };
     const res = await client.chat.completions.create(request);
     return {

@@ -143,7 +143,7 @@ export function PlanCalendar({
             type="button"
             variant="outline"
             size="sm"
-            disabled={monthOf(today) === month}
+            unavailable={monthOf(today) === month}
             onClick={() => setMonth(monthOf(today))}
           >
             {t('thisMonth')}

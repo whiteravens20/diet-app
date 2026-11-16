@@ -12,6 +12,18 @@ const apiKey = z.string().min(1).max(500);
 const baseUrl = z.string().url().max(500);
 const model = z.string().min(1).max(200);
 
+/**
+ * Which of OpenRouter's endpoints may serve a request, by what they do with
+ * its data: any of them, only those that do not train on it (they may still
+ * keep it), or only those that keep none. `any` adds no rule of the
+ * application's own; the OpenRouter account's settings still apply. A request
+ * no endpoint of the model serves is refused, and the built-in engine answers.
+ * The operator chooses it for the instance's key (`AI_ADMIN_DATA_POLICY`), a
+ * person for their own OpenRouter key; no other provider has the choice.
+ */
+export const AiDataPolicy = z.enum(['any', 'no_training', 'no_retention']);
+export type AiDataPolicy = z.infer<typeof AiDataPolicy>;
+
 export const AiProviderConfigInput = z
   .object({
     provider: AiProvider,
@@ -19,6 +31,11 @@ export const AiProviderConfigInput = z
     apiKey: apiKey.optional(),
     /** Per-config Ollama host. Required when provider = ollama. */
     baseUrl: baseUrl.optional(),
+    /**
+     * OpenRouter only; ignored for the others. Left out, a new configuration
+     * takes `no_training` and a saved one keeps what it has.
+     */
+    dataPolicy: AiDataPolicy.optional(),
     model,
     /** Lower number = tried first in the failover chain. */
     priority: z.number().int().min(0).max(100).default(0),
@@ -59,6 +76,8 @@ export const AiProviderConfig = z.object({
   keyUnreadable: z.boolean(),
   /** Per-config base URL (Ollama only). Null for other providers. */
   baseUrl: z.string().nullable(),
+  /** Which endpoints may serve a request (OpenRouter only). Null for other providers. */
+  dataPolicy: AiDataPolicy.nullable(),
 });
 export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
 

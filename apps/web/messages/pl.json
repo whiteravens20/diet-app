@@ -2222,6 +2222,14 @@
     "aiModelWarning": "Słaby lub zbyt mały model może zmyślać składniki, wymyślać ilości albo źle tłumaczyć. Wybierz model, któremu ufasz; wbudowany silnik aplikacji i tak liczy każdą wartość odżywczą, ale tekst tworzony przez AI (szkice przepisów, zamienniki składników, tłumaczenia) jest tylko tak dobry, jak wybrany model.",
     "aiPriority": "Priorytet",
     "aiPriorityHint": "Dostawca z niższą liczbą jest pytany pierwszy; następny dopiero wtedy, gdy ten zawiedzie.",
+    "aiDataPolicy": "Których dostawców OpenRouter może użyć",
+    "aiDataPolicyNoTraining": "Bez trenowania na danych",
+    "aiDataPolicyNoTrainingHint": "Tylko dostawcy, którzy nie trenują modeli na zapytaniach. Mogą je przechowywać.",
+    "aiDataPolicyNoRetention": "Bez przechowywania danych",
+    "aiDataPolicyNoRetentionHint": "Tylko dostawcy, którzy nie przechowują zapytań. Ustawienia konta OpenRouter mogą dopuścić tych, którzy trzymają je wyłącznie po to, by wykrywać nadużycia.",
+    "aiDataPolicyAny": "Bez ograniczeń aplikacji",
+    "aiDataPolicyAnyHint": "Każdy dostawca, na którego pozwalają ustawienia konta OpenRouter, także taki, który trenuje modele na zapytaniach.",
+    "aiDataPolicyRefused": "Gdy żaden dostawca modelu nie spełnia wyboru, OpenRouter odmawia i odpowiada wbudowany silnik.",
     "aiSaving": "Zapisywanie…",
     "aiSave": "Zapisz dostawcę",
     "aiDelete": "Usuń",
@@ -3013,8 +3021,53 @@
     "source": "Kod źródłowy",
     "docs": "Dokumentacja",
     "terms": "Regulamin",
+    "privacy": "Prywatność",
     "support": "Wesprzyj nas",
     "copyright": "© White Ravens"
+  },
+  "privacy": {
+    "title": "Prywatność",
+    "back": "← Wróć do strony głównej",
+    "lead": "Co ta instancja przechowuje, co wysyła poza siebie i co zostaje w przeglądarce i telefonie. Kopie zapasowe, dzienniki serwera i to, kto prowadzi instancję, opisuje <terms>regulamin</terms>.",
+    "account": {
+      "title": "Twoje konto",
+      "address": "Adres e-mail jest zaszyfrowany, a hasło zapisane tylko w postaci, z której nie da się go odczytać.",
+      "secrets": "Klucze dostawców AI, które dodasz, są zaszyfrowane i nigdy nie wracają do przeglądarki ani telefonu. Sekret logowania dwuetapowego też jest zaszyfrowany, a kody zapasowe są zapisane tylko w postaci nieczytelnej.",
+      "panel": "Panel administratora nie ma listy kont i nie pokazuje profili, dziennika ani wagi.",
+      "export": "Wszystko, co przechowuje konto, pobierzesz jako jeden plik w ustawieniach, na karcie „Konto i dane”.",
+      "deletion": "Usunięcie konta od razu usuwa je razem z profilami, planami, dziennikiem i resztą danych. Zostają tylko dzienna liczba wywołań AI bez wskazania konta i produkty przyjęte do wspólnej bazy, bez informacji, kto je dodał."
+    },
+    "kept": {
+      "title": "Jak długo",
+      "notifications": "Powiadomienia: przeczytane 60 dni, nieprzeczytane rok.",
+      "ai": "Zapis wywołań AI: rok.",
+      "limits": "Zapis, kiedy zapisano lub wysłano produkt i kiedy zapytano o kod kreskowy (bez samego kodu): doba.",
+      "recipe": "Usunięty własny przepis: 7 dni."
+    },
+    "out": {
+      "title": "Co wychodzi poza instancję",
+      "ai": "Zapytanie do dostawcy modelu AI niesie tylko to, czego wymaga zadanie: składniki przepisu, posiłki planu, dietę i preferencje profilu albo kalorie z dziennika. Nigdy imienia, adresu e-mail, wagi, wzrostu ani wieku.",
+      "lookups": "Kod kreskowy, którego instancja nie zna, sprawdza w Open Food Facts we własnym imieniu: Open Food Facts nie widzi Ciebie ani Twojego konta.",
+      "noLookups": "Ta instancja nie pyta Open Food Facts o kody kreskowe.",
+      "mail": "Wiadomości e-mail wysyła serwer pocztowy operatora.",
+      "noMail": "Ta instancja nie wysyła poczty.",
+      "turnstile": "Strony logowania, rejestracji i ustawiania nowego hasła ładują sprawdzenie Cloudflare Turnstile, które widzi Twój adres IP i przeglądarkę.",
+      "proxy": "Serwer pośredniczący przed instancją może zapisywać adresy żądań, a w nich identyfikatory profili i planów oraz wyszukiwane słowa. Jak długo, mówi regulamin."
+    },
+    "browser": {
+      "title": "Przeglądarka",
+      "sources": "Strona ładuje skrypty, czcionki i obrazy tylko z tej instancji. Nie ma analityki ani śledzenia.",
+      "session": "Klucz sesji jest tylko w pamięci otwartej strony, a ciasteczko, które go odnawia, nie jest dostępne dla skryptów.",
+      "storage": "W pamięci przeglądarki zostaje wybrany wygląd. To, co dotyczy konta, znika po wylogowaniu."
+    },
+    "phone": {
+      "title": "Aplikacja Android",
+      "permissions": "Ma dostęp do internetu, aparatu (skaner odczytuje kod na telefonie), powiadomień, instalowania własnych aktualizacji, sieci lokalnej (serwer w domu) i odcisku palca (opcjonalne odblokowanie).",
+      "none": "Nie korzysta z usług Google Play ani z analityki, a nic z niej nie trafia do kopii zapasowej Androida.",
+      "session": "Sesja jest zapieczętowana kluczem z magazynu kluczy telefonu.",
+      "updates": "Sprawdza na GitHubie, czy jest nowsza wersja.",
+      "unlock": "Gdy włączysz odblokowanie odciskiem palca, ekran ostatnich aplikacji nie pokazuje jej treści."
+    }
   },
   "terms": {
     "toc": "Na tej stronie",

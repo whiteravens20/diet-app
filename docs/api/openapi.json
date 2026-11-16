@@ -12003,6 +12003,14 @@
         ],
         "additionalProperties": false
       },
+      "AiDataPolicy": {
+        "type": "string",
+        "enum": [
+          "any",
+          "no_training",
+          "no_retention"
+        ]
+      },
       "AiDraftRecipeRequest": {
         "type": "object",
         "properties": {
@@ -12284,6 +12292,16 @@
               "string",
               "null"
             ]
+          },
+          "dataPolicy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiDataPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -12294,7 +12312,8 @@
           "enabled",
           "hasKey",
           "keyUnreadable",
-          "baseUrl"
+          "baseUrl",
+          "dataPolicy"
         ],
         "additionalProperties": false
       },
@@ -12313,6 +12332,9 @@
             "type": "string",
             "maxLength": 500,
             "format": "uri"
+          },
+          "dataPolicy": {
+            "$ref": "#/components/schemas/AiDataPolicy"
           },
           "model": {
             "type": "string",

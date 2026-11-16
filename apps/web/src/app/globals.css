@@ -237,6 +237,15 @@
   h4 {
     overflow-wrap: anywhere;
   }
+
+  /*
+   * A button that can do nothing now and keeps the focus (`unavailable` of Button) looks as a disabled one does.
+   * Here and not in the button's classes, which every page carries in its scripts.
+   */
+  button[aria-disabled='true'] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
 }
 
 body {

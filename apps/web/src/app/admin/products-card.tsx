@@ -184,7 +184,7 @@ function AcceptedProductsList({
             type="button"
             size="sm"
             variant="ghost"
-            disabled={page <= 1}
+            unavailable={page <= 1}
             onClick={() => setPage(page - 1)}
           >
             {t('prev')}
@@ -194,7 +194,7 @@ function AcceptedProductsList({
             type="button"
             size="sm"
             variant="ghost"
-            disabled={page >= list.totalPages}
+            unavailable={page >= list.totalPages}
             onClick={() => setPage(page + 1)}
           >
             {t('next')}
