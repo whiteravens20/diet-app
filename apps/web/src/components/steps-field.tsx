@@ -65,7 +65,7 @@ export function StepsField({
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={steps.length === 1}
+                unavailable={steps.length === 1}
                 onClick={() => onChange(steps.filter((_, i) => i !== index))}
                 aria-label={t('removeStep', { n: index + 1 })}
                 title={t('removeStep', { n: index + 1 })}

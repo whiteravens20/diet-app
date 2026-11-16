@@ -86,14 +86,16 @@ describe("the reviewer's queue", () => {
   it('names the buttons that go to the draft before and after', async () => {
     await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
 
-    expect(button(text.previous)).toBeDisabled();
+    expect(button(text.previous)).toHaveAttribute('aria-disabled', 'true');
     await userEvent.click(button(text.next));
 
     expect(draft(2, 2)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Jajecznica');
-    expect(button(text.next)).toBeDisabled();
-    // A step with a button leaves the focus on the button.
+    expect(button(text.next)).toHaveAttribute('aria-disabled', 'true');
+    // A step with a button leaves the focus on the button, at the last draft too.
     expect(button(text.next)).toHaveFocus();
+    await userEvent.click(button(text.next));
+    expect(draft(2, 2)).toBeInTheDocument();
   });
 
   it("names a draft's allergens as the rest of the app does, in the reader's language", async () => {

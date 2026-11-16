@@ -4,7 +4,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, TriangleAlert } from 'lucide-react';
+import { RefreshCw, TriangleExclamationPoint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -149,7 +149,7 @@ export function AdminPanel() {
       <Card className="border-destructive/40 bg-destructive/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TriangleAlert className="h-5 w-5" /> {t('unreachable')}
+            <TriangleExclamationPoint className="h-5 w-5" /> {t('unreachable')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -170,7 +170,7 @@ export function AdminPanel() {
       <Card className="border-warning/40 bg-warning/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TriangleAlert className="h-5 w-5" /> {t('disabled')}
+            <TriangleExclamationPoint className="h-5 w-5" /> {t('disabled')}
           </CardTitle>
         </CardHeader>
         <CardContent>

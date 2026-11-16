@@ -28,9 +28,24 @@ export const buttonVariants = cva(
 );
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants>;
+  VariantProps<typeof buttonVariants> & {
+    /**
+     * The button can do nothing now, and keeps the focus. A button that takes a person to the end of a list, a
+     * page or a month makes itself unavailable by that click, and a disabled one would drop the focus to the page.
+     * This one looks as a disabled one does (`globals.css`), says it is unavailable (`aria-disabled`), and a click
+     * or a key on it does nothing, a form's submit included.
+     */
+    unavailable?: boolean;
+  };
 
 /** The single button primitive for the app. */
-export function Button({ className, variant, size, ...props }: ButtonProps) {
-  return <button className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+export function Button({ className, variant, size, unavailable, onClick, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size }), className)}
+      aria-disabled={unavailable || undefined}
+      onClick={unavailable ? (event) => event.preventDefault() : onClick}
+      {...props}
+    />
+  );
 }

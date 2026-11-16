@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 'use client';
 
-import { BookOpen, CodeXml, Heart, Scale } from 'lucide-react';
+import { BookOpen, CodeXml, Heart, Scale, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { SOURCE_URL } from '@/lib/project-links';
@@ -12,7 +12,7 @@ const DEFAULT_SUPPORT_URL = 'https://ko-fi.com/whiteravens20';
 const WHITE_RAVENS_HOME = 'https://whiteravens.net';
 
 type FooterLink = {
-  key: 'source' | 'docs' | 'terms' | 'support';
+  key: 'source' | 'docs' | 'terms' | 'privacy' | 'support';
   href: string;
   external: boolean;
   Icon: typeof CodeXml;
@@ -23,6 +23,7 @@ function getLinks(supportUrl: string): FooterLink[] {
     { key: 'source', href: SOURCE_URL, external: true, Icon: CodeXml },
     { key: 'docs', href: DOCS_URL, external: true, Icon: BookOpen },
     { key: 'terms', href: '/terms', external: false, Icon: Scale },
+    { key: 'privacy', href: '/privacy', external: false, Icon: ShieldCheck },
     { key: 'support', href: supportUrl, external: true, Icon: Heart },
   ];
 }
