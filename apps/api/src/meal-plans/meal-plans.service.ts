@@ -1085,18 +1085,29 @@ export class MealPlansService {
   }
 
   /**
-   * Share the surplus/deficit across the days from `from` to the end of the
-   * plan. A day before `today` is done with: its meals stay as they are, and
-   * what it is off by is made up for by the days from today on. A skipped day
-   * takes no part. What the profile's diary holds for a day counts as eaten.
+   * The days of the plan from `from` to its end as the plan-wide sizing counts
+   * them, and what it makes of them (`rebalanceDays`): what a day cannot absorb
+   * is spread over the others inside their windows, no dish past twice its
+   * portion. A day before `today` is done with: its meals stay as they are. A
+   * skipped day takes no part. What the profile's diary holds for a day counts
+   * as eaten. `instead` stands for one day as a change of its settings would
+   * leave it: its target and settings, the scales of its dishes, the meals it
+   * loses. Nothing is written: the preview of a change and the change itself
+   * read the same.
    */
-  private async rebalanceRestInternal(
+  async planRest(
+    db: Prisma.TransactionClient | PrismaService,
     planId: string,
-    tx: Prisma.TransactionClient,
     from: string,
     today: string,
-  ): Promise<RebalanceSummary | null> {
-    const plan = await tx.mealPlan.findUnique({
+    instead?: {
+      dayId: string;
+      day: { calorieTarget: number; overrides: unknown };
+      scales: ReadonlyMap<string, number>;
+      gone: ReadonlySet<string>;
+    },
+  ) {
+    const plan = await db.mealPlan.findUnique({
       where: { id: planId },
       include: {
         days: {
@@ -1108,22 +1119,32 @@ export class MealPlansService {
     if (!plan) return null;
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
-    const diary = await diaryOfDays(tx, plan.profileId, days);
-    const dayRows = days.map((d) => ({
-      target: d.calorieTarget,
-      past: isoDate(d.date) < today,
-      aim: aimOfDay(d, plan),
-      rows: d.meals.map(toRebalanceRow),
-      // Each day's own row of what its diary holds: the ids of the meals are the plan's.
-      diary: [
-        ...restRebalanceRows(d.meals),
-        ...diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
-      ],
-    }));
-    const allRows = dayRows.flatMap((d) => d.rows);
-    const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
-    const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-    const { scales, feasibility, unabsorbed } = rebalanceDays(
+    const diary = await diaryOfDays(db, plan.profileId, days);
+    const dayRows = days.map((d) => {
+      const changed = instead?.dayId === d.id ? instead : undefined;
+      const settings = changed
+        ? { ...d, calorieTarget: changed.day.calorieTarget, overrides: changed.day.overrides }
+        : d;
+      return {
+        id: d.id,
+        target: settings.calorieTarget,
+        past: isoDate(d.date) < today,
+        aim: aimOfDay(settings, plan),
+        rows: d.meals
+          .filter((meal) => !changed?.gone.has(meal.id))
+          .map(toRebalanceRow)
+          .map((row) => {
+            const scale = changed?.scales.get(row.id);
+            return scale === undefined ? row : { ...row, quantityScale: scale };
+          }),
+        // Each day's own row of what its diary holds: the ids of the meals are the plan's.
+        diary: [
+          ...restRebalanceRows(d.meals),
+          ...diaryRows(diary.get(isoDate(d.date)), `diary:${isoDate(d.date)}`),
+        ],
+      };
+    });
+    const result = rebalanceDays(
       dayRows.map((d) => ({
         target: d.target,
         aim: d.aim,
@@ -1133,6 +1154,42 @@ export class MealPlansService {
         })),
       })),
     );
+    /** What a day holds, in kcal, at `scaleOf` of its rows. */
+    const kcalOf = (day: (typeof dayRows)[number], scaleOf: (r: RebalanceRow) => number) =>
+      rowsMacros([...day.rows, ...day.diary], scaleOf).calories;
+    return {
+      dayRows,
+      result,
+      /** What each day holds after the sizing, and before it, by its id. */
+      kcal: new Map(
+        dayRows.map((day) => [
+          day.id,
+          {
+            before: kcalOf(day, (r) => r.quantityScale),
+            after: kcalOf(day, (r) => result.scales.get(r.id) ?? r.quantityScale),
+          },
+        ]),
+      ),
+    };
+  }
+
+  /**
+   * Share the surplus/deficit across the days from `from` to the end of the
+   * plan (`planRest`), and write it.
+   */
+  async rebalanceRestInternal(
+    planId: string,
+    tx: Prisma.TransactionClient,
+    from: string,
+    today: string,
+  ): Promise<RebalanceSummary | null> {
+    const planned = await this.planRest(tx, planId, from, today);
+    if (!planned) return null;
+    const { dayRows, result } = planned;
+    const { scales, feasibility, unabsorbed } = result;
+    const allRows = dayRows.flatMap((d) => d.rows);
+    const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
+    const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
     const changes = await this.persistScales(allRows, scales, tx);
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
     return {

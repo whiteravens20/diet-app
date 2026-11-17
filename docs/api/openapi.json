@@ -12718,6 +12718,10 @@
           "evenWeek": {
             "default": false,
             "type": "boolean"
+          },
+          "spreadShort": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -14066,6 +14070,47 @@
               "null"
             ]
           },
+          "short": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kcal": {
+                    "type": "number"
+                  },
+                  "spread": {
+                    "type": "object",
+                    "properties": {
+                      "days": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "takes": {
+                        "type": "number"
+                      },
+                      "left": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "days",
+                      "takes",
+                      "left"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kcal",
+                  "spread"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "listOutOfDate": {
             "type": "boolean"
           },
@@ -14164,6 +14209,7 @@
           "added",
           "dayCalories",
           "fits",
+          "short",
           "listOutOfDate",
           "unchanged",
           "cooking",

@@ -124,6 +124,8 @@ export function DaySettingsDialog({
   });
   // Whether the save asked for evens the week out too: a retry with the limits let go asks the same.
   const [evenWeek, setEvenWeek] = useState(false);
+  // Whether what the day falls short of goes to the next days of the plan, where the preview says it does.
+  const [spread, setSpread] = useState(true);
   const save = useMutation({
     mutationFn: ({
       allowRelaxations,
@@ -138,6 +140,7 @@ export function DaySettingsDialog({
         ...(!only && preview.data!.cooking?.changes.length ? { together: true } : {}),
         ...(allowRelaxations ? { allowRelaxations } : {}),
         ...(even ? { evenWeek: true } : {}),
+        ...(spread && (preview.data!.short?.spread.days ?? 0) > 0 ? { spreadShort: true } : {}),
       }),
     onSuccess: () => {
       onSaved();
@@ -301,6 +304,7 @@ export function DaySettingsDialog({
                 skip={kind === 'skip'}
                 mealName={mealName}
                 weekOff={week?.uneven === true ? week : null}
+                spreading={spread && (shown.short?.spread.days ?? 0) > 0}
               />
               {!shown.unchanged && (
                 <CookingNote
@@ -314,6 +318,27 @@ export function DaySettingsDialog({
             </div>
           )}
         </div>
+        {shown?.short && shown.short.spread.days > 0 && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4"
+              checked={spread}
+              onChange={(e) => setSpread(e.target.checked)}
+            />
+            <span>
+              {t('spreadShort', { kcal: fmt.number(shown.short.kcal) })}
+              <span className="block text-xs text-muted-foreground">
+                {t('spreadShortTakes', {
+                  days: shown.short.spread.days,
+                  kcal: fmt.number(shown.short.spread.takes),
+                })}
+                {shown.short.spread.left > 0 &&
+                  ` ${t('spreadShortLeft', { kcal: fmt.number(shown.short.spread.left) })}`}
+              </span>
+            </span>
+          </label>
+        )}
 
         {inTheWay && (
           <div
@@ -401,12 +426,15 @@ function Outcome({
   skip,
   mealName,
   weekOff,
+  spreading,
 }: {
   preview: DaySettingsPreview;
   skip: boolean;
   mealName: (mealType: string) => string;
   /** The week of the day, where it stands off the plan's target as the plan is. */
   weekOff: PlanWeek | null;
+  /** The next days take what the day falls short of: the line that they stay as they are is left out. */
+  spreading: boolean;
 }) {
   const t = useTranslations('mealPlans.daySettings');
   const fmt = useFormat();
@@ -471,14 +499,26 @@ function Outcome({
       {drawn && <p className="text-muted-foreground">{t('drawnNote')}</p>}
       {preview.dayCalories !== null && !skip && (
         <p className={preview.fits ? 'text-muted-foreground' : 'text-warning'}>
-          {t(preview.fits ? 'dayCalories' : 'dayCaloriesOff', {
-            kcal: fmt.number(preview.dayCalories),
-          })}
+          {preview.short
+            ? t('dayShort', {
+                kcal: fmt.number(preview.dayCalories),
+                short: fmt.number(preview.short.kcal),
+              })
+            : t(preview.fits ? 'dayCalories' : 'dayCaloriesOff', {
+                kcal: fmt.number(preview.dayCalories),
+              })}
+        </p>
+      )}
+      {preview.short && preview.short.spread.days === 0 && (
+        <p className="text-muted-foreground">
+          {t('shortLastDay', { kcal: fmt.number(preview.short.kcal) })}
         </p>
       )}
       {preview.listOutOfDate && <p className="text-muted-foreground">{t('listOutOfDate')}</p>}
       {preview.week && <WeekOutcome week={preview.week} />}
-      {!preview.week?.unevenAlone && <p className="text-muted-foreground">{t('otherDays')}</p>}
+      {!preview.week?.unevenAlone && !spreading && (
+        <p className="text-muted-foreground">{t('otherDays')}</p>
+      )}
     </>
   );
 }

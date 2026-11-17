@@ -58,7 +58,11 @@ describe('the settings of a day of a running plan', () => {
     ).body as DaySettingsPreview;
   const apply = async (
     of: MealPlan,
-    change: Partial<DaySettings> & { allowRelaxations?: string[]; evenWeek?: boolean },
+    change: Partial<DaySettings> & {
+      allowRelaxations?: string[];
+      evenWeek?: boolean;
+      spreadShort?: boolean;
+    },
   ) =>
     (
       await t
@@ -285,6 +289,24 @@ describe('the settings of a day of a running plan', () => {
   });
 
   describe('the portions of the dishes that stay', () => {
+    /** The plan once the meal of `mealType` on the day is eaten. */
+    const eat = async (of: MealPlan, mealType: string): Promise<MealPlan> => {
+      const meal = dayOf(of).meals.find((one) => one.mealType === mealType)!;
+      await t
+        .http()
+        .patch(`/api/meal-plans/${of.id}/meals/${meal.id}/eaten`)
+        .set(as(user))
+        .set('X-Client-Date', DATE)
+        .send({ eaten: true })
+        .expect(200);
+      return (await t.http().get(`/api/meal-plans/${of.id}`).set(as(user)).expect(200))
+        .body as MealPlan;
+    };
+    /** The days of the plan after the day changed, and what each holds. */
+    const after = (of: MealPlan) => of.days.filter((one) => one.date > DATE);
+    const held = (of: MealPlan) =>
+      after(of).reduce((sum, one) => sum + one.dayNutrition.calories, 0);
+
     it("says each one's servings and kcal now and after the change, as the change makes them", async () => {
       const day = dayOf(plan);
 
@@ -311,6 +333,67 @@ describe('the settings of a day of a running plan', () => {
           1,
         );
       }
+    });
+
+    it('grows the dish left at most to twice its portion, and spreads what the day falls short of over the next days', async () => {
+      // A dinner the plan gave one serving: twice that is under the most servings a dish takes, so the bound is its own.
+      const first = dayOf(plan).meals.find((meal) => meal.mealType === 'dinner')!;
+      await t.prisma.plannedMeal.update({
+        where: { id: first.id },
+        data: { servings: 1, quantityScale: 1 },
+      });
+      const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
+      const dinner = dayOf(eaten).meals.find((meal) => meal.mealType === 'dinner')!;
+      expect(dinner.servings).toBe(1);
+      // A target of its own far past what the dinner can take, after breakfast and lunch.
+      const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
+
+      const said = await preview(eaten, change);
+
+      const portion = said.meals.find((meal) => meal.mealId === dinner.id)!.portion!;
+      expect(portion.servings.then).toBeCloseTo(2, 2);
+      expect(said.fits).toBe(false);
+      expect(said.short!.kcal).toBe(change.calorieTarget - said.dayCalories!);
+      // The days after it take what they can inside their windows; the rest is said.
+      expect(said.short!.spread.days).toBe(after(eaten).length);
+      expect(said.short!.spread.takes).toBeGreaterThan(0);
+      expect(said.short!.spread.takes + said.short!.spread.left).toBe(said.short!.kcal);
+
+      const spread = await apply(eaten, { ...change, spreadShort: true });
+
+      // What the preview said the days after it take is what they took, to the rounding of their meals.
+      expect(Math.abs(held(spread) - held(eaten) - said.short!.spread.takes)).toBeLessThanOrEqual(
+        3 * after(eaten).length,
+      );
+      for (const day of after(spread)) expect(insideItsWindow(day)).toBe(true);
+      const grown = dayOf(spread).meals.find((meal) => meal.id === dinner.id)!;
+      expect(grown.servings).toBe(dinner.servings);
+      expect(
+        Math.abs(grown.servings * grown.quantityScale - portion.servings.then),
+      ).toBeLessThanOrEqual(0.0051);
+    });
+
+    it('leaves the days after it as they are where the spread is not asked for', async () => {
+      const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
+      const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
+
+      const changed = await apply(eaten, change);
+
+      expect(held(changed)).toBe(held(eaten));
+      expect(dayOf(changed).calorieTarget).toBe(change.calorieTarget);
+    });
+
+    it('has no day to spread to on the last day of the plan: all of the shortfall is left', async () => {
+      // A plan whose last day is the day changed.
+      const ending = await aPlan(t, user, await aProfile(t, user), {
+        startDate: day(-2),
+        durationDays: 4,
+      });
+      const eaten = await eat(await eat(ending, 'breakfast'), 'lunch');
+
+      const said = await preview(eaten, { calorieTarget: dayOf(eaten).calorieTarget + 1500 });
+
+      expect(said.short!.spread).toEqual({ days: 0, takes: 0, left: said.short!.kcal });
     });
   });
 

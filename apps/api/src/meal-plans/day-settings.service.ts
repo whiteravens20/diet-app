@@ -162,6 +162,11 @@ export class DaySettingsService {
         },
       };
     });
+    // A day its dishes cannot bring into its window from below: the rest may go to the days after it.
+    const short =
+      resized && !settings.skip && dayCalories! < change.target * (1 - REBALANCE_TOLERANCE)
+        ? await this.shortOf(context, change, resized.scales, dayCalories!, clientToday)
+        : null;
     const changesMeals =
       change.added.length > 0 || change.fates.some((fate) => fate.fate !== 'stays');
     const lists = changesMeals
@@ -190,6 +195,7 @@ export class DaySettingsService {
         dayCalories === null || settings.skip
           ? null
           : Math.abs(dayCalories - change.target) <= REBALANCE_TOLERANCE * change.target,
+      short,
       listOutOfDate: lists > 0,
       unchanged: change.unchanged,
       cooking: cookingChange(
@@ -201,6 +207,45 @@ export class DaySettingsService {
       ),
       week: await this.weekPreview(context, change),
     };
+  }
+
+  /**
+   * What a day falls short of its new target by (`DaySettingsPreview.short`),
+   * and what spreading it over the next days of the plan does: the same sizing
+   * of the plan's rest that the change runs with `spreadShort` (`planRest`), on
+   * the plan with this day as the change leaves it.
+   */
+  private async shortOf(
+    context: Context,
+    change: Change,
+    scales: ReadonlyMap<string, number>,
+    dayCalories: number,
+    clientToday: string | null,
+  ): Promise<DaySettingsPreview['short']> {
+    const kcal = Math.round(change.target - dayCalories);
+    const planned = await this.plans.planRest(
+      this.prisma,
+      context.plan.id,
+      context.date,
+      clientToday ?? this.plans.today(),
+      {
+        dayId: context.day.id,
+        day: { calorieTarget: change.target, overrides: change.overrides },
+        scales,
+        gone: new Set(
+          change.fates.filter((fate) => fate.fate === 'removed').map((fate) => fate.mealId),
+        ),
+      },
+    );
+    let takes = 0;
+    let days = 0;
+    for (const [id, { before, after }] of planned?.kcal ?? []) {
+      if (id === context.day.id || after - before < 0.5) continue;
+      takes += after - before;
+      days += 1;
+    }
+    const taken = Math.min(kcal, Math.round(takes));
+    return { kcal, spread: { days, takes: taken, left: kcal - taken } };
   }
 
   /**
@@ -379,6 +424,14 @@ export class DaySettingsService {
         if (change.resizes)
           await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
         await this.evenOthers(tx, context, evened);
+        // What the day falls short of goes to the days after it, inside their windows.
+        if (request.spreadShort)
+          await this.plans.rebalanceRestInternal(
+            planId,
+            tx,
+            context.date,
+            clientToday ?? this.plans.today(),
+          );
       });
       return this.plans.get(userId, locale, planId);
     }
@@ -506,6 +559,8 @@ export class DaySettingsService {
         today,
       );
       await this.evenOthers(tx, context, evened);
+      if (request.spreadShort)
+        await this.plans.rebalanceRestInternal(planId, tx, context.date, today);
     });
     return this.plans.get(userId, locale, planId);
   }

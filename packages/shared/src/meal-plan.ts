@@ -740,6 +740,12 @@ export const ApplyDaySettingsRequest = DaySettings.extend({
    * plan's target, and their dishes stay in other portions (`PlanWeek`).
    */
   evenWeek: z.boolean().default(false),
+  /**
+   * What the day falls short of its new target by is spread over the next days
+   * of the plan, each inside its window and no dish past twice its portion
+   * (`DaySettingsPreview.short`).
+   */
+  spreadShort: z.boolean().default(false),
 });
 export type ApplyDaySettingsRequest = z.infer<typeof ApplyDaySettingsRequest>;
 
@@ -795,6 +801,19 @@ export const DaySettingsPreview = z.object({
   dayCalories: z.number().nullable(),
   /** Whether that is inside the tenth either side of the new target that a plan is held to. Null with `dayCalories`. */
   fits: z.boolean().nullable(),
+  /**
+   * What the day falls short of its new target by, in kcal, where its dishes
+   * cannot grow enough (each at most to twice the plan's portion), and what
+   * spreading it over the next days of the plan does (`spreadShort`): how many
+   * days take part, the kcal they take inside their windows, and what is left.
+   * Null where the day is not short, and where recipes are drawn.
+   */
+  short: z
+    .object({
+      kcal: z.number(),
+      spread: z.object({ days: z.number().int().min(0), takes: z.number(), left: z.number() }),
+    })
+    .nullable(),
   /** A shopping list of the plan covers the day: once its meals change, it says that it is out of date. */
   listOutOfDate: z.boolean(),
   /** The change does nothing to the day. */

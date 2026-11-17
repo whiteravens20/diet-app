@@ -67,6 +67,7 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   added: [],
   dayCalories: 2310,
   fits: true,
+  short: null,
   listOutOfDate: false,
   cooking: null,
   unchanged: false,
@@ -274,6 +275,78 @@ describe('the window in which the settings of a day are changed', () => {
         ].map((line) => line.replace(/ (?=→|servings|kcal)/g, '\u00a0')),
       ),
     );
+  });
+
+  it('says what the day falls short of, and spreads it over the next days unless the box is unticked', async () => {
+    const short = aPreview({
+      dayCalories: 2400,
+      fits: false,
+      calorieTarget: { now: 2000, then: 3000 },
+      short: { kcal: 600, spread: { days: 3, takes: 540, left: 60 } },
+    });
+    const { dialog, put } = await opened(() => short);
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    const box = await dialog.findByRole('checkbox', { name: /^Spread the missing 600.kcal/ });
+    expect(box).toBeChecked();
+    // The next days take part: the line that they stay as they are is not said.
+    expect(dialog.queryByText("The plan's other days stay as they are.")).toBeNull();
+    expect(
+      dialog.getByText(
+        /^The next 3.days take 540.kcal, each inside its limits\. The other 60.kcal stay uncovered\.$/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      dialog.getByText(/^The day will hold about 2400.kcal: 600.kcal short of its target/),
+    ).toBeInTheDocument();
+    await vi.waitFor(() => expect(save(dialog)).toBeEnabled());
+    await userEvent.click(save(dialog));
+    await vi.waitFor(() =>
+      expect(put).toHaveBeenLastCalledWith(PATH, {
+        ...AS_IT_IS,
+        dayType: 'training',
+        revision: 7,
+        spreadShort: true,
+      }),
+    );
+  });
+
+  it('keeps the next days as they are where the box is unticked', async () => {
+    const { dialog, put } = await opened(() =>
+      aPreview({
+        dayCalories: 2400,
+        fits: false,
+        short: { kcal: 600, spread: { days: 3, takes: 600, left: 0 } },
+      }),
+    );
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    await userEvent.click(await dialog.findByRole('checkbox', { name: /^Spread the missing/ }));
+    expect(await dialog.findByText("The plan's other days stay as they are.")).toBeInTheDocument();
+    await vi.waitFor(() => expect(save(dialog)).toBeEnabled());
+    await userEvent.click(save(dialog));
+
+    await vi.waitFor(() =>
+      expect(put).toHaveBeenLastCalledWith(PATH, { ...AS_IT_IS, dayType: 'training', revision: 7 }),
+    );
+  });
+
+  it('says on the last day of the plan that the shortfall has no day to go to, and offers no spread', async () => {
+    const { dialog } = await opened(() =>
+      aPreview({
+        dayCalories: 2400,
+        fits: false,
+        short: { kcal: 600, spread: { days: 0, takes: 0, left: 600 } },
+      }),
+    );
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    expect(
+      await dialog.findByText(
+        /^This is the plan's last day: the missing 600.kcal have no day to go to\.$/,
+      ),
+    ).toBeInTheDocument();
+    expect(dialog.queryByRole('checkbox', { name: /^Spread the missing/ })).toBeNull();
   });
 
   it('saves the settings on the plan as the preview had it, and tells the page', async () => {
