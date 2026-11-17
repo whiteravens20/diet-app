@@ -2683,7 +2683,7 @@
     "splitGrams": {
       "protein": "Protein (g)",
       "fat": "Fat (g)",
-      "carbs": "Carbohydrates (g)"
+      "carbs": "Carbohydrate (g)"
     },
     "gramsShares": "These grams come to {kcal, number, ::group-off} kcal: {protein}% protein, {fat}% fat, {carbs}% carbohydrates.",
     "gramsAtTarget": "At a target of {target, number, ::group-off} kcal that is {protein, number, ::group-off} g of protein, {fat, number, ::group-off} g of fat and {carbs, number, ::group-off} g of carbohydrates.",

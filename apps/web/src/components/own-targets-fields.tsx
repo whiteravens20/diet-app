@@ -188,7 +188,7 @@ export function OwnTargetsFields({
         aria-label={t('customWay')}
         className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
       >
-        <span className="text-muted-foreground">{t('customWay')}</span>
+        <span className="w-full text-muted-foreground sm:w-auto">{t('customWay')}</span>
         {(['split', 'perKg'] as const).map((one) => (
           <label key={one} className="inline-flex items-center gap-2">
             <input
@@ -209,7 +209,7 @@ export function OwnTargetsFields({
             aria-label={t('customUnit')}
             className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
           >
-            <span className="text-muted-foreground">{t('customUnit')}</span>
+            <span className="w-full text-muted-foreground sm:w-auto">{t('customUnit')}</span>
             {(['percent', 'grams'] as const).map((one) => (
               <label key={one} className="inline-flex items-center gap-2">
                 <input
@@ -227,7 +227,7 @@ export function OwnTargetsFields({
               </label>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 items-end gap-3">
             {(['protein', 'fat', 'carbs'] as const).map((part) =>
               unit === 'percent' ? (
                 <Field key={part} label={t(`split.${part}`)}>
@@ -291,7 +291,7 @@ export function OwnTargetsFields({
       )}
       {way === 'perKg' && (
         <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 items-end gap-3">
             <Field label={t('perKgProtein')}>
               <Input
                 name="customProteinPerKg"
