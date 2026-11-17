@@ -79,6 +79,8 @@ export class AiRouterService {
 
     const failoverChain: AiProvider[] = [];
     let anyTimedOut = false;
+    /** Whose entry OpenRouter refused for its rule of the data, if one was. */
+    let dataPolicyRefused: ResolvedProviderConfig['owner'] | null = null;
     let refused: AiFallbackReason | null = null;
     let unreadableKey = false;
     let asked = 0;
@@ -167,6 +169,8 @@ export class AiRouterService {
       } catch (err) {
         const timedOut = err instanceof AiProviderError && err.timedOut;
         if (timedOut) anyTimedOut = true;
+        if (err instanceof AiProviderError && err.refusedForDataPolicy)
+          dataPolicyRefused = cfg.owner;
         this.logger.warn(`AI provider ${cfg.provider} failed: ${describe(err)}`);
         failoverChain.push(cfg.provider);
         await this.settle(call.id, {
@@ -181,9 +185,20 @@ export class AiRouterService {
     if (asked === 0 && unreadableKey) return fallback('key_unreadable', failoverChain);
     if (asked === 0 && refused) return fallback(refused);
     // Every provider in the chain failed — caller uses the deterministic
-    // engine. Surface timeout distinctly so the UI can hint at "your model is
-    // too slow" instead of a generic "didn't respond".
-    return fallback(anyTimedOut ? 'provider_timeout' : 'all_providers_failed', failoverChain);
+    // engine. A refusal for the rule of the data comes first: it stays until
+    // somebody changes a choice, where a provider too slow may answer next
+    // time. Then a timeout, so the UI can hint at "your model is too slow"
+    // instead of a generic "didn't respond".
+    return fallback(
+      dataPolicyRefused === 'operator'
+        ? 'instance_data_policy_refused'
+        : dataPolicyRefused === 'user'
+          ? 'data_policy_refused'
+          : anyTimedOut
+            ? 'provider_timeout'
+            : 'all_providers_failed',
+      failoverChain,
+    );
   }
 
   /** Settle a usage row. A failure to write it must not cost the user the answer. */

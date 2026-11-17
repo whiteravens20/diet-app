@@ -75,6 +75,12 @@ export class AiProviderError extends Error {
     message: string,
     /** The provider did not answer within the request's `timeoutMs`. */
     public readonly timedOut: boolean = false,
+    /**
+     * OpenRouter refused the request because no endpoint of the model meets
+     * the rule of the data it may be sent with: the request's own, or that
+     * of the OpenRouter account the key belongs to.
+     */
+    public readonly refusedForDataPolicy: boolean = false,
   ) {
     super(message);
   }

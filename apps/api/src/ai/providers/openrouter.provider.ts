@@ -40,6 +40,26 @@ const ENDPOINT_RULES: Record<AiDataPolicy, EndpointRule | undefined> = {
   no_retention: { data_collection: 'deny', zdr: true },
 };
 
+/** The step of OpenRouter's routing that a request no endpoint of the model may serve fails at. */
+const DATA_POLICY_STEP = 'Filter by Data Policy';
+
+/**
+ * Whether OpenRouter refused the request because no endpoint of the model
+ * meets the rule of the data: the request's, or the one the account's privacy
+ * settings make. It answers 404 then, names the step of its routing that
+ * failed and says "No endpoints found matching your data policy (…)" (read on
+ * 2026-11-16 and 2026-11-17). A model it does not know is a 400.
+ */
+function refusedForDataPolicy(err: unknown): boolean {
+  if (!(err instanceof OpenAI.APIError) || err.status !== 404) return false;
+  const body = err.error as
+    { message?: unknown; metadata?: { failed_routing_step?: unknown } } | undefined;
+  return (
+    body?.metadata?.failed_routing_step === DATA_POLICY_STEP ||
+    /matching your data policy/i.test(String(body?.message ?? err.message))
+  );
+}
+
 /** OpenRouter adapter — OpenAI-compatible API, routed across many models. */
 @Injectable()
 export class OpenRouterProvider implements AiProviderAdapter {
@@ -70,6 +90,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
         'openrouter',
         err instanceof Error ? err.message : String(err),
         err instanceof OpenAI.APIConnectionTimeoutError,
+        refusedForDataPolicy(err),
       );
     }
   }

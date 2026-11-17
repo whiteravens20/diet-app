@@ -239,7 +239,44 @@ describe('the endpoints OpenRouter may send a request to', () => {
     );
     expect(failed.message).toContain('No endpoints found matching your data policy');
     expect(failed.timedOut).toBe(false);
+    expect(failed.refusedForDataPolicy).toBe(true);
     expect(sent).toHaveLength(1);
+  });
+
+  it('are named as the cause of the refusal by the step of the routing OpenRouter says failed', async () => {
+    // As OpenRouter answered on 2026-11-17 for a model with no endpoint that keeps nothing.
+    transport(() =>
+      json(404, {
+        error: {
+          code: 404,
+          message:
+            'No endpoints found matching your data policy (Zero data retention). Configure: https://openrouter.ai/settings/privacy',
+          metadata: {
+            routing_funnel: [{ step: 'Initial Endpoints', endpoint_count: 1 }],
+            failed_routing_step: 'Filter by Data Policy',
+          },
+        },
+      }),
+    );
+
+    const failed = await failure(
+      openrouter.chat(messages, options({ dataPolicy: 'no_retention' })),
+    );
+
+    expect(failed.refusedForDataPolicy).toBe(true);
+  });
+
+  it.each([
+    // As OpenRouter answered on 2026-11-17 for a model it does not know.
+    [400, 'nobody/no-such-model is not a valid model ID'],
+    [404, 'No allowed providers are available for the selected model.'],
+    [500, 'Internal Server Error'],
+  ])('are not the cause of a refusal with %i: "%s"', async (status, message) => {
+    transport(() => json(status, { error: { code: status, message } }));
+
+    const failed = await failure(openrouter.chat(messages, options({ dataPolicy: 'no_training' })));
+
+    expect(failed.refusedForDataPolicy).toBe(false);
   });
 
   it.each(['openai', 'anthropic'])(

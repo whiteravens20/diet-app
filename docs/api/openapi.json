@@ -12085,6 +12085,8 @@
           "not_permitted",
           "no_provider",
           "all_providers_failed",
+          "data_policy_refused",
+          "instance_data_policy_refused",
           "provider_timeout",
           "key_unreadable",
           "invalid_output"

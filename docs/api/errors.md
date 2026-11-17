@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 198 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 200 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -11,11 +11,13 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `ADMIN_DISABLED` | 403 | The admin panel is disabled on this instance. | Panel administracyjny jest wyłączony na tej instancji. |
 | `ADMIN_SECOND_FACTOR_RESET_SET` | 409 | ADMIN_SECOND_FACTOR_RESET is on: a second step would be removed at the next start. Switch it off and restart the API first. | ADMIN_SECOND_FACTOR_RESET jest włączone: drugi etap zostałby usunięty przy następnym starcie. Najpierw wyłącz tę opcję i zrestartuj API. |
 | `AI_CONFIG_NOT_FOUND` | 404 | AI provider configuration not found. | Nie znaleziono konfiguracji dostawcy AI. |
+| `AI_DATA_POLICY_REFUSED` | 409 | OpenRouter refused: no provider of the model meets your choice of providers or the privacy settings of your OpenRouter account — change the choice or the model in the AI settings. | OpenRouter odmówił: żaden dostawca modelu nie spełnia Twojego wyboru dostawców ani ustawień prywatności Twojego konta OpenRouter — zmień wybór albo model w ustawieniach AI. |
 | `AI_DRAFT_DAILY_LIMIT` | 429 | AI has written as many recipes for you as it may in one day. Try again tomorrow. | AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro. |
 | `AI_DRAFT_INVALID` | 400 | AI returned a malformed recipe draft — try again, or change what you chose. | AI zwróciło niepoprawny szkic przepisu — spróbuj ponownie albo zmień wybrane opcje. |
 | `AI_DRAFT_OFF_DIET` | 400 | The AI's recipe does not fit the diet you asked for — try again. | Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_OFF_TARGET` | 400 | The AI's recipe came out far from the calories you asked for — try again. | Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_UNKNOWN_INGREDIENT` | 400 | AI proposed an ingredient it was not offered — try again. | AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie. |
+| `AI_INSTANCE_DATA_POLICY_REFUSED` | 503 | OpenRouter refused: no provider of this instance's model meets the choice of providers its operator set. | OpenRouter odmówił: żaden dostawca modelu tej instancji nie spełnia wyboru dostawców, który ustawia jej operator. |
 | `AI_INSTANCE_LIMIT_REACHED` | 403 | This instance's shared AI requests for the month are used up. | Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. |
 | `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in the AI settings. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w ustawieniach AI. |
 | `AI_MONTHLY_LIMIT_REACHED` | 403 | You've used your AI requests for this month. | Skończył się Twój miesięczny limit zapytań AI. |

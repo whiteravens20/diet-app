@@ -97,6 +97,17 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           `AI_DEFAULT_PROVIDER`).
  * - `all_providers_failed`— every provider in the chain errored (auth,
  *                           network, model error). Details in `failoverChain`.
+ * - `data_policy_refused` — OpenRouter refused a request of the user's own
+ *                           key: no endpoint of the model meets the choice
+ *                           of endpoints the key's entry made, or the
+ *                           privacy settings of the user's OpenRouter
+ *                           account. The user can change either, or the
+ *                           model. Said before a timeout of another provider
+ *                           of the chain: it does not pass by itself.
+ * - `instance_data_policy_refused` — the same refusal of a request of the
+ *                           operator's provider, under `AI_ADMIN_DATA_POLICY`
+ *                           or the operator's OpenRouter account: the user
+ *                           can change nothing of it.
  * - `provider_timeout`    — at least one provider's request was aborted on
  *                           the client-side deadline (default 60s). Distinct
  *                           from `all_providers_failed` so the UI can surface
@@ -125,6 +136,8 @@ export const AiFallbackReason = z.enum([
   'not_permitted',
   'no_provider',
   'all_providers_failed',
+  'data_policy_refused',
+  'instance_data_policy_refused',
   'provider_timeout',
   'key_unreadable',
   'invalid_output',

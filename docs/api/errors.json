@@ -26,6 +26,15 @@
       "pl": "Nie znaleziono konfiguracji dostawcy AI."
     }
   },
+  "AI_DATA_POLICY_REFUSED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "OpenRouter refused: no provider of the model meets your choice of providers or the privacy settings of your OpenRouter account — change the choice or the model in the AI settings.",
+      "pl": "OpenRouter odmówił: żaden dostawca modelu nie spełnia Twojego wyboru dostawców ani ustawień prywatności Twojego konta OpenRouter — zmień wybór albo model w ustawieniach AI."
+    }
+  },
   "AI_DRAFT_DAILY_LIMIT": {
     "statuses": [
       429
@@ -69,6 +78,15 @@
     "messages": {
       "en": "AI proposed an ingredient it was not offered — try again.",
       "pl": "AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie."
+    }
+  },
+  "AI_INSTANCE_DATA_POLICY_REFUSED": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "OpenRouter refused: no provider of this instance's model meets the choice of providers its operator set.",
+      "pl": "OpenRouter odmówił: żaden dostawca modelu tej instancji nie spełnia wyboru dostawców, który ustawia jej operator."
     }
   },
   "AI_INSTANCE_LIMIT_REACHED": {

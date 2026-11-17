@@ -250,6 +250,75 @@ describe('AiRouterService.chat', () => {
     });
   });
 
+  describe("OpenRouter's refusal of a request no endpoint of the model may serve under the rule of the data", () => {
+    const refuses: Behaviour = async () => {
+      throw new AiProviderError(
+        'openrouter',
+        '404 No endpoints found matching your data policy (Zero data retention).',
+        false,
+        true,
+      );
+    };
+
+    it("is said as the user's to change, for the user's own key", async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openrouter' }],
+        behaviour: { openrouter: refuses },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBeNull();
+      expect(result.meta).toMatchObject({
+        usedDeterministicFallback: true,
+        fallbackReason: 'data_policy_refused',
+        failoverChain: ['openrouter'],
+      });
+    });
+
+    it("is said as the operator's, for the instance's provider", async () => {
+      const { router } = setup({
+        mode: 'admin',
+        chain: [{ provider: 'openrouter', mode: 'admin' }],
+        behaviour: { openrouter: refuses },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.meta.fallbackReason).toBe('instance_data_policy_refused');
+    });
+
+    it('comes before a provider later in the chain that was too slow, since it does not pass by itself', async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openrouter' }, { provider: 'openai' }],
+        behaviour: { openrouter: refuses, openai: timesOut },
+      });
+
+      // Each of the two has at least the shortest wait a provider is started with.
+      const result = await router.chat('user-1', MESSAGES, { ...OPERATION, timeoutMs: 2_400 });
+
+      expect(result.meta.fallbackReason).toBe('data_policy_refused');
+      expect(result.meta.failoverChain).toEqual(['openrouter', 'openai']);
+    });
+
+    it('is no reason at all when the next provider of the chain answers', async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openrouter' }, { provider: 'openai' }],
+        behaviour: { openrouter: refuses, openai: async () => answer('ok') },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBe('ok');
+      expect(result.meta).toMatchObject({
+        provider: 'openai',
+        usedDeterministicFallback: false,
+        fallbackReason: null,
+        failoverChain: ['openrouter'],
+      });
+    });
+  });
+
   it('calls no provider for a user who turned AI off', async () => {
     const { router, calls, usage } = setup({ mode: 'none', chain: [] });
 

@@ -97,6 +97,8 @@
     "not_permitted": "AI instancji nie jest dostępne dla Twojego konta — przełączam się na wbudowany silnik.",
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
     "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
+    "data_policy_refused": "OpenRouter odmówił: żaden dostawca tego modelu nie spełnia Twojego wyboru dostawców ani ustawień prywatności Twojego konta OpenRouter. Wybór i model zmienisz w Ustawieniach, w zakładce AI. Tym razem korzystam z wbudowanego silnika.",
+    "instance_data_policy_refused": "OpenRouter odmówił: żaden dostawca modelu tej instancji nie spełnia wyboru dostawców, który ustawia jej operator. Tym razem korzystam z wbudowanego silnika.",
     "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika.",
     "key_unreadable": "Zapisanego klucza AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach, w zakładce AI. Tym razem korzystam z wbudowanego silnika.",
     "invalid_output": "Odpowiedzi AI nie dało się użyć — wyboru dokonał wbudowany silnik."
@@ -426,6 +428,8 @@
     "AI_NEW_ACCOUNTS_LIMIT_REACHED": "Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit.",
     "AI_NOT_PERMITTED": "AI instancji nie jest dostępne dla Twojego konta.",
     "AI_PROVIDER_TIMEOUT": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze.",
+    "AI_DATA_POLICY_REFUSED": "OpenRouter odmówił: żaden dostawca modelu nie spełnia Twojego wyboru dostawców ani ustawień prywatności Twojego konta OpenRouter — zmień wybór albo model w\u00a0ustawieniach AI.",
+    "AI_INSTANCE_DATA_POLICY_REFUSED": "OpenRouter odmówił: żaden dostawca modelu tej instancji nie spełnia wyboru dostawców, który ustawia jej operator.",
     "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj ponownie albo zmień wybrane opcje.",
     "AI_DRAFT_OFF_TARGET": "Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie.",
     "AI_DRAFT_OFF_DIET": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie.",

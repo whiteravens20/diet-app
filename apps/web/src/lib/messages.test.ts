@@ -2,6 +2,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { AiFallbackReason } from '@diet-app/shared';
 import { LOCALES } from '@diet-app/shared/options';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
@@ -145,6 +146,15 @@ describe('the texts of the application, in every language of the folder', () => 
       expect([...english.keys()].filter((key) => !own.has(key))).toEqual([]);
     },
   );
+
+  // A reason the API gives that has no words would leave a screen saying
+  // nothing of why the engine decided; English holds them, and the test above
+  // holds every other language to English.
+  it('say why the engine decided in the place of a model, for every reason the API gives', () => {
+    expect(
+      AiFallbackReason.options.filter((reason) => !english.has(`aiFallback.${reason}`)),
+    ).toEqual([]);
+  });
 
   it.each(others)('have in %s no text that English does not have', (code) => {
     expect([...files.get(code)!.keys()].filter((key) => !english.has(key))).toEqual([]);

@@ -8,7 +8,8 @@ import {
   type Profile,
 } from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AiRouterService } from '../ai/ai-router.service.js';
 import { recipeDraft } from '../ai/operations.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -472,6 +473,35 @@ describe('drafting a recipe with a model', () => {
       t.model.reply({ status: 500, text: 'out of memory' });
 
       expect(await refusal(ask())).toMatchObject({ status: 503, error: 'AI_UNAVAILABLE' });
+    });
+
+    // OpenRouter is not what the stand-in model answers as: the router's word
+    // for its refusal (tested with the router) is what the draft is refused with.
+    describe('when OpenRouter refused for the rule of the data', () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it.each([
+        ['data_policy_refused', 409, 'AI_DATA_POLICY_REFUSED'],
+        ['instance_data_policy_refused', 503, 'AI_INSTANCE_DATA_POLICY_REFUSED'],
+      ] as const)('says so, as %s, and asks no second time', async (reason, status, error) => {
+        const chat = vi.spyOn(t.app.get(AiRouterService), 'chat').mockResolvedValue({
+          text: null,
+          owner: null,
+          meta: {
+            provider: null,
+            model: null,
+            failoverChain: ['openrouter'],
+            usedDeterministicFallback: true,
+            fallbackReason: reason,
+            reason: null,
+          },
+        });
+
+        expect(await refusal(ask())).toMatchObject({ status, error });
+        expect(chat).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

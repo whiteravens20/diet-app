@@ -530,6 +530,20 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
         error: 'AI_NOT_CONFIGURED',
         message: 'No AI provider is set up for your account.',
       });
+    // A choice the user can change: the key's choice of endpoints, its
+    // OpenRouter account's settings, or the model.
+    case 'data_policy_refused':
+      return new ConflictException({
+        error: 'AI_DATA_POLICY_REFUSED',
+        message:
+          "No endpoint of the model on OpenRouter meets your key's choice of endpoints or your OpenRouter account's privacy settings.",
+      });
+    case 'instance_data_policy_refused':
+      return new ServiceUnavailableException({
+        error: 'AI_INSTANCE_DATA_POLICY_REFUSED',
+        message:
+          "No endpoint of this instance's model on OpenRouter meets the rules its operator set for the data.",
+      });
     case 'provider_timeout':
       return new ServiceUnavailableException({
         error: 'AI_PROVIDER_TIMEOUT',
