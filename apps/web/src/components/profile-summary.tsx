@@ -108,7 +108,12 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           </CardHeader>
           <CardContent>
             {c ? (
-              <MacroChart grams={c.targetMacros} kcal={c.dailyTarget} />
+              <>
+                <MacroChart grams={c.targetMacros} kcal={c.dailyTarget} />
+                {c.customSplitHeld && (
+                  <p className="mt-3 text-sm text-warning">{t('customSplitHeld')}</p>
+                )}
+              </>
             ) : (
               <Skeleton className="h-80" />
             )}

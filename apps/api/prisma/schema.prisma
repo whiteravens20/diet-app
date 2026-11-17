@@ -306,6 +306,10 @@ model Profile {
   // the profile aims at on the custom diet, in whole per cent (`MacroSplit`
   // of the shared contract). A profile on that diet has one.
   customMacroSplit    Json?
+  // The custom diet's protein in grams per kilogram of the profile's weight;
+  // null for the way of the split alone. With it, the split's fat is fat's
+  // share of a day and carbohydrate takes the rest (`ownSplit`).
+  customProteinPerKg  Float?
   mealCount           Int           @default(3)
   // Transient counter — incremented on every plan-level generation that
   // actually applied the inventory bias. Reset to 0 when it reaches

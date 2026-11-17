@@ -20,6 +20,7 @@ const figures = (over: Partial<CaloriePreviewRequest> = {}): CaloriePreviewReque
   activityLevel: 'moderate',
   dietType: 'balanced',
   customMacroSplit: null,
+  customProteinPerKg: null,
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
   acknowledgeRisk: false,
@@ -206,6 +207,7 @@ describe('what the figures of a form come to', () => {
         dailyTarget: 2759,
         dailyDeficit: 0,
         goalHeld: true,
+        customSplitHeld: false,
         warnings: ['minor'],
       }) as never,
     );

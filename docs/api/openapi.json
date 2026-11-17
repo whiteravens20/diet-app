@@ -13019,6 +13019,9 @@
           "goalHeld": {
             "type": "boolean"
           },
+          "customSplitHeld": {
+            "type": "boolean"
+          },
           "warnings": {
             "type": "array",
             "items": {
@@ -13040,6 +13043,7 @@
           "safetyFloorApplied",
           "maintenanceUnderFloor",
           "goalHeld",
+          "customSplitHeld",
           "warnings"
         ],
         "additionalProperties": false
@@ -13105,6 +13109,19 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MacroSplitInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customProteinPerKg": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 3
               },
               {
                 "type": "null"
@@ -21266,6 +21283,19 @@
               }
             ]
           },
+          "customProteinPerKg": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "preferences": {
             "default": {
               "favoriteIngredientIds": [],
@@ -21357,6 +21387,7 @@
           "cookingReminders",
           "waterReminders",
           "customMacroSplit",
+          "customProteinPerKg",
           "preferences",
           "id",
           "userId",
@@ -21491,6 +21522,19 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MacroSplitInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customProteinPerKg": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 3
               },
               {
                 "type": "null"
@@ -21633,6 +21677,18 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MacroSplitInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customProteinPerKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 3
               },
               {
                 "type": "null"
@@ -22077,6 +22133,19 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MacroSplitInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customProteinPerKg": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 3
               },
               {
                 "type": "null"

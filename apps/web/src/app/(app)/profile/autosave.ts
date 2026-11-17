@@ -20,7 +20,13 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { shownToOne, toKilograms } from '@/lib/weight-unit';
-import { A_FIRST_SPLIT, splitAddsUp, splitIn } from '@/components/profile-fields';
+import {
+  A_FIRST_SPLIT,
+  OWN_TARGETS_REFUSED,
+  ownTargetsProblem,
+  proteinPerKgIn,
+  splitIn,
+} from '@/components/own-targets-fields';
 import { kindLimitsIn } from './kind-limit-fields';
 import { labelLimitsIn } from './label-limit-fields';
 
@@ -79,6 +85,9 @@ const PARTS_BY_NAME: Record<string, Part> = {
   splitProtein: 'split',
   splitFat: 'split',
   splitCarbs: 'split',
+  customWay: 'split',
+  customProteinPerKg: 'split',
+  perKgFat: 'split',
   maxMealsPerDaySameKind: 'kindLimits',
   maxMealsPerWeekSameKind: 'kindLimits',
   kindLimitKind: 'kindLimits',
@@ -183,12 +192,19 @@ function changeOf(part: Part, fields: FormData, kept: Profile, unit: WeightUnit)
       // The custom diet comes with its split: the one the profile keeps, or the one the form begins with.
       return own(
         dietType === 'custom'
-          ? { dietType, customMacroSplit: kept.customMacroSplit ?? A_FIRST_SPLIT }
+          ? {
+              dietType,
+              customMacroSplit: kept.customMacroSplit ?? A_FIRST_SPLIT,
+              // A split named alone is the split's way: protein per kilogram the profile keeps goes with it.
+              ...(kept.customProteinPerKg != null
+                ? { customProteinPerKg: kept.customProteinPerKg }
+                : {}),
+            }
           : { dietType },
       );
     }
     case 'split':
-      return splitAddsUp(fields) ? own({ customMacroSplit: splitIn(fields, null) }) : null;
+      return ownTargetsProblem(fields) === null ? own(ownTargetsIn(fields)) : null;
     case 'maxConsecutiveDaysSameMeal':
       return preferences({ maxConsecutiveDaysSameMeal: Number(fields.get(part)) });
     case 'maxTimesPerWeekSameMeal':
@@ -310,7 +326,10 @@ export function useAutosave(
       if (!change) {
         notKept.current.add(part);
         reached(part);
-        setErrors((now) => new Map(now).set(part, refused ?? t('splitSumRefused')));
+        const problem = fields ? ownTargetsProblem(fields) : null;
+        setErrors((now) =>
+          new Map(now).set(part, refused ?? t(OWN_TARGETS_REFUSED[problem ?? 'sum'])),
+        );
         return;
       }
       /** Whether the form open is still that profile's: an answer for another one changes no other's form. */
@@ -464,5 +483,20 @@ export function useAutosave(
     onSubmit,
     changed,
     settle,
+  };
+}
+
+/**
+ * The custom diet's targets a form holds, as a change sends them: the split,
+ * and protein per kilogram where the form sets protein so. A split named
+ * alone is the split's way, so the split's way sends nothing more.
+ */
+function ownTargetsIn(
+  fields: FormData,
+): Pick<ProfilePatch, 'customMacroSplit' | 'customProteinPerKg'> {
+  const perKg = proteinPerKgIn(fields, null);
+  return {
+    customMacroSplit: splitIn(fields, null),
+    ...(perKg !== null ? { customProteinPerKg: perKg } : {}),
   };
 }

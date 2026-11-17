@@ -2,6 +2,7 @@
 
 import * as z from './zod.js';
 import { OWN_MEAL_LIMITS } from './constants.js';
+import { KCAL_PER_GRAM } from './units.js';
 
 /** Macronutrient triple, grams. Used for targets and totals alike. */
 export const Macros = z.object({
@@ -30,6 +31,50 @@ export const SPLIT_SHARE_LIMITS = {
   fat: { min: 15, max: 75 },
   carbs: { min: 5, max: 70 },
 } as const;
+
+/**
+ * The custom diet's protein per kilogram of the body's weight, in grams: the
+ * least and the most a profile may set, a tenth at a time, and where a form
+ * starts. Fat keeps its share of the day and carbohydrate takes the rest,
+ * every share inside `SPLIT_SHARE_LIMITS`.
+ */
+export const PROTEIN_PER_KG = { min: 0.8, max: 3, first: 1.6 } as const;
+
+/**
+ * The least and the most share of a day's energy, of one, that protein of
+ * somebody's own split may have while fat keeps `fat` (a share of one) and
+ * carbohydrate takes the rest: every share inside `SPLIT_SHARE_LIMITS`.
+ */
+export function proteinShareBounds(fat: number): { least: number; most: number } {
+  return {
+    least: Math.max(
+      SPLIT_SHARE_LIMITS.protein.min / 100,
+      1 - fat - SPLIT_SHARE_LIMITS.carbs.max / 100,
+    ),
+    most: Math.min(
+      SPLIT_SHARE_LIMITS.protein.max / 100,
+      1 - fat - SPLIT_SHARE_LIMITS.carbs.min / 100,
+    ),
+  };
+}
+
+/**
+ * The grams of protein a kilogram of `weightKg` that keep every share inside
+ * its limits at `target` kcal while fat keeps `fat` (a share of one): to a
+ * tenth inward, inside `PROTEIN_PER_KG`; null where none do.
+ */
+export function proteinPerKgThatFits(
+  fat: number,
+  target: number,
+  weightKg: number,
+): { from: number; to: number } | null {
+  const { least, most } = proteinShareBounds(fat);
+  const perKg = (share: number) => (share * target) / KCAL_PER_GRAM.protein / weightKg;
+  // A bound that is a tenth but for the error of floating point is that tenth.
+  const from = Math.max(PROTEIN_PER_KG.min, Math.ceil(perKg(least) * 10 - 1e-9) / 10);
+  const to = Math.min(PROTEIN_PER_KG.max, Math.floor(perKg(most) * 10 + 1e-9) / 10);
+  return from <= to ? { from, to } : null;
+}
 
 /**
  * Somebody's own split of a day's energy between protein, fat and
@@ -216,6 +261,12 @@ export const CalorieCalculation = z.object({
    * does (`acknowledgeRisk` on the profile).
    */
   goalHeld: z.boolean(),
+  /**
+   * The custom diet's protein per kilogram came to a share of the day outside
+   * the limits of a split, and the targets hold it at the limit: the profile
+   * says so. False on every other diet and way.
+   */
+  customSplitHeld: z.boolean(),
   warnings: z.array(CalorieWarning),
 });
 export type CalorieCalculation = z.infer<typeof CalorieCalculation>;

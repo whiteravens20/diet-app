@@ -38,9 +38,13 @@ import {
   OwnTargetField,
   PaceChoice,
   RiskBox,
-  splitAddsUp,
-  splitIn,
 } from '@/components/profile-fields';
+import {
+  OWN_TARGETS_REFUSED,
+  ownTargetsProblem,
+  proteinPerKgIn,
+  splitIn,
+} from '@/components/own-targets-fields';
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, useWeightUnit } from '@/lib/weight-unit';
@@ -191,9 +195,10 @@ export default function ProfilePage() {
     event.preventDefault();
     setError(null);
     const f = new FormData(event.currentTarget);
-    // The form says under the three shares what they add up to; a split that does not add up is not sent.
-    if (!splitAddsUp(f)) {
-      setError(t('splitSumRefused'));
+    // The form says under the custom diet's fields what they come to; targets it said are wrong are not sent.
+    const problem = ownTargetsProblem(f);
+    if (problem) {
+      setError(t(OWN_TARGETS_REFUSED[problem]));
       return;
     }
     save.mutate({
@@ -217,6 +222,8 @@ export default function ProfilePage() {
       dietType: f.get('dietType') as ProfileInput['dietType'],
       // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
       customMacroSplit: splitIn(f, editing?.customMacroSplit ?? null),
+      // Protein per kilogram goes only where the form sets protein so: a split alone is the split's way.
+      customProteinPerKg: proteinPerKgIn(f, editing?.customProteinPerKg ?? null),
       weeklyLossTarget: (f.get('weeklyLossTarget') as ProfileInput['weeklyLossTarget']) || null,
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
@@ -541,6 +548,9 @@ export default function ProfilePage() {
                   diet={editing?.dietType ?? 'balanced'}
                   mealCount={editing?.mealCount ?? 3}
                   split={editing?.customMacroSplit ?? null}
+                  perKg={editing?.customProteinPerKg ?? null}
+                  target={shown.preview?.calculation.dailyTarget ?? null}
+                  weightKg={typed?.figures?.weightKg ?? editing?.weightKg ?? null}
                   errorOf={errorOf}
                 />
               </FormSection>

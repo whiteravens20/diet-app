@@ -40,6 +40,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   mealCount: 3,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,
+  customProteinPerKg: null,
   preferences: {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],

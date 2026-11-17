@@ -33,6 +33,7 @@ export function figuresOf(kept: Profile): CaloriePreviewRequest {
     activityLevel: kept.activityLevel,
     dietType: kept.dietType,
     customMacroSplit: kept.customMacroSplit,
+    customProteinPerKg: kept.customProteinPerKg,
     weeklyLossTarget: kept.weeklyLossTarget,
     manualCalorieTarget: kept.manualCalorieTarget,
     acknowledgeRisk: kept.riskAcknowledgedAt !== null,
@@ -81,6 +82,11 @@ export function figuresIn(form: HTMLFormElement, unit: WeightUnit): CaloriePrevi
             fat: typed(fields, 'splitFat'),
             carbs: typed(fields, 'splitCarbs'),
           }
+        : null,
+    // The custom diet's protein per kilogram, where the form sets protein so.
+    customProteinPerKg:
+      fields.get('dietType') === 'custom' && fields.get('customWay') === 'perKg'
+        ? (typed(fields, 'customProteinPerKg') ?? null)
         : null,
     weeklyLossTarget: fields.get('weeklyLossTarget') || null,
     manualCalorieTarget: typed(fields, 'manualCalorieTarget') ?? null,

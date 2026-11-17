@@ -1,16 +1,25 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
-import { LabelTotals, Unit, type DietType, type Macros, type MealType } from '@diet-app/shared';
+import {
+  KCAL_PER_GRAM,
+  LabelTotals,
+  Unit,
+  type DietType,
+  type Macros,
+  type MealType,
+} from '@diet-app/shared';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { storedSplit } from '../common/stored-split.js';
+import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
 import {
   dayMacros,
   distanceOnDiet,
   energyShares,
   MACROS_OFF,
+  macrosForCalories,
   macroSplitOf,
+  ownSplit,
   sharesOf,
 } from '../engine/nutrition.js';
 import {
@@ -363,15 +372,36 @@ export const aimOfDay = (
   day: { calorieTarget: number; overrides: unknown },
   plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
 ): Macros =>
-  dayMacros(
-    {
-      target: day.calorieTarget,
-      base: plan.calorieTarget,
-      ownTarget: parseDayOverrides(day.overrides)?.calorieTarget ?? null,
-    },
-    plan.dietType as DietType,
-    sharesOf(storedSplit(plan.macroSplit)),
-  );
+  // A plan of the custom diet's protein per kilogram keeps its grams of protein on every day, whatever its kind
+  // or its own target; fat takes its share of the day's calories and carbohydrate the rest.
+  storedProteinGrams(plan.macroSplit) !== null
+    ? macrosForCalories(day.calorieTarget, 'custom', sharesOfPlanDay(plan, day.calorieTarget))
+    : dayMacros(
+        {
+          target: day.calorieTarget,
+          base: plan.calorieTarget,
+          ownTarget: parseDayOverrides(day.overrides)?.calorieTarget ?? null,
+        },
+        plan.dietType as DietType,
+        sharesOf(storedSplit(plan.macroSplit)),
+      );
+
+/**
+ * The shares of its energy a day of `calories` of a plan aims at: its diet's
+ * split, or on the custom diet its own; for a plan made by protein per
+ * kilogram, protein the energy of the grams it keeps, fat its share and
+ * carbohydrate the rest, held inside the limits of a split (`ownSplit`).
+ */
+export function sharesOfPlanDay(
+  plan: { dietType: string; macroSplit: unknown },
+  calories: number,
+): Macros {
+  const own = sharesOf(storedSplit(plan.macroSplit));
+  const grams = storedProteinGrams(plan.macroSplit);
+  return plan.dietType === 'custom' && own && grams !== null
+    ? ownSplit(own, grams * KCAL_PER_GRAM.protein, calories).shares
+    : macroSplitOf(plan.dietType as DietType, own);
+}
 
 /** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */
 export function isSkipped(day: { overrides: unknown }): boolean {
@@ -425,13 +455,12 @@ export function standingOf(
  */
 export function macrosOff(
   held: Macros,
-  plan: { dietType: string; macroSplit: unknown },
+  plan: { dietType: string; macroSplit: unknown; calorieTarget?: number },
   aim?: Macros,
 ): boolean {
   const shares = energyShares(held);
-  const split =
-    (aim && energyShares(aim)) ??
-    macroSplitOf(plan.dietType as DietType, sharesOf(storedSplit(plan.macroSplit)));
+  // Without a target, a plan of protein per kilogram is measured against its split as it was made.
+  const split = (aim && energyShares(aim)) ?? sharesOfPlanDay(plan, plan.calorieTarget ?? 0);
   return shares !== null && distanceOnDiet(shares, split, plan.dietType) > MACROS_OFF;
 }
 

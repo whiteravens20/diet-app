@@ -38,6 +38,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   mealCount: 3,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,
+  customProteinPerKg: null,
   preferences: {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
@@ -275,6 +276,49 @@ describe('the profile form, on the custom diet', () => {
       ]),
     );
     expect(screen.queryByText(plain(texts.splitSumRefused))).toBeNull();
+  });
+
+  it('keeps protein per kilogram with the split it comes to at the target the figures give', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await waitFor(() => expect(changes()).toHaveLength(1));
+
+    await userEvent.click(screen.getByRole('radio', { name: texts.customWayPerKg }));
+
+    // 1.6 g a kilogram of 80 kg: 128 g, 512 kcal of the preview's 2209; fat 30 %, carbohydrate the rest.
+    expect(
+      await screen.findByText(
+        'At your weight that is 128 g of protein, 23% of a target of 2209 kcal. Carbohydrates are the rest: 47%.',
+        { normalizer: (text) => text.replaceAll('\u00a0', ' ') },
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(changes().at(-1)).toEqual([
+        own,
+        { customMacroSplit: { protein: 23, fat: 30, carbs: 47 }, customProteinPerKg: 1.6 },
+      ]),
+    );
+  });
+
+  it('refuses protein per kilogram past a limit, saying which grams fit, and sends nothing of it', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await userEvent.click(screen.getByRole('radio', { name: texts.customWayPerKg }));
+    await waitFor(() => expect(changes()).toHaveLength(2));
+
+    // Fat at 75 % leaves protein at most 20 %: 1.6 g a kilogram of 80 kg is 23 % of 2209 kcal.
+    const fat = screen.getByLabelText(texts.perKgFat);
+    await userEvent.clear(fat);
+    await userEvent.type(fat, '75');
+    expect(
+      screen.getByText('At this target and weight, 0.8 to 1.3 g per kg fit.', {
+        normalizer: (text) => text.replaceAll('\u00a0', ' '),
+      }),
+    ).toBeInTheDocument();
+    await leave();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(plain(texts.perKgRefused));
+    expect(changes()).toHaveLength(2);
   });
 
   it('shows a profile on the custom diet the split it has, and sends only the diet for one that goes to another', async () => {

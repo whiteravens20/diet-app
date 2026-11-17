@@ -9,7 +9,6 @@ import {
   MAX_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
   PACES_OF_LOSS,
-  SPLIT_SHARE_LIMITS,
   type CalorieCalculation,
   type DietType,
   type MacroSplit,
@@ -22,6 +21,7 @@ import { useConfig } from '@/lib/use-config';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight } from '@/lib/weight-unit';
 import { Field, Input } from '@/components/ui/input';
+import { OwnTargetsFields } from '@/components/own-targets-fields';
 import { SupplyNote } from '@/components/supply-note';
 import { DOT } from '@/lib/figure-line';
 
@@ -272,31 +272,6 @@ export function RiskBox({
   );
 }
 
-/** The split a profile that goes to the custom diet begins with: the balanced diet's. */
-export const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
-
-/** Whether the three shares a form holds for the custom diet add up; true on every other diet. */
-export function splitAddsUp(fields: FormData): boolean {
-  return (
-    fields.get('dietType') !== 'custom' ||
-    Number(fields.get('splitProtein')) +
-      Number(fields.get('splitFat')) +
-      Number(fields.get('splitCarbs')) ===
-      100
-  );
-}
-
-/** The split a form holds for the custom diet; `kept` (the one a profile has for when it goes back) on every other. */
-export function splitIn(fields: FormData, kept: MacroSplit | null): MacroSplit | null {
-  return fields.get('dietType') === 'custom'
-    ? {
-        protein: Number(fields.get('splitProtein')),
-        fat: Number(fields.get('splitFat')),
-        carbs: Number(fields.get('splitCarbs')),
-      }
-    : kept;
-}
-
 /**
  * The diet, and with `meals` the number of meals a day. With the meals, each
  * diet is marked when the catalogue has no recipe, or few, for one of that
@@ -308,12 +283,20 @@ export function DietFields({
   diet: firstDiet,
   mealCount: firstMealCount,
   split: firstSplit,
+  perKg: firstPerKg = null,
+  target = null,
+  weightKg = null,
   meals = true,
   errorOf,
 }: {
   diet: DietType;
   mealCount?: number;
   split: MacroSplit | null;
+  /** The protein per kilogram the profile keeps; null for the way of the split. */
+  perKg?: number | null;
+  /** The day's calorie target the form's figures come to, and the weight they hold: what grams are worked out at. */
+  target?: number | null;
+  weightKg?: number | null;
   meals?: boolean;
   errorOf?: ErrorOf;
 }) {
@@ -325,12 +308,6 @@ export function DietFields({
   const [diet, setDiet] = useState(firstDiet);
   const [mealCount, setMealCount] = useState(firstMealCount ?? 3);
   const diets: readonly DietType[] = [...NAMED_DIETS, 'custom'];
-  // The three shares as they are typed, so that the form can say what they add up to before it is sent.
-  const [split, setSplit] = useState<Record<keyof MacroSplit, string>>(() => {
-    const first = firstSplit ?? A_FIRST_SPLIT;
-    return { protein: String(first.protein), fat: String(first.fat), carbs: String(first.carbs) };
-  });
-  const sum = Number(split.protein) + Number(split.fat) + Number(split.carbs);
   return (
     <>
       <Field label={t('dietType')} error={errorOf?.('dietType')}>
@@ -372,39 +349,13 @@ export function DietFields({
         </>
       )}
       {diet === 'custom' && (
-        <fieldset className="space-y-2 sm:col-span-2">
-          <legend className="text-sm font-medium">{t('customSplit')}</legend>
-          <p className="text-xs text-muted-foreground">{t('customSplitHint')}</p>
-          <div className="grid grid-cols-3 gap-3">
-            {(['protein', 'fat', 'carbs'] as const).map((part) => (
-              <Field key={part} label={t(`split.${part}`)}>
-                <Input
-                  name={`split${part[0]!.toUpperCase()}${part.slice(1)}`}
-                  type="number"
-                  inputMode="numeric"
-                  required
-                  min={SPLIT_SHARE_LIMITS[part].min}
-                  max={SPLIT_SHARE_LIMITS[part].max}
-                  step={1}
-                  value={split[part]}
-                  onChange={(e) => setSplit({ ...split, [part]: e.target.value })}
-                />
-              </Field>
-            ))}
-          </div>
-          {/* Said while it is typed: a form that is refused for its sum should have said the sum. */}
-          <p
-            aria-live="polite"
-            className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}
-          >
-            {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
-          </p>
-          {errorOf?.('split') && (
-            <p role="alert" className="text-xs text-destructive">
-              {errorOf('split')}
-            </p>
-          )}
-        </fieldset>
+        <OwnTargetsFields
+          split={firstSplit}
+          perKg={firstPerKg}
+          target={target}
+          weightKg={weightKg}
+          errorOf={errorOf}
+        />
       )}
     </>
   );

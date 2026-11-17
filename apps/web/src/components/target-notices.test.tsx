@@ -23,6 +23,7 @@ const plain: CalorieCalculation = {
   safetyFloorApplied: false,
   maintenanceUnderFloor: false,
   goalHeld: false,
+  customSplitHeld: false,
   warnings: [],
 };
 
@@ -82,6 +83,7 @@ describe('what a user is told about their calorie target', () => {
     const lines = told({
       ...plain,
       goalHeld: true,
+      customSplitHeld: false,
       dailyDeficit: 0,
       dailyTarget: 2759,
       requestedDeficit: 1100,
@@ -116,6 +118,7 @@ describe('what a user is told about their calorie target', () => {
     const held = {
       ...plain,
       goalHeld: true,
+      customSplitHeld: false,
       dailyTarget: 2759,
       dailyDeficit: 0,
       warnings: ['minor' as const],

@@ -26,7 +26,6 @@ import {
 import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf } from '../common/label-limits.js';
-import { storedSplit } from '../common/stored-split.js';
 import {
   fromStoredLabel,
   labelNotes,
@@ -46,14 +45,16 @@ import {
   labelEntryFigures,
   macroSplitOf,
   nutritionFor,
+  ownSplit,
+  proteinKcalOf,
   scaledFigures,
-  sharesOf,
   toCanonical,
   UnitConversionError,
 } from '../engine/index.js';
 import { mealRank } from '../meal-plans/meal-plans.service.js';
 import {
   aimOfDay as aimOfPlanDay,
+  sharesOfPlanDay,
   customMacros,
   isoDate,
   isSkipped,
@@ -96,6 +97,7 @@ const PROFILE = {
   activityLevel: true,
   dietType: true,
   customMacroSplit: true,
+  customProteinPerKg: true,
   weeklyLossTarget: true,
   manualCalorieTarget: true,
   riskAcknowledgedAt: true,
@@ -759,25 +761,35 @@ export class DiaryService {
     } | null,
   ): { target: DiaryDay['target']; split: Macros } {
     if (planDay) {
-      const own = sharesOf(storedSplit(planDay.plan.macroSplit));
       return {
         target: {
           calories: planDay.calorieTarget,
           ...aimOfPlanDay(planDay, planDay.plan),
           from: 'plan',
         },
-        split: macroSplitOf(planDay.plan.dietType, own),
+        split: sharesOfPlanDay(planDay.plan, planDay.calorieTarget),
       };
     }
     const input = calorieInputOf(profile);
     const calculation = calculateCalories(input);
+    // The custom diet's split of the profile's target: with the protein of its grams where it is per kilogram.
+    const own =
+      input.dietType === 'custom' && input.customMacroSplit
+        ? ownSplit(
+            input.customMacroSplit,
+            input.customProteinPerKg != null
+              ? proteinKcalOf(input.customProteinPerKg, input.weightKg)
+              : null,
+            calculation.dailyTarget,
+          ).shares
+        : null;
     return {
       target: {
         calories: calculation.dailyTarget,
         ...calculation.targetMacros,
         from: 'profile',
       },
-      split: macroSplitOf(input.dietType, input.customMacroSplit),
+      split: macroSplitOf(input.dietType, own),
     };
   }
 

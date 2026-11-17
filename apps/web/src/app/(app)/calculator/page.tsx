@@ -105,6 +105,9 @@ export default function CalculatorPage() {
                   <DietFields
                     diet={from?.dietType ?? 'balanced'}
                     split={from?.customMacroSplit ?? null}
+                    perKg={from?.customProteinPerKg ?? null}
+                    target={shown.preview?.calculation.dailyTarget ?? null}
+                    weightKg={typed?.figures?.weightKg ?? from?.weightKg ?? null}
                     meals={false}
                   />
                   <PaceChoice

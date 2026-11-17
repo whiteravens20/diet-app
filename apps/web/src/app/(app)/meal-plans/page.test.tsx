@@ -56,6 +56,7 @@ const profile: Profile = {
   mealCount: 4,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,
+  customProteinPerKg: null,
   preferences: {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],

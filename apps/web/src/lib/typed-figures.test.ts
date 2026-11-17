@@ -36,11 +36,29 @@ describe('the figures a profile form holds, as a calorie target is worked out fr
       activityLevel: 'active',
       dietType: 'vegan',
       customMacroSplit: null,
+      customProteinPerKg: null,
       weeklyLossTarget: '0.25',
       manualCalorieTarget: null,
       acknowledgeRisk: false,
       expenditureCorrection: 0,
     });
+  });
+
+  it("carry the custom diet's protein per kilogram only where the form sets protein so", () => {
+    const own = {
+      ...TYPED,
+      dietType: 'custom',
+      splitProtein: '20',
+      splitFat: '30',
+      splitCarbs: '50',
+      customProteinPerKg: '1.8',
+    };
+
+    expect(figuresIn(aForm({ ...own, customWay: 'perKg' }), 'kg')).toMatchObject({
+      customMacroSplit: { protein: 20, fat: 30, carbs: 50 },
+      customProteinPerKg: 1.8,
+    });
+    expect(figuresIn(aForm({ ...own, customWay: 'split' }), 'kg')?.customProteinPerKg).toBeNull();
   });
 
   it('hold the weight in kilograms, whatever unit it was typed in', () => {

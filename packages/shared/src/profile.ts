@@ -19,6 +19,7 @@ import {
   MAX_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
   NO_LABEL_LIMITS,
+  PROTEIN_PER_KG,
 } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 import { DEFAULT_WATER_TARGET_ML, MAX_WATER_TARGET_ML, MIN_WATER_TARGET_ML } from './constants.js';
@@ -205,6 +206,23 @@ const profileFields = {
    * when it goes back, or for a plan that is made for the custom diet.
    */
   customMacroSplit: MacroSplit.nullable(),
+  /**
+   * The custom diet's protein in grams per kilogram of the profile's weight
+   * (`PROTEIN_PER_KG`, a tenth at a time); null for the way of the split
+   * alone. With it, the split's fat is fat's share of the day and
+   * carbohydrate takes the rest; the split's protein and carbohydrate say
+   * what that comes to at the profile's target, for a client that reads the
+   * split alone. A change that names the split without it goes back to the
+   * split's way.
+   */
+  customProteinPerKg: z
+    .number()
+    .min(PROTEIN_PER_KG.min)
+    .max(PROTEIN_PER_KG.max)
+    .refine((value) => Math.abs(value * 10 - Math.round(value * 10)) < 1e-9, {
+      message: 'Protein per kilogram goes by tenths of a gram.',
+    })
+    .nullable(),
 };
 
 /** A profile on the custom diet says which split it aims at: no other diet's stands in for it. */
@@ -244,6 +262,7 @@ const newProfile = z.object({
   cookingReminders: profileFields.cookingReminders.default(true),
   waterReminders: profileFields.waterReminders.default(false),
   customMacroSplit: profileFields.customMacroSplit.default(null),
+  customProteinPerKg: profileFields.customProteinPerKg.default(null),
   preferences: ProfilePreferences.default(PREFERENCE_DEFAULTS),
 });
 
@@ -269,6 +288,8 @@ export const ProfileUpdate = z
     // The reminders of cooking and of water came after them too: left out, they stay as they are.
     cookingReminders: profileFields.cookingReminders.optional(),
     waterReminders: profileFields.waterReminders.optional(),
+    // Protein per kilogram came later still: left out, the split that is sent is the custom diet's way.
+    customProteinPerKg: profileFields.customProteinPerKg.default(null),
     // The limits of a label came after the clients that send every other part: left out, they
     // stay as they are.
     preferences: z.object({ ...preferenceFields, labelLimits: LabelLimits.optional() }),
@@ -309,6 +330,7 @@ export const CaloriePreviewRequest = z
     activityLevel: profileFields.activityLevel.default('moderate'),
     dietType: profileFields.dietType.default('balanced'),
     customMacroSplit: profileFields.customMacroSplit.default(null),
+    customProteinPerKg: profileFields.customProteinPerKg.default(null),
     weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
     manualCalorieTarget: profileFields.manualCalorieTarget.default(null),
     acknowledgeRisk: z.boolean().default(false),

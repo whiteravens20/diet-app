@@ -10,6 +10,7 @@
 import {
   KCAL_PER_GRAM,
   MIN_CALORIE_TARGET,
+  proteinShareBounds,
   riskOfLosingWeight,
   type ActivityLevel,
   type CalorieCalculation,
@@ -78,6 +79,8 @@ export interface CalorieEngineInput {
   dietType: DietType;
   /** The shares the custom diet aims at, when the profile has said them. */
   customMacroSplit?: Macros | null;
+  /** The custom diet's protein in grams per kilogram of the weight, where the profile sets its protein so (`ownSplit`). */
+  customProteinPerKg?: number | null;
   weeklyLossTarget: '0.25' | '0.5' | '0.75' | '1.0' | null;
   manualCalorieTarget: number | null;
   /** Whether a profile that is under 18 or underweight has said it understands the risk of losing weight. */
@@ -126,6 +129,57 @@ export function safetyFloor(sex: Sex | null): number {
 export function macroSplitOf(dietType: DietType, own?: Macros | null): Macros {
   // The custom diet aims at what its profile said, and at the balanced split until one has.
   return dietType === 'custom' && own ? own : MACRO_SPLIT[dietType];
+}
+
+/** `value` held between `least` and `most`. */
+const within = (value: number, least: number, most: number): number =>
+  Math.min(most, Math.max(least, value));
+
+/** The energy of the protein of `perKg` grams for each of `weightKg` kilograms, in kcal. */
+export const proteinKcalOf = (perKg: number, weightKg: number): number =>
+  perKg * weightKg * KCAL_PER_GRAM.protein;
+
+/**
+ * The custom diet's split of a day of `calories`. Without protein of its own
+ * (`proteinKcal` null) it is `split` as it is. With it, the way of protein per
+ * kilogram, protein takes the energy of its grams, fat its share of `split`
+ * and carbohydrate the rest; a share outside the limits every split keeps
+ * (`SPLIT_SHARE_LIMITS`) is held at the limit, protein giving way where
+ * carbohydrate would go past one of its own, and `held` says protein was
+ * moved. Fat stays as it was set.
+ */
+export function ownSplit(
+  split: Macros,
+  proteinKcal: number | null,
+  calories: number,
+): { shares: Macros; held: boolean } {
+  if (proteinKcal === null || calories <= 0) return { shares: split, held: false };
+  const { least, most } = proteinShareBounds(split.fat);
+  const asked = proteinKcal / calories;
+  const kept = within(asked, least, most);
+  return {
+    shares: { protein: kept, fat: split.fat, carbs: 1 - kept - split.fat },
+    held: Math.abs(kept - asked) > 1e-9,
+  };
+}
+
+/**
+ * Shares of one as whole per cent that add up to a hundred, each rounded the
+ * way that misses its share least: the split a client that reads whole per
+ * cent is shown.
+ */
+export function wholePercent(shares: Macros): Macros {
+  const parts = (['protein', 'fat', 'carbs'] as const).map((part) => {
+    const exact = shares[part] * 100;
+    return { part, floor: Math.floor(exact), rest: exact - Math.floor(exact) };
+  });
+  let left = 100 - parts.reduce((sum, one) => sum + one.floor, 0);
+  for (const one of [...parts].sort((a, b) => b.rest - a.rest)) {
+    if (left <= 0) break;
+    one.floor += 1;
+    left -= 1;
+  }
+  return Object.fromEntries(parts.map((one) => [one.part, one.floor])) as unknown as Macros;
 }
 
 /** The share of their energy that protein, fat and carbohydrate each carry; null when they hold none. */
@@ -304,6 +358,17 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     dailyTarget = maintenanceUnderFloor ? maintenance : Math.max(paced, floor);
   }
   dailyTarget = round(dailyTarget);
+  // The custom diet's split of this target: with protein of its own grams where the profile sets it per kilogram.
+  const own =
+    input.dietType === 'custom' && input.customMacroSplit
+      ? ownSplit(
+          input.customMacroSplit,
+          input.customProteinPerKg != null
+            ? proteinKcalOf(input.customProteinPerKg, input.weightKg)
+            : null,
+          dailyTarget,
+        )
+      : null;
 
   return {
     bmr,
@@ -312,7 +377,8 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     requestedDeficit,
     dailyDeficit: maintenance - dailyTarget,
     dailyTarget,
-    targetMacros: macrosForCalories(dailyTarget, input.dietType, input.customMacroSplit),
+    targetMacros: macrosForCalories(dailyTarget, input.dietType, own?.shares ?? null),
+    customSplitHeld: own?.held ?? false,
     source,
     safetyFloor: floor,
     deficitCapped,

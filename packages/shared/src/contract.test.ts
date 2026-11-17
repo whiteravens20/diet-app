@@ -130,6 +130,7 @@ describe('the figures a calorie target is worked out from before there is a prof
       activityLevel: made.activityLevel,
       dietType: made.dietType,
       customMacroSplit: made.customMacroSplit,
+      customProteinPerKg: made.customProteinPerKg,
       weeklyLossTarget: made.weeklyLossTarget,
       manualCalorieTarget: made.manualCalorieTarget,
       acknowledgeRisk: false,

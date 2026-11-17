@@ -22,6 +22,7 @@ import {
   type GeneratePlanRequest,
   type Locale,
   type Macros,
+  KCAL_PER_GRAM,
   type MacroSplit,
   type MealPlan,
   type MealType,
@@ -33,6 +34,9 @@ import {
 } from '@diet-app/shared';
 import {
   amountsPerServing,
+  ownSplit,
+  proteinKcalOf,
+  wholePercent,
   dayMacros,
   effectiveDayTarget,
   macroSplitOf,
@@ -77,7 +81,7 @@ import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { storedSplit } from '../common/stored-split.js';
+import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
 import { keptFreezer, reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
 import { plateDishesOf } from './plates-store.js';
@@ -143,7 +147,7 @@ export class PlanGenerationService {
     const base = this.planBase(profile, req.calorieTargetOverride);
     const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
-    const macroSplit = splitFor(dietType, profile);
+    const macroSplit = splitFor(dietType, profile, baseCalorieTarget);
     const baseMealCount = req.mealCount ?? profile.mealCount;
 
     const start = new Date(req.startDate);
@@ -263,7 +267,7 @@ export class PlanGenerationService {
           profile,
           base,
           dietType,
-          macroSplit: splitFor(dietType, profile),
+          macroSplit: splitFor(dietType, profile, base.target),
           days: days.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
           options,
           seed: this.nextSeed(),
@@ -670,7 +674,9 @@ export class PlanGenerationService {
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
     // A plan that is made again takes the split the profile has now; days of it that are filled again, the one the plan was made with.
-    const macroSplit = whole ? splitFor(dietType, profile) : storedSplit(plan.macroSplit);
+    const macroSplit = whole
+      ? splitFor(dietType, profile, base.target)
+      : storedPlanSplit(plan.macroSplit);
 
     /** The days that are filled again, by their place in the plan, with the meals that stay on them. */
     const filled: { dayIndex: number; dayId: string; staying: string[] }[] = [];
@@ -1307,8 +1313,8 @@ export class PlanGenerationService {
       /** The plan's own calorie target, whose protein every day keeps. */
       planTarget: number;
       dietType: MealPlan['dietType'];
-      /** The split a plan on the custom diet aims at; null on every other diet. */
-      macroSplit: MacroSplit | null;
+      /** The split a plan on the custom diet aims at, with the protein it keeps where it is per kilogram; null on every other diet. */
+      macroSplit: PlanSplit | null;
       mealPrepFriendly: boolean;
       /** Honour the avoid-list (default true). Allergens are always respected. */
       respectExclusions?: boolean;
@@ -1466,17 +1472,29 @@ export class PlanGenerationService {
     );
 
     const own = sharesOf(opts.macroSplit);
+    // A plan of protein per kilogram keeps its grams of protein on every day, whatever its kind or own target.
+    const proteinKcal =
+      opts.macroSplit?.proteinGrams != null
+        ? opts.macroSplit.proteinGrams * KCAL_PER_GRAM.protein
+        : null;
     const days: OptimizerDay[] = opts.days.map((d) => {
       // Every day keeps the protein of the plan's target: a day the kinds took off it aims at its own grams.
-      const aimed = dayMacros(
-        {
-          target: d.calorieTarget,
-          base: opts.planTarget,
-          ownTarget: d.overrides?.calorieTarget ?? null,
-        },
-        opts.dietType,
-        own,
-      );
+      const aimed =
+        own && proteinKcal !== null
+          ? macrosForCalories(
+              d.calorieTarget,
+              opts.dietType,
+              ownSplit(own, proteinKcal, d.calorieTarget).shares,
+            )
+          : dayMacros(
+              {
+                target: d.calorieTarget,
+                base: opts.planTarget,
+                ownTarget: d.overrides?.calorieTarget ?? null,
+              },
+              opts.dietType,
+              own,
+            );
       const plain = macrosForCalories(d.calorieTarget, opts.dietType, own);
       const macroAim =
         aimed.protein === plain.protein && aimed.fat === plain.fat && aimed.carbs === plain.carbs
@@ -1511,7 +1529,10 @@ export class PlanGenerationService {
             .filter(([ingredientId]) => perishablePacks.has(ingredientId))
             .map(([ingredientId, amount]) => [ingredientId, { amount, from: fromDay }] as const),
     );
-    const split = macroSplitOf(opts.dietType, sharesOf(opts.macroSplit));
+    const split =
+      own && proteinKcal !== null
+        ? ownSplit(own, proteinKcal, opts.planTarget).shares
+        : macroSplitOf(opts.dietType, own);
     // A plan that names no number is held to the operator's, where one is set.
     const perPlan =
       opts.maxRepeatsPerRecipe ??
@@ -2502,15 +2523,33 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
 }
 
 /**
+ * What a plan keeps of the split it aims at: the split in whole per cent and,
+ * for one made by the custom diet's protein per kilogram, the grams of protein
+ * a day each of its days aims at (`storedProteinGrams`). Clients never read it.
+ */
+type PlanSplit = MacroSplit & { proteinGrams?: number };
+
+/** The split a plan keeps, with the protein of one made by protein per kilogram; null where it keeps none. */
+function storedPlanSplit(kept: unknown): PlanSplit | null {
+  const split = storedSplit(kept);
+  if (!split) return null;
+  const proteinGrams = storedProteinGrams(kept);
+  return proteinGrams === null ? split : { ...split, proteinGrams };
+}
+
+/**
  * The split a plan on `dietType` aims at for this profile: the profile's own
  * on the custom diet, and none on any other. A plan for the custom diet of a
  * profile that has said no split is refused: another diet's split under that
- * name would be a plan for something nobody asked for.
+ * name would be a plan for something nobody asked for. Where the profile sets
+ * its protein per kilogram, the plan keeps the grams of the body's weight now
+ * and the split they come to at its base `target`.
  */
 function splitFor(
   dietType: MealPlan['dietType'],
-  profile: { customMacroSplit: unknown },
-): MacroSplit | null {
+  profile: { customMacroSplit: unknown; customProteinPerKg: number | null; weightKg: number },
+  target: number,
+): PlanSplit | null {
   if (dietType !== 'custom') return null;
   const split = storedSplit(profile.customMacroSplit);
   if (!split) {
@@ -2520,7 +2559,12 @@ function splitFor(
         'The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.',
     });
   }
-  return split;
+  if (profile.customProteinPerKg == null) return split;
+  const proteinKcal = proteinKcalOf(profile.customProteinPerKg, profile.weightKg);
+  return {
+    ...(wholePercent(ownSplit(sharesOf(split)!, proteinKcal, target).shares) as MacroSplit),
+    proteinGrams: proteinKcal / KCAL_PER_GRAM.protein,
+  };
 }
 
 /** Refuse a plan more for a profile that holds `MAX_PLANS_PER_PROFILE` already. */

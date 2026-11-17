@@ -12,7 +12,9 @@ import {
   type CaloriePreviewRequest,
   Cuisine,
   dayAfter,
+  type MacroSplit,
   PACES_OF_LOSS,
+  proteinPerKgThatFits,
   type Profile,
   type ProfileInput,
   type ProfilePatch,
@@ -31,10 +33,16 @@ import { storedKindLimits } from '../common/stored-kind-limits.js';
 import { labelLimitsOf } from '../common/label-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
-import { calculateCalories, sharesOf } from '../engine/index.js';
+import {
+  calculateCalories,
+  ownSplit,
+  proteinKcalOf,
+  sharesOf,
+  wholePercent,
+} from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
-import { calorieInputOf } from './calorie-input.js';
+import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -74,6 +82,7 @@ export class ProfilesService {
   }
 
   async create(userId: string, input: ProfileInput): Promise<Profile> {
+    refuseHeldProtein({ ...input, expenditureCorrectionKcal: null, riskAcknowledgedAt: null });
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
       // The instance's own number. An account that holds more than a lowered number keeps what it has.
@@ -102,6 +111,7 @@ export class ProfilesService {
           manualCalorieTarget: input.manualCalorieTarget,
           riskAcknowledgedAt: acknowledgedAt(input, null),
           customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
+          customProteinPerKg: input.customProteinPerKg,
           mealCount: input.mealCount,
           weightReminderCadence: input.weightReminderCadence,
           cookingReminders: input.cookingReminders,
@@ -142,6 +152,10 @@ export class ProfilesService {
 
   async update(userId: string, id: string, input: ProfileUpdate): Promise<Profile> {
     const before = await this.load(userId, id);
+    refuseHeldProtein(
+      { ...before, ...input, riskAcknowledgedAt: before.riskAcknowledgedAt },
+      before,
+    );
     const row = await this.prisma.profile.update({
       where: { id },
       data: {
@@ -160,6 +174,7 @@ export class ProfilesService {
         manualCalorieTarget: input.manualCalorieTarget,
         riskAcknowledgedAt: acknowledgedAt(input, before.riskAcknowledgedAt),
         customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
+        customProteinPerKg: input.customProteinPerKg,
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
         // Left out by a client from before the reminders, they stay as they are.
@@ -199,6 +214,14 @@ export class ProfilesService {
       heightCm: patch.heightCm ?? before.heightCm,
       weightKg: patch.weightKg ?? before.weightKg,
     };
+    // A change that names the split without protein per kilogram is of the split's way: a client
+    // that knows only the split says the whole of what the custom diet aims at.
+    const customProteinPerKg =
+      patch.customProteinPerKg !== undefined
+        ? patch.customProteinPerKg
+        : patch.customMacroSplit !== undefined
+          ? null
+          : before.customProteinPerKg;
     if (after.dietType === 'custom' && after.customMacroSplit === null)
       throw new BadRequestException({
         statusCode: 400,
@@ -212,6 +235,10 @@ export class ProfilesService {
           },
         ],
       });
+    refuseHeldProtein(
+      { ...before, ...patch, customMacroSplit: after.customMacroSplit, customProteinPerKg },
+      before,
+    );
     const { acknowledgeRisk, customMacroSplit, ...parts } = patch;
     const row = await this.prisma.profile.update({
       where: { id },
@@ -220,6 +247,7 @@ export class ProfilesService {
         ...(customMacroSplit === undefined
           ? {}
           : { customMacroSplit: customMacroSplit ?? Prisma.JsonNull }),
+        customProteinPerKg,
         riskAcknowledgedAt: acknowledgedAt(
           { ...after, acknowledgeRisk },
           before.riskAcknowledgedAt,
@@ -295,6 +323,7 @@ export class ProfilesService {
       activityLevel: typed.activityLevel,
       dietType: typed.dietType,
       customMacroSplit: sharesOf(typed.customMacroSplit),
+      customProteinPerKg: typed.customProteinPerKg,
       riskAcknowledged: typed.acknowledgeRisk,
       expenditureCorrection: typed.expenditureCorrection,
     };
@@ -340,6 +369,7 @@ export class ProfilesService {
     manualCalorieTarget: number | null;
     riskAcknowledgedAt: Date | null;
     customMacroSplit: unknown;
+    customProteinPerKg: number | null;
     mealCount: number;
     weightReminderCadence: string;
     cookingReminders: boolean;
@@ -394,7 +424,8 @@ export class ProfilesService {
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
       cookingReminders: row.cookingReminders,
       waterReminders: row.waterReminders,
-      customMacroSplit: storedSplit(row.customMacroSplit),
+      customMacroSplit: splitAsItComesOut(row),
+      customProteinPerKg: row.customProteinPerKg,
       preferences: {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],
@@ -426,4 +457,61 @@ function preferenceColumns<T extends { labelLimits?: LabelLimits }>(
 ): Omit<T, 'labelLimits'> & Partial<LabelLimits> {
   const { labelLimits, ...rest } = preferences;
   return { ...rest, ...labelLimits };
+}
+
+/** What a profile's target and its custom diet's split are worked out from. */
+type OwnSplitOf = CalorieProfile;
+
+/**
+ * The custom diet's split of a profile at its target, as whole per cent: the
+ * split as it is, or, where protein is per kilogram, what that and the
+ * split's fat come to. A client that reads the split alone is shown it.
+ */
+function splitAsItComesOut(profile: OwnSplitOf): MacroSplit | null {
+  const split = storedSplit(profile.customMacroSplit);
+  if (!split || profile.customProteinPerKg == null) return split;
+  const target = calculateCalories({ ...calorieInputOf(profile), dietType: 'custom' }).dailyTarget;
+  const own = ownSplit(
+    sharesOf(split)!,
+    proteinKcalOf(profile.customProteinPerKg, profile.weightKg),
+    target,
+  );
+  return wholePercent(own.shares) as MacroSplit;
+}
+
+/**
+ * Refuse protein per kilogram that, at the profile's target and weight, puts
+ * a share of the day outside the limits of a split: the form says which grams
+ * fit, here they are named for a client that sent others. Only targets set
+ * anew are refused, protein per kilogram or the share of fat it goes with, as
+ * they are on a new profile or differ from those of the profile `before` the
+ * change. Later, a weight or a target that takes them outside holds protein
+ * at the limit, and the profile says so (`customSplitHeld`).
+ */
+function refuseHeldProtein(profile: OwnSplitOf, before?: OwnSplitOf): void {
+  const split = storedSplit(profile.customMacroSplit);
+  if (!split || profile.customProteinPerKg == null) return;
+  const kept =
+    before !== undefined &&
+    before.customProteinPerKg === profile.customProteinPerKg &&
+    storedSplit(before.customMacroSplit)?.fat === split.fat;
+  if (kept) return;
+  const target = calculateCalories({ ...calorieInputOf(profile), dietType: 'custom' }).dailyTarget;
+  const asked = proteinKcalOf(profile.customProteinPerKg, profile.weightKg);
+  if (!ownSplit(sharesOf(split)!, asked, target).held) return;
+  const fits = proteinPerKgThatFits(split.fat / 100, target, profile.weightKg);
+  throw new BadRequestException({
+    statusCode: 400,
+    error: 'VALIDATION_FAILED',
+    message: 'Request payload failed validation.',
+    issues: [
+      {
+        path: 'customProteinPerKg',
+        message: fits
+          ? `At this target and weight protein per kilogram fits from ${fits.from} to ${fits.to} g.`
+          : 'At this target, weight and share of fat no protein per kilogram keeps every share inside its limits.',
+        code: 'custom',
+      },
+    ],
+  });
 }

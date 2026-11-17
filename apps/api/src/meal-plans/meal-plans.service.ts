@@ -38,10 +38,8 @@ import {
 import {
   estimatedMacros,
   fitServings,
-  macroSplitOf,
   safetyFloor,
   macrosForCalories,
-  sharesOf,
   rebalanceDays,
   REBALANCE_TOLERANCE,
   sizeDay,
@@ -89,7 +87,6 @@ import {
 import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js';
-import { storedSplit } from '../common/stored-split.js';
 import { labelNotes, roundLabel, sumLabels } from '../engine/label-totals.js';
 import {
   averageDay,
@@ -111,6 +108,7 @@ import {
   plateOfMeal,
   plateShare,
   plateAsJson,
+  sharesOfPlanDay,
   storedPlateOf,
   type StoredPlate,
 } from './plan-days.js';
@@ -516,11 +514,7 @@ export class MealPlansService {
         // What is typed stands as it is; only what is left out is worked out.
         const estimated = given.length < 3;
         const macros = estimated
-          ? estimatedMacros(
-              calories,
-              known,
-              macroSplitOf(day.plan.dietType, sharesOf(storedSplit(day.plan.macroSplit))),
-            )
+          ? estimatedMacros(calories, known, sharesOfPlanDay(day.plan, day.calorieTarget))
           : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
         if (!macros) {
           throw new BadRequestException({
@@ -1601,8 +1595,9 @@ export class MealPlansService {
       lists.some((list) => list.fromDate <= date && date <= list.toDate);
     const floor = safetyFloor(plan.profile?.sex ?? null);
     const labelLimits = labelLimitsOf(plan.profile?.preferences);
-    // What a plan on the custom diet aims at is the split it was made with.
-    const ownSplit = sharesOf(storedSplit(plan.macroSplit));
+    // What a plan on the custom diet aims at is the split it was made with; one of protein per kilogram, the
+    // split its kept grams of protein come to at its target.
+    const ownSplit = sharesOfPlanDay(plan, plan.calorieTarget);
     const options = PlanOptions.parse(plan.options);
     // Sort meals into canonical eating order — Prisma's row order is
     // undefined and shifts after updates, which would look like other meals

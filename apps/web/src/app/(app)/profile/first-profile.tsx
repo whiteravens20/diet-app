@@ -25,9 +25,13 @@ import {
   OwnTargetField,
   PaceChoice,
   RiskBox,
-  splitAddsUp,
-  splitIn,
 } from '@/components/profile-fields';
+import {
+  OWN_TARGETS_REFUSED,
+  ownTargetsProblem,
+  proteinPerKgIn,
+  splitIn,
+} from '@/components/own-targets-fields';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -112,8 +116,9 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       return;
     }
     const f = new FormData(event.currentTarget);
-    // The form says under the three shares what they add up to; a split that does not add up is not sent.
-    if (!splitAddsUp(f)) return setError(t('splitSumRefused'));
+    // The form says under the custom diet's fields what they come to; targets it said are wrong are not sent.
+    const problem = ownTargetsProblem(f);
+    if (problem) return setError(t(OWN_TARGETS_REFUSED[problem]));
     setError(null);
     const targetWeight = String(f.get('targetWeight') ?? '').trim();
     save.mutate({
@@ -129,6 +134,8 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       customMacroSplit: splitIn(f, null),
+      // Protein per kilogram goes only where the form sets protein so: a split alone is the split's way.
+      customProteinPerKg: proteinPerKgIn(f, null),
       weeklyLossTarget: (f.get('weeklyLossTarget') as ProfileInput['weeklyLossTarget']) || null,
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
@@ -235,7 +242,13 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <legend className="sr-only">{tWizard('steps.food')}</legend>
               <p className="text-sm text-muted-foreground">{tWizard('foodLead')}</p>
               <div className="grid gap-4 sm:grid-cols-2">
-                <DietFields diet="balanced" mealCount={3} split={null} />
+                <DietFields
+                  diet="balanced"
+                  mealCount={3}
+                  split={null}
+                  target={shown.preview?.calculation.dailyTarget ?? null}
+                  weightKg={typed?.figures?.weightKg ?? null}
+                />
                 <div className="sm:col-span-2">
                   <AllergenPicker
                     label={t('allergensLabel')}
