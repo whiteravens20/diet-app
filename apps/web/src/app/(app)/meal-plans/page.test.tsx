@@ -2229,6 +2229,7 @@ describe('the plan page, on what a plan is made for', () => {
     vi.restoreAllMocks();
     favoriteSets = [];
     profile.customMacroSplit = null;
+    profile.customProteinPerKg = null;
     profile.preferences = preferences;
   });
 
@@ -2437,10 +2438,127 @@ describe('the plan page, on what a plan is made for', () => {
       expect(choice).not.toHaveAccessibleDescription(/instead of/);
   });
 
-  it('does not offer the custom diet to a profile that has said no split for it', async () => {
+  /** The API keeps the custom diet's targets a change names in the profile, as it answers them from here on. */
+  const keptTargets = () =>
+    vi
+      .spyOn(api, 'patch')
+      .mockImplementation((_path: string, body: unknown) =>
+        Promise.resolve(Object.assign(profile, body) as never),
+      );
+  const typeIn = async (label: string, value: string) => {
+    const field = screen.getByLabelText(label);
+    await userEvent.clear(field);
+    await userEvent.type(field, value);
+  };
+
+  it('offers the custom diet to a profile without targets of its own, asks for them, and keeps them in the profile before the plan is made to them', async () => {
+    await renderPage();
+    const patch = keptTargets();
+    expect(screen.getByRole('option', { name: 'Custom' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(messages.profile.split.protein)).toBeNull();
+
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    expect(
+      screen.getByText(spaced(messages.mealPlans.planChoicesHintOwnTargets, { start: true })),
+    ).toBeInTheDocument();
+    await typeIn(messages.profile.split.protein, '30');
+    await typeIn(messages.profile.split.carbs, '40');
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.generateButton }));
+
+    await vi.waitFor(() => expect(post).toHaveBeenCalled());
+    expect(patch).toHaveBeenCalledWith(`/profiles/${profile.id}`, {
+      customMacroSplit: { protein: 30, fat: 30, carbs: 40 },
+      customProteinPerKg: null,
+    });
+    expect(patch.mock.invocationCallOrder[0]).toBeLessThan(post.mock.invocationCallOrder[0]!);
+    expect(post.mock.calls[0]![1]).toMatchObject({ dietType: 'custom' });
+    // The profile has its targets now: the diet is named by them, and the form, folded once the plan is made, does not ask again.
+    expect(
+      await screen.findByRole('option', {
+        name: spaced('Custom (30% protein, 30% fat, 40% carbohydrate)'),
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(messages.profile.split.protein)).toBeNull();
+  });
+
+  it("keeps protein per kilogram where the form sets protein so, worked out at the profile's own target", async () => {
+    await renderPage();
+    const patch = keptTargets();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    await userEvent.click(screen.getByRole('radio', { name: messages.profile.customWayPerKg }));
+
+    // 1.6 g a kilogram of 80 kg is 128 g, 512 kcal: 23% of the profile's 2209 kcal, fat 30% and carbohydrate the rest.
+    expect(
+      await screen.findByText(
+        spaced(
+          'At your weight that is 128 g of protein, 23% of a target of 2209 kcal. Carbohydrates are the rest: 47%.',
+        ),
+      ),
+    ).toBeInTheDocument();
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.generateButton }));
+
+    await vi.waitFor(() => expect(post).toHaveBeenCalled());
+    expect(patch).toHaveBeenCalledWith(`/profiles/${profile.id}`, {
+      customMacroSplit: { protein: 23, fat: 30, carbs: 47 },
+      customProteinPerKg: 1.6,
+    });
+  });
+
+  it.each([
+    [
+      'a split that does not add up',
+      async () => typeIn(messages.profile.split.protein, '40'),
+      messages.profile.splitSumRefused,
+    ],
+    [
+      'protein per kilogram that goes past a limit at the target and the weight',
+      async () => {
+        await userEvent.click(screen.getByRole('radio', { name: messages.profile.customWayPerKg }));
+        // 3 g a kilogram of 80 kg is 960 kcal: 43% of 2209, and with fat at 60% carbohydrate would be under its 5%.
+        await typeIn(messages.profile.perKgProtein, '3');
+        await typeIn(messages.profile.perKgFat, '60');
+      },
+      messages.profile.perKgRefused,
+    ],
+  ])('neither keeps nor plans to %s, and says why', async (_why, typed, refusal) => {
+    await renderPage();
+    const patch = vi.spyOn(api, 'patch');
+    const post = vi.spyOn(api, 'post');
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    await typed();
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.generateButton }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(refusal);
+    expect(patch).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('makes no plan when the targets could not be kept, and says so', async () => {
+    await renderPage();
+    vi.spyOn(api, 'patch').mockRejectedValue(new Error('down'));
+    const post = vi.spyOn(api, 'post');
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.generateButton }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.mealPlans.errSaveTargets);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('names the custom diet of a profile that sets protein per kilogram by its grams and its share of fat', async () => {
+    profile.customMacroSplit = { protein: 23, fat: 30, carbs: 47 };
+    profile.customProteinPerKg = 1.6;
     await renderPage();
 
-    expect(screen.queryByRole('option', { name: /^Custom/ })).toBeNull();
+    expect(
+      screen.getByRole('option', { name: spaced('Custom (1.6 g of protein per kg, 30% fat)') }),
+    ).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    expect(screen.queryByLabelText(messages.profile.perKgProtein)).toBeNull();
   });
 
   it('offers the custom diet to a profile that has said its split, names the split, and asks for the diet', async () => {

@@ -43,6 +43,13 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { SupplyNote } from '@/components/supply-note';
+import {
+  OWN_TARGETS_REFUSED,
+  OwnTargetsFields,
+  ownTargetsFault,
+  ownTargetsOf,
+  type OwnTargets,
+} from '@/components/own-targets-fields';
 import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
@@ -101,6 +108,7 @@ function MealPlansContent() {
   const tMeal = useTranslations('enums.mealType');
   const tFallback = useTranslations('aiFallback');
   const tCatalogue = useTranslations('catalogue');
+  const tProfile = useTranslations('profile');
   const errorText = useErrorText();
   const fmt = useFormat();
   const qc = useQueryClient();
@@ -240,6 +248,8 @@ function MealPlansContent() {
   });
   // The diet and the number of meals the plan is made for: the form's, or the profile's.
   const planDiet = diet || active?.dietType || 'balanced';
+  // The custom diet for a profile that has no targets of its own yet: the form asks for them, and keeps them in the profile.
+  const asksTargets = diet === 'custom' && active !== null && active.customMacroSplit === null;
   const planMeals = mealCount || active?.mealCount || 3;
 
   const invalidate = () =>
@@ -288,6 +298,17 @@ function MealPlansContent() {
   const limitNames = (kinds: readonly PlanRelaxation[]) =>
     kinds.map((kind) => t(`limit.${kind}`)).join(', ');
 
+  // The custom diet's targets the form asked for, kept in the profile as its own form keeps them, before a plan is made to them.
+  const saveTargets = useMutation({
+    mutationFn: (v: { profileId: string; targets: OwnTargets }) =>
+      api.patch<Profile>(`/profiles/${v.profileId}`, v.targets),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['profiles'] }),
+        qc.invalidateQueries({ queryKey: ['calories', activeId] }),
+      ]),
+    onError: (e: unknown) => fail(t('errSaveTargets'))(e),
+  });
   const generate = useMutation({
     mutationFn: (body: GenerateBody) => api.post<MealPlan>('/meal-plans/generate', body),
     onSuccess: (plan) => {
@@ -564,10 +585,13 @@ function MealPlansContent() {
     setError(null);
     if (!activeId) return;
     const f = new FormData(event.currentTarget);
+    // The form says under the custom diet's fields what they come to; targets it said are wrong are not sent.
+    const fault = asksTargets ? ownTargetsFault(f) : null;
+    if (fault) return setError(tProfile(OWN_TARGETS_REFUSED[fault]));
     const dates = planDates(startDate, durationDays);
     setInTheWay(null);
     const together = list.find((one) => one.id === withProfileId && one.id !== activeId);
-    generate.mutate({
+    const body: GenerateBody = {
       profileId: activeId,
       startDate,
       durationDays,
@@ -583,7 +607,12 @@ function MealPlansContent() {
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
       // A joint plan is made without settings of its days.
       ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),
-    });
+    };
+    if (!asksTargets) return generate.mutate(body);
+    saveTargets.mutate(
+      { profileId: activeId, targets: ownTargetsOf(f) },
+      { onSuccess: () => generate.mutate(body) },
+    );
   }
 
   const startDateField = useRef<HTMLInputElement>(null);
@@ -760,10 +789,17 @@ function MealPlansContent() {
                           </option>
                         );
                       })}
-                      {/* The custom diet is the profile's own split: there is one to plan to, or the diet is not on offer. */}
-                      {active.customMacroSplit && (
-                        <option value="custom">{t('dietCustom', active.customMacroSplit)}</option>
-                      )}
+                      {/* The custom diet is named by the targets the profile keeps for it; without them the form asks for them. */}
+                      <option value="custom">
+                        {active.customMacroSplit === null
+                          ? tDiet('custom')
+                          : active.customProteinPerKg !== null
+                            ? t('dietCustomPerKg', {
+                                perKg: active.customProteinPerKg,
+                                fat: active.customMacroSplit.fat,
+                              })
+                            : t('dietCustom', active.customMacroSplit)}
+                      </option>
                     </select>
                   </Field>
                   <Field label={t('mealsPerDay')}>
@@ -794,11 +830,21 @@ function MealPlansContent() {
                   </Field>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {t('planChoicesHint')}
+                  {t(asksTargets ? 'planChoicesHintOwnTargets' : 'planChoicesHint')}
                   {calories.data &&
                     ` ${t('calorieTargetHint', { kcal: calories.data.dailyTarget })}`}
                 </p>
               </div>
+            )}
+            {active && asksTargets && (
+              // The targets are the profile's, so they are worked out at the profile's own target, as its form works them out.
+              <OwnTargetsFields
+                key={active.id}
+                split={null}
+                target={calories.data?.dailyTarget ?? null}
+                weightKg={active.weightKg}
+                className=""
+              />
             )}
             <fieldset className="space-y-1">
               <legend className="text-sm font-medium">{t('applyPrefs')}</legend>
@@ -844,8 +890,8 @@ function MealPlansContent() {
               withoutDays={withProfileId !== '' && withProfileId !== activeId}
             />
             {active && <SupplyNote diet={planDiet} mealCount={planMeals} />}
-            <Button type="submit" disabled={generate.isPending}>
-              {generate.isPending ? t('generating') : t('generateButton')}
+            <Button type="submit" disabled={generate.isPending || saveTargets.isPending}>
+              {generate.isPending || saveTargets.isPending ? t('generating') : t('generateButton')}
             </Button>
           </form>
         </CardContent>

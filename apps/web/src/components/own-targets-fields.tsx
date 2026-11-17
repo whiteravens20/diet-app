@@ -51,7 +51,7 @@ const typedOf = (parts: Record<keyof MacroSplit, number>): Record<keyof MacroSpl
 export const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
 
 /** The custom diet's targets as a profile keeps them: the split in whole per cent, and protein per kilogram where protein is set so. */
-interface OwnTargets {
+export interface OwnTargets {
   customMacroSplit: MacroSplit;
   customProteinPerKg: number | null;
 }
@@ -62,7 +62,7 @@ interface OwnTargets {
  * shares go past a limit of a split, or protein per kilogram that does not
  * fit the target and the weight.
  */
-function ownTargetsFault(fields: FormData): 'sum' | 'limits' | 'perKg' | null {
+export function ownTargetsFault(fields: FormData): 'sum' | 'limits' | 'perKg' | null {
   if (fields.get('customSplitHeld') === 'yes') return 'perKg';
   if (fields.get('customSplitOff') === 'yes') return 'limits';
   const { protein, fat, carbs } = ownTargetsOf(fields).customMacroSplit;
@@ -75,7 +75,7 @@ export function ownTargetsProblem(fields: FormData): 'sum' | 'limits' | 'perKg' 
 }
 
 /** The targets `OwnTargetsFields` hold in a form, whichever way they were typed in. */
-function ownTargetsOf(fields: FormData): OwnTargets {
+export function ownTargetsOf(fields: FormData): OwnTargets {
   return {
     customMacroSplit: {
       protein: Number(fields.get('splitProtein')),
@@ -110,7 +110,7 @@ export function proteinPerKgIn(fields: FormData, kept: number | null): number | 
  * protein per kilogram of the weight with fat's share), the fields of that
  * way, and what they come to at the `target` and the `weightKg` the form
  * knows. Hidden fields carry the split in whole per cent, whatever the way,
- * so a form reads it alike (`splitIn`, `proteinPerKgIn`, `ownTargetsProblem`).
+ * so a form reads it alike (`ownTargetsOf`, `ownTargetsFault`).
  */
 export function OwnTargetsFields({
   split: firstSplit,
@@ -118,6 +118,7 @@ export function OwnTargetsFields({
   target = null,
   weightKg = null,
   errorOf,
+  className = 'sm:col-span-2',
 }: {
   split: MacroSplit | null;
   /** The protein per kilogram the profile keeps; null for the way of the split. */
@@ -127,6 +128,7 @@ export function OwnTargetsFields({
   weightKg?: number | null;
   /** Why a change of the targets was not kept, for a form that keeps each change as it is made. */
   errorOf?: (field: string) => string | undefined;
+  className?: string;
 }) {
   const t = useTranslations('profile');
   // The three shares as they are typed, so that the form can say what they add up to before it is sent.
@@ -178,7 +180,7 @@ export function OwnTargetsFields({
     setGrams(typedOf(at));
   };
   return (
-    <fieldset className="space-y-3 sm:col-span-2">
+    <fieldset className={`space-y-3 ${className}`}>
       <legend className="text-sm font-medium">{t('customSplit')}</legend>
       <p className="text-xs text-muted-foreground">{t('customSplitHint')}</p>
       <div
