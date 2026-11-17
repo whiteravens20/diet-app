@@ -28,6 +28,22 @@ export function shownToOne(kg: number, unit: WeightUnit): number {
   return Math.round(shownWeight(kg, unit) * 10) / 10;
 }
 
+/**
+ * A weight typed in the unit of the account, in kilograms; null for a field
+ * left empty. A field that still shows what the profile has gives back
+ * exactly that: a weight that went through pounds and back would otherwise
+ * move by a hair with every change.
+ */
+export function weightIn(
+  field: FormDataEntryValue | null,
+  before: number | null | undefined,
+  unit: WeightUnit,
+): number | null {
+  if (field === null || String(field).trim() === '') return null;
+  const typed = Number(field);
+  return before != null && typed === shownToOne(before, unit) ? before : toKilograms(typed, unit);
+}
+
 /** The bounds of a weight in the unit it is typed in, the least rounded up and the most down, so that neither is refused. */
 export function boundsIn(unit: WeightUnit): { min: number; max: number } {
   return {

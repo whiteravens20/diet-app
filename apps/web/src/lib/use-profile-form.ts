@@ -23,10 +23,13 @@ export interface TypedForm {
  * `formKey` names the form. What was typed into another one (the form of
  * another profile) is not this one's: `typed` is null until this one is
  * typed into, and whoever shows the form falls back on what it began with.
+ * `keptWeightKg` is the weight of the profile the form shows: while its field
+ * still shows it, the figures hold it as the profile keeps it.
  */
 export function useProfileForm(
   formKey: string,
   unit: WeightUnit,
+  keptWeightKg: number | null = null,
 ): { form: RefObject<HTMLFormElement | null>; typed: TypedForm | null; onChange: () => void } {
   const form = useRef<HTMLFormElement>(null);
   const [changed, setChanged] = useState<{ form: string; times: number } | null>(null);
@@ -35,10 +38,10 @@ export function useProfileForm(
     if (changed && form.current)
       setRead({
         form: changed.form,
-        figures: figuresIn(form.current, unit),
-        reasons: riskIn(form.current, unit),
+        figures: figuresIn(form.current, unit, keptWeightKg),
+        reasons: riskIn(form.current, unit, keptWeightKg),
       });
-  }, [changed, unit]);
+  }, [changed, unit, keptWeightKg]);
   return {
     form,
     typed: read?.form === formKey ? read : null,

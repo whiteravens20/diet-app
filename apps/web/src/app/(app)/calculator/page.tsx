@@ -46,7 +46,7 @@ export default function CalculatorPage() {
     picked === undefined ? (list[0] ?? null) : (list.find((p) => p.id === picked) ?? null);
   // The form is made anew for whoever it begins with, and what was typed into another one is not this one's.
   const formKey = from?.id ?? 'empty';
-  const { form, typed, onChange } = useProfileForm(formKey, unit);
+  const { form, typed, onChange } = useProfileForm(formKey, unit, from?.weightKg ?? null);
   const risk = typed ? typed.reasons : from ? riskOf(from) : [];
   const shown = useCaloriePreview(typed ? typed.figures : from ? figuresOf(from) : null);
 

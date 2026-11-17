@@ -47,8 +47,8 @@ import {
 } from '@/components/own-targets-fields';
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
-import { boundsIn, shownToOne, shownWeight, useWeightUnit } from '@/lib/weight-unit';
-import { useAutosave, weightIn } from './autosave';
+import { boundsIn, shownToOne, shownWeight, useWeightUnit, weightIn } from '@/lib/weight-unit';
+import { useAutosave } from './autosave';
 import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
 import { LabelLimitFields, labelLimitsIn } from './label-limit-fields';
 import { PageBanner } from '@/components/page-banner';
@@ -103,7 +103,7 @@ export default function ProfilePage() {
   // Whether the form's profile tracks water, as ticked in the form open, else as the profile has it.
   const [trackingOf, setTrackingOf] = useState<{ form: string; on: boolean } | null>(null);
   const tracking = trackingOf?.form === formKey ? trackingOf.on : (editing?.waterTracking ?? true);
-  const { form, typed, onChange } = useProfileForm(formKey, unit);
+  const { form, typed, onChange } = useProfileForm(formKey, unit, editing?.weightKg ?? null);
   const risk = typed ? typed.reasons : editing ? riskOf(editing) : [];
   // A profile being changed keeps the correction it accepted from its real expenditure: the figures say the target with it.
   const kept = editing?.expenditureCorrectionKcal ?? 0;

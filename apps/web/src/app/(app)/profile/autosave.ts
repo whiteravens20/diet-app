@@ -19,7 +19,7 @@ import type {
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
-import { shownToOne, toKilograms } from '@/lib/weight-unit';
+import { weightIn } from '@/lib/weight-unit';
 import {
   A_FIRST_SPLIT,
   OWN_TARGETS_REFUSED,
@@ -38,22 +38,6 @@ import { labelLimitsIn } from './label-limit-fields';
  * profile has it, whoever changed it meanwhile. The changes go one after
  * another, in the order they were made.
  */
-
-/**
- * A weight typed in the unit of the account, in kilograms; null for a field
- * left empty. A field that still shows what the profile has gives back
- * exactly that: a weight that went through pounds and back would otherwise
- * move by a hair with every change.
- */
-export function weightIn(
-  field: FormDataEntryValue | null,
-  before: number | null | undefined,
-  unit: WeightUnit,
-): number | null {
-  if (field === null || String(field).trim() === '') return null;
-  const typed = Number(field);
-  return before != null && typed === shownToOne(before, unit) ? before : toKilograms(typed, unit);
-}
 
 /** The part of a profile one field of its form changes: what is kept together goes together. */
 type Part =

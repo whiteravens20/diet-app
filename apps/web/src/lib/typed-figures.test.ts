@@ -65,6 +65,13 @@ describe('the figures a profile form holds, as a calorie target is worked out fr
     expect(figuresIn(aForm({ ...TYPED, weight: '176.4' }), 'lb')?.weightKg).toBe(80.01);
   });
 
+  it("hold a profile's own weight while its field still shows it, as the profile keeps it", () => {
+    // 80 kg is shown as 176.4 lb, which is 80.01 kg: the figures are those of the profile, as its form saves them.
+    expect(figuresIn(aForm({ ...TYPED, weight: '176.4' }), 'lb', 80)?.weightKg).toBe(80);
+    expect(figuresIn(aForm({ ...TYPED, weight: '176.5' }), 'lb', 80)?.weightKg).toBe(80.06);
+    expect(riskIn(aForm({ ...TYPED, weight: '' }), 'lb', 80)).toEqual([]);
+  });
+
   it("take no pace for keeping the weight, no sex for not saying, and a target of one's own as a number", () => {
     expect(
       figuresIn(

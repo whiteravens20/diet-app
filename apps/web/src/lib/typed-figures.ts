@@ -6,7 +6,7 @@ import {
   type Profile,
   type WeightUnit,
 } from '@diet-app/shared';
-import { toKilograms } from './weight-unit';
+import { weightIn } from './weight-unit';
 
 export type Risk = ReturnType<typeof riskOfLosingWeight>[number];
 
@@ -47,13 +47,21 @@ function typed(fields: FormData, name: string): number | undefined {
   return written === '' ? undefined : Number(written);
 }
 
-/** The same risk, for what a profile form holds at this moment; its weight is typed in the unit of the account. */
-export function riskIn(form: HTMLFormElement, unit: WeightUnit): Risk[] {
+/**
+ * The same risk, for what a profile form holds at this moment; its weight is
+ * typed in the unit of the account, and is `keptWeightKg` while it still shows
+ * that, as the profile keeps it.
+ */
+export function riskIn(
+  form: HTMLFormElement,
+  unit: WeightUnit,
+  keptWeightKg: number | null = null,
+): Risk[] {
   const fields = new FormData(form);
   return riskOf({
     age: typed(fields, 'age') ?? 0,
     heightCm: typed(fields, 'heightCm') ?? 0,
-    weightKg: toKilograms(typed(fields, 'weight') ?? 0, unit),
+    weightKg: weightIn(fields.get('weight'), keptWeightKg, unit) ?? 0,
     weeklyLossTarget: String(fields.get('weeklyLossTarget') ?? '') || null,
     manualCalorieTarget: typed(fields, 'manualCalorieTarget') ?? null,
   });
@@ -63,16 +71,20 @@ export function riskIn(form: HTMLFormElement, unit: WeightUnit): Risk[] {
  * What a profile form holds at this moment, as the figures a calorie target
  * is worked out from; null while they are not ones the API would take: a
  * field still empty, a number out of its bounds, a split that does not add
- * up. A form asks for the target only with figures it could also save.
+ * up. A form asks for the target only with figures it could also save, its
+ * weight `keptWeightKg` while the field still shows that, as it is saved.
  */
-export function figuresIn(form: HTMLFormElement, unit: WeightUnit): CaloriePreviewRequest | null {
+export function figuresIn(
+  form: HTMLFormElement,
+  unit: WeightUnit,
+  keptWeightKg: number | null = null,
+): CaloriePreviewRequest | null {
   const fields = new FormData(form);
-  const weight = typed(fields, 'weight');
   const asked = CaloriePreviewRequest.safeParse({
     age: typed(fields, 'age'),
     sex: fields.get('sex') || null,
     heightCm: typed(fields, 'heightCm'),
-    weightKg: weight === undefined ? undefined : toKilograms(weight, unit),
+    weightKg: weightIn(fields.get('weight'), keptWeightKg, unit) ?? undefined,
     activityLevel: fields.get('activityLevel') ?? undefined,
     dietType: fields.get('dietType') ?? undefined,
     customMacroSplit:
