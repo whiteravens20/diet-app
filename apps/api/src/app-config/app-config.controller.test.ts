@@ -169,6 +169,7 @@ describe('GET /api/config', () => {
       ['a provider is set without a model', { AI_DEFAULT_MODEL: undefined }],
       ['the model is blank', { AI_DEFAULT_MODEL: '' }],
       ['an account may make no request', { AI_ADMIN_USER_MONTHLY_LIMIT: 0 }],
+      ['the instance may make no request', { AI_ADMIN_INSTANCE_MONTHLY_LIMIT: 0 }],
     ])('are none where %s', async (_, change) => {
       expect((await configOf({ ...OPERATORS, ...change })).ai.operator).toBeNull();
     });

@@ -40,7 +40,7 @@ export const OperatorAiTerms = z.object({
   /** Requests an account may make in 30 days (`AI_ADMIN_USER_MONTHLY_LIMIT`). */
   monthlyLimit: z.number().int().positive(),
   /** Requests all accounts together may make in 30 days (`AI_ADMIN_INSTANCE_MONTHLY_LIMIT`). */
-  instanceMonthlyLimit: z.number().int().nonnegative(),
+  instanceMonthlyLimit: z.number().int().positive(),
 });
 export type OperatorAiTerms = z.infer<typeof OperatorAiTerms>;
 
@@ -136,7 +136,7 @@ export const PublicConfig = z.object({
     ollamaUserPolicy: OllamaUserPolicy,
     /**
      * The terms of the instance's own AI; null where it offers none: no
-     * provider and model set, or no request allowed an account.
+     * provider and model set, or no request allowed an account or the instance.
      */
     operator: OperatorAiTerms.nullable(),
   }),

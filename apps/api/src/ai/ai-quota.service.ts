@@ -75,9 +75,10 @@ export function confirmationUnlocksAi(config: ConfigService<Env, true>): boolean
 /**
  * The terms of the instance's own AI as they apply, or null where it offers
  * none: the router has no provider to ask without both a provider and a model
- * (`isAdminProviderConfigured`), and a limit of none closes it to every
- * account. Where the instance sends no mail, an address counts as confirmed
- * at sign-up, so confirmed accounts are every account.
+ * (`isAdminProviderConfigured`), and a limit of none, an account's or the
+ * instance's, closes it to every account (as `confirmationUnlocksAi` reads it).
+ * Where the instance sends no mail, an address counts as confirmed at sign-up,
+ * so confirmed accounts are every account.
  */
 export function operatorAiTerms(
   config: ConfigService<Env, true>,
@@ -86,7 +87,14 @@ export function operatorAiTerms(
   const provider = config.get('AI_DEFAULT_PROVIDER', { infer: true });
   const model = config.get('AI_DEFAULT_MODEL', { infer: true });
   const monthlyLimit = config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true });
-  if (provider === undefined || model === undefined || model === '' || monthlyLimit === 0)
+  const instanceMonthlyLimit = config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true });
+  if (
+    provider === undefined ||
+    model === undefined ||
+    model === '' ||
+    monthlyLimit === 0 ||
+    instanceMonthlyLimit === 0
+  )
     return null;
   const access = config.get('AI_ADMIN_ACCESS', { infer: true });
   return {
@@ -95,7 +103,7 @@ export function operatorAiTerms(
       provider === 'openrouter' ? config.get('AI_ADMIN_DATA_POLICY', { infer: true }) : null,
     access: access === 'confirmed' && !mailEnabled ? 'everyone' : access,
     monthlyLimit,
-    instanceMonthlyLimit: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),
+    instanceMonthlyLimit,
   };
 }
 
