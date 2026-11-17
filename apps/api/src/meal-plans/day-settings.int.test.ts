@@ -397,6 +397,24 @@ describe('the settings of a day of a running plan', () => {
       expect(said.short!.kcal).toBeGreaterThan(0);
     });
 
+    it('leaves the meal the day loses out of what it falls short of, as the change does', async () => {
+      const change = { mealCount: 2, calorieTarget: dayOf(plan).calorieTarget + 1500 };
+
+      const said = await preview(plan, change);
+
+      expect(said.meals.filter((meal) => meal.fate === 'removed')).toHaveLength(1);
+      expect(said.short!.kcal).toBe(change.calorieTarget - said.dayCalories!);
+      expect(said.short!.spread.takes).toBeGreaterThan(0);
+
+      const spread = await apply(plan, { ...change, spreadShort: true });
+
+      expect(dayOf(spread).meals).toHaveLength(2);
+      // What the preview said the days after it take is what they took.
+      expect(Math.abs(held(spread) - held(plan) - said.short!.spread.takes)).toBeLessThanOrEqual(
+        3 * after(plan).length,
+      );
+    });
+
     it('leaves the days after it as they are where the spread is not asked for', async () => {
       const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
       const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
