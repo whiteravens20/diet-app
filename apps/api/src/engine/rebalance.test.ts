@@ -83,19 +83,35 @@ describe('sizing the meals of a day', () => {
   });
 
   it('respects the per-meal serving clamp and redistributes the residual', () => {
-    // 'small' starts at 0.5 servings → can scale up to 6× (3.0 servings cap),
-    // 'big' starts at 2 servings → capped at 1.5× (3.0 servings). Target forces
-    // 'big' to clamp; 'small' must absorb the residual.
+    // 'big' starts at 2 servings → capped at 1.5× (3.0 servings); 'small' at 0.5 → capped at 2×, twice the
+    // plan's portion (1 serving), though a serving would let it reach 3. A 1900 target makes 'big' clamp, and
+    // 'small' absorbs the residual.
     const meals = [meal('big', 500, { servings: 2 }), meal('small', 500, { servings: 0.5 })];
-    // Max achievable = both at 3 servings = 1500 + 1500 = 3000. A 3500 target is
-    // out of reach: both clamp to the 3-serving ceiling, landing best-effort.
-    const target = 3500;
-    const { scales, feasibility } = sizeDay(meals, target, NO_AIM);
-    const bigServings = 2 * scales.get('big')!;
-    const smallServings = 0.5 * scales.get('small')!;
-    expect(bigServings).toBeCloseTo(3, 5); // clamped to the ceiling
-    expect(smallServings).toBeCloseTo(3, 5);
-    expect(feasibility).toBe('best-effort'); // can't reach 3500 within the band
+    const { scales, feasibility } = sizeDay(meals, 1900, NO_AIM);
+    expect(2 * scales.get('big')!).toBeCloseTo(3, 5);
+    expect(0.5 * scales.get('small')!).toBeCloseTo(0.8, 5);
+    expect(feasibility).toBe('in-window');
+    // 3500 is out of reach: both clamp, 'small' at twice its portion, landing best-effort.
+    const out = sizeDay(meals, 3500, NO_AIM);
+    expect(2 * out.scales.get('big')!).toBeCloseTo(3, 5);
+    expect(0.5 * out.scales.get('small')!).toBeCloseTo(1, 5);
+    expect(out.feasibility).toBe('best-effort');
+  });
+
+  it('grows no meal past twice the portion the plan gave it, and says the day is short', () => {
+    // Breakfast and lunch eaten; a training day asks 2600 kcal: dinner alone would have to go from 600 to 1300.
+    const meals = [
+      meal('breakfast', 500, { locked: true }),
+      meal('lunch', 700, { locked: true }),
+      meal('dinner', 600),
+    ];
+    const { scales, feasibility } = sizeDay(meals, 2600, NO_AIM);
+    expect(scales.get('dinner')).toBeCloseTo(2, 5);
+    expect(dayKcal(meals, scales)).toBeCloseTo(2400, 5);
+    expect(feasibility).toBe('in-window');
+    const short = sizeDay(meals, 3000, NO_AIM);
+    expect(short.scales.get('dinner')).toBeCloseTo(2, 5);
+    expect(short.feasibility).toBe('best-effort');
   });
 });
 

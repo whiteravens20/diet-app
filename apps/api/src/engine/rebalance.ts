@@ -50,6 +50,16 @@ export interface RebalanceResult {
 /** The window a plan holds a day to: within ±10% of its target it is on target. */
 export const REBALANCE_TOLERANCE = 0.1;
 
+/**
+ * The most a meal grows past the portion the plan gave it (`servings`), in any
+ * change of its day: twice that portion. What a day needs past it is left for
+ * other days, not put into one plate.
+ */
+const GROWTH_MAX = 2;
+
+/** The largest scale a meal may take: the serving's bound, and twice the plan's portion. */
+const highestScale = (m: RebalanceMeal) => Math.min(SERVING_MAX / m.servings, GROWTH_MAX);
+
 const effectiveKcal = (m: RebalanceMeal, scale: number) => m.calories * m.servings * scale;
 
 const totalKcal = (meals: RebalanceMeal[], scales: Map<string, number>) =>
@@ -61,8 +71,9 @@ const within = (value: number, target: number, tolerance: number) =>
 /**
  * Water-filling solver: distribute `target` across `meals` by giving every
  * unlocked meal a single uniform scale factor, clamping any meal whose effective
- * servings would leave the [SERVING_MIN, SERVING_MAX] band and redistributing the
- * residual among the rest. Converges in at most `flex.length` passes. Locked
+ * servings would leave the [SERVING_MIN, SERVING_MAX] band, or grow past
+ * `GROWTH_MAX` times the plan's portion, and redistributing the residual among
+ * the rest. Converges in at most `flex.length` passes. Locked
  * meals keep their current scale. Returns the closest feasible scale map.
  */
 function solve(meals: RebalanceMeal[], target: number): Map<string, number> {
@@ -80,7 +91,7 @@ function solve(meals: RebalanceMeal[], target: number): Map<string, number> {
 
     const clamped = active.filter((m) => {
       const lo = SERVING_MIN / m.servings;
-      const hi = SERVING_MAX / m.servings;
+      const hi = highestScale(m);
       return f < lo || f > hi;
     });
 
@@ -92,7 +103,7 @@ function solve(meals: RebalanceMeal[], target: number): Map<string, number> {
     const clampedIds = new Set(clamped.map((m) => m.id));
     for (const m of clamped) {
       const lo = SERVING_MIN / m.servings;
-      const hi = SERVING_MAX / m.servings;
+      const hi = highestScale(m);
       const cs = Math.min(hi, Math.max(lo, f));
       scales.set(m.id, cs);
       remaining -= effectiveKcal(m, cs);
@@ -140,8 +151,9 @@ function heldBy(meals: RebalanceMeal[], scales: Map<string, number>): Macros {
 /**
  * From portions that share the day evenly, move energy from one meal to another
  * while that brings the day nearer `aim`. The day's energy stays what it was, a
- * meal stays within `MACRO_BAND` of where it began and within the bounds of a
- * serving, and a meal that is pinned, or that says nothing of its macros, stays.
+ * meal stays within `MACRO_BAND` of where it began, within the bounds of a
+ * serving and of its growth, and a meal that is pinned, or that says nothing of
+ * its macros, stays.
  */
 function evenOutMacros(
   meals: RebalanceMeal[],
@@ -159,7 +171,7 @@ function evenOutMacros(
         m.id,
         {
           lowest: Math.max(SERVING_MIN / m.servings, start * (1 - MACRO_BAND)),
-          highest: Math.min(SERVING_MAX / m.servings, start * (1 + MACRO_BAND)),
+          highest: Math.min(highestScale(m), start * (1 + MACRO_BAND)),
         },
       ];
     }),

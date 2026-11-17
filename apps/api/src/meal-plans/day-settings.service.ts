@@ -442,11 +442,12 @@ export class DaySettingsService {
         data: { calorieTarget: change.target, overrides: asJson(spec.overrides) },
       });
       await tx.plannedMeal.deleteMany({ where: { id: { in: gone } } });
+      // The servings stay the plan's portion, which a dish grows from at most twice: the change moves its scale.
       if (change.resizes) {
         for (const meal of dishes)
           await tx.plannedMeal.update({
             where: { id: meal.id },
-            data: { servings: portion.get(meal.id)!, quantityScale: 1 },
+            data: { quantityScale: portion.get(meal.id)! / meal.servings },
           });
       }
       await tx.plannedMeal.createMany({

@@ -254,6 +254,12 @@ describe('the settings of a day of a running plan', () => {
       expect(dishes(after)).toMatchObject(dishes(day));
       expect(after).toMatchObject({ mealCount: 4, overrides: { mealCount: 4 } });
       expect(insideItsWindow(after)).toBe(true);
+      // A dish that stays keeps the portion the plan gave it, which it grows from: the change moves its scale.
+      for (const meal of day.meals) {
+        const kept = after.meals.find((one) => one.id === meal.id)!;
+        expect(kept.servings).toBe(meal.servings);
+        expect(kept.quantityScale).toBeLessThanOrEqual(2);
+      }
     });
 
     it('takes away the meal the day loses, and the others take its share', async () => {
