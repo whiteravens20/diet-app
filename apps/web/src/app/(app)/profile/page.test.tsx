@@ -355,6 +355,19 @@ describe('the profile form, on the custom diet', () => {
     expect(changes()).toHaveLength(2);
   });
 
+  it('begins protein per kilogram with the fat of the split as it is typed', async () => {
+    await openForm(
+      aProfile('Me', { dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }),
+    );
+    const fat = screen.getByLabelText(texts.split.fat);
+    await userEvent.clear(fat);
+    await userEvent.type(fat, '35');
+
+    await userEvent.click(screen.getByRole('radio', { name: texts.customWayPerKg }));
+
+    expect((screen.getByLabelText(texts.perKgFat) as HTMLInputElement).value).toBe('35');
+  });
+
   it('says where grams take a share past a limit of a split, and does not keep them', async () => {
     const { changes } = await openForm(aProfile('Me'));
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');

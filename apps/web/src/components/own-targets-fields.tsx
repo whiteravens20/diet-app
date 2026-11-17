@@ -200,7 +200,13 @@ export function OwnTargetsFields({
               name="customWay"
               value={one}
               checked={way === one}
-              onChange={() => setWay(one)}
+              onChange={() => {
+                // Protein per kilogram begins with the fat of the split as it is typed.
+                const fat = unit === 'grams' ? ofGrams?.fat : Number(split.fat);
+                if (one === 'perKg' && fat !== undefined && Number.isInteger(fat) && fat > 0)
+                  setPerKgFat(String(fat));
+                setWay(one);
+              }}
             />
             {t(one === 'split' ? 'customWaySplit' : 'customWayPerKg')}
           </label>
