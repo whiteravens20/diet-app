@@ -2458,9 +2458,14 @@ describe('the plan page, on what a plan is made for', () => {
     expect(screen.queryByLabelText(messages.profile.split.protein)).toBeNull();
 
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    // The choices hold for the plan alone; the targets, which the profile keeps, say so beside them.
     expect(
       screen.getByText(spaced(messages.mealPlans.planChoicesHintOwnTargets, { start: true })),
     ).toBeInTheDocument();
+    expect(screen.getByText(spaced(messages.mealPlans.ownTargetsSaved))).toBeInTheDocument();
+    expect(
+      screen.queryByText(spaced(messages.mealPlans.planChoicesHint, { start: true })),
+    ).toBeNull();
     await typeIn(messages.profile.split.protein, '30');
     await typeIn(messages.profile.split.carbs, '40');
     const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);

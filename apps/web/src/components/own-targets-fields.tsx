@@ -118,6 +118,7 @@ export function OwnTargetsFields({
   target = null,
   weightKg = null,
   errorOf,
+  note,
   className = 'sm:col-span-2',
 }: {
   split: MacroSplit | null;
@@ -128,6 +129,8 @@ export function OwnTargetsFields({
   weightKg?: number | null;
   /** Why a change of the targets was not kept, for a form that keeps each change as it is made. */
   errorOf?: (field: string) => string | undefined;
+  /** What the form that shows the targets says of them besides, under their hint. */
+  note?: string;
   className?: string;
 }) {
   const t = useTranslations('profile');
@@ -183,6 +186,7 @@ export function OwnTargetsFields({
     <fieldset className={`space-y-3 ${className}`}>
       <legend className="text-sm font-medium">{t('customSplit')}</legend>
       <p className="text-xs text-muted-foreground">{t('customSplitHint')}</p>
+      {note && <p className="text-xs text-muted-foreground">{note}</p>}
       <div
         role="radiogroup"
         aria-label={t('customWay')}

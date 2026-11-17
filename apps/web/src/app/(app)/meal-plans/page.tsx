@@ -843,6 +843,7 @@ function MealPlansContent() {
                 split={null}
                 target={calories.data?.dailyTarget ?? null}
                 weightKg={active.weightKg}
+                note={t('ownTargetsSaved')}
                 className=""
               />
             )}
