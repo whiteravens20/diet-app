@@ -147,14 +147,17 @@ export class DaySettingsService {
       if (fate.fate !== 'resized' || !resized || !meal) return fate;
       const now = meal.quantityScale;
       const then = resized.scales.get(meal.id) ?? now;
+      const servings = {
+        now: hundredths(meal.servings * now),
+        then: hundredths(meal.servings * then),
+      };
+      // A dish the change cannot move, one at a bound of its portion, stays as it is.
+      if (servings.now === servings.then) return { ...fate, fate: 'stays' as const };
       const kcal = mealNutrition(meal).calories;
       return {
         ...fate,
         portion: {
-          servings: {
-            now: hundredths(meal.servings * now),
-            then: hundredths(meal.servings * then),
-          },
+          servings,
           calories: {
             now: Math.round(kcal),
             then: Math.round(now > 0 ? (kcal * then) / now : kcal),

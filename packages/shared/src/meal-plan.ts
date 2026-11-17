@@ -768,7 +768,8 @@ export const DayMealFate = z.object({
    * The portion of a `resized` dish, now and after the change: servings of
    * its recipe and their kcal. Null for every other fate, and where the change
    * draws recipes (the portions are known once they are). A dish grows at
-   * most to twice the portion the plan gave it.
+   * most to twice the portion the plan gave it; one the change cannot move,
+   * at a bound of its portion, is `stays`.
    */
   portion: z
     .object({

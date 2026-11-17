@@ -373,6 +373,30 @@ describe('the settings of a day of a running plan', () => {
       ).toBeLessThanOrEqual(0.0051);
     });
 
+    it('says that a dish already at the most it may grow to stays as it is', async () => {
+      const first = dayOf(plan).meals.find((meal) => meal.mealType === 'dinner')!;
+      await t.prisma.plannedMeal.update({
+        where: { id: first.id },
+        data: { servings: 1, quantityScale: 1 },
+      });
+      const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
+      // The dinner grows to twice its portion, and the day is still short.
+      const grown = await apply(eaten, { calorieTarget: dayOf(eaten).calorieTarget + 1500 });
+      expect(dayOf(grown).meals.find((meal) => meal.id === first.id)!.quantityScale).toBeCloseTo(
+        2,
+        5,
+      );
+
+      const said = await preview(grown, { calorieTarget: dayOf(grown).calorieTarget + 100 });
+
+      expect(said.meals.find((meal) => meal.mealId === first.id)).toMatchObject({
+        fate: 'stays',
+        because: null,
+        portion: null,
+      });
+      expect(said.short!.kcal).toBeGreaterThan(0);
+    });
+
     it('leaves the days after it as they are where the spread is not asked for', async () => {
       const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
       const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
