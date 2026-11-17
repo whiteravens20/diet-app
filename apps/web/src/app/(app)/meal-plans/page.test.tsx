@@ -3475,7 +3475,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/130/);
     expect(plain(dialog.textContent)).toContain(
-      'The original gives amounts for 1 serving, this cooking comes to 2.3 servings.',
+      'Below are the amounts for the whole cooking: 2.3 servings. The original recipe makes 1 serving.',
     );
   });
 
@@ -3488,7 +3488,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(messages.recipeDetail.ingredients);
     expect(plain(dialog.textContent)).toContain(
-      'The original gives amounts for 1 serving, your meal is 1.3 servings.',
+      'Below are the amounts for your meal: 1.3 servings. The original recipe makes 1 serving.',
     );
   });
 
@@ -3861,7 +3861,7 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(
       await window.findByText(
         spaced(
-          'The original gives amounts for 1 serving. Below are the amounts for the whole pot, 2.1 servings: you 1, Ewa 1.1.',
+          'Below are the amounts for the whole pot: 2.1 servings, of which you 1, Ewa 1.1. The original recipe makes 1 serving.',
         ),
       ),
     ).toBeInTheDocument();

@@ -10,6 +10,7 @@ import { ApiClientError } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
 import messages from '../../messages/en.json';
 import { RecipeModal } from './recipe-modal';
+import { spaced } from '@/testing/spaces';
 
 const RECIPE = '11111111-1111-4111-8111-111111111111';
 const oats = {
@@ -37,7 +38,7 @@ const oats = {
 /** The window of the recipe, opened; `answer` is what the API says of it, `meal` what a meal of a plan gives it. */
 function renderWindow(
   answer: () => Promise<unknown>,
-  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion'> = {},
+  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion' | 'pot'> = {},
 ) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never),
@@ -114,6 +115,50 @@ describe('the window of a recipe', () => {
       dialog.queryAllByRole('link', { hidden: true }).map((link) => link.getAttribute('href')),
     ).not.toContain('javascript:alert(1)');
     expect(dialog.queryByText(/^From /)).not.toBeInTheDocument();
+  });
+
+  // What is below comes first, the recipe's own servings after it; where the two are the same, one sentence says
+  // so, not the same number twice.
+  it.each([
+    [
+      'a meal of more servings than the recipe makes',
+      { servings: 2, whole: false },
+      'Below are the amounts for your meal: 2 servings. The original recipe makes 1 serving.',
+    ],
+    [
+      'a meal of as many servings as the recipe makes',
+      { servings: 1, whole: false },
+      'Below are the amounts for your meal: 1 serving, as in the original recipe.',
+    ],
+    [
+      'a whole cooking of more servings',
+      { servings: 2.5, whole: true },
+      'Below are the amounts for the whole cooking: 2.5 servings. The original recipe makes 1 serving.',
+    ],
+    [
+      'a whole cooking of as many servings',
+      { servings: 1, whole: true },
+      'Below are the amounts for the whole cooking: 1 serving, as in the original recipe.',
+    ],
+  ])('says what the amounts below are for, of %s', async (_, portion, said) => {
+    const dialog = renderWindow(() => Promise.resolve(oats), { portion });
+
+    expect(await dialog.findByText(spaced(said))).toBeInTheDocument();
+  });
+
+  it('says of a pot as big as the recipe that the original makes as many too', async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 1, whole: false },
+      pot: { mine: 0.5, name: 'Ewa', theirs: 0.5, plates: [] },
+    });
+
+    expect(
+      await dialog.findByText(
+        spaced(
+          'Below are the amounts for the whole pot: 1 serving, of which you 0.5, Ewa 0.5. The original recipe makes 1 serving too.',
+        ),
+      ),
+    ).toBeInTheDocument();
   });
 
   it('sends the recipe with the amounts and servings of the meal it was opened from', async () => {

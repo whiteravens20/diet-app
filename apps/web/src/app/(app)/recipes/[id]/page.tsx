@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RecipeView } from '@/components/recipe-view';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useErrorText } from '@/lib/use-error-text';
+import { sameServings } from '@/lib/servings';
 
 /** The most servings a link from a plan is believed to name: a cooking of the most a meal holds, four times over. */
 const MOST_SERVINGS = 12;
@@ -117,6 +118,7 @@ function RecipeDetail() {
           {t(whole ? 'portionWholeFromPlan' : 'portionFromPlan', {
             recipe: recipe.data!.servings,
             mine: portion,
+            same: sameServings(recipe.data!.servings, portion),
           })}
         </p>
       )}

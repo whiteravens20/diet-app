@@ -67,7 +67,7 @@ describe('the page of one recipe', () => {
 
     expect(
       await screen.findByText(
-        'The original gives amounts for 2 servings, your meal is 1.3 servings.',
+        'Below are the amounts of the original recipe, for 2 servings. Your meal in the plan is 1.3 servings.',
       ),
     ).toBeVisible();
     address = '';
@@ -79,7 +79,19 @@ describe('the page of one recipe', () => {
 
     expect(
       await screen.findByText(
-        'The original gives amounts for 2 servings, this cooking comes to 3.5 servings.',
+        'Below are the amounts of the original recipe, for 2 servings. This cooking in the plan comes to 3.5 servings.',
+      ),
+    ).toBeVisible();
+    address = '';
+  });
+
+  it("says in one sentence that the amounts below are the meal's where the meal is as many servings as the recipe makes", async () => {
+    address = 'portion=2';
+    opened('seed');
+
+    expect(
+      await screen.findByText(
+        'Below are the amounts of the original recipe, for 2 servings: as much as your meal in the plan.',
       ),
     ).toBeVisible();
     address = '';

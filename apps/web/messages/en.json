@@ -2450,8 +2450,8 @@
     "source": "From <site></site>",
     "sourceLicence": "Licence: <licence></licence>",
     "edit": "Edit",
-    "portionFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, your meal is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.",
-    "portionWholeFromPlan": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.",
+    "portionFromPlan": "Below are the amounts of the original recipe, for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}{same, select, yes {: as much as your meal in the plan.} other {. Your meal in the plan is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.}}",
+    "portionWholeFromPlan": "Below are the amounts of the original recipe, for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}{same, select, yes {: as much as this cooking in the plan.} other {. This cooking in the plan comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.}}",
     "restOfPack": "including {amount} left of a pack"
   },
   "ownRecipe": {
@@ -2578,13 +2578,13 @@
     "errAct": "The decision could not be saved."
   },
   "recipeModal": {
-    "portionPot": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}. Below are the amounts for the whole pot, {all, plural, one {{all, number, ::group-off}\u00a0serving} other {{all, number, ::group-off}\u00a0servings}}: you {mine, number, ::group-off}, {name} {theirs, number, ::group-off}.",
+    "portionPot": "Below are the amounts for the whole pot: {all, plural, one {{all, number, ::group-off}\u00a0serving} other {{all, number, ::group-off}\u00a0servings}}, of which you {mine, number, ::group-off}, {name} {theirs, number, ::group-off}. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}{same, select, yes { too} other {}}.",
     "toppingNote": "A topping on your plate alone, not in the pot: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal.",
     "title": "Recipe details",
     "close": "Close",
     "openPage": "Open original recipe",
-    "portionMeal": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, your meal is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}. Below are the amounts for your meal.",
-    "portionWhole": "The original gives amounts for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}, this cooking comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}. Below are the amounts for all of it.",
+    "portionMeal": "Below are the amounts for your meal: {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}{same, select, yes {, as in the original recipe.} other {. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}.}}",
+    "portionWhole": "Below are the amounts for the whole cooking: {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}{same, select, yes {, as in the original recipe.} other {. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}.}}",
     "platesTitle": "The plates",
     "platesIntro": "The plan shares these ingredients out otherwise than the recipe, so that each person's day keeps their split of macronutrients. Split the rest of the pot by the size of each portion.",
     "platesIngredient": "Ingredient",

@@ -12,6 +12,7 @@ import type { DisplayAmount, LabelTotals, PlannedIngredient, Recipe } from '@die
 import { api } from '@/lib/api';
 import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
+import { sameServings } from '@/lib/servings';
 import { ApiClientError } from '@/lib/http';
 import { IMAGERY } from '@/lib/imagery';
 import { Button } from '@/components/ui/button';
@@ -135,10 +136,12 @@ export function RecipeModal({
                   mine: pot.mine,
                   name: fmt.text(pot.name),
                   theirs: pot.theirs,
+                  same: sameServings(recipe.data.servings, portion.servings),
                 })
               : t(portion.whole ? 'portionWhole' : 'portionMeal', {
                   recipe: recipe.data.servings,
                   mine: portion.servings,
+                  same: sameServings(recipe.data.servings, portion.servings),
                 })}
           </p>
         )}
