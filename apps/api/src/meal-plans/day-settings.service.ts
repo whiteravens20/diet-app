@@ -124,19 +124,44 @@ export class DaySettingsService {
     const entered =
       (await diaryDays(this.prisma, plan.profileId, day.date, day.date)).get(date) ?? null;
     // What the day comes to is known here only where no recipe is drawn; a skipped day has no target to fit.
+    // The dishes that stay are sized as the change sizes them: no one past twice the portion the plan gave it.
+    const resized =
+      change.drawn.length === 0 && change.resizes
+        ? this.plans.resizedDay(
+            left,
+            { calorieTarget: change.target, overrides: change.overrides },
+            entered,
+            plan,
+          )
+        : null;
     const dayCalories =
       change.drawn.length > 0
         ? null
-        : change.resizes
-          ? this.plans.resizedKcal(
-              left,
-              { calorieTarget: change.target, overrides: change.overrides },
-              entered,
-              plan,
-            )
+        : resized
+          ? resized.kcal
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
             (await toppingKcal(this.prisma, left)) +
             (entered?.nutrition.calories ?? 0);
+    const meals = change.fates.map((fate) => {
+      const meal = left.find((one) => one.id === fate.mealId);
+      if (fate.fate !== 'resized' || !resized || !meal) return fate;
+      const now = meal.quantityScale;
+      const then = resized.scales.get(meal.id) ?? now;
+      const kcal = mealNutrition(meal).calories;
+      return {
+        ...fate,
+        portion: {
+          servings: {
+            now: hundredths(meal.servings * now),
+            then: hundredths(meal.servings * then),
+          },
+          calories: {
+            now: Math.round(kcal),
+            then: Math.round(now > 0 ? (kcal * then) / now : kcal),
+          },
+        },
+      };
+    });
     const changesMeals =
       change.added.length > 0 || change.fates.some((fate) => fate.fate !== 'stays');
     const lists = changesMeals
@@ -158,7 +183,7 @@ export class DaySettingsService {
         then: aimOfDay({ calorieTarget: change.target, overrides: change.overrides }, plan),
       },
       belowSafetyFloor: !settings.skip && change.target < safetyFloor(context.profile.sex),
-      meals: change.fates,
+      meals,
       added: change.added,
       dayCalories,
       fits:
@@ -602,6 +627,7 @@ export class DaySettingsService {
         mealType: meal.mealType as MealType,
         fate: to,
         because,
+        portion: null,
       });
       if (meal.eatenAt) return fate('stays', 'eaten');
       if (settings.skip) return fate('removed', 'skipped');
@@ -695,3 +721,6 @@ function canonical(overrides: DayOverridesJson | null): string {
 
 const asJson = (overrides: DayOverridesJson | null) =>
   overrides ? (overrides as Prisma.InputJsonValue) : Prisma.JsonNull;
+
+/** A number to the hundredth, as a portion is said. */
+const hundredths = (value: number): number => Math.round(value * 100) / 100;

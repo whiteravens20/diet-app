@@ -13815,13 +13815,63 @@
                 "type": "null"
               }
             ]
+          },
+          "portion": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "servings": {
+                    "type": "object",
+                    "properties": {
+                      "now": {
+                        "type": "number"
+                      },
+                      "then": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "now",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "calories": {
+                    "type": "object",
+                    "properties": {
+                      "now": {
+                        "type": "number"
+                      },
+                      "then": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "now",
+                      "then"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "servings",
+                  "calories"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "mealId",
           "mealType",
           "fate",
-          "because"
+          "because",
+          "portion"
         ],
         "additionalProperties": false
       },

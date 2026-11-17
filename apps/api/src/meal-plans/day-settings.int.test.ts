@@ -284,6 +284,36 @@ describe('the settings of a day of a running plan', () => {
     });
   });
 
+  describe('the portions of the dishes that stay', () => {
+    it("says each one's servings and kcal now and after the change, as the change makes them", async () => {
+      const day = dayOf(plan);
+
+      const said = await preview(plan, { dayType: 'training' });
+
+      for (const fate of said.meals) {
+        const meal = day.meals.find((one) => one.id === fate.mealId)!;
+        // Said to the hundredth of a serving.
+        expect(
+          Math.abs(fate.portion!.servings.now - meal.servings * meal.quantityScale),
+        ).toBeLessThanOrEqual(0.0051);
+        expect(Math.abs(fate.portion!.calories.now - meal.nutrition.calories)).toBeLessThanOrEqual(
+          1,
+        );
+        expect(fate.portion!.calories.then).toBeGreaterThan(fate.portion!.calories.now);
+      }
+      const changed = dayOf(await apply(plan, { dayType: 'training' }));
+      for (const fate of said.meals) {
+        const meal = changed.meals.find((one) => one.id === fate.mealId)!;
+        expect(
+          Math.abs(meal.servings * meal.quantityScale - fate.portion!.servings.then),
+        ).toBeLessThanOrEqual(0.0051);
+        expect(Math.abs(meal.nutrition.calories - fate.portion!.calories.then)).toBeLessThanOrEqual(
+          1,
+        );
+      }
+    });
+  });
+
   describe('a skipped day', () => {
     it('keeps what was eaten of it and nothing else, and is no shortfall', async () => {
       const breakfast = dayOf(plan).meals.find((meal) => meal.mealType === 'breakfast')!;

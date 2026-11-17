@@ -452,7 +452,14 @@ function Outcome({
         {preview.meals.map((meal) => (
           <li key={meal.mealId}>
             <span className="text-muted-foreground">{mealName(meal.mealType)}:</span>{' '}
-            {t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
+            {meal.portion
+              ? t('fateResizedPortion', {
+                  from: meal.portion.servings.now,
+                  to: meal.portion.servings.then,
+                  kcalFrom: Math.round(meal.portion.calories.now),
+                  kcalTo: Math.round(meal.portion.calories.then),
+                })
+              : t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
           </li>
         ))}
         {preview.added.length > 0 && (

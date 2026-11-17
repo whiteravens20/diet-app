@@ -758,6 +758,18 @@ export const DayMealFate = z.object({
   because: z
     .enum(['eaten', 'own', 'leftover', 'fewer_meals', 'skipped', 'over_cook_time', 'use_up'])
     .nullable(),
+  /**
+   * The portion of a `resized` dish, now and after the change: servings of
+   * its recipe and their kcal. Null for every other fate, and where the change
+   * draws recipes (the portions are known once they are). A dish grows at
+   * most to twice the portion the plan gave it.
+   */
+  portion: z
+    .object({
+      servings: z.object({ now: z.number(), then: z.number() }),
+      calories: z.object({ now: z.number(), then: z.number() }),
+    })
+    .nullable(),
 });
 export type DayMealFate = z.infer<typeof DayMealFate>;
 

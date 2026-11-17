@@ -1167,17 +1167,21 @@ export class MealPlansService {
   /**
    * What a day would come to, in kcal, with its meals sized for the target and
    * kind `day` gives it, as a change of the day's settings sizes them: the
-   * meals, and what its diary holds as eaten. Nothing is written.
+   * meals, and what its diary holds as eaten; and the scale each meal takes.
+   * Nothing is written.
    */
-  resizedKcal(
+  resizedDay(
     meals: RebalanceMealRow[],
     day: { calorieTarget: number; overrides: unknown },
     diary: DiaryOnDay | null,
     plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
-  ): number {
+  ): { kcal: number; scales: Map<string, number> } {
     const rows = [...meals.map(toRebalanceRow), ...restRebalanceRows(meals), ...diaryRows(diary)];
     const { scales } = sizeDay(rows.map(toEngineMeal), day.calorieTarget, aimOfDay(day, plan));
-    return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
+    return {
+      kcal: Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories),
+      scales,
+    };
   }
 
   /**

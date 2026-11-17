@@ -1954,6 +1954,7 @@
       "drawnNote": "The recipes of the new meals are chosen when this is saved, inside the plan's limits; the portions of the others adjust to the day's target.",
       "dayCalories": "The day will hold about {kcal} kcal.",
       "dayCaloriesOff": "The day will hold about {kcal} kcal: more than a tenth off its target, since the portions are not enough. The difference can then be spread over the rest of the plan.",
+      "fateResizedPortion": "the same dish: {from, number, ::group-off} → {to, plural, one {{to, number, ::group-off} serving} other {{to, number, ::group-off} servings}}, {kcalFrom, number, ::group-off} → {kcalTo, number, ::group-off} kcal",
       "listOutOfDate": "The shopping list that covers this day will need to be made again.",
       "otherDays": "The plan's other days stay as they are.",
       "save": "Save",

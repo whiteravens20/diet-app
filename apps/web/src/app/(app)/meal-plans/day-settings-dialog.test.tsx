@@ -60,9 +60,9 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   },
   belowSafetyFloor: false,
   meals: [
-    { mealId: MEAL_IDS[0]!, mealType: 'breakfast', fate: 'resized', because: null },
-    { mealId: MEAL_IDS[1]!, mealType: 'lunch', fate: 'resized', because: null },
-    { mealId: MEAL_IDS[2]!, mealType: 'dinner', fate: 'resized', because: null },
+    { mealId: MEAL_IDS[0]!, mealType: 'breakfast', fate: 'resized', because: null, portion: null },
+    { mealId: MEAL_IDS[1]!, mealType: 'lunch', fate: 'resized', because: null, portion: null },
+    { mealId: MEAL_IDS[2]!, mealType: 'dinner', fate: 'resized', because: null, portion: null },
   ],
   added: [],
   dayCalories: 2310,
@@ -192,9 +192,27 @@ describe('the window in which the settings of a day are changed', () => {
       aPreview({
         calorieTarget: { now: 2000, then: 2000 },
         meals: [
-          { mealId: MEAL_IDS[0]!, mealType: 'breakfast', fate: 'stays', because: 'eaten' },
-          { mealId: MEAL_IDS[1]!, mealType: 'lunch', fate: 'redrawn', because: 'over_cook_time' },
-          { mealId: MEAL_IDS[2]!, mealType: 'dinner', fate: 'resized', because: null },
+          {
+            mealId: MEAL_IDS[0]!,
+            mealType: 'breakfast',
+            fate: 'stays',
+            because: 'eaten',
+            portion: null,
+          },
+          {
+            mealId: MEAL_IDS[1]!,
+            mealType: 'lunch',
+            fate: 'redrawn',
+            because: 'over_cook_time',
+            portion: null,
+          },
+          {
+            mealId: MEAL_IDS[2]!,
+            mealType: 'dinner',
+            fate: 'resized',
+            because: null,
+            portion: null,
+          },
         ],
         added: ['snack'],
         dayCalories: null,
@@ -210,6 +228,52 @@ describe('the window in which the settings of a day are changed', () => {
       'Added: snack.',
     ]);
     expect(dialog.getByText(texts.drawnNote)).toBeInTheDocument();
+  });
+
+  it("says each dish's new portion and kcal where the preview gives them", async () => {
+    const portion = (from: number, to: number, kcalFrom: number, kcalTo: number) => ({
+      servings: { now: from, then: to },
+      calories: { now: kcalFrom, then: kcalTo },
+    });
+    const { dialog } = await opened(() =>
+      aPreview({
+        meals: [
+          {
+            mealId: MEAL_IDS[0]!,
+            mealType: 'breakfast',
+            fate: 'stays',
+            because: 'eaten',
+            portion: null,
+          },
+          {
+            mealId: MEAL_IDS[1]!,
+            mealType: 'lunch',
+            fate: 'resized',
+            because: null,
+            portion: portion(1, 1.5, 520, 780),
+          },
+          {
+            mealId: MEAL_IDS[2]!,
+            mealType: 'dinner',
+            fate: 'resized',
+            because: null,
+            portion: portion(1, 2, 600, 1200),
+          },
+        ],
+      }),
+    );
+
+    await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+    await vi.waitFor(() =>
+      expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual(
+        [
+          'breakfast: stays: it was eaten',
+          'lunch: the same dish: 1 → 1.5 servings, 520 → 780 kcal',
+          'dinner: the same dish: 1 → 2 servings, 600 → 1200 kcal',
+        ].map((line) => line.replace(/ (?=→|servings|kcal)/g, '\u00a0')),
+      ),
+    );
   });
 
   it('saves the settings on the plan as the preview had it, and tells the page', async () => {
@@ -350,9 +414,27 @@ describe('the window in which the settings of a day are changed', () => {
         ? aPreview({
             calorieTarget: { now: 2000, then: 2000 },
             meals: [
-              { mealId: MEAL_IDS[0]!, mealType: 'breakfast', fate: 'stays', because: 'eaten' },
-              { mealId: MEAL_IDS[1]!, mealType: 'lunch', fate: 'removed', because: 'skipped' },
-              { mealId: MEAL_IDS[2]!, mealType: 'dinner', fate: 'removed', because: 'skipped' },
+              {
+                mealId: MEAL_IDS[0]!,
+                mealType: 'breakfast',
+                fate: 'stays',
+                because: 'eaten',
+                portion: null,
+              },
+              {
+                mealId: MEAL_IDS[1]!,
+                mealType: 'lunch',
+                fate: 'removed',
+                because: 'skipped',
+                portion: null,
+              },
+              {
+                mealId: MEAL_IDS[2]!,
+                mealType: 'dinner',
+                fate: 'removed',
+                because: 'skipped',
+                portion: null,
+              },
             ],
             dayCalories: 450,
             fits: null,
