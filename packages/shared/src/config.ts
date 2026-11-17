@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { AiDataPolicy, OperatorAiAccess } from './ai.js';
 import { DietType, MealType } from './enums.js';
 import { MAX_PLAN_DAYS, PlanRelaxation } from './meal-plan.js';
 import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
@@ -18,6 +19,30 @@ import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
  */
 export const OllamaUserPolicy = z.enum(['off', 'allowlist', 'public']);
 export type OllamaUserPolicy = z.infer<typeof OllamaUserPolicy>;
+
+/**
+ * The terms of the instance's own AI, the provider its operator set up, as
+ * they apply: which endpoints its requests may reach, which accounts may use
+ * it and how much. What provider and model it is stays unsaid.
+ */
+export const OperatorAiTerms = z.object({
+  /**
+   * Which of OpenRouter's endpoints a request may reach (`AI_ADMIN_DATA_POLICY`);
+   * null where the provider is not OpenRouter, which has no such choice.
+   */
+  dataPolicy: AiDataPolicy.nullable(),
+  /**
+   * Which accounts may use it (`AI_ADMIN_ACCESS`) as that applies: where the
+   * instance sends no mail, an address counts as confirmed at sign-up, so
+   * `confirmed` lets every account in and is said as `everyone`.
+   */
+  access: OperatorAiAccess,
+  /** Requests an account may make in 30 days (`AI_ADMIN_USER_MONTHLY_LIMIT`). */
+  monthlyLimit: z.number().int().positive(),
+  /** Requests all accounts together may make in 30 days (`AI_ADMIN_INSTANCE_MONTHLY_LIMIT`). */
+  instanceMonthlyLimit: z.number().int().nonnegative(),
+});
+export type OperatorAiTerms = z.infer<typeof OperatorAiTerms>;
 
 /** A number of meals a day, as the key of an object. */
 export const MealCountKey = z.enum(['2', '3', '4', '5']);
@@ -109,6 +134,11 @@ export const PublicConfig = z.object({
   }),
   ai: z.object({
     ollamaUserPolicy: OllamaUserPolicy,
+    /**
+     * The terms of the instance's own AI; null where it offers none: no
+     * provider and model set, or no request allowed an account.
+     */
+    operator: OperatorAiTerms.nullable(),
   }),
   instance: z.object({
     /** Where the "support us" link points; null means the project's own page. */

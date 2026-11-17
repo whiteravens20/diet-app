@@ -10,7 +10,7 @@ import {
   PublicConfig,
   type MealType,
 } from '@diet-app/shared';
-import { confirmationUnlocksAi } from '../ai/ai-quota.service.js';
+import { confirmationUnlocksAi, operatorAiTerms } from '../ai/ai-quota.service.js';
 import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
@@ -25,8 +25,9 @@ import { PACKAGE_VERSION } from './package-version.js';
  * Public, unauthenticated runtime configuration for the web app. Exposes only
  * non-secret operator choices the front-end needs before sign-in (whether to
  * render Turnstile + the site key, whether email flows are available), what
- * the operator publishes about the instance, which diets the catalogue has
- * recipes for, the limits the operator set for accounts and plans, whether
+ * the operator publishes about the instance, the terms of its own AI, which
+ * diets the catalogue has recipes for, the limits the operator set for
+ * accounts and plans, whether
  * products with a barcode are offered, how a plan's days are laid out, and
  * what a plan that wastes less does on each diet.
  * Mirrors the unauthenticated HealthController, and is limited like it and
@@ -56,6 +57,7 @@ export class AppConfigController {
       },
       ai: {
         ollamaUserPolicy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+        operator: operatorAiTerms(this.config, this.mail.enabled),
       },
       instance: {
         supportUrl: this.config.get('SUPPORT_URL', { infer: true }) ?? null,

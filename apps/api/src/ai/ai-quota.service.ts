@@ -9,6 +9,7 @@ import type {
   AiMode,
   AiQuotaStatus,
   OperatorAiAccess,
+  OperatorAiTerms,
 } from '@diet-app/shared';
 import { newAccountsLimit, type Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -69,6 +70,33 @@ export function confirmationUnlocksAi(config: ConfigService<Env, true>): boolean
     config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }) > 0 &&
     config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }) > 0
   );
+}
+
+/**
+ * The terms of the instance's own AI as they apply, or null where it offers
+ * none: the router has no provider to ask without both a provider and a model
+ * (`isAdminProviderConfigured`), and a limit of none closes it to every
+ * account. Where the instance sends no mail, an address counts as confirmed
+ * at sign-up, so confirmed accounts are every account.
+ */
+export function operatorAiTerms(
+  config: ConfigService<Env, true>,
+  mailEnabled: boolean,
+): OperatorAiTerms | null {
+  const provider = config.get('AI_DEFAULT_PROVIDER', { infer: true });
+  const model = config.get('AI_DEFAULT_MODEL', { infer: true });
+  const monthlyLimit = config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true });
+  if (provider === undefined || model === undefined || model === '' || monthlyLimit === 0)
+    return null;
+  const access = config.get('AI_ADMIN_ACCESS', { infer: true });
+  return {
+    // OpenRouter alone is told which of its endpoints may serve a request.
+    dataPolicy:
+      provider === 'openrouter' ? config.get('AI_ADMIN_DATA_POLICY', { infer: true }) : null,
+    access: access === 'confirmed' && !mailEnabled ? 'everyone' : access,
+    monthlyLimit,
+    instanceMonthlyLimit: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),
+  };
 }
 
 /** Whether `account` may use the operator's provider under `level`, or what it lacks for it. */

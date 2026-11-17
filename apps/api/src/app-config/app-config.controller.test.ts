@@ -18,13 +18,13 @@ const NO_PRODUCT_SETTINGS: Partial<Env> = {
   OPEN_FOOD_FACTS_COUNTRIES: [],
 };
 
-function configOf(env: Partial<Env>) {
+function configOf(env: Partial<Env>, mail = true) {
   const held = { ...NO_PRODUCT_SETTINGS, ...env };
   const config = { get: (key: keyof Env) => held[key] } as unknown as ConfigService<Env, true>;
   const controller = new AppConfigController(
     config,
     { enabled: false } as TurnstileService,
-    { enabled: true } as MailService,
+    { enabled: mail } as MailService,
     { recent: () => Promise.resolve(recipesPerDietAndMeal([])) } as CatalogueCoverageService,
   );
   return controller.get();
@@ -136,6 +136,60 @@ describe('GET /api/config', () => {
         meatAndFishDays: 3,
         otherDays: 5,
       },
+    });
+  });
+
+  describe("the terms of the instance's own AI", () => {
+    /** The operator's provider as wrcloud sets it up, with the defaults of the rest. */
+    const OPERATORS: Partial<Env> = {
+      OLLAMA_USER_POLICY: 'off',
+      AI_DEFAULT_PROVIDER: 'openrouter',
+      AI_DEFAULT_MODEL: 'openai/gpt-6-luna',
+      OPENROUTER_API_KEY: 'or-secret-key',
+      AI_ADMIN_DATA_POLICY: 'no_training',
+      AI_ADMIN_ACCESS: 'approved',
+      AI_ADMIN_USER_MONTHLY_LIMIT: 40,
+      AI_ADMIN_INSTANCE_MONTHLY_LIMIT: 1000,
+    };
+
+    it('are which endpoints its requests may reach, which accounts may use it and how much', async () => {
+      expect((await configOf({ ...OPERATORS, AI_ADMIN_DATA_POLICY: 'no_retention' })).ai).toEqual({
+        ollamaUserPolicy: 'off',
+        operator: {
+          dataPolicy: 'no_retention',
+          access: 'approved',
+          monthlyLimit: 40,
+          instanceMonthlyLimit: 1000,
+        },
+      });
+    });
+
+    it.each<[string, Partial<Env>]>([
+      ['no provider is set', { AI_DEFAULT_PROVIDER: undefined }],
+      ['a provider is set without a model', { AI_DEFAULT_MODEL: undefined }],
+      ['the model is blank', { AI_DEFAULT_MODEL: '' }],
+      ['an account may make no request', { AI_ADMIN_USER_MONTHLY_LIMIT: 0 }],
+    ])('are none where %s', async (_, change) => {
+      expect((await configOf({ ...OPERATORS, ...change })).ai.operator).toBeNull();
+    });
+
+    it('name no choice of endpoints for a provider that is not OpenRouter', async () => {
+      const { ai } = await configOf({ ...OPERATORS, AI_DEFAULT_PROVIDER: 'openai' });
+      expect(ai.operator?.dataPolicy).toBeNull();
+    });
+
+    it('say every account for the confirmed ones where the instance sends no mail, as an address is confirmed at sign-up', async () => {
+      const confirmed = { ...OPERATORS, AI_ADMIN_ACCESS: 'confirmed' as const };
+      expect((await configOf(confirmed, true)).ai.operator?.access).toBe('confirmed');
+      expect((await configOf(confirmed, false)).ai.operator?.access).toBe('everyone');
+      expect((await configOf(OPERATORS, false)).ai.operator?.access).toBe('approved');
+    });
+
+    it('leave the provider, the model and the key unsaid', async () => {
+      const body = JSON.stringify(await configOf(OPERATORS));
+      expect(body).not.toContain('openrouter');
+      expect(body).not.toContain('gpt-6-luna');
+      expect(body).not.toContain('or-secret-key');
     });
   });
 
