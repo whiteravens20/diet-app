@@ -282,15 +282,18 @@ describe('the window in which the settings of a day are changed', () => {
       dayCalories: 2400,
       fits: false,
       calorieTarget: { now: 2000, then: 3000 },
-      short: { kcal: 600, spread: { days: 3, takes: 540, left: 60 } },
+      short: { kcal: 600, spread: { days: 3, takes: 540, left: 60, listOutOfDate: true } },
     });
     const { dialog, put } = await opened(() => short);
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
 
     const box = await dialog.findByRole('checkbox', { name: /^Spread the missing 600.kcal/ });
     expect(box).toBeChecked();
-    // The next days take part: the line that they stay as they are is not said.
+    // The next days take part: the line that they stay as they are is not said, and a list of theirs goes out of date.
     expect(dialog.queryByText("The plan's other days stay as they are.")).toBeNull();
+    expect(
+      dialog.getByText('The shopping list that covers these days will need to be made again.'),
+    ).toBeInTheDocument();
     expect(
       dialog.getByText(
         /^The next 3.days take 540.kcal, each inside its limits\. The other 60.kcal stay uncovered\.$/,
@@ -316,13 +319,16 @@ describe('the window in which the settings of a day are changed', () => {
       aPreview({
         dayCalories: 2400,
         fits: false,
-        short: { kcal: 600, spread: { days: 3, takes: 600, left: 0 } },
+        short: { kcal: 600, spread: { days: 3, takes: 600, left: 0, listOutOfDate: true } },
       }),
     );
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
 
     await userEvent.click(await dialog.findByRole('checkbox', { name: /^Spread the missing/ }));
     expect(await dialog.findByText("The plan's other days stay as they are.")).toBeInTheDocument();
+    expect(
+      dialog.queryByText('The shopping list that covers these days will need to be made again.'),
+    ).toBeNull();
     await vi.waitFor(() => expect(save(dialog)).toBeEnabled());
     await userEvent.click(save(dialog));
 
@@ -336,7 +342,7 @@ describe('the window in which the settings of a day are changed', () => {
       aPreview({
         dayCalories: 2400,
         fits: false,
-        short: { kcal: 600, spread: { days: 0, takes: 0, left: 600 } },
+        short: { kcal: 600, spread: { days: 0, takes: 0, left: 600, listOutOfDate: false } },
       }),
     );
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);

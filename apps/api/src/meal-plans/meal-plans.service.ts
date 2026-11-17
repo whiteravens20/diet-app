@@ -1127,6 +1127,7 @@ export class MealPlansService {
         : d;
       return {
         id: d.id,
+        date: isoDate(d.date),
         target: settings.calorieTarget,
         past: isoDate(d.date) < today,
         aim: aimOfDay(settings, plan),

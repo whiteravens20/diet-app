@@ -319,25 +319,32 @@ export function DaySettingsDialog({
           )}
         </div>
         {shown?.short && shown.short.spread.days > 0 && (
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4"
-              checked={spread}
-              onChange={(e) => setSpread(e.target.checked)}
-            />
-            <span>
-              {t('spreadShort', { kcal: fmt.number(shown.short.kcal) })}
-              <span className="block text-xs text-muted-foreground">
-                {t('spreadShortTakes', {
-                  days: shown.short.spread.days,
-                  kcal: fmt.number(shown.short.spread.takes),
-                })}
-                {shown.short.spread.left > 0 &&
-                  ` ${t('spreadShortLeft', { kcal: fmt.number(shown.short.spread.left) })}`}
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4"
+                checked={spread}
+                onChange={(e) => setSpread(e.target.checked)}
+              />
+              <span>
+                {t('spreadShort', { kcal: fmt.number(shown.short.kcal) })}
+                <span className="block text-xs text-muted-foreground">
+                  {t('spreadShortTakes', {
+                    days: shown.short.spread.days,
+                    kcal: fmt.number(shown.short.spread.takes),
+                  })}
+                  {shown.short.spread.left > 0 &&
+                    ` ${t('spreadShortLeft', { kcal: fmt.number(shown.short.spread.left) })}`}
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+            <ListNote
+              days="several"
+              listed={spread && shown.short.spread.listOutOfDate}
+              className="pl-6"
+            />
+          </div>
         )}
 
         {inTheWay && (

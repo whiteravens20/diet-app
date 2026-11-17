@@ -358,6 +358,7 @@ describe('the settings of a day of a running plan', () => {
       expect(said.short!.spread.days).toBe(after(eaten).length);
       expect(said.short!.spread.takes).toBeGreaterThan(0);
       expect(said.short!.spread.takes + said.short!.spread.left).toBe(said.short!.kcal);
+      expect(said.short!.spread.listOutOfDate).toBe(false);
 
       const spread = await apply(eaten, { ...change, spreadShort: true });
 
@@ -415,6 +416,22 @@ describe('the settings of a day of a running plan', () => {
       );
     });
 
+    it('says when a shopping list covers a day that takes what the day falls short of', async () => {
+      await t
+        .http()
+        .post('/api/shopping-lists/generate')
+        .set(as(user))
+        .send({ planId: plan.id, fromDate: day(2), toDate: day(2) })
+        .expect(201);
+      const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
+
+      const said = await preview(eaten, { calorieTarget: dayOf(eaten).calorieTarget + 1500 });
+
+      // The list covers the next day, not this one.
+      expect(said.listOutOfDate).toBe(false);
+      expect(said.short!.spread).toMatchObject({ listOutOfDate: true });
+    });
+
     it('leaves the days after it as they are where the spread is not asked for', async () => {
       const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
       const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
@@ -435,7 +452,12 @@ describe('the settings of a day of a running plan', () => {
 
       const said = await preview(eaten, { calorieTarget: dayOf(eaten).calorieTarget + 1500 });
 
-      expect(said.short!.spread).toEqual({ days: 0, takes: 0, left: said.short!.kcal });
+      expect(said.short!.spread).toEqual({
+        days: 0,
+        takes: 0,
+        left: said.short!.kcal,
+        listOutOfDate: false,
+      });
     });
   });
 

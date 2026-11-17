@@ -14090,12 +14090,16 @@
                       },
                       "left": {
                         "type": "number"
+                      },
+                      "listOutOfDate": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
                       "days",
                       "takes",
-                      "left"
+                      "left",
+                      "listOutOfDate"
                     ],
                     "additionalProperties": false
                   }

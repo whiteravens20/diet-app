@@ -241,14 +241,38 @@ export class DaySettingsService {
       },
     );
     let takes = 0;
-    let days = 0;
-    for (const [id, { before, after }] of planned?.kcal ?? []) {
-      if (id === context.day.id || after - before < 0.5) continue;
+    const taking: string[] = [];
+    for (const day of planned?.dayRows ?? []) {
+      const { before, after } = planned!.kcal.get(day.id)!;
+      if (day.id === context.day.id || after - before < 0.5) continue;
       takes += after - before;
-      days += 1;
+      taking.push(day.date);
     }
     const taken = Math.min(kcal, Math.round(takes));
-    return { kcal, spread: { days, takes: taken, left: kcal - taken } };
+    return {
+      kcal,
+      spread: {
+        days: taking.length,
+        takes: taken,
+        left: kcal - taken,
+        listOutOfDate: await this.listCovers(context.plan.id, taking),
+      },
+    };
+  }
+
+  /** Whether a shopping list of the plan covers one of `dates`. */
+  private async listCovers(planId: string, dates: readonly string[]): Promise<boolean> {
+    if (dates.length === 0) return false;
+    const lists = await this.prisma.shoppingList.count({
+      where: {
+        planId,
+        OR: dates.map((date) => ({
+          fromDate: { lte: new Date(date) },
+          toDate: { gte: new Date(date) },
+        })),
+      },
+    });
+    return lists > 0;
   }
 
   /**
@@ -274,17 +298,10 @@ export class DaySettingsService {
       (day) =>
         day.id !== context.day.id && evened.has(day.id) && evened.get(day.id) !== day.calorieTarget,
     );
-    const listed =
-      others.length > 0 &&
-      (await this.prisma.shoppingList.count({
-        where: {
-          planId: context.plan.id,
-          OR: others.map((day) => ({
-            fromDate: { lte: new Date(day.date) },
-            toDate: { gte: new Date(day.date) },
-          })),
-        },
-      })) > 0;
+    const listed = await this.listCovers(
+      context.plan.id,
+      others.map((day) => day.date),
+    );
     return {
       target,
       average: {
