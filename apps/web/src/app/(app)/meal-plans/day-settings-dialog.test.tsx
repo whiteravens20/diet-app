@@ -272,7 +272,7 @@ describe('the window in which the settings of a day are changed', () => {
           'breakfast: stays: it was eaten',
           'lunch: the same dish: 1 → 1.5 servings, 520 → 780 kcal',
           'dinner: the same dish: 1 → 2 servings, 600 → 1200 kcal',
-        ].map((line) => line.replace(/ (?=→|servings|kcal)/g, '\u00a0')),
+        ].map((line) => line.replace(/ (?=→|servings|kcal)|(?<=→) /g, '\u00a0')),
       ),
     );
   });
