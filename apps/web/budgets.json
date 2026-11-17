@@ -22,9 +22,9 @@
     "/split": 201
   },
   "contract": {
-    "/profile": 248,
+    "/profile": 250,
     "/products": 240,
-    "/calculator": 240,
-    "/meal-plans": 273
+    "/calculator": 242,
+    "/meal-plans": 276
   }
 }
