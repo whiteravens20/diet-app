@@ -321,6 +321,61 @@ describe('the profile form, on the custom diet', () => {
     expect(changes()).toHaveLength(2);
   });
 
+  it('says what grams come to, and keeps them as the shares of their energy', async () => {
+    const { changes, own } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await waitFor(() => expect(changes()).toHaveLength(1));
+
+    await userEvent.click(screen.getByRole('radio', { name: texts.customUnitGrams }));
+    // The grams begin at what the split comes to at the target: 25, 30 and 45 % of 2209 kcal.
+    const grams = screen.getByLabelText(texts.splitGrams.protein) as HTMLInputElement;
+    expect(grams.value).toBe('138');
+    await userEvent.clear(grams);
+    await userEvent.type(grams, '150');
+    await leave();
+
+    expect(
+      screen.getByText('These grams come to 2262 kcal: 27% protein, 29% fat, 44% carbohydrates.', {
+        normalizer: (text) => text.replaceAll('\u00a0', ' '),
+      }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(changes().at(-1)).toEqual([
+        own,
+        { customMacroSplit: { protein: 27, fat: 29, carbs: 44 } },
+      ]),
+    );
+    // The grams were kept once, and choosing how to type the split keeps nothing.
+    expect(changes()).toHaveLength(2);
+    await userEvent.click(screen.getByRole('radio', { name: texts.customUnitPercent }));
+    expect((screen.getByLabelText(texts.split.protein) as HTMLInputElement).value).toBe('27');
+    expect((screen.getByLabelText(texts.split.fat) as HTMLInputElement).value).toBe('29');
+    expect((screen.getByLabelText(texts.split.carbs) as HTMLInputElement).value).toBe('44');
+    await leave();
+    expect(changes()).toHaveLength(2);
+  });
+
+  it('says where grams take a share past a limit of a split, and does not keep them', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await waitFor(() => expect(changes()).toHaveLength(1));
+    await userEvent.click(screen.getByRole('radio', { name: texts.customUnitGrams }));
+
+    // 30 g of protein is 120 kcal of the 1782 these grams come to with 74 g of fat and 249 of carbohydrate: 7 %, under the least of 10 %.
+    const grams = screen.getByLabelText(texts.splitGrams.protein);
+    await userEvent.clear(grams);
+    await userEvent.type(grams, '30');
+    await leave();
+
+    expect(
+      screen.getByText(
+        'This split goes past the limits: protein 10–45%, fat 15–75%, carbohydrates 5–70%.',
+      ),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(plain(texts.splitLimitsRefused));
+    expect(changes()).toHaveLength(1);
+  });
+
   it('shows a profile on the custom diet the split it has, and sends only the diet for one that goes to another', async () => {
     const { changes, own } = await openForm(
       aProfile('Me', { dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }),

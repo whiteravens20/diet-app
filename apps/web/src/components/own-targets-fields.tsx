@@ -5,13 +5,23 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { PROTEIN_PER_KG, SPLIT_SHARE_LIMITS, type MacroSplit } from '@diet-app/shared';
-import { perKgSplit } from '@/lib/own-split';
+import { gramsAt, insideLimits, kcalOfGrams, perKgSplit, splitOfGrams } from '@/lib/own-split';
 import { Field, Input } from '@/components/ui/input';
 
 /*
  * The custom diet's targets, as the forms of a profile and the form of a plan
  * ask for them, and what a form reads of them.
  */
+
+/** The limits of a split, as the sentence that says them takes them. */
+const limitsWords = () => ({
+  proteinMin: SPLIT_SHARE_LIMITS.protein.min,
+  proteinMax: SPLIT_SHARE_LIMITS.protein.max,
+  fatMin: SPLIT_SHARE_LIMITS.fat.min,
+  fatMax: SPLIT_SHARE_LIMITS.fat.max,
+  carbsMin: SPLIT_SHARE_LIMITS.carbs.min,
+  carbsMax: SPLIT_SHARE_LIMITS.carbs.max,
+});
 
 /**
  * A split that adds up around `fat`, protein as near `protein` as the limits
@@ -48,17 +58,19 @@ interface OwnTargets {
 
 /**
  * What is wrong with the targets `OwnTargetsFields` hold in a form, or null
- * where nothing is: three shares that do not add up to a hundred, or protein
- * per kilogram that does not fit the target and the weight.
+ * where nothing is: three shares that do not add up to a hundred, grams whose
+ * shares go past a limit of a split, or protein per kilogram that does not
+ * fit the target and the weight.
  */
-function ownTargetsFault(fields: FormData): 'sum' | 'perKg' | null {
+function ownTargetsFault(fields: FormData): 'sum' | 'limits' | 'perKg' | null {
   if (fields.get('customSplitHeld') === 'yes') return 'perKg';
+  if (fields.get('customSplitOff') === 'yes') return 'limits';
   const { protein, fat, carbs } = ownTargetsOf(fields).customMacroSplit;
   return protein + fat + carbs === 100 ? null : 'sum';
 }
 
 /** The same for a form whose diet is a field of its own: nothing is wrong on every diet but the custom one. */
-export function ownTargetsProblem(fields: FormData): 'sum' | 'perKg' | null {
+export function ownTargetsProblem(fields: FormData): 'sum' | 'limits' | 'perKg' | null {
   return fields.get('dietType') === 'custom' ? ownTargetsFault(fields) : null;
 }
 
@@ -83,6 +95,7 @@ export function splitIn(fields: FormData, kept: MacroSplit | null): MacroSplit |
 /** What a form says when it does not send the custom diet's targets, by what is wrong with them (`ownTargetsFault`). */
 export const OWN_TARGETS_REFUSED = {
   sum: 'splitSumRefused',
+  limits: 'splitLimitsRefused',
   perKg: 'perKgRefused',
 } as const;
 
@@ -93,8 +106,8 @@ export function proteinPerKgIn(fields: FormData, kept: number | null): number | 
 
 /**
  * The custom diet's targets, as every form that asks for them shows them: the
- * way they are set (the split of calories in per cent, or protein per
- * kilogram of the weight with fat's share), the fields of that
+ * way they are set (the split of calories, typed in per cent or in grams, or
+ * protein per kilogram of the weight with fat's share), the fields of that
  * way, and what they come to at the `target` and the `weightKg` the form
  * knows. Hidden fields carry the split in whole per cent, whatever the way,
  * so a form reads it alike (`splitIn`, `proteinPerKgIn`, `ownTargetsProblem`).
@@ -121,21 +134,49 @@ export function OwnTargetsFields({
     typedOf(firstSplit ?? A_FIRST_SPLIT),
   );
   const sum = Number(split.protein) + Number(split.fat) + Number(split.carbs);
-  // The custom diet's way.
+  // The custom diet's way, and the unit its split is typed in.
   const [way, setWay] = useState<'split' | 'perKg'>(firstPerKg != null ? 'perKg' : 'split');
+  const [unit, setUnit] = useState<'percent' | 'grams'>('percent');
+  const [grams, setGrams] = useState<Record<keyof MacroSplit, string>>({
+    protein: '',
+    fat: '',
+    carbs: '',
+  });
   const [perKg, setPerKg] = useState(String(firstPerKg ?? PROTEIN_PER_KG.first));
   const [perKgFat, setPerKgFat] = useState(String((firstSplit ?? A_FIRST_SPLIT).fat));
   const known = target != null && target > 0 && weightKg != null && weightKg > 0;
+  const typedGrams = {
+    protein: Number(grams.protein),
+    fat: Number(grams.fat),
+    carbs: Number(grams.carbs),
+  };
+  const ofGrams = unit === 'grams' ? splitOfGrams(typedGrams) : null;
   const ofPerKg =
     way === 'perKg' && known ? perKgSplit(Number(perKg), Number(perKgFat), weightKg, target) : null;
-  // What protein per kilogram sends as the split: what it comes to, or a split around its fat until the form knows that.
-  const sent: Record<keyof MacroSplit, string> = ofPerKg
-    ? {
-        protein: String(ofPerKg.split.protein),
-        fat: perKgFat,
-        carbs: String(ofPerKg.split.carbs),
-      }
-    : splitAround(Number(split.protein), Number(perKgFat));
+  // What the form sends as the split: as typed in per cent, the shares of the grams, or what protein per kilogram comes to.
+  const sent: Record<keyof MacroSplit, string> =
+    way === 'perKg'
+      ? ofPerKg
+        ? {
+            protein: String(ofPerKg.split.protein),
+            fat: perKgFat,
+            carbs: String(ofPerKg.split.carbs),
+          }
+        : splitAround(Number(split.protein), Number(perKgFat))
+      : unit === 'grams'
+        ? ofGrams
+          ? typedOf(ofGrams)
+          : { protein: '', fat: '', carbs: '' }
+        : split;
+  /** Grams for the split as it stands, at the target where the form knows one. */
+  const toGrams = () => {
+    if (target == null || !(target > 0)) return;
+    const at = gramsAt(
+      { protein: Number(split.protein), fat: Number(split.fat), carbs: Number(split.carbs) },
+      target,
+    );
+    setGrams(typedOf(at));
+  };
   return (
     <fieldset className="space-y-3 sm:col-span-2">
       <legend className="text-sm font-medium">{t('customSplit')}</legend>
@@ -161,30 +202,89 @@ export function OwnTargetsFields({
       </div>
       {way === 'split' && (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            {(['protein', 'fat', 'carbs'] as const).map((part) => (
-              <Field key={part} label={t(`split.${part}`)}>
-                <Input
-                  name={`split${part[0]!.toUpperCase()}${part.slice(1)}`}
-                  type="number"
-                  inputMode="numeric"
-                  required
-                  min={SPLIT_SHARE_LIMITS[part].min}
-                  max={SPLIT_SHARE_LIMITS[part].max}
-                  step={1}
-                  value={split[part]}
-                  onChange={(e) => setSplit({ ...split, [part]: e.target.value })}
+          <div
+            role="radiogroup"
+            aria-label={t('customUnit')}
+            className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
+          >
+            <span className="text-muted-foreground">{t('customUnit')}</span>
+            {(['percent', 'grams'] as const).map((one) => (
+              <label key={one} className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="customUnit"
+                  value={one}
+                  checked={unit === one}
+                  onChange={() => {
+                    if (one === 'grams') toGrams();
+                    else if (ofGrams && insideLimits(ofGrams)) setSplit(typedOf(ofGrams));
+                    setUnit(one);
+                  }}
                 />
-              </Field>
+                {t(one === 'percent' ? 'customUnitPercent' : 'customUnitGrams')}
+              </label>
             ))}
           </div>
+          <div className="grid grid-cols-3 gap-3">
+            {(['protein', 'fat', 'carbs'] as const).map((part) =>
+              unit === 'percent' ? (
+                <Field key={part} label={t(`split.${part}`)}>
+                  <Input
+                    name={`split${part[0]!.toUpperCase()}${part.slice(1)}`}
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    min={SPLIT_SHARE_LIMITS[part].min}
+                    max={SPLIT_SHARE_LIMITS[part].max}
+                    step={1}
+                    value={split[part]}
+                    onChange={(e) => setSplit({ ...split, [part]: e.target.value })}
+                  />
+                </Field>
+              ) : (
+                <Field key={part} label={t(`splitGrams.${part}`)}>
+                  <Input
+                    name={`grams${part[0]!.toUpperCase()}${part.slice(1)}`}
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    min={1}
+                    max={2000}
+                    step={1}
+                    value={grams[part]}
+                    onChange={(e) => setGrams({ ...grams, [part]: e.target.value })}
+                  />
+                </Field>
+              ),
+            )}
+          </div>
           {/* Said while it is typed: a form that is refused for its sum should have said the sum. */}
-          <p
-            aria-live="polite"
-            className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}
-          >
-            {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
-          </p>
+          {unit === 'percent' ? (
+            <p
+              aria-live="polite"
+              className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}
+            >
+              {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
+            </p>
+          ) : (
+            ofGrams && (
+              <div aria-live="polite" className="space-y-1 text-xs">
+                <p className="text-muted-foreground">
+                  {t('gramsShares', { kcal: Math.round(kcalOfGrams(typedGrams)), ...ofGrams })}
+                </p>
+                {insideLimits(ofGrams) ? (
+                  target != null &&
+                  target > 0 && (
+                    <p className="text-muted-foreground">
+                      {t('gramsAtTarget', { target, ...gramsAt(ofGrams, target) })}
+                    </p>
+                  )
+                ) : (
+                  <p className="text-warning">{t('splitOutOfLimits', limitsWords())}</p>
+                )}
+              </div>
+            )
+          )}
         </>
       )}
       {way === 'perKg' && (
@@ -243,7 +343,7 @@ export function OwnTargetsFields({
         </>
       )}
       {/* What the form sends of the custom diet, whichever way it is typed in. */}
-      {way === 'perKg' && (
+      {(way === 'perKg' || unit === 'grams') && (
         <>
           <input type="hidden" name="splitProtein" value={sent.protein} />
           <input type="hidden" name="splitFat" value={sent.fat} />
@@ -252,6 +352,9 @@ export function OwnTargetsFields({
       )}
       {way === 'perKg' && ofPerKg?.held && (
         <input type="hidden" name="customSplitHeld" value="yes" />
+      )}
+      {way === 'split' && unit === 'grams' && (!ofGrams || !insideLimits(ofGrams)) && (
+        <input type="hidden" name="customSplitOff" value="yes" />
       )}
       {errorOf?.('split') && (
         <p role="alert" className="text-xs text-destructive">

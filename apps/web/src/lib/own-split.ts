@@ -1,18 +1,20 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /*
- * The custom diet's protein per kilogram, worked out in the form as the API
- * works it out (`ownSplit` of its engine): the grams of the weight, fat's
- * share and carbohydrate the rest, every share inside the limits of a split.
+ * The custom diet's two ways, worked out in the form as the API works them
+ * out (`ownSplit` of its engine): a split typed in grams kept as the shares of
+ * their energy, and protein per kilogram of the weight with fat's share and
+ * carbohydrate the rest, every share inside the limits of a split.
  */
 import {
   KCAL_PER_GRAM,
+  SPLIT_SHARE_LIMITS,
   proteinPerKgThatFits,
   proteinShareBounds,
   type MacroSplit,
 } from '@diet-app/shared';
 
-/** Protein, fat and carbohydrate: per cent or shares of one. */
+/** Protein, fat and carbohydrate: grams, per cent or shares of one. */
 export interface Parts {
   protein: number;
   fat: number;
@@ -34,6 +36,36 @@ export function wholePercent(shares: Parts): MacroSplit {
     left -= 1;
   }
   return Object.fromEntries(parts.map((one) => [one.part, one.whole])) as unknown as MacroSplit;
+}
+
+/** Whether every share of a split in whole per cent is inside the limits a split keeps. */
+export function insideLimits(split: Parts): boolean {
+  return PARTS.every(
+    (part) =>
+      split[part] >= SPLIT_SHARE_LIMITS[part].min && split[part] <= SPLIT_SHARE_LIMITS[part].max,
+  );
+}
+
+/** The energy of grams, in kcal. */
+export const kcalOfGrams = (grams: Parts): number =>
+  PARTS.reduce((sum, part) => sum + grams[part] * KCAL_PER_GRAM[part], 0);
+
+/** Grams as the split of their energy, in whole per cent; null for grams that hold none. */
+export function splitOfGrams(grams: Parts): MacroSplit | null {
+  const kcal = kcalOfGrams(grams);
+  if (!(kcal > 0)) return null;
+  return wholePercent({
+    protein: (grams.protein * KCAL_PER_GRAM.protein) / kcal,
+    fat: (grams.fat * KCAL_PER_GRAM.fat) / kcal,
+    carbs: (grams.carbs * KCAL_PER_GRAM.carbs) / kcal,
+  });
+}
+
+/** What a split in per cent comes to in whole grams at `calories`. */
+export function gramsAt(split: Parts, calories: number): Parts {
+  return Object.fromEntries(
+    PARTS.map((part) => [part, Math.round((calories * split[part]) / 100 / KCAL_PER_GRAM[part])]),
+  ) as unknown as Parts;
 }
 
 /** What protein per kilogram comes to at a target and a weight. */
