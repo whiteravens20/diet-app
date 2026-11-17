@@ -18,5 +18,12 @@
     "Shape of an entry:",
     "  { \"ghsa\": \"GHSA-xxxx-xxxx-xxxx\", \"reason\": \"...\", \"expires\": \"YYYY-MM-DD\", \"workspaces\": [\".\"] }"
   ],
-  "allow": []
+  "allow": [
+    {
+      "ghsa": "GHSA-fc5q-39xc-vjpf",
+      "reason": "Among the production dependencies picomatch 4.0.7 comes only through @parcel/watcher, which next-intl uses to watch source files for its message extractor (experimental.extract). The web does not turn the extractor on, so the watcher is never started, and the only patterns it would hand picomatch.makeRe are next-intl's own constant ignore globs. Every other copy comes with a development tool (the Nest CLI, Vite under Vitest, the Next.js ESLint plugin, knip) that matches this repository's own file patterns. None of them ever matches anything a request carries. No fix is installable: the advisory covers every published version up to the latest, 4.0.7. Remove when a patched picomatch is released.",
+      "expires": "2027-02-17",
+      "workspaces": ["."]
+    }
+  ]
 }

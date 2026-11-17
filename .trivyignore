@@ -8,3 +8,8 @@
 # Example:
 #   # CVE-0000-00000 — false positive: package not reachable at runtime.
 #   CVE-0000-00000
+
+# CVE-2026-112366 (GHSA-fc5q-39xc-vjpf), picomatch: in what ships, reached only through @parcel/watcher of
+# next-intl's message extractor, which the web does not turn on; elsewhere through development tools that match
+# the repository's own patterns. No patched release exists. Justification and expiry: .github/scripts/audit-allowlist.json.
+CVE-2026-112366
