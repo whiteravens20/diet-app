@@ -5,7 +5,14 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { PROTEIN_PER_KG, SPLIT_SHARE_LIMITS, type MacroSplit } from '@diet-app/shared';
-import { gramsAt, insideLimits, kcalOfGrams, perKgSplit, splitOfGrams } from '@/lib/own-split';
+import {
+  gramsAt,
+  insideLimits,
+  kcalOfGrams,
+  perKgSplit,
+  splitOfGrams,
+  type PerKgSplit,
+} from '@/lib/own-split';
 import { Field, Input } from '@/components/ui/input';
 
 /*
@@ -119,6 +126,7 @@ export function OwnTargetsFields({
   weightKg = null,
   errorOf,
   note,
+  planTarget = null,
   className = 'sm:col-span-2',
 }: {
   split: MacroSplit | null;
@@ -131,6 +139,8 @@ export function OwnTargetsFields({
   errorOf?: (field: string) => string | undefined;
   /** What the form that shows the targets says of them besides, under their hint. */
   note?: string;
+  /** A target of a plan's own, which the plan is made to instead of `target`: protein held at a limit there is said. */
+  planTarget?: number | null;
   className?: string;
 }) {
   const t = useTranslations('profile');
@@ -158,6 +168,10 @@ export function OwnTargetsFields({
   const ofGrams = unit === 'grams' ? splitOfGrams(typedGrams) : null;
   const ofPerKg =
     way === 'perKg' && known ? perKgSplit(Number(perKg), Number(perKgFat), weightKg, target) : null;
+  const atPlan =
+    way === 'perKg' && planTarget && weightKg && weightKg > 0
+      ? perKgSplit(Number(perKg), Number(perKgFat), weightKg, planTarget)
+      : null;
   // What the form sends as the split: as typed in per cent, the shares of the grams, or what protein per kilogram comes to.
   const sent: Record<keyof MacroSplit, string> =
     way === 'perKg'
@@ -347,6 +361,9 @@ export function OwnTargetsFields({
                       : t('perKgNoFit')}
                   </p>
                 )}
+                {!ofPerKg.held && atPlan?.held && (
+                  <PlanTargetHeld kcal={planTarget!} perKg={Number(perKg)} at={atPlan} />
+                )}
               </>
             ) : (
               <p className="text-muted-foreground">{t('perKgWaiting')}</p>
@@ -379,5 +396,27 @@ export function OwnTargetsFields({
         </p>
       )}
     </fieldset>
+  );
+}
+
+/**
+ * What a plan made to a target of its own says where protein per kilogram goes
+ * past a limit of a split at that target: the plan holds protein at the limit,
+ * as many grams a day as that leaves.
+ */
+export function PlanTargetHeld({
+  kcal,
+  perKg,
+  at,
+}: {
+  kcal: number;
+  perKg: number;
+  at: PerKgSplit;
+}) {
+  const t = useTranslations('profile');
+  return (
+    <p className="text-xs text-warning">
+      {t('perKgHeldAtPlan', { kcal, perKg, grams: Math.round(at.keptGrams) })}
+    </p>
   );
 }

@@ -74,6 +74,8 @@ export interface PerKgSplit {
   split: MacroSplit;
   /** Grams of protein a day, as the weight gives them before any limit. */
   protein: number;
+  /** Grams of protein a day once a limit holds them. */
+  keptGrams: number;
   /** Protein's share went past a limit, its own or carbohydrate's, and is held there. */
   held: boolean;
   /** The grams a kilogram that keep every share inside its limits here, to a tenth inward; null where none do. */
@@ -99,6 +101,7 @@ export function perKgSplit(
   return {
     split: wholePercent({ protein: kept, fat, carbs: 1 - kept - fat }),
     protein,
+    keptGrams: (kept * target) / KCAL_PER_GRAM.protein,
     held: Math.abs(kept - asked) > 1e-9,
     fits: proteinPerKgThatFits(fat, target, weightKg),
   };

@@ -2697,6 +2697,7 @@
     "perKgWaiting": "Gramy białka policzymy, gdy formularz ma wagę i cel dnia.",
     "splitLimitsRefused": "Ten podział wychodzi poza granice: zmień gramy, zanim go zapiszesz.",
     "perKgRefused": "Białko na kg nie mieści się w granicach przy tym celu i tej wadze.",
+    "perKgHeldAtPlan": "Przy celu tego planu, {kcal, number, ::group-off} kcal, {perKg, number, ::group-off} g białka na kg wychodzi poza granice podziału: plan trzyma białko na granicy, {grams, number, ::group-off} g dziennie.",
     "split": {
       "protein": "Białko (%)",
       "fat": "Tłuszcz (%)",

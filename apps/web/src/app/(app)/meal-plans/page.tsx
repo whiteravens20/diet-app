@@ -46,11 +46,13 @@ import { SupplyNote } from '@/components/supply-note';
 import {
   OWN_TARGETS_REFUSED,
   OwnTargetsFields,
+  PlanTargetHeld,
   ownTargetsFault,
   ownTargetsOf,
   type OwnTargets,
 } from '@/components/own-targets-fields';
 import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
+import { perKgSplit } from '@/lib/own-split';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
@@ -250,6 +252,21 @@ function MealPlansContent() {
   const planDiet = diet || active?.dietType || 'balanced';
   // The custom diet for a profile that has no targets of its own yet: the form asks for them, and keeps them in the profile.
   const asksTargets = diet === 'custom' && active !== null && active.customMacroSplit === null;
+  // A calorie target of the plan's own, where the field holds one the plan may have.
+  const typedTarget = Number(calorieTarget);
+  const planTarget =
+    calorieTarget.trim() !== '' &&
+    Number.isInteger(typedTarget) &&
+    typedTarget >= MIN_CALORIE_TARGET &&
+    typedTarget <= MAX_CALORIE_TARGET
+      ? typedTarget
+      : null;
+  // Protein per kilogram the profile keeps, at that target: where it goes past a limit there, the plan holds it, and says so.
+  const keptPerKg = !asksTargets && planDiet === 'custom' ? active?.customProteinPerKg : null;
+  const heldAtPlan =
+    keptPerKg != null && active?.customMacroSplit && planTarget !== null
+      ? perKgSplit(keptPerKg, active.customMacroSplit.fat, active.weightKg, planTarget)
+      : null;
   const planMeals = mealCount || active?.mealCount || 3;
 
   const invalidate = () =>
@@ -834,6 +851,9 @@ function MealPlansContent() {
                   {calories.data &&
                     ` ${t('calorieTargetHint', { kcal: calories.data.dailyTarget })}`}
                 </p>
+                {heldAtPlan?.held && keptPerKg != null && planTarget !== null && (
+                  <PlanTargetHeld kcal={planTarget} perKg={keptPerKg} at={heldAtPlan} />
+                )}
               </div>
             )}
             {active && asksTargets && (
@@ -844,6 +864,7 @@ function MealPlansContent() {
                 target={calories.data?.dailyTarget ?? null}
                 weightKg={active.weightKg}
                 note={t('ownTargetsSaved')}
+                planTarget={planTarget}
                 className=""
               />
             )}

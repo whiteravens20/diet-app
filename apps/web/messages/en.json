@@ -2697,6 +2697,7 @@
     "perKgWaiting": "The grams of protein come once the form has a weight and a target for the day.",
     "splitLimitsRefused": "This split goes past the limits: change the grams before you save it.",
     "perKgRefused": "Protein per kg does not fit the limits at this target and weight.",
+    "perKgHeldAtPlan": "At this plan's target of {kcal, number, ::group-off} kcal, {perKg, number, ::group-off} g of protein per kg goes past the limits of a split: the plan holds protein at the limit, {grams, number, ::group-off} g a day.",
     "split": {
       "protein": "Protein (%)",
       "fat": "Fat (%)",

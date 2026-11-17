@@ -2554,6 +2554,38 @@ describe('the plan page, on what a plan is made for', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it("says where the plan's own target holds the profile's protein per kilogram at a limit", async () => {
+    profile.customMacroSplit = { protein: 35, fat: 30, carbs: 35 };
+    profile.customProteinPerKg = 3;
+    await renderPage();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    const target = screen.getByLabelText(messages.mealPlans.calorieTarget);
+    const held = spaced(
+      "At this plan's target of 1500 kcal, 3 g of protein per kg goes past the limits of a split: the plan holds protein at the limit, 169 g a day.",
+    );
+
+    // 3 g a kilogram of 80 kg is 960 kcal: 32 % of 3000, and 64 % of 1500, held at 45 %, 169 g.
+    await userEvent.type(target, '3000');
+    expect(screen.queryByText(held)).toBeNull();
+    await userEvent.clear(target);
+    await userEvent.type(target, '1500');
+    expect(screen.getByText(held)).toBeInTheDocument();
+  });
+
+  it('says the same of protein per kilogram the form asks for, which fits the profile’s target but not the plan’s', async () => {
+    await renderPage();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+    await userEvent.click(screen.getByRole('radio', { name: messages.profile.customWayPerKg }));
+    await typeIn(messages.profile.perKgProtein, '3');
+
+    // 960 kcal is 43 % of the profile's 2209: it fits there, and the profile keeps it; at 1500 the plan holds it.
+    expect(screen.queryByText(/goes past the limits of a split: the plan holds/)).toBeNull();
+    await userEvent.type(screen.getByLabelText(messages.mealPlans.calorieTarget), '1500');
+    expect(
+      screen.getByText(/the plan holds protein at the limit, 169[ \u00a0]g a day\./),
+    ).toBeInTheDocument();
+  });
+
   it('names the custom diet of a profile that sets protein per kilogram by its grams and its share of fat', async () => {
     profile.customMacroSplit = { protein: 23, fat: 30, carbs: 47 };
     profile.customProteinPerKg = 1.6;
