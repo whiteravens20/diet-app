@@ -2196,6 +2196,18 @@
     "aiModeAdminConfirmEmail": "Confirm your email address to use the instance's AI. You can send a new link from the Email card.",
     "aiModeAdminNotApproved": "The operator opens the instance's AI to the accounts they approve. Write to the operator to ask for it:",
     "aiModeAdminNoContact": "This instance has published no contact.",
+    "aiInstanceTerms": "The instance's AI",
+    "aiInstanceAccess": {
+      "everyone": "For: every account.",
+      "confirmed": "For: accounts with a confirmed email address.",
+      "approved": "For: accounts the operator approved."
+    },
+    "aiInstanceLimits": "Limit: up to {monthly, plural, one {{monthly, number, ::group-off}\u00a0request} other {{monthly, number, ::group-off}\u00a0requests}} an account and {instance, number, ::group-off}\u00a0for the whole instance a month.",
+    "aiInstancePolicy": {
+      "no_training": "Providers: only those that do not train models on the requests. They may keep them.",
+      "no_retention": "Providers: only those that do not keep the requests. The operator's settings can let in those that keep them only to detect abuse.",
+      "any": "Providers: any the operator's settings allow, including one that trains models on the requests."
+    },
     "aiModeByok": "Bring your own key",
     "aiModeByokHint": "Use your own OpenAI / Anthropic / OpenRouter key or Ollama instance. No quota — you own the cost.",
     "aiModeByokUnavailable": "Add at least one provider key below before switching to bring-your-own.",

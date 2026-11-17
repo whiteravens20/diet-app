@@ -17,6 +17,7 @@ import {
   type SessionUser,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +53,8 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
     queryKey: ['ai-providers'],
     queryFn: () => api.get<AiProviderConfig[]>('/ai/providers'),
   });
+  // The terms of the instance's own AI as the instance publishes them: none where it offers none.
+  const terms = useConfig().data?.ai.operator ?? null;
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -169,6 +172,20 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
             </div>
           )}
         </fieldset>
+
+        {terms && (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">{t('aiInstanceTerms')}</p>
+            <p>{t(`aiInstanceAccess.${terms.access}`)}</p>
+            <p>
+              {t('aiInstanceLimits', {
+                monthly: terms.monthlyLimit,
+                instance: terms.instanceMonthlyLimit,
+              })}
+            </p>
+            {terms.dataPolicy && <p>{t(`aiInstancePolicy.${terms.dataPolicy}`)}</p>}
+          </div>
+        )}
 
         {me.aiMode !== 'none' && <DisclaimerNotice bodyKey="aiActivated" />}
 

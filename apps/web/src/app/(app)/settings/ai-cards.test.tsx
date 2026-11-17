@@ -5,7 +5,13 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AiMode, AiProviderConfig, AiQuotaStatus, SessionUser } from '@diet-app/shared';
+import type {
+  AiMode,
+  AiProviderConfig,
+  AiQuotaStatus,
+  OperatorAiTerms,
+  SessionUser,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../../../messages/en.json';
 import { AiAssistantCard, AiProvidersCard } from './ai-cards';
@@ -41,11 +47,12 @@ const status = (over: Partial<AiQuotaStatus> = {}): AiQuotaStatus => ({
   ...over,
 });
 
-/** The card for an account with `quota`, on an instance whose operator published `contact`. */
+/** The card for an account with `quota`, on an instance whose operator published `contact` and the terms of its AI. */
 function shown(
   aiMode: AiMode,
   quota: AiQuotaStatus,
   contact: string | null = 'operator@example.test',
+  terms: OperatorAiTerms | null = null,
 ) {
   vi.spyOn(api, 'get').mockImplementation(((path: string) =>
     Promise.resolve(
@@ -53,7 +60,10 @@ function shown(
         ? quota
         : path === '/ai/providers'
           ? []
-          : { instance: { operatorContact: contact } },
+          : {
+              instance: { operatorContact: contact },
+              ai: { ollamaUserPolicy: 'off', operator: terms },
+            },
     )) as never);
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
@@ -132,6 +142,66 @@ describe("the choice of the operator's AI in Settings", () => {
         /^New accounts have used their part of the instance's requests for now\. From .* this account has its full limit\.$/,
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("the terms of the instance's AI in Settings", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const TERMS: OperatorAiTerms = {
+    dataPolicy: 'no_training',
+    access: 'approved',
+    monthlyLimit: 40,
+    instanceMonthlyLimit: 1000,
+  };
+
+  it('say whom it is for, how much it may be asked and where its requests go', async () => {
+    shown('none', status(), 'operator@example.test', TERMS);
+
+    expect(await screen.findByText(s.aiInstanceTerms)).toBeInTheDocument();
+    expect(screen.getByText(s.aiInstanceAccess.approved)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Limit: up to 40 requests an account and 1000 for the whole instance a month.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(s.aiInstancePolicy.no_training)).toBeInTheDocument();
+  });
+
+  it.each(['everyone', 'confirmed'] as const)(
+    'say it is for %s as the instance says',
+    async (access) => {
+      shown('none', status(), 'operator@example.test', { ...TERMS, access });
+
+      expect(await screen.findByText(s.aiInstanceAccess[access])).toBeInTheDocument();
+    },
+  );
+
+  it('count one request as one', async () => {
+    shown('none', status(), 'operator@example.test', { ...TERMS, monthlyLimit: 1 });
+
+    expect(
+      await screen.findByText(
+        'Limit: up to 1 request an account and 1000 for the whole instance a month.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('say nothing of where the requests go for a provider that has no such choice', async () => {
+    shown('none', status(), 'operator@example.test', { ...TERMS, dataPolicy: null });
+
+    expect(await screen.findByText(s.aiInstanceTerms)).toBeInTheDocument();
+    for (const said of Object.values(s.aiInstancePolicy))
+      expect(screen.queryByText(said)).not.toBeInTheDocument();
+  });
+
+  it('are not there where the instance offers no AI of its own', async () => {
+    shown('none', status({ adminProviderConfigured: false }));
+
+    expect(await screen.findByText(s.aiModeAdminUnavailable)).toBeInTheDocument();
+    expect(screen.queryByText(s.aiInstanceTerms)).not.toBeInTheDocument();
   });
 });
 

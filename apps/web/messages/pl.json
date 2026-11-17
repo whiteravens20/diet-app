@@ -2196,6 +2196,18 @@
     "aiModeAdminConfirmEmail": "Potwierdź adres e-mail, żeby korzystać z AI instancji. Nowy link możesz wysłać w karcie E-mail.",
     "aiModeAdminNotApproved": "Operator udostępnia AI instancji kontom, które zatwierdzi. Napisz do operatora, żeby poprosić o dostęp:",
     "aiModeAdminNoContact": "Ta instancja nie podała kontaktu do operatora.",
+    "aiInstanceTerms": "AI instancji",
+    "aiInstanceAccess": {
+      "everyone": "Dla: każdego konta.",
+      "confirmed": "Dla: kont z\u00a0potwierdzonym adresem e-mail.",
+      "approved": "Dla: kont zatwierdzonych przez operatora."
+    },
+    "aiInstanceLimits": "Limit: do {monthly, plural, one {{monthly, number, ::group-off}\u00a0zapytania} few {{monthly, number, ::group-off}\u00a0zapytań} many {{monthly, number, ::group-off}\u00a0zapytań} other {{monthly, number, ::group-off}\u00a0zapytania}} na konto i\u00a0do {instance, number, ::group-off}\u00a0na całą instancję w\u00a0miesiącu.",
+    "aiInstancePolicy": {
+      "no_training": "Dostawcy: tylko ci, którzy nie trenują modeli na zapytaniach. Mogą je przechowywać.",
+      "no_retention": "Dostawcy: tylko ci, którzy nie przechowują zapytań. Ustawienia operatora mogą dopuścić tych, którzy trzymają je wyłącznie po to, by wykrywać nadużycia.",
+      "any": "Dostawcy: każdy, na którego pozwalają ustawienia operatora, także taki, który trenuje modele na zapytaniach."
+    },
     "aiModeByok": "Użyj własnego klucza",
     "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — koszty zużycia po Twojej stronie.",
     "aiModeByokUnavailable": "Dodaj co najmniej jeden klucz dostawcy poniżej, zanim przełączysz się na własny klucz.",
