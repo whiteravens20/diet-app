@@ -159,68 +159,73 @@ export default function FavoritesPage() {
         }}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label={t('search')}>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-          />
-        </Field>
-        <Field label={t('mealType')}>
-          <select
-            className={selectClass}
-            value={mealType}
-            onChange={(e) => setMealType(e.target.value)}
-          >
-            <option value="">{t('any')}</option>
-            {MEAL_TYPES.map((meal) => (
-              <option key={meal} value={meal}>
-                {tMeal(meal)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('marked')}>
-          <select
-            className={selectClass}
-            value={sentiment}
-            onChange={(e) => setSentiment(e.target.value)}
-          >
-            <option value="">{t('any')}</option>
-            {FAVORITE_SENTIMENTS.map((kind) => (
-              <option key={kind} value={kind}>
-                {t(`sentiment.${kind}`)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('tag')}>
-          <select className={selectClass} value={tag} onChange={(e) => setTag(e.target.value)}>
-            <option value="">{t('any')}</option>
-            {tags.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('sort')}>
-          <select
-            className={selectClass}
-            value={sort}
-            onChange={(e) => setSort(e.target.value as FavoriteSort)}
-          >
-            {SORTS.map((order) => (
-              <option key={order} value={order}>
-                {t(`sortBy.${order}`)}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      {/* The filters and their legend once there is something to narrow: over nothing marked they ask for nothing. */}
+      {(all.data?.length ?? 0) > 0 && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <Field label={t('search')}>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('searchPlaceholder')}
+              />
+            </Field>
+            <Field label={t('mealType')}>
+              <select
+                className={selectClass}
+                value={mealType}
+                onChange={(e) => setMealType(e.target.value)}
+              >
+                <option value="">{t('any')}</option>
+                {MEAL_TYPES.map((meal) => (
+                  <option key={meal} value={meal}>
+                    {tMeal(meal)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('marked')}>
+              <select
+                className={selectClass}
+                value={sentiment}
+                onChange={(e) => setSentiment(e.target.value)}
+              >
+                <option value="">{t('any')}</option>
+                {FAVORITE_SENTIMENTS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {t(`sentiment.${kind}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('tag')}>
+              <select className={selectClass} value={tag} onChange={(e) => setTag(e.target.value)}>
+                <option value="">{t('any')}</option>
+                {tags.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('sort')}>
+              <select
+                className={selectClass}
+                value={sort}
+                onChange={(e) => setSort(e.target.value as FavoriteSort)}
+              >
+                {SORTS.map((order) => (
+                  <option key={order} value={order}>
+                    {t(`sortBy.${order}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
-      <p className="max-w-3xl text-xs text-muted-foreground">{t('legend')}</p>
+          <p className="max-w-3xl text-xs text-muted-foreground">{t('legend')}</p>
+        </>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive">

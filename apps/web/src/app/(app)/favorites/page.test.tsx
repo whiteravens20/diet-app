@@ -170,13 +170,13 @@ describe('the recipes a profile marked, on a page of their own', () => {
     expect(screen.getByLabelText('How Chickpea stew is marked')).toHaveValue('often');
   });
 
-  it('says where to mark a recipe while nothing is marked, and that nothing matches while a filter finds nothing', async () => {
+  it('says where to mark a recipe while nothing is marked, and asks for no filter of nothing', async () => {
     await renderPage([]);
 
     expect(await screen.findByText(texts.emptyTitle)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: texts.emptyCta })).toHaveAttribute('href', '/recipes');
 
-    await userEvent.type(screen.getByLabelText(texts.search), 'soup');
+    await userEvent.type(await screen.findByLabelText(texts.search), 'soup');
 
     expect(await screen.findByText(texts.noneFiltered)).toBeInTheDocument();
     expect(screen.queryByText(texts.emptyTitle)).toBeNull();
@@ -197,6 +197,17 @@ describe('the marked recipes read again', () => {
 
     const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
     expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByLabelText(texts.search)).toBeNull();
+  });
+
+  it('says that nothing matches while a filter finds nothing', async () => {
+    await renderPage([aMark('Chickpea stew')]);
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path.startsWith('/favorites?') && path.includes('search=')
+        ? Promise.resolve([] as never)
+        : answers(path),
+    );
     expect(screen.getByText('Chickpea stew')).toBeInTheDocument();
     answerAgain();
     await userEvent.click(
