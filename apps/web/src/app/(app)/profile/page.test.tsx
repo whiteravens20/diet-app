@@ -357,6 +357,23 @@ describe('the profile form, on the custom diet', () => {
     expect(changes()).toHaveLength(2);
   });
 
+  it('forgets what was refused of grams once the split is typed in per cent again, sending nothing', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await waitFor(() => expect(changes()).toHaveLength(1));
+    await userEvent.click(screen.getByRole('radio', { name: texts.customUnitGrams }));
+    const grams = screen.getByLabelText(texts.splitGrams.protein);
+    await userEvent.clear(grams);
+    await userEvent.type(grams, '0');
+    await leave();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Type a number from 1 to 2000.');
+
+    await userEvent.click(screen.getByRole('radio', { name: texts.customUnitPercent }));
+
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(changes()).toHaveLength(1);
+  });
+
   it('says the bounds of a number as the language writes them', () => {
     const say = createTranslator({ locale: 'pl', messages: pl, namespace: 'profile.autosave' });
 

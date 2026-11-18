@@ -403,15 +403,44 @@ export function useAutosave(
     [keep],
   );
 
+  /**
+   * What was refused of `part` read again as the form holds it now, with nothing sent: a valid part is no longer
+   * refused, a wrong one says why. A part that was not refused stays as it is.
+   */
+  const recheck = useCallback(
+    (part: Part) => {
+      const fields = form.current ? new FormData(form.current) : null;
+      const refused = refusalOf(part);
+      const problem = part === 'split' && fields ? ownTargetsProblem(fields) : null;
+      setErrors((now) => {
+        if (!now.has(part)) return now;
+        const next = new Map(now);
+        if (refused || problem) next.set(part, refused ?? t(OWN_TARGETS_REFUSED[problem!]));
+        else {
+          next.delete(part);
+          notKept.current.delete(part);
+        }
+        return next;
+      });
+    },
+    [form, refusalOf, t],
+  );
+
   const onChange = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       const field = event.target as HTMLInputElement | HTMLSelectElement;
+      // How the split is typed changes none of its figures: what was refused of it is read again once the form shows
+      // the other fields, and nothing is sent.
+      if (field.name === 'customUnit') {
+        setTimeout(() => recheck('split'), 0);
+        return;
+      }
       const part = partOf(field.name);
       if (!part) return;
       if (changesAtOnce(field)) changed(part);
       else typed.current.add(part);
     },
-    [changed],
+    [changed, recheck],
   );
 
   const keepTyped = useCallback(
