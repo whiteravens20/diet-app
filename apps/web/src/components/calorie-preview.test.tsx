@@ -226,3 +226,43 @@ describe('what the figures of a form come to', () => {
     expect(screen.getByText(texts.failed)).toBeInTheDocument();
   });
 });
+
+describe('what the figures come to, for a maintenance corrected by the real expenditure', () => {
+  const said = (key: 'correctedLower' | 'correctedHigher') =>
+    messages.caloriePreview[key]
+      .replace('{kcal, number, ::group-off}', '300')
+      .replace('\u00a0', ' ');
+
+  function panel(correction?: number) {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <CaloriePreviewPanel
+          preview={aPreview()}
+          behind={false}
+          waiting={false}
+          failed={false}
+          correction={correction}
+        />
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it('says a maintenance made lower by it', () => {
+    panel(-300);
+
+    expect(screen.getByText(said('correctedLower'))).toBeInTheDocument();
+  });
+
+  it('says a maintenance made higher by it', () => {
+    panel(300);
+
+    expect(screen.getByText(said('correctedHigher'))).toBeInTheDocument();
+  });
+
+  it('says nothing of a correction there is not', () => {
+    panel();
+
+    expect(screen.queryByText(said('correctedLower'))).toBeNull();
+    expect(screen.queryByText(said('correctedHigher'))).toBeNull();
+  });
+});

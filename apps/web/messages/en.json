@@ -2837,6 +2837,8 @@
     "maintenance": "Maintenance",
     "atRest": "At rest",
     "kcal": "{value, number, ::group-off}\u00a0kcal",
+    "correctedLower": "Maintenance is {kcal, number, ::group-off}\u00a0kcal lower than the formula gives: that is what your diary and weights show.",
+    "correctedHigher": "Maintenance is {kcal, number, ::group-off}\u00a0kcal higher than the formula gives: that is what your diary and weights show.",
     "atMaintenance": "The target is your maintenance: no loss is planned.",
     "held": "The goal to lose weight is on hold until its risk is acknowledged in the form, so the target is your maintenance.",
     "under": "{kcal, number, ::group-off}\u00a0kcal a day under your maintenance.",

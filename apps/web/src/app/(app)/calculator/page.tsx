@@ -49,7 +49,15 @@ export default function CalculatorPage() {
   const formKey = from?.id ?? 'empty';
   const { form, typed, onChange } = useProfileForm(formKey, unit, from?.weightKg ?? null);
   const risk = typed ? typed.reasons : from ? riskOf(from) : [];
-  const shown = useCaloriePreview(typed ? typed.figures : from ? figuresOf(from) : null);
+  // What a profile's real expenditure showed stays in its figures whatever is typed over them, as on the profile's page.
+  const kept = from?.expenditureCorrectionKcal ?? 0;
+  const shown = useCaloriePreview(
+    typed
+      ? typed.figures && { ...typed.figures, expenditureCorrection: kept }
+      : from
+        ? figuresOf(from)
+        : null,
+  );
 
   return (
     <div className="space-y-8">
@@ -130,7 +138,12 @@ export default function CalculatorPage() {
               </CardContent>
             </Card>
 
-            <CaloriePreviewPanel {...shown} heading="h2" className="lg:sticky lg:top-6" />
+            <CaloriePreviewPanel
+              {...shown}
+              correction={kept}
+              heading="h2"
+              className="lg:sticky lg:top-6"
+            />
           </div>
 
           <p className="max-w-2xl text-sm text-muted-foreground">

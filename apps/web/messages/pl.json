@@ -2837,6 +2837,8 @@
     "maintenance": "Zapotrzebowanie",
     "atRest": "W spoczynku",
     "kcal": "{value, number, ::group-off}\u00a0kcal",
+    "correctedLower": "Zapotrzebowanie jest o\u00a0{kcal, number, ::group-off}\u00a0kcal niższe, niż podaje wzór: tak wynika z\u00a0Twojego dziennika i\u00a0wag.",
+    "correctedHigher": "Zapotrzebowanie jest o\u00a0{kcal, number, ::group-off}\u00a0kcal wyższe, niż podaje wzór: tak wynika z\u00a0Twojego dziennika i\u00a0wag.",
     "atMaintenance": "Celem jest Twoje zapotrzebowanie: redukcja nie jest planowana.",
     "held": "Cel redukcji jest wstrzymany, dopóki w formularzu nie potwierdzisz, że rozumiesz ryzyko, więc celem jest Twoje zapotrzebowanie.",
     "under": "{kcal, number, ::group-off}\u00a0kcal dziennie poniżej Twojego zapotrzebowania.",

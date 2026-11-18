@@ -615,7 +615,7 @@ export default function ProfilePage() {
                   error={errorOf?.('labelLimits')}
                 />
               </FormSection>
-              <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
+              <CaloriePreviewPanel {...shown} correction={kept} className="sm:col-span-2" />
               {editing ? (
                 <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
                   {/* What is typed is kept as the button is pressed; the form closes once every change is. The first

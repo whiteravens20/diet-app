@@ -71,6 +71,7 @@ export function CaloriePreviewPanel({
   heading: Heading = 'h4',
   className,
   withoutTarget = false,
+  correction = 0,
 }: {
   preview: CaloriePreview | undefined;
   behind: boolean;
@@ -81,6 +82,8 @@ export function CaloriePreviewPanel({
   className?: string;
   /** Maintenance and the figure at rest alone, without a target: no pace has been chosen yet. */
   withoutTarget?: boolean;
+  /** The correction of maintenance the profile accepted from its real expenditure, in kcal a day, which the figures hold. */
+  correction?: number;
 }) {
   const t = useTranslations('caloriePreview');
   const title = useId();
@@ -139,6 +142,14 @@ export function CaloriePreviewPanel({
                   </dd>
                 </div>
               </dl>
+              {/* A maintenance corrected by what the diary and the weights showed says so: a target is never moved unsaid. */}
+              {correction !== 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t(correction < 0 ? 'correctedLower' : 'correctedHigher', {
+                    kcal: Math.abs(correction),
+                  })}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {c.goalHeld
                   ? t('held')

@@ -270,3 +270,38 @@ describe('the calculator, when the profiles cannot be read', () => {
     expect(startFrom().getByRole('button', { name: 'Anna' })).toBeInTheDocument();
   });
 });
+
+describe('the calculator, for a profile whose maintenance was corrected by its real expenditure', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const said = plain(
+    messages.caloriePreview.correctedLower.replace('{kcal, number, ::group-off}', '300'),
+  );
+
+  it('keeps the correction in what it works out whatever is typed, and says it', async () => {
+    const { asked } = await open([aProfile('Anna', { expenditureCorrectionKcal: -300 })]);
+    await vi.waitFor(() => expect(asked()).toMatchObject({ expenditureCorrection: -300 }));
+    expect(await screen.findByText(said)).toBeInTheDocument();
+
+    const age = screen.getByLabelText(fields.age);
+    await userEvent.clear(age);
+    await userEvent.type(age, '35');
+
+    await vi.waitFor(() => expect(asked()).toMatchObject({ age: 35, expenditureCorrection: -300 }));
+    expect(screen.getByText(said)).toBeInTheDocument();
+  });
+
+  it('holds no correction in the empty form', async () => {
+    const { asked } = await open([aProfile('Anna', { expenditureCorrectionKcal: -300 })]);
+    await userEvent.click(startFrom().getByRole('button', { name: texts.empty }));
+
+    await userEvent.type(screen.getByLabelText(fields.age), '35');
+    await userEvent.type(screen.getByLabelText(fields.heightCm), '170');
+    await userEvent.type(screen.getByLabelText('Weight (kg)'), '70');
+
+    await vi.waitFor(() => expect(asked()).toMatchObject({ age: 35, expenditureCorrection: 0 }));
+    expect(screen.queryByText(said)).toBeNull();
+  });
+});
