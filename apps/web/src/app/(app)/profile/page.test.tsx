@@ -307,10 +307,17 @@ describe('the profile form, on the custom diet', () => {
     await userEvent.click(screen.getByRole('radio', { name: texts.customWayPerKg }));
     await waitFor(() => expect(changes()).toHaveLength(2));
 
-    // Fat at 75 % leaves protein at most 20 %: 1.6 g a kilogram of 80 kg is 23 % of 2209 kcal.
+    // Fat at 75 % leaves protein at most 20 %: 1.6 g a kilogram of 80 kg is 23 % of 2209 kcal. The line says the
+    // grams the limit keeps, 20 % of it, not the 128 g asked for.
     const fat = screen.getByLabelText(texts.perKgFat);
     await userEvent.clear(fat);
     await userEvent.type(fat, '75');
+    expect(
+      screen.getByText(
+        'At your weight that is 110 g of protein, 20% of a target of 2209 kcal. Carbohydrates are the rest: 5%.',
+        { normalizer: (text) => text.replaceAll(' ', ' ') },
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('At this target and weight, 0.8 to 1.3 g per kg fit.', {
         normalizer: (text) => text.replaceAll('\u00a0', ' '),

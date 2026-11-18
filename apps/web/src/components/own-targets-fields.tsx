@@ -361,7 +361,8 @@ export function OwnTargetsFields({
               <>
                 <p className="text-muted-foreground">
                   {t('perKgLine', {
-                    protein: Math.round(ofPerKg.protein),
+                    // Held at a limit, the grams the limit keeps: those the share beside them stands for.
+                    protein: Math.round(ofPerKg.held ? ofPerKg.keptGrams : ofPerKg.protein),
                     share: ofPerKg.split.protein,
                     target: target!,
                     carbs: ofPerKg.split.carbs,
