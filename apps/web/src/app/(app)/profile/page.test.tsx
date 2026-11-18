@@ -347,6 +347,9 @@ describe('the profile form, on the custom diet', () => {
         'Type a number from 0.8 to 3, in steps of 0.1.',
       ),
     );
+    // 1.65 g is past the tenths it goes by: nothing is worked out of it, and the form does not say it waits.
+    expect(screen.queryByText(/^At your weight that is/)).toBeNull();
+    expect(screen.queryByText(plain(texts.perKgWaiting))).toBeNull();
 
     await userEvent.clear(perKg);
     await leave();

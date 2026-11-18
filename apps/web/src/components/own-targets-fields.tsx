@@ -166,13 +166,14 @@ export function OwnTargetsFields({
     carbs: Number(grams.carbs),
   };
   const ofGrams = unit === 'grams' ? splitOfGrams(typedGrams) : null;
-  // What protein per kilogram comes to is worked out only from figures inside their fields' bounds: what is typed past
-  // them is said by the field, and an empty field is no figure.
+  // What protein per kilogram comes to is worked out only from figures inside their fields' bounds, protein by tenths of
+  // a gram: what is typed past them is said by the field, and an empty field is no figure.
   const typedPerKg = perKg.trim() === '' ? Number.NaN : Number(perKg);
   const typedFat = perKgFat.trim() === '' ? Number.NaN : Number(perKgFat);
   const typedFits =
     typedPerKg >= PROTEIN_PER_KG.min &&
     typedPerKg <= PROTEIN_PER_KG.max &&
+    Math.abs(typedPerKg * 10 - Math.round(typedPerKg * 10)) < 1e-9 &&
     Number.isInteger(typedFat) &&
     typedFat >= SPLIT_SHARE_LIMITS.fat.min &&
     typedFat <= SPLIT_SHARE_LIMITS.fat.max;
