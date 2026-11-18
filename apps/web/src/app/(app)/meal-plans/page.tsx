@@ -42,6 +42,7 @@ import { AiOffNote } from '@/components/ai-off-note';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
+import { ProfileChips } from '@/components/profile-chips';
 import { SupplyNote } from '@/components/supply-note';
 import {
   OWN_TARGETS_REFUSED,
@@ -670,32 +671,22 @@ function MealPlansContent() {
         })}
       </p>
 
-      {list.length > 1 && (
-        <div className="flex gap-2">
-          {list.map((p) => (
-            <Button
-              key={p.id}
-              type="button"
-              variant={p.id === activeId ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setPicked(p.id);
-                setPage(1);
-                setOpenPlan(null);
-                setError(null);
-                setFormAsked(null);
-                // Another profile has its own diet, meals and sets: what was chosen for this one does not carry over.
-                setDiet('');
-                setMealCount('');
-                setCalorieTarget('');
-                setAdvanced({ days: {} });
-              }}
-            >
-              {fmt.text(p.name)}
-            </Button>
-          ))}
-        </div>
-      )}
+      <ProfileChips
+        profiles={list}
+        active={activeId}
+        onPick={(id) => {
+          setPicked(id);
+          setPage(1);
+          setOpenPlan(null);
+          setError(null);
+          setFormAsked(null);
+          // Another profile has its own diet, meals and sets: what was chosen for this one does not carry over.
+          setDiet('');
+          setMealCount('');
+          setCalorieTarget('');
+          setAdvanced({ days: {} });
+        }}
+      />
 
       <Card>
         <CardHeader className="p-0">

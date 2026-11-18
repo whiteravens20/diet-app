@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
+import { ProfileChips } from '@/components/profile-chips';
 import { RecipeModal } from '@/components/recipe-modal';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -147,26 +148,16 @@ export default function FavoritesPage() {
       <PageBanner image={IMAGERY.favorites} title={t('title')} subtitle={t('subhead')} />
       <ReadsFailed reads={[profiles, marks]} />
 
-      {profileList.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {profileList.map((p) => (
-            <Button
-              key={p.id}
-              type="button"
-              variant={p.id === profileId ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setPicked(p.id);
-                // Tags are a profile's own: one of another profile's finds nothing here.
-                setTag('');
-                setError(null);
-              }}
-            >
-              {fmt.text(p.name)}
-            </Button>
-          ))}
-        </div>
-      )}
+      <ProfileChips
+        profiles={profileList}
+        active={profileId}
+        onPick={(id) => {
+          setPicked(id);
+          // Tags are a profile's own: one of another profile's finds nothing here.
+          setTag('');
+          setError(null);
+        }}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('search')}>

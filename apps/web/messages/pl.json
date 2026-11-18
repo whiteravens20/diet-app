@@ -9,6 +9,7 @@
     "error": "Coś poszło nie tak.",
     "retry": "Spróbuj ponownie",
     "shownFromBefore": "Widzisz to, co wczytano wcześniej.",
+    "profileChoice": "Profil",
     "close": "Zamknij",
     "confirm": "Potwierdź",
     "back": "Wstecz",
@@ -557,7 +558,6 @@
     "mealTopping": "Z\u00a0dodatkiem: {name}, {amount}",
     "title": "Dziennik",
     "subhead": "Co zostało zjedzone każdego dnia, z planu i poza nim, na tle celu dnia.",
-    "profileLabel": "Profil",
     "createProfileFirst": "Najpierw utwórz profil: dziennik prowadzi się dla profilu.",
     "dayLabel": "Dzień",
     "previousDay": "Poprzedni dzień",
@@ -2146,7 +2146,6 @@
   "inventory": {
     "title": "Spiżarnia",
     "subhead": "Co masz pod ręką. Plany, ponowne układanie dni i zamiany posiłków domyślnie sięgają po przepisy, na które wystarcza to, co jest w spiżarni.",
-    "profileLabel": "Profil",
     "createProfileFirst": "Utwórz profil, aby śledzić jego spiżarnię.",
     "emptyTitle": "Spiżarnia jest pusta",
     "emptyState": "Dodaj to, co masz, żeby planer mógł to wykorzystać.",

@@ -9,6 +9,7 @@
     "error": "Something went wrong.",
     "retry": "Try again",
     "shownFromBefore": "What you see was loaded earlier.",
+    "profileChoice": "Profile",
     "close": "Close",
     "confirm": "Confirm",
     "back": "Back",
@@ -557,7 +558,6 @@
     "mealTopping": "With a topping: {name}, {amount}",
     "title": "Diary",
     "subhead": "What was eaten each day, from the plan and beside it, against the day's target.",
-    "profileLabel": "Profile",
     "createProfileFirst": "Create a profile first: the diary is kept for a profile.",
     "dayLabel": "Day",
     "previousDay": "Previous day",
@@ -2146,7 +2146,6 @@
   "inventory": {
     "title": "Inventory",
     "subhead": "What you have on hand. Plans, day re-rolls and meal swaps default to recipes the pantry can cover.",
-    "profileLabel": "Profile",
     "createProfileFirst": "Create a profile first to track its pantry.",
     "emptyTitle": "Pantry is empty",
     "emptyState": "Add what you already have so the optimiser can use it.",

@@ -14,6 +14,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
+import { ProfileChips } from '@/components/profile-chips';
 import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
@@ -260,26 +261,16 @@ export default function ShoppingListsPage() {
         </div>
       )}
 
-      {profileList.length > 1 && (
-        <div className="flex gap-2">
-          {profileList.map((p) => (
-            <Button
-              key={p.id}
-              type="button"
-              variant={p.id === activeProfileId ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setPickedProfile(p.id);
-                setPickedPlan(null);
-                setPickedList(null);
-                setError(null);
-              }}
-            >
-              {p.name}
-            </Button>
-          ))}
-        </div>
-      )}
+      <ProfileChips
+        profiles={profileList}
+        active={activeProfileId}
+        onPick={(id) => {
+          setPickedProfile(id);
+          setPickedPlan(null);
+          setPickedList(null);
+          setError(null);
+        }}
+      />
 
       {plans.isLoading ? (
         <Skeleton className="h-24" />

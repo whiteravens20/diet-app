@@ -43,6 +43,7 @@ import { EmptyState } from '@/components/empty-state';
 import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
+import { ProfileChips } from '@/components/profile-chips';
 import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
@@ -53,8 +54,6 @@ import { DOT, held } from '@/lib/figure-line';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
-
-const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** A calendar day as an address writes it, one there is, in the years a request may name. */
 function isDay(text: string | null): text is string {
@@ -258,16 +257,14 @@ function DiaryContent() {
       <PageBanner image={IMAGERY.diary} title={t('title')} subtitle={t('subhead')} />
       <ReadsFailed reads={[profiles, day]} />
 
-      {list.length > 1 && (
-        <ProfilePicker
-          profiles={list}
-          active={active.id}
-          onPick={(id) => {
-            setPicked(id);
-            leave();
-          }}
-        />
-      )}
+      <ProfileChips
+        profiles={list}
+        active={active.id}
+        onPick={(id) => {
+          setPicked(id);
+          leave();
+        }}
+      />
 
       <DayPicker
         date={date}
@@ -432,42 +429,6 @@ function DiaryContent() {
           onDismiss={() => setToast(null)}
         />
       )}
-    </div>
-  );
-}
-
-function ProfilePicker({
-  profiles,
-  active,
-  onPick,
-}: {
-  profiles: Profile[];
-  active: string;
-  onPick: (id: string) => void;
-}) {
-  const t = useTranslations('diary');
-  const fmt = useFormat();
-  const id = useId();
-  return (
-    <div className="max-w-xs">
-      <label
-        htmlFor={id}
-        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        {t('profileLabel')}
-      </label>
-      <select
-        id={id}
-        className={selectClass}
-        value={active}
-        onChange={(e) => onPick(e.target.value)}
-      >
-        {profiles.map((profile) => (
-          <option key={profile.id} value={profile.id}>
-            {fmt.text(profile.name)}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { Input, OptionalFrame } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
+import { ProfileChips } from '@/components/profile-chips';
 import { IMAGERY } from '@/lib/imagery';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
@@ -61,7 +62,6 @@ export default function InventoryPage() {
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
   // The fresh row whose window of freezing is open.
   const [freezing, setFreezing] = useState<InventoryItem | null>(null);
-  const profileId = useId();
 
   const profiles = useQuery({
     queryKey: ['profiles'],
@@ -154,28 +154,7 @@ export default function InventoryPage() {
       <PageBanner image={IMAGERY.inventory} title={t('title')} subtitle={t('subhead')} />
       <ReadsFailed reads={[profiles, inventory]} />
 
-      {profileList.length > 1 && (
-        <div className="max-w-xs">
-          <label
-            htmlFor={profileId}
-            className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            {t('profileLabel')}
-          </label>
-          <select
-            id={profileId}
-            className={selectClass}
-            value={activeProfileId ?? ''}
-            onChange={(e) => setPickedProfile(e.target.value)}
-          >
-            {profileList.map((p) => (
-              <option key={p.id} value={p.id}>
-                {fmt.text(p.name)}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <ProfileChips profiles={profileList} active={activeProfileId} onPick={setPickedProfile} />
 
       {error && (
         <div
