@@ -12,7 +12,8 @@ export function SkipLink({ to }: { to: string }) {
   return (
     <a
       href={`#${to}`}
-      className="sr-only rounded-md bg-background px-3 py-2 text-sm font-medium text-foreground shadow-md focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+      // Its box only while it shows: what `not-sr-only` puts back (no padding, no margin) comes before these.
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-md"
     >
       {t('skipToContent')}
     </a>
