@@ -2,8 +2,8 @@
   "shared": 185,
   "open": {
     "/": 190,
-    "/login": 190,
-    "/register": 190,
+    "/login": 191,
+    "/register": 191,
     "/forgot-password": 190,
     "/from-the-app": 190,
     "/terms": 190,
@@ -12,9 +12,9 @@
   "account": {
     "/dashboard": 209,
     "/diary": 215,
-    "/shopping-lists": 207,
+    "/shopping-lists": 208,
     "/inventory": 205,
-    "/settings": 216,
+    "/settings": 217,
     "/recipes": 210,
     "/favorites": 210,
     "/admin": 220,
@@ -25,6 +25,6 @@
     "/profile": 251,
     "/products": 240,
     "/calculator": 243,
-    "/meal-plans": 276
+    "/meal-plans": 277
   }
 }
