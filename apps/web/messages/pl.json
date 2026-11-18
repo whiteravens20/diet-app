@@ -190,7 +190,7 @@
     }
   },
   "auth": {
-    "welcomeBack": "Witaj ponownie",
+    "welcomeBack": "Zaloguj się",
     "sessionUnreachable": "Nie udało się teraz połączyć z Twoją sesją. Sprawdź połączenie i spróbuj ponownie.",
     "createAccount": "Załóż konto",
     "name": "Imię",

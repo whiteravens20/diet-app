@@ -2,7 +2,6 @@
 
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -30,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AiChip } from '@/components/ai-chip';
+import { Brand } from '@/components/brand';
 import { NotificationsBell } from '@/components/notifications-bell';
 
 const NAV = [
@@ -167,15 +167,5 @@ export function Sidebar() {
         </div>
       </Dialog>
     </>
-  );
-}
-
-/** The application's name beside its icon, where the sidebar, the phone's bar and its drawer begin. */
-function Brand({ name, size, className }: { name: string; size: number; className: string }) {
-  return (
-    <span className={cn('flex items-center gap-2 font-semibold tracking-tight', className)}>
-      <Image src="/icon-192.png" alt="" width={size} height={size} className="rounded-md" />
-      {name}
-    </span>
   );
 }

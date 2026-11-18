@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
+import { Brand } from '@/components/brand';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
 
@@ -15,6 +16,7 @@ import { ThemeChoice } from '@/components/theme-choice';
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
   return (
     <div className="flex flex-1 flex-col px-6 py-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -30,7 +32,11 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <ThemeChoice />
         </div>
       </header>
-      <div className="flex flex-1 items-center justify-center py-6">{children}</div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 py-6">
+        {/* The product introduces itself where it is entered: its mark and its name over the form. */}
+        <Brand name={tCommon('appName')} size={40} className="text-2xl" />
+        {children}
+      </div>
     </div>
   );
 }

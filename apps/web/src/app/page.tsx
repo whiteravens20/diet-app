@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl';
 import { AndroidAppCard } from '@/components/android-app-card';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Brand } from '@/components/brand';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
 
@@ -43,12 +44,17 @@ const HIGHLIGHT_KEYS = [
 export default function Landing() {
   const t = useTranslations('landing');
   const tFeatures = useTranslations('landing.features');
+  const tCommon = useTranslations('common');
   return (
     <main className="mx-auto max-w-5xl px-6 py-20">
-      <div className="flex items-center justify-end gap-2">
-        <LanguageSwitcher />
-        <ThemeChoice />
-      </div>
+      {/* The name and the mark in a quiet row of their own, the language and the theme beside them. */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <Brand name={tCommon('appName')} size={32} className="text-lg" />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeChoice />
+        </div>
+      </header>
       <section className="mt-6 text-center">
         <div className="flex flex-wrap justify-center gap-2">
           {HIGHLIGHT_KEYS.map((h) => (

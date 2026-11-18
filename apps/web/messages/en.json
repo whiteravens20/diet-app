@@ -190,7 +190,7 @@
     }
   },
   "auth": {
-    "welcomeBack": "Welcome back",
+    "welcomeBack": "Sign in",
     "sessionUnreachable": "Your session could not be reached just now. Check your connection and try again.",
     "createAccount": "Create your account",
     "name": "Name",
