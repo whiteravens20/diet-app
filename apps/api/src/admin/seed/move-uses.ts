@@ -125,6 +125,7 @@ export async function moveUses(
         unit: true,
         bestBefore: true,
         frozen: true,
+        parcel: true,
       },
     }),
     db.shoppingListItem.findMany({
@@ -180,7 +181,8 @@ export async function moveUses(
     });
   }
 
-  // A profile's row of `from` joins its row of `to` in the same unit, when it has one.
+  // A profile's row of `from` joins its row of `to` in the same unit, when it has one: what is fresh, and a frozen row
+  // from before packages (package 0). A package of the freezer moves as it is: no other has its number.
   for (const row of pantry) {
     await lockPantry(db, row.profileId, from.id);
     await lockPantry(db, row.profileId, to.id);
@@ -188,11 +190,12 @@ export async function moveUses(
     const quantity = scaled(row.quantity, factor);
     const joined = await db.inventoryItem.findUnique({
       where: {
-        profileId_ingredientId_unit_frozen: {
+        profileId_ingredientId_unit_frozen_parcel: {
           profileId: row.profileId,
           ingredientId: to.id,
           unit,
           frozen: row.frozen,
+          parcel: row.parcel,
         },
       },
     });

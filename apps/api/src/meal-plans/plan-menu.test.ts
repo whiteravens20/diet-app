@@ -378,7 +378,11 @@ describe('what the pantry held in the freezer when a plan was made', () => {
     lines: [line('chicken', chicken, grams)],
   });
   const ids = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-  const freezer = (from: string, grams: number) => ({ from, stock: new Map([['chicken', grams]]) });
+  const package_ = (amount: number, parcel = 0) => ({ amount, parcel, bestBefore: null });
+  const freezer = (from: string, grams: number) => ({
+    from,
+    stock: new Map([['chicken', [package_(grams)]]]),
+  });
 
   it('is thawed whole for the first meal that takes it, and eaten while it keeps, before a pack is bought', () => {
     // 286 g frozen: Monday's 150 g; thawed, chicken keeps two days, and Wednesday's 150 g open a pack.
@@ -428,8 +432,8 @@ describe('what the pantry held in the freezer when a plan was made', () => {
       {
         from: '2026-01-06',
         stock: new Map([
-          ['chicken', 286],
-          ['salmon', 200],
+          ['chicken', [package_(286)]],
+          ['salmon', [package_(200)]],
         ]),
       },
     );
@@ -446,7 +450,8 @@ describe('what the pantry held in the freezer when a plan was made', () => {
   });
 
   it('comes before the freezer of a plan that wastes nothing, whose own rests are counted on what is left to eat', () => {
-    // Monday thaws the 286 g and eats 150 g of it; Thursday's 300 g open a pack, whose 200 g are frozen.
+    // The 286 g come out for Thursday, whose 300 g eat them whole; Monday's 150 g open a pack, whose 350 g are
+    // frozen, and Thursday takes from them the 14 g it still needs.
     const packs = planPacks(
       [meal(0, ids(1), 2, 150), meal(3, ids(2), 2, 300)],
       days(7),
@@ -455,11 +460,39 @@ describe('what the pantry held in the freezer when a plan was made', () => {
       freezer('2026-01-05', 286),
     );
 
-    expect(packs.fromFreezer).toMatchObject([{ date: '2026-01-05', amount: 286, eaten: 150 }]);
+    expect(packs.fromFreezer).toMatchObject([{ date: '2026-01-08', amount: 286, eaten: 286 }]);
     expect(packs.frozen).toMatchObject([
-      { date: '2026-01-08', mealId: ids(2), amount: 200, thawed: [], left: 200 },
+      {
+        date: '2026-01-05',
+        mealId: ids(1),
+        amount: 350,
+        thawed: [{ date: '2026-01-08', amount: 14 }],
+        left: 336,
+      },
     ]);
     expect(packs.open).toEqual([]);
+  });
+
+  it('thaws its packages one after another, each for the meal whose day and the next eat it whole', () => {
+    // Two packages of 200 g: Monday and Tuesday eat the first, Thursday and Friday the second; nothing is bought.
+    const packs = planPacks(
+      [
+        meal(0, ids(1), 2, 150),
+        meal(1, ids(2), 2, 50),
+        meal(3, ids(3), 2, 150),
+        meal(4, ids(4), 2, 50),
+      ],
+      days(7),
+      'en',
+      undefined,
+      { from: '2026-01-05', stock: new Map([['chicken', [package_(200, 3), package_(200, 5)]]]) },
+    );
+
+    expect(packs.fromFreezer).toMatchObject([
+      { date: '2026-01-05', mealId: ids(1), amount: 200, eaten: 200 },
+      { date: '2026-01-08', mealId: ids(3), amount: 200, eaten: 200 },
+    ]);
+    expect(packs.bought).toBe(0);
   });
 
   it('is none where the pantry held nothing in the freezer', () => {

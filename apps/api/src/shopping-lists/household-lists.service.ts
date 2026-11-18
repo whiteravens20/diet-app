@@ -36,6 +36,7 @@ import {
   settleRow,
   TRANSACTION,
   type StoredItem,
+  thawedParcels,
 } from './shopping-lists.service.js';
 
 /** A household list as it is read: its parts, each with its rows and the profile its plan is for. */
@@ -193,6 +194,9 @@ export class HouseholdListsService {
     const profileOf = new Map(
       household.parts.flatMap((part) => part.items.map((item) => [item.id, part.plan.profileId])),
     );
+    const planOf = new Map(
+      household.parts.flatMap((part) => part.items.map((item) => [item.id, part.plan.id])),
+    );
     const ids = household.parts
       .flatMap((part) => part.items)
       .filter((item) => item.ingredientId === named.ingredientId && item.unit === named.unit)
@@ -246,6 +250,7 @@ export class HouseholdListsService {
           profileOf.get(row.id)!,
           row,
           intendedPantryEffect({ ...row, ...next }),
+          await thawedParcels(tx, planOf.get(row.id)!),
         );
         await tx.shoppingListItem.update({
           where: { id: row.id },

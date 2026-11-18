@@ -316,6 +316,10 @@ model Profile {
   // `preferences.inventoryBiasResetEvery` (and the next round skips the bias).
   // Swap-level reranking does NOT touch this column.
   inventoryBiasStreak Int           @default(0)
+  // The number of the last package the profile put in the freezer (`InventoryItem.parcel`): each freezing takes the
+  // next, and no number is used twice, so that a list giving stock back to a package it emptied never gives it to
+  // another.
+  lastParcel          Int           @default(0)
   // Weight-reminder cadence: 'off' | 'daily' | 'weekly'. Default weekly
   // so a fresh profile gets gentle nudges; constrained at the API layer via
   // WeightReminderCadence in packages/shared.
@@ -1175,12 +1179,15 @@ model InventoryItem {
   quantity     Float
   unit         Unit
   bestBefore   DateTime?  @db.Date
-  // In the freezer: a rest of meat or fish a plan that wastes less or nothing froze, apart from what is fresh.
+  // In the freezer, apart from what is fresh: put in by hand, or a rest of a plan given to the pantry.
   frozen       Boolean    @default(false)
+  // A package in the freezer, by its number (`Profile.lastParcel`): every freezing is one of its own, and none adds to
+  // another. 0 for what is fresh, one row a food and unit, and for a frozen row from before packages.
+  parcel       Int        @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@unique([profileId, ingredientId, unit, frozen])
+  @@unique([profileId, ingredientId, unit, frozen, parcel])
   @@index([ingredientId])
 }
 

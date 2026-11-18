@@ -276,6 +276,78 @@ describe('the freezer', () => {
     expect(shown(back.rows)).toEqual(['286 g frozen until 2026-12-14']);
   });
 
+  /** A package of the freezer, by its number. */
+  const pack = (parcel: number, quantity: number, bestBefore: string): PantryRow => ({
+    ...frozen('g', quantity, bestBefore),
+    parcel,
+  });
+  /** Rows as text with the number of each package. */
+  const packages = (rows: readonly PantryRow[]): string[] =>
+    rows
+      .map(
+        (r) =>
+          `${r.quantity} ${r.frozen ? `package ${r.parcel ?? 0}` : 'fresh'} until ${r.bestBefore?.toISOString().slice(0, 10)}`,
+      )
+      .sort();
+
+  it('keeps each package to itself: takes the one going off first, and gives each back to its own', () => {
+    const rows = [pack(3, 250, '2026-12-20'), pack(5, 250, '2026-12-10')];
+
+    const taken = settle(rows, RICE, [], -300);
+
+    expect(packages(taken.rows)).toEqual(['200 package 3 until 2026-12-20']);
+    expect(taken.moves).toEqual([
+      { unit: 'g', quantity: -250, bestBefore: '2026-12-10', frozen: true, parcel: 5 },
+      { unit: 'g', quantity: -50, bestBefore: '2026-12-20', frozen: true, parcel: 3 },
+    ]);
+    const back = settle(taken.rows, RICE, taken.moves, 0);
+    expect(packages(back.rows)).toEqual([
+      '250 package 3 until 2026-12-20',
+      '250 package 5 until 2026-12-10',
+    ]);
+  });
+
+  it('takes nothing of a package it may not take from', () => {
+    const rows = [
+      row('g', 100, '2026-12-30'),
+      pack(3, 250, '2026-12-20'),
+      pack(5, 250, '2026-12-10'),
+    ];
+
+    const taken = settle(rows, RICE, [], -300, (one) => !one.frozen || one.parcel === 3);
+
+    // Package 3 goes off before what is fresh and goes first; package 5 is not taken from.
+    expect(packages(taken.rows)).toEqual([
+      '250 package 5 until 2026-12-10',
+      '50 fresh until 2026-12-30',
+    ]);
+  });
+
+  it('gives a package it emptied back as that package, beside a newer one of the same food', () => {
+    const taken = settle([pack(5, 250, '2026-12-10')], RICE, [], -250);
+    const newer = [...taken.rows, pack(7, 300, '2026-12-18')];
+
+    const back = settle(newer, RICE, taken.moves, 0);
+
+    expect(packages(back.rows)).toEqual([
+      '250 package 5 until 2026-12-10',
+      '300 package 7 until 2026-12-18',
+    ]);
+  });
+
+  it('reads a move kept before packages, frozen with no number, as made to package 0', () => {
+    const kept: PantryMove[] = [
+      { unit: 'g', quantity: -100, bestBefore: '2026-12-14', frozen: true },
+    ];
+
+    const back = settle([pack(0, 186, '2026-12-14'), pack(4, 300, '2026-12-01')], RICE, kept, 0);
+
+    expect(packages(back.rows)).toEqual([
+      '286 package 0 until 2026-12-14',
+      '300 package 4 until 2026-12-01',
+    ]);
+  });
+
   it('puts what is bought beyond the need into what is fresh, never into the freezer', () => {
     expect(
       shown(settle([row('g', 50), frozen('g', 286, '2026-12-14')], RICE, [], 100).rows),

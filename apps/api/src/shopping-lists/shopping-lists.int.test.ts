@@ -460,6 +460,96 @@ describe('shopping lists and the pantry', () => {
       });
     };
 
+    /** A package of the freezer, by its number. */
+    const stockPackage = async (
+      slug: string,
+      quantity: number,
+      bestBefore: string,
+      parcel: number,
+    ) =>
+      t.prisma.inventoryItem.create({
+        data: {
+          profileId: profile.id,
+          ingredientId: (await ingredient(slug)).id,
+          quantity,
+          unit: 'g',
+          bestBefore: new Date(bestBefore),
+          frozen: true,
+          parcel,
+        },
+      });
+    /** The plan takes out of the freezer the package of chicken numbered `parcel`, as one made with it there would. */
+    const thawsPackage = async (parcel: number, amount: number) => {
+      const kept = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: {
+          report: {
+            ...(kept.report as object),
+            freezer: {
+              from: date(0),
+              stock: [
+                {
+                  ingredientId: (await ingredient('chicken-breast')).id,
+                  amount,
+                  parcel,
+                  bestBefore: null,
+                },
+              ],
+            },
+          },
+        },
+      });
+    };
+    /** The chicken's packages, each by its number. */
+    const packagesOfChicken = async () =>
+      (
+        await t.prisma.inventoryItem.findMany({
+          where: { profileId: profile.id, ingredientId: (await ingredient('chicken-breast')).id },
+        })
+      )
+        .map((row) => `${row.quantity} g ${row.frozen ? `package ${row.parcel}` : 'fresh'}`)
+        .sort();
+
+    it('is counted on and taken from only in the package the plan takes out, not another of the food', async () => {
+      // Package 5 goes off first, but the plan leaves it frozen: the day's 150 g come from package 3.
+      await stockPackage('chicken-breast', 286, '2026-02-04', 3);
+      await stockPackage('chicken-breast', 300, '2026-01-20', 5);
+      await thawsPackage(3, 286);
+
+      const list = await listFor(0);
+
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({
+        alreadyHaveQuantity: 150,
+        toBuyQuantity: 0,
+      });
+      expect(await packagesOfChicken()).toEqual(['136 g package 3', '300 g package 5']);
+    });
+
+    it('gives a package it emptied back as that package, beside one frozen after it', async () => {
+      await stockPackage('chicken-breast', 150, '2026-02-04', 3);
+      await thawsPackage(3, 150);
+      const list = await listFor(0);
+      expect(await packagesOfChicken()).toEqual([]);
+      await stockPackage('chicken-breast', 300, '2026-02-10', 4);
+
+      await lists.remove(user.id, list.id, BEFORE);
+
+      expect(await packagesOfChicken()).toEqual(['150 g package 3', '300 g package 4']);
+    });
+
+    it('is counted on where it is a food no plan takes out of the freezer, as what is fresh is', async () => {
+      // Rice is no food whose pack spoils once opened: frozen, it is at home as fresh rice would be.
+      await stock('white-rice', 500, 'g', undefined, true);
+
+      const list = await listFor(0);
+
+      const rice = rowOf(list, 'White rice');
+      expect(rice).toMatchObject({ toBuyQuantity: 0, checked: true });
+      expect(rice.alreadyHaveQuantity).toBe(rice.totalQuantity);
+      expect(await pantry('white-rice')).toEqual([`${500 - rice.totalQuantity} g frozen`]);
+    });
+
     it('is not counted on where the plan leaves it in the freezer', async () => {
       await stock('chicken-breast', 286, 'g', '2026-02-04', true);
 

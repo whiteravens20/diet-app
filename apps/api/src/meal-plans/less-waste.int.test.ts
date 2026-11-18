@@ -140,6 +140,15 @@ describe('a plan that wastes less', () => {
   });
 });
 
+/** A freezer kept before packages, as it reads now: each entry package 0, of no day. */
+const asPackage0 = (freezer: {
+  from: string;
+  stock: { ingredientId: string; amount: number }[];
+}) => ({
+  ...freezer,
+  stock: freezer.stock.map((one) => ({ ...one, parcel: 0, bestBefore: null })),
+});
+
 describe('the packs of a plan that wastes less, closed after the planner', () => {
   let t: TestApp;
   let user: TestUser;
@@ -247,6 +256,86 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     }
   });
 
+  it('keeps the packages it takes out of the freezer by their numbers, a larger one it would not eat whole left there', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      // A package of 5 kg goes off first but would be left over; one of 40 g is eaten whole by any meal of chicken.
+      await t.prisma.inventoryItem.createMany({
+        data: [
+          { parcel: 7, quantity: 5000, bestBefore: new Date('2026-01-20') },
+          { parcel: 9, quantity: 40, bestBefore: new Date('2026-02-01') },
+        ].map((one) => ({
+          ...one,
+          profileId: adam.id,
+          ingredientId: chicken.id,
+          unit: 'g' as const,
+          frozen: true,
+        })),
+      });
+
+      const plan = await generation.generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
+      );
+
+      const { report } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      expect((report as { freezer: unknown }).freezer).toEqual({
+        from: '2026-01-05',
+        stock: [{ ingredientId: chicken.id, amount: 40, parcel: 9, bestBefore: '2026-02-01' }],
+      });
+      expect(plan.packs.fromFreezer).toMatchObject([
+        { ingredientId: chicken.id, amount: 40, eaten: 40 },
+      ]);
+    } finally {
+      generation.today = today;
+    }
+  });
+
+  it('takes out the packages of both freezers of a kitchen, each plan keeping those of its own profile', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      // 20 g each, eaten whole by any meal of chicken: Ewa's goes off first.
+      await t.prisma.inventoryItem.createMany({
+        data: [
+          { profileId: adam.id, parcel: 3, bestBefore: new Date('2026-02-01') },
+          { profileId: ewa.id, parcel: 5, bestBefore: new Date('2026-01-25') },
+        ].map((one) => ({
+          ...one,
+          ingredientId: chicken.id,
+          quantity: 20,
+          unit: 'g' as const,
+          frozen: true,
+        })),
+      });
+
+      const adams = await together(false);
+
+      const keptOf = async (planId: string) =>
+        (
+          (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: planId } })).report as {
+            freezer: { stock: { parcel: number }[] } | null;
+          }
+        ).freezer?.stock.map((one) => one.parcel);
+      expect(await keptOf(adams.id)).toEqual([3]);
+      expect(await keptOf(adams.joint!.planId)).toEqual([5]);
+      // The kitchen reads both, the one going off first first.
+      expect(adams.packs.fromFreezer.map((one) => one.amount)).toEqual([20, 20]);
+    } finally {
+      generation.today = today;
+    }
+  });
+
   it('takes first the portion the freezer held as the plan keeps it, until the plan is made again as a whole', async () => {
     const generation = t.app.get(PlanGenerationService);
     const today = generation.today;
@@ -261,6 +350,7 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
       );
       // As a plan made with 286 g of chicken in the freezer, which it eats whole, keeps it.
+      // As a report kept before packages has it: one entry a food, read as package 0.
       const freezer = { from: '2026-01-05', stock: [{ ingredientId: chicken.id, amount: 286 }] };
       const made = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
       await t.prisma.mealPlan.update({
@@ -305,7 +395,7 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         plan.id,
         RegenerateRequest.parse({ from: '2026-01-07', to: '2026-01-07' }),
       );
-      expect((await kept()).freezer).toEqual(freezer);
+      expect((await kept()).freezer).toEqual(asPackage0(freezer));
 
       // Made again as a whole, it finds the freezer empty.
       await generation.regenerate(user.id, 'en', plan.id, RegenerateRequest.parse({}));
@@ -364,11 +454,25 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         select: { quantity: true, unit: true, frozen: true, bestBefore: true },
       });
 
+    // A package frozen before it: the rest goes in beside it, a package of its own.
+    await t.prisma.inventoryItem.create({
+      data: {
+        profileId: adam.id,
+        ingredientId: chicken.id,
+        quantity: 100,
+        unit: 'g',
+        frozen: true,
+        parcel: 2,
+        bestBefore: new Date('2026-01-25'),
+      },
+    });
+
     // Asked twice at the same moment, and once more: given once.
     const answers = await Promise.all([keep('2026-01-05'), keep('2026-01-05')]);
     expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
     expect((await keep('2026-01-05')).body.packs.frozen[0]).toMatchObject({ inPantry: true });
-    expect(await pantry()).toEqual([
+    expect((await pantry()).sort((a, b) => a.quantity - b.quantity)).toEqual([
+      { quantity: 100, unit: 'g', frozen: true, bestBefore: new Date('2026-01-25') },
       { quantity: 350, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
     ]);
 

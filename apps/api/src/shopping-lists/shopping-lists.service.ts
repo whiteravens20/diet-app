@@ -46,6 +46,7 @@ import {
   assertWithinCeiling,
   lockPantries,
   lockPantry,
+  mayTakeOf,
   readMoves,
   settlePantry,
 } from '../inventory/pantry-store.js';
@@ -233,6 +234,7 @@ export class ShoppingListsService {
         profileId,
         item,
         intendedPantryEffect({ ...item, ...next }),
+        await thawedParcels(tx, list.planId),
       );
       await tx.shoppingListItem.update({
         where: { id: itemId },
@@ -640,12 +642,42 @@ async function openClaims(
  * the row: its ingredient is gone, or can no longer be converted from the
  * row's unit. The row then keeps the ledger it has.
  */
-export async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: number) {
+export async function settleRow(
+  tx: Tx,
+  profileId: string,
+  item: StoredItem,
+  effect: number,
+  thawed: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+) {
   const ingredient = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
   const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
   if (!ingredient || target === null) return null;
   await lockPantry(tx, profileId, ingredient.id);
-  return settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
+  return settlePantry(
+    tx,
+    profileId,
+    ingredient,
+    readMoves(item.pantryMoves),
+    target,
+    thawed.get(ingredient.id),
+  );
+}
+
+/** Nothing of the freezer taken out. */
+const NONE: ReadonlySet<number> = new Set();
+
+/**
+ * The packages of the freezer a plan takes out (`StoredReport.freezer`), by food: the numbers of those of its
+ * profile's freezer. A report kept before packages names package 0, the one frozen row of a food then.
+ */
+export async function thawedParcels(tx: Tx, planId: string): Promise<Map<string, Set<number>>> {
+  const made = await tx.mealPlan.findUnique({ where: { id: planId }, select: { report: true } });
+  return new Map(
+    [...(freezerOf(made?.report)?.stock ?? [])].map(([ingredientId, list]) => [
+      ingredientId,
+      new Set(list.map((one) => one.parcel)),
+    ]),
+  );
 }
 
 /** A quantity of a row in the canonical unit of its ingredient, or null when the ingredient can no longer be converted from the row's unit. */
@@ -803,18 +835,23 @@ export async function makeList(
   // here of an ingredient is what its row finds.
   const ingredientIds = items.map((item) => item.ingredientId);
   await lockPantries(tx, profileId, ingredientIds);
-  // What is frozen is at home for the list only where the plan takes it out of the freezer, whole (`StoredReport.freezer`).
-  const made = await tx.mealPlan.findUnique({ where: { id: plan.id }, select: { report: true } });
-  const thawed = [...(freezerOf(made?.report)?.stock.keys() ?? [])];
+  // What the list counts on, and takes from: what is fresh, every package of a food no plan takes out of a freezer
+  // (not perishable in packs), and of any other food the packages the plan takes out (`mayTakeOf`).
+  const thawed = await thawedParcels(tx, plan.id);
   const pantry = new Map<string, { unit: Unit; quantity: number; bestBefore: Date | null }[]>();
   for (const row of await tx.inventoryItem.findMany({
-    where: {
-      profileId,
-      ingredientId: { in: ingredientIds },
-      OR: [{ frozen: false }, { ingredientId: { in: thawed } }],
+    where: { profileId, ingredientId: { in: ingredientIds } },
+    select: {
+      ingredientId: true,
+      unit: true,
+      quantity: true,
+      bestBefore: true,
+      frozen: true,
+      parcel: true,
+      ingredient: { select: { perishable: true, packSize: true } },
     },
-    select: { ingredientId: true, unit: true, quantity: true, bestBefore: true },
   })) {
+    if (!mayTakeOf(row.ingredient, thawed.get(row.ingredientId) ?? NONE)(row)) continue;
     pantry.set(row.ingredientId, [...(pantry.get(row.ingredientId) ?? []), row]);
   }
 
@@ -838,6 +875,7 @@ export async function makeList(
           ingredient,
           [],
           -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient),
+          thawed.get(ingredient.id),
         )
       : [];
     rows.push({

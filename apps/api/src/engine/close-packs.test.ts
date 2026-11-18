@@ -222,12 +222,12 @@ describe('closing the packs of a plan', () => {
     expect(recipesOf(after!)).toEqual(['chicken-rice', 'lentil-soup']);
   });
 
-  it('eats first a portion held in the freezer, and finishes within two days what it leaves', () => {
+  it('eats first a package held in the freezer, and finishes within two days what it leaves', () => {
     // 250 g frozen do for the lunch: no pack is opened, and nothing makes the dinner take chicken.
     const [whole] = closePacks({
       plans: [plan()],
       packs: PACKS,
-      held: new Map([['chicken', { amount: 250, from: 0 }]]),
+      held: new Map([['chicken', [{ amount: 250, from: 0 }]]]),
     });
     expect(recipesOf(whole!)).toEqual(['chicken-rice', 'lentil-soup']);
 
@@ -235,7 +235,7 @@ describe('closing the packs of a plan', () => {
     const [finished] = closePacks({
       plans: [plan()],
       packs: PACKS,
-      held: new Map([['chicken', { amount: 500, from: 0 }]]),
+      held: new Map([['chicken', [{ amount: 500, from: 0 }]]]),
     });
     expect(recipesOf(finished!)).toEqual(['chicken-rice', 'chicken-salad']);
   });

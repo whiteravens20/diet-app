@@ -284,6 +284,15 @@ export function thawHeld(
 ): { day: number; eaten: number; left: number; rest: number[] } | null {
   const day = byDay.findIndex((need, at) => at >= held.from && need > CRUMB);
   if (day < 0 || held.amount <= CRUMB) return null;
+  return thawOn(byDay, held, day);
+}
+
+/** `held` taken out for the day `day` and eaten on it and the next, `THAWED_KEEPS_DAYS` in all, as `thawHeld` says. */
+function thawOn(
+  byDay: readonly number[],
+  held: Held,
+  day: number,
+): { day: number; eaten: number; left: number; rest: number[] } {
   const rest = [...byDay];
   let left = held.amount;
   for (let at = day; at < Math.min(rest.length, day + THAWED_KEEPS_DAYS) && left > CRUMB; at += 1) {
@@ -292,6 +301,66 @@ export function thawHeld(
     left -= taken;
   }
   return { day, eaten: clean(held.amount - left), left: clean(Math.max(0, left)), rest };
+}
+
+/** Less than this left of a package once its days are over, and it was eaten whole: a crumb of a gram or a piece. */
+const EATEN_WHOLE = 1;
+
+/**
+ * A package of one food held in the freezer, taken out for the first day from its own on whose day and the next eat
+ * it whole, or, where none does, for the first day that needs the food at all (`thawHeld`), with what is left of it.
+ * Null where no day from its own on needs the food: it stays frozen.
+ */
+function thawPackage(
+  byDay: readonly number[],
+  held: Held,
+): { day: number; eaten: number; left: number; rest: number[] } | null {
+  const first = thawHeld(byDay, held);
+  if (!first || first.left < EATEN_WHOLE) return first;
+  for (let day = first.day + 1; day < byDay.length; day += 1) {
+    if (byDay[day]! <= CRUMB) continue;
+    const later = thawOn(byDay, held, day);
+    if (later.left < EATEN_WHOLE) return later;
+  }
+  return first;
+}
+
+/**
+ * Packages of one food held in the freezer, in the order they are taken out, as the days' needs take them: each comes
+ * out once the packages before it are eaten, for the first day whose day and the next eat it whole, or for the first
+ * day that still needs the food where none does (`thawPackage`). `thawed` has for each package its day, what is eaten
+ * of it and what is left, or null where no day needs the food any more; `rest` is what the days still need after all.
+ */
+export function thawAll(
+  byDay: readonly number[],
+  packages: readonly Held[],
+): { thawed: ({ day: number; eaten: number; left: number } | null)[]; rest: number[] } {
+  let rest = [...byDay];
+  const thawed = packages.map((held) => {
+    const one = thawPackage(rest, held);
+    if (!one) return null;
+    rest = one.rest;
+    return { day: one.day, eaten: one.eaten, left: one.left };
+  });
+  return { thawed, rest };
+}
+
+/**
+ * Which of the packages of one food held in the freezer a plan takes out, by their place in `packages`: in that
+ * order, each one the days' needs eat whole within the days it keeps thawed (`thawPackage`), once the packages taken
+ * before it are eaten. One they would not eat whole stays frozen, and the next is looked at.
+ */
+export function packagesTaken(byDay: readonly number[], packages: readonly Held[]): number[] {
+  let rest = [...byDay];
+  const taken: number[] = [];
+  packages.forEach((held, index) => {
+    const one = thawPackage(rest, held);
+    if (one && one.left < EATEN_WHOLE) {
+      taken.push(index);
+      rest = one.rest;
+    }
+  });
+  return taken;
 }
 
 /** What a menu takes of each ingredient on each of its days, in the ingredient's own unit: `needs.get(ingredientId)[day]`. */

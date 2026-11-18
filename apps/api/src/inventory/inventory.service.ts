@@ -18,7 +18,7 @@ import {
 import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
-import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
+import { assertRoomInPantry, assertWithinCeiling, lockPantry, newParcels } from './pantry-store.js';
 
 /**
  * Per-profile pantry, as the user keeps it by hand. Mutations are all
@@ -105,13 +105,38 @@ export class InventoryService {
         const unit = isCounted(ingredient) ? 'piece' : body.unit;
         const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
 
-        const frozen = body.frozen ?? false;
+        // Into the freezer: a package of its own, adding to none.
+        if (body.frozen) {
+          assertWithinCeiling(quantity, unit);
+          const saved = await this.prisma.$transaction(async (tx) => {
+            await lockPantry(tx, profileId, body.ingredientId);
+            await assertRoomInPantry(tx, profileId);
+            const [parcel] = await newParcels(tx, profileId, 1);
+            const row = await tx.inventoryItem.create({
+              data: {
+                profileId,
+                ingredientId: body.ingredientId,
+                quantity,
+                unit,
+                bestBefore: this.parseDate(body.bestBefore),
+                frozen: true,
+                parcel: parcel!,
+              },
+              include: this.withIngredient(locale),
+            });
+            await keep(tx, row.id);
+            return row;
+          });
+          return this.toDto(saved, locale);
+        }
+
         const where = {
-          profileId_ingredientId_unit_frozen: {
+          profileId_ingredientId_unit_frozen_parcel: {
             profileId,
             ingredientId: body.ingredientId,
             unit,
-            frozen,
+            frozen: false,
+            parcel: 0,
           },
         };
         const saved = await this.prisma.$transaction(async (tx) => {
@@ -127,7 +152,6 @@ export class InventoryService {
               quantity,
               unit,
               bestBefore: this.parseDate(body.bestBefore),
-              frozen,
             },
             update: {
               quantity: { increment: quantity },

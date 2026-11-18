@@ -74,6 +74,7 @@ const Moves = z.array(
     quantity: z.number().finite(),
     bestBefore: z.string().date().optional(),
     frozen: z.literal(true).optional(),
+    parcel: z.number().int().nonnegative().optional(),
   }),
 );
 
@@ -86,22 +87,29 @@ export function readMoves(stored: unknown): PantryMove[] {
 /**
  * Bring the net effect of the owner of `moves` on the pantry of one ingredient
  * to `target` canonical units, write the rows that changed and return the
- * owner's ledger as it is afterwards. The caller holds `lockPantry`.
+ * owner's ledger as it is afterwards. The caller holds `lockPantry`. What it
+ * takes beyond what the owner put in comes from what is fresh, from the
+ * packages of the freezer of a food no plan takes out of one (not perishable in
+ * packs), and from the packages in `thawed`, those its plan takes out
+ * (`StoredReport.freezer`): what the list counted on. What it gives back goes
+ * to the rows it was taken from.
  */
 export async function settlePantry(
   tx: Prisma.TransactionClient,
   profileId: string,
-  ingredient: PantryIngredient & { id: string },
+  ingredient: PantryIngredient & { id: string; perishable?: boolean; packSize?: number | null },
   moves: readonly PantryMove[],
   target: number,
+  thawed: ReadonlySet<number> = new Set(),
 ): Promise<PantryMove[]> {
   const before = await tx.inventoryItem.findMany({
     where: { profileId, ingredientId: ingredient.id },
-    select: { id: true, unit: true, quantity: true, bestBefore: true, frozen: true },
+    select: { id: true, unit: true, quantity: true, bestBefore: true, frozen: true, parcel: true },
   });
-  const result = settle(before, ingredient, moves, target);
+  const result = settle(before, ingredient, moves, target, mayTakeOf(ingredient, thawed));
 
-  const slot = (row: { unit: string; frozen?: boolean }) => `${row.unit} ${row.frozen === true}`;
+  const slot = (row: { unit: string; frozen?: boolean; parcel?: number }) =>
+    `${row.unit} ${row.frozen === true} ${row.frozen === true ? (row.parcel ?? 0) : 0}`;
   const after = new Map(result.rows.map((row) => [slot(row), row]));
   for (const row of before) {
     const next = after.get(slot(row));
@@ -122,10 +130,91 @@ export async function settlePantry(
         quantity: row.quantity,
         bestBefore: row.bestBefore,
         frozen: row.frozen === true,
+        // What is fresh is package 0; a package given back keeps its number, which no other package has.
+        parcel: row.frozen === true ? (row.parcel ?? 0) : 0,
       },
     });
   }
   return result.moves;
+}
+
+/**
+ * Which rows of an ingredient a list counts on and takes from: what is fresh, every package of a food no plan takes
+ * out of a freezer (not perishable in packs), and of any other food the packages its plan takes out (`thawed`).
+ */
+export function mayTakeOf(
+  ingredient: { perishable?: boolean; packSize?: number | null },
+  thawed: ReadonlySet<number>,
+): (row: { frozen?: boolean; parcel?: number | null }) => boolean {
+  const planThaws = ingredient.perishable === true && Boolean(ingredient.packSize);
+  return (row) => !row.frozen || !planThaws || thawed.has(row.parcel ?? 0);
+}
+
+/** The numbers of `count` new packages of the freezer of a profile, never used before: its count of packages moved on. */
+export async function newParcels(
+  tx: Prisma.TransactionClient,
+  profileId: string,
+  count: number,
+): Promise<number[]> {
+  const { lastParcel } = await tx.profile.update({
+    where: { id: profileId },
+    data: { lastParcel: { increment: count } },
+    select: { lastParcel: true },
+  });
+  return Array.from({ length: count }, (_, at) => lastParcel - count + 1 + at);
+}
+
+/** A package a profile holds in the freezer: its number, what it holds in the ingredient's canonical unit, its day. */
+export interface FrozenPackage {
+  parcel: number;
+  amount: number;
+  bestBefore: string | null;
+}
+
+/** Packages in the order they are taken out: the one going off first first, one with no day last, then by number. */
+export const goingOffFirst = (
+  a: { bestBefore: string | null; parcel: number },
+  b: { bestBefore: string | null; parcel: number },
+): number =>
+  a.bestBefore === b.bestBefore
+    ? a.parcel - b.parcel
+    : a.bestBefore === null
+      ? 1
+      : b.bestBefore === null
+        ? -1
+        : a.bestBefore < b.bestBefore
+          ? -1
+          : 1;
+
+/**
+ * The packages a profile holds in the freezer, by ingredient, in the order they are taken out (`goingOffFirst`). A
+ * package in a unit its ingredient cannot be converted from counts as none.
+ */
+export async function frozenPackages(
+  db: Pick<Prisma.TransactionClient, 'inventoryItem'>,
+  profileId: string,
+): Promise<Map<string, FrozenPackage[]>> {
+  const rows = await db.inventoryItem.findMany({
+    where: { profileId, frozen: true },
+    include: {
+      ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
+    },
+  });
+  const packages = new Map<string, FrozenPackage[]>();
+  for (const row of rows) {
+    const { quantity } = pantryStock([row], row.ingredient);
+    if (quantity <= 0) continue;
+    packages.set(row.ingredientId, [
+      ...(packages.get(row.ingredientId) ?? []),
+      {
+        parcel: row.parcel,
+        amount: quantity,
+        bestBefore: row.bestBefore ? row.bestBefore.toISOString().slice(0, 10) : null,
+      },
+    ]);
+  }
+  for (const list of packages.values()) list.sort(goingOffFirst);
+  return packages;
 }
 
 /**

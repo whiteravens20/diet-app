@@ -13,7 +13,9 @@ import {
   packPull,
   packStep,
   packUse,
+  packagesTaken,
   packsFor,
+  thawAll,
   thawHeld,
   packsLeft,
   packsLeftBeyondAccepted,
@@ -588,5 +590,73 @@ describe('a portion held in the freezer', () => {
 
   it('stays frozen where no day from its own on needs the food', () => {
     expect(thawHeld([150, 0, 0], { amount: 286, from: 1 })).toBeNull();
+  });
+});
+
+describe('packages held in the freezer', () => {
+  it('come out one after another, each for the first day that still needs the food once those before it are eaten', () => {
+    // 250 g a day: the first package eats day 0 and 50 g of day 1, the second the 200 g left of day 1 and 100 g of day 2.
+    expect(
+      thawAll(
+        [250, 250, 250, 250],
+        [
+          { amount: 300, from: 0 },
+          { amount: 300, from: 0 },
+        ],
+      ),
+    ).toEqual({
+      thawed: [
+        { day: 0, eaten: 300, left: 0 },
+        { day: 1, eaten: 300, left: 0 },
+      ],
+      rest: [0, 0, 150, 250],
+    });
+  });
+
+  it('stay frozen once no day needs the food any more', () => {
+    expect(
+      thawAll(
+        [200, 0, 0],
+        [
+          { amount: 200, from: 0 },
+          { amount: 200, from: 0 },
+        ],
+      ),
+    ).toEqual({ thawed: [{ day: 0, eaten: 200, left: 0 }, null], rest: [0, 0, 0] });
+  });
+
+  it('are taken out only where the days eat them whole: a larger one stays frozen, and the next is looked at', () => {
+    // 150 g and 100 g on days 1 and 2: of a kilogram 750 g would be left, so it stays; the 250 g after it comes out.
+    expect(
+      packagesTaken(
+        [0, 150, 100, 0, 0],
+        [
+          { amount: 1000, from: 0 },
+          { amount: 250, from: 0 },
+        ],
+      ),
+    ).toEqual([1]);
+    // Two of 250 g for 150 g a day over four days: the first eats day 0 and 100 g of day 1; taken out on day 1 the
+    // second would be left 50 g, so it comes out for day 2, whose day and the next eat it whole.
+    const twoOf250 = [
+      { amount: 250, from: 0 },
+      { amount: 250, from: 0 },
+    ];
+    expect(packagesTaken([150, 150, 150, 150], twoOf250)).toEqual([0, 1]);
+    expect(thawAll([150, 150, 150, 150], twoOf250)).toEqual({
+      thawed: [
+        { day: 0, eaten: 250, left: 0 },
+        { day: 2, eaten: 250, left: 0 },
+      ],
+      rest: [0, 50, 0, 50],
+    });
+  });
+
+  it('come out, where no two days eat them whole, for the first day that needs the food, and say what is left', () => {
+    expect(thawAll([0, 150, 100, 0], [{ amount: 1000, from: 0 }])).toEqual({
+      thawed: [{ day: 1, eaten: 250, left: 750 }],
+      rest: [0, 0, 0, 0],
+    });
+    expect(packagesTaken([0, 150, 100, 0], [{ amount: 1000, from: 0 }])).toEqual([]);
   });
 });

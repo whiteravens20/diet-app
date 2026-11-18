@@ -10,7 +10,7 @@ import {
 import {
   cookAhead,
   frozenLeft,
-  thawHeld,
+  thawAll,
   keepDaysOf,
   packUse,
   toCanonical,
@@ -101,9 +101,10 @@ export function menuNeeds(
 
 /**
  * What a menu comes to in packs that do not keep once they are opened, counted day by day (see `engine/packs.ts`), as
- * a plan says it: on the days of `dates`, in order. What the pantry held in the freezer of an ingredient when the plan
- * was made (`freezer`) is one portion, thawed whole for the first meal from its day on that takes the ingredient and
- * eaten like a pack just opened, within the days it keeps; the packs are counted for what is left to eat. A plan that
+ * a plan says it: on the days of `dates`, in order. The packages of the freezer the plan takes out (`freezer`) are
+ * thawed whole one after another, each for the first meal from its day on whose day and the next eat it whole
+ * (`thawAll`), and eaten like a pack just opened, within the days it keeps; the packs are counted for what is left to
+ * eat. A plan that
  * wastes less or nothing puts what it does not eat fresh of meat and fish in the freezer (`freezes`), in portions: each rest
  * is said with the meal that opens its pack, and each later day that takes a portion of it with that day's first meal
  * that takes the ingredient.
@@ -128,22 +129,28 @@ export function planPacks(
       .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))[0]?.mealId ?? null;
   const fromFreezer: PlanPacks['fromFreezer'] = [];
   const from = freezer ? dates.findIndex((date) => date >= freezer.from) : -1;
-  for (const [ingredientId, held] of from < 0 ? [] : freezer!.stock) {
+  for (const [ingredientId, packages] of from < 0 ? [] : freezer!.stock) {
     const row = needs.get(ingredientId);
     const ingredient = known.get(ingredientId);
-    if (!row || !ingredient || Math.round(held) < 1) continue;
-    // Thawed whole for its first meal, and eaten within the days it keeps thawed.
-    const thawed = thawHeld(row, { amount: held, from });
-    if (!thawed) continue;
-    needs.set(ingredientId, thawed.rest);
-    fromFreezer.push({
-      ingredientId,
-      name: pickIngredient(locale, ingredient.translations, ingredient.name),
-      unit: ingredient.canonicalUnit,
-      date: dates[thawed.day]!,
-      mealId: mealOf(ingredientId, thawed.day),
-      amount: Math.round(held),
-      eaten: Math.round(thawed.eaten),
+    const whole = packages.filter((one) => Math.round(one.amount) >= 1);
+    if (!row || !ingredient || whole.length === 0) continue;
+    // Each package thawed whole for its meal, in turn, and eaten within the days it keeps thawed.
+    const { thawed, rest } = thawAll(
+      row,
+      whole.map((one) => ({ amount: one.amount, from })),
+    );
+    needs.set(ingredientId, rest);
+    thawed.forEach((one, at) => {
+      if (!one) return;
+      fromFreezer.push({
+        ingredientId,
+        name: pickIngredient(locale, ingredient.translations, ingredient.name),
+        unit: ingredient.canonicalUnit,
+        date: dates[one.day]!,
+        mealId: mealOf(ingredientId, one.day),
+        amount: Math.round(whole[at]!.amount),
+        eaten: Math.round(one.eaten),
+      });
     });
   }
   const use = packUse(needs, packs);

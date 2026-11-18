@@ -51,6 +51,15 @@ describe('the pantry', () => {
         ...more,
       });
 
+  /** The profile's pantry as the API lists it: each row's quantity, fresh or frozen, and its day, in a fixed order. */
+  const shown = async (): Promise<string[]> =>
+    (
+      (await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).expect(200))
+        .body as InventoryItem[]
+    )
+      .map((row) => `${row.quantity} ${row.frozen ? 'frozen' : 'fresh'} ${row.bestBefore}`)
+      .sort();
+
   it('stores a row for a catalogue ingredient and adds to it on a second post', async () => {
     await add('rolled-oats', 300, 'g');
     const second = await add('rolled-oats', 300, 'g');
@@ -78,31 +87,23 @@ describe('the pantry', () => {
     ).toEqual(['200 g', '3 piece']);
   });
 
-  it('keeps what is frozen in a row of its own beside what is fresh, each with its own date, and adds frozen to frozen', async () => {
+  it('puts what is frozen into packages of their own beside what is fresh, none adding to another', async () => {
     await add('chicken-breast', 500, 'g', { bestBefore: '2026-01-07' });
     await add('chicken-breast', 286, 'g', { frozen: true, bestBefore: '2026-02-04' });
-    const again = await add('chicken-breast', 100, 'g', { frozen: true });
+    const again = await add('chicken-breast', 100, 'g', { frozen: true, bestBefore: '2026-02-10' });
 
     expect(again.status).toBe(201);
     expect(again.body).toMatchObject({
-      quantity: 386,
+      quantity: 100,
       unit: 'g',
       frozen: true,
-      bestBefore: '2026-02-04',
+      bestBefore: '2026-02-10',
     });
-    const rows = await t
-      .http()
-      .get(`/api/inventory?profileId=${profile.id}`)
-      .set(as(user))
-      .expect(200);
-    expect(
-      rows.body
-        .map(
-          (row: { quantity: number; frozen: boolean; bestBefore: string }) =>
-            `${row.quantity} ${row.frozen ? 'frozen' : 'fresh'} ${row.bestBefore}`,
-        )
-        .sort(),
-    ).toEqual(['386 frozen 2026-02-04', '500 fresh 2026-01-07']);
+    expect(await shown()).toEqual([
+      '100 frozen 2026-02-10',
+      '286 frozen 2026-02-04',
+      '500 fresh 2026-01-07',
+    ]);
   });
 
   it('keeps what is counted in its pieces alone, turning an amount in grams into them', async () => {

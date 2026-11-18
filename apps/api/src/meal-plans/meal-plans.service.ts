@@ -51,7 +51,12 @@ import {
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
 import { kitchenFreezes, levelOf } from '../engine/waste-levels.js';
-import { assertRoomInPantry, assertWithinCeiling, lockPantry } from '../inventory/pantry-store.js';
+import {
+  assertRoomInPantry,
+  assertWithinCeiling,
+  lockPantry,
+  newParcels,
+} from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto, type RecipeLine } from '../recipes/recipes.service.js';
 import {
@@ -256,8 +261,8 @@ export class MealPlansService {
 
   /**
    * "Dodaj do spiżarni" of a rest of meat or fish the plan puts in the freezer (`KeepFrozenRequest`): what is left of
-   * it once the plan is over goes into the profile's pantry as frozen, dated `FROZEN_KEEPS_DAYS` from the day it went
-   * in, or with the date of the frozen row it joins where that is sooner, and the plan keeps that it gave it. A rest
+   * it once the plan is over goes into the profile's pantry as a package of its own in the freezer, dated
+   * `FROZEN_KEEPS_DAYS` from the day it went in, and the plan keeps that it gave it. A rest
    * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`.
    * The two plans of a joint plan share one kitchen and its rests: a rest goes into the pantry of the plan it was
    * given from, once, and both plans keep that it was given.
@@ -303,41 +308,21 @@ export class MealPlansService {
       const { profileId } = kitchen.find((one) => one.id === planId)!;
       await lockPantry(tx, profileId, rest.ingredientId);
       const bestBefore = new Date(dayAfter(rest.date, FROZEN_KEEPS_DAYS));
-      const held = await tx.inventoryItem.findUnique({
-        where: {
-          profileId_ingredientId_unit_frozen: {
-            profileId,
-            ingredientId: rest.ingredientId,
-            unit: rest.unit,
-            frozen: true,
-          },
+      // A package of its own: nothing frozen adds to another.
+      assertWithinCeiling(rest.left, rest.unit);
+      await assertRoomInPantry(tx, profileId);
+      const [parcel] = await newParcels(tx, profileId, 1);
+      await tx.inventoryItem.create({
+        data: {
+          profileId,
+          ingredientId: rest.ingredientId,
+          unit: rest.unit,
+          quantity: rest.left,
+          bestBefore,
+          frozen: true,
+          parcel: parcel!,
         },
       });
-      if (held) {
-        assertWithinCeiling(held.quantity + rest.left, rest.unit);
-        await tx.inventoryItem.update({
-          where: { id: held.id },
-          data: {
-            quantity: held.quantity + rest.left,
-            // What was frozen first decides.
-            bestBefore:
-              held.bestBefore && held.bestBefore < bestBefore ? held.bestBefore : bestBefore,
-          },
-        });
-      } else {
-        assertWithinCeiling(rest.left, rest.unit);
-        await assertRoomInPantry(tx, profileId);
-        await tx.inventoryItem.create({
-          data: {
-            profileId,
-            ingredientId: rest.ingredientId,
-            unit: rest.unit,
-            quantity: rest.left,
-            bestBefore,
-            frozen: true,
-          },
-        });
-      }
       for (const one of kitchen)
         await tx.mealPlan.update({
           where: { id: one.id },

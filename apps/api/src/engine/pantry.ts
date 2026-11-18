@@ -4,11 +4,11 @@
  * The pantry of one ingredient, and the one way anything but its owner's own
  * hand changes it.
  *
- * A profile holds an ingredient in at most one row per unit, and one more
- * per unit in the freezer: three tomatoes as pieces next to 200 g of them as
- * grams, and a rest of chicken frozen beside the fresh chicken. What counts as
- * "how much is there" is the sum of those rows in the ingredient's canonical
- * unit, the freezer's included. A row in a unit the ingredient cannot be
+ * A profile holds an ingredient fresh in at most one row per unit, and in the
+ * freezer in packages, each a row of its own: three tomatoes as pieces next to
+ * 200 g of them as grams, and two packages of chicken frozen beside the fresh
+ * chicken. What counts as "how much is there" is the sum of those rows in the
+ * ingredient's canonical unit, the freezer's included. A row in a unit the ingredient cannot be
  * converted from (pieces of something that has no weight per piece) counts as
  * nothing and is never touched.
  *
@@ -28,8 +28,10 @@ export interface PantryRow {
   unit: Unit;
   quantity: number;
   bestBefore: Date | null;
-  /** The row in the freezer: what the pantry is given of a rest of meat or fish a plan put there. */
+  /** In the freezer: a package of its own. */
   frozen?: boolean;
+  /** The package's number (`InventoryItem.parcel`): 0, or none, for what is fresh and a frozen row from before packages. */
+  parcel?: number;
 }
 
 /** A change made to the row of one unit, in that unit. Negative: taken out. */
@@ -41,8 +43,10 @@ export interface PantryMove {
    * that a row the move emptied can be given back with its date.
    */
   bestBefore?: string;
-  /** Made to the row in the freezer. */
+  /** Made to a package in the freezer. */
   frozen?: true;
+  /** The number of that package; none for package 0, and on a move kept before packages. */
+  parcel?: number;
 }
 
 export interface Settlement {
@@ -66,19 +70,34 @@ const EPSILON = 1e-6;
 /** The order units are visited in when nothing else decides: fixed, so that results are reproducible. */
 const UNIT_ORDER: readonly Unit[] = ['g', 'ml', 'piece'];
 
-/** Where the stock of an ingredient is kept: the row of a unit, fresh or in the freezer. */
+/** Where the stock of an ingredient is kept: the fresh row of a unit, or a package of the freezer. */
 interface Slot {
   unit: Unit;
   frozen: boolean;
+  parcel: number;
 }
 
-/** The order the rows are visited in when nothing else decides: what is fresh, then the freezer, each by `UNIT_ORDER`. */
-const SLOT_ORDER: readonly Slot[] = [false, true].flatMap((frozen) =>
-  UNIT_ORDER.map((unit) => ({ unit, frozen })),
-);
+const keyOf = (slot: { unit: Unit; frozen?: boolean; parcel?: number }): string =>
+  slot.frozen ? `${slot.unit} frozen ${slot.parcel ?? 0}` : slot.unit;
 
-const keyOf = (slot: { unit: Unit; frozen?: boolean }): string =>
-  slot.frozen ? `${slot.unit} frozen` : slot.unit;
+const slotOf = (key: string): Slot => {
+  const [unit, frozen, parcel] = key.split(' ');
+  return { unit: unit as Unit, frozen: frozen !== undefined, parcel: frozen ? Number(parcel) : 0 };
+};
+
+/**
+ * The slots of `keys` in the order they are visited when nothing else decides: what is fresh by `UNIT_ORDER`, then
+ * the packages of the freezer, by unit and number. Fixed, so that results are reproducible.
+ */
+const inSlotOrder = (keys: Iterable<string>): Slot[] =>
+  [...new Set(keys)]
+    .map(slotOf)
+    .sort(
+      (a, b) =>
+        Number(a.frozen) - Number(b.frozen) ||
+        UNIT_ORDER.indexOf(a.unit) - UNIT_ORDER.indexOf(b.unit) ||
+        a.parcel - b.parcel,
+    );
 
 const clean = (quantity: number): number => Math.round(quantity * 1e6) / 1e6;
 
@@ -142,8 +161,9 @@ const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
  * goes into the freezer.
  *
  * Taking out: first what the owner itself put in, from the rows it went to.
- * The rest comes out of the stock, the row that expires first going first,
- * those in the freezer among them by their dates.
+ * The rest comes out of the stock the owner may take from (`mayTake`: every
+ * row where it is left out), the row that expires first going first, the
+ * packages of the freezer among them by their dates.
  * Nothing goes below zero: when the pantry holds less than asked, less is
  * taken, and `applied` and `moves` say how much.
  */
@@ -152,6 +172,7 @@ export function settle(
   ingredient: PantryIngredient,
   moves: readonly PantryMove[],
   target: number,
+  mayTake: (row: { frozen: boolean; parcel: number }) => boolean = () => true,
 ): Settlement {
   const stock = new Map<string, { quantity: number; bestBefore: Date | null }>();
   for (const row of rows)
@@ -168,6 +189,7 @@ export function settle(
   }
   const usable = (slot: Slot): boolean => canonical(1, slot.unit, ingredient) !== null;
   const touched = new Set<string>();
+  const slots = inSlotOrder([...stock.keys(), ...ledger.keys()]);
 
   /** Change the row of `slot` by `amount` canonical units, and write it into the ledger. */
   const change = (slot: Slot, amount: number): void => {
@@ -195,9 +217,9 @@ export function settle(
   if (diff > EPSILON) {
     const until = (slot: Slot): number =>
       keepsUntil(stock.get(keyOf(slot))?.bestBefore, ledger.get(keyOf(slot))?.bestBefore);
-    const taken = SLOT_ORDER.filter(
-      (slot) => usable(slot) && (ledger.get(keyOf(slot))?.quantity ?? 0) < -EPSILON,
-    ).sort((a, b) => ascending(until(b), until(a)));
+    const taken = slots
+      .filter((slot) => usable(slot) && (ledger.get(keyOf(slot))?.quantity ?? 0) < -EPSILON)
+      .sort((a, b) => ascending(until(b), until(a)));
     for (const slot of taken) {
       if (remaining <= EPSILON) break;
       const back = Math.min(
@@ -220,7 +242,7 @@ export function settle(
           fullest = unit;
         }
       }
-      change({ unit: fullest ?? stockUnit(ingredient), frozen: false }, remaining);
+      change({ unit: fullest ?? stockUnit(ingredient), frozen: false, parcel: 0 }, remaining);
       remaining = 0;
     }
   } else if (diff < -EPSILON) {
@@ -228,7 +250,7 @@ export function settle(
       stock.has(keyOf(slot))
         ? Math.max(0, canonical(stock.get(keyOf(slot))!.quantity, slot.unit, ingredient) ?? 0)
         : 0;
-    for (const slot of SLOT_ORDER) {
+    for (const slot of slots) {
       if (remaining <= EPSILON) break;
       const put = ledger.get(keyOf(slot))?.quantity ?? 0;
       if (put <= EPSILON || !usable(slot)) continue;
@@ -237,14 +259,15 @@ export function settle(
       change(slot, -back);
       remaining -= back;
     }
-    // The sort keeps the order of `SLOT_ORDER` among rows of one date: what is fresh before the freezer.
-    const soonestFirst = SLOT_ORDER.filter((slot) => usable(slot) && stock.has(keyOf(slot))).sort(
-      (a, b) =>
+    // The sort keeps the order of `inSlotOrder` among rows of one date: what is fresh before the freezer.
+    const soonestFirst = slots
+      .filter((slot) => usable(slot) && stock.has(keyOf(slot)) && mayTake(slot))
+      .sort((a, b) =>
         ascending(
           keepsUntil(stock.get(keyOf(a))!.bestBefore),
           keepsUntil(stock.get(keyOf(b))!.bestBefore),
         ),
-    );
+      );
     for (const slot of soonestFirst) {
       if (remaining <= EPSILON) break;
       const out = Math.min(remaining, held(slot));
@@ -258,10 +281,6 @@ export function settle(
   // pantry: entries that only cancel each other out say nothing.
   if (Math.abs(target) <= EPSILON && remaining <= EPSILON) ledger.clear();
 
-  const slotOf = (key: string): Slot => {
-    const [unit, frozen] = key.split(' ');
-    return { unit: unit as Unit, frozen: frozen !== undefined };
-  };
   return {
     // A row this change emptied is gone; one it did not touch stays as it was,
     // an empty one the owner of the pantry keeps on purpose included.
@@ -271,7 +290,7 @@ export function settle(
         unit: slotOf(key).unit,
         quantity: clean(row.quantity),
         bestBefore: row.bestBefore,
-        ...(slotOf(key).frozen ? { frozen: true } : {}),
+        ...(slotOf(key).frozen ? { frozen: true, parcel: slotOf(key).parcel } : {}),
       })),
     moves: [...ledger]
       .filter(([, entry]) => Math.abs(clean(entry.quantity)) > EPSILON)
@@ -280,6 +299,7 @@ export function settle(
         quantity: clean(entry.quantity),
         ...(entry.bestBefore && entry.quantity < 0 ? { bestBefore: entry.bestBefore } : {}),
         ...(slotOf(key).frozen ? { frozen: true as const } : {}),
+        ...(slotOf(key).parcel !== 0 ? { parcel: slotOf(key).parcel } : {}),
       })),
     // `|| 0`: nothing applied is zero, not minus zero.
     applied: clean(Math.sign(diff) * (Math.abs(diff) - remaining)) || 0,
