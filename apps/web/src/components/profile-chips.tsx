@@ -33,6 +33,8 @@ export function ProfileChips({
           variant={profile.id === active ? 'primary' : 'outline'}
           aria-pressed={profile.id === active}
           onClick={() => onPick(profile.id)}
+          // A name as long as one can be breaks inside the chip rather than stick out of the page.
+          className="h-auto min-h-8 max-w-full py-1 text-left [overflow-wrap:anywhere]"
         >
           {fmt.text(profile.name)}
         </Button>
