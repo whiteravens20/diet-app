@@ -74,6 +74,14 @@ test('a word as long as a name can be sticks out of nothing', async ({
     heightCm: 170,
     weightKg: 65,
   });
+  // A second one, so that the pages of one profile's things offer both by their names.
+  await made('/profiles', {
+    name: aWord('Second', 80),
+    age: 30,
+    sex: 'female',
+    heightCm: 165,
+    weightKg: 60,
+  });
   const [rice] = (await (
     await request.get('/api/ingredients?search=rice', { headers })
   ).json()) as { id: string }[];
@@ -136,6 +144,8 @@ test('a word as long as a name can be sticks out of nothing', async ({
     `/recipes/${recipe.id}`,
     '/favorites',
     '/meal-plans',
+    '/shopping-lists',
+    '/inventory',
     '/products',
     '/settings?tab=account',
   ]) {
