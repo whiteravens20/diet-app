@@ -296,7 +296,13 @@ export function useAutosave(
       if (!wrong) return undefined;
       if (wrong.validity.valueMissing || wrong.validity.patternMismatch)
         return t('autosave.required');
-      return t('autosave.between', { min: wrong.min, max: wrong.max });
+      // The bounds as numbers, said as the language writes them.
+      const bounds = { min: Number(wrong.min), max: Number(wrong.max) };
+      if (wrong.validity.stepMismatch)
+        return Number(wrong.step) === 1
+          ? t('autosave.whole', bounds)
+          : t('autosave.steps', { ...bounds, step: Number(wrong.step) });
+      return t('autosave.between', bounds);
     },
     [form, t],
   );

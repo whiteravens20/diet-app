@@ -2751,7 +2751,9 @@
       "saved": "Saved",
       "failed": "Not everything was saved. Fix the field marked in red.",
       "required": "This field cannot be left empty.",
-      "between": "Type a number from {min} to {max}.",
+      "between": "Type a number from {min, number, ::group-off} to {max, number, ::group-off}.",
+      "whole": "Type a whole number from {min, number, ::group-off} to {max, number, ::group-off}.",
+      "steps": "Type a number from {min, number, ::group-off} to {max, number, ::group-off}, in steps of {step, number, ::group-off}.",
       "notKept": "This change could not be saved.",
       "offline": "Not saved: no connection. It is saved once the network is back.",
       "done": "Done"

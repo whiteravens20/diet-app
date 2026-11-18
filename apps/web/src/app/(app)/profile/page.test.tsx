@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
+import { createTranslator, NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -11,6 +11,7 @@ import { ApiClientError } from '@/lib/http';
 import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
+import pl from '../../../../messages/pl.json';
 import ProfilePage from './page';
 import { plain } from '@/testing/spaces';
 
@@ -319,6 +320,14 @@ describe('the profile form, on the custom diet', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(plain(texts.perKgRefused));
     expect(changes()).toHaveLength(2);
+  });
+
+  it('says the bounds of a number as the language writes them', () => {
+    const say = createTranslator({ locale: 'pl', messages: pl, namespace: 'profile.autosave' });
+
+    expect(say('steps', { min: 0.8, max: 3, step: 0.1 })).toBe('Wpisz liczbę od 0,8 do 3, co 0,1.');
+    expect(say('between', { min: 250, max: 10000 })).toBe('Wpisz liczbę od 250 do 10000.');
+    expect(say('whole', { min: 1, max: 2000 })).toBe('Wpisz liczbę całkowitą od 1 do 2000.');
   });
 
   it('says what grams come to, and keeps them as the shares of their energy', async () => {

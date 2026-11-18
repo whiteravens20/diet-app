@@ -2751,7 +2751,9 @@
       "saved": "Zapisano",
       "failed": "Nie wszystko zapisano. Popraw pole opisane na czerwono.",
       "required": "To pole nie może zostać puste.",
-      "between": "Wpisz liczbę od {min} do {max}.",
+      "between": "Wpisz liczbę od {min, number, ::group-off} do {max, number, ::group-off}.",
+      "whole": "Wpisz liczbę całkowitą od {min, number, ::group-off} do {max, number, ::group-off}.",
+      "steps": "Wpisz liczbę od {min, number, ::group-off} do {max, number, ::group-off}, co {step, number, ::group-off}.",
       "notKept": "Nie udało się zapisać tej zmiany.",
       "offline": "Nie zapisano: brak połączenia. Zapisze się, gdy wróci sieć.",
       "done": "Gotowe"
