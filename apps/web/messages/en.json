@@ -2161,11 +2161,20 @@
     "expiringSoon": "expiring soon",
     "frozen": "frozen",
     "frozenName": "{name}, frozen",
+    "frozenLabel": "Frozen",
+    "freeze": "Freeze",
+    "freezeLabel": "Freeze {name}",
+    "frozenPackageName": "{name}, frozen, package {number}",
+    "freezeIntro": "Each portion goes into the freezer as a package of its own, best eaten within {days, plural, one {{days, number, ::group-off} day} other {{days, number, ::group-off} days}}.",
+    "portionsLabel": "Portions",
+    "portionsEach": "{count, plural, one {{count, number, ::group-off} portion} other {{count, number, ::group-off} portions}} of {amount} each",
+    "portionsList": "Portions: {amounts}",
     "addButton": "Add",
     "removeLabel": "Remove {name}",
     "errAdd": "Could not add the item.",
     "errUpdate": "Could not update the item.",
-    "errDelete": "Could not remove the item."
+    "errDelete": "Could not remove the item.",
+    "errFreeze": "Could not freeze the item."
   },
   "settings": {
     "title": "Settings",

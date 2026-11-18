@@ -3,12 +3,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, Trash } from 'lucide-react';
+import { Package, Snowflake, Trash } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
+import { FROZEN_KEEPS_DAYS } from '@diet-app/shared/constants';
+import { MAX_PORTIONS } from '@diet-app/shared/portions';
 import { UNITS } from '@diet-app/shared/units';
 import { api } from '@/lib/api';
+import { localDate } from '@/lib/http';
+import { dayAfter } from '@/lib/plan-dates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input, OptionalFrame } from '@/components/ui/input';
@@ -20,6 +24,7 @@ import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
+import { FreezeDialog, portionCount, portionsFit, PortionsLine } from './portions';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -54,6 +59,8 @@ export default function InventoryPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
+  // The fresh row whose window of freezing is open.
+  const [freezing, setFreezing] = useState<InventoryItem | null>(null);
   const profileId = useId();
 
   const profiles = useQuery({
@@ -77,6 +84,8 @@ export default function InventoryPage() {
       quantity: number;
       unit: Unit;
       bestBefore?: string | null;
+      frozen?: boolean;
+      portions?: number;
     }) => api.post<InventoryItem>('/inventory', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errAdd'))),
@@ -96,6 +105,16 @@ export default function InventoryPage() {
     mutationFn: (id: string) => api.delete<void>(`/inventory/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errDelete'))),
+  });
+
+  // Answered with the pantry of the row's profile as it is then: the row is gone, its packages in the freezer.
+  const freeze = useMutation({
+    mutationFn: (v: { profileId: string; id: string; portions: number }) =>
+      api.post<InventoryItem[]>(`/inventory/${v.id}/freeze`, { portions: v.portions }),
+    onSuccess: (rows, v) => {
+      qc.setQueryData(['inventory', v.profileId], rows);
+      setFreezing(null);
+    },
   });
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
@@ -121,12 +140,13 @@ export default function InventoryPage() {
     bucket.push(item);
     grouped.set(item.ingredient.category, bucket);
   }
-  // By name, a food's frozen row right after its fresh one.
+  // By name, a food's packages in the freezer right after its fresh row, the one going off first first.
   for (const bucket of grouped.values())
     bucket.sort(
       (a, b) =>
         a.ingredient.name.localeCompare(b.ingredient.name, locale) ||
-        Number(a.frozen) - Number(b.frozen),
+        Number(a.frozen) - Number(b.frozen) ||
+        (a.bestBefore ?? '9999-12-31').localeCompare(b.bestBefore ?? '9999-12-31'),
     );
 
   return (
@@ -168,8 +188,8 @@ export default function InventoryPage() {
       {activeProfileId && (
         <AddInventoryForm
           profileId={activeProfileId}
-          // What is frozen stands apart: fresh of the same food can still be added.
-          existingIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
+          // What is frozen stands apart: fresh of a food can be added beside its packages, and any food frozen.
+          freshIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
           onSubmit={(body) => {
             setError(null);
             upsert.mutate(body);
@@ -197,10 +217,19 @@ export default function InventoryPage() {
               <CardContent>
                 <ul className="divide-y divide-border">
                   {rows.map((item) => {
-                    // A food in the freezer has a row of its own beside the fresh one: each field says which it is.
-                    const name = item.frozen
-                      ? t('frozenName', { name: fmt.text(item.ingredient.name) })
-                      : fmt.text(item.ingredient.name);
+                    // A package in the freezer has a row of its own beside the fresh one, and beside the other
+                    // packages of its food, counted in the order they stand: each field says which row it is of.
+                    const packages = rows.filter(
+                      (row) => row.frozen && row.ingredient.id === item.ingredient.id,
+                    );
+                    const name = !item.frozen
+                      ? fmt.text(item.ingredient.name)
+                      : packages.length > 1
+                        ? t('frozenPackageName', {
+                            name: fmt.text(item.ingredient.name),
+                            number: String(packages.indexOf(item) + 1),
+                          })
+                        : t('frozenName', { name: fmt.text(item.ingredient.name) });
                     return (
                       <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
                         <span className="flex-1 min-w-[8rem] text-sm font-medium">
@@ -261,6 +290,36 @@ export default function InventoryPage() {
                             }}
                           />
                         </label>
+                        {item.frozen ? (
+                          // The room of the fresh rows' button, unseen, so that the fields of every row stand in
+                          // one column where a row is one line; nothing where rows wrap.
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            tabIndex={-1}
+                            aria-hidden
+                            className="invisible max-sm:hidden"
+                          >
+                            <Snowflake className="h-4 w-4" />
+                            {t('freeze')}
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t('freezeLabel', { name })}
+                            onClick={() => {
+                              freeze.reset();
+                              setFreezing(item);
+                            }}
+                          >
+                            <Snowflake className="h-4 w-4" />
+                            {t('freeze')}
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -279,24 +338,39 @@ export default function InventoryPage() {
           ))}
         </div>
       )}
+
+      {freezing && activeProfileId && (
+        <FreezeDialog
+          item={freezing}
+          busy={freeze.isPending}
+          error={freeze.isError ? errorText(freeze.error, t('errFreeze')) : null}
+          onFreeze={(portions) =>
+            freeze.mutate({ profileId: activeProfileId, id: freezing.id, portions })
+          }
+          onClose={() => setFreezing(null)}
+        />
+      )}
     </div>
   );
 }
 
 function AddInventoryForm({
   profileId,
-  existingIds,
+  freshIds,
   onSubmit,
   submitting,
 }: {
   profileId: string;
-  existingIds: Set<string>;
+  /** The foods the pantry holds fresh: a search offers them again only to go into the freezer, as packages of their own. */
+  freshIds: Set<string>;
   onSubmit: (body: {
     profileId: string;
     ingredientId: string;
     quantity: number;
     unit: Unit;
     bestBefore?: string | null;
+    frozen?: boolean;
+    portions?: number;
   }) => void;
   submitting: boolean;
 }) {
@@ -312,36 +386,64 @@ function AddInventoryForm({
     quantity: `${id}-quantity`,
     unit: `${id}-unit`,
     bestBefore: `${id}-best-before`,
+    portions: `${id}-portions`,
+    portionsLine: `${id}-portions-line`,
   };
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
   const [bestBefore, setBestBefore] = useState('');
+  const [frozen, setFrozen] = useState(false);
+  // The date the box wrote itself, taken away with the box while nobody changed it.
+  const [boxDate, setBoxDate] = useState<string | null>(null);
+  const [portionsTyped, setPortionsTyped] = useState('1');
+  const portions = frozen ? portionCount(portionsTyped) : 1;
+  const qty = Number(quantity);
+  // What goes into the freezer goes in whole packages of at least one of its unit; fresh is one row whatever it is.
+  const fits = !frozen || portions === null || !(qty > 0) || portionsFit(qty, unit, portions);
 
   const results = useQuery({
     queryKey: ['ingredients-search', search],
     queryFn: () => api.get<Ingredient[]>(`/ingredients?search=${encodeURIComponent(search)}`),
     enabled: search.trim().length >= 2,
   });
-  const available = (results.data ?? []).filter((i) => !existingIds.has(i.id)).slice(0, 8);
+  const available = (results.data ?? []).filter((i) => frozen || !freshIds.has(i.id)).slice(0, 8);
+
+  /** Into the freezer or not: what goes in is dated as the freezer keeps it, unless a date is typed already. */
+  function freezeIt(on: boolean) {
+    setFrozen(on);
+    if (on && bestBefore === '') {
+      const date = dayAfter(localDate(), FROZEN_KEEPS_DAYS);
+      setBestBefore(date);
+      setBoxDate(date);
+    } else if (!on) {
+      if (boxDate !== null && bestBefore === boxDate) setBestBefore('');
+      setBoxDate(null);
+    }
+  }
 
   function reset() {
     setSearch('');
     setPickedIngredient(null);
     setQuantity('');
     setBestBefore('');
+    setFrozen(false);
+    setBoxDate(null);
+    setPortionsTyped('1');
   }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!pickedIngredient) return;
-    const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0) return;
+    if (portions === null || !fits) return;
     onSubmit({
       profileId,
       ingredientId: pickedIngredient.id,
       quantity: qty,
       unit,
       ...(bestBefore ? { bestBefore } : {}),
+      ...(frozen ? { frozen: true } : {}),
+      ...(portions > 1 ? { portions } : {}),
     });
     reset();
   }
@@ -463,9 +565,52 @@ function AddInventoryForm({
               />
             </OptionalFrame>
           </div>
-          <Button type="submit" disabled={!pickedIngredient || submitting}>
+          <label className="flex h-10 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={frozen}
+              onChange={(e) => freezeIt(e.target.checked)}
+            />
+            {t('frozenLabel')}
+          </label>
+          {frozen && (
+            <div>
+              <label
+                htmlFor={ids.portions}
+                className="mb-1.5 block text-xs font-medium text-muted-foreground"
+              >
+                {t('portionsLabel')}
+              </label>
+              <Input
+                id={ids.portions}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_PORTIONS}
+                step={1}
+                required
+                value={portionsTyped}
+                onChange={(e) => setPortionsTyped(e.target.value)}
+                aria-describedby={ids.portionsLine}
+                className="w-20"
+              />
+            </div>
+          )}
+          <Button type="submit" disabled={!pickedIngredient || submitting || !fits}>
             {t('addButton')}
           </Button>
+          {frozen && (
+            <div className="basis-full">
+              <PortionsLine
+                id={ids.portionsLine}
+                quantity={qty}
+                unit={unit}
+                shownUnit={unit === 'piece' ? (pickedIngredient?.displayUnit ?? 'piece') : unit}
+                portions={portions}
+              />
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>
