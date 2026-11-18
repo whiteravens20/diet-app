@@ -582,7 +582,7 @@ describe('a row of the pantry taken out', () => {
   it('is gone at once, said with a way to take it back, and sent once the moments for that are over', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await open([], [aRow(dumplings, 12, null)]);
-    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const sent = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: `Remove ${dumplings.name}` }));
 
@@ -590,13 +590,16 @@ describe('a row of the pantry taken out', () => {
     expect(screen.getByText(`Removed: ${dumplings.name}.`)).toBeInTheDocument();
     expect(sent).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
-    expect(sent).toHaveBeenCalledWith(`/inventory/${aRow(dumplings, 12, null).id}`);
+    expect(sent).toHaveBeenCalledWith(`/inventory/${aRow(dumplings, 12, null).id}`, {
+      method: 'DELETE',
+      keepalive: true,
+    });
   });
 
   it('stays when it is taken back, and nothing is sent', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await open([], [aRow(dumplings, 12, null)]);
-    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const sent = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: `Remove ${dumplings.name}` }));
     await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));

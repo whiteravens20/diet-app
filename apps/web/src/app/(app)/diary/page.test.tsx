@@ -9,6 +9,7 @@ import { UNDO_FOR_MS } from '@/components/removed-later';
 import type { DiaryDay, DiaryEntry } from '@diet-app/shared';
 import { DIARY_DAYS_BACK } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { aPublicConfig } from '@/testing/public-config';
@@ -887,7 +888,7 @@ describe('an entry of the diary taken out', () => {
   it('is gone at once, said with a way to take it back, and sent once the moments for that are over', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await renderPage();
-    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const sent = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
 
@@ -895,13 +896,16 @@ describe('an entry of the diary taken out', () => {
     expect(screen.getByText(`Removed: ${'Soup from the canteen'}.`)).toBeInTheDocument();
     expect(sent).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
-    expect(sent).toHaveBeenCalledWith('/diary/entries/55555555-5555-4555-8555-555555555551');
+    expect(sent).toHaveBeenCalledWith('/diary/entries/55555555-5555-4555-8555-555555555551', {
+      method: 'DELETE',
+      keepalive: true,
+    });
   });
 
   it('stays when it is taken back, and nothing is sent', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await renderPage();
-    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const sent = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
     await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));
@@ -909,5 +913,21 @@ describe('an entry of the diary taken out', () => {
     expect(screen.getByText('Soup from the canteen')).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS * 2));
     expect(sent).not.toHaveBeenCalled();
+  });
+
+  it('stays out of sight while the server answers, and shows again with why where it refuses', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage();
+    let refuse!: () => void;
+    vi.spyOn(api, 'request').mockImplementation(
+      () => new Promise((_, no) => (refuse = () => no(new ApiClientError(500, 'ERROR', 'down')))),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
+
+    expect(screen.queryByText('Soup from the canteen')).toBeNull();
+    await act(async () => refuse());
+    expect(await screen.findByText('Soup from the canteen')).toBeInTheDocument();
   });
 });

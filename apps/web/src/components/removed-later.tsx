@@ -14,23 +14,41 @@ export const UNDO_FOR_MS = 6000;
  * A removal of something cheap to make again (an entry of the diary, a row of the pantry, a recipe's mark): it is
  * gone from the page at once, and sent only once the moments to take it back are over. Nothing is asked first; a
  * removal taken back was never sent. A second removal sends the first at once, and so does leaving the page, or
- * the browser's tab being closed.
+ * the browser's tab being closed: `send` sends it so that it outlives the page (`keepalive`).
+ *
+ * What is removed stays out of sight (`hidden`) once it is sent as well: it shows again only where the server
+ * refused its removal, and is gone for good once the server has it. `keyOf` says which one an item is.
  */
-export function useRemovedLater<T>(send: (item: T) => void) {
+export function useRemovedLater<T>(
+  send: (item: T) => Promise<unknown>,
+  keyOf: (item: T) => string,
+) {
   const [waiting, setWaiting] = useState<T | null>(null);
+  const [sent, setSent] = useState<ReadonlySet<string>>(() => new Set());
   const held = useRef<T | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sending = useRef(send);
+  const keying = useRef(keyOf);
   useEffect(() => {
     sending.current = send;
-  }, [send]);
+    keying.current = keyOf;
+  }, [send, keyOf]);
 
   const settle = useCallback(() => {
     clearTimeout(timer.current);
     const item = held.current;
     held.current = null;
     setWaiting(null);
-    if (item) sending.current(item);
+    if (!item) return;
+    const key = keying.current(item);
+    setSent((was) => new Set(was).add(key));
+    sending.current(item).catch(() =>
+      setSent((was) => {
+        const next = new Set(was);
+        next.delete(key);
+        return next;
+      }),
+    );
   }, []);
 
   const remove = useCallback(
@@ -58,7 +76,12 @@ export function useRemovedLater<T>(send: (item: T) => void) {
     };
   }, [settle]);
 
-  return { waiting, remove, undo };
+  const hidden = (item: T) => {
+    const key = keyOf(item);
+    return (waiting !== null && keyOf(waiting) === key) || sent.has(key);
+  };
+
+  return { waiting, hidden, remove, undo };
 }
 
 /** What was removed, and the way to take it back while it waits to be sent. */

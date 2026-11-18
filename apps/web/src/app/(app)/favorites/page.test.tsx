@@ -35,15 +35,15 @@ const aMark = (title: string, over: Partial<MarkedRecipe> = {}): MarkedRecipe =>
 /** What the page asked the list for, last, beyond the profile. */
 let asked: Record<string, string> = {};
 
-/** The page of an account with one profile that marked `marks`. */
-async function renderPage(marks: MarkedRecipe[]) {
+/** The page of an account with `profiles`, one by default, each of which marked `marks`. */
+async function renderPage(marks: MarkedRecipe[], profiles = [{ id: PROFILE, name: 'Me' }]) {
   vi.spyOn(api, 'get').mockImplementation((path: string) => {
     if (path.startsWith('/favorites?')) {
       const query = Object.fromEntries(new URLSearchParams(path.slice('/favorites?'.length)));
       if (Object.keys(query).length > 1) asked = query;
       return Promise.resolve(marks as never);
     }
-    return Promise.resolve((path === '/profiles' ? [{ id: PROFILE, name: 'Me' }] : []) as never);
+    return Promise.resolve((path === '/profiles' ? profiles : []) as never);
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['config'], aPublicConfig());
@@ -152,7 +152,7 @@ describe('the recipes a profile marked, on a page of their own', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await renderPage([stew, porridge]);
     await screen.findByText('2 recipes');
-    const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const remove = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove the mark of Milk porridge' }));
 
@@ -160,7 +160,10 @@ describe('the recipes a profile marked, on a page of their own', () => {
     expect(screen.getByText('Removed: Milk porridge.')).toBeInTheDocument();
     expect(remove).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
-    expect(remove).toHaveBeenCalledWith(`/favorites/${PROFILE}/${porridge.recipe.id}`);
+    expect(remove).toHaveBeenCalledWith(`/favorites/${PROFILE}/${porridge.recipe.id}`, {
+      method: 'DELETE',
+      keepalive: true,
+    });
     vi.useRealTimers();
   });
 
@@ -168,7 +171,7 @@ describe('the recipes a profile marked, on a page of their own', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await renderPage([stew, porridge]);
     await screen.findByText('2 recipes');
-    const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+    const remove = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove the mark of Milk porridge' }));
     await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));
@@ -190,6 +193,29 @@ describe('the recipes a profile marked, on a page of their own', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.WRITE_CONFLICT);
     expect(screen.getByLabelText('How Chickpea stew is marked')).toHaveValue('often');
+  });
+
+  it('takes a mark off for the profile it was taken off for, whichever is chosen when it is sent', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage(
+      [stew, porridge],
+      [
+        { id: PROFILE, name: 'Me' },
+        { id: 'other-profile', name: 'You' },
+      ],
+    );
+    await screen.findByText('2 recipes');
+    const remove = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove the mark of Milk porridge' }));
+    await userEvent.click(screen.getByRole('button', { name: 'You' }));
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
+
+    expect(remove).toHaveBeenCalledExactlyOnceWith(`/favorites/${PROFILE}/${porridge.recipe.id}`, {
+      method: 'DELETE',
+      keepalive: true,
+    });
+    vi.useRealTimers();
   });
 
   it('says where to mark a recipe while nothing is marked, and asks for no filter of nothing', async () => {

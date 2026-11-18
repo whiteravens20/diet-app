@@ -103,12 +103,17 @@ export default function InventoryPage() {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/inventory/${id}`),
+    // Sent so that it outlives the page: a removal still held goes when the page is closed as well.
+    mutationFn: (id: string) =>
+      api.request<void>(`/inventory/${id}`, { method: 'DELETE', keepalive: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errDelete'))),
   });
   // A row is cheap to put in again: it goes at once, and is sent once the moments to take it back are over.
-  const later = useRemovedLater<InventoryItem>((item) => remove.mutate(item.id));
+  const later = useRemovedLater<InventoryItem>(
+    (item) => remove.mutateAsync(item.id),
+    (item) => item.id,
+  );
 
   // Answered with the pantry of the row's profile as it is then: the row is gone, its packages in the freezer.
   const freeze = useMutation({
@@ -139,7 +144,7 @@ export default function InventoryPage() {
 
   const grouped = new Map<string, InventoryItem[]>();
   for (const item of items) {
-    if (item.id === later.waiting?.id) continue;
+    if (later.hidden(item)) continue;
     const bucket = grouped.get(item.ingredient.category) ?? [];
     bucket.push(item);
     grouped.set(item.ingredient.category, bucket);

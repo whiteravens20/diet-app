@@ -12,9 +12,9 @@ describe('a removal that can be taken back', () => {
     vi.useRealTimers();
   });
 
-  const held = () => {
-    const send = vi.fn();
-    const hook = renderHook(() => useRemovedLater<{ id: string }>(send));
+  const held = (answer: () => Promise<unknown> = () => Promise.resolve()) => {
+    const send = vi.fn(answer);
+    const hook = renderHook(() => useRemovedLater<{ id: string }>(send, (item) => item.id));
     return { send, hook };
   };
 
@@ -64,5 +64,31 @@ describe('a removal that can be taken back', () => {
       window.dispatchEvent(new Event('pagehide'));
     });
     expect(closed.send).toHaveBeenCalledExactlyOnceWith({ id: 'b' });
+  });
+
+  it('stays out of sight once it is sent, and for good once the server has it', async () => {
+    let answer!: () => void;
+    const { hook } = held(() => new Promise<void>((done) => (answer = done)));
+
+    act(() => hook.result.current.remove({ id: 'a' }));
+    act(() => vi.advanceTimersByTime(UNDO_FOR_MS));
+
+    expect(hook.result.current.waiting).toBeNull();
+    expect(hook.result.current.hidden({ id: 'a' })).toBe(true);
+    await act(async () => answer());
+    expect(hook.result.current.hidden({ id: 'a' })).toBe(true);
+    expect(hook.result.current.hidden({ id: 'b' })).toBe(false);
+  });
+
+  it('shows again where the server refuses its removal', async () => {
+    let refuse!: () => void;
+    const { hook } = held(() => new Promise<void>((_, no) => (refuse = () => no(new Error('no')))));
+
+    act(() => hook.result.current.remove({ id: 'a' }));
+    act(() => vi.advanceTimersByTime(UNDO_FOR_MS));
+    expect(hook.result.current.hidden({ id: 'a' })).toBe(true);
+
+    await act(async () => refuse());
+    expect(hook.result.current.hidden({ id: 'a' })).toBe(false);
   });
 });

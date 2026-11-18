@@ -165,13 +165,18 @@ function DiaryContent() {
     onError: (e) => setDialogError(errorText(e, t('errUpdate'))),
   });
   const remove = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/diary/entries/${id}`),
+    // Sent so that it outlives the page: a removal still held goes when the page is closed as well.
+    mutationFn: (id: string) =>
+      api.request<void>(`/diary/entries/${id}`, { method: 'DELETE', keepalive: true }),
     onMutate: nextStep,
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
   // An entry is cheap to write again: it goes at once, and is sent once the moments to take it back are over.
-  const later = useRemovedLater<DiaryEntry>((entry) => remove.mutate(entry.id));
+  const later = useRemovedLater<DiaryEntry>(
+    (entry) => remove.mutateAsync(entry.id),
+    (entry) => entry.id,
+  );
   // Marking a meal of the plan as eaten rebalances its day, as on the plan's page, and says so with the same note.
   const eat = useMutation({
     mutationFn: ({ planId, meal }: { planId: string; meal: DiaryPlanMeal }) =>
@@ -360,7 +365,7 @@ function DiaryContent() {
                   setDialogError(null);
                   setEditing(entry);
                 }}
-                hiding={later.waiting?.id ?? null}
+                hidden={later.hidden}
                 onRemove={later.remove}
               />
             ))}
@@ -645,7 +650,7 @@ function MealSection({
   onAdd,
   onEat,
   onEdit,
-  hiding,
+  hidden,
   onRemove,
 }: {
   slot: MealType;
@@ -657,8 +662,8 @@ function MealSection({
   onAdd: () => void;
   onEat: (meal: DiaryPlanMeal) => void;
   onEdit: (entry: DiaryEntry) => void;
-  /** The entry removed a moment ago, which can still be taken back: not shown. */
-  hiding: string | null;
+  /** Whether an entry was removed: not shown while it can be taken back, nor once its removal is sent. */
+  hidden: (entry: DiaryEntry) => boolean;
   onRemove: (entry: DiaryEntry) => void;
 }) {
   const t = useTranslations('diary');
@@ -668,7 +673,7 @@ function MealSection({
   const fmt = useFormat();
   const id = useId();
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
-  const entries = day.entries.filter((entry) => entry.mealType === slot && entry.id !== hiding);
+  const entries = day.entries.filter((entry) => entry.mealType === slot && !hidden(entry));
   return (
     <section aria-labelledby={`${id}-title`} className="space-y-2">
       <div className="flex items-center justify-between gap-2">

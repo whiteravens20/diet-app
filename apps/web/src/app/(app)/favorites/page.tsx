@@ -35,6 +35,12 @@ const SORTS: readonly FavoriteSort[] = ['newest', 'title', 'calories'];
 /** What a mark is changed to: how the recipe is marked, the tags it has, or both. */
 type Change = Partial<Pick<MarkedRecipe, 'sentiment' | 'tags'>>;
 
+/** A mark taken off: of `marked`, for the profile `profileId`, whichever is chosen when it is sent. */
+interface Removal {
+  profileId: string;
+  marked: MarkedRecipe;
+}
+
 /**
  * The recipes a profile marked, to look through and to keep in order: each
  * says how it is marked (a favourite, eaten often, to avoid) and under which
@@ -116,13 +122,21 @@ export default function FavoritesPage() {
   const shown = (marked: MarkedRecipe): MarkedRecipe =>
     sending?.id === marked.id ? { ...marked, ...sending.change } : marked;
   const remove = useMutation({
-    mutationFn: (marked: MarkedRecipe) =>
-      api.delete<void>(`/favorites/${profileId}/${marked.recipe.id}`),
+    // Sent so that it outlives the page: a removal still held goes when the page is closed as well.
+    mutationFn: (v: Removal) =>
+      api.request<void>(`/favorites/${v.profileId}/${v.marked.recipe.id}`, {
+        method: 'DELETE',
+        keepalive: true,
+      }),
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
-  // A mark is cheap to make again: it goes at once, and is sent once the moments to take it back are over.
-  const later = useRemovedLater<MarkedRecipe>((marked) => remove.mutate(marked));
+  // A mark is cheap to make again: it goes at once, and is sent once the moments to take it back are over. It is
+  // taken off for the profile it was taken off for, whichever is chosen when it is sent.
+  const later = useRemovedLater<Removal>(
+    (removal) => remove.mutateAsync(removal),
+    (removal) => `${removal.profileId}/${removal.marked.recipe.id}`,
+  );
   const busy = save.isPending || remove.isPending;
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
@@ -145,7 +159,9 @@ export default function FavoritesPage() {
     );
   }
 
-  const list = (marks.data ?? []).filter((marked) => marked.recipe.id !== later.waiting?.recipe.id);
+  const list = (marks.data ?? []).filter(
+    (marked) => !profileId || !later.hidden({ profileId, marked }),
+  );
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.favorites} title={t('title')} subtitle={t('subhead')} />
@@ -308,7 +324,7 @@ export default function FavoritesPage() {
                             aria-label={t('removeOf', { title: marked.recipe.title })}
                             onClick={() => {
                               setError(null);
-                              later.remove(kept);
+                              if (profileId) later.remove({ profileId, marked: kept });
                             }}
                           >
                             {t('remove')}
@@ -330,7 +346,7 @@ export default function FavoritesPage() {
       )}
 
       <RecipeModal recipeId={openRecipe} onClose={() => setOpenRecipe(null)} />
-      {later.waiting && <RemovedBar name={later.waiting.recipe.title} onUndo={later.undo} />}
+      {later.waiting && <RemovedBar name={later.waiting.marked.recipe.title} onUndo={later.undo} />}
     </div>
   );
 }
