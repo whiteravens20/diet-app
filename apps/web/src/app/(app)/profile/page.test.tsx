@@ -380,9 +380,11 @@ describe('the profile form, on the custom diet', () => {
   it('says the bounds of a number as the language writes them', () => {
     const say = createTranslator({ locale: 'pl', messages: pl, namespace: 'profile.autosave' });
 
-    expect(say('steps', { min: 0.8, max: 3, step: 0.1 })).toBe('Wpisz liczbę od 0,8 do 3, co 0,1.');
-    expect(say('between', { min: 250, max: 10000 })).toBe('Wpisz liczbę od 250 do 10000.');
-    expect(say('whole', { min: 1, max: 2000 })).toBe('Wpisz liczbę całkowitą od 1 do 2000.');
+    expect(say('steps', { min: 0.8, max: 3, step: 0.1 })).toBe(
+      'Wpisz liczbę od 0,8\u00a0do 3, co 0,1.',
+    );
+    expect(say('between', { min: 250, max: 10000 })).toBe('Wpisz liczbę od 250\u00a0do 10000.');
+    expect(say('whole', { min: 1, max: 2000 })).toBe('Wpisz liczbę całkowitą od 1\u00a0do 2000.');
   });
 
   it('says what grams come to, and keeps them as the shares of their energy', async () => {
