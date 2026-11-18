@@ -271,7 +271,7 @@ function TurnOffNote({ onClose }: { onClose: () => void }) {
         type="button"
         onClick={onClose}
         aria-label={tCommon('close')}
-        className="shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
+        className="-m-1.5 shrink-0 rounded-sm p-1.5 text-muted-foreground hover:text-foreground"
       >
         <X size={14} aria-hidden />
       </button>

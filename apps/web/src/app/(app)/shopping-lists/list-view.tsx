@@ -505,7 +505,8 @@ function ItemRow({
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
       {/* The name ticks the row as the box does, as a row of a list is ticked on a phone. */}
-      <label className="flex min-w-32 flex-1 items-center gap-x-3">
+      {/* The whole height of the row ticks it: the label takes the padding of the row. */}
+      <label className="-my-2 flex min-w-32 flex-1 items-center gap-x-3 py-2">
         {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
         <input
           type="checkbox"

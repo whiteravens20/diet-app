@@ -187,7 +187,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           {/* The reset link arrives by email, so it is offered only where email is configured. */}
           {mode === 'login' && config.data?.email.enabled && (
             <p className="-mt-2 text-right text-xs">
-              <Link href="/forgot-password" className="text-muted-foreground hover:underline">
+              <Link
+                href="/forgot-password"
+                className="inline-flex min-h-6 items-center text-muted-foreground hover:underline"
+              >
                 {t('forgotPassword')}
               </Link>
             </p>
