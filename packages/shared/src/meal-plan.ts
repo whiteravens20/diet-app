@@ -806,9 +806,11 @@ export const DaySettingsPreview = z.object({
    * What the day falls short of its new target by, in kcal, where its dishes
    * cannot grow enough (each within the bounds of its portion), and what
    * spreading it over the next days of the plan does (`spreadShort`): how many
-   * days take part, the kcal they take inside their windows, what is left, and
-   * whether a shopping list of the plan covers a day that takes part. Null
-   * where the day is not short, and where recipes are drawn.
+   * days take part, the kcal they take inside their windows, what is left,
+   * whether a shopping list of the plan covers a day that takes part, and, where
+   * no day does, why: the plan ends with this day, its days after it are all
+   * skipped, or they are at the top of their windows already. Null where the
+   * day is not short, and where recipes are drawn.
    */
   short: z
     .object({
@@ -818,6 +820,7 @@ export const DaySettingsPreview = z.object({
         takes: z.number(),
         left: z.number(),
         listOutOfDate: z.boolean(),
+        none: z.enum(['last_day', 'skipped', 'full']).nullable(),
       }),
     })
     .nullable(),

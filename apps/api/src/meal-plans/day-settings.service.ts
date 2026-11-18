@@ -42,6 +42,7 @@ import {
   aimOfDay,
   dayMealCount,
   isoDate,
+  isSkipped,
   mealNutrition,
   parseDayOverrides,
   type DayOverridesJson,
@@ -249,6 +250,17 @@ export class DaySettingsService {
       taking.push(day.date);
     }
     const taken = Math.min(kcal, Math.round(takes));
+    // Why no day takes part, where none does: the plan ends with this day, its days after it are all skipped, or they
+    // are at the top of their windows already.
+    const later = context.plan.days.filter((one) => isoDate(one.date) > context.date);
+    const none =
+      taking.length > 0
+        ? null
+        : later.length === 0
+          ? ('last_day' as const)
+          : later.every((one) => isSkipped(one))
+            ? ('skipped' as const)
+            : ('full' as const);
     return {
       kcal,
       spread: {
@@ -256,6 +268,7 @@ export class DaySettingsService {
         takes: taken,
         left: kcal - taken,
         listOutOfDate: await this.listCovers(context.plan.id, taking),
+        none,
       },
     };
   }

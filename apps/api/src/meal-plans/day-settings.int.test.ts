@@ -359,6 +359,7 @@ describe('the settings of a day of a running plan', () => {
       expect(said.short!.spread.takes).toBeGreaterThan(0);
       expect(said.short!.spread.takes + said.short!.spread.left).toBe(said.short!.kcal);
       expect(said.short!.spread.listOutOfDate).toBe(false);
+      expect(said.short!.spread.none).toBeNull();
 
       const spread = await apply(eaten, { ...change, spreadShort: true });
 
@@ -432,6 +433,36 @@ describe('the settings of a day of a running plan', () => {
       expect(said.short!.spread).toMatchObject({ listOutOfDate: true });
     });
 
+    it('says that the days after it take no more where they are at the top of their windows', async () => {
+      const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
+      // The most a day's own target may be: the days after it take all they can of what it falls short of.
+      const spread = await apply(eaten, { calorieTarget: 6000, spreadShort: true });
+
+      const said = await preview(spread, { calorieTarget: 5900 });
+
+      expect(said.short!.spread).toMatchObject({ days: 0, takes: 0, none: 'full' });
+      expect(said.short!.spread.left).toBe(said.short!.kcal);
+    });
+
+    it('says that the days after it are skipped where every one of them is', async () => {
+      let skipped = await eat(await eat(plan, 'breakfast'), 'lunch');
+      for (const later of skipped.days.filter((one) => one.date > DATE)) {
+        skipped = (
+          await t
+            .http()
+            .put(`/api/meal-plans/${skipped.id}/days/${later.id}/settings`)
+            .set(as(user))
+            .set('X-Client-Date', day(0))
+            .send({ ...settingsOf(later), skip: true, revision: skipped.revision })
+            .expect(200)
+        ).body as MealPlan;
+      }
+
+      const said = await preview(skipped, { calorieTarget: dayOf(skipped).calorieTarget + 1500 });
+
+      expect(said.short!.spread).toMatchObject({ days: 0, takes: 0, none: 'skipped' });
+    });
+
     it('leaves the days after it as they are where the spread is not asked for', async () => {
       const eaten = await eat(await eat(plan, 'breakfast'), 'lunch');
       const change = { calorieTarget: dayOf(eaten).calorieTarget + 1500 };
@@ -457,6 +488,7 @@ describe('the settings of a day of a running plan', () => {
         takes: 0,
         left: said.short!.kcal,
         listOutOfDate: false,
+        none: 'last_day',
       });
     });
   });

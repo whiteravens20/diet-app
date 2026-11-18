@@ -57,6 +57,13 @@ const FATE_WORDS: Record<
 /** The text of a whole number typed in a field: null for an empty field, NaN for what is no number. */
 const typed = (value: string): number | null => (value.trim() === '' ? null : Number(value));
 
+/** Why no day takes what the day falls short of, in words. */
+const NONE_WORDS = {
+  last_day: 'shortLastDay',
+  skipped: 'shortSkippedAfter',
+  full: 'shortFull',
+} as const;
+
 /**
  * The window in which the settings of a day of a running plan are changed:
  * its kind, how many meals it has, a target of its own, a limit on cooking
@@ -516,9 +523,9 @@ function Outcome({
               })}
         </p>
       )}
-      {preview.short && preview.short.spread.days === 0 && (
+      {preview.short?.spread.none && (
         <p className="text-muted-foreground">
-          {t('shortLastDay', { kcal: fmt.number(preview.short.kcal) })}
+          {t(NONE_WORDS[preview.short.spread.none], { kcal: fmt.number(preview.short.kcal) })}
         </p>
       )}
       {preview.listOutOfDate && <p className="text-muted-foreground">{t('listOutOfDate')}</p>}

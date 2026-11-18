@@ -14093,13 +14093,29 @@
                       },
                       "listOutOfDate": {
                         "type": "boolean"
+                      },
+                      "none": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "last_day",
+                              "skipped",
+                              "full"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [
                       "days",
                       "takes",
                       "left",
-                      "listOutOfDate"
+                      "listOutOfDate",
+                      "none"
                     ],
                     "additionalProperties": false
                   }

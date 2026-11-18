@@ -282,7 +282,10 @@ describe('the window in which the settings of a day are changed', () => {
       dayCalories: 2400,
       fits: false,
       calorieTarget: { now: 2000, then: 3000 },
-      short: { kcal: 600, spread: { days: 3, takes: 540, left: 60, listOutOfDate: true } },
+      short: {
+        kcal: 600,
+        spread: { days: 3, takes: 540, left: 60, listOutOfDate: true, none: null },
+      },
     });
     const { dialog, put } = await opened(() => short);
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
@@ -319,7 +322,10 @@ describe('the window in which the settings of a day are changed', () => {
       aPreview({
         dayCalories: 2400,
         fits: false,
-        short: { kcal: 600, spread: { days: 3, takes: 600, left: 0, listOutOfDate: true } },
+        short: {
+          kcal: 600,
+          spread: { days: 3, takes: 600, left: 0, listOutOfDate: true, none: null },
+        },
       }),
     );
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
@@ -342,7 +348,10 @@ describe('the window in which the settings of a day are changed', () => {
       aPreview({
         dayCalories: 2400,
         fits: false,
-        short: { kcal: 600, spread: { days: 0, takes: 0, left: 600, listOutOfDate: false } },
+        short: {
+          kcal: 600,
+          spread: { days: 0, takes: 0, left: 600, listOutOfDate: false, none: 'last_day' },
+        },
       }),
     );
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
@@ -354,6 +363,36 @@ describe('the window in which the settings of a day are changed', () => {
     ).toBeInTheDocument();
     expect(dialog.queryByRole('checkbox', { name: /^Spread the missing/ })).toBeNull();
   });
+
+  it.each([
+    [
+      'skipped',
+      /^The plan's days after this one are skipped: the missing 600.kcal have no day to go to\.$/,
+    ],
+    [
+      'full',
+      /^The next days of the plan take no more inside their limits: the missing 600.kcal have no day to go to\.$/,
+    ],
+  ] as const)(
+    'says why no day after it takes the shortfall where the days after it are %s, and offers no spread',
+    async (none, said) => {
+      const { dialog } = await opened(() =>
+        aPreview({
+          dayCalories: 2400,
+          fits: false,
+          short: {
+            kcal: 600,
+            spread: { days: 0, takes: 0, left: 600, listOutOfDate: false, none },
+          },
+        }),
+      );
+      await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
+
+      expect(await dialog.findByText(said)).toBeInTheDocument();
+      expect(dialog.queryByText(/^This is the plan's last day/)).toBeNull();
+      expect(dialog.queryByRole('checkbox', { name: /^Spread the missing/ })).toBeNull();
+    },
+  );
 
   it('saves the settings on the plan as the preview had it, and tells the page', async () => {
     const { dialog, put, onSaved, onClose } = await opened(() => aPreview());
