@@ -13,12 +13,21 @@ const aWord = (first: string, length: number): string => first.padEnd(length, 'x
 const stickingOut = (page: Page): Promise<string[]> =>
   page.evaluate(() => {
     const screen = document.documentElement.clientWidth;
+    // Text kept for a screen reader alone is clipped to nothing: it is not seen, so nothing of it sticks out.
+    const unseen = (element: Element): boolean => {
+      for (let at: Element | null = element; at; at = at.parentElement) {
+        const style = getComputedStyle(at);
+        if (style.clipPath === 'inset(50%)' || style.clip === 'rect(0px, 0px, 0px, 0px)')
+          return true;
+      }
+      return false;
+    };
     const out: string[] = [];
     for (const element of document.querySelectorAll('body *')) {
       const holdsText = [...element.childNodes].some(
         (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
       );
-      if (!holdsText || element.closest('select')) continue;
+      if (!holdsText || element.closest('select') || unseen(element)) continue;
       const range = document.createRange();
       range.selectNodeContents(element);
       const { right, width } = range.getBoundingClientRect();
