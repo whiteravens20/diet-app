@@ -6,6 +6,7 @@ import { LazyConfirmEmailNotice } from '@/components/lazy-confirm-email-notice';
 import { NotificationToast } from '@/components/notification-toast';
 import { SessionGate } from '@/components/session-gate';
 import { Sidebar } from '@/components/sidebar';
+import { SkipLink } from '@/components/skip-link';
 
 /**
  * The shell of a signed-in account: its navigation, and the page. Beside each
@@ -18,8 +19,13 @@ import { Sidebar } from '@/components/sidebar';
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col md:flex-row">
+      <SkipLink to="content" />
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+      <main
+        id="content"
+        tabIndex={-1}
+        className="min-w-0 flex-1 overflow-y-auto px-4 py-6 focus:outline-none md:px-8 md:py-10"
+      >
         <SessionGate>
           <AccountPreferences />
           {children}
