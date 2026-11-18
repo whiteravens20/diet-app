@@ -398,9 +398,8 @@ describe('the window in which the settings of a day are changed', () => {
     const { dialog, post } = await opened(() => aPreview({ unchanged: true }));
     await dialog.findByText(texts.unchanged);
     const asked = post.mock.calls.length;
-    const target = dialog.getByLabelText(
-      new RegExp(`^${texts.ownTarget.replace(/[()]/g, '\\$&')}`),
-    );
+    // A field is named by its label and the hint under it: it is found by the label in that name.
+    const target = dialog.getByLabelText(texts.ownTarget, { exact: false });
 
     await userEvent.type(target, '100');
 
@@ -415,10 +414,7 @@ describe('the window in which the settings of a day are changed', () => {
     expect(post.mock.calls.length).toBe(asked);
 
     await userEvent.clear(target);
-    await userEvent.type(
-      dialog.getByLabelText(new RegExp(`^${texts.cookTime.replace(/[()]/g, '\\$&')}`)),
-      '700',
-    );
+    await userEvent.type(dialog.getByLabelText(texts.cookTime, { exact: false }), '700');
     expect(
       await dialog.findByText(/^Type a whole number from 0 to 600, or leave the field empty\.$/),
     ).toBeInTheDocument();
