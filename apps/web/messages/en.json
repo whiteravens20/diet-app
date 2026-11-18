@@ -90,7 +90,7 @@
     "later": "Not now"
   },
   "aiOff": {
-    "note": "AI is turned off for this account, so the actions that ask a model are switched off. <settings>Turn AI on in Settings</settings> to use them."
+    "note": "AI is off. <settings>Turn it on in Settings</settings>."
   },
   "aiFallback": {
     "quota_exhausted": "Your monthly AI requests are used up — falling back to the rule-based engine.",

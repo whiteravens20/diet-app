@@ -90,7 +90,7 @@
     "later": "Nie teraz"
   },
   "aiOff": {
-    "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
+    "note": "AI jest wyłączone. <settings>Włącz je w Ustawieniach</settings>."
   },
   "aiFallback": {
     "quota_exhausted": "Miesięczny limit AI wyczerpany — przełączam się na wbudowany silnik.",

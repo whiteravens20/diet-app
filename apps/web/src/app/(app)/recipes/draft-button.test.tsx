@@ -32,10 +32,10 @@ describe('the button that drafts a recipe with a model', () => {
 
     expect(button).toBeDisabled();
     // A line anybody can read, not a text that shows on hover: a disabled button says nothing to a finger.
-    const note = screen.getByText(/^AI is turned off for this account/);
+    const note = screen.getByText(/^AI is off\./);
     expect(note).toBeVisible();
     expect(button).toHaveAccessibleDescription(note.textContent!);
-    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Turn it on in Settings' })).toHaveAttribute(
       'href',
       '/settings?tab=ai',
     );

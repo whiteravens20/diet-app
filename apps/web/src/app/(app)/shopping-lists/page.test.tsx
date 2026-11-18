@@ -186,16 +186,14 @@ describe('a shopping list, looked over for what it could do without', () => {
   it('says beside it, on an account with AI off, why no model can be asked', async () => {
     await renderPage();
 
-    expect(await screen.findByText(/AI is turned off for this account/)).toBeInTheDocument();
+    expect(await screen.findByText(/AI is off\./)).toBeInTheDocument();
   });
 
   it('says nothing of that on an account that has a model to ask', async () => {
     await renderPage(aList, 'admin');
     await screen.findByRole('button', { name: texts.ask });
 
-    await vi.waitFor(() =>
-      expect(screen.queryByText(/AI is turned off for this account/)).toBeNull(),
-    );
+    await vi.waitFor(() => expect(screen.queryByText(/AI is off\./)).toBeNull());
   });
 });
 

@@ -263,7 +263,7 @@ describe('the substitution of an ingredient, before it is made', () => {
     const reword = screen.getByRole('checkbox', {
       name: new RegExp(`^${messages.swap.rewriteWithAi}`),
     });
-    const notes = screen.getAllByText(/^AI is turned off for this account/);
+    const notes = screen.getAllByText(/^AI is off\./);
     expect(notes).toHaveLength(1);
     for (const off of [suggest, reword]) {
       expect(off).toBeDisabled();

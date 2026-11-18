@@ -1367,11 +1367,11 @@ describe('the plan page, on what a model had to do with a plan', () => {
     await unfoldMeal();
 
     const swap = screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) });
-    const notes = screen.getAllByText(/^AI is turned off for this account/);
+    const notes = screen.getAllByText(/^AI is off\./);
     expect(swap).toBeDisabled();
     expect(notes).toHaveLength(1);
     expect(swap).toHaveAccessibleDescription(notes[0]!.textContent!);
-    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Turn it on in Settings' })).toHaveAttribute(
       'href',
       '/settings?tab=ai',
     );
@@ -1382,7 +1382,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
     await unfoldMeal();
 
     expect(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) })).toBeEnabled();
-    expect(screen.queryByText(/^AI is turned off for this account/)).toBeNull();
+    expect(screen.queryByText(/^AI is off\./)).toBeNull();
   });
 
   it('marks a meal whose recipe a model chose, says why, and says it again where the recipe is opened', async () => {
