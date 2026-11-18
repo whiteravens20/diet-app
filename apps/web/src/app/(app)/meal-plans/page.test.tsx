@@ -280,7 +280,7 @@ async function renderPage(
   );
   // A profile without a plan has the form open by itself once the list is read; with plans, the form is its head alone.
   return screen.findByRole('button', {
-    name: plans.length > 0 ? /^Generate a plan/ : messages.mealPlans.generateButton,
+    name: plans.length > 0 ? /^Make a plan for / : messages.mealPlans.generateButton,
   });
 }
 
@@ -3330,7 +3330,7 @@ describe('the plan page, on how a plan reads', () => {
   });
 
   describe('of the form for a new plan', () => {
-    const head = (): HTMLElement => screen.getByRole('button', { name: /^Generate a plan/ });
+    const head = (): HTMLElement => screen.getByRole('button', { name: /^Make a plan for / });
 
     it('is open where the profile has no plan', async () => {
       await renderPage();
@@ -3797,7 +3797,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     const newPlanForm = async (plans: MealPlan[], listed: boolean) => {
       await renderPage(aSupply(), plans);
       if (listed)
-        await userEvent.click(await screen.findByRole('button', { name: /^Generate a plan/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /^Make a plan for / }));
     };
 
     it('says that cooking ahead changes nothing on a plan of one day', async () => {
