@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FavoriteSet } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import { FavoriteSetsCard } from './favorite-sets-card';
 
@@ -94,5 +95,32 @@ describe("the card of a profile's favourite sets", () => {
     expect(await screen.findByText(text.title)).toBeInTheDocument();
     expect(screen.queryByText(text.noFavorites)).not.toBeInTheDocument();
     expect(screen.queryByText(text.empty)).not.toBeInTheDocument();
+  });
+});
+
+describe('the favourite sets, when they cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why, and not that there are no favourites or no sets', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path.startsWith('/favorite-sets')
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve([] as never),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <FavoriteSetsCard profileId={PROFILE} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(text.noFavorites)).toBeNull();
+    expect(screen.queryByText(text.empty)).toBeNull();
   });
 });

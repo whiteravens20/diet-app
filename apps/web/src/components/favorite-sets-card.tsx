@@ -17,6 +17,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { Field, Input } from '@/components/ui/input';
 import { DOT } from '@/lib/figure-line';
 
@@ -74,8 +75,9 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
   // A set is made of what the profile likes: a recipe it marked to avoid is none of that.
   const favorites = (favoritesQ.data ?? []).filter((marked) => marked.sentiment !== 'avoid');
   const hasFavorites = favorites.length > 0;
-  // Until both answers are in, nothing is said to be missing.
-  const loading = setsQ.isLoading || favoritesQ.isLoading;
+  // Until both answers are in, nothing is said to be missing; nor when one of them never came.
+  const failed = unread(setsQ) || unread(favoritesQ);
+  const loading = setsQ.isLoading || favoritesQ.isLoading || failed;
 
   function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,6 +114,7 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {failed && <ReadsFailed reads={[setsQ, favoritesQ]} unanswered />}
         {/* What a set needs first, and where nothing is saved yet, the way to the first set. */}
         {!loading && !hasFavorites && (
           <div className="flex flex-col items-start gap-3">

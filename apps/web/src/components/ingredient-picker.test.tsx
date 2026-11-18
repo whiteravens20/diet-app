@@ -7,6 +7,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Ingredient } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { plain } from '@/testing/spaces';
+import { ApiClientError } from '@/lib/http';
 import pl from '../../messages/pl.json';
 import { IngredientPicker } from './ingredient-picker';
 
@@ -58,5 +60,28 @@ describe('a list of ingredients of a profile', () => {
     await userEvent.type(screen.getByPlaceholderText(pl.pickers.ingredientSearch), 'grzyby');
     await screen.findByRole('checkbox', { name: 'Grzyby enoki' });
     expect(screen.queryByRole('checkbox', { name: 'Grzyby shiitake' })).toBeNull();
+  });
+});
+
+describe('a search for ingredients that cannot be read', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('says why, and not that nothing was found', async () => {
+    vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <NextIntlClientProvider locale="pl" messages={pl}>
+          <IngredientPicker label="Unikane składniki" ids={[]} onChange={vi.fn()} />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+
+    await userEvent.type(screen.getByPlaceholderText(pl.pickers.ingredientSearch), 'grzyby');
+
+    // The Polish text holds its one-letter words with no-break spaces, which the reader sees as plain ones.
+    expect(await screen.findByRole('alert')).toHaveTextContent(plain(pl.errors.NETWORK));
+    expect(screen.queryByText(pl.pickers.noMatches)).toBeNull();
   });
 });

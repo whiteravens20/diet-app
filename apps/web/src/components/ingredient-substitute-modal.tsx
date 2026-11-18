@@ -21,6 +21,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { AiOffNote } from '@/components/ai-off-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { Dialog } from '@/components/ui/dialog';
@@ -309,10 +310,17 @@ export function IngredientSubstituteModal({
             )}
             {(search.trim().length >= 2 || picks.length > 0) && (
               <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
-                {candidates.length === 0 && !results.isLoading && (
-                  <li className="px-3 py-2 text-xs text-muted-foreground">
-                    {tPickers('noMatches')}
+                {unread(results) ? (
+                  <li>
+                    <ReadsFailed reads={[results]} unanswered />
                   </li>
+                ) : (
+                  candidates.length === 0 &&
+                  !results.isLoading && (
+                    <li className="px-3 py-2 text-xs text-muted-foreground">
+                      {tPickers('noMatches')}
+                    </li>
+                  )
                 )}
                 {candidates.map((c) => (
                   <li key={c.id}>

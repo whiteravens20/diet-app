@@ -31,6 +31,7 @@ import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { StepsField } from '@/components/steps-field';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
@@ -527,6 +528,11 @@ export function OwnRecipeForm({
                 ))}
                 {found.isSuccess && results.length === 0 && (
                   <li className="text-xs text-muted-foreground">{t('nothingFound')}</li>
+                )}
+                {unread(found) && (
+                  <li className="w-full">
+                    <ReadsFailed reads={[found]} unanswered />
+                  </li>
                 )}
               </ul>
             )}

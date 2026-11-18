@@ -10,6 +10,7 @@ import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import { PlanOverviewCard } from './plan-overview-card';
 import { plain } from '@/testing/spaces';
+import { failReadsAgain } from '@/testing/read-again';
 
 // The chart is fetched on demand and draws nothing in a DOM without a size: the figures beside it are what is tested.
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
@@ -43,6 +44,9 @@ const anOverview = (over: Partial<PlanOverview> = {}): PlanOverview => ({
   ...over,
 });
 
+/** The client of the card shown last. */
+let shownWith: QueryClient;
+
 function shown(answer: PlanOverview | null | Error) {
   vi.spyOn(api, 'get').mockImplementation(() =>
     answer instanceof Error
@@ -52,7 +56,7 @@ function shown(answer: PlanOverview | null | Error) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        client={(shownWith = new QueryClient({ defaultOptions: { queries: { retry: false } } }))}
       >
         <PlanOverviewCard profile={profile} />
       </QueryClientProvider>
@@ -146,5 +150,23 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText(texts.energy)).toBeNull();
+  });
+});
+
+describe('what the plan of the moment comes to, read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps its figures when a read fails again: the dashboard above it says why', async () => {
+    shown(anOverview());
+    expect(await screen.findByRole('heading', { name: texts.title.active })).toBeInTheDocument();
+
+    await failReadsAgain(shownWith);
+    await vi.waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByRole('heading', { name: texts.title.active })).toBeInTheDocument();
+    expect(figure(texts.energy)).toMatch(/^1880/);
+    expect(screen.queryByText(texts.failed)).toBeNull();
   });
 });

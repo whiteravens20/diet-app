@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/empty-state';
 import { ProfileSummary } from '@/components/profile-summary';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 
 /** Dashboard — calorie target, macro split and adherence for every profile. */
 export default function DashboardPage() {
@@ -37,7 +37,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (profiles.isError)
+  if (unread(profiles))
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   const list = profiles.data ?? [];
@@ -69,6 +69,7 @@ export default function DashboardPage() {
           list.length === 1 ? t('subheadSingle') : t('subheadMultiple', { count: list.length })
         }
       />
+      <ReadsFailed reads={[profiles]} />
 
       {list.map((p) => (
         <ProfileSummary key={p.id} profile={p} />

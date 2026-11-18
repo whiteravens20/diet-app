@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../../messages/en.json';
 import RecipeDetailPage from './page';
 
@@ -174,5 +175,32 @@ describe('deleting a recipe from its page', () => {
 
     expect(await screen.findByText('Lentil soup')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: messages.recipes.delete })).toBeNull();
+  });
+});
+
+describe('a recipe read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the recipe it showed when a read fails again, and says why above it', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === `/recipes/${ID}` ? recipe('manual') : []) as never),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <RecipeDetailPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    const title = await screen.findByRole('heading', { level: 1 });
+
+    await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title.textContent ?? '');
   });
 });

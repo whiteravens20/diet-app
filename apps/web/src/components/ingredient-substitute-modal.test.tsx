@@ -375,3 +375,38 @@ describe('a substitute a model suggested', () => {
     expect(sent).not.toHaveProperty('pick');
   });
 });
+
+describe('a search for a substitute, when it cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why, and not that nothing was found', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path.startsWith('/ingredients?search=')
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve((path === '/users/me' ? { aiMode: 'none' } : []) as never),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <IngredientSubstituteModal
+            meal={meal}
+            planId="55555555-5555-4555-8555-555555555555"
+            mealName={(mealType) => mealType}
+            onClose={() => undefined}
+            onApplied={vi.fn()}
+          />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /White rice/ }));
+
+    await userEvent.type(screen.getByPlaceholderText(messages.pickers.ingredientSearch), 'chick');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(messages.pickers.noMatches)).toBeNull();
+  });
+});

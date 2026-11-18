@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Ingredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../../../../../messages/en.json';
 import EditOwnRecipePage from './page';
 
@@ -110,5 +111,37 @@ describe('the page that edits a recipe of one’s own', () => {
 
     expect(await screen.findByText(messages.recipeDetail.notFound)).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: messages.ownRecipe.fieldTitle })).toBeNull();
+  });
+});
+
+describe('the editor of a recipe that cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function failing(error: unknown) {
+    vi.spyOn(api, 'get').mockRejectedValue(error);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <EditOwnRecipePage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it('says why, and does not call a recipe it could not read missing', async () => {
+    failing(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(messages.recipeDetail.notFound)).toBeNull();
+  });
+
+  it('says a recipe that is not there is not there', async () => {
+    failing(new ApiClientError(404, 'NOT_FOUND', 'Not found'));
+
+    expect(await screen.findByText(messages.recipeDetail.notFound)).toBeInTheDocument();
   });
 });

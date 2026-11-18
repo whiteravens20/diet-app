@@ -7,8 +7,9 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Ingredient, InventoryItem, type Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { localDate } from '@/lib/http';
+import { ApiClientError, localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import InventoryPage from './page';
 
@@ -85,7 +86,7 @@ async function open(found: Ingredient[], rows: InventoryItem[] = []) {
     </NextIntlClientProvider>,
   );
   await screen.findAllByText(rows.length > 0 ? rows[0]!.ingredient.name : texts.emptyTitle);
-  return { post };
+  return { post, client };
 }
 
 /** Find an ingredient by a part of its name and pick it. */
@@ -504,5 +505,69 @@ describe('a row of the pantry', () => {
       expect(await within(window).findByRole('alert')).toHaveTextContent(texts.errFreeze);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+  });
+});
+
+describe('the pantry read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the rows it showed when a read fails again, says why above them, and reads again when asked', async () => {
+    const { client } = await open([], [aRow(dumplings, 12, null)]);
+
+    const answerAgain = await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByText(dumplings.name)).toBeInTheDocument();
+    answerAgain();
+    await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(screen.getByText(dumplings.name)).toBeInTheDocument();
+  });
+
+  it('says that the pantry could not be read, not that it is empty, when its first read fails', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path === '/profiles'
+        ? Promise.resolve([profile] as never)
+        : Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch')),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <InventoryPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(texts.emptyTitle)).toBeNull();
+    // The form stays: what is put in waits for no read.
+    expect(screen.getByLabelText(texts.ingredientLabel)).toBeInTheDocument();
+  });
+});
+
+describe('the search of the pantry form, when it cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why under the search', async () => {
+    await open([dumplings]);
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path.startsWith('/ingredients?')
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : answers(path),
+    );
+
+    await userEvent.type(screen.getByLabelText(texts.ingredientLabel), 'Froz');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
   });
 });

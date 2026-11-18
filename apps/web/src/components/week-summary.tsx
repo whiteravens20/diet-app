@@ -10,6 +10,7 @@ import { WEEK_DAYS } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
@@ -42,7 +43,9 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
         )}
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
-        {!shown ? (
+        {unread(week) ? (
+          <ReadsFailed reads={[week]} unanswered />
+        ) : !shown ? (
           <Skeleton className="h-20" />
         ) : (
           <>

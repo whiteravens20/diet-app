@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { planDates } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { localDate } from '@/lib/http';
 import { ListNote } from '@/app/(app)/meal-plans/list-note';
@@ -115,6 +116,7 @@ export function ApplyFavoriteSetButton({
 
   return (
     <div className="absolute right-4 top-full z-10 -mt-2 w-80 max-w-[calc(100%-2rem)] rounded-md border border-border bg-card p-3 shadow-md">
+      {unread(setsQ) && <ReadsFailed reads={[setsQ]} unanswered />}
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{t('applyPickSet')}</span>
         <select

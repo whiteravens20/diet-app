@@ -13,6 +13,7 @@ import type {
   SessionUser,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
 import { AiAssistantCard, AiProvidersCard } from './ai-cards';
 
@@ -285,5 +286,30 @@ describe("the choice of the endpoints OpenRouter may send an account's requests 
       expect.objectContaining({ provider: 'openai' }),
     );
     expect(put.mock.calls[0]![1]).not.toHaveProperty('dataPolicy', expect.anything());
+  });
+});
+
+describe('the AI providers of an account, when they cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why, and not that no provider is set up', async () => {
+    vi.spyOn(api, 'get').mockImplementation(((path: string) =>
+      path === '/ai/providers'
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve([])) as never);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <AiProvidersCard />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(messages.settings.aiNoProviders)).toBeNull();
   });
 });

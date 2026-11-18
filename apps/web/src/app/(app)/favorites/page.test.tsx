@@ -9,6 +9,7 @@ import type { MarkedRecipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { aPublicConfig } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import FavoritesPage from './page';
 
@@ -53,6 +54,7 @@ async function renderPage(marks: MarkedRecipe[]) {
     </NextIntlClientProvider>,
   );
   await screen.findByRole('heading', { name: texts.title });
+  return client;
 }
 
 describe('the recipes a profile marked, on a page of their own', () => {
@@ -178,5 +180,33 @@ describe('the recipes a profile marked, on a page of their own', () => {
 
     expect(await screen.findByText(texts.noneFiltered)).toBeInTheDocument();
     expect(screen.queryByText(texts.emptyTitle)).toBeNull();
+  });
+});
+
+describe('the marked recipes read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    asked = {};
+  });
+
+  it('keeps the recipes it showed when a read fails again, says why above them, and reads again when asked', async () => {
+    const client = await renderPage([aMark('Chickpea stew', { sentiment: 'often' })]);
+    expect(await screen.findByText('Chickpea stew')).toBeInTheDocument();
+
+    const answerAgain = await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByText('Chickpea stew')).toBeInTheDocument();
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(screen.getByText('Chickpea stew')).toBeInTheDocument();
   });
 });

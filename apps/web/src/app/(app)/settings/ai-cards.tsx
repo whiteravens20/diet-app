@@ -21,6 +21,7 @@ import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { Field, Input } from '@/components/ui/input';
 import { PasswordField } from '@/components/ui/password-field';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
@@ -268,7 +269,9 @@ export function AiProvidersCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{t('aiSubhead')}</p>
-        {list.length === 0 ? (
+        {unread(providers) ? (
+          <ReadsFailed reads={[providers]} unanswered />
+        ) : list.length === 0 ? (
           <p className="text-xs text-muted-foreground italic">{t('aiNoProviders')}</p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">

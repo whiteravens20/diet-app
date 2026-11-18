@@ -22,6 +22,7 @@ import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import * as files from '@/lib/save-file';
 import { aPublicConfig, aSupply } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 import { dayAnchor } from './plan-card';
@@ -221,6 +222,9 @@ let favoriteSets: FavoriteSet[] = [];
 /** The account's other profiles, for the tests of a plan made together with one. */
 let otherProfiles: Profile[] = [];
 
+/** The client of the page opened last. */
+let shownWith: QueryClient;
+
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue the API says `supply` of. AI is off for them unless `aiMode` says otherwise. */
 async function renderPage(
   supply: CatalogueSupply = aSupply(),
@@ -265,6 +269,7 @@ async function renderPage(
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  shownWith = client;
   client.setQueryData(['config'], aPublicConfig({ catalogue: { supply }, ...operator }));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
@@ -4373,6 +4378,64 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
       screen.getByText(
         'Take out of the freezer as early as you can that day: Chicken breast, a portion of 286 g (breakfast).',
       ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('the plans read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('says why a plan opened could not be read, instead of waiting for ever', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    await renderPage(aSupply(), [plan]);
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === `/meal-plans/${plan.id}`
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : answers(path),
+    );
+
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+
+    expect(await screen.findByText(messages.errors.NETWORK)).toBeInTheDocument();
+    vi.mocked(api.get).mockImplementation(answers);
+    await userEvent.click(
+      within(
+        screen.getByText(messages.errors.NETWORK).closest('[role="alert"]') as HTMLElement,
+      ).getByRole('button', { name: messages.common.retry }),
+    );
+    await vi.waitFor(() => expect(screen.queryByText(messages.errors.NETWORK)).toBeNull());
+  });
+
+  it('keeps the plans it showed when a read fails again, says why above them, and reads again when asked', async () => {
+    onTheDay('2026-01-05');
+    await renderPage(aSupply(), [aPlan()]);
+    expect(
+      await screen.findByRole('button', { name: messages.mealPlans.recalculate }),
+    ).toBeInTheDocument();
+
+    const answerAgain = await failReadsAgain(shownWith);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(
+      screen.getByRole('button', { name: messages.mealPlans.recalculate }),
+    ).toBeInTheDocument();
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(
+      screen.getByRole('button', { name: messages.mealPlans.recalculate }),
     ).toBeInTheDocument();
   });
 });

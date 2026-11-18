@@ -234,3 +234,18 @@ describe('the form a recipe of one’s own is written in', () => {
     );
   });
 });
+
+describe('a search for an ingredient of a recipe, when it cannot be read', () => {
+  it('says why, with a way to search again', async () => {
+    opened();
+    vi.mocked(api.get).mockRejectedValue(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: new RegExp(`^${text.addIngredient}`) }),
+      'mi',
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByRole('button', { name: messages.common.retry })).toBeInTheDocument();
+  });
+});

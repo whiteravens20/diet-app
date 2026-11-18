@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed, type Read } from '@/components/load-failed';
 import { Tabs } from '@/components/ui/tabs';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
@@ -154,6 +155,7 @@ const DAYS_A_WEEK = 7;
 export function PlanCard({
   summary,
   plan,
+  unanswered,
   open,
   sought,
   onFound,
@@ -195,6 +197,8 @@ export function PlanCard({
   summary: MealPlanSummary;
   /** The whole plan, once the open card has read it. */
   plan: MealPlan | undefined;
+  /** The read of the whole plan, when it failed with nothing to show: the card says why instead of waiting. */
+  unanswered?: Read;
   open: boolean;
   /** The day of this plan that a link or the calendar leads to, until the card has gone there. */
   sought: { date: string } | null;
@@ -1619,7 +1623,11 @@ export function PlanCard({
       </div>
       {open && !plan && (
         <CardContent className="border-t border-border pt-4">
-          <Skeleton className="h-40" />
+          {unanswered ? (
+            <ReadsFailed reads={[unanswered]} unanswered />
+          ) : (
+            <Skeleton className="h-40" />
+          )}
         </CardContent>
       )}
       {open && plan && (

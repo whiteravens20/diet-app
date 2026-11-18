@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile, WaterDay } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { plain, spaced } from '@/testing/spaces';
 import messages from '../../messages/en.json';
 import { WaterCard } from './water-card';
@@ -178,5 +179,27 @@ describe("the water of a profile's day", () => {
     expect(plain((await screen.findByText(/drunk$/)).textContent)).toBe('1.25 L drunk');
     expect(screen.queryByRole('progressbar')).toBeNull();
     expect(screen.queryByText(/^On target/)).toBeNull();
+  });
+});
+
+describe('the water card, when the day cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why and offers to read it again, instead of waiting for ever', async () => {
+    vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <WaterCard profile={PROFILE} day={DAY} />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByRole('button', { name: messages.common.retry })).toBeInTheDocument();
   });
 });

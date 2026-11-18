@@ -18,7 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { RecipeModal } from '@/components/recipe-modal';
 
@@ -122,7 +122,7 @@ export default function FavoritesPage() {
   const busy = save.isPending || remove.isPending;
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
-  if (profiles.isError)
+  if (unread(profiles))
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
   if (profileList.length === 0) {
     return (
@@ -145,6 +145,7 @@ export default function FavoritesPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.favorites} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[profiles, marks]} />
 
       {profileList.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -238,7 +239,7 @@ export default function FavoritesPage() {
 
       {marks.isLoading ? (
         <Skeleton className="h-24" />
-      ) : marks.isError ? (
+      ) : unread(marks) ? (
         <LoadFailed error={marks.error} onRetry={() => void marks.refetch()} />
       ) : list.length === 0 ? (
         narrowed ? (

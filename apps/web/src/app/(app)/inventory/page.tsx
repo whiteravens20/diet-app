@@ -23,7 +23,7 @@ import { IMAGERY } from '@/lib/imagery';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { FreezeDialog, portionCount, portionsFit, PortionsLine } from './portions';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -118,7 +118,7 @@ export default function InventoryPage() {
   });
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
-  if (profiles.isError)
+  if (unread(profiles))
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
@@ -152,6 +152,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.inventory} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[profiles, inventory]} />
 
       {profileList.length > 1 && (
         <div className="max-w-xs">
@@ -200,6 +201,8 @@ export default function InventoryPage() {
 
       {inventory.isLoading ? (
         <Skeleton className="h-40" />
+      ) : unread(inventory) ? (
+        <LoadFailed error={inventory.error} onRetry={() => void inventory.refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={Package}
@@ -484,6 +487,9 @@ function AddInventoryForm({
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t('searchPlaceholder')}
                 />
+                {search.trim().length >= 2 && unread(results) && (
+                  <ReadsFailed reads={[results]} unanswered />
+                )}
                 {search.trim().length >= 2 && available.length > 0 && (
                   <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md">
                     {available.map((i) => (

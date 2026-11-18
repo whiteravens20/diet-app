@@ -8,8 +8,10 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { Ingredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadFailed, unread } from '@/components/load-failed';
 import { OwnRecipeForm, type OwnRecipeDraft } from '@/components/own-recipe-form';
 
 /** The recipes of the shared library: nobody's to edit. */
@@ -39,7 +41,14 @@ export default function EditOwnRecipePage() {
   if (recipe.isLoading || (recipe.data && ingredients.isLoading)) {
     return <Skeleton className="h-64" />;
   }
-  if (recipe.error || !recipe.data || LIBRARY.has(recipe.data.origin)) {
+  // A recipe that is not there is said so; one that could not be read is not called missing.
+  const missing = recipe.error instanceof ApiClientError && recipe.error.status === 404;
+  if (unread(recipe) && !missing)
+    return <LoadFailed error={recipe.error} onRetry={() => void recipe.refetch()} />;
+  // Its ingredients unread, the form would start with rows it cannot name.
+  if (unread(ingredients))
+    return <LoadFailed error={ingredients.error} onRetry={() => void ingredients.refetch()} />;
+  if (!recipe.data || LIBRARY.has(recipe.data.origin)) {
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
         <CardHeader>

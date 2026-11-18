@@ -19,7 +19,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { ListView, type RowPatch } from './list-view';
 
 export const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -229,7 +229,7 @@ export default function ShoppingListsPage() {
   const formatItemQty = useAmount();
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
-  if (profiles.isError)
+  if (unread(profiles))
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
@@ -252,6 +252,7 @@ export default function ShoppingListsPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.shopping} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[profiles, plans, lists]} />
 
       {profileList.length > 1 && (
         <div id={HOUSEHOLD_LISTS} className="scroll-mt-4">
@@ -282,6 +283,8 @@ export default function ShoppingListsPage() {
 
       {plans.isLoading ? (
         <Skeleton className="h-24" />
+      ) : unread(plans) ? (
+        <LoadFailed error={plans.error} onRetry={() => void plans.refetch()} />
       ) : planList.length === 0 ? (
         // A list is made from a plan: without one there is nothing to make it from, and the way on is the plan page.
         <EmptyState
@@ -357,6 +360,8 @@ export default function ShoppingListsPage() {
 
       {lists.isLoading ? (
         <Skeleton className="h-24" />
+      ) : unread(lists) ? (
+        <LoadFailed error={lists.error} onRetry={() => void lists.refetch()} />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
           <EmptyState

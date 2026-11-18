@@ -12,6 +12,7 @@ import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { aPublicConfig } from '@/testing/public-config';
 import { spaced } from '@/testing/spaces';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import DiaryPage from './page';
 
@@ -158,6 +159,7 @@ async function renderPage(
     </NextIntlClientProvider>,
   );
   await screen.findByText('2000', { exact: false });
+  return client;
 }
 
 describe('the diary', () => {
@@ -844,5 +846,32 @@ describe('the diary', () => {
     expect(screen.getByText(texts.emptyTitle)).toBeInTheDocument();
     expect(screen.getByText(texts.targetFromProfile)).toBeInTheDocument();
     expect(screen.queryByText(texts.estimatedNote)).not.toBeInTheDocument();
+  });
+});
+
+describe('the diary read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    address.search = '';
+  });
+
+  it('keeps the day it showed when a read fails again, says why above it, and reads again when asked', async () => {
+    const client = await renderPage();
+
+    const answerAgain = await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByText(/750 of 2000 kcal/)).toBeInTheDocument();
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]')! as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(screen.getByText(/750 of 2000 kcal/)).toBeInTheDocument();
   });
 });

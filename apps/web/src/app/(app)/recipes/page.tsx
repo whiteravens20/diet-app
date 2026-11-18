@@ -34,7 +34,7 @@ import { useFormat } from '@/lib/use-format';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftButton } from './draft-button';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -225,6 +225,7 @@ function RecipesContent() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[recipes]} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
@@ -466,7 +467,7 @@ function RecipesContent() {
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-      ) : recipes.isError ? (
+      ) : unread(recipes) ? (
         <LoadFailed error={recipes.error} onRetry={() => void recipes.refetch()} />
       ) : filtered.length === 0 ? (
         tab === 'mine' ? (

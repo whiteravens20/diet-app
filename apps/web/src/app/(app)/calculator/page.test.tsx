@@ -7,8 +7,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import CalculatorPage from './page';
 import { plain } from '@/testing/spaces';
@@ -86,6 +88,7 @@ async function open(profiles: Profile[]) {
   );
   await screen.findByRole('form', { name: texts.title });
   return {
+    client,
     put,
     /** Every request that was not for what figures come to. */
     kept: () => post.mock.calls.filter(([path]) => path !== '/profiles/calories'),
@@ -225,5 +228,45 @@ describe('the calculator', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: fields.risk.acknowledgeHere }));
 
     await vi.waitFor(() => expect(asked()).toMatchObject({ age: 16, acknowledgeRisk: true }));
+  });
+});
+
+describe('the calculator, when the profiles cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is an empty form and says why it starts from no profile', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path === '/profiles'
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve({ weightUnit: 'kg' } as never),
+    );
+    vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    client.setQueryData(['session'], { weightUnit: 'kg' });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <CalculatorPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(messages.common.shownFromBefore);
+    expect(screen.getByRole('form', { name: texts.title })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: texts.startFrom })).toBeNull();
+  });
+
+  it('keeps the profiles it started from when they fail to be read again, and says so', async () => {
+    const { client } = await open([aProfile('Anna')]);
+
+    await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(startFrom().getByRole('button', { name: 'Anna' })).toBeInTheDocument();
   });
 });

@@ -11,7 +11,7 @@ import { IMAGERY } from '@/lib/imagery';
 import { SecondFactorCard } from './second-factor-card';
 import { DataExportCard } from './data-export-card';
 import { SessionsCard } from './sessions-card';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
@@ -45,7 +45,7 @@ function SettingsContent() {
   if (session.isLoading) {
     return <p className="text-sm text-muted-foreground">{t('subhead')}</p>;
   }
-  if (session.isError)
+  if (unread(session))
     return <LoadFailed error={session.error} onRetry={() => void session.refetch()} />;
   if (!session.data) return null;
   const me = session.data;
@@ -109,6 +109,7 @@ function SettingsContent() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.settings} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[session]} />
       <Tabs label={t('tabs.label')} tabs={tabs} active={active} onSelect={select} />
     </div>
   );

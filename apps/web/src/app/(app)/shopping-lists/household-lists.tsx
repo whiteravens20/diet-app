@@ -13,6 +13,7 @@ import { dayAfter } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { Button } from '@/components/ui/button';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { ListView, type RowPatch } from './list-view';
@@ -203,6 +204,7 @@ export function HouseholdLists({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">{t('subhead')}</p>
+          {unread(households) && <ReadsFailed reads={[households]} unanswered />}
           {all.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {all.map((list) => (

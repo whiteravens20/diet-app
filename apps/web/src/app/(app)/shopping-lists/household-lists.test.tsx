@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HouseholdList, Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { plain } from '@/testing/spaces';
 import messages from '../../../../messages/en.json';
 import { HouseholdLists } from './household-lists';
@@ -203,5 +204,28 @@ describe('the household lists of an account', () => {
     await userEvent.click(screen.getByRole('button', { name: messages.common.delete }));
     expect(confirm).toHaveBeenCalledWith(texts.deleteConfirm);
     expect(remove).toHaveBeenCalledWith(`/household-lists/${HOUSEHOLD}`);
+  });
+});
+
+describe('the household lists, when they cannot be read', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('says why instead of showing none', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path === '/household-lists'
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve([] as never),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <HouseholdLists profiles={profiles} opened={null} onOpen={vi.fn()} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
   });
 });

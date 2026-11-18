@@ -1,13 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { aPublicConfig } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import SettingsPage from './page';
 
@@ -32,6 +33,9 @@ const ME: SessionUser = {
   timeZone: null,
 };
 
+/** The client of the page opened last. */
+let shownWith: QueryClient;
+
 function shown(search = '') {
   address.search = search;
   vi.spyOn(api, 'get').mockImplementation(((path: string) => {
@@ -40,6 +44,7 @@ function shown(search = '') {
     return Promise.reject(new Error(`not looked at here: ${path}`));
   }) as typeof api.get);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  shownWith = client;
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
@@ -104,5 +109,32 @@ describe('the settings of an account, in parts', () => {
     await userEvent.click(await screen.findByRole('tab', { name: s.tabs.general }));
 
     expect(String(write.mock.lastCall?.[2])).toMatch(/\/settings\?other=1$/);
+  });
+});
+
+describe('the settings read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('keeps the settings it showed when a read fails again, says why above them, and reads again when asked', async () => {
+    shown();
+    const tabs = (await screen.findAllByRole('tab')).map((tab) => tab.textContent);
+
+    const answerAgain = await failReadsAgain(shownWith);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(tabs);
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
   });
 });

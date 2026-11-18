@@ -9,6 +9,7 @@ import type { Ingredient } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ReadsFailed, unread } from '@/components/load-failed';
 
 /**
  * A typeahead-style picker for ingredient ids — a chip list of the saved
@@ -138,8 +139,14 @@ export function IngredientPicker({
             </div>
           </div>
         )}
-        {search.trim().length >= 2 && available.length === 0 && !results.isLoading && (
-          <p className="mt-1 text-xs text-muted-foreground">{t('noMatches')}</p>
+        {search.trim().length >= 2 && unread(results) ? (
+          <ReadsFailed reads={[results]} unanswered />
+        ) : (
+          search.trim().length >= 2 &&
+          available.length === 0 &&
+          !results.isLoading && (
+            <p className="mt-1 text-xs text-muted-foreground">{t('noMatches')}</p>
+          )
         )}
       </div>
     </div>

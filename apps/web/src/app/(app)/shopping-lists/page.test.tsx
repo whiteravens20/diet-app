@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import * as files from '@/lib/save-file';
 import { aPublicConfig } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import ShoppingListsPage from './page';
 import { spaced } from '@/testing/spaces';
@@ -73,6 +74,9 @@ const aList = aListOf(
   [anEntry('Broccoli', 'vegetables')],
 );
 
+/** The client of the page opened last. */
+let shownWith: QueryClient;
+
 async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' = 'none') {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
@@ -96,6 +100,7 @@ async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' =
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  shownWith = client;
   client.setQueryData(['config'], aPublicConfig());
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
@@ -904,5 +909,90 @@ describe('the shopping page with nothing to show yet', () => {
         toDate: '2026-01-07',
       }),
     );
+  });
+});
+
+describe('the shopping list read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the list it showed when a read fails again, says why above it, and reads again when asked', async () => {
+    await renderPage();
+    const before = entries();
+
+    const answerAgain = await failReadsAgain(shownWith);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(entries()).toEqual(before);
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(entries()).toEqual(before);
+  });
+});
+
+describe('the shopping lists, when they cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function failing(path: (asked: string) => boolean) {
+    vi.spyOn(api, 'get').mockImplementation((asked: string) =>
+      path(asked)
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve(
+            (asked === '/profiles'
+              ? [{ id: 'profile', name: 'Me' }]
+              : asked === '/users/me'
+                ? { aiMode: 'none' }
+                : asked.startsWith('/meal-plans?')
+                  ? {
+                      items: [
+                        {
+                          id: PLAN,
+                          startDate: '2026-01-05',
+                          durationDays: 3,
+                          dietType: 'balanced',
+                        },
+                      ],
+                      page: 1,
+                      pageSize: 50,
+                      total: 1,
+                      totalPages: 1,
+                    }
+                  : []) as never,
+          ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ShoppingListsPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it('says why, and not that the plan has no list', async () => {
+    failing((asked) => asked.startsWith('/shopping-lists?'));
+
+    expect(await screen.findByText(messages.errors.NETWORK)).toBeInTheDocument();
+    expect(screen.queryByText(texts.noListsTitle)).toBeNull();
+  });
+
+  it('says why, and not that there is no plan to make a list from', async () => {
+    failing((asked) => asked.startsWith('/meal-plans?'));
+
+    expect(await screen.findByText(messages.errors.NETWORK)).toBeInTheDocument();
+    expect(screen.queryByText(texts.noPlansTitle)).toBeNull();
   });
 });

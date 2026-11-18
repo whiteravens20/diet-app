@@ -14,6 +14,7 @@ import { planDates } from '@/lib/plan-dates';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { unread } from '@/components/load-failed';
 
 /** Fetched when the chart is first shown: the charting library is the heaviest thing the dashboard has. */
 const PlanDaysChart = dynamic(
@@ -45,7 +46,7 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
   const plans = `/meal-plans?profile=${profile.id}`;
 
   if (answer.isLoading) return <Skeleton className="h-48" />;
-  if (answer.isError) {
+  if (unread(answer)) {
     return (
       <Card>
         <CardContent className="py-6">

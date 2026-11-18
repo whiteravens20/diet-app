@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Profile, WeightDay, WeightEntry, WeightUnit } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
 import { WeightCard } from './weight-card';
 
@@ -200,5 +201,31 @@ describe('the weights a profile logs', () => {
     const { field } = await shown(aProfile(), null);
 
     expect(field).toHaveAttribute('placeholder', '80');
+  });
+});
+
+describe('the weight log, when its days cannot be read', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says why, and not that a weight has to be written first', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      path.startsWith('/weights/days?')
+        ? Promise.reject(new ApiClientError(0, 'NETWORK', 'Failed to fetch'))
+        : Promise.resolve((path === '/users/me' ? { weightUnit: 'kg' } : []) as never),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <WeightCard profile={aProfile()} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.queryByText(messages.weightCard.emptyState)).toBeNull();
   });
 });

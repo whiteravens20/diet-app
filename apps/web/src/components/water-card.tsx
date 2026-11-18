@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { api } from '@/lib/api';
 import { held } from '@/lib/figure-line';
 import { localDate } from '@/lib/http';
@@ -97,7 +98,9 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!shown ? (
+        {unread(water) ? (
+          <ReadsFailed reads={[water]} unanswered />
+        ) : !shown ? (
           <Skeleton className="h-10" />
         ) : (
           <>

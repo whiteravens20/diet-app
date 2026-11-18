@@ -13,6 +13,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { RecipeView } from '@/components/recipe-view';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useErrorText } from '@/lib/use-error-text';
@@ -61,7 +62,7 @@ function RecipeDetail() {
   // Deleted, it waits for the page it goes to.
   if (recipe.isLoading || gone) return <Skeleton className="h-64" />;
 
-  if (recipe.error) {
+  if (unread(recipe)) {
     const notFound = recipe.error instanceof ApiClientError && recipe.error.status === 404;
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
@@ -80,6 +81,7 @@ function RecipeDetail() {
   const own = !LIBRARY.has(recipe.data!.origin);
   return (
     <div className="space-y-4">
+      <ReadsFailed reads={[recipe]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/recipes" className="text-sm text-primary underline underline-offset-2">
           ← {t('back')}

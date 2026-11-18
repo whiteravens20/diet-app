@@ -8,6 +8,7 @@
     "loading": "Loading…",
     "error": "Something went wrong.",
     "retry": "Try again",
+    "shownFromBefore": "What you see was loaded earlier.",
     "close": "Close",
     "confirm": "Confirm",
     "back": "Back",

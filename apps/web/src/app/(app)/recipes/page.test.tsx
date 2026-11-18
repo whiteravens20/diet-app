@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
 import { aPublicConfig } from '@/testing/public-config';
+import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import RecipesPage from './page';
 
@@ -82,6 +83,7 @@ async function renderPage(
       ? (mine[0] as { title: string }).title
       : (library.items[0]?.title ?? texts.noneAtAll),
   );
+  return client;
 }
 
 /** Wait until the library was asked with `part` set to `value`, and say everything it was asked. */
@@ -390,5 +392,51 @@ describe("the recipes of one's own", () => {
     expect(
       screen.getAllByRole('link', { name: texts.edit }).map((link) => link.getAttribute('href')),
     ).toEqual(ids.map((id) => `/recipes/${id}/edit`));
+  });
+});
+
+describe('the recipe library read again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    asked = new URLSearchParams();
+  });
+
+  it('keeps the recipes it showed when a read fails again, says why above them, and reads again when asked', async () => {
+    const dinner = {
+      id: '3d8b2f1a-0c1d-4e2f-9a3b-4c5d6e7f8a01',
+      title: 'A curated dinner',
+      description: '',
+      servings: 1,
+      mealTypes: ['dinner'],
+      dietTags: [],
+      ingredients: [],
+      steps: ['Cook.'],
+      prepMinutes: 10,
+      cookMinutes: 10,
+      difficulty: 'easy',
+      cuisine: null,
+      allergens: [],
+      nutritionPerServing: { calories: 500, protein: 30, fat: 20, carbs: 50 },
+      origin: 'curated',
+      byModel: null,
+      source: null,
+    };
+    const client = await renderPage(1, [TOFU], [], { items: [dinner], total: 1, totalPages: 1 });
+
+    const answerAgain = await failReadsAgain(client);
+
+    const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
+    expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
+    expect(screen.getByText('A curated dinner')).toBeInTheDocument();
+    answerAgain();
+    await userEvent.click(
+      within(note.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: messages.common.retry,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
+    );
+    expect(screen.getByText('A curated dinner')).toBeInTheDocument();
   });
 });

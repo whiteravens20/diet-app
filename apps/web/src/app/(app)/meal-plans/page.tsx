@@ -62,7 +62,7 @@ import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './adv
 import { askedOf, repeatsOf, WasteLevelChoice, type WasteLevel } from './less-waste';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
-import { LoadFailed } from '@/components/load-failed';
+import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { DOT } from '@/lib/figure-line';
 
 /** Fetched once the page is drawn: nobody waits for the calendar to read the page above it. */
@@ -635,7 +635,7 @@ function MealPlansContent() {
   const startDateField = useRef<HTMLInputElement>(null);
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
-  if (profiles.isError)
+  if (unread(profiles))
     return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (list.length === 0) {
@@ -659,6 +659,7 @@ function MealPlansContent() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.mealPlans} title={t('title')} subtitle={t('subhead')} />
+      <ReadsFailed reads={[profiles, plans]} />
       <p className="-mt-4 text-sm text-muted-foreground">
         {t.rich('splitLink', {
           link: (chunks) => (
@@ -1035,7 +1036,7 @@ function MealPlansContent() {
         {session.data && !aiEnabled && <AiOffNote id={aiOffNote} />}
         {plans.isLoading ? (
           <Skeleton className="h-24" />
-        ) : plans.isError ? (
+        ) : unread(plans) ? (
           <LoadFailed error={plans.error} onRetry={() => void plans.refetch()} />
         ) : (plans.data?.items ?? []).length === 0 ? (
           <EmptyState
@@ -1050,6 +1051,7 @@ function MealPlansContent() {
               key={plan.id}
               summary={plan}
               plan={openPlan === plan.id ? opened.data : undefined}
+              unanswered={openPlan === plan.id && unread(opened) ? opened : undefined}
               open={openPlan === plan.id}
               sought={sought?.planId === plan.id ? sought : null}
               onFound={() => setSought(null)}

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed, unread } from '@/components/load-failed';
 import { readersZone, useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 
@@ -189,6 +190,8 @@ export function WeightCard({ profile }: { profile: Profile }) {
           <div className="min-h-[200px]">
             {hasData ? (
               <WeightChart points={points} target={target} unit={unit} />
+            ) : unread(days) ? (
+              <ReadsFailed reads={[days]} unanswered />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
                 {t('emptyState')}

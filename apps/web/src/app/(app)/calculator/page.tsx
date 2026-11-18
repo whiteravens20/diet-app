@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReadsFailed } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 
@@ -53,6 +54,8 @@ export default function CalculatorPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.calculator} title={t('title')} subtitle={t('subhead')} />
+      {/* The form works without the profiles; that they could not be read is still said. */}
+      <ReadsFailed reads={[profiles]} unanswered />
 
       {/* The form waits for the profiles: one that began empty and then filled itself would take what was typed with it. */}
       {profiles.isLoading ? (
