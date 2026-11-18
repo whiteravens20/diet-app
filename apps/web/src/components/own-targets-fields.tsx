@@ -166,11 +166,23 @@ export function OwnTargetsFields({
     carbs: Number(grams.carbs),
   };
   const ofGrams = unit === 'grams' ? splitOfGrams(typedGrams) : null;
+  // What protein per kilogram comes to is worked out only from figures inside their fields' bounds: what is typed past
+  // them is said by the field, and an empty field is no figure.
+  const typedPerKg = perKg.trim() === '' ? Number.NaN : Number(perKg);
+  const typedFat = perKgFat.trim() === '' ? Number.NaN : Number(perKgFat);
+  const typedFits =
+    typedPerKg >= PROTEIN_PER_KG.min &&
+    typedPerKg <= PROTEIN_PER_KG.max &&
+    Number.isInteger(typedFat) &&
+    typedFat >= SPLIT_SHARE_LIMITS.fat.min &&
+    typedFat <= SPLIT_SHARE_LIMITS.fat.max;
   const ofPerKg =
-    way === 'perKg' && known ? perKgSplit(Number(perKg), Number(perKgFat), weightKg, target) : null;
+    way === 'perKg' && known && typedFits
+      ? perKgSplit(typedPerKg, typedFat, weightKg, target)
+      : null;
   const atPlan =
-    way === 'perKg' && planTarget && weightKg && weightKg > 0
-      ? perKgSplit(Number(perKg), Number(perKgFat), weightKg, planTarget)
+    way === 'perKg' && typedFits && planTarget && weightKg && weightKg > 0
+      ? perKgSplit(typedPerKg, typedFat, weightKg, planTarget)
       : null;
   // What the form sends as the split: as typed in per cent, the shares of the grams, or what protein per kilogram comes to.
   const sent: Record<keyof MacroSplit, string> =
@@ -366,7 +378,8 @@ export function OwnTargetsFields({
                 )}
               </>
             ) : (
-              <p className="text-muted-foreground">{t('perKgWaiting')}</p>
+              // Waited for only while the figures typed are good: a wrong one is said by its field.
+              typedFits && <p className="text-muted-foreground">{t('perKgWaiting')}</p>
             )}
           </div>
         </>

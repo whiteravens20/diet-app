@@ -322,6 +322,41 @@ describe('the profile form, on the custom diet', () => {
     expect(changes()).toHaveLength(2);
   });
 
+  it('says the bounds of protein per kilogram and the tenths it takes, and works nothing out of a figure past them', async () => {
+    const { changes } = await openForm(aProfile('Me'));
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
+    await userEvent.click(screen.getByRole('radio', { name: texts.customWayPerKg }));
+    await waitFor(() => expect(changes()).toHaveLength(2));
+    const perKg = screen.getByLabelText(texts.perKgProtein);
+
+    await userEvent.clear(perKg);
+    await userEvent.type(perKg, '0.5');
+    await leave();
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Type a number from 0.8 to 3.'),
+    );
+    // The form has a weight and a target: it does not say it waits for them, and works nothing out of 0.5 g.
+    expect(screen.queryByText(plain(texts.perKgWaiting))).toBeNull();
+    expect(screen.queryByText(/^At your weight that is/)).toBeNull();
+
+    await userEvent.clear(perKg);
+    await userEvent.type(perKg, '1.65');
+    await leave();
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Type a number from 0.8 to 3, in steps of 0.1.',
+      ),
+    );
+
+    await userEvent.clear(perKg);
+    await leave();
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(texts.autosave.required),
+    );
+    expect(screen.queryByText(/^At your weight that is/)).toBeNull();
+    expect(changes()).toHaveLength(2);
+  });
+
   it('says the bounds of a number as the language writes them', () => {
     const say = createTranslator({ locale: 'pl', messages: pl, namespace: 'profile.autosave' });
 
