@@ -11,7 +11,7 @@
   },
   "account": {
     "/dashboard": 209,
-    "/diary": 214,
+    "/diary": 215,
     "/shopping-lists": 207,
     "/inventory": 205,
     "/settings": 216,
@@ -22,9 +22,9 @@
     "/split": 201
   },
   "contract": {
-    "/profile": 250,
+    "/profile": 251,
     "/products": 240,
-    "/calculator": 242,
+    "/calculator": 243,
     "/meal-plans": 276
   }
 }
