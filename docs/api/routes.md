@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-225 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+226 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -181,6 +181,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/inventory` | an account | Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing. | `UpsertInventoryItemRequest` | 201 `InventoryItem` |  |
 | `DELETE /api/inventory/:id` | an account | Take a row out of the pantry. |  | 204 |  |
 | `PATCH /api/inventory/:id` | an account | Change a row of the pantry. | `PatchInventoryItem` | 200 `InventoryItem` |  |
+| `POST /api/inventory/:id/freeze` | an account | "Zamroź": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit allows, each dated 30 days from the client's day; none adds to a package there is. Answered with the profile's pantry as it is then. Sent again with the same `Idempotency-Key` within a week, it is answered with the pantry as it is now. | `FreezeInventoryItem` | 200 a list of `InventoryItem` |  |
 
 ## meal-plans
 

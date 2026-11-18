@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { randomUUID } from 'node:crypto';
-import { MAX_QUANTITY, type InventoryItem, type Profile } from '@diet-app/shared';
+import { dayAfter, MAX_QUANTITY, type InventoryItem, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -104,6 +104,41 @@ describe('the pantry', () => {
       '286 frozen 2026-02-04',
       '500 fresh 2026-01-07',
     ]);
+  });
+
+  it('splits what goes into the freezer into the portions asked for, what is counted in whole pieces', async () => {
+    const first = await add('chicken-breast', 1000, 'g', {
+      frozen: true,
+      portions: 4,
+      bestBefore: '2026-02-04',
+    });
+    await add('large-egg', 6, 'piece', { frozen: true, portions: 4 });
+
+    expect(first.status).toBe(201);
+    expect(first.body).toMatchObject({ quantity: 250, frozen: true });
+    expect(await shown()).toEqual([
+      '1 frozen null',
+      '1 frozen null',
+      '2 frozen null',
+      '2 frozen null',
+      '250 frozen 2026-02-04',
+      '250 frozen 2026-02-04',
+      '250 frozen 2026-02-04',
+      '250 frozen 2026-02-04',
+    ]);
+    // Each package has a number of its own, never one another has.
+    const parcels = (
+      await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } })
+    ).map((row) => row.parcel);
+    expect(new Set(parcels).size).toBe(8);
+  });
+
+  it('refuses portions of less than one of their unit, and puts nothing in', async () => {
+    const refused = await add('large-egg', 3, 'piece', { frozen: true, portions: 4 });
+
+    expect(refused.status).toBe(400);
+    expect(refused.body.error).toBe('PORTIONS_TOO_MANY');
+    expect(await shown()).toEqual([]);
   });
 
   it('keeps what is counted in its pieces alone, turning an amount in grams into them', async () => {
@@ -322,6 +357,131 @@ describe('the pantry', () => {
     });
   });
 
+  describe('a row put in the freezer', () => {
+    // The client's day is taken only where it is the server's or one beside it.
+    const today = new Date().toISOString().slice(0, 10);
+    const freeze = (
+      id: string,
+      body: object = {},
+      more: { key?: string; day?: string | null } = {},
+    ) => {
+      const sent = t.http().post(`/api/inventory/${id}/freeze`).set(as(user));
+      if (more.day !== null) sent.set('x-client-date', more.day ?? today);
+      if (more.key) sent.set('Idempotency-Key', more.key);
+      return sent.send(body);
+    };
+    const asText = (rows: InventoryItem[]) =>
+      rows
+        .map((row) => `${row.quantity} ${row.frozen ? 'frozen' : 'fresh'} ${row.bestBefore}`)
+        .sort();
+
+    it("goes in whole as a package of its own, dated 30 days from the client's day, answered with the pantry", async () => {
+      await add('chicken-breast', 286, 'g', { frozen: true, bestBefore: dayAfter(today, 10) });
+      const row = (await add('chicken-breast', 500, 'g', { bestBefore: dayAfter(today, 2) }))
+        .body as { id: string };
+
+      const frozen = await freeze(row.id).expect(200);
+
+      expect(asText(frozen.body)).toEqual([
+        `286 frozen ${dayAfter(today, 10)}`,
+        `500 frozen ${dayAfter(today, 30)}`,
+      ]);
+      expect(await shown()).toEqual(asText(frozen.body));
+    });
+
+    it('is split into the portions asked for, as evenly as its unit allows', async () => {
+      const chicken = (await add('chicken-breast', 1000, 'g')).body as { id: string };
+      const eggs = (await add('large-egg', 6, 'piece')).body as { id: string };
+
+      await freeze(chicken.id, { portions: 4 }).expect(200);
+      const after = await freeze(eggs.id, { portions: 4 }).expect(200);
+
+      const thirty = dayAfter(today, 30);
+      expect(asText(after.body)).toEqual([
+        `1 frozen ${thirty}`,
+        `1 frozen ${thirty}`,
+        `2 frozen ${thirty}`,
+        `2 frozen ${thirty}`,
+        `250 frozen ${thirty}`,
+        `250 frozen ${thirty}`,
+        `250 frozen ${thirty}`,
+        `250 frozen ${thirty}`,
+      ]);
+    });
+
+    it('is refused where a portion would hold less than one of its unit, and nothing changes', async () => {
+      const row = (await add('large-egg', 3, 'piece')).body as { id: string };
+
+      const refused = await freeze(row.id, { portions: 4 }).expect(400);
+
+      expect(refused.body.error).toBe('PORTIONS_TOO_MANY');
+      expect(await shown()).toEqual(['3 fresh null']);
+    });
+
+    it('leaves a row already frozen as it is', async () => {
+      const row = (
+        await add('chicken-breast', 286, 'g', { frozen: true, bestBefore: dayAfter(today, 5) })
+      ).body as { id: string; updatedAt: string };
+
+      const again = await freeze(row.id).expect(200);
+
+      expect(asText(again.body)).toEqual([`286 frozen ${dayAfter(today, 5)}`]);
+      expect(
+        (
+          await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })
+        ).updatedAt.toISOString(),
+      ).toBe(row.updatedAt);
+    });
+
+    it('is answered with the pantry as it is now when sent again with its key, and freezes nothing twice', async () => {
+      const row = (await add('chicken-breast', 500, 'g')).body as { id: string };
+      const key = randomUUID();
+
+      await freeze(row.id, { portions: 2 }, { key }).expect(200);
+      const again = await freeze(row.id, { portions: 2 }, { key }).expect(200);
+
+      expect(asText(again.body)).toEqual([
+        `250 frozen ${dayAfter(today, 30)}`,
+        `250 frozen ${dayAfter(today, 30)}`,
+      ]);
+      // Without its key, the row it was is gone.
+      expect((await freeze(row.id).expect(404)).body.error).toBe('INVENTORY_ITEM_NOT_FOUND');
+    });
+
+    it('takes no more rows than the pantry has room for', async () => {
+      const row = (await add('rolled-oats', 300, 'g')).body as { id: string };
+      const ingredient = await ingredientId('rolled-oats');
+      // 998 more frozen packages: the pantry holds 999 of its 1000 rows.
+      await t.prisma.inventoryItem.createMany({
+        data: Array.from({ length: 998 }, (_, at) => ({
+          profileId: profile.id,
+          ingredientId: ingredient,
+          quantity: 1,
+          unit: 'g' as const,
+          frozen: true,
+          parcel: 10_000 + at,
+        })),
+      });
+
+      const refused = await freeze(row.id, { portions: 3 }).expect(409);
+
+      expect(refused.body.error).toBe('PANTRY_FULL');
+      expect(
+        (await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).frozen,
+      ).toBe(false);
+    });
+
+    it("goes by the server's day where the client names none", async () => {
+      const row = (await add('chicken-breast', 500, 'g')).body as { id: string };
+
+      const frozen = await freeze(row.id, {}, { day: null }).expect(200);
+
+      expect(asText(frozen.body)).toEqual([
+        `500 frozen ${dayAfter(new Date().toISOString().slice(0, 10), 30)}`,
+      ]);
+    });
+  });
+
   describe("another user's pantry", () => {
     it('cannot be read, added to, changed or emptied', async () => {
       const row = (await add('rolled-oats', 300, 'g')).body as { id: string };
@@ -346,6 +506,7 @@ describe('the pantry', () => {
         .send({ quantity: 1 })
         .expect(404);
       await t.http().delete(`/api/inventory/${row.id}`).set(as(other)).expect(404);
+      await t.http().post(`/api/inventory/${row.id}/freeze`).set(as(other)).send({}).expect(404);
 
       expect(
         (await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).quantity,

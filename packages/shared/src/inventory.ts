@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { MAX_PORTIONS } from './portions.js';
 import { CalendarDay, DisplayAmount, MAX_QUANTITY, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 
@@ -42,14 +43,15 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
  * Upsert payload. Posting fresh with an `ingredientId + unit` that already exists
  * for this profile aggregates (`quantity += body.quantity`); a fresh combination creates a new row. `bestBefore`
  * overwrites when supplied; when it is omitted, the existing row keeps its own on aggregate. Posting `frozen` puts
- * the amount into the freezer as a package of its own with `bestBefore`; nothing frozen adds to another package. An
- * amount of what is counted, given in grams or millilitres, is turned into pieces and goes to its row in pieces.
+ * the amount into the freezer as packages of their own, `portions` of them split as evenly as the unit allows (what
+ * is counted, in whole pieces), each with `bestBefore`; nothing frozen adds to another package. An amount of what is
+ * counted, given in grams or millilitres, is turned into pieces and goes to its row in pieces.
  *
  * Refused with 400 `UNIT_NOT_CONVERTIBLE` when the ingredient cannot be
  * converted from `unit` (pieces of something that has no weight per piece;
- * the ingredient's `pantryUnits` say which units are taken), and with 400
+ * the ingredient's `pantryUnits` say which units are taken), with 400
  * `QUANTITY_TOO_LARGE` when the row would hold more than its unit's ceiling
- * (`MAX_QUANTITY`).
+ * (`MAX_QUANTITY`), and with 400 `PORTIONS_TOO_MANY` where a portion would hold less than one of the unit.
  */
 export const UpsertInventoryItem = z.object({
   ingredientId: z.string().uuid(),
@@ -59,10 +61,21 @@ export const UpsertInventoryItem = z.object({
     .max(Math.max(...Object.values(MAX_QUANTITY))),
   unit: Unit,
   bestBefore: CalendarDay.nullable().optional(),
-  /** Into the freezer, as a package of its own beside what is fresh of the ingredient. */
+  /** Into the freezer, as packages of their own beside what is fresh of the ingredient. */
   frozen: z.boolean().optional(),
+  /** How many packages what goes into the freezer is split into; one where left out. What is fresh is one row. */
+  portions: z.number().int().min(1).max(MAX_PORTIONS).optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
+
+/**
+ * "Zamroź": a fresh row of the pantry put into the freezer, split into `portions` packages of their own (one where
+ * left out), as evenly as the unit allows: what is counted, in whole pieces.
+ */
+export const FreezeInventoryItem = z.object({
+  portions: z.number().int().min(1).max(MAX_PORTIONS).optional(),
+});
+export type FreezeInventoryItem = z.infer<typeof FreezeInventoryItem>;
 
 /** The upsert as it is sent: for which profile's pantry. */
 export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({

@@ -59,8 +59,9 @@ export async function lockPantries(
 export async function assertRoomInPantry(
   tx: Prisma.TransactionClient,
   profileId: string,
+  more = 1,
 ): Promise<void> {
-  if ((await tx.inventoryItem.count({ where: { profileId } })) >= MAX_PANTRY_ROWS) {
+  if ((await tx.inventoryItem.count({ where: { profileId } })) + more > MAX_PANTRY_ROWS) {
     throw new ConflictException({
       error: 'PANTRY_FULL',
       message: `A pantry holds at most ${MAX_PANTRY_ROWS} rows. Remove one to add another.`,

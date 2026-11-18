@@ -37,6 +37,16 @@
         "default": "./dist/units.js"
       }
     },
+    "./portions": {
+      "import": {
+        "types": "./dist/esm/portions.d.ts",
+        "default": "./dist/esm/portions.js"
+      },
+      "require": {
+        "types": "./dist/portions.d.ts",
+        "default": "./dist/portions.js"
+      }
+    },
     "./constants": {
       "import": {
         "types": "./dist/esm/constants.d.ts",

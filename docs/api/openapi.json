@@ -4843,6 +4843,90 @@
         }
       }
     },
+    "/api/inventory/{id}/freeze": {
+      "post": {
+        "operationId": "Inventory_freeze",
+        "tags": [
+          "inventory"
+        ],
+        "summary": "\"Zamroź\": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit allows, each dated 30 days from the client's day; none adds to a package there is.",
+        "description": "\"Zamroź\": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit allows, each dated 30 days from the client's day; none adds to a package there is. Answered with the profile's pantry as it is then. Sent again with the same `Idempotency-Key` within a week, it is answered with the pantry as it is now.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A key the client chose for this addition, such as a UUID, quoted or not. Sent again with the same key within a week, the request is answered from what the first one wrote and writes nothing; the same key with another request is refused with 422 `IDEMPOTENCY_KEY_REUSED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreezeInventoryItem"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryItem"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/meal-plans": {
       "get": {
         "operationId": "MealPlans_list",
@@ -15508,6 +15592,16 @@
         ],
         "additionalProperties": false
       },
+      "FreezeInventoryItem": {
+        "type": "object",
+        "properties": {
+          "portions": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      },
       "GenerateHouseholdListRequest": {
         "type": "object",
         "properties": {
@@ -26122,6 +26216,11 @@
           },
           "frozen": {
             "type": "boolean"
+          },
+          "portions": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
           },
           "profileId": {
             "type": "string",

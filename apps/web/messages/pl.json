@@ -458,6 +458,7 @@
     "PLAN_LIMIT_REACHED": "Ten profil ma już tyle planów, ile może mieć. Najpierw usuń któryś ze starych planów.",
     "PLAN_DAY_FULL": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich.",
     "QUANTITY_TOO_LARGE": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę.",
+    "PORTIONS_TOO_MANY": "Tego jest za mało na tyle porcji. Podziel na mniej porcji.",
     "TOO_MANY_ATTEMPTS": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie.",
     "TOO_MANY_SIGN_UPS": "Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę.",
     "SERVER_BUSY": "Serwer jest teraz zajęty. Spróbuj ponownie za chwilę.",

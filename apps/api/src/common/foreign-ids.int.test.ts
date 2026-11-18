@@ -367,6 +367,12 @@ const ASKS: Ask[] = [
     (ids) => `/api/inventory/${ids.pantry}`,
     () => ({ quantity: 1 }),
   ],
+  [
+    'put a row of a pantry into the freezer',
+    'post',
+    (ids) => `/api/inventory/${ids.pantry}/freeze`,
+    () => ({}),
+  ],
   ['take a row out of a pantry', 'delete', (ids) => `/api/inventory/${ids.pantry}`],
 
   ['read the weights of a profile', 'get', (ids) => `/api/weights?profileId=${ids.profile}`],

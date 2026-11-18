@@ -13,11 +13,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  FreezeInventoryItem,
   InventoryItem,
   PatchInventoryItem,
   UpsertInventoryItemRequest,
   type Locale,
 } from '@diet-app/shared';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { IdempotencyKey } from '../common/idempotency-key.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
@@ -67,6 +69,26 @@ export class InventoryController {
     @Body(new ZodValidationPipe(PatchInventoryItem)) dto: PatchInventoryItem,
   ) {
     return this.inventory.patch(user.id, locale, id, dto);
+  }
+
+  /**
+   * "Zamroź": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit
+   * allows, each dated 30 days from the client's day; none adds to a package there is. Answered with the profile's
+   * pantry as it is then. Sent again with the same `Idempotency-Key` within a week, it is answered with the pantry as
+   * it is now.
+   */
+  @Post(':id/freeze')
+  @HttpCode(200)
+  @AnswersListOf(InventoryItem)
+  freeze(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @IdempotencyKey() key: string | null,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(FreezeInventoryItem)) dto: FreezeInventoryItem,
+    @ClientDate() today: string | null,
+  ) {
+    return this.inventory.freeze(user.id, locale, id, dto, today, key);
   }
 
   /** Take a row out of the pantry. */

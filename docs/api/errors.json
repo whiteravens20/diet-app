@@ -1233,6 +1233,15 @@
       "pl": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia."
     }
   },
+  "PORTIONS_TOO_MANY": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "There is not enough of it for that many portions. Split it into fewer.",
+      "pl": "Tego jest za mało na tyle porcji. Podziel na mniej porcji."
+    }
+  },
   "PRODUCTS_NOT_OFFERED": {
     "statuses": [
       404

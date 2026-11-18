@@ -2,12 +2,16 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  dayAfter,
+  FROZEN_KEEPS_DAYS,
   Unit,
+  type FreezeInventoryItem,
   type InventoryItem,
   type Locale,
   type PatchInventoryItem,
   type UpsertInventoryItem,
 } from '@diet-app/shared';
+import { portionsOf } from '@diet-app/shared/portions';
 import {
   convertUnit,
   displayStock,
@@ -105,27 +109,33 @@ export class InventoryService {
         const unit = isCounted(ingredient) ? 'piece' : body.unit;
         const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
 
-        // Into the freezer: a package of its own, adding to none.
+        // Into the freezer: packages of their own, as many as the portions, none adding to another.
         if (body.frozen) {
+          const amounts = splitIntoPortions(quantity, unit, body.portions ?? 1);
           assertWithinCeiling(quantity, unit);
           const saved = await this.prisma.$transaction(async (tx) => {
             await lockPantry(tx, profileId, body.ingredientId);
-            await assertRoomInPantry(tx, profileId);
-            const [parcel] = await newParcels(tx, profileId, 1);
-            const row = await tx.inventoryItem.create({
-              data: {
-                profileId,
-                ingredientId: body.ingredientId,
-                quantity,
-                unit,
-                bestBefore: this.parseDate(body.bestBefore),
-                frozen: true,
-                parcel: parcel!,
-              },
-              include: this.withIngredient(locale),
-            });
-            await keep(tx, row.id);
-            return row;
+            await assertRoomInPantry(tx, profileId, amounts.length);
+            const parcels = await newParcels(tx, profileId, amounts.length);
+            const rows = [];
+            for (const [at, amount] of amounts.entries())
+              rows.push(
+                await tx.inventoryItem.create({
+                  data: {
+                    profileId,
+                    ingredientId: body.ingredientId,
+                    quantity: amount,
+                    unit,
+                    bestBefore: this.parseDate(body.bestBefore),
+                    frozen: true,
+                    parcel: parcels[at]!,
+                  },
+                  include: this.withIngredient(locale),
+                }),
+              );
+            // Answered with the first package: the others are read with the pantry.
+            await keep(tx, rows[0]!.id);
+            return rows[0]!;
           });
           return this.toDto(saved, locale);
         }
@@ -195,6 +205,60 @@ export class InventoryService {
       });
     });
     return this.toDto(updated, locale);
+  }
+
+  /**
+   * "Zamroź": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit
+   * allows (`splitIntoPortions`), each dated `FROZEN_KEEPS_DAYS` from the client's day (the server's where it names
+   * none); none adds to a package there is. Answered with the profile's pantry as it is then; a row already frozen
+   * leaves it as it is. Sent again with the same `Idempotency-Key`, it is answered with the pantry as it is now.
+   */
+  freeze(
+    userId: string,
+    locale: Locale,
+    id: string,
+    body: FreezeInventoryItem,
+    clientToday: string | null,
+    key: string | null = null,
+  ): Promise<InventoryItem[]> {
+    return writeOnce(this.prisma, {
+      userId,
+      key,
+      route: 'POST /inventory/:id/freeze',
+      request: { id, ...body },
+      write: async (keep) => {
+        const row = await this.loadOwned(userId, id);
+        const bestBefore = new Date(
+          dayAfter(clientToday ?? new Date().toISOString().slice(0, 10), FROZEN_KEEPS_DAYS),
+        );
+        await this.prisma.$transaction(async (tx) => {
+          await lockPantry(tx, row.profileId, row.ingredientId);
+          // A shopping row may have used the last of it, or another request frozen it, since it was read.
+          const fresh = await tx.inventoryItem.findUnique({ where: { id: row.id } });
+          if (!fresh) throw this.notFound();
+          await keep(tx, fresh.profileId);
+          if (fresh.frozen) return;
+          const amounts = splitIntoPortions(fresh.quantity, fresh.unit, body.portions ?? 1);
+          await assertRoomInPantry(tx, fresh.profileId, amounts.length - 1);
+          const parcels = await newParcels(tx, fresh.profileId, amounts.length);
+          await tx.inventoryItem.delete({ where: { id: fresh.id } });
+          for (const [at, amount] of amounts.entries())
+            await tx.inventoryItem.create({
+              data: {
+                profileId: fresh.profileId,
+                ingredientId: fresh.ingredientId,
+                unit: fresh.unit,
+                quantity: amount,
+                bestBefore,
+                frozen: true,
+                parcel: parcels[at]!,
+              },
+            });
+        });
+        return this.list(userId, locale, row.profileId);
+      },
+      replay: (profileId) => this.list(userId, locale, profileId),
+    });
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -274,4 +338,19 @@ export class InventoryService {
       updatedAt: row.updatedAt.toISOString(),
     };
   }
+}
+
+/** `quantity` of `unit` split into `portions` packages (`portionsOf`), or refused where a part would hold less than one. */
+function splitIntoPortions(
+  quantity: number,
+  unit: 'g' | 'ml' | 'piece',
+  portions: number,
+): number[] {
+  const amounts = portionsOf(quantity, unit, portions);
+  if (!amounts)
+    throw new BadRequestException({
+      error: 'PORTIONS_TOO_MANY',
+      message: `There is not enough of it for ${portions} portions of at least one ${unit} each: split it into fewer.`,
+    });
+  return amounts;
 }
