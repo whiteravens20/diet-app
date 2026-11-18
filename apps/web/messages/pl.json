@@ -11,6 +11,8 @@
     "shownFromBefore": "Widzisz to, co wczytano wcześniej.",
     "profileChoice": "Profil",
     "skipToContent": "Przejdź do treści",
+    "removed": "Usunięto: {name}.",
+    "undo": "Cofnij",
     "close": "Zamknij",
     "confirm": "Potwierdź",
     "back": "Wstecz",

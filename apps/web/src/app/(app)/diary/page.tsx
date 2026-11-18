@@ -48,6 +48,7 @@ import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
+import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
@@ -169,6 +170,8 @@ function DiaryContent() {
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
+  // An entry is cheap to write again: it goes at once, and is sent once the moments to take it back are over.
+  const later = useRemovedLater<DiaryEntry>((entry) => remove.mutate(entry.id));
   // Marking a meal of the plan as eaten rebalances its day, as on the plan's page, and says so with the same note.
   const eat = useMutation({
     mutationFn: ({ planId, meal }: { planId: string; meal: DiaryPlanMeal }) =>
@@ -357,7 +360,8 @@ function DiaryContent() {
                   setDialogError(null);
                   setEditing(entry);
                 }}
-                onRemove={(entry) => remove.mutate(entry.id)}
+                hiding={later.waiting?.id ?? null}
+                onRemove={later.remove}
               />
             ))}
 
@@ -407,6 +411,7 @@ function DiaryContent() {
           }}
         />
       )}
+      {later.waiting && <RemovedBar name={later.waiting.name} onUndo={later.undo} />}
       {toast && (
         <RebalanceToast
           word={toast}
@@ -640,6 +645,7 @@ function MealSection({
   onAdd,
   onEat,
   onEdit,
+  hiding,
   onRemove,
 }: {
   slot: MealType;
@@ -651,6 +657,8 @@ function MealSection({
   onAdd: () => void;
   onEat: (meal: DiaryPlanMeal) => void;
   onEdit: (entry: DiaryEntry) => void;
+  /** The entry removed a moment ago, which can still be taken back: not shown. */
+  hiding: string | null;
   onRemove: (entry: DiaryEntry) => void;
 }) {
   const t = useTranslations('diary');
@@ -660,7 +668,7 @@ function MealSection({
   const fmt = useFormat();
   const id = useId();
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
-  const entries = day.entries.filter((entry) => entry.mealType === slot);
+  const entries = day.entries.filter((entry) => entry.mealType === slot && entry.id !== hiding);
   return (
     <section aria-labelledby={`${id}-title`} className="space-y-2">
       <div className="flex items-center justify-between gap-2">

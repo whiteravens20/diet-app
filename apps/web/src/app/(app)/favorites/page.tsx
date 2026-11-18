@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
+import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { ProfileChips } from '@/components/profile-chips';
 import { RecipeModal } from '@/components/recipe-modal';
 
@@ -120,6 +121,8 @@ export default function FavoritesPage() {
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
+  // A mark is cheap to make again: it goes at once, and is sent once the moments to take it back are over.
+  const later = useRemovedLater<MarkedRecipe>((marked) => remove.mutate(marked));
   const busy = save.isPending || remove.isPending;
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
@@ -142,7 +145,7 @@ export default function FavoritesPage() {
     );
   }
 
-  const list = marks.data ?? [];
+  const list = (marks.data ?? []).filter((marked) => marked.recipe.id !== later.waiting?.recipe.id);
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.favorites} title={t('title')} subtitle={t('subhead')} />
@@ -305,7 +308,7 @@ export default function FavoritesPage() {
                             aria-label={t('removeOf', { title: marked.recipe.title })}
                             onClick={() => {
                               setError(null);
-                              remove.mutate(kept);
+                              later.remove(kept);
                             }}
                           >
                             {t('remove')}
@@ -327,6 +330,7 @@ export default function FavoritesPage() {
       )}
 
       <RecipeModal recipeId={openRecipe} onClose={() => setOpenRecipe(null)} />
+      {later.waiting && <RemovedBar name={later.waiting.recipe.title} onUndo={later.undo} />}
     </div>
   );
 }

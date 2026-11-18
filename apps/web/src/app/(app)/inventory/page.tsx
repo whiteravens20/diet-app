@@ -19,6 +19,7 @@ import { Input, OptionalFrame } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
+import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { ProfileChips } from '@/components/profile-chips';
 import { IMAGERY } from '@/lib/imagery';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
@@ -106,6 +107,8 @@ export default function InventoryPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errDelete'))),
   });
+  // A row is cheap to put in again: it goes at once, and is sent once the moments to take it back are over.
+  const later = useRemovedLater<InventoryItem>((item) => remove.mutate(item.id));
 
   // Answered with the pantry of the row's profile as it is then: the row is gone, its packages in the freezer.
   const freeze = useMutation({
@@ -136,6 +139,7 @@ export default function InventoryPage() {
 
   const grouped = new Map<string, InventoryItem[]>();
   for (const item of items) {
+    if (item.id === later.waiting?.id) continue;
     const bucket = grouped.get(item.ingredient.category) ?? [];
     bucket.push(item);
     grouped.set(item.ingredient.category, bucket);
@@ -307,7 +311,7 @@ export default function InventoryPage() {
                           variant="ghost"
                           size="sm"
                           aria-label={t('removeLabel', { name })}
-                          onClick={() => remove.mutate(item.id)}
+                          onClick={() => later.remove(item)}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -332,6 +336,7 @@ export default function InventoryPage() {
           onClose={() => setFreezing(null)}
         />
       )}
+      {later.waiting && <RemovedBar name={later.waiting.ingredient.name} onUndo={later.undo} />}
     </div>
   );
 }

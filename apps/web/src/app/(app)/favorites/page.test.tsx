@@ -1,10 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { UNDO_FOR_MS } from '@/components/removed-later';
 import type { MarkedRecipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -147,14 +148,35 @@ describe('the recipes a profile marked, on a page of their own', () => {
     });
   });
 
-  it('takes the mark off a recipe', async () => {
+  it('takes the mark off a recipe at once, says so with a way to take it back, and sends it after', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     await renderPage([stew, porridge]);
     await screen.findByText('2 recipes');
     const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove the mark of Milk porridge' }));
 
+    expect(screen.queryByText('Milk porridge')).toBeNull();
+    expect(screen.getByText('Removed: Milk porridge.')).toBeInTheDocument();
+    expect(remove).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
     expect(remove).toHaveBeenCalledWith(`/favorites/${PROFILE}/${porridge.recipe.id}`);
+    vi.useRealTimers();
+  });
+
+  it('keeps a mark taken back, and sends nothing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage([stew, porridge]);
+    await screen.findByText('2 recipes');
+    const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove the mark of Milk porridge' }));
+    await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));
+
+    expect(screen.getByText('2 recipes')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS * 2));
+    expect(remove).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('takes a change back and says so when the API refuses it', async () => {
@@ -175,6 +197,17 @@ describe('the recipes a profile marked, on a page of their own', () => {
 
     expect(await screen.findByText(texts.emptyTitle)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: texts.emptyCta })).toHaveAttribute('href', '/recipes');
+    expect(screen.queryByLabelText(texts.search)).toBeNull();
+  });
+
+  it('says that nothing matches while a filter finds nothing', async () => {
+    await renderPage([aMark('Chickpea stew')]);
+    const answers = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path.startsWith('/favorites?') && path.includes('search=')
+        ? Promise.resolve([] as never)
+        : answers(path),
+    );
 
     await userEvent.type(await screen.findByLabelText(texts.search), 'soup');
 
@@ -197,17 +230,6 @@ describe('the marked recipes read again', () => {
 
     const note = await screen.findByText(messages.common.shownFromBefore, { exact: false });
     expect(note.closest('[role="alert"]')).toHaveTextContent(messages.errors.NETWORK);
-    expect(screen.queryByLabelText(texts.search)).toBeNull();
-  });
-
-  it('says that nothing matches while a filter finds nothing', async () => {
-    await renderPage([aMark('Chickpea stew')]);
-    const answers = vi.mocked(api.get).getMockImplementation()!;
-    vi.mocked(api.get).mockImplementation((path: string) =>
-      path.startsWith('/favorites?') && path.includes('search=')
-        ? Promise.resolve([] as never)
-        : answers(path),
-    );
     expect(screen.getByText('Chickpea stew')).toBeInTheDocument();
     answerAgain();
     await userEvent.click(

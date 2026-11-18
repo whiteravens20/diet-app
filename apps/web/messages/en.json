@@ -11,6 +11,8 @@
     "shownFromBefore": "What you see was loaded earlier.",
     "profileChoice": "Profile",
     "skipToContent": "Skip to content",
+    "removed": "Removed: {name}.",
+    "undo": "Undo",
     "close": "Close",
     "confirm": "Confirm",
     "back": "Back",

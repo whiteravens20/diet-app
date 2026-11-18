@@ -1,10 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { UNDO_FOR_MS } from '@/components/removed-later';
 import { Ingredient, InventoryItem, type Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
@@ -569,5 +570,39 @@ describe('the search of the pantry form, when it cannot be read', () => {
     await userEvent.type(screen.getByLabelText(texts.ingredientLabel), 'Froz');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+  });
+});
+
+describe('a row of the pantry taken out', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('is gone at once, said with a way to take it back, and sent once the moments for that are over', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await open([], [aRow(dumplings, 12, null)]);
+    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: `Remove ${dumplings.name}` }));
+
+    expect(screen.queryByText(dumplings.name)).toBeNull();
+    expect(screen.getByText(`Removed: ${dumplings.name}.`)).toBeInTheDocument();
+    expect(sent).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
+    expect(sent).toHaveBeenCalledWith(`/inventory/${aRow(dumplings, 12, null).id}`);
+  });
+
+  it('stays when it is taken back, and nothing is sent', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await open([], [aRow(dumplings, 12, null)]);
+    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: `Remove ${dumplings.name}` }));
+    await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));
+
+    expect(screen.getByText(dumplings.name)).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS * 2));
+    expect(sent).not.toHaveBeenCalled();
   });
 });

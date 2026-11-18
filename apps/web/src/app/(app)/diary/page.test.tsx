@@ -1,10 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { UNDO_FOR_MS } from '@/components/removed-later';
 import type { DiaryDay, DiaryEntry } from '@diet-app/shared';
 import { DIARY_DAYS_BACK } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
@@ -873,5 +874,40 @@ describe('the diary read again', () => {
       expect(screen.queryByText(messages.common.shownFromBefore, { exact: false })).toBeNull(),
     );
     expect(screen.getByText(/750 of 2000 kcal/)).toBeInTheDocument();
+  });
+});
+
+describe('an entry of the diary taken out', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    address.search = '';
+  });
+
+  it('is gone at once, said with a way to take it back, and sent once the moments for that are over', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage();
+    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
+
+    expect(screen.queryByText('Soup from the canteen')).toBeNull();
+    expect(screen.getByText(`Removed: ${'Soup from the canteen'}.`)).toBeInTheDocument();
+    expect(sent).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
+    expect(sent).toHaveBeenCalledWith('/diary/entries/55555555-5555-4555-8555-555555555551');
+  });
+
+  it('stays when it is taken back, and nothing is sent', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage();
+    const sent = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
+    await userEvent.click(screen.getByRole('button', { name: messages.common.undo }));
+
+    expect(screen.getByText('Soup from the canteen')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS * 2));
+    expect(sent).not.toHaveBeenCalled();
   });
 });
