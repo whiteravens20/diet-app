@@ -394,6 +394,36 @@ describe('the window in which the settings of a day are changed', () => {
     },
   );
 
+  it('says the bounds of a number typed past them, and what to correct in place of the last preview', async () => {
+    const { dialog, post } = await opened(() => aPreview({ unchanged: true }));
+    await dialog.findByText(texts.unchanged);
+    const asked = post.mock.calls.length;
+    const target = dialog.getByLabelText(
+      new RegExp(`^${texts.ownTarget.replace(/[()]/g, '\\$&')}`),
+    );
+
+    await userEvent.type(target, '100');
+
+    expect(
+      await dialog.findByText(/^Type a whole number from 800 to 6000, or leave the field empty\.$/),
+    ).toBeInTheDocument();
+    expect(target).toHaveAttribute('aria-invalid', 'true');
+    expect(dialog.getByText(texts.fixFields)).toBeInTheDocument();
+    expect(dialog.queryByText(texts.unchanged)).toBeNull();
+    expect(save(dialog)).toBeDisabled();
+    // A number the API does not take is not asked of it.
+    expect(post.mock.calls.length).toBe(asked);
+
+    await userEvent.clear(target);
+    await userEvent.type(
+      dialog.getByLabelText(new RegExp(`^${texts.cookTime.replace(/[()]/g, '\\$&')}`)),
+      '700',
+    );
+    expect(
+      await dialog.findByText(/^Type a whole number from 0 to 600, or leave the field empty\.$/),
+    ).toBeInTheDocument();
+  });
+
   it('saves the settings on the plan as the preview had it, and tells the page', async () => {
     const { dialog, put, onSaved, onClose } = await opened(() => aPreview());
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);

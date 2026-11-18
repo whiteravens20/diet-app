@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   DaySettings,
   MAX_CALORIE_TARGET,
+  MAX_COOK_TIME_BUDGET,
   MIN_CALORIE_TARGET,
   RelaxationNeeded,
   type DayMealFate,
@@ -56,6 +57,12 @@ const FATE_WORDS: Record<
 
 /** The text of a whole number typed in a field: null for an empty field, NaN for what is no number. */
 const typed = (value: string): number | null => (value.trim() === '' ? null : Number(value));
+
+/** Whether what is typed in a field of whole numbers from `min` to `max` is one of them, or nothing. */
+const fits = (value: string, min: number, max: number): boolean => {
+  const number = typed(value);
+  return number === null || (Number.isInteger(number) && number >= min && number <= max);
+};
 
 /** Why no day takes what the day falls short of, in words. */
 const NONE_WORDS = {
@@ -108,6 +115,8 @@ export function DaySettingsDialog({
   const [inTheWay, setInTheWay] = useState<RelaxationNeeded | null>(null);
   const [only, setOnly] = useState(false);
 
+  const targetFits = fits(target, MIN_CALORIE_TARGET, MAX_CALORIE_TARGET);
+  const cookTimeFits = fits(cookTime, 0, MAX_COOK_TIME_BUDGET);
   // The settings as they are typed: none while a number is no number the API takes, which the field says itself.
   const asked = DaySettings.safeParse({
     dayType: kind === 'skip' ? (day.overrides?.dayType ?? 'normal') : kind,
@@ -197,7 +206,8 @@ export function DaySettingsDialog({
   const current =
     shown !== undefined &&
     !preview.isPlaceholderData &&
-    settled === (asked.success ? JSON.stringify(asked.data) : null);
+    asked.success &&
+    settled === JSON.stringify(asked.data);
   const busy = save.isPending || even.isPending;
   // The change alone leaves the week off the plan's target: the week can be evened out with it.
   const twoWays = current && shown?.unchanged === false && shown.week?.unevenAlone === true;
@@ -254,7 +264,16 @@ export function DaySettingsDialog({
                 ))}
               </select>
             </Field>
-            <Field label={t('ownTarget')} hint={t('ownTargetHint')} optional>
+            <Field
+              label={t('ownTarget')}
+              hint={t('ownTargetHint')}
+              optional
+              error={
+                targetFits
+                  ? undefined
+                  : t('between', { min: MIN_CALORIE_TARGET, max: MAX_CALORIE_TARGET })
+              }
+            >
               <Input
                 type="number"
                 inputMode="numeric"
@@ -262,17 +281,24 @@ export function DaySettingsDialog({
                 max={MAX_CALORIE_TARGET}
                 step={1}
                 value={target}
+                aria-invalid={!targetFits}
                 onChange={(e) => setTarget(e.target.value)}
               />
             </Field>
-            <Field label={t('cookTime')} hint={t('cookTimeHint')} optional>
+            <Field
+              label={t('cookTime')}
+              hint={t('cookTimeHint')}
+              optional
+              error={cookTimeFits ? undefined : t('between', { min: 0, max: MAX_COOK_TIME_BUDGET })}
+            >
               <Input
                 type="number"
                 inputMode="numeric"
                 min={0}
-                max={600}
+                max={MAX_COOK_TIME_BUDGET}
                 step={1}
                 value={cookTime}
+                aria-invalid={!cookTimeFits}
                 onChange={(e) => setCookTime(e.target.value)}
               />
             </Field>
@@ -296,13 +322,13 @@ export function DaySettingsDialog({
           aria-live="polite"
           className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
         >
-          {shown === undefined ? (
+          {!asked.success ? (
+            <p>{t('fixFields')}</p>
+          ) : shown === undefined ? (
             preview.isError ? (
               <p role="alert">{errorText(preview.error, t('errPreview'))}</p>
-            ) : asked.success ? (
-              <Skeleton className="h-16" />
             ) : (
-              <p>{t('fixFields')}</p>
+              <Skeleton className="h-16" />
             )
           ) : (
             <div className={current ? undefined : 'opacity-60'}>
@@ -325,7 +351,7 @@ export function DaySettingsDialog({
             </div>
           )}
         </div>
-        {shown?.short && shown.short.spread.days > 0 && (
+        {asked.success && shown?.short && shown.short.spread.days > 0 && (
           <div className="space-y-1">
             <label className="flex items-start gap-2 text-sm">
               <input

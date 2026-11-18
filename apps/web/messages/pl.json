@@ -1933,6 +1933,7 @@
       "useUp": "Zużyj żywność z krótką datą",
       "useUpHint": "Niezjedzone posiłki dnia zostaną wylosowane od nowa, z przepisami zużywającymi to, co w spiżarni kończy się do tego dnia.",
       "fixFields": "Popraw zaznaczone pola, żeby zobaczyć, co się zmieni.",
+      "between": "Wpisz liczbę całkowitą od {min, number, ::group-off} do {max, number, ::group-off} albo zostaw pole puste.",
       "errPreview": "Nie udało się sprawdzić, co się zmieni.",
       "errSave": "Nie udało się zapisać ustawień dnia.",
       "unchanged": "Nic się nie zmieni.",

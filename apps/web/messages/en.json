@@ -1933,6 +1933,7 @@
       "useUp": "Use up what is about to expire",
       "useUpHint": "The day's meals not yet eaten are drawn anew, with recipes that use up what the pantry has to use by this day.",
       "fixFields": "Correct the fields that are marked to see what changes.",
+      "between": "Type a whole number from {min, number, ::group-off} to {max, number, ::group-off}, or leave the field empty.",
       "errPreview": "Could not work out what would change.",
       "errSave": "Could not save the day's settings.",
       "unchanged": "Nothing changes.",

@@ -27,6 +27,9 @@ import { Recipe } from './recipe.js';
  * expiring inventory; `lockedSlots` pins a recipe to a slot before
  * generating so the rest of the day optimises around it.
  */
+/** The most minutes a limit on cooking time takes, a plan's or a day's. */
+export const MAX_COOK_TIME_BUDGET = 600;
+
 export const DayOverride = z.object({
   date: CalendarDay,
   /** Override the meal count for this day only (else the plan-level count). */
@@ -42,7 +45,7 @@ export const DayOverride = z.object({
    */
   dayType: z.enum(['normal', 'rest', 'training']).optional(),
   /** Hard cap on a recipe's prep+cook minutes for this day (busy weekdays). */
-  cookTimeBudgetMinutes: z.number().int().min(0).max(600).optional(),
+  cookTimeBudgetMinutes: z.number().int().min(0).max(MAX_COOK_TIME_BUDGET).optional(),
   /** Bias this day toward recipes that use inventory expiring by this date. */
   useUpBy: z.boolean().optional(),
   /** Pin recipes to slots before generating; the rest of the day fills around them. */
@@ -716,7 +719,7 @@ export const DaySettings = z.object({
   /** A target of the day's own; null for the one its kind gives. */
   calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
   /** The most minutes a recipe of the day may take to prepare and cook; null for no limit. */
-  cookTimeBudgetMinutes: z.number().int().min(0).max(600).nullable(),
+  cookTimeBudgetMinutes: z.number().int().min(0).max(MAX_COOK_TIME_BUDGET).nullable(),
   /** Put first the recipes that use what the pantry has to use up by this day. */
   useUpBy: z.boolean(),
 });
