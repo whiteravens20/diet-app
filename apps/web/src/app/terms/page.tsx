@@ -35,9 +35,7 @@ export default function TermsPage() {
           </div>
         </div>
         <nav aria-label={t('toc')} className="hidden text-sm lg:block">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('toc')}
-          </p>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">{t('toc')}</p>
           <ol className="space-y-1.5">
             {terms.outline.map(({ id, title }) => (
               <li key={id} lang={terms.lang ?? ''}>

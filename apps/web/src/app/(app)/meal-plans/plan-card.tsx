@@ -863,7 +863,7 @@ export function PlanCard({
                               </button>
                             )}
                             {isCustom && (
-                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
+                              <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
                                 {t('customChip')}
                               </span>
                             )}

@@ -175,9 +175,7 @@ export function CatalogueDbCard({
               </Row>
             </div>
             <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('seedFiles')}
-              </p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{t('seedFiles')}</p>
               <ul>
                 {seed.files.map((f) => (
                   <li
@@ -253,7 +251,7 @@ function ProgressBar({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-0.5">{children}</p>
     </div>
   );

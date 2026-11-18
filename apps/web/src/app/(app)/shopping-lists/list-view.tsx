@@ -394,7 +394,7 @@ export function ListView({
         {groups.map((g) => (
           <div key={g.category}>
             <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h3 className="text-sm font-semibold text-muted-foreground">
                 {categoryLabel(g.category)}
               </h3>
               {/* What the whole aisle comes to, whatever part of it is looked for. */}

@@ -128,7 +128,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <Card>
       <CardContent className="p-3 sm:p-5">
-        <p className="text-2xs uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</p>
+        <p className="text-2xs text-muted-foreground sm:text-xs">{label}</p>
         <p className="mt-1 text-xl font-semibold tabular-nums sm:text-3xl">{fmt.number(value)}</p>
       </CardContent>
     </Card>

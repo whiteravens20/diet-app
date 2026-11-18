@@ -71,7 +71,7 @@ export function CoverageCard({
         >
           <table className="w-full text-sm" aria-label={t('title')}>
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="text-xs text-muted-foreground">
                 <th scope="col" className="py-1.5 pr-3 text-left font-medium">
                   {t('diet')}
                 </th>
@@ -142,7 +142,7 @@ export function CoverageCard({
         >
           <table className="w-full text-sm" aria-label={t('macrosTitle')}>
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="text-xs text-muted-foreground">
                 <th scope="col" className="py-1.5 pr-3 text-left font-medium">
                   {t('diet')}
                 </th>

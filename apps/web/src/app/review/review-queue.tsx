@@ -678,9 +678,7 @@ function IngredientNameReviewCard({
 }
 
 function SectionHeader({ label }: { label: string }) {
-  return (
-    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-  );
+  return <p className="text-xs font-medium text-muted-foreground">{label}</p>;
 }
 
 function LabeledInput({
@@ -739,7 +737,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/20 px-2 py-1">
-      <p className="text-2xs uppercase tracking-wide">{label}</p>
+      <p className="text-2xs">{label}</p>
       <p className="text-sm text-foreground">{value}</p>
     </div>
   );

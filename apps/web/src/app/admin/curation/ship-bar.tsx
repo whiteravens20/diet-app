@@ -114,9 +114,7 @@ export function ShipBar({
   return (
     <div className="rounded-md border border-border bg-muted/30 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('shipHeader')}
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">{t('shipHeader')}</span>
         <span className="rounded-full bg-background px-2 py-0.5 text-xs">
           {t('shipApprovedCount', { count: approvedCount })}
         </span>

@@ -243,7 +243,7 @@ function ReviewSession({
                   type="button"
                   aria-pressed={locale === l}
                   onClick={() => setLocale(l)}
-                  className={`rounded px-3 py-1 text-xs uppercase tracking-wide ${
+                  className={`rounded px-3 py-1 text-xs ${
                     locale === l
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted'
