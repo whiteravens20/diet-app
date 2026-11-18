@@ -40,7 +40,7 @@ export interface Read {
 }
 
 /** Whether a read still holds an answer of its own, whatever its last try came to. */
-export const kept = (read: Pick<Read, 'data' | 'isPlaceholderData'>): boolean =>
+const kept = (read: Pick<Read, 'data' | 'isPlaceholderData'>): boolean =>
   read.data !== undefined && !read.isPlaceholderData;
 
 /** A read that failed with nothing to show for it: its place has only the failure to say. */
