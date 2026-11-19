@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, NotebookPen, Pencil, Plus, Trash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, NotebookPen, Pencil, Plus, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -37,6 +37,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
@@ -52,7 +53,7 @@ import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
-import { bandValues } from '@/lib/carbs-band';
+import { carbsBandOf } from '@/lib/carbs-band';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -115,6 +116,8 @@ function DiaryContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Whether the window that copies another day into this one is open.
+  const [copying, setCopying] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [adding, setAdding] = useState<MealType | null>(null);
   const [editing, setEditing] = useState<DiaryEntry | null>(null);
@@ -217,6 +220,7 @@ function DiaryContent() {
     mutationFn: (from: string) =>
       api.post<DiaryCopyResult>('/diary/copy', { profileId: active!.id, from, to: date }),
     onSuccess: async (result) => {
+      setCopying(false);
       setNotice(t('copied', { count: result.copied }));
       await refresh();
     },
@@ -229,6 +233,11 @@ function DiaryContent() {
     setNotice(null);
     setToast(null);
     copy.reset();
+  };
+  /** Another day, or another profile: the window that copies into the day before closes with it. */
+  const leaveDay = () => {
+    leave();
+    setCopying(false);
   };
 
   if (profiles.isLoading) return <Skeleton className="h-40" />;
@@ -271,7 +280,7 @@ function DiaryContent() {
         active={active.id}
         onPick={(id) => {
           setPicked(id);
-          leave();
+          leaveDay();
         }}
       />
 
@@ -280,9 +289,17 @@ function DiaryContent() {
         today={today}
         onPick={(next) => {
           setDate(next);
-          leave();
+          leaveDay();
         }}
-      />
+      >
+        {/* Copying another day here is a thing done to this day: beside its date. */}
+        {!ahead && !tooOld && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setCopying(true)}>
+            <Copy className="h-4 w-4" aria-hidden />
+            {t('copyTitle')}
+          </Button>
+        )}
+      </DayPicker>
 
       {error && (
         <div
@@ -313,11 +330,6 @@ function DiaryContent() {
                 rebalance.mutate({ planId, body: { scope: 'day', date: shown.date } })
               }
             />
-
-            {/* The day's water, where the diary takes entries for it: not a day still to come, nor one over a year back. */}
-            {active?.waterTracking && !ahead && !tooOld && (
-              <WaterCard profile={active} day={shown.date} />
-            )}
 
             {ahead ? (
               <p className="text-sm text-muted-foreground">{t('aheadNote')}</p>
@@ -371,26 +383,30 @@ function DiaryContent() {
               />
             ))}
 
-            {!ahead && !tooOld && (
-              <CopyDay
-                key={date}
-                date={date}
-                today={today}
-                busy={copy.isPending}
-                // What came here is not copied again by a second press: a quick double click would write it twice.
-                copied={copy.isSuccess && copy.data.copied > 0 ? copy.variables : null}
-                onCopy={(from) => {
-                  leave();
-                  copy.mutate(from);
-                }}
-              />
+            {/* The day's water, after what was eaten, where the diary takes entries for it: not a day still to
+                come, nor one over a year back. */}
+            {active?.waterTracking && !ahead && !tooOld && (
+              <WaterCard profile={active} day={shown.date} />
             )}
           </>
         )
       )}
 
-      {/* The profile's weeks in sum, from the one before today back a week at a time. */}
-      {active && <WeekSummaryCard profile={active} weeks />}
+      {/* The profile's weeks in sum, from the one before today back a week at a time, folded to one line. */}
+      {active && <WeekSummaryCard profile={active} weeks folded />}
+
+      {copying && (
+        <CopyDay
+          date={date}
+          today={today}
+          busy={copy.isPending}
+          onClose={() => setCopying(false)}
+          onCopy={(from) => {
+            leave();
+            copy.mutate(from);
+          }}
+        />
+      )}
 
       {adding && (
         <AddEntryDialog
@@ -449,10 +465,13 @@ function DayPicker({
   date,
   today,
   onPick,
+  children,
 }: {
   date: string;
   today: string;
   onPick: (day: string) => void;
+  /** What is done to the day shown, beside its date. */
+  children?: React.ReactNode;
 }) {
   const t = useTranslations('diary');
   const fmt = useFormat();
@@ -513,10 +532,14 @@ function DayPicker({
       >
         {t('today')}
       </Button>
+      {children}
       <p className="w-full text-sm font-medium sm:w-auto sm:pb-2">{fmt.date(date)}</p>
     </div>
   );
 }
+
+/** The macronutrients, in the order the day's figures give them. */
+const MACROS = ['protein', 'fat', 'carbs'] as const;
 
 /** What was eaten against the day's target, and where the plan's day stands with the diary counted. */
 function DaySummary({
@@ -532,7 +555,10 @@ function DaySummary({
   onRebalance: (planId: string) => void;
 }) {
   const t = useTranslations('diary');
+  const tMacro = useTranslations('macrosLine');
+  const fmt = useFormat();
   const id = useId();
+  const band = carbsBandOf(day.target);
   const share = day.target.calories > 0 ? Math.min(1, day.eaten.calories / day.target.calories) : 0;
   const plan = day.plan;
   // Where nothing is written, the plan's day stands as its own meals put it.
@@ -553,32 +579,30 @@ function DaySummary({
         <div aria-hidden className="h-2 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${share * 100}%` }} />
         </div>
-        <p className="text-sm text-muted-foreground">
-          {t('eatenMacros', {
-            protein: day.eaten.protein,
-            proteinTarget: day.target.protein,
-            fat: day.eaten.fat,
-            fatTarget: day.target.fat,
-            carbs: day.eaten.carbs,
-            carbsTarget: day.target.carbs,
-            ...bandValues(day.target),
-          })}
-        </p>
-        <div>
-          <LabelLine totals={day.eatenLabel} className="text-sm" />
-          <LabelLegend totals={day.eatenLabel} className="mt-1" />
-          <LabelNotes notes={day.labelNotes} className="mt-1" />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            plan?.skipped
-              ? 'targetFromSkipped'
-              : day.target.from === 'plan'
-                ? 'targetFromPlan'
-                : 'targetFromProfile',
-          )}
-        </p>
-        {day.estimated && <p className="text-xs text-muted-foreground">{t('estimatedNote')}</p>}
+        {/* Each macronutrient as a figure against what the day aims at: on low-carb and keto carbohydrate
+            against the diet's band. The name is read before the figure, the figure is seen first. */}
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          {MACROS.map((macro) => (
+            <div key={macro} className="flex flex-col">
+              <dt className="order-2 text-xs text-muted-foreground">{tMacro(macro)}</dt>
+              <dd className="order-1 text-lg font-semibold tabular-nums">
+                {fmt.unit(day.eaten[macro], 'gram', 0)}
+              </dd>
+              <dd className="order-3 text-xs text-muted-foreground">
+                {macro === 'carbs' && band !== 'none'
+                  ? t('inBand', {
+                      band,
+                      floor: day.target.carbsFloor ?? 0,
+                      ceiling: day.target.carbs,
+                    })
+                  : t('ofTarget', { target: day.target[macro] })}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <LabelLine totals={day.eatenLabel} className="text-sm" />
+        {/* What a limit says of the day holds the day's own figures: it stays in sight. */}
+        <LabelNotes notes={day.labelNotes} />
 
         {plan && (
           <div className="space-y-2 border-t border-border pt-3 text-sm">
@@ -637,6 +661,23 @@ function DaySummary({
             </Link>
           </div>
         )}
+        {/* Where the target comes from, what ≈ and the marks of the label mean: once, under the figures they explain. */}
+        <details className="text-xs text-muted-foreground">
+          <summary className="w-fit cursor-pointer py-1">{t('howItWorks')}</summary>
+          <div className="mt-1 space-y-1">
+            <p>
+              {t(
+                plan?.skipped
+                  ? 'targetFromSkipped'
+                  : day.target.from === 'plan'
+                    ? 'targetFromPlan'
+                    : 'targetFromProfile',
+              )}
+            </p>
+            {day.estimated && <p>{t('estimatedNote')}</p>}
+            <LabelLegend totals={day.eatenLabel} />
+          </div>
+        </details>
       </CardContent>
     </Card>
   );
@@ -799,79 +840,79 @@ function MealSection({
   );
 }
 
-/** Copy into the day shown what was eaten on another day before it or after it, up to today. */
+/**
+ * The window that copies what another day holds into the day shown: the day to copy from, and the
+ * button. It closes once the copy is made, and the page says what came.
+ */
 function CopyDay({
   date,
   today,
   busy,
-  copied,
+  onClose,
   onCopy,
 }: {
   date: string;
   today: string;
   busy: boolean;
-  /** The day copied here last, while the page stays on this day. */
-  copied: string | null;
+  onClose: () => void;
   onCopy: (from: string) => void;
 }) {
   const t = useTranslations('diary');
+  const tCommon = useTranslations('common');
   const fmt = useFormat();
   const id = useId();
   const [from, setFrom] = useState(() => dayAfter(date, -1));
   const itself = from === date;
-  const done = from === copied;
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="text-base font-semibold tracking-tight">{t('copyTitle')}</h2>
+    <Dialog open onClose={onClose} label={t('copyTitle')} className="max-w-md">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <h2 className="font-semibold">{t('copyTitle')}</h2>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          {tCommon('close')}
+        </Button>
+      </div>
+      <form
+        className="space-y-3 p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          // The browser holds the day to one there is, today or before it.
+          if (isDay(from) && !itself) onCopy(from);
+        }}
+      >
         <p id={`${id}-note`} className="text-sm text-muted-foreground">
           {t('copyNote')}
         </p>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            // The browser holds the day to one there is, today or before it.
-            if (isDay(from) && !itself && !done) onCopy(from);
-          }}
-        >
-          <div>
-            <label htmlFor={id} className="block text-xs font-medium text-muted-foreground">
-              {t('copyFrom')}
-            </label>
-            <Input
-              id={id}
-              type="date"
-              value={from}
-              min={FIRST_DAY}
-              max={today}
-              onChange={(e) => setFrom(e.target.value)}
-              className="w-44"
-              required
-            />
-          </div>
+        <div>
+          <label htmlFor={id} className="block text-xs font-medium text-muted-foreground">
+            {t('copyFrom')}
+          </label>
+          <Input
+            id={id}
+            type="date"
+            value={from}
+            min={FIRST_DAY}
+            max={today}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-44"
+            required
+          />
+        </div>
+        {itself && (
+          <p id={`${id}-itself`} className="text-xs text-muted-foreground">
+            {t('copySameDay')}
+          </p>
+        )}
+        <div className="flex justify-end">
+          {/* Off while the copy is sent: a quick double press would write it twice. */}
           <Button
             type="submit"
-            variant="outline"
-            disabled={busy || itself || done}
-            aria-describedby={itself ? `${id}-itself` : done ? `${id}-done` : `${id}-note`}
+            disabled={busy || itself}
+            aria-describedby={itself ? `${id}-itself` : `${id}-note`}
           >
             {t('copyButton', { day: fmt.day(date) })}
           </Button>
-          {itself && (
-            <p id={`${id}-itself`} className="w-full text-xs text-muted-foreground">
-              {t('copySameDay')}
-            </p>
-          )}
-          {done && (
-            <p id={`${id}-done`} className="w-full text-xs text-muted-foreground">
-              {t('copyDone')}
-            </p>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </Dialog>
   );
 }

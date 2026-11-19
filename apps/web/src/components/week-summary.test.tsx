@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +29,7 @@ const aWeek = (over: Partial<WeekSummary> = {}): WeekSummary => ({
   ...over,
 });
 
-function shown(week: WeekSummary, weeks = false) {
+function shown(week: WeekSummary, weeks = false, folded = false) {
   // An account that weighs in kilograms, and the week asked for.
   const get = vi
     .spyOn(api, 'get')
@@ -41,7 +41,7 @@ function shown(week: WeekSummary, weeks = false) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <NextIntlClientProvider locale="en" messages={messages}>
-        <WeekSummaryCard profile={PROFILE} weeks={weeks} />
+        <WeekSummaryCard profile={PROFILE} weeks={weeks} folded={folded} />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -132,6 +132,22 @@ describe("a profile's week in sum", () => {
     await userEvent.click(next);
     expect(next).toHaveAttribute('aria-disabled', 'true');
     expect(next).toHaveFocus();
+  });
+
+  it("is one line in the diary, the week's dates and what it ate against its target, until it is opened", async () => {
+    shown(aWeek(), true, true);
+    const toggle = await screen.findByRole('button', { name: /^The last 7\sdays/ });
+    await within(toggle).findByText(/On average/);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(plain(toggle.textContent)).toContain('On average 2174 of 2135 kcal a day');
+    expect(screen.queryByRole('button', { name: texts.previous })).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: texts.previous })).toBeInTheDocument();
+    expect(screen.getByText('On target (±10%): 4 of 5 days')).toBeInTheDocument();
   });
 
   it('keeps the focus on the button pressed while a week not read yet comes', async () => {

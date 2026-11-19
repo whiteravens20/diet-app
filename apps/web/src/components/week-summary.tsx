@@ -3,6 +3,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { Profile, WeekSummary } from '@diet-app/shared';
@@ -17,14 +18,24 @@ import { dayAfter } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 import { bandValues } from '@/lib/carbs-band';
+import { cn } from '@/lib/utils';
 
 /**
  * A profile's week in sum: the seven full days before today, or before a day
  * the diary went back to. What the days with an entry or an eaten meal ate on
  * average against their targets, how many came within a tenth of them, and
- * where the weights lead. In the diary it goes back and forth a week at a time.
+ * where the weights lead. In the diary it goes back and forth a week at a time, folded to one line
+ * (`folded`) under the day's entries until it is opened.
  */
-export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; weeks?: boolean }) {
+export function WeekSummaryCard({
+  profile,
+  weeks = false,
+  folded = false,
+}: {
+  profile: Profile;
+  weeks?: boolean;
+  folded?: boolean;
+}) {
   const t = useTranslations('weekSummary');
   const fmt = useFormat();
   const yesterday = dayAfter(localDate(), -1);
@@ -34,72 +45,108 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
     queryFn: () => api.get<WeekSummary>(`/diary/week?profileId=${profile.id}&to=${to}`),
   });
   const shown = week.data;
+  const [open, setOpen] = useState(!folded);
+  const title = to === yesterday ? t('title') : t('titleOf');
+  const dates = shown ? fmt.dates(shown.from, shown.to) : null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{to === yesterday ? t('title') : t('titleOf')}</CardTitle>
-        {shown && (
-          <p className="text-sm text-muted-foreground">{fmt.dates(shown.from, shown.to)}</p>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        {unread(week) ? (
-          <ReadsFailed reads={[week]} unanswered />
-        ) : !shown ? (
-          <Skeleton className="h-20" />
+        {folded ? (
+          // One line while folded: the week, its dates and what it ate on average against its target.
+          <CardTitle>
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => setOpen(!open)}
+              className="flex w-full items-start justify-between gap-3 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block">{title}</span>
+                {dates && (
+                  <span className="block text-sm font-normal text-muted-foreground">
+                    {dates}
+                    {!open && shown?.eaten && shown.target && (
+                      <>
+                        {' · '}
+                        {t('eaten', { eaten: shown.eaten.calories, target: shown.target.calories })}
+                      </>
+                    )}
+                  </span>
+                )}
+              </span>
+              <ChevronDown
+                aria-hidden
+                className={cn('mt-1 h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')}
+              />
+            </button>
+          </CardTitle>
         ) : (
           <>
-            {shown.eaten && shown.target ? (
-              <>
-                <p className="text-base font-semibold">
-                  {t('eaten', { eaten: shown.eaten.calories, target: shown.target.calories })}
-                </p>
-                <p>{t('within', { within: shown.withinTarget, counted: shown.counted })}</p>
-                <p className="text-muted-foreground">
-                  {t('macros', {
-                    protein: shown.eaten.protein,
-                    proteinTarget: shown.target.protein,
-                    fat: shown.eaten.fat,
-                    fatTarget: shown.target.fat,
-                    carbs: shown.eaten.carbs,
-                    carbsTarget: shown.target.carbs,
-                    ...bandValues(shown.target),
-                  })}
-                </p>
-              </>
-            ) : (
-              <p className="text-muted-foreground">{t('nothing')}</p>
-            )}
-            {shown.empty > 0 && shown.counted > 0 && (
-              <p className="text-muted-foreground">{t('empty', { empty: shown.empty })}</p>
-            )}
-            <WaterLine water={shown.water} />
-            <WeightLine summary={shown} />
+            <CardTitle>{title}</CardTitle>
+            {dates && <p className="text-sm text-muted-foreground">{dates}</p>}
           </>
         )}
-        {weeks && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setTo(dayAfter(to, -WEEK_DAYS))}
-            >
-              {t('previous')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              unavailable={to >= yesterday}
-              onClick={() => setTo(dayAfter(to, WEEK_DAYS))}
-            >
-              {t('next')}
-            </Button>
-          </div>
-        )}
-      </CardContent>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-2 text-sm">
+          {unread(week) ? (
+            <ReadsFailed reads={[week]} unanswered />
+          ) : !shown ? (
+            <Skeleton className="h-20" />
+          ) : (
+            <>
+              {shown.eaten && shown.target ? (
+                <>
+                  <p className="text-base font-semibold">
+                    {t('eaten', { eaten: shown.eaten.calories, target: shown.target.calories })}
+                  </p>
+                  <p>{t('within', { within: shown.withinTarget, counted: shown.counted })}</p>
+                  <p className="text-muted-foreground">
+                    {t('macros', {
+                      protein: shown.eaten.protein,
+                      proteinTarget: shown.target.protein,
+                      fat: shown.eaten.fat,
+                      fatTarget: shown.target.fat,
+                      carbs: shown.eaten.carbs,
+                      carbsTarget: shown.target.carbs,
+                      ...bandValues(shown.target),
+                    })}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted-foreground">{t('nothing')}</p>
+              )}
+              {shown.empty > 0 && shown.counted > 0 && (
+                <p className="text-muted-foreground">{t('empty', { empty: shown.empty })}</p>
+              )}
+              <WaterLine water={shown.water} />
+              <WeightLine summary={shown} />
+            </>
+          )}
+          {weeks && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setTo(dayAfter(to, -WEEK_DAYS))}
+              >
+                {t('previous')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                unavailable={to >= yesterday}
+                onClick={() => setTo(dayAfter(to, WEEK_DAYS))}
+              >
+                {t('next')}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }

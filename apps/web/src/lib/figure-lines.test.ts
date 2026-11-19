@@ -191,7 +191,7 @@ describe('a line of figures joined by dots', () => {
       'węglowodany 59 g, w normie 54–108 g',
     ]);
     expect(
-      pieces(say('en')('diary.eatenMacros', { ...day, band: 'ceiling', carbsFloor: 0 })),
+      pieces(say('en')('mealPlans.dayMacros', { ...day, band: 'ceiling', carbsFloor: 0 })),
     ).toEqual(['Protein 156 of 163 g ·', 'fat 152 of 142 g ·', 'carbs 59 g, at most 108 g']);
   });
 

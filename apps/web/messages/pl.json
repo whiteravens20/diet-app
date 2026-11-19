@@ -568,7 +568,9 @@
     "today": "Dziś",
     "eatenTitle": "Zjedzone",
     "eatenLine": "{eaten, number, ::group-off}\u00a0z {target, number, ::group-off}\u00a0kcal",
-    "eatenMacros": "Białko {protein, number, ::group-off} z {proteinTarget, number, ::group-off} g · tłuszcz {fat, number, ::group-off} z {fatTarget, number, ::group-off} g · {band, select, range {węglowodany {carbs, number, ::group-off} g, w normie {carbsFloor, number, ::group-off}–{carbsTarget, number, ::group-off} g} ceiling {węglowodany {carbs, number, ::group-off} g, w normie do {carbsTarget, number, ::group-off} g} other {węglowodany {carbs, number, ::group-off} z {carbsTarget, number, ::group-off} g}}",
+    "ofTarget": "z\u00a0{target, number, ::group-off}\u00a0g",
+    "inBand": "{band, select, ceiling {w\u00a0normie do\u00a0{ceiling, number, ::group-off}\u00a0g} other {w\u00a0normie {floor, number, ::group-off}–{ceiling, number, ::group-off}\u00a0g}}",
+    "howItWorks": "Jak to działa",
     "targetFromPlan": "Cel to cel dnia planu.",
     "targetFromProfile": "Żaden plan nie obejmuje tego dnia: cel to cel profilu.",
     "targetFromSkipped": "Plan pomija ten dzień: cel to cel profilu.",
@@ -642,7 +644,6 @@
     "pickRecipeFirst": "Najpierw znajdź i wybierz przepis.",
     "pickIngredientFirst": "Najpierw znajdź i wybierz składnik.",
     "copySameDay": "Wybierz inny dzień niż ten.",
-    "copyDone": "Ten dzień jest już skopiowany.",
     "planPastNote": "Ten dzień już minął. Jeśli plan ma jeszcze dni od dziś, na stronie planu można rozłożyć na nie różnicę.",
     "kindProduct": "Produkt",
     "pickProductFirst": "Najpierw znajdź i wybierz produkt.",
@@ -2572,8 +2573,8 @@
     "dayLine": "{day}: {amount}",
     "dayReached": "{day}: {amount}, cel osiągnięty",
     "inTarget": "W celu: {reached, number, ::group-off}\u00a0z {days, plural, one {{days, number, ::group-off}\u00a0dnia} few {{days, number, ::group-off}\u00a0dni} many {{days, number, ::group-off}\u00a0dni} other {{days, number, ::group-off}\u00a0dnia}}",
-    "errAdd": "Nie udało się zapisać wody.",
     "chartLater": "Wykres tygodnia pojawi się od drugiego dnia z\u00a0wodą.",
+    "errAdd": "Nie udało się zapisać wody.",
     "errRemove": "Nie udało się usunąć wpisu wody."
   },
   "weekSummary": {

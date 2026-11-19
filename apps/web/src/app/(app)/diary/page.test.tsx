@@ -9,6 +9,7 @@ import { UNDO_FOR_MS } from '@/components/removed-later';
 import type { DiaryDay, DiaryEntry } from '@diet-app/shared';
 import { DIARY_DAYS_BACK } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
+import { plain } from '@/testing/spaces';
 import { ApiClientError } from '@/lib/http';
 import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
@@ -175,18 +176,67 @@ describe('the diary', () => {
     await renderPage();
 
     expect(screen.getByText(/750 of 2000 kcal/)).toBeInTheDocument();
-    expect(screen.getByText(texts.estimatedNote)).toBeInTheDocument();
-    expect(screen.getByText(texts.targetFromPlan)).toBeInTheDocument();
-    // The meals in the order they are eaten: those of the plan and the one something was written for.
+    // Each macronutrient as a figure: its name, what was eaten of it and what the day aims at.
+    const figures = screen
+      .getAllByRole('term')
+      .map((term) => [
+        term.textContent,
+        ...[...term.parentElement!.querySelectorAll('dd')].map((dd) => plain(dd.textContent)),
+      ]);
+    expect(figures).toEqual([
+      ['Protein', '34 g', 'of 125 g'],
+      ['Fat', '19 g', 'of 67 g'],
+      ['Carbs', '109 g', 'of 225 g'],
+    ]);
+    // Where the target comes from and what ≈ means: once, folded under the figures.
+    const explained = screen.getByText(texts.estimatedNote).closest('details')!;
+    expect(explained).not.toHaveAttribute('open');
+    expect(within(explained).getByText(texts.targetFromPlan)).toBeInTheDocument();
+    // The meals in the order they are eaten, right under the day's sum: those of the plan and the one
+    // something was written for.
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(['Eaten', 'Breakfast', 'Lunch', 'Dinner', texts.copyTitle]);
+    ).toEqual(['Eaten', 'Breakfast', 'Lunch', 'Dinner']);
     const breakfast = within(screen.getByRole('region', { name: 'Breakfast' }));
     expect(breakfast.getByRole('checkbox', { name: texts.eatenToggle })).toBeChecked();
     const lunch = within(screen.getByRole('region', { name: 'Lunch' }));
     expect(lunch.getByText('Soup from the canteen')).toBeInTheDocument();
     expect(lunch.getByText(`≈ ${texts.estimated}`)).toBeInTheDocument();
     expect(screen.getByText(texts.planOnTarget)).toBeInTheDocument();
+  });
+
+  it("puts the day's water after what was eaten, and the week in sum after the water", async () => {
+    await renderPage();
+    const dinner = screen.getByRole('region', { name: 'Dinner' });
+    const water = await screen.findByRole('button', { name: /^\+200/ });
+    const week = await screen.findByRole('button', { name: /^The last 7\sdays/ });
+
+    expect(dinner.compareDocumentPosition(water) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(water.compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The week is folded to its line in the diary.
+    expect(week).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it("says carbohydrate on low-carb against the diet's band, and fat against what is left", async () => {
+    await renderPage(
+      aDay({
+        target: {
+          calories: 2000,
+          protein: 163,
+          fat: 142,
+          carbs: 108,
+          carbsFloor: 54,
+          from: 'plan',
+        },
+      }),
+    );
+
+    const figure = (name: string) =>
+      [...screen.getByText(name, { selector: 'dt' }).parentElement!.querySelectorAll('dd')].map(
+        (dd) => plain(dd.textContent),
+      );
+    expect(figure('Carbs')).toEqual(['109 g', 'in range 54–108 g']);
+    expect(figure('Fat')).toEqual(['19 g', 'of 142 g']);
   });
 
   it('says of a meal from a shared pot that its energy is a portion of a split, near the plan', async () => {
@@ -261,7 +311,7 @@ describe('the diary', () => {
     await renderPage(aDay({ date: oldest }));
 
     expect(screen.getByRole('button', { name: texts.addTitle })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: texts.copyTitle })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: texts.copyTitle })).toBeInTheDocument();
     expect(screen.queryByText(texts.tooOldNote)).not.toBeInTheDocument();
   });
 
@@ -804,12 +854,14 @@ describe('the diary', () => {
     expect(window.queryByText(texts.noResults)).not.toBeInTheDocument();
   });
 
-  it('copies another day into this one, and says how many entries came', async () => {
+  it('copies another day into this one from beside its date, in a window that closes once the entries came', async () => {
     await renderPage();
     const posted = vi.spyOn(api, 'post').mockResolvedValue({ copied: 2, day: aDay() } as never);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: /^Copy into/ }));
+    await user.click(screen.getByRole('button', { name: texts.copyTitle }));
+    const window = screen.getByRole('dialog', { name: texts.copyTitle });
+    await user.click(within(window).getByRole('button', { name: /^Copy into/ }));
 
     expect(posted).toHaveBeenCalledWith('/diary/copy', {
       profileId: PROFILE,
@@ -817,27 +869,31 @@ describe('the diary', () => {
       to: TODAY,
     });
     expect(await screen.findByRole('status')).toHaveTextContent('2 entries copied.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('copies a day once, however quickly a second press comes, and goes on to copy another', async () => {
+  it('copies a day once, however quickly a second press comes, and copies another when asked again', async () => {
     await renderPage();
     const posted = vi.spyOn(api, 'post').mockResolvedValue({ copied: 2, day: aDay() } as never);
     const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: /^Copy into/ });
 
-    await user.dblClick(button);
+    await user.click(screen.getByRole('button', { name: texts.copyTitle }));
+    await user.dblClick(screen.getByRole('button', { name: /^Copy into/ }));
 
-    await screen.findByText(texts.copyDone);
+    await screen.findByRole('status');
     expect(posted).toHaveBeenCalledTimes(1);
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription(texts.copyDone);
 
+    await user.click(screen.getByRole('button', { name: texts.copyTitle }));
     fireEvent.change(screen.getByLabelText(texts.copyFrom), {
       target: { value: dayAfter(TODAY, -2) },
     });
-    expect(button).toBeEnabled();
-    await user.click(button);
+    await user.click(screen.getByRole('button', { name: /^Copy into/ }));
     expect(posted).toHaveBeenCalledTimes(2);
+    expect(posted).toHaveBeenLastCalledWith('/diary/copy', {
+      profileId: PROFILE,
+      from: dayAfter(TODAY, -2),
+      to: TODAY,
+    });
   });
 
   it('says that a day holds nothing yet where neither a plan nor an entry is there', async () => {
