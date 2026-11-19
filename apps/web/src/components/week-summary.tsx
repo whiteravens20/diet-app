@@ -18,6 +18,7 @@ import { dayAfter } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 import { bandValues } from '@/lib/carbs-band';
+import { DOT } from '@/lib/figure-line';
 import { cn } from '@/lib/utils';
 
 /**
@@ -68,7 +69,7 @@ export function WeekSummaryCard({
                     {dates}
                     {!open && shown?.eaten && shown.target && (
                       <>
-                        {' · '}
+                        {DOT}
                         {t('eaten', { eaten: shown.eaten.calories, target: shown.target.calories })}
                       </>
                     )}
