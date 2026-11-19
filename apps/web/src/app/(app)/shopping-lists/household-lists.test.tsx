@@ -159,9 +159,10 @@ describe('the household lists of an account', () => {
     expect(screen.getByText('For: Adam and Ewa')).toBeInTheDocument();
     const row = screen.getByRole('checkbox', { name: 'Chicken breast' }).closest('li')!;
     expect(plain(within(row).getByText(/^Adam/).textContent)).toBe('Adam 150 g · Ewa 150 g');
-    expect(
-      screen.queryByRole('button', { name: messages.shoppingLists.proposals.ask }),
-    ).not.toBeInTheDocument();
+    // The question is fetched after the rows where a list has it: given the time to come, it does not.
+    await expect(
+      screen.findByRole('button', { name: messages.shoppingLists.proposals.ask }, { timeout: 300 }),
+    ).rejects.toThrow();
   });
 
   it('is made of a plan of each profile for the days, the newest that has one of them chosen', async () => {

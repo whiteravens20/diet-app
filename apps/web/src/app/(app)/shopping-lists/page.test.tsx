@@ -216,7 +216,7 @@ describe('a shopping list, looked over for what it could do without', () => {
       .spyOn(api, 'post')
       .mockResolvedValue({ planId: PLAN, proposals: [leftover], aiMeta: null } as never);
 
-    await userEvent.click(screen.getByRole('button', { name: texts.ask }));
+    await userEvent.click(await screen.findByRole('button', { name: texts.ask }));
 
     expect(post).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/proposals`, { weigh: false });
     expect(await screen.findByRole('link', { name: texts.leftoverHow })).toHaveAttribute(
@@ -1096,6 +1096,14 @@ describe('the shopping page with a list', () => {
         .getAllByRole('button')
         .map((button) => button.textContent),
     ).toEqual([texts.printNotebook, texts.printPdf, texts.copy, texts.csv, messages.common.delete]);
+  });
+
+  it('asks what the list could do without under its rows, after the last aisle', async () => {
+    await renderPage();
+    const ask = await screen.findByRole('button', { name: texts.proposals.ask });
+    const lastRow = screen.getByRole('checkbox', { name: 'Broccoli' });
+
+    expect(lastRow.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

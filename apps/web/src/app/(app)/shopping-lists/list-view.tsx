@@ -3,6 +3,7 @@
 'use client';
 
 /** One shopping list: its rows by aisle, what is ticked and what is at home, and the ways to take it out of the application. */
+import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
 import { useId, useMemo, useRef, useState } from 'react';
 import { EllipsisVertical, Package, Pencil, Search } from 'lucide-react';
@@ -25,9 +26,18 @@ import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { AiOffNote } from '@/components/ai-off-note';
-import { ListProposals } from './list-proposals';
+import { Skeleton } from '@/components/ui/skeleton';
 import { laterLines, packsStand, packsText } from './packs';
 import { rowAmount } from './row-amount';
+
+/**
+ * What a list could do without, asked under its rows: fetched after the rows, which are what a first visit is for.
+ * Waited for in its place, so that the window of a copy by hand stays open.
+ */
+const ListProposals = dynamic(
+  () => import('./list-proposals').then((section) => section.ListProposals),
+  { ssr: false, loading: () => <Skeleton className="h-10" /> },
+);
 
 /** A row as the view shows it: of a plan's list, or of a household list with what each profile needs of it. */
 export type ShownItem = ShoppingListItem & { shares?: HouseholdListItem['shares'] };
@@ -440,19 +450,6 @@ export function ListView({
         </div>
       )}
       <CardContent className="space-y-5 pt-4">
-        {/* Asked of the list as it is: another list, or the same list made anew, begins without an answer. */}
-        {proposalsOf && (
-          <div className="space-y-2">
-            <ListProposals
-              key={`${proposalsOf.id}-${proposalsOf.createdAt}`}
-              list={proposalsOf}
-              profileId={profileId}
-              aiEnabled={aiEnabled}
-              aiOffNote={aiOffNote}
-            />
-            {aiOffNote && <AiOffNote id={aiOffNote} />}
-          </div>
-        )}
         {everyItem.some(packsStand) && (
           <details className="text-xs text-muted-foreground">
             <summary className="w-fit cursor-pointer py-1">{t('howItWorks')}</summary>
@@ -493,6 +490,19 @@ export function ListView({
             </ul>
           </div>
         ))}
+        {/* Asked of the list as it is, once its rows are read: another list, or the same list made anew, begins without an answer. */}
+        {proposalsOf && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <ListProposals
+              key={`${proposalsOf.id}-${proposalsOf.createdAt}`}
+              list={proposalsOf}
+              profileId={profileId}
+              aiEnabled={aiEnabled}
+              aiOffNote={aiOffNote}
+            />
+            {aiOffNote && <AiOffNote id={aiOffNote} />}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
