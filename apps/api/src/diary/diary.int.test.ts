@@ -595,6 +595,14 @@ describe('the diary of a profile', () => {
         estimatedMacros: ['carbs'],
         nutrition: { calories: 1400, protein: 60, fat: 40, carbs: 200 },
       });
+      // Its protein no longer known: estimated with carbohydrate from what fat leaves, 25 to 45.
+      const unknown = (await change({ nutrition: { calories: 700, protein: null } }))
+        .body as DiaryEntry;
+      expect(unknown).toMatchObject({
+        estimated: true,
+        estimatedMacros: ['protein', 'carbs'],
+        nutrition: { calories: 1400, fat: 40 },
+      });
     });
 
     it("takes a name and figures for a meal of one's own alone, none that hold more energy than the whole", async () => {

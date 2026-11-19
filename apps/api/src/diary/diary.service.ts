@@ -518,8 +518,10 @@ export class DiaryService {
       const known: Partial<Macros> = {};
       for (const macro of EstimatedMacro.options) {
         const now = given[macro];
-        if (now !== undefined) known[macro] = now;
-        else if (!row.estimatedMacros.includes(macro)) known[macro] = row[macro] / before;
+        // Null: not known, estimated. Left out: as it was.
+        if (now !== undefined && now !== null) known[macro] = now;
+        else if (now === undefined && !row.estimatedMacros.includes(macro))
+          known[macro] = row[macro] / before;
       }
       const profile = await this.profile(userId, row.profileId);
       const macros = estimatedMacros(

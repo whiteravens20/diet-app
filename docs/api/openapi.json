@@ -26166,7 +26166,53 @@
             "maxLength": 120
           },
           "nutrition": {
-            "$ref": "#/components/schemas/DiaryMealNutrition"
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              "protein": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 500
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fat": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 500
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "carbs": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "calories"
+            ]
           },
           "productId": {
             "type": "string",

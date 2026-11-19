@@ -5,7 +5,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { DiaryEntry, MealType, Product, UpdateDiaryEntryRequest } from '@diet-app/shared';
 import {
   DIARY_QUANTITY_LIMITS,
@@ -29,15 +29,21 @@ const OwnProductForm = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-96" /> },
 );
 
+/** The macronutrients of a meal of one's own, as its window gives them. */
+const MACROS = ['protein', 'fat', 'carbs'] as const;
+type Macro = (typeof MACROS)[number];
+
 const selectClass =
   'w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring';
 
 /**
  * The window an entry of the diary is changed in: the meal it is under, and
  * how much of it there was, in servings or in the amount of its ingredient as
- * it was given. The API changes its figures in proportion. An entry of a
- * product of the base can be moved to its reader's correction of it, written
- * here, or to the version of their own they wrote before.
+ * it was given. The API changes its figures in proportion. A meal of one's own
+ * also takes its name and the figures of a serving anew: a macronutrient left
+ * empty is estimated, as when it was written. An entry of a product of the base
+ * can be moved to its reader's correction of it, written here, or to the
+ * version of their own they wrote before.
  */
 export function EditEntryDialog({
   entry,
@@ -58,11 +64,28 @@ export function EditEntryDialog({
   const tCommon = useTranslations('common');
   const tMeal = useTranslations('enums.mealType');
   const unitName = useUnitName();
+  const id = useId();
   const [mealType, setMealType] = useState<MealType>(entry.mealType);
   const servingsAtFirst = String(shownServings(entry.servings));
   const quantityAtFirst = String(entry.amount?.quantity ?? '');
   const [servings, setServings] = useState(servingsAtFirst);
   const [quantity, setQuantity] = useState(quantityAtFirst);
+  // A meal of one's own: its name and the figures of one serving, a macronutrient that was estimated left empty.
+  const own = entry.kind === 'meal';
+  const servingsNow = entry.servings ?? 1;
+  const ofServing = (figure: number): number => Math.round((figure / servingsNow) * 10) / 10;
+  const caloriesAtFirst = String(Math.round(entry.nutrition.calories / servingsNow));
+  const macroAtFirst = (macro: Macro): string =>
+    entry.estimatedMacros.includes(macro) ? '' : String(ofServing(entry.nutrition[macro]));
+  const [name, setName] = useState(entry.name);
+  const [calories, setCalories] = useState(caloriesAtFirst);
+  const [macros, setMacros] = useState<Record<Macro, string>>(() => ({
+    protein: macroAtFirst('protein'),
+    fat: macroAtFirst('fat'),
+    carbs: macroAtFirst('carbs'),
+  }));
+  const figuresChanged =
+    calories !== caloriesAtFirst || MACROS.some((macro) => macros[macro] !== macroAtFirst(macro));
   const errorText = useErrorText();
   const tProducts = useTranslations('products');
   // What the code answers for its reader: the base's product to correct, or a version of their own already.
@@ -126,6 +149,18 @@ export function EditEntryDialog({
             mealType,
             ...(quantity !== quantityAtFirst ? { quantity: Number(quantity) } : {}),
             ...(servings !== servingsAtFirst ? { servings: Number(servings) } : {}),
+            ...(own && name.trim() !== entry.name ? { name: name.trim() } : {}),
+            // Figures left alone stay exactly what they were: what is shown of them is rounded.
+            ...(own && figuresChanged
+              ? {
+                  nutrition: {
+                    calories: Number(calories),
+                    protein: macros.protein === '' ? null : Number(macros.protein),
+                    fat: macros.fat === '' ? null : Number(macros.fat),
+                    carbs: macros.carbs === '' ? null : Number(macros.carbs),
+                  },
+                }
+              : {}),
           });
         }}
       >
@@ -142,6 +177,59 @@ export function EditEntryDialog({
             ))}
           </select>
         </Field>
+        {own && (
+          <>
+            <Field label={t('mealName')}>
+              {/* A name of nothing but spaces is no name. */}
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                pattern=".*\S.*"
+                maxLength={OWN_MEAL_LIMITS.name}
+              />
+            </Field>
+            <fieldset className="space-y-2" aria-describedby={`${id}-optional`}>
+              <legend className="text-sm font-medium">{t('onePortion')}</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t('calories')}>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    required
+                    min={0}
+                    max={OWN_MEAL_LIMITS.perServing.calories}
+                    step="any"
+                    value={calories}
+                    onChange={(e) => setCalories(e.target.value)}
+                  />
+                </Field>
+                {MACROS.map((macro) => (
+                  <Field key={macro} label={t(macro)} optional>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={OWN_MEAL_LIMITS.perServing[macro]}
+                      step="any"
+                      value={macros[macro]}
+                      // What it was estimated at, while it is not known.
+                      placeholder={
+                        entry.estimatedMacros.includes(macro)
+                          ? `≈ ${fmt.number(ofServing(entry.nutrition[macro]))}`
+                          : undefined
+                      }
+                      onChange={(e) => setMacros({ ...macros, [macro]: e.target.value })}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <p id={`${id}-optional`} className="text-xs text-muted-foreground">
+                {t('macrosOptional')}
+              </p>
+            </fieldset>
+          </>
+        )}
         {entry.amount ? (
           // The amount as it was given, in the unit it was given in.
           <Field label={`${t('quantity')} (${unitName(entry.amount.shown.unit)})`}>

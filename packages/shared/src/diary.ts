@@ -112,11 +112,15 @@ export const UpdateDiaryEntryRequest = z
     name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name).optional(),
     /**
      * For a meal of one's own: the figures of one serving. Its energy, and of
-     * the macronutrients those given now; one given before and not named here
-     * stays as it was, one estimated before is estimated again from the new
-     * energy.
+     * the macronutrients those given now; one sent as null is estimated from
+     * the energy, one not named stays given where it was given and is
+     * estimated again from the new energy where it was estimated.
      */
-    nutrition: DiaryMealNutrition.optional(),
+    nutrition: DiaryMealNutrition.extend({
+      protein: EnteredNutrition.shape.protein.nullable().optional(),
+      fat: EnteredNutrition.shape.fat.nullable().optional(),
+      carbs: EnteredNutrition.shape.carbs.nullable().optional(),
+    }).optional(),
     /**
      * For an entry of a product: a product of the reader's own it is of from
      * now on, whose label gives its figures for the same amount, as when its

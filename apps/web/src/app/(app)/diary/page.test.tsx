@@ -422,6 +422,37 @@ describe('the diary', () => {
     });
   });
 
+  it("changes a meal of one's own by its name and the figures of a serving, a macronutrient left empty estimated", async () => {
+    await renderPage();
+    const patched = vi.spyOn(api, 'patch').mockResolvedValue(anEntry() as never);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Change Soup from the canteen' }));
+    const window = within(screen.getByRole('dialog', { name: texts.editTitle }));
+    const field = (name: RegExp) => window.getByRole('spinbutton', { name });
+    // Its macronutrients were estimated: empty, with what they were estimated at.
+    expect(window.getByRole('textbox', { name: texts.mealName })).toHaveValue(
+      'Soup from the canteen',
+    );
+    expect(field(/^Calories/)).toHaveValue(300);
+    expect(field(/^Protein/)).toHaveValue(null);
+    expect(field(/^Protein/)).toHaveAttribute('placeholder', '≈ 19');
+
+    const name = window.getByRole('textbox', { name: texts.mealName });
+    await user.clear(name);
+    await user.type(name, 'Soup');
+    await user.clear(field(/^Calories/));
+    await user.type(field(/^Calories/), '350');
+    await user.type(field(/^Protein/), '25');
+    await user.click(window.getByRole('button', { name: messages.common.save }));
+
+    expect(patched).toHaveBeenCalledWith(`/diary/entries/${anEntry().id}`, {
+      mealType: 'lunch',
+      name: 'Soup',
+      nutrition: { calories: 350, protein: 25, fat: null, carbs: null },
+    });
+  });
+
   it("marks a meal of the plan as eaten, which rebalances the plan's day as its page does", async () => {
     await renderPage();
     const patched = vi
