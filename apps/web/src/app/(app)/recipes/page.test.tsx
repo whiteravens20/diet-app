@@ -15,7 +15,14 @@ const texts = messages.recipes;
 
 // The address the page is opened at: `?tab=mine` opens on one's own recipes.
 let address = '';
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(address) }));
+/** Where the page sends the person, as the router is asked. */
+const push = vi.fn();
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(address),
+  useRouter: () => ({ push }),
+}));
+/** How the account asks a model: the button that drafts a recipe waits for one. */
+let aiMode = 'none';
 const PROFILE = '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f';
 const TOFU = '7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d';
 
@@ -43,7 +50,7 @@ async function renderPage(
     if (path.startsWith('/recipes?')) asked = new URLSearchParams(path.slice('/recipes?'.length));
     return Promise.resolve(
       (path === '/users/me'
-        ? { aiMode: 'none' }
+        ? { aiMode }
         : path.startsWith('/recipes/mine?')
           ? {
               // A copy, so that a recipe changed in `mine` is a change of the answer.
@@ -307,6 +314,28 @@ describe("the recipes of one's own", () => {
     byModel: origin === 'ai' ? 'written' : null,
     source: null,
     submitted,
+  });
+
+  it('show one a model just wrote among them, and open it', async () => {
+    address = 'tab=mine';
+    aiMode = 'byok';
+    const mine = [own('a1a1a1a1-0000-4000-8000-000000000001', 'Soup of mine', 'manual')];
+    await renderPage(1, [TOFU], mine);
+    const written = own('b2b2b2b2-0000-4000-8000-000000000002', 'Pork with peppers', 'ai');
+    vi.spyOn(api, 'post').mockImplementation(async () => {
+      mine.unshift(written);
+      return { recipe: { id: written.id } } as never;
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: texts.aiDraft }));
+    await user.click(await screen.findByRole('button', { name: messages.aiRecipeDraft.submit }));
+
+    // The list on the page is read again, and the recipe opens, as on the phone.
+    expect(await screen.findByText('Pork with peppers')).toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith(`/recipes/${written.id}`);
+    aiMode = 'none';
+    address = '';
   });
 
   it('offer to submit one a model wrote, and neither one the curators have already nor one made by swapping an ingredient', async () => {

@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PenLine, Pencil, Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense, useMemo, useState } from 'react';
 import type {
@@ -78,6 +78,7 @@ function RecipesContent() {
   const [draftOpen, setDraftOpen] = useState(false);
   // `?tab=mine` opens on one's own recipes: where a recipe deleted from its page leads back to.
   const params = useSearchParams();
+  const router = useRouter();
   const [tab, setTab] = useState<'library' | 'mine'>(() =>
     params.get('tab') === 'mine' ? 'mine' : 'library',
   );
@@ -592,9 +593,8 @@ function RecipesContent() {
         <AiRecipeDraftModal
           profile={activeProfile}
           onClose={() => setDraftOpen(false)}
-          onCreated={() => {
-            /* React Query invalidations inside the modal refresh the list. */
-          }}
+          // The recipe just written opens, as on the phone; the lists are read again by the window.
+          onCreated={(id) => router.push(`/recipes/${id}`)}
         />
       )}
     </div>
