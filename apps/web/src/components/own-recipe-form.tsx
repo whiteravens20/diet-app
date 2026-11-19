@@ -210,7 +210,6 @@ export function OwnRecipeForm({
     },
     onSuccess: (recipe) => {
       void qc.invalidateQueries({ queryKey: ['recipes'] });
-      void qc.invalidateQueries({ queryKey: ['recipes:mine'] });
       void qc.invalidateQueries({ queryKey: ['favorites'] });
       // The version an edit replaced is gone: it is not asked for again.
       router.push(`/recipes/${recipe.id}`);

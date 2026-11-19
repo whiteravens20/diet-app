@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AiMode, Profile } from '@diet-app/shared';
@@ -16,7 +17,7 @@ const profile = {
   preferences: { favoriteIngredientIds: [], excludedIngredientIds: [], allergens: [] },
 } as unknown as Profile;
 
-/** The window for an account whose AI is in `mode`. */
+/** The window for an account whose AI is in `mode`; what it reports and reads again is caught. */
 function opened(mode: AiMode) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve((path === '/users/me' ? { aiMode: mode } : []) as never),
@@ -24,13 +25,17 @@ function opened(mode: AiMode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   // The account is known by the time the window can be opened: its button waits for it.
   client.setQueryData(['session'], { aiMode: mode });
+  const readAgain = vi.spyOn(client, 'invalidateQueries');
+  const created = vi.fn();
+  const closed = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
-        <AiRecipeDraftModal profile={profile} onClose={() => {}} onCreated={() => {}} />
+        <AiRecipeDraftModal profile={profile} onClose={closed} onCreated={created} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
+  return { readAgain, created, closed };
 }
 
 afterEach(() => {
@@ -42,6 +47,18 @@ describe('the window that drafts a recipe with a model', () => {
     opened('admin');
 
     expect(screen.getByText(messages.aiRecipeDraft.curatorsNote)).toBeInTheDocument();
+  });
+
+  it('reads the lists of recipes again once the model wrote one, and says which it is', async () => {
+    const { readAgain, created, closed } = opened('byok');
+    vi.spyOn(api, 'post').mockResolvedValue({ recipe: { id: 'c3c3c3c3' } } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.aiRecipeDraft.submit }));
+
+    await vi.waitFor(() => expect(created).toHaveBeenCalledWith('c3c3c3c3'));
+    // Both the library and one's own recipes are under this key.
+    expect(readAgain).toHaveBeenCalledWith({ queryKey: ['recipes'] });
+    expect(closed).toHaveBeenCalled();
   });
 
   it('says nothing of the curators to an account that uses its own key', () => {

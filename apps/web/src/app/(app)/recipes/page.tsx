@@ -158,22 +158,22 @@ function RecipesContent() {
   // Library vs My Recipes share the same card UI but hit different
   // endpoints. `mine` skips the filter sidebar's server params (the personal
   // list is short enough that client-side sorting beats query plumbing) and
-  // adds a delete affordance to each card.
+  // adds a delete affordance to each card. Both lists are under `recipes`:
+  // whatever writes or deletes a recipe reads both again with one key.
   const recipes = useQuery({
-    queryKey: tab === 'mine' ? ['recipes:mine', page] : ['recipes', queryString],
+    queryKey: tab === 'mine' ? ['recipes', 'mine', page] : ['recipes', queryString],
     queryFn: () =>
       tab === 'mine'
         ? api.get<MyRecipesPage>(`/recipes/mine?page=${page}&pageSize=${PAGE_SIZE}`)
         : api.get<RecipeSearchPage>(`/recipes${queryString}`),
     // The page shown stays while the next of the same tab comes: the button pressed for it keeps the focus.
     placeholderData: (shown, query) =>
-      query?.queryKey[0] === (tab === 'mine' ? 'recipes:mine' : 'recipes') ? shown : undefined,
+      (query?.queryKey[1] === 'mine') === (tab === 'mine') ? shown : undefined,
   });
 
   const deleteRecipe = useMutation({
     mutationFn: (id: string) => api.delete(`/recipes/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
     },
   });
@@ -185,7 +185,7 @@ function RecipesContent() {
     onSuccess: () => {
       setSubmitted({ ok: true, text: t('submitDone') });
       // The list says it was sent, and offers to send it no more.
-      void queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
+      void queryClient.invalidateQueries({ queryKey: ['recipes', 'mine'] });
     },
     onError: (e) => setSubmitted({ ok: false, text: errorText(e, t('submitFailed')) }),
   });

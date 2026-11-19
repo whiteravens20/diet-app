@@ -52,7 +52,6 @@ function RecipeDetail() {
     mutationFn: () => api.delete(`/recipes/${params.id}`),
     onSuccess: () => {
       setGone(true);
-      queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
       queryClient.removeQueries({ queryKey: ['recipe', params.id] });
       router.push('/recipes?tab=mine');

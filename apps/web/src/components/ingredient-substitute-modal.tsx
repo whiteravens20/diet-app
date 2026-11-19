@@ -179,6 +179,8 @@ export function IngredientSubstituteModal({
       // Refresh whichever plan list is currently rendered so the meal card
       // picks up the new recipe variant and its recomputed nutrition.
       qc.invalidateQueries({ queryKey: ['meal-plans'] });
+      // The swap is kept as a recipe of one's own: the list of them shows it.
+      qc.invalidateQueries({ queryKey: ['recipes'] });
       if (result.aiMeta) qc.invalidateQueries({ queryKey: ['ai-quota'] });
       onApplied(result);
       onClose();

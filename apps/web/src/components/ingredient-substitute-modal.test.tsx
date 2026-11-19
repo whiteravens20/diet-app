@@ -69,11 +69,11 @@ async function substituting(preview: SwapPreview, locale: 'en' | 'pl' = 'en') {
       ),
     );
   const onApplied = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const readAgain = vi.spyOn(client, 'invalidateQueries');
   render(
     <NextIntlClientProvider locale={locale} messages={texts}>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
+      <QueryClientProvider client={client}>
         <IngredientSubstituteModal
           meal={meal}
           planId="55555555-5555-4555-8555-555555555555"
@@ -91,6 +91,7 @@ async function substituting(preview: SwapPreview, locale: 'en' | 'pl' = 'en') {
   return {
     post,
     onApplied,
+    readAgain,
     delta,
     applyButton: () => screen.getByRole('button', { name: texts.swap.apply }),
   };
@@ -185,7 +186,7 @@ describe('the substitution of an ingredient, before it is made', () => {
   });
 
   it('sends nothing accepted where nothing moved', async () => {
-    const { post, applyButton, onApplied } = await substituting(aPreview());
+    const { post, applyButton, onApplied, readAgain } = await substituting(aPreview());
 
     await userEvent.click(applyButton());
 
@@ -193,6 +194,8 @@ describe('the substitution of an ingredient, before it is made', () => {
       acceptChange: false,
     });
     await vi.waitFor(() => expect(onApplied).toHaveBeenCalled());
+    // The swap is kept as a recipe of one's own: the lists of recipes are read again to show it.
+    expect(readAgain).toHaveBeenCalledWith({ queryKey: ['recipes'] });
   });
 
   it('says why a substitution may not be made, and does not offer it', async () => {
