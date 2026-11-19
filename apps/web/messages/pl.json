@@ -2172,6 +2172,7 @@
     "portionsLabel": "Porcje",
     "portionsEach": "{count, plural, one {{count, number, ::group-off} porcja} few {{count, number, ::group-off} porcje} many {{count, number, ::group-off} porcji} other {{count, number, ::group-off} porcji}}, w każdej {amount}",
     "portionsList": "Porcje: {amounts}",
+    "portionsBound": "Wpisz liczbę całkowitą od 1 do {max, number, ::group-off}.",
     "addButton": "Dodaj",
     "removeLabel": "Usuń {name}",
     "errAdd": "Nie udało się dodać pozycji.",

@@ -25,7 +25,8 @@ export const portionsFit = (quantity: number, portions: number): boolean =>
 
 /**
  * What each package holds when `quantity` of `unit` goes into the freezer in `portions`, rounded as the pantry
- * shows it, or why it cannot be split so; nothing where there is one package or nothing to split yet.
+ * shows it, or why it cannot be split so: a count the freezer does not take, or parts of less than one of the unit.
+ * Nothing where there is one package or nothing to split yet.
  */
 export function PortionsLine({
   id,
@@ -45,7 +46,14 @@ export function PortionsLine({
   const tErrors = useTranslations('errors');
   const amount = useAmount();
   const fmt = useFormat();
-  if (!(quantity > 0) || portions === null || portions < 2) return null;
+  // Said in our words, and not left to the browser's, which speak its own language.
+  if (portions === null)
+    return (
+      <p id={id} className="text-xs text-destructive">
+        {t('portionsBound', { max: MAX_PORTIONS })}
+      </p>
+    );
+  if (!(quantity > 0) || portions < 2) return null;
   const parts = portionsOf(quantity, portions);
   if (parts === null)
     return (
@@ -92,9 +100,9 @@ export function FreezeDialog({
   const fieldId = useId();
   const lineId = useId();
   const portions = portionCount(typed);
-  // A count the freezer does not take is the field's to say, as the browser says it on the try; a count it takes
-  // that makes portions of less than one of the unit is said under the field, and nothing goes.
-  const fits = portions === null || portionsFit(item.quantity, portions);
+  // A count the freezer does not take, or one that makes portions of less than one of the unit, is said under the
+  // field, and nothing goes.
+  const fits = portions !== null && portionsFit(item.quantity, portions);
   return (
     <Dialog open onClose={onClose} label={t('freeze')} className="max-w-md">
       <div className="flex items-center justify-between border-b border-border p-4">
@@ -126,12 +134,9 @@ export function FreezeDialog({
             id={fieldId}
             type="number"
             inputMode="numeric"
-            min={1}
-            max={MAX_PORTIONS}
-            step={1}
-            required
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
+            aria-invalid={!fits || undefined}
             aria-describedby={lineId}
             className="w-24"
           />

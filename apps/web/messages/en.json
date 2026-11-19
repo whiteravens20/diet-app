@@ -2172,6 +2172,7 @@
     "portionsLabel": "Portions",
     "portionsEach": "{count, plural, one {{count, number, ::group-off} portion} other {{count, number, ::group-off} portions}} of {amount} each",
     "portionsList": "Portions: {amounts}",
+    "portionsBound": "Type a whole number from 1 to {max, number, ::group-off}.",
     "addButton": "Add",
     "removeLabel": "Remove {name}",
     "errAdd": "Could not add the item.",

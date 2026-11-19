@@ -496,6 +496,22 @@ describe('a row of the pantry', () => {
       expect(post).not.toHaveBeenCalled();
     });
 
+    it('says in its own words that portions are a whole number from 1 to 10, with its button off', async () => {
+      const { post } = await open([], [grams(1000, false, '2026-11-16')]);
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(chicken.name) }));
+      const window = screen.getByRole('dialog');
+      const portions = within(window).getByLabelText(texts.portionsLabel);
+      await userEvent.clear(portions);
+      await userEvent.type(portions, '11');
+
+      expect(portions).toHaveAccessibleDescription(`Type a whole number from 1${NBSP}to 10.`);
+      expect(within(window).getByRole('button', { name: texts.freeze })).toBeDisabled();
+      // Nor does the key that sends a form send it.
+      await userEvent.type(portions, '{Enter}');
+      expect(post).not.toHaveBeenCalled();
+    });
+
     it('says so in its window where a row could not be put into it, and keeps the window open', async () => {
       const { post } = await open([], [grams(100, false, '2026-11-16')]);
       post.mockRejectedValueOnce(new Error('offline'));

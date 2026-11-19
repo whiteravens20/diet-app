@@ -8,7 +8,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
 import { FROZEN_KEEPS_DAYS } from '@diet-app/shared/constants';
-import { MAX_PORTIONS } from '@diet-app/shared/portions';
 import { UNITS } from '@diet-app/shared/units';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
@@ -391,7 +390,7 @@ function AddInventoryForm({
   const portions = frozen ? portionCount(portionsTyped) : 1;
   const qty = Number(quantity);
   // What goes into the freezer goes in whole packages of at least one of its unit; fresh is one row whatever it is.
-  const fits = !frozen || portions === null || !(qty > 0) || portionsFit(qty, portions);
+  const fits = !frozen || (portions !== null && (!(qty > 0) || portionsFit(qty, portions)));
 
   const results = useQuery({
     queryKey: ['ingredients-search', search],
@@ -581,12 +580,9 @@ function AddInventoryForm({
                 id={ids.portions}
                 type="number"
                 inputMode="numeric"
-                min={1}
-                max={MAX_PORTIONS}
-                step={1}
-                required
                 value={portionsTyped}
                 onChange={(e) => setPortionsTyped(e.target.value)}
+                aria-invalid={!fits || undefined}
                 aria-describedby={ids.portionsLine}
                 className="w-20"
               />
