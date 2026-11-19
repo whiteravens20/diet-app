@@ -286,10 +286,11 @@ and no independent security review.
   are not reached. The same run checks that the database migrations match the schema, that
   no export, file or dependency goes unused, that the curated data in `data/` can be
   seeded, and that the API stays within its budgets of time and of database statements on
-  a catalogue of 2,000 recipes. Another job builds the stack, starts it from a freshly
-  generated `.env`, runs the browser tests against it and checks that a start on the
-  unedited template is refused; the links between the documents and the shell scripts are
-  checked as well ([test.yml](.github/workflows/test.yml)).
+  a catalogue of 2,000 recipes. Three more jobs, at the same time, each build the stack,
+  start it from a freshly generated `.env` and run their share of the browser tests against
+  it, and one of them checks that a start on the unedited template is refused; the links
+  between the documents and the shell scripts are checked as well
+  ([test.yml](.github/workflows/test.yml)).
 - A change of the API, of the package it shares with the web app or of the contract in
   `docs/api/` is also checked against the [Android
   client](https://github.com/whiteravens20/diet-app-android): every call of the client is
