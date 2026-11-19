@@ -27,7 +27,13 @@ export type AiDataPolicy = z.infer<typeof AiDataPolicy>;
 export const AiProviderConfigInput = z
   .object({
     provider: AiProvider,
-    /** Plaintext key on the way in; encrypted server-side immediately. */
+    /**
+     * Plaintext key on the way in; encrypted server-side immediately. Left
+     * out, a saved configuration keeps the key it has; a new configuration of
+     * a provider other than Ollama is refused without one
+     * (`AI_API_KEY_REQUIRED` at `apiKey`), and so is a change of one whose
+     * saved key can no longer be read.
+     */
     apiKey: apiKey.optional(),
     /** Per-config Ollama host. Required when provider = ollama. */
     baseUrl: baseUrl.optional(),
@@ -42,19 +48,11 @@ export const AiProviderConfigInput = z
     enabled: z.boolean().default(true),
   })
   .superRefine((cfg, ctx) => {
-    if (cfg.provider === 'ollama') {
-      if (!cfg.baseUrl) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['baseUrl'],
-          message: 'AI_BASE_URL_REQUIRED',
-        });
-      }
-    } else if (!cfg.apiKey) {
+    if (cfg.provider === 'ollama' && !cfg.baseUrl) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['apiKey'],
-        message: 'AI_API_KEY_REQUIRED',
+        path: ['baseUrl'],
+        message: 'AI_BASE_URL_REQUIRED',
       });
     }
   });
@@ -278,7 +276,11 @@ export type AiQuotaStatus = z.infer<typeof AiQuotaStatus>;
  */
 export const AiTestConnectionRequest = z.object({
   provider: AiProvider,
-  /** Required for OpenAI / Anthropic / OpenRouter; ignored for Ollama. */
+  /**
+   * OpenAI / Anthropic / OpenRouter; ignored for Ollama. Left out, the key the
+   * account saved for the provider is tested, sent only to the provider's own
+   * address.
+   */
   apiKey: apiKey.optional(),
   /** Required for Ollama; ignored for the cloud providers. */
   baseUrl: baseUrl.optional(),

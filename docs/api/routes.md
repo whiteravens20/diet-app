@@ -87,7 +87,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `PUT /api/ai/providers` | an account | Save the account's configuration of a provider: made the first time, changed afterwards. A key that is left out stays as it is. | `AiProviderConfigInput` | 200 `AiProviderConfig` |  |
 | `DELETE /api/ai/providers/:id` | an account | Remove a provider of the account, with its key. |  | 204 |  |
 | `GET /api/ai/quota` | an account | What AI the account has now: the mode it chose, and how many calls of the instance's allowance it has made and has left. |  | 200 `AiQuotaStatus` |  |
-| `POST /api/ai/test` | an account | Verify a provider credential without persisting it. The UI calls this from the BYOK form to confirm the key works and populate the model dropdown. | `AiTestConnectionRequest` | 201 `AiTestConnectionResponse` | 20 in a minute |
+| `POST /api/ai/test` | an account | Verify a provider credential without persisting it. The UI calls this from the BYOK form to confirm the key works and populate the model dropdown. A key left out is the one the account saved for the provider, as when a saved configuration is changed: it goes to the provider's own address alone, and Ollama, whose address the request names, is asked with none. | `AiTestConnectionRequest` | 201 `AiTestConnectionResponse` | 20 in a minute |
 
 ## auth
 

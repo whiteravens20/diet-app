@@ -77,7 +77,10 @@ export class AiController {
   /**
    * Verify a provider credential without persisting it. The UI calls this
    * from the BYOK form to confirm the key works and populate the model
-   * dropdown.
+   * dropdown. A key left out is the one the account saved for the provider,
+   * as when a saved configuration is changed: it goes to the provider's own
+   * address alone, and Ollama, whose address the request names, is asked
+   * with none.
    *
    * Throttled tighter than the global default: each call makes an *outbound*
    * request to a user-named provider (including a user-supplied Ollama base URL,
@@ -88,9 +91,12 @@ export class AiController {
   @Post('test')
   @Answers(AiTestConnectionResponse)
   async testConnection(
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(AiTestConnectionRequest)) dto: AiTestConnectionRequest,
   ): Promise<AiTestConnectionResponse> {
-    return this.test.test(dto);
+    if (dto.apiKey || dto.provider === 'ollama') return this.test.test(dto);
+    const saved = await this.keys.savedKey(user.id, dto.provider);
+    return this.test.test({ ...dto, apiKey: saved ?? undefined });
   }
 
   private async loadMode(userId: string): Promise<AiMode> {

@@ -2681,7 +2681,7 @@
           "ai"
         ],
         "summary": "Verify a provider credential without persisting it.",
-        "description": "Verify a provider credential without persisting it. The UI calls this from the BYOK form to confirm the key works and populate the model dropdown.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "description": "Verify a provider credential without persisting it. The UI calls this from the BYOK form to confirm the key works and populate the model dropdown. A key left out is the one the account saved for the provider, as when a saved configuration is changed: it goes to the provider's own address alone, and Ollama, whose address the request names, is asked with none.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
         "security": [
           {
             "account": []

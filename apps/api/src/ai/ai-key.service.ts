@@ -75,6 +75,14 @@ export class AiKeyService {
    * that is left out stays as it is.
    */
   async upsert(userId: string, input: AiProviderConfigInput): Promise<AiProviderConfig> {
+    // A provider in the cloud is asked with a key: the one entered now, or the
+    // one saved before, which a change that leaves the field empty keeps.
+    if (
+      input.provider !== 'ollama' &&
+      !input.apiKey &&
+      !(await this.savedKey(userId, input.provider))
+    )
+      throw keyRequired();
     const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey, userId) : undefined;
 
     const baseUrl = input.provider === 'ollama' ? (input.baseUrl ?? null) : null;
@@ -111,6 +119,21 @@ export class AiKeyService {
       update: { ...settings, ...(encryptedKey !== undefined ? { encryptedKey } : {}) },
     });
     return this.toDto(row);
+  }
+
+  /**
+   * The key the account saved for a provider, opened, or null when there is
+   * none or it can no longer be read. Only for a request to the provider's own
+   * address: a caller never sends it anywhere else.
+   */
+  async savedKey(userId: string, provider: AiProviderConfig['provider']): Promise<string | null> {
+    const row = await this.prisma.aiProviderConfig.findUnique({
+      where: { userId_provider: { userId, provider } },
+      select: { encryptedKey: true },
+    });
+    if (!row?.encryptedKey) return null;
+    const opened = openKey(row.encryptedKey, this.encKey, userId);
+    return opened.ok ? opened.key : null;
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -247,4 +270,14 @@ export class AiKeyService {
       dataPolicy: row.provider === 'openrouter' ? row.dataPolicy : null,
     };
   }
+}
+
+/** The refusal of a provider in the cloud with no key to ask it with, where the form puts it: at the key. */
+function keyRequired(): BadRequestException {
+  return new BadRequestException({
+    statusCode: 400,
+    error: 'VALIDATION_FAILED',
+    message: 'Request payload failed validation.',
+    issues: [{ path: 'apiKey', message: 'AI_API_KEY_REQUIRED', code: 'custom' }],
+  });
 }
