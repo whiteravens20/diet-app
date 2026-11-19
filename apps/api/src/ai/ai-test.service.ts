@@ -108,7 +108,7 @@ export class AiTestService {
         case 'openai':
           return await this.testOpenAiCompatible('https://api.openai.com/v1/models', dto.apiKey);
         case 'openrouter':
-          return await this.testOpenAiCompatible('https://openrouter.ai/api/v1/models', dto.apiKey);
+          return await this.testOpenRouter(dto.apiKey);
         case 'ollama':
           return await this.testOllama(dto.baseUrl);
         case 'anthropic':
@@ -125,15 +125,28 @@ export class AiTestService {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
-    if (!res.ok) {
-      return { ok: false, models: [], error: `HTTP ${res.status} ${res.statusText}` };
-    }
+    if (!res.ok) return { ok: false, models: [], error: await refusalOf(res) };
     const body = (await res.json()) as { data?: Array<{ id?: string }> };
     const models = (body.data ?? [])
       .map((m) => m.id)
       .filter((id): id is string => typeof id === 'string')
       .sort();
     return { ok: true, models, error: null };
+  }
+
+  /**
+   * OpenRouter lists its models to anybody, a key it does not know included, so the list says
+   * nothing of the key: the key is asked about first, where OpenRouter answers 401 to one it does not
+   * know (read on 2026-11-19), and the models are listed after.
+   */
+  private async testOpenRouter(apiKey: string | undefined): Promise<Probe> {
+    if (!apiKey) return { ok: false, models: [], error: 'API key required.' };
+    const res = await fetch('https://openrouter.ai/api/v1/key', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (!res.ok) return { ok: false, models: [], error: await refusalOf(res) };
+    return this.testOpenAiCompatible('https://openrouter.ai/api/v1/models', apiKey);
   }
 
   private async testOllama(baseUrl: string | undefined): Promise<Probe> {
@@ -228,4 +241,25 @@ async function textUpTo(res: Response, maxBytes: number): Promise<string | null>
     chunks.push(value);
   }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+/**
+ * What a provider in the cloud said when it refused: its status, and its own words where its body
+ * has them (`{"error":{"message":…}}`). Over HTTP/2 an answer carries no reason phrase, so the
+ * status alone would say little.
+ */
+async function refusalOf(res: Response): Promise<string> {
+  let said: unknown;
+  try {
+    const body = (await res.json()) as {
+      error?: { message?: unknown } | string;
+      message?: unknown;
+    };
+    said = typeof body.error === 'string' ? body.error : (body.error?.message ?? body.message);
+  } catch {
+    // Not JSON: the status says what there is to say.
+  }
+  if (typeof said === 'string' && said.trim())
+    return `HTTP ${res.status}: ${said.trim().slice(0, 200)}`;
+  return `HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`;
 }

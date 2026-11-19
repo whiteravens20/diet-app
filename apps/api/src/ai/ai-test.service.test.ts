@@ -257,6 +257,28 @@ describe('the providers of a model on OpenRouter that keep no data', () => {
     });
   });
 
+  it('come with a key OpenRouter does not know refused, though it lists its models to anybody', async () => {
+    const keys: (string | null)[] = [];
+    vi.stubGlobal('fetch', async (url: string | URL, init: RequestInit = {}) => {
+      if (String(url) === LIST) return json({ data: endpoints });
+      if (String(url) === 'https://openrouter.ai/api/v1/key') {
+        keys.push(new Headers(init.headers).get('authorization'));
+        return json({ error: { message: 'User not found.', code: 401 } }, 401);
+      }
+      return json({ data: [{ id: 'openai/gpt-6-luna' }] });
+    });
+
+    const result = await service().test(asking({ apiKey: 'sk-or-not-a-key' }));
+
+    expect(result).toEqual({
+      ok: false,
+      models: [],
+      error: 'HTTP 401: User not found.',
+      noRetentionProviders: ['Azure'],
+    });
+    expect(keys).toEqual(['Bearer sk-or-not-a-key']);
+  });
+
   it('are read from one reading of the list for the tests that follow it', async () => {
     const asked = openRouter(() => json({ data: endpoints }));
     const one = service();
