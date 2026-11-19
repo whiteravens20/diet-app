@@ -37,6 +37,7 @@ test.describe('a shopping list, taken out of the application', () => {
     await page.goto('/shopping-lists');
     await settled(page);
 
+    await page.getByRole('button', { name: lists.listOptions!, exact: true }).click();
     await page.getByRole('button', { name: lists.copy!, exact: true }).click();
 
     // Over plain http a browser gives a page no clipboard: the text is then shown in a window, ready to be selected.
@@ -65,6 +66,7 @@ test.describe('a shopping list, taken out of the application', () => {
     const entries = await page.getByRole('main').getByRole('checkbox').count();
 
     const saved = page.waitForEvent('download');
+    await page.getByRole('button', { name: lists.listOptions!, exact: true }).click();
     await page.getByRole('button', { name: lists.csv!, exact: true }).click();
     const file = await saved;
 
@@ -90,6 +92,7 @@ test.describe('a shopping list, taken out of the application', () => {
     await expect(page.getByRole('main').getByRole('checkbox').first()).toBeVisible();
 
     const saved = page.waitForEvent('download');
+    await page.getByRole('button', { name: lists.listOptions!, exact: true }).click();
     await page.getByRole('button', { name: lists.printPdf!, exact: true }).first().click();
     const file = await saved;
 

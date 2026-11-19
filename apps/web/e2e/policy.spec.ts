@@ -238,6 +238,7 @@ test.describe('the content security policy of a page', () => {
     await settled(page);
 
     const saved = page.waitForEvent('download');
+    await page.getByRole('button', { name: lists.listOptions!, exact: true }).click();
     await page.getByRole('button', { name: lists.printPdf!, exact: true }).first().click();
 
     expect((await saved).suggestedFilename()).toMatch(/\.pdf$/);

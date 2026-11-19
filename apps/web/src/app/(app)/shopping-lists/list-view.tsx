@@ -4,8 +4,8 @@
 
 /** One shopping list: its rows by aisle, what is ticked and what is at home, and the ways to take it out of the application. */
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
-import { Package } from 'lucide-react';
+import { useId, useMemo, useRef, useState } from 'react';
+import { EllipsisVertical, Package, Search } from 'lucide-react';
 import type {
   DisplayUnit,
   HouseholdListItem,
@@ -18,11 +18,12 @@ import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { DOT, held } from '@/lib/figure-line';
 import { useUnitName } from '@/lib/ingredient-format';
 import { saveText } from '@/lib/save-file';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { CopyByHand } from '@/components/copy-by-hand';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
+import { cn } from '@/lib/utils';
 import { AiOffNote } from '@/components/ai-off-note';
 import { ListProposals } from './list-proposals';
 import { laterLines, packsStand, packsText } from './packs';
@@ -142,6 +143,20 @@ export function ListView({
   const t = useTranslations('shoppingLists');
   // What somebody in a shop is looking for on the list: the entries whose name holds the words, under the aisles they are in.
   const [find, setFind] = useState('');
+  // The field to look with opens behind the magnifier, and stays while it holds words: a list is never cut down by a
+  // field that is not shown.
+  const [findAsked, setFindAsked] = useState(false);
+  const findShown = findAsked || find !== '';
+  const magnifier = useRef<HTMLButtonElement>(null);
+  const findId = useId();
+  /** The field to look with closed, and what it held with it: the whole list again. */
+  const closeFind = (): void => {
+    setFind('');
+    setFindAsked(false);
+  };
+  // What can be done with the list as a whole, behind one button: a phone shows the list's first rows, not five buttons.
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsId = useId();
   const wanted = find.trim().toLocaleLowerCase();
   const groups = wanted
     ? list.groups
@@ -289,55 +304,112 @@ export function ListView({
     }
   }
 
+  const iconButton = cn(buttonVariants({ variant: 'ghost', size: 'md' }), 'w-10 px-0');
+
   return (
     <Card>
-      <div className="flex items-center justify-between gap-4 border-b border-border p-4">
-        <div>
+      {/* One line over the rows: the days and how far the list is ticked off, the magnifier and the list's options. */}
+      <div className="flex items-start justify-between gap-2 border-b border-border p-4 pr-2">
+        <div className="min-w-0">
           <p className="font-medium">{dateRangeLabel}</p>
           {forWhom && <p className="text-sm">{forWhom}</p>}
           <p className="text-sm text-muted-foreground">
             {summaryLabel(checkedItems, totalItems, list.totalEstimatedCalories)}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
+        <div className="flex shrink-0 items-center">
+          <button
+            ref={magnifier}
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => runPdf('print')}
-            disabled={busy || pdfBusy}
+            className={iconButton}
+            aria-label={t('findEntry')}
+            title={t('findEntry')}
+            aria-expanded={findShown}
+            aria-controls={findId}
+            onClick={() => (findShown ? closeFind() : setFindAsked(true))}
           >
-            {pdfBusy ? printGeneratingPdfLabel : printNotebookLabel}
-          </Button>
-          <Button
+            <Search size={18} aria-hidden />
+          </button>
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => runPdf('download')}
-            disabled={busy || pdfBusy}
+            className={iconButton}
+            aria-label={t('listOptions')}
+            title={t('listOptions')}
+            aria-expanded={optionsOpen}
+            aria-controls={optionsId}
+            onClick={() => setOptionsOpen(!optionsOpen)}
           >
-            {pdfBusy ? printGeneratingPdfLabel : printPdfLabel}
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
-            {t('copy')}
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={downloadCsv}>
-            {t('csv')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-destructive"
-            onClick={() => {
-              if (window.confirm(deleteConfirm)) onDelete(list.id);
-            }}
-            disabled={busy || pdfBusy}
-          >
-            {deleteLabel}
-          </Button>
+            <EllipsisVertical size={18} aria-hidden />
+          </button>
         </div>
       </div>
+      <div
+        id={optionsId}
+        role="group"
+        aria-label={t('listOptions')}
+        hidden={!optionsOpen}
+        className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => runPdf('print')}
+          disabled={busy || pdfBusy}
+        >
+          {pdfBusy ? printGeneratingPdfLabel : printNotebookLabel}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => runPdf('download')}
+          disabled={busy || pdfBusy}
+        >
+          {pdfBusy ? printGeneratingPdfLabel : printPdfLabel}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
+          {t('copy')}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={downloadCsv}>
+          {t('csv')}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-destructive"
+          onClick={() => {
+            if (window.confirm(deleteConfirm)) onDelete(list.id);
+          }}
+          disabled={busy || pdfBusy}
+        >
+          {deleteLabel}
+        </Button>
+      </div>
+      {findShown && (
+        <div id={findId} className="border-b border-border px-4 py-3">
+          <div className="max-w-sm">
+            <Field label={t('findEntry')}>
+              <Input
+                type="search"
+                // Opened by the magnifier to be typed in.
+                autoFocus
+                value={find}
+                onChange={(e) => setFind(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Escape') return;
+                  // Escape closes the field and gives the whole list back; the focus goes back to the magnifier.
+                  e.preventDefault();
+                  closeFind();
+                  magnifier.current?.focus();
+                }}
+                placeholder={t('findEntryPlaceholder')}
+              />
+            </Field>
+          </div>
+        </div>
+      )}
       {pdfError && <p className="px-4 py-2 text-sm text-destructive">{pdfError}</p>}
       {/* Said where it happened, and read out: a text on the clipboard cannot be seen. */}
       <p role="status" className={copied ? 'px-4 py-2 text-sm text-muted-foreground' : 'sr-only'}>
@@ -373,18 +445,11 @@ export function ListView({
             {aiOffNote && <AiOffNote id={aiOffNote} />}
           </div>
         )}
-        <div className="max-w-sm">
-          <Field label={t('findEntry')}>
-            <Input
-              type="search"
-              value={find}
-              onChange={(e) => setFind(e.target.value)}
-              placeholder={t('findEntryPlaceholder')}
-            />
-          </Field>
-        </div>
         {everyItem.some(packsStand) && (
-          <p className="text-xs text-muted-foreground">{packsHint ?? t('packsHint')}</p>
+          <details className="text-xs text-muted-foreground">
+            <summary className="w-fit cursor-pointer py-1">{t('howItWorks')}</summary>
+            <p className="mt-1">{packsHint ?? t('packsHint')}</p>
+          </details>
         )}
         {wanted && groups.length === 0 && (
           <p className="text-sm text-muted-foreground">

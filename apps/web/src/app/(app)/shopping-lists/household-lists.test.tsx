@@ -225,6 +225,7 @@ describe('the household lists of an account', () => {
     show();
     await open();
 
+    await userEvent.click(screen.getByRole('button', { name: messages.shoppingLists.listOptions }));
     await userEvent.click(screen.getByRole('button', { name: messages.common.delete }));
     expect(confirm).toHaveBeenCalledWith(texts.deleteConfirm);
     expect(remove).toHaveBeenCalledWith(`/household-lists/${HOUSEHOLD}`);

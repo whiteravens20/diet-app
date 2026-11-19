@@ -148,6 +148,9 @@ test.describe('a shopping list and the packs things are sold in', () => {
     await settled(page);
     await expect(main.getByRole('checkbox').first()).toBeVisible();
 
+    // What pressing the packs does is said behind "Jak to działa", above the rows.
+    await expect(main.getByText(lists.packsHint!)).toBeHidden();
+    await main.getByText(lists.howItWorks!, { exact: true }).click();
     await expect(main.getByText(lists.packsHint!)).toBeVisible();
     // The first row that says its packs: "2 × 250 g". A row is known by the name it is ticked by.
     const offered = main

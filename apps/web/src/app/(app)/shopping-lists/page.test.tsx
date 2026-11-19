@@ -109,8 +109,17 @@ async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' =
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  return screen.findByLabelText(texts.findEntry);
+  return screen.findByRole('button', { name: texts.findEntry });
 }
+
+/** The field to look for an entry with, opened by the magnifier in the list's head. */
+async function findField(): Promise<HTMLElement> {
+  await userEvent.click(screen.getByRole('button', { name: texts.findEntry }));
+  return screen.getByRole('searchbox', { name: texts.findEntry });
+}
+
+/** What can be done with the list as a whole, opened by the button beside the magnifier. */
+const listOptions = () => userEvent.click(screen.getByRole('button', { name: texts.listOptions }));
 
 /** The entries on screen, by the name each is ticked by. */
 const entries = (): string[] =>
@@ -131,7 +140,8 @@ describe('a shopping list, looked through for an entry', () => {
   });
 
   it('keeps the entries whose name holds the words, whatever their case, and the aisles that still have one', async () => {
-    const find = await renderPage();
+    await renderPage();
+    const find = await findField();
 
     await userEvent.type(find, 'RIC');
 
@@ -143,12 +153,44 @@ describe('a shopping list, looked through for an entry', () => {
   });
 
   it('says so when no entry has the words in its name', async () => {
-    const find = await renderPage();
+    await renderPage();
+    const find = await findField();
 
     await userEvent.type(find, 'salmon');
 
     expect(screen.queryAllByRole('checkbox')).toEqual([]);
     expect(screen.getByText('No entry of this list has “salmon” in its name.')).toBeInTheDocument();
+  });
+
+  it('is looked through with a field behind the magnifier, which takes the focus and keeps its words when it is left', async () => {
+    const magnifier = await renderPage();
+
+    expect(magnifier).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    const find = await findField();
+    expect(magnifier).toHaveAttribute('aria-expanded', 'true');
+    expect(find).toHaveFocus();
+
+    await userEvent.type(find, 'rice');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }).closest('ul')!);
+
+    expect(screen.getByRole('searchbox', { name: texts.findEntry })).toHaveValue('rice');
+    expect(entries()).toEqual(['White rice']);
+  });
+
+  it('gives the whole list back when the magnifier or Escape closes the field, and the focus to the magnifier', async () => {
+    const magnifier = await renderPage();
+
+    await userEvent.type(await findField(), 'rice');
+    await userEvent.click(magnifier);
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(entries()).toHaveLength(3);
+
+    await userEvent.type(await findField(), 'oats');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(entries()).toHaveLength(3);
+    expect(magnifier).toHaveFocus();
   });
 });
 
@@ -240,6 +282,7 @@ describe('a shopping list, taken somewhere else', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     await renderPage(underWay);
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     expect(copiedBy(writeText)).toEqual([
@@ -260,6 +303,7 @@ describe('a shopping list, taken somewhere else', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
     await renderPage(underWay);
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     const byHand = within(await screen.findByRole('dialog', { name: texts.copyByHand }));
@@ -276,6 +320,7 @@ describe('a shopping list, taken somewhere else', () => {
       aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []),
     );
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     expect(copiedBy(writeText)).toEqual(['Shopping list, Jan 5 – 7, 2026', '', texts.copyNothing]);
@@ -286,6 +331,7 @@ describe('a shopping list, taken somewhere else', () => {
     const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
     await renderPage(underWay);
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.csv }));
 
     const [file, name, type] = saved.mock.calls[0]!;
@@ -331,6 +377,7 @@ describe('a shopping list, taken somewhere else', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     await renderPage(inPacks);
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     expect(copiedBy(writeText).slice(2)).toEqual([
@@ -347,6 +394,7 @@ describe('a shopping list, taken somewhere else', () => {
     const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
     await renderPage(inPacks);
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.csv }));
 
     expect(saved.mock.calls[0]![0].slice(1).split('\r\n').slice(1, 4)).toEqual([
@@ -414,6 +462,7 @@ describe('a row of fresh meat or fish needed on a later day', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     await renderPage(aListOf([chicken()], []));
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
     const lines = String(writeText.mock.calls[0]![0])
@@ -426,6 +475,7 @@ describe('a row of fresh meat or fish needed on a later day', () => {
     const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
     await renderPage(aListOf([chicken(), anEntry('White rice', 'grains')], []));
 
+    await listOptions();
     await userEvent.click(screen.getByRole('button', { name: texts.csv }));
 
     const table = saved.mock.calls[0]![0].slice(1)
@@ -558,7 +608,10 @@ describe('a row of a shopping list', () => {
       expect(packsOf('Salmon')).toHaveAccessibleName(
         spaced('Bought in packs: 2 × 250 g of Salmon'),
       );
-      expect(screen.getByText(texts.packsHint)).toBeInTheDocument();
+      // What pressing it does is said behind "How it works", above the rows.
+      const hint = screen.getByText(texts.packsHint).closest('details')!;
+      expect(hint).not.toHaveAttribute('open');
+      expect(within(hint).getByText(texts.howItWorks).tagName).toBe('SUMMARY');
     });
 
     it('takes whoever presses it to have what was at home and what the packs hold, and the row for done', async () => {
@@ -587,6 +640,7 @@ describe('a row of a shopping list', () => {
 
       expect(screen.queryByRole('button', { name: /^Bought in packs/ })).toBeNull();
       expect(screen.queryByText(texts.packsHint)).toBeNull();
+      expect(screen.queryByText(texts.howItWorks)).toBeNull();
     });
 
     it('says nothing of packs on a row that is ticked, or of which a part was bought', async () => {
@@ -960,6 +1014,24 @@ describe('the shopping page with a list', () => {
 
     await userEvent.click(head);
     expect(screen.getByRole('button', { name: texts.generateButton })).toBeVisible();
+  });
+
+  it('has what can be done with the list behind one button beside the magnifier', async () => {
+    await renderPage();
+    const options = screen.getByRole('button', { name: texts.listOptions });
+
+    expect(options).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: texts.copy })).toBeNull();
+
+    await listOptions();
+
+    expect(options).toHaveAttribute('aria-expanded', 'true');
+    const group = screen.getByRole('group', { name: texts.listOptions });
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual([texts.printNotebook, texts.printPdf, texts.copy, texts.csv, messages.common.delete]);
   });
 });
 

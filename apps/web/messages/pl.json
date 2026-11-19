@@ -1455,6 +1455,8 @@
     "findEntry": "Znajdź pozycję",
     "findEntryPlaceholder": "Nazwa składnika…",
     "findEntryNone": "Żadna pozycja tej listy nie ma „{words}” w nazwie.",
+    "listOptions": "Opcje listy",
+    "howItWorks": "Jak to działa",
     "proposals": {
       "ask": "Bez czego ta lista mogłaby się obejść?",
       "asking": "Szukam…",
