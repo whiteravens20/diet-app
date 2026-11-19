@@ -89,6 +89,29 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     await page.keyboard.press('Escape');
   });
 
+  test('a shopping list with everything that opens in it', async ({ session, messages }) => {
+    const page = session.page;
+    const lists = messages.shoppingLists as Record<string, string>;
+    const main = page.getByRole('main');
+    await page.goto('/shopping-lists');
+    await settled(page);
+    const entry = await main.getByRole('checkbox').first().getAttribute('aria-label');
+
+    await main.getByRole('button', { name: lists.findEntry!, exact: true }).click();
+    await expect(main.getByRole('searchbox')).toBeFocused();
+    await main.getByRole('button', { name: lists.listOptions!, exact: true }).click();
+    await main
+      .getByRole('button', { name: lists.amountsOf!.replace('{name}', entry!), exact: true })
+      .click();
+    await expect(main.getByRole('spinbutton').first()).toBeVisible();
+    await main.getByRole('button', { name: lists.generate!, exact: true }).click();
+    await expect(
+      main.getByRole('button', { name: lists.generateButton!, exact: true }),
+    ).toBeVisible();
+
+    expect(await barriers(page)).toEqual([]);
+  });
+
   test('the window things are put into the pantry in', async ({ session, messages }) => {
     const page = session.page;
     const inventory = messages.inventory as Record<string, string>;

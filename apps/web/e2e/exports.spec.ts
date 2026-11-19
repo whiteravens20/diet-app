@@ -124,10 +124,14 @@ test.describe('a shopping list, taken out of the application', () => {
       .getByRole('checkbox', { checked: false })
       .first()
       .getAttribute('aria-label');
-    const atHome = page
+    const row = page
       .getByRole('main')
-      .locator('li', { has: page.getByRole('checkbox', { name: entry!, exact: true }) })
-      .getByRole('spinbutton', { name: new RegExp(`^${loose(lists.atHome!)}`) });
+      .locator('li', { has: page.getByRole('checkbox', { name: entry!, exact: true }) });
+    // The row's two fields open under it with its pencil.
+    await row
+      .getByRole('button', { name: lists.amountsOf!.replace('{name}', entry!), exact: true })
+      .click();
+    const atHome = row.getByRole('spinbutton', { name: new RegExp(`^${loose(lists.atHome!)}`) });
     const changed = () =>
       page.waitForResponse(
         (res) =>

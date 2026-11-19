@@ -13,7 +13,7 @@ import { aPublicConfig } from '@/testing/public-config';
 import { failReadsAgain } from '@/testing/read-again';
 import messages from '../../../../messages/en.json';
 import ShoppingListsPage from './page';
-import { spaced } from '@/testing/spaces';
+import { plain, spaced } from '@/testing/spaces';
 
 const texts = messages.shoppingLists;
 const PLAN = '11111111-1111-4111-8111-111111111111';
@@ -495,11 +495,55 @@ describe('a row of a shopping list', () => {
 
   const atHome = () => screen.getByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) });
   const bought = () => screen.getByRole('spinbutton', { name: new RegExp(`^${texts.bought}`) });
-  /** The page with a list of one row, and what the row sends. */
-  async function aRow(entry: Entry) {
+  const pencil = (name: string) => screen.getByRole('button', { name: `Amounts of ${name}` });
+  /** The page with a list of one row, opened, and what the row sends. */
+  async function aRow(entry: Entry, answer: Entry = entry) {
     await renderPage(aListOf([entry], []));
-    return vi.spyOn(api, 'patch').mockResolvedValue(aListOf([entry], []) as never);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(aListOf([answer], []) as never);
+    await userEvent.click(pencil(entry.name));
+    return patch;
   }
+
+  it('is its tick, its name, what is left to buy and a pencil that opens its two fields under it', async () => {
+    await renderPage(aListOf([anEntry('White rice', 'grains')], []));
+
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    expect(pencil('White rice')).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(pencil('White rice'));
+
+    expect(pencil('White rice')).toHaveAttribute('aria-expanded', 'true');
+    expect(atHome()).toBeInTheDocument();
+    expect(bought()).toBeInTheDocument();
+    await userEvent.click(pencil('White rice'));
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+  });
+
+  it('says under the name, while it is closed, what is at home and what was bought', async () => {
+    await renderPage(
+      aListOf(
+        [
+          anEntry('White rice', 'grains', {
+            alreadyHaveQuantity: 50,
+            purchasedQuantity: 120,
+            toBuyQuantity: 150,
+          }),
+          anEntry('Rolled oats', 'grains', { alreadyHaveQuantity: 30, purchasedQuantity: 30 }),
+          anEntry('Barley', 'grains'),
+        ],
+        [],
+      ),
+    );
+    const said = (name: string) =>
+      plain(screen.getByRole('checkbox', { name }).closest('label')!.textContent);
+
+    expect(said('White rice')).toBe('White riceat home 50 g · bought 70 g');
+    expect(said('Rolled oats')).toBe('Rolled oatsat home 30 g');
+    expect(said('Barley')).toBe('Barley');
+    // Open, the row has them in its fields.
+    await userEvent.click(pencil('White rice'));
+    expect(said('White rice')).toBe('White rice');
+  });
 
   it('shows what is at home and what was bought as two numbers, and what is left to buy of the need', async () => {
     await aRow(
@@ -522,6 +566,24 @@ describe('a row of a shopping list', () => {
     expect(atHome()).toHaveValue(null);
     expect(bought()).toHaveValue(null);
     expect(screen.queryByText('(of 200 g)')).toBeNull();
+  });
+
+  it("stays open when the server's answer draws it anew, with what the server has", async () => {
+    const patch = await aRow(
+      anEntry('White rice', 'grains'),
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 80,
+        purchasedQuantity: 80,
+        toBuyQuantity: 120,
+      }),
+    );
+
+    await userEvent.type(atHome(), '80');
+    await userEvent.tab();
+
+    await vi.waitFor(() => expect(patch).toHaveBeenCalled());
+    await vi.waitFor(() => expect(atHome()).toHaveValue(80));
+    expect(pencil('White rice')).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('sends what the user says is at home when the field is left, and follows it while it is typed', async () => {
@@ -722,6 +784,7 @@ describe('a tick on a row of a shopping list', () => {
 
   it('is shown at once, and the other rows can be ticked while the server has not answered', async () => {
     await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Amounts of Rolled oats' }));
     const first = anAnswerToGive();
     const patch = vi.spyOn(api, 'patch').mockReturnValue(first.answer as never);
 
@@ -809,7 +872,8 @@ describe('a row of a shopping list, while the server cannot be reached', () => {
     await renderPage();
     vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
 
-    const atHome = screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]!;
+    await userEvent.click(screen.getByRole('button', { name: 'Amounts of White rice' }));
+    const atHome = screen.getByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) });
     await userEvent.type(atHome, '80');
     await userEvent.tab();
 

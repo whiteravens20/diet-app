@@ -1456,6 +1456,7 @@
     "findEntryPlaceholder": "Nazwa składnika…",
     "findEntryNone": "Żadna pozycja tej listy nie ma „{words}” w nazwie.",
     "listOptions": "Opcje listy",
+    "amountsOf": "Ilości: {name}",
     "howItWorks": "Jak to działa",
     "proposals": {
       "ask": "Bez czego ta lista mogłaby się obejść?",

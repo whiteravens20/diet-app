@@ -177,11 +177,11 @@ test.describe('a shopping list and the packs things are sold in', () => {
     };
     expect(sent.checked).toBe(true);
     expect(sent.purchasedQuantity).toBeGreaterThan(0);
-    // The row is done, has what the packs hold as bought, and offers them no more.
+    // The row is done, says under its name what the packs hold as bought, and offers them no more.
     await expect(row.getByRole('checkbox')).toBeChecked();
-    await expect(
-      row.getByRole('spinbutton', { name: new RegExp(`^${loose(lists.bought!)}`) }),
-    ).not.toHaveValue('');
+    await expect(row.locator('label')).toContainText(
+      new RegExp(`${loose(lists.bought!)}[ \\u00a0]\\d`),
+    );
     await expect(packs).toHaveCount(0);
 
     // The tick is taken off, so that the tests after this one find the row as it was: nothing bought, and the packs offered.

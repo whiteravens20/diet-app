@@ -5,7 +5,7 @@
 /** One shopping list: its rows by aisle, what is ticked and what is at home, and the ways to take it out of the application. */
 import { useLocale, useTranslations } from 'next-intl';
 import { useId, useMemo, useRef, useState } from 'react';
-import { EllipsisVertical, Package, Search } from 'lucide-react';
+import { EllipsisVertical, Package, Pencil, Search } from 'lucide-react';
 import type {
   DisplayUnit,
   HouseholdListItem,
@@ -157,6 +157,14 @@ export function ListView({
   // What can be done with the list as a whole, behind one button: a phone shows the list's first rows, not five buttons.
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsId = useId();
+  // The rows whose amounts are open, by their ids: a row is made anew whenever the server changes it, and stays open.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleRow = (id: string): void =>
+    setOpened((was) => {
+      const next = new Set(was);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const wanted = find.trim().toLocaleLowerCase();
   const groups = wanted
     ? list.groups
@@ -474,6 +482,8 @@ export function ListView({
                   item={i}
                   busy={busy}
                   locked={locked}
+                  open={opened.has(i.id)}
+                  onToggle={() => toggleRow(i.id)}
                   formatQty={formatQty}
                   boughtLabel={boughtLabel}
                   ofLabel={ofLabel}
@@ -500,17 +510,20 @@ const typed = (field: string): number | null =>
   field.trim() === '' ? null : Math.max(0, Number(field) || 0);
 
 /**
- * A row of the list: what is still to be bought of it, how much of it is at
- * home, and how much was bought. The API keeps one number for everything the
- * user has for a row; the row shows it as its two parts, and sends the part
- * that changed. What is at home starts at what the pantry had when the list
- * was made, and is the user's to correct: a pantry does not know everything
- * that is in a kitchen.
+ * A row of the list: what is still to be bought of it, ticked off with its box
+ * or its name, and the packs it takes. How much of it is at home and how much
+ * was bought open under it with the pencil, and a closed row says them under its
+ * name. The API keeps one number for everything the user has for a row; the row
+ * shows it as its two parts, and sends the part that changed. What is at home
+ * starts at what the pantry had when the list was made, and is the user's to
+ * correct: a pantry does not know everything that is in a kitchen.
  */
 function ItemRow({
   item,
   busy,
   locked,
+  open,
+  onToggle,
   formatQty,
   boughtLabel,
   ofLabel,
@@ -519,6 +532,9 @@ function ItemRow({
   item: ShownItem;
   busy: boolean;
   locked: boolean;
+  /** Whether the row's amounts are open under it. */
+  open: boolean;
+  onToggle: () => void;
   formatQty: (qty: number, unit: DisplayUnit) => string;
   boughtLabel: string;
   ofLabel: (amount: string) => string;
@@ -527,6 +543,7 @@ function ItemRow({
   const t = useTranslations('shoppingLists');
   const fmt = useFormat();
   const unitName = useUnitName();
+  const amountsId = useId();
   // What was bought beyond what was at home, as the API has it.
   const boughtBefore = Math.max(
     0,
@@ -567,106 +584,131 @@ function ItemRow({
   };
   const field = 'h-7 w-16 rounded border border-input bg-background px-1 text-right text-sm';
 
+  // What a closed row says it has, as its fields would: "w domu 50 g · kupione 70 g".
+  const has = [
+    homeNow > 0 ? held(`${t('atHome')} ${formatQty(homeNow, item.displayUnit)}`) : null,
+    boughtNow > 0 ? held(`${boughtLabel} ${formatQty(boughtNow, item.displayUnit)}`) : null,
+  ].filter((part) => part !== null);
+
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
-      {/* The name ticks the row as the box does, as a row of a list is ticked on a phone. */}
-      {/* The whole height of the row ticks it: the label takes the padding of the row. */}
-      <label className="-my-2 flex min-w-32 flex-1 items-center gap-x-3 py-2">
-        {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
-        <input
-          type="checkbox"
-          aria-label={item.name}
-          className="h-4 w-4 shrink-0"
-          checked={item.checked}
-          disabled={locked}
-          onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
-        />
-        <span className="min-w-0 flex-1">
-          <span className={item.checked ? 'text-muted-foreground line-through' : undefined}>
-            {fmt.text(item.name)}
-            {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
-              <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
-                {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+    <li className="py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* The name ticks the row as the box does, as a row of a list is ticked on a phone. */}
+        {/* The whole height of the row ticks it: the label takes the padding of the row. */}
+        <label className="-my-2 flex min-w-32 flex-1 items-center gap-x-3 py-2">
+          {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
+          <input
+            type="checkbox"
+            aria-label={item.name}
+            className="h-4 w-4 shrink-0"
+            checked={item.checked}
+            disabled={locked}
+            onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
+          />
+          <span className="min-w-0 flex-1">
+            <span className={item.checked ? 'text-muted-foreground line-through' : undefined}>
+              {fmt.text(item.name)}
+              {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
+                  {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+                </span>
+              )}
+            </span>
+            {/* What is at home and what was bought, said by a closed row; an open one has them in its fields. */}
+            {!open && has.length > 0 && (
+              <span className="block text-xs text-muted-foreground">{has.join(DOT)}</span>
+            )}
+            {/* A row of a household list says whom it is for. */}
+            {item.shares && (
+              <span className="block text-xs text-muted-foreground">
+                {sharesLine(item, formatQty)}
               </span>
             )}
+            {/* Fresh meat or fish for a later day: which of its packs to buy later, and from when. */}
+            {laterLines(item, (values) => t('buyLater', values), fmt.dayShort).map((later) => (
+              <span key={later} className="block text-xs text-muted-foreground">
+                {later}
+              </span>
+            ))}
           </span>
-          {/* A row of a household list says whom it is for. */}
-          {item.shares && (
-            <span className="block text-xs text-muted-foreground">
-              {sharesLine(item, formatQty)}
+        </label>
+        <span className="tabular-nums text-muted-foreground">
+          {rowAmount(remainingToBuy, item, formatQty)}
+          {showOfTotal && (
+            <span className="ml-1 text-xs">
+              {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
             </span>
           )}
-          {/* Fresh meat or fish for a later day: which of its packs to buy later, and from when. */}
-          {laterLines(item, (values) => t('buyLater', values), fmt.dayShort).map((later) => (
-            <span key={later} className="block text-xs text-muted-foreground">
-              {later}
-            </span>
-          ))}
         </span>
-      </label>
-      <span className="tabular-nums text-muted-foreground">
-        {rowAmount(remainingToBuy, item, formatQty)}
-        {showOfTotal && (
-          <span className="ml-1 text-xs">
-            {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
-          </span>
+        {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
+        {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
+          <button
+            type="button"
+            className="inline-flex h-7 items-center gap-1 rounded border border-input px-2 text-xs tabular-nums text-muted-foreground hover:bg-muted disabled:opacity-50"
+            disabled={busy}
+            aria-label={t('buyPacks', { packs: packsText(item.packs, formatQty), name: item.name })}
+            title={t('buyPacksTitle')}
+            // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
+            onClick={() =>
+              onPatch({
+                purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity,
+                checked: true,
+              })
+            }
+          >
+            <Package size={12} aria-hidden />
+            {packsText(item.packs, formatQty)}
+          </button>
         )}
-      </span>
-      {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
-      {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-1 rounded border border-input px-2 text-xs tabular-nums text-muted-foreground hover:bg-muted disabled:opacity-50"
-          disabled={busy}
-          aria-label={t('buyPacks', { packs: packsText(item.packs, formatQty), name: item.name })}
-          title={t('buyPacksTitle')}
-          // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
-          onClick={() =>
-            onPatch({
-              purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity,
-              checked: true,
-            })
-          }
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+          aria-label={t('amountsOf', { name: item.name })}
+          title={t('amountsOf', { name: item.name })}
+          aria-expanded={open}
+          aria-controls={amountsId}
+          onClick={onToggle}
         >
-          <Package size={12} aria-hidden />
-          {packsText(item.packs, formatQty)}
+          <Pencil size={14} aria-hidden />
         </button>
+      </div>
+      {open && (
+        <div id={amountsId} className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 pl-7">
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            {t('atHome')}
+            <input
+              type="number"
+              min={0}
+              step={step}
+              className={field}
+              value={home}
+              disabled={busy}
+              // A number under nothing is not taken; an empty field is.
+              onChange={(e) =>
+                (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)
+              }
+              onBlur={send}
+            />
+            {unitName(item.displayUnit)}
+          </label>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            {boughtLabel}
+            <input
+              type="number"
+              min={0}
+              step={step}
+              className={field}
+              value={bought}
+              disabled={busy}
+              onChange={(e) =>
+                (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)
+              }
+              onBlur={send}
+            />
+            {unitName(item.displayUnit)}
+          </label>
+        </div>
       )}
-      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <label className="flex items-center gap-1 text-xs text-muted-foreground">
-          {t('atHome')}
-          <input
-            type="number"
-            min={0}
-            step={step}
-            className={field}
-            value={home}
-            disabled={busy}
-            // A number under nothing is not taken; an empty field is.
-            onChange={(e) =>
-              (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)
-            }
-            onBlur={send}
-          />
-          {unitName(item.displayUnit)}
-        </label>
-        <label className="flex items-center gap-1 text-xs text-muted-foreground">
-          {boughtLabel}
-          <input
-            type="number"
-            min={0}
-            step={step}
-            className={field}
-            value={bought}
-            disabled={busy}
-            onChange={(e) =>
-              (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)
-            }
-            onBlur={send}
-          />
-          {unitName(item.displayUnit)}
-        </label>
-      </span>
     </li>
   );
 }

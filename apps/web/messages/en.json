@@ -1456,6 +1456,7 @@
     "findEntryPlaceholder": "Name of an ingredient…",
     "findEntryNone": "No entry of this list has “{words}” in its name.",
     "listOptions": "List options",
+    "amountsOf": "Amounts of {name}",
     "howItWorks": "How it works",
     "proposals": {
       "ask": "What could this list do without?",
