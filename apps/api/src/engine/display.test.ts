@@ -116,6 +116,17 @@ describe('an amount to cook with', () => {
     expect(displayAmount(30, 'g', SPINACH)).toEqual({ quantity: 1, unit: 'handful', grams: 30 });
   });
 
+  it('shows garlic in whole cloves, the nearest number and at least one, however little of one it is', () => {
+    expect(displayAmount(7, 'g', GARLIC)).toEqual({ quantity: 1, unit: 'clove', grams: 5 });
+    expect(displayAmount(8, 'g', GARLIC)).toEqual({ quantity: 2, unit: 'clove', grams: 10 });
+    expect(displayAmount(12.5, 'g', GARLIC)).toEqual({ quantity: 3, unit: 'clove', grams: 15 });
+    // A fifth of a clove, which another counted thing shows by weight: a clove is used whole.
+    expect(displayAmount(1, 'g', GARLIC)).toEqual({ quantity: 1, unit: 'clove', grams: 5 });
+    expect(displayAmount(0.5, 'piece', GARLIC)).toEqual({ quantity: 1, unit: 'clove', grams: 5 });
+    // Nothing stays nothing.
+    expect(displayAmount(0, 'g', GARLIC)).toEqual({ quantity: 0, unit: 'g' });
+  });
+
   it('rounds pieces to halves', () => {
     expect(displayAmount(176, 'g', EGG)).toEqual({ quantity: 3, unit: 'piece', grams: 175 });
     expect(displayAmount(140, 'g', EGG)).toEqual({ quantity: 2.5, unit: 'piece', grams: 140 });

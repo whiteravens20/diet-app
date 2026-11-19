@@ -12,6 +12,8 @@
  *    10 (a 3 g pinch must not become 5 g or nothing).
  *  - An ingredient that is counted (`displayUnit`): in pieces of its own, to
  *    the nearest half. An amount too small to be half a piece stays in grams.
+ *    A clove of garlic is used whole: in whole cloves, the nearest number and
+ *    at least one, however little of one the amount is.
  *  - An ingredient measured with a teaspoon (`perTeaspoon`): a quarter or a
  *    half of one, or whole ones to the nearest half, up to four; less than a
  *    quarter of a dry one in pinches, a sixteenth of a teaspoon each; more
@@ -32,6 +34,9 @@ export type DisplayedIngredient = ConvertibleIngredient & {
 
 /** Below this share of a piece an amount is shown by weight: "5 g onion", not "half an onion". */
 const SMALLEST_PIECE = 0.25;
+
+/** The pieces nobody cuts, shown whole whatever the amount: a clove of garlic. */
+const NEVER_CUT: ReadonlySet<DisplayUnit> = new Set(['clove']);
 
 /** The noise of converting units: 3.0000000004 pieces are 3. */
 const EPSILON = 1e-6;
@@ -127,6 +132,14 @@ export function displayAmount(
 ): DisplayAmount {
   if (isCounted(ingredient)) {
     const pieces = converted(quantity, unit, 'piece', ingredient);
+    if (pieces !== null && pieces > EPSILON && NEVER_CUT.has(ingredient.displayUnit)) {
+      const whole = Math.max(1, nearest(pieces, 1));
+      return {
+        quantity: whole,
+        unit: ingredient.displayUnit,
+        ...weightOf(whole, 'piece', ingredient),
+      };
+    }
     if (pieces !== null && pieces >= SMALLEST_PIECE) {
       return {
         quantity: nearest(pieces, 0.5),
