@@ -391,7 +391,7 @@ function AddInventoryForm({
   const portions = frozen ? portionCount(portionsTyped) : 1;
   const qty = Number(quantity);
   // What goes into the freezer goes in whole packages of at least one of its unit; fresh is one row whatever it is.
-  const fits = !frozen || portions === null || !(qty > 0) || portionsFit(qty, unit, portions);
+  const fits = !frozen || portions === null || !(qty > 0) || portionsFit(qty, portions);
 
   const results = useQuery({
     queryKey: ['ingredients-search', search],

@@ -6,7 +6,6 @@
  * This file needs nothing else of the contract. The pantry's page takes it from `@diet-app/shared/portions`, and no
  * other page loads it.
  */
-import type { UNITS } from './units.js';
 
 /**
  * The most portions one freezing is split into: each a package of its own in the pantry, which holds at most
@@ -20,23 +19,12 @@ const PORTION_EPSILON = 1e-6;
 const toMillionths = (quantity: number): number => Math.round(quantity * 1e6) / 1e6;
 
 /**
- * `quantity` of `unit` split into `portions` parts, for packages of the freezer: what is counted in whole pieces as
- * evenly as they go, the larger parts first (6 in 4: 2, 2, 1, 1) and a part of a piece with the last; anything else in
- * equal parts, what rounding leaves with the last. Null where a part would hold less than one of the unit.
+ * `quantity` split into `portions` parts, for packages of the freezer: whole grams, millilitres or pieces as evenly
+ * as they go, the larger parts first (500 g in 3: 167, 167 and 166; 6 pieces in 4: 2, 2, 1 and 1), and what is less
+ * than one of the unit with the last. Null where a part would hold less than one of the unit.
  */
-export function portionsOf(
-  quantity: number,
-  unit: (typeof UNITS)[number],
-  portions: number,
-): number[] | null {
+export function portionsOf(quantity: number, portions: number): number[] | null {
   if (portions <= 1) return [quantity];
-  if (unit !== 'piece') {
-    const each = toMillionths(quantity / portions);
-    if (each < 1) return null;
-    return Array.from({ length: portions }, (_, at) =>
-      at === portions - 1 ? toMillionths(quantity - each * (portions - 1)) : each,
-    );
-  }
   const whole = Math.floor(quantity + PORTION_EPSILON);
   if (whole < portions) return null;
   const base = Math.floor(whole / portions);

@@ -346,7 +346,7 @@ function splitIntoPortions(
   unit: 'g' | 'ml' | 'piece',
   portions: number,
 ): number[] {
-  const amounts = portionsOf(quantity, unit, portions);
+  const amounts = portionsOf(quantity, portions);
   if (!amounts)
     throw new BadRequestException({
       error: 'PORTIONS_TOO_MANY',

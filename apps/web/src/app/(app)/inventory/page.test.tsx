@@ -476,8 +476,9 @@ describe('a row of the pantry', () => {
         `Portions: 1${NBSP}piece and 1.5${NBSP}pieces`,
       );
       await userEvent.click(screen.getByRole('button', { name: messages.common.cancel }));
+      // Whole grams, the larger portions first.
       expect(await split(chicken.name)).toHaveAccessibleDescription(
-        `3${NBSP}portions of 333${NBSP}g each`,
+        `Portions: 334${NBSP}g, 333${NBSP}g, and 333${NBSP}g`,
       );
     });
 

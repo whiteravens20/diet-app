@@ -19,9 +19,9 @@ export function portionCount(typed: string): number | null {
   return Number.isInteger(count) && count >= 1 && count <= MAX_PORTIONS ? count : null;
 }
 
-/** Whether `quantity` of `unit` goes into `portions` packages of at least one of the unit each. */
-export const portionsFit = (quantity: number, unit: Unit, portions: number): boolean =>
-  portionsOf(quantity, unit, portions) !== null;
+/** Whether `quantity` goes into `portions` packages of at least one of its unit each. */
+export const portionsFit = (quantity: number, portions: number): boolean =>
+  portionsOf(quantity, portions) !== null;
 
 /**
  * What each package holds when `quantity` of `unit` goes into the freezer in `portions`, rounded as the pantry
@@ -46,7 +46,7 @@ export function PortionsLine({
   const amount = useAmount();
   const fmt = useFormat();
   if (!(quantity > 0) || portions === null || portions < 2) return null;
-  const parts = portionsOf(quantity, unit, portions);
+  const parts = portionsOf(quantity, portions);
   if (parts === null)
     return (
       <p id={id} className="text-xs text-destructive">
@@ -94,7 +94,7 @@ export function FreezeDialog({
   const portions = portionCount(typed);
   // A count the freezer does not take is the field's to say, as the browser says it on the try; a count it takes
   // that makes portions of less than one of the unit is said under the field, and nothing goes.
-  const fits = portions === null || portionsFit(item.quantity, item.unit, portions);
+  const fits = portions === null || portionsFit(item.quantity, portions);
   return (
     <Dialog open onClose={onClose} label={t('freeze')} className="max-w-md">
       <div className="flex items-center justify-between border-b border-border p-4">

@@ -409,6 +409,19 @@ describe('the pantry', () => {
       ]);
     });
 
+    it('is split into whole grams, the larger portions first', async () => {
+      const rice = (await add('white-rice', 500, 'g')).body as { id: string };
+
+      const after = await freeze(rice.id, { portions: 3 }).expect(200);
+
+      const thirty = dayAfter(today, 30);
+      expect(asText(after.body)).toEqual([
+        `166 frozen ${thirty}`,
+        `167 frozen ${thirty}`,
+        `167 frozen ${thirty}`,
+      ]);
+    });
+
     it('is refused where a portion would hold less than one of its unit, and nothing changes', async () => {
       const row = (await add('large-egg', 3, 'piece')).body as { id: string };
 
