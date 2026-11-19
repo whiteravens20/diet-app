@@ -489,7 +489,13 @@ export default function ProfilePage() {
                     />
                   </Field>
                 </div>
-                <OwnTargetField initial={editing?.manualCalorieTarget ?? null} errorOf={errorOf} />
+                {/* A row of its own: beside the water target it would look like a part of water. */}
+                <div className="sm:col-start-1">
+                  <OwnTargetField
+                    initial={editing?.manualCalorieTarget ?? null}
+                    errorOf={errorOf}
+                  />
+                </div>
                 {editing && <KeptCorrection profile={editing} />}
                 <RiskBox
                   reasons={risk}

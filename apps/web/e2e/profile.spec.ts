@@ -178,6 +178,29 @@ test.describe('what a profile drinks', () => {
     });
   });
 
+  test('keeps the calorie target of its own on a row of its own under the water target, not beside it', async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const profile = textsOf(messages, 'profile');
+    await editing(page, messages);
+    await expect(
+      page.getByRole('checkbox', { name: new RegExp(`^${loose(profile.waterTracking!)}`) }),
+    ).toBeChecked();
+    const water = await page
+      .getByLabel(new RegExp(`^${loose(profile.waterTarget!)}`))
+      .boundingBox();
+    const own = await page
+      .getByLabel(new RegExp(`^${loose(profile.manualKcalOverride!)}`))
+      .boundingBox();
+    expect(water).not.toBeNull();
+    expect(own).not.toBeNull();
+    // Under it, in the same column: on a wide screen the form has two, and the water target leaves the second empty.
+    expect(own!.y).toBeGreaterThanOrEqual(water!.y + water!.height);
+    expect(Math.abs(own!.x - water!.x)).toBeLessThan(1);
+  });
+
   test('a profile that stops tracking water has no water card on the dashboard, and has it again once it tracks it', async ({
     session,
     messages,
