@@ -9,13 +9,15 @@ const textsOf = (messages: Messages, group: string): Texts => messages[group] as
 /**
  * Every text of the page that the word saying a field may stay empty is drawn over. The word is the
  * `::after` of the field's frame, at the right of its top edge and half above it, so its box is worked
- * out from the frame's and from the letters it is drawn in.
+ * out from the frame's and from the letters it is drawn in. With a window open, only the window's texts:
+ * it covers the page behind it.
  */
 const underTheWord = (page: Page): Promise<string[]> =>
   page.evaluate(() => {
     const pen = document.createElement('canvas').getContext('2d')!;
     const lines: { rect: DOMRect; text: string; node: Node }[] = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const seen = document.querySelector<HTMLElement>('dialog[open]') ?? document.body;
+    const walker = document.createTreeWalker(seen, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent?.trim();
       if (!text || node.parentElement?.closest('select, script, style')) continue;
@@ -26,7 +28,7 @@ const underTheWord = (page: Page): Promise<string[]> =>
       }
     }
     const under: string[] = [];
-    for (const frame of document.querySelectorAll<HTMLElement>('[data-optional]')) {
+    for (const frame of seen.querySelectorAll<HTMLElement>('[data-optional]')) {
       if (!frame.checkVisibility()) continue;
       const mark = getComputedStyle(frame, '::after');
       const word = frame.dataset.optional ?? '';
