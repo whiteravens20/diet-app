@@ -656,45 +656,53 @@ function ItemRow({
             ))}
           </span>
         </label>
-        <span className="tabular-nums text-muted-foreground">
-          {rowAmount(remainingToBuy, item, formatQty)}
-          {showOfTotal && (
-            <span className="ml-1 text-xs">
-              {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
-            </span>
-          )}
+        {/* What is left to buy, the packs and the pencil go under the name together where the line is short, the pencil with the packs where even that line is. */}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <span className="tabular-nums text-muted-foreground">
+            {rowAmount(remainingToBuy, item, formatQty)}
+            {showOfTotal && (
+              <span className="ml-1 text-xs">
+                {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
+              </span>
+            )}
+          </span>
+          <span className="flex items-center gap-x-3">
+            {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
+            {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
+              <button
+                type="button"
+                className="inline-flex h-7 items-center gap-1 rounded border border-input px-2 text-xs tabular-nums text-muted-foreground hover:bg-muted disabled:opacity-50"
+                disabled={busy}
+                aria-label={t('buyPacks', {
+                  packs: packsText(item.packs, formatQty),
+                  name: item.name,
+                })}
+                title={t('buyPacksTitle')}
+                // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
+                onClick={() =>
+                  onPatch({
+                    purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity,
+                    checked: true,
+                  })
+                }
+              >
+                <Package size={12} aria-hidden />
+                {packsText(item.packs, formatQty)}
+              </button>
+            )}
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+              aria-label={t('amountsOf', { name: item.name })}
+              title={t('amountsOf', { name: item.name })}
+              aria-expanded={open}
+              aria-controls={amountsId}
+              onClick={onToggle}
+            >
+              <Pencil size={14} aria-hidden />
+            </button>
+          </span>
         </span>
-        {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
-        {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
-          <button
-            type="button"
-            className="inline-flex h-7 items-center gap-1 rounded border border-input px-2 text-xs tabular-nums text-muted-foreground hover:bg-muted disabled:opacity-50"
-            disabled={busy}
-            aria-label={t('buyPacks', { packs: packsText(item.packs, formatQty), name: item.name })}
-            title={t('buyPacksTitle')}
-            // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
-            onClick={() =>
-              onPatch({
-                purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity,
-                checked: true,
-              })
-            }
-          >
-            <Package size={12} aria-hidden />
-            {packsText(item.packs, formatQty)}
-          </button>
-        )}
-        <button
-          type="button"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-          aria-label={t('amountsOf', { name: item.name })}
-          title={t('amountsOf', { name: item.name })}
-          aria-expanded={open}
-          aria-controls={amountsId}
-          onClick={onToggle}
-        >
-          <Pencil size={14} aria-hidden />
-        </button>
       </div>
       {open && (
         <div id={amountsId} className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 pl-7">
