@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Locator, Page } from '@playwright/test';
-import { signUp } from './accounts';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import { signUp, type Account } from './accounts';
 import {
   barriers,
   expect,
@@ -19,6 +19,37 @@ type Texts = Record<string, string>;
 const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
 const rerollOf = (messages: Messages): Texts =>
   (messages.mealPlans as unknown as { reroll: Texts }).reroll;
+
+/**
+ * A plan of three days that begins on the page's own day, made for a test that reads its days: the account's plan was
+ * made when the run began, and in a run that goes on past midnight it began the day before. The newest plan of the
+ * latest day is the first listed. `headers` take it away again.
+ */
+async function aPlanBeginningToday(
+  page: Page,
+  request: APIRequestContext,
+  account: Pick<Account, 'email' | 'password' | 'profileId'>,
+): Promise<{ id: string; headers: Record<string, string> }> {
+  const today = await page.evaluate(() => {
+    const now = new Date();
+    const two = (n: number): string => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+  });
+  const signedIn = await request.post('/api/auth/login', {
+    data: { email: account.email, password: account.password },
+  });
+  expect(signedIn.ok()).toBe(true);
+  const headers = {
+    authorization: `Bearer ${((await signedIn.json()) as { tokens: { accessToken: string } }).tokens.accessToken}`,
+    'x-client-date': today,
+  };
+  const made = await request.post('/api/meal-plans/generate', {
+    headers,
+    data: { profileId: account.profileId, startDate: today, durationDays: 3 },
+  });
+  expect(made.status()).toBe(201);
+  return { id: ((await made.json()) as { id: string }).id, headers };
+}
 
 /** The plan page with the first plan of the list open. */
 async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
@@ -317,27 +348,7 @@ test.describe('a plan that is made again', () => {
     const page = session.page;
     const plans = plansOf(messages);
     const reroll = rerollOf(messages);
-    // A plan that begins on the page's own day, made for this test: the account's plan was made when the run began, and
-    // in a run that goes on past midnight it began the day before. The newest plan of the latest day is the first listed.
-    const today = await page.evaluate(() => {
-      const now = new Date();
-      const two = (n: number): string => String(n).padStart(2, '0');
-      return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
-    });
-    const signedIn = await request.post('/api/auth/login', {
-      data: { email: account.email, password: account.password },
-    });
-    expect(signedIn.ok()).toBe(true);
-    const headers = {
-      authorization: `Bearer ${((await signedIn.json()) as { tokens: { accessToken: string } }).tokens.accessToken}`,
-      'x-client-date': today,
-    };
-    const made = await request.post('/api/meal-plans/generate', {
-      headers,
-      data: { profileId: account.profileId, startDate: today, durationDays: 3 },
-    });
-    expect(made.status()).toBe(201);
-    const plan = (await made.json()) as { id: string };
+    const plan = await aPlanBeginningToday(page, request, account);
 
     try {
       await anOpenPlan(page, messages);
@@ -366,27 +377,39 @@ test.describe('a plan that is made again', () => {
       await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
     } finally {
       // The plan goes again, so that the tests after this one find what the account had.
-      await request.delete(`/api/meal-plans/${plan.id}`, { headers });
+      await request.delete(`/api/meal-plans/${plan.id}`, { headers: plan.headers });
     }
   });
 
-  test('opens on the day whose own button was pressed', async ({ session, messages }) => {
+  test('opens on the day whose own button was pressed', async ({
+    session,
+    messages,
+    account,
+    request,
+  }) => {
     const page = session.page;
     const plans = plansOf(messages);
     const reroll = rerollOf(messages);
-    await anOpenPlan(page, messages);
+    // Its first day today: a day gone by has no button to change it.
+    const plan = await aPlanBeginningToday(page, request, account);
 
-    // The second day is unfolded beside the first: the second button of its kind on the page.
-    await page.locator('[id^="plan-"] > button[aria-expanded="false"]').first().click();
-    await page.getByRole('button', { name: plans.changeDay!, exact: true }).nth(1).click();
-    const dialog = page.getByRole('dialog', { name: reroll.title! });
+    try {
+      await anOpenPlan(page, messages);
 
-    await expect(dialog.getByLabel(reroll.day!, { exact: true })).toBeChecked();
-    // The second day of the plan: the second of the days the window offers.
-    const which = dialog.getByLabel(reroll.dayWhich!, { exact: true });
-    expect(await which.evaluate((select: HTMLSelectElement) => select.selectedIndex)).toBe(1);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
+      // The second day is unfolded beside the first: the second button of its kind on the page.
+      await page.locator('[id^="plan-"] > button[aria-expanded="false"]').first().click();
+      await page.getByRole('button', { name: plans.changeDay!, exact: true }).nth(1).click();
+      const dialog = page.getByRole('dialog', { name: reroll.title! });
+
+      await expect(dialog.getByLabel(reroll.day!, { exact: true })).toBeChecked();
+      // The second day of the plan: the second of the days the window offers.
+      const which = dialog.getByLabel(reroll.dayWhich!, { exact: true });
+      expect(await which.evaluate((select: HTMLSelectElement) => select.selectedIndex)).toBe(1);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    } finally {
+      await request.delete(`/api/meal-plans/${plan.id}`, { headers: plan.headers });
+    }
   });
 });
 
