@@ -90,10 +90,24 @@ async function open(found: Ingredient[], rows: InventoryItem[] = []) {
   return { post, client };
 }
 
-/** Find an ingredient by a part of its name and pick it. */
+/** The window things are put into the pantry in, opened by the page's button where it is not open yet. */
+async function addWindow() {
+  if (!screen.queryByRole('dialog', { name: texts.addTitle }))
+    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+  return within(screen.getByRole('dialog', { name: texts.addTitle }));
+}
+
+/** The window's own button that puts in what it names. */
+const submitButton = () =>
+  within(screen.getByRole('dialog', { name: texts.addTitle })).getByRole('button', {
+    name: texts.addButton,
+  });
+
+/** Find an ingredient by a part of its name and pick it, in the window things are added in. */
 async function pick(ingredient: Ingredient) {
-  await userEvent.type(screen.getByLabelText(texts.ingredientLabel), ingredient.name.slice(0, 4));
-  await userEvent.click(await screen.findByRole('button', { name: ingredient.name }));
+  const window = await addWindow();
+  await userEvent.type(window.getByLabelText(texts.ingredientLabel), ingredient.name.slice(0, 4));
+  await userEvent.click(await window.findByRole('button', { name: ingredient.name }));
 }
 
 const unitsOffered = () =>
@@ -115,7 +129,7 @@ describe('the form that puts an ingredient into the pantry', () => {
     expect(unitsOffered()).toEqual(['ml']);
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('ml');
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
-    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+    await userEvent.click(submitButton());
     expect(post).toHaveBeenCalledWith(
       '/inventory',
       expect.objectContaining({ ingredientId: bottled.id, quantity: 500, unit: 'ml' }),
@@ -146,7 +160,7 @@ describe('the form that puts an ingredient into the pantry', () => {
     await userEvent.click(box);
     expect(date).toHaveValue('2027-03-01');
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
-    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+    await userEvent.click(submitButton());
 
     expect(post).toHaveBeenCalledWith(
       '/inventory',
@@ -162,7 +176,7 @@ describe('the form that puts an ingredient into the pantry', () => {
 
     expect(screen.queryByLabelText(texts.portionsLabel)).toBeNull();
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
-    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+    await userEvent.click(submitButton());
 
     expect(post.mock.calls[0]![1]).not.toHaveProperty('frozen');
     expect(post.mock.calls[0]![1]).not.toHaveProperty('portions');
@@ -181,7 +195,7 @@ describe('the form that puts an ingredient into the pantry', () => {
     await userEvent.clear(portions);
     await userEvent.type(portions, '4');
     expect(portions).toHaveAccessibleDescription(`4${NBSP}portions of 250${NBSP}ml each`);
-    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+    await userEvent.click(submitButton());
 
     expect(post).toHaveBeenCalledWith(
       '/inventory',
@@ -203,7 +217,7 @@ describe('the form that puts an ingredient into the pantry', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '1000');
 
-    await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
+    await userEvent.click(submitButton());
 
     expect(post.mock.calls[0]![1]).toMatchObject({ frozen: true });
     expect(post.mock.calls[0]![1]).not.toHaveProperty('portions');
@@ -220,10 +234,10 @@ describe('the form that puts an ingredient into the pantry', () => {
     await userEvent.type(portions, '10');
 
     expect(portions).toHaveAccessibleDescription(messages.errors.PORTIONS_TOO_MANY);
-    expect(screen.getByRole('button', { name: texts.addButton })).toBeDisabled();
+    expect(submitButton()).toBeDisabled();
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '0');
     expect(portions).toHaveAccessibleDescription(`10${NBSP}portions of 5${NBSP}ml each`);
-    expect(screen.getByRole('button', { name: texts.addButton })).toBeEnabled();
+    expect(submitButton()).toBeEnabled();
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -244,6 +258,104 @@ describe('the form that puts an ingredient into the pantry', () => {
 
     expect(unitsOffered()).toEqual(['piece']);
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('piece');
+  });
+});
+
+describe('the window things are put into the pantry in', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('opens over the rows from the button above them, on the search', async () => {
+    await open([bottled], [aRow(dumplings, 12, null)]);
+    const add = screen.getByRole('button', { name: texts.addButton });
+
+    expect(screen.queryByLabelText(texts.ingredientLabel)).toBeNull();
+    expect(
+      add.compareDocumentPosition(screen.getByText(dumplings.name)) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await userEvent.click(add);
+
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    await vi.waitFor(() => expect(window.getByLabelText(texts.ingredientLabel)).toHaveFocus());
+  });
+
+  it('stays open for the next once one is in: emptied, on the search, saying what went in', async () => {
+    const { post } = await open([bottled]);
+    await pick(bottled);
+    await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
+
+    await userEvent.click(submitButton());
+
+    expect(post).toHaveBeenCalledOnce();
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    await vi.waitFor(() =>
+      expect(window.getByRole('status')).toHaveTextContent('Added: Bottled kefir, 500 ml.'),
+    );
+    expect(window.getByLabelText(texts.ingredientLabel)).toHaveFocus();
+    expect(window.getByLabelText(texts.ingredientLabel)).toHaveValue('');
+    expect(window.getByLabelText(texts.quantityLabel)).toHaveValue(null);
+  });
+
+  it('says what went into the freezer, and in how many portions', async () => {
+    await open([bottled]);
+    await pick(bottled);
+    await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
+    await userEvent.type(screen.getByLabelText(texts.quantityLabel), '1000');
+    const portions = screen.getByLabelText(texts.portionsLabel);
+    await userEvent.clear(portions);
+    await userEvent.type(portions, '4');
+
+    await userEvent.click(submitButton());
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Added to the freezer: Bottled kefir, 1000 ml in 4 portions.',
+      ),
+    );
+  });
+
+  it('keeps what was typed and says why in the window where the pantry did not take it', async () => {
+    const { post } = await open([bottled]);
+    post.mockRejectedValueOnce(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+    await pick(bottled);
+    await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
+
+    await userEvent.click(submitButton());
+
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    expect(await window.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(window.getByLabelText(texts.quantityLabel)).toHaveValue(500);
+    expect(window.getByRole('button', { name: texts.clearPick })).toBeInTheDocument();
+  });
+
+  it('is closed by its button', async () => {
+    await open([bottled]);
+    await addWindow();
+
+    await userEvent.click(screen.getByRole('button', { name: messages.common.close }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says in its own words that portions are a whole number from 1 to 10, and puts nothing in', async () => {
+    const { post } = await open([bottled]);
+    await pick(bottled);
+    await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
+    await userEvent.type(screen.getByLabelText(texts.quantityLabel), '1000');
+    const portions = screen.getByLabelText(texts.portionsLabel);
+
+    for (const typed of ['11', '2.5', '0']) {
+      await userEvent.clear(portions);
+      await userEvent.type(portions, typed);
+      expect(portions).toHaveAccessibleDescription(`Type a whole number from 1${NBSP}to 10.`);
+      expect(portions).toHaveAttribute('aria-invalid', 'true');
+      expect(submitButton()).toBeDisabled();
+    }
+    await userEvent.clear(portions);
+    expect(portions).toHaveAccessibleDescription(`Type a whole number from 1${NBSP}to 10.`);
+    expect(post).not.toHaveBeenCalled();
   });
 });
 
@@ -356,6 +468,7 @@ describe('a row of the pantry', () => {
 
     it('offers a food the freezer holds already, for a package of its own', async () => {
       await open([chicken], [grams(286, true, '2026-12-14')]);
+      await addWindow();
       await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
 
       await pick(chicken);
@@ -388,7 +501,7 @@ describe('a row of the pantry', () => {
 
     it('takes a food the pantry holds fresh, once the box says it goes into the freezer', async () => {
       await open([chicken], [grams(100, false, '2026-11-16')]);
-      const search = screen.getByLabelText(texts.ingredientLabel);
+      const search = (await addWindow()).getByLabelText(texts.ingredientLabel);
 
       await userEvent.type(search, 'Chic');
       expect(screen.queryByRole('button', { name: chicken.name })).toBeNull();
@@ -565,8 +678,8 @@ describe('the pantry read again', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
     expect(screen.queryByText(texts.emptyTitle)).toBeNull();
-    // The form stays: what is put in waits for no read.
-    expect(screen.getByLabelText(texts.ingredientLabel)).toBeInTheDocument();
+    // The way to put something in stays: it waits for no read.
+    expect(screen.getByRole('button', { name: texts.addButton })).toBeEnabled();
   });
 });
 
@@ -584,7 +697,7 @@ describe('the search of the pantry form, when it cannot be read', () => {
         : answers(path),
     );
 
-    await userEvent.type(screen.getByLabelText(texts.ingredientLabel), 'Froz');
+    await userEvent.type((await addWindow()).getByLabelText(texts.ingredientLabel), 'Froz');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
   });

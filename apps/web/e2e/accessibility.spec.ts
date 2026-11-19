@@ -89,6 +89,21 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     await page.keyboard.press('Escape');
   });
 
+  test('the window things are put into the pantry in', async ({ session, messages }) => {
+    const page = session.page;
+    const inventory = messages.inventory as Record<string, string>;
+    await page.goto('/inventory');
+    await settled(page);
+
+    await page.getByRole('button', { name: inventory.addButton!, exact: true }).click();
+    const window = page.getByRole('dialog', { name: inventory.addTitle! });
+    await expect(window.getByLabel(inventory.ingredientLabel!, { exact: true })).toBeFocused();
+    await window.getByRole('checkbox', { name: inventory.frozenLabel!, exact: true }).check();
+    await expect(window.getByLabel(inventory.portionsLabel!, { exact: true })).toBeVisible();
+
+    expect(await barriers(page)).toEqual([]);
+  });
+
   test('the form of a profile', async ({ session, messages }) => {
     const page = session.page;
     await page.goto('/profile');

@@ -3,9 +3,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, Snowflake, Trash } from 'lucide-react';
+import { Package, Plus, Snowflake, Trash } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
 import { FROZEN_KEEPS_DAYS } from '@diet-app/shared/constants';
 import { UNITS } from '@diet-app/shared/units';
@@ -14,6 +15,7 @@ import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog } from '@/components/ui/dialog';
 import { Input, OptionalFrame } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
@@ -62,6 +64,8 @@ export default function InventoryPage() {
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
   // The fresh row whose window of freezing is open.
   const [freezing, setFreezing] = useState<InventoryItem | null>(null);
+  // Whether the window things are added to the pantry in is open: it stays open for the next until it is closed.
+  const [adding, setAdding] = useState(false);
 
   const profiles = useQuery({
     queryKey: ['profiles'],
@@ -77,18 +81,10 @@ export default function InventoryPage() {
   });
   const items = inventory.data ?? [];
 
+  // What went wrong is said in the window it was added from.
   const upsert = useMutation({
-    mutationFn: (body: {
-      profileId: string;
-      ingredientId: string;
-      quantity: number;
-      unit: Unit;
-      bestBefore?: string | null;
-      frozen?: boolean;
-      portions?: number;
-    }) => api.post<InventoryItem>('/inventory', body),
+    mutationFn: (body: NewRow) => api.post<InventoryItem>('/inventory', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
-    onError: (e) => setError(errorText(e, t('errAdd'))),
   });
 
   const patch = useMutation({
@@ -164,6 +160,14 @@ export default function InventoryPage() {
 
       <ProfileChips profiles={profileList} active={activeProfileId} onPick={setPickedProfile} />
 
+      {/* The rows first: what is added is added in a window over them. */}
+      {activeProfileId && (
+        <Button type="button" onClick={() => setAdding(true)}>
+          <Plus className="h-4 w-4" aria-hidden />
+          {t('addButton')}
+        </Button>
+      )}
+
       {error && (
         <div
           role="alert"
@@ -171,19 +175,6 @@ export default function InventoryPage() {
         >
           {error}
         </div>
-      )}
-
-      {activeProfileId && (
-        <AddInventoryForm
-          profileId={activeProfileId}
-          // What is frozen stands apart: fresh of a food can be added beside its packages, and any food frozen.
-          freshIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
-          onSubmit={(body) => {
-            setError(null);
-            upsert.mutate(body);
-          }}
-          submitting={upsert.isPending}
-        />
       )}
 
       {inventory.isLoading ? (
@@ -329,6 +320,18 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {adding && activeProfileId && (
+        <AddInventoryDialog
+          // The window adds to the profile it was opened for.
+          key={activeProfileId}
+          profileId={activeProfileId}
+          // What is frozen stands apart: fresh of a food can be added beside its packages, and any food frozen.
+          freshIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
+          onAdd={(body) => upsert.mutateAsync(body)}
+          errorOf={(e) => errorText(e, t('errAdd'))}
+          onClose={() => setAdding(false)}
+        />
+      )}
       {freezing && activeProfileId && (
         <FreezeDialog
           item={freezing}
@@ -345,28 +348,41 @@ export default function InventoryPage() {
   );
 }
 
-function AddInventoryForm({
+/** What the window sends for a row of the pantry. */
+type NewRow = {
+  profileId: string;
+  ingredientId: string;
+  quantity: number;
+  unit: Unit;
+  bestBefore?: string | null;
+  frozen?: boolean;
+  portions?: number;
+};
+
+/**
+ * The window things are put into the pantry in, one after another: after each it stays open with its fields
+ * emptied, the focus back in the search and a line saying what went in, until it is closed.
+ */
+function AddInventoryDialog({
   profileId,
   freshIds,
-  onSubmit,
-  submitting,
+  onAdd,
+  errorOf,
+  onClose,
 }: {
   profileId: string;
   /** The foods the pantry holds fresh: a search offers them again only to go into the freezer, as packages of their own. */
   freshIds: Set<string>;
-  onSubmit: (body: {
-    profileId: string;
-    ingredientId: string;
-    quantity: number;
-    unit: Unit;
-    bestBefore?: string | null;
-    frozen?: boolean;
-    portions?: number;
-  }) => void;
-  submitting: boolean;
+  /** Puts the row in; settles once the server has it, or with why it does not. */
+  onAdd: (body: NewRow) => Promise<unknown>;
+  /** What went wrong, in the reader's words. */
+  errorOf: (error: unknown) => string;
+  onClose: () => void;
 }) {
   const t = useTranslations('inventory');
+  const tCommon = useTranslations('common');
   const unitName = useUnitName();
+  const amount = useAmount();
   const fmt = useFormat();
   const [search, setSearch] = useState('');
   const [pickedIngredient, setPickedIngredient] = useState<Ingredient | null>(null);
@@ -391,6 +407,14 @@ function AddInventoryForm({
   const qty = Number(quantity);
   // What goes into the freezer goes in whole packages of at least one of its unit; fresh is one row whatever it is.
   const fits = !frozen || (portions !== null && (!(qty > 0) || portionsFit(qty, portions)));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // What went in last, said until the next goes.
+  const [added, setAdded] = useState<string | null>(null);
+  const searchField = useRef<HTMLInputElement>(null);
+
+  // The window opens on the search: what is added begins with what it is. Taken once the window has the focus.
+  useEffect(() => searchField.current?.focus(), []);
 
   const results = useQuery({
     queryKey: ['ingredients-search', search],
@@ -422,87 +446,122 @@ function AddInventoryForm({
     setPortionsTyped('1');
   }
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!pickedIngredient) return;
+    if (!pickedIngredient || busy) return;
     if (!Number.isFinite(qty) || qty <= 0) return;
     if (portions === null || !fits) return;
-    onSubmit({
-      profileId,
-      ingredientId: pickedIngredient.id,
-      quantity: qty,
-      unit,
-      ...(bestBefore ? { bestBefore } : {}),
-      ...(frozen ? { frozen: true } : {}),
-      ...(portions > 1 ? { portions } : {}),
-    });
-    reset();
+    const values = {
+      name: fmt.text(pickedIngredient.name),
+      amount: amount(qty, unit === 'piece' ? (pickedIngredient.displayUnit ?? 'piece') : unit),
+    };
+    const said = !frozen
+      ? t('added', values)
+      : portions > 1
+        ? t('addedPortions', { ...values, count: portions })
+        : t('addedFrozen', values);
+    setBusy(true);
+    setError(null);
+    setAdded(null);
+    try {
+      await onAdd({
+        profileId,
+        ingredientId: pickedIngredient.id,
+        quantity: qty,
+        unit,
+        ...(bestBefore ? { bestBefore } : {}),
+        ...(frozen ? { frozen: true } : {}),
+        ...(portions > 1 ? { portions } : {}),
+      });
+      // Emptied for the next, which begins where this one did.
+      flushSync(() => {
+        reset();
+        setAdded(said);
+      });
+      searchField.current?.focus();
+    } catch (e) {
+      // What was typed stays, to be sent again.
+      setError(errorOf(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{t('addTitle')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <div className="relative flex-1 min-w-[14rem]">
-            <label
-              htmlFor={ids.ingredient}
-              className="mb-1.5 block text-xs font-medium text-muted-foreground"
-            >
-              {t('ingredientLabel')}
-            </label>
-            {pickedIngredient ? (
-              <div className="mt-1 flex items-center gap-2">
-                <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-                  {fmt.text(pickedIngredient.name)}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPickedIngredient(null)}
-                >
-                  {t('clearPick')}
-                </Button>
-              </div>
-            ) : (
-              <>
-                <Input
-                  id={ids.ingredient}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('searchPlaceholder')}
-                />
-                {search.trim().length >= 2 && unread(results) && (
-                  <ReadsFailed reads={[results]} unanswered />
-                )}
-                {search.trim().length >= 2 && available.length > 0 && (
-                  <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md">
-                    {available.map((i) => (
-                      <li key={i.id}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start rounded-none"
-                          onClick={() => {
-                            setPickedIngredient(i);
-                            setSearch('');
-                            // The unit the API offers first: pieces of what is counted, the rest as it is weighed or measured.
-                            setUnit(i.pantryUnits[0]!);
-                          }}
-                        >
-                          {fmt.text(i.name)}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </div>
+    <Dialog open onClose={onClose} label={t('addTitle')} className="max-w-lg">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <h2 className="font-semibold">{t('addTitle')}</h2>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          {tCommon('close')}
+        </Button>
+      </div>
+      <form onSubmit={(e) => void submit(e)} className="space-y-4 p-4">
+        {/* Read out as it changes: the focus is back in the search by then. */}
+        <p role="status" className={added ? 'text-sm text-muted-foreground' : 'sr-only'}>
+          {added ?? ''}
+        </p>
+        <div className="relative">
+          <label
+            htmlFor={ids.ingredient}
+            className="mb-1.5 block text-xs font-medium text-muted-foreground"
+          >
+            {t('ingredientLabel')}
+          </label>
+          {pickedIngredient ? (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                {fmt.text(pickedIngredient.name)}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  flushSync(() => setPickedIngredient(null));
+                  searchField.current?.focus();
+                }}
+              >
+                {t('clearPick')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Input
+                ref={searchField}
+                id={ids.ingredient}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('searchPlaceholder')}
+              />
+              {search.trim().length >= 2 && unread(results) && (
+                <ReadsFailed reads={[results]} unanswered />
+              )}
+              {search.trim().length >= 2 && available.length > 0 && (
+                <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md">
+                  {available.map((i) => (
+                    <li key={i.id}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start rounded-none"
+                        onClick={() => {
+                          setPickedIngredient(i);
+                          setSearch('');
+                          // The unit the API offers first: pieces of what is counted, the rest as it is weighed or measured.
+                          setUnit(i.pantryUnits[0]!);
+                        }}
+                      >
+                        {fmt.text(i.name)}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
           <div>
             <label
               htmlFor={ids.quantity}
@@ -559,6 +618,8 @@ function AddInventoryForm({
               />
             </OptionalFrame>
           </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
           <label className="flex h-10 items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -588,9 +649,6 @@ function AddInventoryForm({
               />
             </div>
           )}
-          <Button type="submit" disabled={!pickedIngredient || submitting || !fits}>
-            {t('addButton')}
-          </Button>
           {frozen && (
             <div className="basis-full">
               <PortionsLine
@@ -602,8 +660,18 @@ function AddInventoryForm({
               />
             </div>
           )}
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={!pickedIngredient || busy || !fits}>
+            {t('addButton')}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

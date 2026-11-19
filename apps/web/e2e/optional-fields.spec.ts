@@ -54,11 +54,15 @@ const underTheWord = (page: Page): Promise<string[]> =>
 
 // On every project: whether a label reaches under the word depends on its language as much as on the screen.
 test.describe('the word that says a field may stay empty is drawn over no text', () => {
-  test('of what is added to the pantry', async ({ session }) => {
+  test('of what is added to the pantry', async ({ session, messages }) => {
     const page = session.page;
+    const inventory = textsOf(messages, 'inventory');
     await page.goto('/inventory');
     await settled(page);
-    await expect(page.locator('[data-optional]')).not.toHaveCount(0);
+    // What is added is added in a window over the rows.
+    await page.getByRole('button', { name: inventory.addButton!, exact: true }).click();
+    await expect(page.getByRole('dialog', { name: inventory.addTitle! })).toBeVisible();
+    await expect(page.locator('[data-optional]').first()).toBeVisible();
 
     expect(await underTheWord(page)).toEqual([]);
   });
