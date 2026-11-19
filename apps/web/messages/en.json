@@ -571,6 +571,7 @@
     "ofTarget": "of\u00a0{target, number, ::group-off}\u00a0g",
     "inBand": "{band, select, ceiling {at most {ceiling, number, ::group-off}\u00a0g} other {in range {floor, number, ::group-off}–{ceiling, number, ::group-off}\u00a0g}}",
     "howItWorks": "How it works",
+    "openDiary": "Open the diary",
     "targetFromPlan": "The target is that of the plan's day.",
     "targetFromProfile": "No plan holds this day: the target is the profile's own.",
     "targetFromSkipped": "The plan skips this day: the target is the profile's own.",

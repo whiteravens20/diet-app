@@ -19,6 +19,7 @@ import { PlanOverviewCard } from '@/components/plan-overview-card';
 import { ExpenditureCard } from '@/components/expenditure-card';
 import { KeepWeightCard } from '@/components/keep-weight-card';
 import { WaterCard } from '@/components/water-card';
+import { TodayCard } from '@/components/today-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { WeightCard } from '@/components/weight-card';
 import { useFormat } from '@/lib/use-format';
@@ -59,6 +60,9 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           {t('generatePlan')}
         </Link>
       </div>
+
+      {/* What the day holds so far, first: the dashboard is where a day is opened, as on the phone. */}
+      <TodayCard profile={profile} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

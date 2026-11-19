@@ -571,6 +571,7 @@
     "ofTarget": "z\u00a0{target, number, ::group-off}\u00a0g",
     "inBand": "{band, select, ceiling {w\u00a0normie do\u00a0{ceiling, number, ::group-off}\u00a0g} other {w\u00a0normie {floor, number, ::group-off}–{ceiling, number, ::group-off}\u00a0g}}",
     "howItWorks": "Jak to działa",
+    "openDiary": "Otwórz dziennik",
     "targetFromPlan": "Cel to cel dnia planu.",
     "targetFromProfile": "Żaden plan nie obejmuje tego dnia: cel to cel profilu.",
     "targetFromSkipped": "Plan pomija ten dzień: cel to cel profilu.",
