@@ -381,6 +381,7 @@ function ProviderForm({
 }) {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
+  const fmt = useFormat();
   const [provider, setProvider] = useState<AiProvider>(entry?.provider ?? 'openai');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState(entry?.baseUrl ?? '');
@@ -400,6 +401,7 @@ function ProviderForm({
         apiKey: apiKey.trim() || undefined,
         baseUrl: baseUrl.trim() || undefined,
         model: model.trim() || undefined,
+        dataPolicy: provider === 'openrouter' ? dataPolicy : undefined,
       }),
     onSuccess: (res) => setTestResult(res),
     onError: () =>
@@ -407,6 +409,7 @@ function ProviderForm({
         ok: false,
         models: [],
         error: t('aiTestFailed', { error: '?' }),
+        noRetentionProviders: null,
       }),
   });
 
@@ -535,7 +538,10 @@ function ProviderForm({
                 name="dataPolicy"
                 value={choice.policy}
                 checked={dataPolicy === choice.policy}
-                onChange={() => setDataPolicy(choice.policy)}
+                onChange={() => {
+                  setDataPolicy(choice.policy);
+                  reset();
+                }}
                 className="mt-1"
               />
               <span className="flex flex-col gap-0.5">
@@ -584,6 +590,22 @@ function ProviderForm({
           {testResult.ok ? t('aiTestOk') : t('aiTestFailed', { error: testResult.error ?? '?' })}
         </p>
       )}
+      {/* Under the choice of no retention: how many of the model's providers it leaves, as OpenRouter lists them. */}
+      {testResult?.noRetentionProviders &&
+        provider === 'openrouter' &&
+        dataPolicy === 'no_retention' && (
+          <p
+            className={cn(
+              'text-xs sm:col-span-2',
+              testResult.noRetentionProviders.length < 2 ? 'text-warning' : 'text-muted-foreground',
+            )}
+          >
+            {t('aiNoRetentionProviders', {
+              count: testResult.noRetentionProviders.length,
+              names: fmt.list(testResult.noRetentionProviders),
+            })}
+          </p>
+        )}
       {error && <p className="text-xs text-destructive sm:col-span-2">{error}</p>}
     </form>
   );

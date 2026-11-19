@@ -289,6 +289,12 @@ export const AiTestConnectionRequest = z.object({
    * test. Optional for the others (they list models without it).
    */
   model: model.optional(),
+  /**
+   * OpenRouter only: the choice of the endpoints the entry makes. With
+   * `no_retention` and a model, the answer names the providers of the model
+   * that keep no data.
+   */
+  dataPolicy: AiDataPolicy.optional(),
 });
 export type AiTestConnectionRequest = z.infer<typeof AiTestConnectionRequest>;
 
@@ -298,5 +304,14 @@ export const AiTestConnectionResponse = z.object({
   models: z.array(z.string()),
   /** Provider error verbatim when `ok === false`. */
   error: z.string().nullable(),
+  /**
+   * The providers of the model that keep no data, by name, as OpenRouter's
+   * public list of them has it: answered for OpenRouter with the choice of no
+   * retention and a model, whatever the key; null otherwise, or when the list
+   * could not be read. Empty when the model has none: OpenRouter refuses every
+   * request under that choice then, and with one the model has nobody to
+   * stand in when that provider is overloaded.
+   */
+  noRetentionProviders: z.array(z.string()).nullable(),
 });
 export type AiTestConnectionResponse = z.infer<typeof AiTestConnectionResponse>;

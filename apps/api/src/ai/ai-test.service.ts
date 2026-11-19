@@ -2,6 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 import type { AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { outboundRequest } from '../common/outbound-http.js';
@@ -13,6 +14,23 @@ const PROBE_TIMEOUT_MS = 10_000;
 
 /** A list of models is a few kilobytes; a host that sends more is not an Ollama server. */
 const PROBE_MAX_BYTES = 1_000_000;
+
+/** OpenRouter's public list of the endpoints that keep no data, with the model each serves; read with no key. */
+const NO_RETENTION_LIST = 'https://openrouter.ai/api/v1/endpoints/zdr';
+
+/** How long one reading of that list answers the tests, before it is read again. */
+const NO_RETENTION_KEPT_MS = 10 * 60_000;
+
+/** The list was about a megabyte on 2026-11-19; an answer many times that is not read to its end. */
+const NO_RETENTION_MAX_BYTES = 16_000_000;
+
+/** What is read of each endpoint of that list: the model it serves, and the provider that runs it. */
+const NoRetentionList = z.object({
+  data: z.array(z.object({ model_id: z.string(), provider_name: z.string() })),
+});
+
+/** What a probe of the provider says, without the providers of the model that keep no data. */
+type Probe = Omit<AiTestConnectionResponse, 'noRetentionProviders'>;
 
 /**
  * Test-connection probe behind `POST /ai/test`.
@@ -30,9 +48,61 @@ const PROBE_MAX_BYTES = 1_000_000;
  */
 @Injectable()
 export class AiTestService {
+  /** The last reading of OpenRouter's list of the endpoints that keep no data, and when it was read. */
+  private noRetention: { read: number; endpoints: { model: string; provider: string }[] } | null =
+    null;
+
   constructor(private readonly config: ConfigService<Env, true>) {}
 
   async test(dto: AiTestConnectionRequest): Promise<AiTestConnectionResponse> {
+    const [probe, noRetentionProviders] = await Promise.all([
+      this.probe(dto),
+      this.noRetentionProvidersOf(dto),
+    ]);
+    return { ...probe, noRetentionProviders };
+  }
+
+  /**
+   * The providers of the model that keep no data, as OpenRouter's public list
+   * has them, when the entry chose them alone: a model with one has nobody to
+   * stand in when it is overloaded, and one with none is refused every
+   * request. Null where the choice is another, or the list cannot be read.
+   */
+  private async noRetentionProvidersOf(dto: AiTestConnectionRequest): Promise<string[] | null> {
+    const model = dto.model?.trim();
+    if (dto.provider !== 'openrouter' || dto.dataPolicy !== 'no_retention' || !model) return null;
+    const endpoints = await this.noRetentionEndpoints();
+    if (!endpoints) return null;
+    return [...new Set(endpoints.filter((e) => e.model === model).map((e) => e.provider))].sort();
+  }
+
+  private async noRetentionEndpoints(): Promise<{ model: string; provider: string }[] | null> {
+    if (this.noRetention && Date.now() - this.noRetention.read < NO_RETENTION_KEPT_MS) {
+      return this.noRetention.endpoints;
+    }
+    try {
+      const res = await fetch(NO_RETENTION_LIST, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      });
+      if (!res.ok) return null;
+      const text = await textUpTo(res, NO_RETENTION_MAX_BYTES);
+      if (text === null) return null;
+      const list = NoRetentionList.safeParse(JSON.parse(text));
+      if (!list.success) return null;
+      const endpoints = list.data.data.map((row) => ({
+        model: row.model_id,
+        provider: row.provider_name,
+      }));
+      this.noRetention = { read: Date.now(), endpoints };
+      return endpoints;
+    } catch {
+      // Not read now: the test says nothing of it, and the next one asks again.
+      return null;
+    }
+  }
+
+  private async probe(dto: AiTestConnectionRequest): Promise<Probe> {
     try {
       switch (dto.provider) {
         case 'openai':
@@ -49,10 +119,7 @@ export class AiTestService {
     }
   }
 
-  private async testOpenAiCompatible(
-    url: string,
-    apiKey: string | undefined,
-  ): Promise<AiTestConnectionResponse> {
+  private async testOpenAiCompatible(url: string, apiKey: string | undefined): Promise<Probe> {
     if (!apiKey) return { ok: false, models: [], error: 'API key required.' };
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -69,7 +136,7 @@ export class AiTestService {
     return { ok: true, models, error: null };
   }
 
-  private async testOllama(baseUrl: string | undefined): Promise<AiTestConnectionResponse> {
+  private async testOllama(baseUrl: string | undefined): Promise<Probe> {
     const defaultBaseUrl = this.config.get('OLLAMA_BASE_URL', { infer: true });
     // With no address given, the probe is of the operator's own instance.
     let publicOnly = false;
@@ -113,7 +180,7 @@ export class AiTestService {
   private async testAnthropic(
     apiKey: string | undefined,
     model: string | undefined,
-  ): Promise<AiTestConnectionResponse> {
+  ): Promise<Probe> {
     if (!apiKey) return { ok: false, models: [], error: 'API key required.' };
     if (!model) {
       return { ok: false, models: [], error: 'Model id required to probe Anthropic.' };
@@ -142,4 +209,23 @@ export class AiTestService {
 
 function describe(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** The text of an answer, or null when it runs past `maxBytes`: the reading stops there. */
+async function textUpTo(res: Response, maxBytes: number): Promise<string | null> {
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }

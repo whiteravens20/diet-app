@@ -12635,6 +12635,9 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "dataPolicy": {
+            "$ref": "#/components/schemas/AiDataPolicy"
           }
         },
         "required": [
@@ -12658,12 +12661,26 @@
               "string",
               "null"
             ]
+          },
+          "noRetentionProviders": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "ok",
           "models",
-          "error"
+          "error",
+          "noRetentionProviders"
         ],
         "additionalProperties": false
       },

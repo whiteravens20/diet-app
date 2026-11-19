@@ -2298,6 +2298,7 @@
     "aiDataPolicyAny": "Bez ograniczeń aplikacji",
     "aiDataPolicyAnyHint": "Każdy dostawca, na którego pozwalają ustawienia konta OpenRouter, także taki, który trenuje modele na zapytaniach.",
     "aiDataPolicyRefused": "Gdy żaden dostawca modelu nie spełnia wyboru, OpenRouter odmawia i odpowiada wbudowany silnik.",
+    "aiNoRetentionProviders": "{count, plural, =0 {U OpenRouter każdy dostawca tego modelu przechowuje dane: przy tym wyborze OpenRouter odrzuci każde zapytanie.} one {U OpenRouter danych nie przechowuje jeden dostawca tego modelu: {names}. Gdy jest przeciążony, nie ma kto go zastąpić.} few {U OpenRouter danych nie przechowuje {count, number, ::group-off} dostawców tego modelu: {names}.} many {U OpenRouter danych nie przechowuje {count, number, ::group-off} dostawców tego modelu: {names}.} other {U OpenRouter danych nie przechowuje {count, number, ::group-off} dostawców tego modelu: {names}.}}",
     "aiSaving": "Zapisywanie…",
     "aiSave": "Zapisz dostawcę",
     "aiDelete": "Usuń",

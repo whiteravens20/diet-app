@@ -3,7 +3,7 @@
 import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { ConfigService } from '@nestjs/config';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../config/env.js';
 import { AiTestService } from './ai-test.service.js';
 
@@ -53,6 +53,7 @@ describe('probing an Ollama server', () => {
       ok: true,
       models: ['llama3.1:8b', 'qwen2.5:14b'],
       error: null,
+      noRetentionProviders: null,
     });
   });
 
@@ -102,7 +103,12 @@ describe('probing an Ollama server', () => {
 
     const result = await service().test({ provider: 'ollama', baseUrl: operatorUrl });
 
-    expect(result).toEqual({ ok: false, models: [], error: 'HTTP 307 Temporary Redirect' });
+    expect(result).toEqual({
+      ok: false,
+      models: [],
+      error: 'HTTP 307 Temporary Redirect',
+      noRetentionProviders: null,
+    });
     expect(hits).toBe(1);
   });
 
@@ -118,6 +124,7 @@ describe('probing an Ollama server', () => {
       ok: false,
       models: [],
       error: 'The host answered, but not as an Ollama server.',
+      noRetentionProviders: null,
     });
   });
 
@@ -136,12 +143,127 @@ describe('probing a provider that needs a key', () => {
     'asks for the key of %s before calling out',
     async (provider) => {
       const result = await service().test({ provider, model: 'some-model' });
-      expect(result).toEqual({ ok: false, models: [], error: 'API key required.' });
+      expect(result).toEqual({
+        ok: false,
+        models: [],
+        error: 'API key required.',
+        noRetentionProviders: null,
+      });
     },
   );
 
   it('asks for a model to probe anthropic with', async () => {
     const result = await service().test({ provider: 'anthropic', apiKey: 'key' });
     expect(result.error).toContain('Model id required');
+  });
+});
+
+describe('the providers of a model on OpenRouter that keep no data', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const LIST = 'https://openrouter.ai/api/v1/endpoints/zdr';
+  /** Rows as OpenRouter's list had them on 2026-11-19, a few fields of each. */
+  const endpoints = [
+    { model_id: 'openai/gpt-6-luna', provider_name: 'Azure', tag: 'azure' },
+    { model_id: 'openai/gpt-6-luna-pro', provider_name: 'Azure', tag: 'azure' },
+    { model_id: 'some/open-model', provider_name: 'Together', tag: 'together' },
+    { model_id: 'some/open-model', provider_name: 'DeepInfra', tag: 'deepinfra/fp8' },
+    { model_id: 'some/open-model', provider_name: 'DeepInfra', tag: 'deepinfra/bf16' },
+  ];
+  /** Answers the list as given, and a list of models to the key's probe; counts what was asked. */
+  function openRouter(list: () => Response) {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (url: string | URL) => {
+      asked.push(String(url));
+      if (String(url) === LIST) return list();
+      return new Response(JSON.stringify({ data: [{ id: 'openai/gpt-6-luna' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    return asked;
+  }
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const asking = (more: Record<string, unknown> = {}) => ({
+    provider: 'openrouter' as const,
+    apiKey: 'sk-or-test',
+    model: 'openai/gpt-6-luna',
+    dataPolicy: 'no_retention' as const,
+    ...more,
+  });
+
+  it('are named, each once and in order, for the model and the choice of no retention', async () => {
+    openRouter(() => json({ data: endpoints }));
+
+    expect((await service().test(asking())).noRetentionProviders).toEqual(['Azure']);
+    expect(
+      (await service().test(asking({ model: 'some/open-model' }))).noRetentionProviders,
+    ).toEqual(['DeepInfra', 'Together']);
+  });
+
+  it('are none for a model that has no such provider, which OpenRouter would refuse', async () => {
+    openRouter(() => json({ data: endpoints }));
+
+    const result = await service().test(asking({ model: 'nobody/keeps-everything' }));
+
+    expect(result).toMatchObject({ ok: true, noRetentionProviders: [] });
+  });
+
+  it('are named whatever the key, which is tested on its own', async () => {
+    openRouter(() => json({ data: endpoints }));
+
+    const result = await service().test(asking({ apiKey: undefined }));
+
+    expect(result).toEqual({
+      ok: false,
+      models: [],
+      error: 'API key required.',
+      noRetentionProviders: ['Azure'],
+    });
+  });
+
+  it.each([
+    ['another choice', { dataPolicy: 'no_training' }],
+    ['no choice', { dataPolicy: undefined }],
+    ['no model', { model: undefined }],
+    ['another provider', { provider: 'openai' }],
+  ])('are not asked about with %s', async (_case, more) => {
+    const asked = openRouter(() => json({ data: endpoints }));
+
+    expect((await service().test(asking(more))).noRetentionProviders).toBeNull();
+    expect(asked).not.toContain(LIST);
+  });
+
+  it.each([
+    ['answers with an error', () => json({ error: 'down' }, 503)],
+    ['answers what is not JSON', () => new Response('<html>busy</html>', { status: 200 })],
+    ['answers in another shape', () => json({ endpoints: 'none' })],
+    [
+      'answers far more than the list is',
+      // The list itself, as JSON, padded past what is read of an answer.
+      () => json({ data: endpoints, pad: 'x'.repeat(16_000_000) }),
+    ],
+  ])('are not said when the list %s, and the key is still tested', async (_case, list) => {
+    openRouter(list);
+
+    expect(await service().test(asking())).toEqual({
+      ok: true,
+      models: ['openai/gpt-6-luna'],
+      error: null,
+      noRetentionProviders: null,
+    });
+  });
+
+  it('are read from one reading of the list for the tests that follow it', async () => {
+    const asked = openRouter(() => json({ data: endpoints }));
+    const one = service();
+
+    await one.test(asking());
+    await one.test(asking({ model: 'some/open-model' }));
+
+    expect(asked.filter((url) => url === LIST)).toHaveLength(1);
   });
 });

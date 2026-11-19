@@ -2298,6 +2298,7 @@
     "aiDataPolicyAny": "No limit set by the app",
     "aiDataPolicyAnyHint": "Any provider your OpenRouter account's settings allow, including one that trains models on the requests.",
     "aiDataPolicyRefused": "When no provider of the model meets the choice, OpenRouter refuses the request and the built-in engine answers.",
+    "aiNoRetentionProviders": "{count, plural, =0 {On OpenRouter every provider of this model keeps the data: with this choice OpenRouter refuses every request.} one {On OpenRouter one provider of this model keeps none of the data: {names}. When it is overloaded, nothing stands in for it.} other {On OpenRouter {count, number, ::group-off} providers of this model keep none of the data: {names}.}}",
     "aiSaving": "Saving…",
     "aiSave": "Save provider",
     "aiDelete": "Remove",

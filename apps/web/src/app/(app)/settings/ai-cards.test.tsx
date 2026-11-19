@@ -370,6 +370,36 @@ describe('a saved AI provider, changed', () => {
     });
   });
 
+  it('says, after a test under the choice of no retention, which providers of the model keep no data', async () => {
+    const { post } = await changing(saved);
+    post.mockResolvedValue({
+      ok: true,
+      models: ['openai/gpt-6-luna'],
+      error: null,
+      noRetentionProviders: ['Azure'],
+    } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: s.aiTestConnection }));
+
+    expect(post).toHaveBeenCalledWith(
+      '/ai/test',
+      expect.objectContaining({ model: 'openai/gpt-6-luna', dataPolicy: 'no_retention' }),
+    );
+    expect(
+      await screen.findByText(
+        'On OpenRouter one provider of this model keeps none of the data: Azure. When it is overloaded, nothing stands in for it.',
+      ),
+    ).toBeInTheDocument();
+
+    // Another choice makes the test's word on it stale: it goes with the result.
+    await userEvent.click(
+      within(screen.getByRole('group', { name: s.aiDataPolicy })).getByRole('radio', {
+        name: new RegExp(`^${s.aiDataPolicyNoTraining}`),
+      }),
+    );
+    expect(screen.queryByText(/keeps none of the data/)).not.toBeInTheDocument();
+  });
+
   it('asks for the key again where the saved one can no longer be read', async () => {
     await changing({ ...saved, keyUnreadable: true });
 

@@ -197,7 +197,7 @@ describe('the provider configurations of an account', () => {
     it('are tested with the saved key when the test leaves it out, and with none of Ollama', async () => {
       const probe = vi
         .spyOn(t.app.get(AiTestService), 'test')
-        .mockResolvedValue({ ok: true, models: [], error: null });
+        .mockResolvedValue({ ok: true, models: [], error: null, noRetentionProviders: null });
       await put(user, {
         provider: 'openrouter',
         apiKey: 'sk-or-first',
