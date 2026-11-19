@@ -23,6 +23,7 @@ import { RecipeShare } from '@/components/recipe-share';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { DOT } from '@/lib/figure-line';
+import { cn } from '@/lib/utils';
 
 /** An address of the web, and nothing else: only such a one is made a link. */
 const onTheWeb = (address: string | null): address is string =>
@@ -400,7 +401,16 @@ export function RecipeView({
           <ol className="space-y-2 text-sm">
             {recipe.steps.map((step, i) => (
               <li key={i} className="flex gap-3">
-                <span className="font-medium text-muted-foreground">{i + 1}.</span>
+                {/* Every number as wide as the widest, in figures of one width, its dot where the others' are:
+                    the text of each step begins at the same place, the first's as well. */}
+                <span
+                  className={cn(
+                    'shrink-0 text-right font-medium tabular-nums text-muted-foreground',
+                    recipe.steps.length >= 10 ? 'min-w-[2.6ch]' : 'min-w-[1.6ch]',
+                  )}
+                >
+                  {i + 1}.
+                </span>
                 <span className="min-w-0 wrap-anywhere">{fmt.text(step)}</span>
               </li>
             ))}

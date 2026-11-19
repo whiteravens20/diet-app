@@ -97,6 +97,41 @@ test.describe('a page shown in Polish leaves no word of one letter loose', () =>
     expect(await looseLetters(session.page)).toEqual([]);
   });
 
+  test("a recipe's steps, whose text begins where each other's does, the first's as well", async ({
+    session,
+    account,
+    messages,
+  }) => {
+    const page = session.page;
+    await page.goto(`/recipes/${account.recipeId}`);
+    await settled(page);
+    // The card of the method: its heading, and the list of steps in it.
+    const method = page
+      .locator('div')
+      .filter({ has: page.getByText((messages.recipeDetail as Texts).method!, { exact: true }) })
+      .filter({ has: page.locator('ol') })
+      .last();
+
+    const steps = await method.locator('ol > li').evaluateAll((items) =>
+      items.map((item) => {
+        const [number, text] = item.querySelectorAll('span');
+        const style = getComputedStyle(number!);
+        return {
+          starts: Math.round(text!.getBoundingClientRect().left),
+          // A typeface whose figures differ in width moves the text after a narrow one: the figures are of
+          // one width and the number keeps to the right, against its dot, whatever typeface the reader has.
+          figures: style.fontVariantNumeric,
+          keeps: style.textAlign,
+        };
+      }),
+    );
+
+    expect(steps.length).toBeGreaterThan(1);
+    expect(new Set(steps.map((step) => step.starts)).size).toBe(1);
+    for (const step of steps)
+      expect(step).toMatchObject({ figures: 'tabular-nums', keeps: 'right' });
+  });
+
   test('a plan with its days open, and the recipe window of a meal', async ({
     session,
     messages,
