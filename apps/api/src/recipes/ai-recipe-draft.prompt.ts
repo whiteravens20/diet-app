@@ -104,7 +104,7 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
       : '{"title":string,"description":string,') +
     '"servings":1,"mealTypes":string[],"prepMinutes":int,"cookMinutes":int,' +
     '"difficulty":"easy"|"medium"|"hard",' +
-    '"ingredients":[{"slug":string,"quantity":number,"unit":"g"|"ml"|"piece","note":string|null}],' +
+    '"ingredients":[{"slug":string,"quantity":number,"unit":"g"|"ml"|"piece"}],' +
     (several ? `"steps":${keyed('string[]')}}` : '"steps":string[]}');
 
   const system =
@@ -220,7 +220,8 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
       '("Slice the chicken"). A step uses nothing the list does not hold, water alone excepted, ' +
       'and water is never on the list: a step that seasons with salt and pepper means salt and ' +
       'black pepper are on the list with their amounts. Every ingredient on the list is used ' +
-      'in a step.',
+      'in a step, and how it is cut or made ready is said in that step ("Dice the avocado"): ' +
+      'the list holds nothing beside its slug, quantity and unit.',
     '5. A dish home cooks make: no contrived combinations. It is a meal of its own, never a side ' +
       'dish, and a main dish and a small one are never mixed in "mealTypes".',
     '6. The title names the dish as a cookbook would: what it is made of and how. It names no ' +

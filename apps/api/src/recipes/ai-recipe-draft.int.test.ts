@@ -659,7 +659,7 @@ describe('drafting a recipe with a model', () => {
       expect(recipe.ingredients[0]!.quantity).toBe(3000);
     });
 
-    it('drops a note that holds markup, and keeps the recipe', async () => {
+    it('leaves out a note beside an ingredient, in one language where the steps are in each, and keeps the recipe', async () => {
       t.model.reply({
         text: (request) =>
           JSON.stringify(
@@ -670,7 +670,7 @@ describe('drafting a recipe with a model', () => {
                   slug,
                   quantity: 100,
                   unit: 'g',
-                  note: index === 0 ? '<b>diced</b>' : 'diced',
+                  note: index === 0 ? '<b>diced</b>' : 'cut into small pieces',
                 })),
             }),
           ),
@@ -678,10 +678,12 @@ describe('drafting a recipe with a model', () => {
 
       const { recipe } = await ask();
 
-      expect(recipe.ingredients.map((line) => line.note)).toEqual([null, 'diced', 'diced']);
+      expect(recipe.ingredients.map((line) => line.note)).toEqual([null, null, null]);
+      const stored = await t.prisma.recipeIngredient.findMany({ where: { recipeId: recipe.id } });
+      expect(stored.map((line) => line.note)).toEqual([null, null, null]);
     });
 
-    it('folds line breaks in the text into spaces and drops a note that is too long', async () => {
+    it('folds line breaks in the text into spaces, a note too long left out with the rest', async () => {
       t.model.reply({
         text: (request) =>
           JSON.stringify(

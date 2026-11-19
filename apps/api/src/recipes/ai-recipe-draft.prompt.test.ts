@@ -144,4 +144,14 @@ describe('the prompt of a recipe a user asks a model for', () => {
     expect(english.system).toContain('"steps":string[]}');
     expect(english.user).toContain('Ingredient catalogue (slug: English name):');
   });
+
+  it('asks for nothing beside an ingredient but its amount, and for how it is made ready in a step, which is in each language', () => {
+    const asked = prompt();
+
+    expect(asked.system).toContain(
+      '"ingredients":[{"slug":string,"quantity":number,"unit":"g"|"ml"|"piece"}]',
+    );
+    expect(asked.system).not.toContain('note');
+    expect(asked.user).toContain('how it is cut or made ready is said in that step');
+  });
 });

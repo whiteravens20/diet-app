@@ -598,9 +598,10 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
  * The recipe in a model's answer, held to the rules of every recipe. The model
  * is met half-way first: an answer in one language may use plain fields, a
  * whole number may come with a fraction, a meal the planner does not know is
- * left out, an ingredient may be called by its name, and a note the rules
- * refuse is dropped. What is left has to pass like any other recipe, and has
- * to be more than a single step.
+ * left out, and an ingredient may be called by its name. A note beside an
+ * ingredient is left out: it would be in one language, where the steps, which
+ * say how an ingredient is made ready, are in each. What is left has to pass
+ * like any other recipe, and has to be more than a single step.
  */
 function readDraft(
   text: string,
@@ -619,7 +620,7 @@ function readDraft(
     }
     const slug = slugOf(line.slug);
     if (slug === null) return { unknownIngredient: line.slug };
-    lines.push({ ...line, slug });
+    lines.push({ ...line, slug, note: null });
   }
 
   const only = locales.length === 1 ? locales[0]! : null;
@@ -639,15 +640,7 @@ function readDraft(
     ingredients: lines,
   };
 
-  let checked = checkRecipe(candidate, locales);
-  if (!checked.ok && checked.problems.every((problem) => problem.path.endsWith('.note'))) {
-    // A note is optional: one the rules refuse is left out, and the recipe stays.
-    const refused = new Set(checked.problems.map((problem) => problem.path));
-    candidate.ingredients = lines.map((line, index) =>
-      refused.has(`ingredients[${index}].note`) && isRecord(line) ? { ...line, note: null } : line,
-    );
-    checked = checkRecipe(candidate, locales);
-  }
+  const checked = checkRecipe(candidate, locales);
   if (!checked.ok)
     return {
       problem: checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join(', '),
