@@ -257,59 +257,65 @@ export default function InventoryPage() {
                               ` (${amount(item.display.grams, 'g')})`}
                           </span>
                         </span>
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {t('bestBeforeLabel')}
-                          <Input
-                            type="date"
-                            defaultValue={item.bestBefore ?? ''}
-                            className="w-40"
-                            aria-label={t('bestBeforeOf', { name })}
-                            onBlur={(e) => {
-                              const next = e.currentTarget.value || null;
-                              if (next === (item.bestBefore ?? null)) return;
-                              patch.mutate({ id: item.id, bestBefore: next });
-                            }}
-                          />
-                        </label>
-                        {item.frozen ? (
-                          // The room of the fresh rows' button, unseen, so that the fields of every row stand in
-                          // one column where a row is one line; nothing where rows wrap.
+                        {/* The day and the row's buttons on one line, a phone's too: the day's label is over it there. */}
+                        <div className="flex items-end gap-1 sm:items-center">
+                          <label className="mr-2 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+                            {t('bestBeforeLabel')}
+                            <Input
+                              type="date"
+                              defaultValue={item.bestBefore ?? ''}
+                              className="w-36 sm:w-40"
+                              aria-label={t('bestBeforeOf', { name })}
+                              onBlur={(e) => {
+                                const next = e.currentTarget.value || null;
+                                if (next === (item.bestBefore ?? null)) return;
+                                patch.mutate({ id: item.id, bestBefore: next });
+                              }}
+                            />
+                          </label>
+                          {item.frozen ? (
+                            // The room of the fresh rows' button, unseen, so that the fields of every row stand in
+                            // one column where a row is one line; nothing where rows wrap.
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              tabIndex={-1}
+                              aria-hidden
+                              className="invisible max-sm:hidden"
+                            >
+                              <Snowflake className="h-4 w-4" />
+                              {t('freeze')}
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={t('freezeLabel', { name })}
+                              title={t('freezeLabel', { name })}
+                              onClick={() => {
+                                freeze.reset();
+                                setFreezing(item);
+                              }}
+                            >
+                              <Snowflake className="h-4 w-4" />
+                              {/* A phone has the snowflake alone, as the room of a line asks. */}
+                              <span className="max-sm:hidden">{t('freeze')}</span>
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            disabled
-                            tabIndex={-1}
-                            aria-hidden
-                            className="invisible max-sm:hidden"
+                            aria-label={t('removeLabel', { name })}
+                            title={t('removeLabel', { name })}
+                            onClick={() => later.remove(item)}
                           >
-                            <Snowflake className="h-4 w-4" />
-                            {t('freeze')}
+                            <Trash className="h-4 w-4" />
                           </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={t('freezeLabel', { name })}
-                            onClick={() => {
-                              freeze.reset();
-                              setFreezing(item);
-                            }}
-                          >
-                            <Snowflake className="h-4 w-4" />
-                            {t('freeze')}
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t('removeLabel', { name })}
-                          onClick={() => later.remove(item)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
+                        </div>
                       </li>
                     );
                   })}
