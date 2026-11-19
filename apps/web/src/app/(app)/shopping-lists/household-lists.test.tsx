@@ -94,7 +94,7 @@ const aPlan = (id: string, startDate: string) => ({
   dietType: 'balanced',
 });
 
-function show(households: HouseholdList[] = [aHousehold()]) {
+function show(households: HouseholdList[] = [aHousehold()], folded = false) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/household-lists'
@@ -108,8 +108,17 @@ function show(households: HouseholdList[] = [aHousehold()]) {
     ),
   );
   function Host() {
+    const [open, setOpen] = useState(!folded);
     const [opened, setOpened] = useState<string | null>(null);
-    return <HouseholdLists profiles={profiles} opened={opened} onOpen={setOpened} />;
+    return (
+      <HouseholdLists
+        profiles={profiles}
+        open={open}
+        onFold={setOpen}
+        opened={opened}
+        onOpen={setOpened}
+      />
+    );
   }
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
@@ -127,6 +136,21 @@ const open = async () =>
 
 describe('the household lists of an account', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('are folded under their name until it is pressed, and read only then', async () => {
+    show([aHousehold()], true);
+    const head = screen.getByRole('button', { name: texts.title });
+
+    expect(head).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(texts.subhead)).not.toBeVisible();
+    expect(api.get).not.toHaveBeenCalledWith('/household-lists');
+
+    await userEvent.click(head);
+
+    expect(head).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(texts.subhead)).toBeVisible();
+    expect(await screen.findByRole('button', { name: /Adam and Ewa/ })).toBeInTheDocument();
+  });
 
   it('shows one with whom it is for and what each profile needs of a row, and no proposals', async () => {
     show();
@@ -221,7 +245,13 @@ describe('the household lists, when they cannot be read', () => {
         <QueryClientProvider
           client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
         >
-          <HouseholdLists profiles={profiles} opened={null} onOpen={vi.fn()} />
+          <HouseholdLists
+            profiles={profiles}
+            open
+            onFold={vi.fn()}
+            opened={null}
+            onOpen={vi.fn()}
+          />
         </QueryClientProvider>
       </NextIntlClientProvider>,
     );

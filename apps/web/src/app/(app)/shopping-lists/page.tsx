@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
-import { ShoppingBasket } from 'lucide-react';
+import { ChevronRight, ShoppingBasket } from 'lucide-react';
 import type { MealPlanPage, Profile, SessionUser, ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useAmount } from '@/lib/ingredient-format';
@@ -21,6 +21,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
+import { cn } from '@/lib/utils';
 import { ListView, type RowPatch } from './list-view';
 
 export const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -28,7 +29,7 @@ export const selectClass = 'h-10 w-full rounded-md border border-input bg-backgr
 /** Fetched where the account has two profiles or more, the only accounts that are shown it. */
 const HouseholdLists = dynamic(
   () => import('./household-lists').then((section) => section.HouseholdLists),
-  { ssr: false, loading: () => <Skeleton className="h-40" /> },
+  { ssr: false, loading: () => <Skeleton className="h-16" /> },
 );
 
 /** Where the household lists are on the page, which a part of one leads to. */
@@ -78,6 +79,14 @@ export default function ShoppingListsPage() {
   const [pickedPlan, setPickedPlan] = useState<string | null>(null);
   const [pickedList, setPickedList] = useState<string | null>(null);
   const [openHousehold, setOpenHousehold] = useState<string | null>(null);
+  // The household lists fold under the plan's list, and open where a part of one leads to them.
+  const [householdOpen, setHouseholdOpen] = useState(false);
+  // The form a list is made with folds under the list, open while the plan has none: undefined until the user says.
+  const [makingAsked, setMakingAsked] = useState<boolean | null>(null);
+  // What went wrong with a list made by the form, said in the form.
+  const [formError, setFormError] = useState<string | null>(null);
+  // Where the plan's list is: the page goes there once a list is made.
+  const listShown = useRef<HTMLElement>(null);
   /** The days the form names, as they are typed: the plan's own until then. */
   const [range, setRange] = useState<{ fromDate?: string; toDate?: string }>({});
 
@@ -117,6 +126,7 @@ export default function ShoppingListsPage() {
     listOptions[0]?.id ??
     null;
   const activeList = listOptions.find((l) => l.id === activeListId) ?? null;
+  const makingOpen = makingAsked ?? (lists.isSuccess && listOptions.length === 0);
   const planEnd = activePlan
     ? new Date(
         new Date(activePlan.startDate).getTime() +
@@ -136,15 +146,15 @@ export default function ShoppingListsPage() {
     mutationFn: (body: { planId: string; fromDate?: string; toDate?: string }) =>
       api.post<ShoppingList>('/shopping-lists/generate', body),
     onSuccess: (list) => {
-      qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
       // Generation may auto-check rows fully covered by pantry, decrementing
       // inventory as a side-effect. Force the inventory page to refetch.
-      qc.invalidateQueries({ queryKey: ['inventory'] });
+      void qc.invalidateQueries({ queryKey: ['inventory'] });
       // It may have replaced a part of a household list.
-      qc.invalidateQueries({ queryKey: ['household-lists'] });
+      void qc.invalidateQueries({ queryKey: ['household-lists'] });
       setPickedList(list.id);
+      // Done once the plan's lists are read again with it: what was asked for it then finds it on the page.
+      return qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
     },
-    onError: (e) => setError(errorText(e, t('errGenerate'))),
   });
 
   // Whether an answer to a change of a row was left unshown because a later change was on its way.
@@ -214,16 +224,33 @@ export default function ShoppingListsPage() {
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
     if (!activePlanId) return;
     const f = new FormData(event.currentTarget);
     const fromDate = String(f.get('fromDate') ?? '');
     const toDate = String(f.get('toDate') ?? '');
-    generate.mutate({
-      planId: activePlanId,
-      ...(fromDate ? { fromDate } : {}),
-      ...(toDate ? { toDate } : {}),
-    });
+    generate.mutate(
+      {
+        planId: activePlanId,
+        ...(fromDate ? { fromDate } : {}),
+        ...(toDate ? { toDate } : {}),
+      },
+      {
+        // The form has done its part and folds; the page goes to the new list, above it.
+        onSuccess: () => {
+          setMakingAsked(false);
+          requestAnimationFrame(() => {
+            listShown.current?.focus({ preventScroll: true });
+            listShown.current?.scrollIntoView({ block: 'start' });
+          });
+        },
+        // Said in the form, which opens for it: the button of an empty list sends it folded too.
+        onError: (e) => {
+          setMakingAsked(true);
+          setFormError(errorText(e, t('errGenerate')));
+        },
+      },
+    );
   }
 
   // The API has rounded every quantity and named its unit; this spells it.
@@ -255,12 +282,6 @@ export default function ShoppingListsPage() {
       <PageBanner image={IMAGERY.shopping} title={t('title')} subtitle={t('subhead')} />
       <ReadsFailed reads={[profiles, plans, lists]} />
 
-      {profileList.length > 1 && (
-        <div id={HOUSEHOLD_LISTS} className="scroll-mt-4">
-          <HouseholdLists profiles={profileList} opened={openHousehold} onOpen={setOpenHousehold} />
-        </div>
-      )}
-
       <ProfileChips
         profiles={profileList}
         active={activeProfileId}
@@ -269,6 +290,8 @@ export default function ShoppingListsPage() {
           setPickedPlan(null);
           setPickedList(null);
           setError(null);
+          setFormError(null);
+          setMakingAsked(null);
         }}
       />
 
@@ -289,62 +312,32 @@ export default function ShoppingListsPage() {
           }
         />
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('generate')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form id={makeList} onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-4">
-              <Field label={t('plan')}>
-                <select
-                  className={selectClass}
-                  value={activePlanId ?? ''}
-                  onChange={(e) => {
-                    setPickedPlan(e.target.value);
-                    setPickedList(null);
-                    setRange({});
-                  }}
-                >
-                  {planList.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {t('planOption', {
-                        date: fmt.date(p.startDate),
-                        days: p.durationDays,
-                        dietType: tDiet(p.dietType),
-                      })}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('fromDate')} optional>
-                <Input
-                  name="fromDate"
-                  type="date"
-                  defaultValue={activePlan?.startDate ?? ''}
-                  onChange={(e) => setRange((was) => ({ ...was, fromDate: e.target.value }))}
-                />
-              </Field>
-              <Field label={t('toDate')} optional>
-                <Input
-                  name="toDate"
-                  type="date"
-                  defaultValue={planEnd}
-                  onChange={(e) => setRange((was) => ({ ...was, toDate: e.target.value }))}
-                />
-              </Field>
-              <div className="flex items-end">
-                <Button type="submit" disabled={generate.isPending || !activePlanId}>
-                  {generate.isPending ? t('generating') : t('generateButton')}
-                </Button>
-              </div>
-              {replacedPart && (
-                <p className="text-sm text-muted-foreground sm:col-span-4">
-                  {t('replacesPart', { profiles: fmt.list(replacedPart.profiles) })}
-                </p>
-              )}
-            </form>
-          </CardContent>
-        </Card>
+        // The plan whose lists are shown, and which a new list is made from.
+        <div className="max-w-md">
+          <Field label={t('plan')}>
+            <select
+              className={selectClass}
+              value={activePlanId ?? ''}
+              onChange={(e) => {
+                setPickedPlan(e.target.value);
+                setPickedList(null);
+                setRange({});
+                setFormError(null);
+                setMakingAsked(null);
+              }}
+            >
+              {planList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {t('planOption', {
+                    date: fmt.date(p.startDate),
+                    days: p.durationDays,
+                    dietType: tDiet(p.dietType),
+                  })}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -360,7 +353,7 @@ export default function ShoppingListsPage() {
             title={t('noListsTitle')}
             description={t('noLists')}
             cta={
-              // The form above, with the plan and the days it names.
+              // The form under it, with the plan and the days it names.
               <Button type="submit" form={makeList} disabled={generate.isPending || !activePlanId}>
                 {generate.isPending ? t('generating') : t('noListsCta')}
               </Button>
@@ -368,7 +361,7 @@ export default function ShoppingListsPage() {
           />
         )
       ) : (
-        <section className="space-y-3">
+        <section ref={listShown} tabIndex={-1} className="scroll-mt-4 space-y-3 outline-none">
           {listOptions.length > 1 && (
             <div className="flex flex-wrap gap-2">
               {listOptions.map((l) => (
@@ -392,8 +385,9 @@ export default function ShoppingListsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
+                  setHouseholdOpen(true);
                   setOpenHousehold(activeList.household!.id);
-                  // The whole list is above: the page goes to it once it is shown.
+                  // The household lists are under this one: the page goes to them once they are open.
                   requestAnimationFrame(() =>
                     document.getElementById(HOUSEHOLD_LISTS)?.scrollIntoView({ block: 'start' }),
                   );
@@ -405,6 +399,8 @@ export default function ShoppingListsPage() {
           )}
           {activeList && (
             <ListView
+              // Each list begins with nothing looked for and nothing open.
+              key={activeList.id}
               profileId={activeProfileId}
               aiEnabled={aiEnabled}
               aiOffNote={session.data && !aiEnabled ? aiOffNote : undefined}
@@ -444,16 +440,91 @@ export default function ShoppingListsPage() {
               }
               onDelete={remove.mutate}
               // A list for the same dates replaces this one, and counts what was obtained for it.
-              onUpdate={() =>
-                generate.mutate({
-                  planId: activeList.planId,
-                  fromDate: activeList.fromDate,
-                  toDate: activeList.toDate,
-                })
-              }
+              onUpdate={() => {
+                setError(null);
+                generate.mutate(
+                  {
+                    planId: activeList.planId,
+                    fromDate: activeList.fromDate,
+                    toDate: activeList.toDate,
+                  },
+                  { onError: (e) => setError(errorText(e, t('errGenerate'))) },
+                );
+              }}
             />
           )}
         </section>
+      )}
+
+      {/* A list for other days of the plan, folded under the list: the list is what the page is for. */}
+      {planList.length > 0 && (
+        <Card>
+          <CardHeader className="p-0">
+            <CardTitle>
+              <button
+                type="button"
+                aria-expanded={makingOpen}
+                onClick={() => setMakingAsked(!makingOpen)}
+                className={cn('flex w-full items-center gap-2 p-5 text-left', makingOpen && 'pb-3')}
+              >
+                <ChevronRight
+                  size={16}
+                  aria-hidden
+                  className={cn('shrink-0 text-muted-foreground', makingOpen && 'rotate-90')}
+                />
+                {t('generate')}
+              </button>
+            </CardTitle>
+          </CardHeader>
+          {/* Hidden, not taken away: the button of a plan without a list sends this form. */}
+          <CardContent hidden={!makingOpen}>
+            <form id={makeList} onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-3">
+              <Field label={t('fromDate')} optional>
+                <Input
+                  name="fromDate"
+                  type="date"
+                  defaultValue={activePlan?.startDate ?? ''}
+                  onChange={(e) => setRange((was) => ({ ...was, fromDate: e.target.value }))}
+                />
+              </Field>
+              <Field label={t('toDate')} optional>
+                <Input
+                  name="toDate"
+                  type="date"
+                  defaultValue={planEnd}
+                  onChange={(e) => setRange((was) => ({ ...was, toDate: e.target.value }))}
+                />
+              </Field>
+              <div className="flex items-end">
+                <Button type="submit" disabled={generate.isPending || !activePlanId}>
+                  {generate.isPending ? t('generating') : t('generateButton')}
+                </Button>
+              </div>
+              {replacedPart && (
+                <p className="text-sm text-muted-foreground sm:col-span-3">
+                  {t('replacesPart', { profiles: fmt.list(replacedPart.profiles) })}
+                </p>
+              )}
+              {formError && (
+                <p role="alert" className="text-sm text-destructive sm:col-span-3">
+                  {formError}
+                </p>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {profileList.length > 1 && (
+        <div id={HOUSEHOLD_LISTS} className="scroll-mt-4">
+          <HouseholdLists
+            profiles={profileList}
+            open={householdOpen}
+            onFold={setHouseholdOpen}
+            opened={openHousehold}
+            onOpen={setOpenHousehold}
+          />
+        </div>
       )}
     </div>
   );

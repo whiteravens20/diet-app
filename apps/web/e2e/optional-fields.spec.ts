@@ -98,11 +98,15 @@ test.describe('the word that says a field may stay empty is drawn over no text',
     expect(await underTheWord(page)).toEqual([]);
   });
 
-  test('of the days a shopping list is made for', async ({ session }) => {
+  test('of the days a shopping list is made for', async ({ session, messages }) => {
     const page = session.page;
     await page.goto('/shopping-lists');
     await settled(page);
-    await expect(page.locator('[data-optional]')).not.toHaveCount(0);
+    // The form folds under the list the account has.
+    await page
+      .getByRole('button', { name: textsOf(messages, 'shoppingLists').generate!, exact: true })
+      .click();
+    await expect(page.locator('[data-optional]').first()).toBeVisible();
 
     expect(await underTheWord(page)).toEqual([]);
   });

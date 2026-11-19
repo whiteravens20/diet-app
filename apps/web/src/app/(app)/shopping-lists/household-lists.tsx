@@ -5,6 +5,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import type { HouseholdList, MealPlanPage, Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { localDate } from '@/lib/http';
@@ -12,6 +13,7 @@ import { useAmount } from '@/lib/ingredient-format';
 import { dayAfter } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ReadsFailed, unread } from '@/components/load-failed';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,10 +60,15 @@ const lastDay = (plan: MealPlanPage['items'][number]): string =>
  */
 export function HouseholdLists({
   profiles,
+  open,
+  onFold,
   opened,
   onOpen,
 }: {
   profiles: Profile[];
+  /** Whether the section is open: it is folded under the plan's list until it is asked for. */
+  open: boolean;
+  onFold: (open: boolean) => void;
   /** The household list shown, if any. */
   opened: string | null;
   onOpen: (id: string | null) => void;
@@ -85,6 +92,8 @@ export function HouseholdLists({
   const households = useQuery({
     queryKey: ['household-lists'],
     queryFn: () => api.get<HouseholdList[]>('/household-lists'),
+    // Read once the section is opened: folded, it shows nothing of them.
+    enabled: open,
   });
   const all = households.data ?? [];
   const shown = all.find((list) => list.id === opened) ?? null;
@@ -199,10 +208,25 @@ export function HouseholdLists({
   return (
     <section className="space-y-3">
       <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
+        <CardHeader className="p-0">
+          <CardTitle>
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => onFold(!open)}
+              className={cn('flex w-full items-center gap-2 p-5 text-left', open && 'pb-3')}
+            >
+              <ChevronRight
+                size={16}
+                aria-hidden
+                className={cn('shrink-0 text-muted-foreground', open && 'rotate-90')}
+              />
+              {t('title')}
+            </button>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        {/* Hidden, not taken away: what was typed is there when it is opened again. */}
+        <CardContent hidden={!open} className="space-y-4">
           <p className="text-sm text-muted-foreground">{t('subhead')}</p>
           {unread(households) && <ReadsFailed reads={[households]} unanswered />}
           {all.length > 0 && (
@@ -330,8 +354,10 @@ export function HouseholdLists({
           )}
         </CardContent>
       </Card>
-      {shown && (
+      {open && shown && (
         <ListView
+          // Each list begins with nothing looked for and nothing open.
+          key={shown.id}
           profileId={null}
           aiEnabled={false}
           aiOffNote={undefined}

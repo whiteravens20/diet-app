@@ -861,7 +861,8 @@ describe('the shopping page with nothing to show yet', () => {
     const replaces =
       "A list of these days is a part of a household list: Ewa and Me. A new list takes its place, and the household list loses this plan's part.";
 
-    expect(await screen.findByText(replaces)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: texts.generate }));
+    expect(screen.getByText(replaces)).toBeVisible();
     const [from, to] = screen.getAllByLabelText(/^(From|To)/);
     fireEvent.change(to!, { target: { value: '2026-01-05' } });
     fireEvent.change(from!, { target: { value: '2026-01-05' } });
@@ -907,6 +908,58 @@ describe('the shopping page with nothing to show yet', () => {
         toDate: '2026-01-07',
       }),
     );
+  });
+
+  it('has the form a list is made with open while the plan has no list', async () => {
+    renderWith({
+      plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
+    });
+
+    await screen.findByRole('heading', { name: texts.noListsTitle });
+    expect(screen.getByRole('button', { name: texts.generate })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: texts.generateButton })).toBeVisible();
+  });
+
+  it('says in the form, opened for it, why a list could not be made', async () => {
+    vi.spyOn(api, 'post').mockRejectedValue(new ApiClientError(0, 'NETWORK', 'Failed to fetch'));
+    renderWith({
+      plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
+    });
+    const head = await screen.findByRole('button', { name: texts.generate });
+    // Folded by the user, then sent by the button of the empty list.
+    await userEvent.click(head);
+    expect(head).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(screen.getByRole('button', { name: texts.noListsCta }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.NETWORK);
+    expect(head).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('the shopping page with a list', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows the list first, the plan it is of over it, and the form for another list folded under it', async () => {
+    await renderPage();
+    const head = screen.getByRole('button', { name: texts.generate });
+    const plan = screen.getByRole('combobox', { name: texts.plan });
+    const firstRow = screen.getByRole('checkbox', { name: 'White rice' });
+
+    expect(head).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('button', { name: texts.generateButton, hidden: true }),
+    ).not.toBeVisible();
+    // The plan, then the list, then the form.
+    expect(plan.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(firstRow.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await userEvent.click(head);
+    expect(screen.getByRole('button', { name: texts.generateButton })).toBeVisible();
   });
 });
 
