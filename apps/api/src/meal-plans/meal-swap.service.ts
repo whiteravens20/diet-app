@@ -38,6 +38,7 @@ import {
   requirementsPerServing,
   slotBudgets,
   toppingRefusal,
+  shownTarget,
 } from '../engine/index.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -745,20 +746,21 @@ export class MealSwapService {
       carbs: Math.round(perServing.carbs * servings),
     };
     const takers = takingIt(slot, replacement, waived);
+    const dayAfter = {
+      calories: day.dayNutrition.calories - before.calories + after.calories,
+      protein: day.dayNutrition.protein - before.protein + after.protein,
+      fat: day.dayNutrition.fat - before.fat + after.fat,
+      carbs: day.dayNutrition.carbs - before.carbs + after.carbs,
+    };
     return {
       recipe,
       servings,
       before,
       after,
       dayBefore: day.dayNutrition,
-      dayAfter: {
-        calories: day.dayNutrition.calories - before.calories + after.calories,
-        protein: day.dayNutrition.protein - before.protein + after.protein,
-        fat: day.dayNutrition.fat - before.fat + after.fat,
-        carbs: day.dayNutrition.carbs - before.carbs + after.carbs,
-      },
+      dayAfter,
       calorieTarget: day.calorieTarget,
-      targetMacros: slot.aim,
+      targetMacros: shownTarget(slot.aim, day.calorieTarget, plan.dietType, dayAfter.carbs),
       cooking: cookingChange(slot.cooking, slot.today, takers),
       outsideLimits: outsideLimitsOf(slot, replacement, takers),
       revision: plan.revision,

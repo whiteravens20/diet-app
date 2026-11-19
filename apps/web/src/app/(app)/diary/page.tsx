@@ -52,6 +52,7 @@ import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
+import { bandValues } from '@/lib/carbs-band';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -560,6 +561,7 @@ function DaySummary({
             fatTarget: day.target.fat,
             carbs: day.eaten.carbs,
             carbsTarget: day.target.carbs,
+            ...bandValues(day.target),
           })}
         </p>
         <div>

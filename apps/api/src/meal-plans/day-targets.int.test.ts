@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ProfileInput, type CalorieCalculation, type Profile } from '@diet-app/shared';
+import {
+  ProfileInput,
+  type CalorieCalculation,
+  type MealPlan,
+  type Profile,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -212,6 +217,27 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       return (4 * held.protein) / held.energy;
     };
 
+    it("on low-carb has carbohydrate as a band, and fat as what protein and the day's carbohydrate leave", async () => {
+      const profile = await aProfile(t, user, { manualCalorieTarget: 2000 });
+      // The catalogue of the tests has too few low-carb meals for a plan: one made and moved to the diet.
+      const made = await aPlan(t, user, profile, { durationDays: 2 });
+      await t.prisma.mealPlan.update({ where: { id: made.id }, data: { dietType: 'low_carb' } });
+
+      const plan: MealPlan = (
+        await t.http().get(`/api/meal-plans/${made.id}`).set(as(user)).expect(200)
+      ).body;
+
+      for (const day of plan.days) {
+        const { protein, carbs, carbsFloor, fat } = day.targetMacros;
+        // A tenth of the day's energy is the floor, a fifth (its split's share) the ceiling.
+        expect(carbsFloor).toBe(Math.round((day.calorieTarget * 0.1) / 4));
+        expect(carbs).toBe(Math.round((day.calorieTarget * 0.2) / 4));
+        const held = Math.min(carbs, Math.max(carbsFloor!, day.dayNutrition.carbs));
+        expect(fat).toBe(Math.round((day.calorieTarget - 4 * protein - 4 * held) / 9));
+      }
+      expect(plan.targetMacros.carbsFloor).toBe(50);
+    });
+
     it('is the split of its diet over the target of the plan, and over the target of each day', async () => {
       // Seven twentieths of the energy from protein and from carbohydrate, three tenths from fat.
       const profile = await aProfile(t, user, {
@@ -224,10 +250,10 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
         dayOverrides: [{ date: '2026-01-06', calorieTarget: 2400 }],
       });
 
-      expect(plan.targetMacros).toEqual({ protein: 175, fat: 67, carbs: 175 });
+      expect(plan.targetMacros).toEqual({ protein: 175, fat: 67, carbs: 175, carbsFloor: null });
       expect(plan.days.map((day) => day.targetMacros)).toEqual([
-        { protein: 175, fat: 67, carbs: 175 },
-        { protein: 210, fat: 80, carbs: 210 },
+        { protein: 175, fat: 67, carbs: 175, carbsFloor: null },
+        { protein: 210, fat: 80, carbs: 210, carbsFloor: null },
       ]);
     });
 
@@ -237,7 +263,7 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       const plan = await aPlan(t, user, profile, { durationDays: 1, dietType: 'vegan' });
 
       // A fifth from protein, 28 hundredths from fat, 52 from carbohydrate.
-      expect(plan.targetMacros).toEqual({ protein: 100, fat: 62, carbs: 260 });
+      expect(plan.targetMacros).toEqual({ protein: 100, fat: 62, carbs: 260, carbsFloor: null });
     });
 
     it('draws a plan towards it: a high-protein week holds more protein than a balanced one of the same recipes', async () => {

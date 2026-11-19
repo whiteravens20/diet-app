@@ -242,7 +242,12 @@ describe('changing a profile', () => {
       expect(back).toMatchObject({ dietType: 'vegan', customMacroSplit: OWN });
       expect(calories.targetMacros).not.toEqual(vegan);
       // 20 %, 28 % and 52 % of 2,100 kcal: the vegan diet's own split.
-      expect(calories.targetMacros).toEqual({ protein: 105, fat: 65, carbs: 273 });
+      expect(calories.targetMacros).toEqual({
+        protein: 105,
+        fat: 65,
+        carbs: 273,
+        carbsFloor: null,
+      });
     });
 
     it('is where a new profile can begin', async () => {
@@ -532,7 +537,12 @@ describe('the calorie target that figures somebody typed would come to', () => {
       warnings: [],
     });
     // A quarter, three tenths and the rest of 2,298 kcal: the balanced diet, which a new profile begins with.
-    expect(answer.targetMacros).toEqual({ protein: 144, fat: 77, carbs: 259 });
+    expect(answer.targetMacros).toEqual({
+      protein: 144,
+      fat: 77,
+      carbs: 259,
+      carbsFloor: null,
+    });
     expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(0);
 
     const made: Profile = (

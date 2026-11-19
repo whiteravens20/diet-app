@@ -28,6 +28,7 @@ import {
   weekOfDay,
   weekScale,
   type KeptMeal,
+  shownTarget,
 } from '../engine/index.js';
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -188,8 +189,12 @@ export class DaySettingsService {
       date,
       calorieTarget: { now: day.calorieTarget, then: change.target },
       targetMacros: {
-        now: aimOfDay(day, plan),
-        then: aimOfDay({ calorieTarget: change.target, overrides: change.overrides }, plan),
+        now: shownTarget(aimOfDay(day, plan), day.calorieTarget, plan.dietType),
+        then: shownTarget(
+          aimOfDay({ calorieTarget: change.target, overrides: change.overrides }, plan),
+          change.target,
+          plan.dietType,
+        ),
       },
       belowSafetyFloor: !settings.skip && change.target < safetyFloor(context.profile.sex),
       meals,

@@ -88,7 +88,7 @@ export class DiarySummaryService {
       counted: counted.length,
       empty: days.length - counted.length,
       eaten: average(counted.map((day) => day.eaten)),
-      target: average(counted.map((day) => day.target)),
+      target: averageTarget(counted.map((day) => day.target)),
       withinTarget: counted.filter(
         (day) =>
           Math.abs(day.eaten.calories - day.target.calories) <=
@@ -288,6 +288,21 @@ function average(figures: readonly DayFigures['eaten'][]): Nutrition | null {
     protein: mean('protein'),
     fat: mean('fat'),
     carbs: mean('carbs'),
+  };
+}
+
+/** The average of the targets of the days that count, the floor of carbohydrate where every day has one. */
+function averageTarget(
+  targets: readonly DayFigures['target'][],
+): (Nutrition & { carbsFloor: number | null }) | null {
+  const mean = average(targets);
+  if (!mean) return null;
+  const floors = targets.map((target) => target.carbsFloor);
+  return {
+    ...mean,
+    carbsFloor: floors.every((floor) => floor !== null)
+      ? Math.round(floors.reduce((sum, floor) => sum + floor, 0) / floors.length)
+      : null,
   };
 }
 

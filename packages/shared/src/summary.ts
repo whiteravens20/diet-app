@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { WEEK_DAYS } from './constants.js';
 import { CalendarDay } from './enums.js';
-import { Nutrition } from './nutrition.js';
+import { Nutrition, TargetMacros } from './nutrition.js';
 
 /** A day that counts comes within this share of its target to be "on target". */
 export const WITHIN_TARGET_SHARE = 0.1;
@@ -51,7 +51,8 @@ export const WeekSummary = z.object({
   empty: z.number().int().min(0).max(WEEK_DAYS),
   /** The average of the days that count; null where none does. */
   eaten: Nutrition.nullable(),
-  target: Nutrition.nullable(),
+  /** As the diary's day has it, `carbsFloor` included. */
+  target: Nutrition.extend({ carbsFloor: TargetMacros.shape.carbsFloor }).nullable(),
   /** The days that count which came within a tenth of their target. */
   withinTarget: z.number().int().min(0).max(WEEK_DAYS),
   /** What the days drank; null for a profile that does not track water. */

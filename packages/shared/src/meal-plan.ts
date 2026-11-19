@@ -13,6 +13,7 @@ import {
   LabelTotals,
   MacroChange,
   Macros,
+  TargetMacros,
   MAX_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
   Nutrition,
@@ -658,7 +659,7 @@ export const MealPlanDay = z.object({
    * day keeps the protein of a usual day of its week, and its carbohydrates
    * their share of its energy; fat takes what is left.
    */
-  targetMacros: Macros,
+  targetMacros: TargetMacros,
   /** Signed delta vs. target — positive means over budget. Zero for a skipped day. */
   calorieDelta: z.number(),
   /**
@@ -790,7 +791,7 @@ export const DaySettingsPreview = z.object({
   date: z.string().date(),
   /** The day's target, and what it aims at of protein, fat and carbohydrate: now, and after the change. */
   calorieTarget: z.object({ now: z.number(), then: z.number() }),
-  targetMacros: z.object({ now: Macros, then: Macros }),
+  targetMacros: z.object({ now: TargetMacros, then: TargetMacros }),
   /** A target typed for the day would put it under the lowest a calculated plan goes. */
   belowSafetyFloor: z.boolean(),
   /** Each meal of the day, in the order they are eaten. */
@@ -1038,7 +1039,7 @@ export const MealPlan = z.object({
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
-  targetMacros: Macros,
+  targetMacros: TargetMacros,
   /** Where those averages stand against what the days of the plan aim at, as a day's `offTarget` and `macrosOff` do. */
   averageOff: z.object({ calories: z.enum(['over', 'under']).nullable(), macros: z.boolean() }),
   ingredientReuseScore: z.number().min(0).max(1),
@@ -1092,7 +1093,7 @@ export const PlanOverview = z.object({
   /** Kilocalories a day, on average over the days that are not skipped: what the plan holds and what it aims at. */
   energy: z.object({ planned: z.number().min(0), target: z.number().min(0) }),
   /** Grams a day, on the same average. */
-  macros: z.object({ planned: Macros, target: Macros }),
+  macros: z.object({ planned: Macros, target: TargetMacros }),
   /** Of the meals of the days that have come, today included, how many are marked as eaten. */
   eaten: Share,
   /** Of the meals that have a recipe, how many fit the diet of the plan. */
@@ -1292,7 +1293,7 @@ export const MealSwapPreview = z.object({
   dayAfter: Nutrition,
   /** What the day aims at. */
   calorieTarget: z.number(),
-  targetMacros: Macros,
+  targetMacros: TargetMacros,
   /** What it would do to the other meals of the same cooking. */
   cooking: CookingChange,
   /** The limits of the plan the recipe is outside of on this meal: only where no other is left, or it was picked by hand. */

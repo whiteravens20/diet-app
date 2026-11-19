@@ -15,6 +15,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { unread } from '@/components/load-failed';
+import { carbsBandOf } from '@/lib/carbs-band';
 
 /** Fetched when the chart is first shown: the charting library is the heaviest thing the dashboard has. */
 const PlanDaysChart = dynamic(
@@ -147,18 +148,34 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
             {MACROS.map((macro) => {
               const planned = overview.macros.planned[macro];
               const target = overview.macros.target[macro];
+              // On a diet whose carbohydrate is a ceiling, carbohydrate reads as the diet's band, its target as the ceiling.
+              const band = macro === 'carbs' ? carbsBandOf(overview.macros.target) : 'none';
+              const floor = overview.macros.target.carbsFloor ?? 0;
               return (
                 <li key={macro} className="text-sm">
                   <div className="flex flex-wrap justify-between gap-x-3">
                     <span>{tMacro(macro)}</span>
                     <span className="text-muted-foreground">
-                      {t('macroValue', { planned, target })}
+                      {band === 'none'
+                        ? t('macroValue', { planned, target })
+                        : t('macroCarbsBand', { band, planned, floor, ceiling: target })}
                     </span>
                   </div>
-                  {/* The bar is full at the target; what the plan holds beyond it does not make it longer. */}
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+                  {/* The bar is full at the target, or at the ceiling with the band drawn under it; what the plan
+                      holds beyond it does not make it longer. */}
+                  <div
+                    className="relative mt-1 h-2 overflow-hidden rounded-full bg-muted"
+                    aria-hidden
+                  >
+                    {band !== 'none' && target > 0 && (
+                      <div
+                        data-band
+                        className="absolute inset-y-0 right-0 bg-primary/25"
+                        style={{ left: `${Math.min(100, Math.round((floor / target) * 100))}%` }}
+                      />
+                    )}
                     <div
-                      className="h-full rounded-full bg-primary"
+                      className="relative h-full rounded-full bg-primary"
                       style={{
                         width: `${target === 0 ? 0 : Math.min(100, Math.round((planned / target) * 100))}%`,
                       }}

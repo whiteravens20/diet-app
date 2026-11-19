@@ -100,7 +100,12 @@ describe('the target of a profile on the custom diet with protein per kilogram',
   it("aims at the grams of protein of the body's weight, fat its share and carbohydrate the rest", () => {
     const calculation = calculateCalories(input());
 
-    expect(calculation.targetMacros).toEqual({ protein: 112, fat: 67, carbs: 238 });
+    expect(calculation.targetMacros).toEqual({
+      protein: 112,
+      fat: 67,
+      carbs: 238,
+      carbsFloor: null,
+    });
     expect(calculation.customSplitHeld).toBe(false);
   });
 
@@ -121,6 +126,7 @@ describe('the target of a profile on the custom diet with protein per kilogram',
       protein: 125,
       fat: 67,
       carbs: 225,
+      carbsFloor: null,
     });
     expect(calculateCalories(input({ dietType: 'keto' })).customSplitHeld).toBe(false);
   });

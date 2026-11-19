@@ -29,7 +29,7 @@ const anOverview = (over: Partial<PlanOverview> = {}): PlanOverview => ({
   energy: { planned: 1880, target: 1900 },
   macros: {
     planned: { protein: 104, fat: 70, carbs: 190 },
-    target: { protein: 119, fat: 63, carbs: 214 },
+    target: { protein: 119, fat: 63, carbs: 214, carbsFloor: null },
   },
   eaten: { meals: 3, of: 6 },
   onDiet: { meals: 8, of: 9 },
@@ -105,6 +105,44 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     expect(screen.getByText('104 of 119 g')).toBeInTheDocument();
     expect(screen.getByText('70 of 63 g')).toBeInTheDocument();
     expect(screen.getByText('190 of 214 g')).toBeInTheDocument();
+  });
+
+  it("on low-carb says carbohydrate within the diet's band and draws the band under its bar, fat against what is left", async () => {
+    // His day of 2170 kcal: 30 % from protein, carbohydrate from 54 g up to 108 g, fat what protein and 59 g leave.
+    shown(
+      anOverview({
+        plan: { ...anOverview().plan, dietType: 'low_carb' },
+        macros: {
+          planned: { protein: 156, fat: 152, carbs: 59 },
+          target: { protein: 163, fat: 142, carbs: 108, carbsFloor: 54 },
+        },
+      }),
+    );
+    await screen.findByRole('heading', { name: texts.title.active });
+
+    const carbs = screen.getByText('59 g, in range 54–108 g');
+    expect(screen.getByText('152 of 142 g')).toBeInTheDocument();
+    // The band begins at the floor, half way along a bar that ends at the ceiling.
+    const band = carbs.closest('li')!.querySelector<HTMLElement>('[data-band]');
+    expect(band?.style.left).toBe('50%');
+    // Protein and fat have no band.
+    expect(document.querySelectorAll('[data-band]')).toHaveLength(1);
+  });
+
+  it('on keto says carbohydrate as a ceiling alone, its band the whole bar', async () => {
+    shown(
+      anOverview({
+        plan: { ...anOverview().plan, dietType: 'keto' },
+        macros: {
+          planned: { protein: 140, fat: 160, carbs: 20 },
+          target: { protein: 140, fat: 164, carbs: 27, carbsFloor: 0 },
+        },
+      }),
+    );
+    await screen.findByRole('heading', { name: texts.title.active });
+
+    const carbs = screen.getByText('20 g, at most 27 g');
+    expect(carbs.closest('li')!.querySelector<HTMLElement>('[data-band]')?.style.left).toBe('0%');
   });
 
   it('gives the days as a table to whoever does not see the chart, a skipped day as skipped', async () => {

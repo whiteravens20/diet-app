@@ -30,7 +30,7 @@ const DAY: MealPlanDay = {
   labelNotes: [],
   diary: null,
   calorieTarget: 2000,
-  targetMacros: { protein: 125, fat: 67, carbs: 225 },
+  targetMacros: { protein: 125, fat: 67, carbs: 225, carbsFloor: null },
   calorieDelta: 0,
   offTarget: null,
   macrosOff: false,
@@ -55,8 +55,8 @@ const aPreview = (over: Partial<DaySettingsPreview> = {}): DaySettingsPreview =>
   date: DAY.date,
   calorieTarget: { now: 2000, then: 2300 },
   targetMacros: {
-    now: { protein: 125, fat: 67, carbs: 225 },
-    then: { protein: 144, fat: 77, carbs: 259 },
+    now: { protein: 125, fat: 67, carbs: 225, carbsFloor: null },
+    then: { protein: 144, fat: 77, carbs: 259, carbsFloor: null },
   },
   belowSafetyFloor: false,
   meals: [

@@ -17,6 +17,7 @@ import {
   safetyFloor,
   scaledFigures,
   sharesOf,
+  shownTarget,
   splitDistance,
   weekScale,
   weekScales,
@@ -188,6 +189,32 @@ describe('what a day of a plan aims at of protein, fat and carbohydrate', () => 
   });
 });
 
+describe('what a day aims at, as a person reads it', () => {
+  // A low-carbohydrate day of 2170 kcal: 30 % from protein, carbohydrate from 10 % up to 20 %, fat taking the rest.
+  const aim = { protein: 163, fat: 121, carbs: 108 };
+
+  it("on low-carb has carbohydrate as a band, and fat as what protein and the day's carbohydrate leave", () => {
+    expect(shownTarget(aim, 2170, 'low_carb', 59)).toEqual({
+      protein: 163,
+      fat: 142,
+      carbs: 108,
+      carbsFloor: 54,
+    });
+  });
+
+  it('keeps the carbohydrate it counts for fat inside the band, at its floor and at its ceiling', () => {
+    expect(shownTarget(aim, 2170, 'low_carb', 40).fat).toBe(145);
+    expect(shownTarget(aim, 2170, 'low_carb', 150).fat).toBe(121);
+    // The day's carbohydrate not known: the ceiling, as the split has it.
+    expect(shownTarget(aim, 2170, 'low_carb').fat).toBe(121);
+  });
+
+  it('on keto has a floor of none, and on a diet whose carbohydrate is an aim no band', () => {
+    expect(shownTarget(aim, 2170, 'keto', 20).carbsFloor).toBe(0);
+    expect(shownTarget(aim, 2170, 'balanced', 59)).toEqual({ ...aim, carbsFloor: null });
+  });
+});
+
 describe('calculateBmr (Mifflin-St Jeor)', () => {
   it('matches the known male reference value', () => {
     // 80 kg, 180 cm, 30 y, male → 10*80 + 6.25*180 - 5*30 + 5 = 1780
@@ -267,7 +294,7 @@ describe('calculateCalories', () => {
       calculateCalories(
         person({ dietType: 'custom', customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }),
       ).targetMacros,
-    ).toEqual({ protein: 172, fat: 102, carbs: 172 });
+    ).toEqual({ protein: 172, fat: 102, carbs: 172, carbsFloor: null });
     // The split is the custom diet's: it changes nothing for somebody on another.
     expect(
       calculateCalories(person({ customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }))

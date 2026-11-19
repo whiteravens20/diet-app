@@ -49,6 +49,7 @@ import {
   ownSplit,
   proteinKcalOf,
   scaledFigures,
+  shownTarget,
   toCanonical,
   UnitConversionError,
 } from '../engine/index.js';
@@ -83,7 +84,7 @@ type Figures = Macros & { calories: number };
 export interface DayFigures {
   date: string;
   eaten: Figures;
-  target: Figures;
+  target: Figures & { carbsFloor: number | null };
   counted: boolean;
 }
 
@@ -259,10 +260,19 @@ export class DiaryService {
     );
     // Where the plan's day stands is where its view says it stands: its meals, and the entries as eaten.
     const planned = sumNutrition([...meals.map((meal) => meal.nutrition), ...entered]);
+    const eaten = sumNutrition([
+      ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
+      ...entered,
+    ]);
+    const aim = this.aimOf(profile, skipped ? null : planDay);
     return {
       profileId,
       date,
-      target: this.aimOf(profile, skipped ? null : planDay).target,
+      // On a diet whose carbohydrate is a ceiling, fat is what protein and the carbohydrate eaten leave.
+      target: {
+        ...aim.target,
+        ...shownTarget(aim.target, aim.target.calories, aim.dietType, eaten.carbs),
+      },
       plan: planDay
         ? {
             id: planDay.planId,
@@ -272,10 +282,7 @@ export class DiaryService {
           }
         : null,
       entries: rows.map((row) => entryDto(row, locale)),
-      eaten: sumNutrition([
-        ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
-        ...entered,
-      ]),
+      eaten,
       eatenLabel,
       labelNotes: labelNotes(eatenLabel, labelLimitsOf(profile.preferences)),
       estimated: rows.some((row) => row.estimated),
@@ -360,22 +367,21 @@ export class DiaryService {
           return topping ? [mealNutrition(meal), topping.nutrition] : [mealNutrition(meal)];
         }),
       );
-      const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null).target;
-      const target = {
-        calories: aim.calories,
-        protein: aim.protein,
-        fat: aim.fat,
-        carbs: aim.carbs,
-      };
+      const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+      const eaten = wholeFigures({
+        calories: meals.calories + (entries?._sum.calories ?? 0),
+        protein: meals.protein + (entries?._sum.protein ?? 0),
+        fat: meals.fat + (entries?._sum.fat ?? 0),
+        carbs: meals.carbs + (entries?._sum.carbs ?? 0),
+      });
       days.push({
         date,
-        eaten: wholeFigures({
-          calories: meals.calories + (entries?._sum.calories ?? 0),
-          protein: meals.protein + (entries?._sum.protein ?? 0),
-          fat: meals.fat + (entries?._sum.fat ?? 0),
-          carbs: meals.carbs + (entries?._sum.carbs ?? 0),
-        }),
-        target,
+        eaten,
+        // As the day's own view has it: on a diet whose carbohydrate is a ceiling, fat by the carbohydrate eaten.
+        target: {
+          calories: aim.target.calories,
+          ...shownTarget(aim.target, aim.target.calories, aim.dietType, eaten.carbs),
+        },
         counted: (entries?._count ?? 0) > 0 || (planDay?.meals.length ?? 0) > 0,
       });
     }
@@ -839,15 +845,20 @@ export class DiaryService {
         calorieTarget: number;
       };
     } | null,
-  ): { target: DiaryDay['target']; split: Macros } {
+  ): { target: DiaryDay['target']; split: Macros; dietType: string } {
     if (planDay) {
       return {
         target: {
           calories: planDay.calorieTarget,
-          ...aimOfPlanDay(planDay, planDay.plan),
+          ...shownTarget(
+            aimOfPlanDay(planDay, planDay.plan),
+            planDay.calorieTarget,
+            planDay.plan.dietType,
+          ),
           from: 'plan',
         },
         split: sharesOfPlanDay(planDay.plan, planDay.calorieTarget),
+        dietType: planDay.plan.dietType,
       };
     }
     const input = calorieInputOf(profile);
@@ -870,6 +881,7 @@ export class DiaryService {
         from: 'profile',
       },
       split: macroSplitOf(input.dietType, own),
+      dietType: input.dietType,
     };
   }
 

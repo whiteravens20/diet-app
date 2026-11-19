@@ -12261,7 +12261,7 @@
             "type": "number"
           },
           "targetMacros": {
-            "$ref": "#/components/schemas/Macros"
+            "$ref": "#/components/schemas/TargetMacros"
           },
           "cooking": {
             "$ref": "#/components/schemas/CookingChange"
@@ -13083,7 +13083,7 @@
             "type": "number"
           },
           "targetMacros": {
-            "$ref": "#/components/schemas/Macros"
+            "$ref": "#/components/schemas/TargetMacros"
           },
           "source": {
             "type": "string",
@@ -14115,10 +14115,10 @@
             "type": "object",
             "properties": {
               "now": {
-                "$ref": "#/components/schemas/Macros"
+                "$ref": "#/components/schemas/TargetMacros"
               },
               "then": {
-                "$ref": "#/components/schemas/Macros"
+                "$ref": "#/components/schemas/TargetMacros"
               }
             },
             "required": [
@@ -14535,6 +14535,17 @@
                   "plan",
                   "profile"
                 ]
+              },
+              "carbsFloor": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -14542,7 +14553,8 @@
               "fat",
               "carbs",
               "calories",
-              "from"
+              "from",
+              "carbsFloor"
             ],
             "additionalProperties": false
           },
@@ -18033,7 +18045,7 @@
             "$ref": "#/components/schemas/Nutrition"
           },
           "targetMacros": {
-            "$ref": "#/components/schemas/Macros"
+            "$ref": "#/components/schemas/TargetMacros"
           },
           "averageOff": {
             "type": "object",
@@ -18217,7 +18229,7 @@
             "type": "number"
           },
           "targetMacros": {
-            "$ref": "#/components/schemas/Macros"
+            "$ref": "#/components/schemas/TargetMacros"
           },
           "calorieDelta": {
             "type": "number"
@@ -18494,7 +18506,7 @@
             "type": "number"
           },
           "targetMacros": {
-            "$ref": "#/components/schemas/Macros"
+            "$ref": "#/components/schemas/TargetMacros"
           },
           "cooking": {
             "$ref": "#/components/schemas/CookingChange"
@@ -20030,7 +20042,7 @@
                 "$ref": "#/components/schemas/Macros"
               },
               "target": {
-                "$ref": "#/components/schemas/Macros"
+                "$ref": "#/components/schemas/TargetMacros"
               }
             },
             "required": [
@@ -26041,6 +26053,41 @@
           "pl"
         ]
       },
+      "TargetMacros": {
+        "type": "object",
+        "properties": {
+          "protein": {
+            "type": "number",
+            "minimum": 0
+          },
+          "fat": {
+            "type": "number",
+            "minimum": 0
+          },
+          "carbs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "carbsFloor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "protein",
+          "fat",
+          "carbs",
+          "carbsFloor"
+        ],
+        "additionalProperties": false
+      },
       "Theme": {
         "type": "string",
         "enum": [
@@ -26638,7 +26685,44 @@
           "target": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Nutrition"
+                "type": "object",
+                "properties": {
+                  "protein": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "fat": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "carbs": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "calories": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "carbsFloor": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "protein",
+                  "fat",
+                  "carbs",
+                  "calories",
+                  "carbsFloor"
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "null"

@@ -5,6 +5,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { bandValues } from '@/lib/carbs-band';
 import { useId } from 'react';
 import type { CaloriePreview, CaloriePreviewRequest } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -159,7 +160,14 @@ export function CaloriePreviewPanel({
                       ? t('under', { kcal: c.dailyDeficit })
                       : t('over', { kcal: -c.dailyDeficit })}
               </p>
-              <p className="text-sm">{t('macros', c.targetMacros)}</p>
+              <p className="text-sm">
+                {t('macros', {
+                  protein: c.targetMacros.protein,
+                  fat: c.targetMacros.fat,
+                  carbs: c.targetMacros.carbs,
+                  ...bandValues(c.targetMacros),
+                })}
+              </p>
               <TargetNotices calories={c} risk={false} />
             </>
           )}

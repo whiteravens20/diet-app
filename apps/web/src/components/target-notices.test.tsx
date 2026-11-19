@@ -16,7 +16,7 @@ const plain: CalorieCalculation = {
   requestedDeficit: 550,
   dailyDeficit: 550,
   dailyTarget: 2209,
-  targetMacros: { protein: 138, fat: 74, carbs: 249 },
+  targetMacros: { protein: 138, fat: 74, carbs: 249, carbsFloor: null },
   source: 'calculated',
   safetyFloor: 1500,
   deficitCapped: false,

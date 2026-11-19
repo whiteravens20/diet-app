@@ -109,6 +109,36 @@ describe('the diary of a profile', () => {
     });
   });
 
+  describe('a day on a diet whose carbohydrate is a ceiling', () => {
+    it('aims at carbohydrate as a band, and at fat as what protein and the carbohydrate eaten leave', async () => {
+      // Low-carb at 2000 kcal: 150 g of protein (30 %), carbohydrate from 50 g (10 %) up to 100 g (20 %).
+      await t.prisma.profile.update({
+        where: { id: profile.id },
+        data: { dietType: 'low_carb', manualCalorieTarget: 2000 },
+      });
+      const target = async () => (await dayOf(day(0))).target;
+
+      // Nothing eaten yet: carbohydrate counts at its floor, and fat may take what 50 g leave.
+      const fresh = await target();
+      await written({
+        kind: 'meal',
+        name: 'Eggs',
+        nutrition: { calories: 710, protein: 30, fat: 30, carbs: 80 },
+      });
+      const within = await target();
+      // 140 g in all, past the ceiling: fat takes what 100 g leave, and no less.
+      await written({
+        kind: 'meal',
+        name: 'Rice',
+        nutrition: { calories: 240, protein: 0, fat: 0, carbs: 60 },
+      });
+      const over = await target();
+
+      expect(fresh).toMatchObject({ calories: 2000, protein: 150, carbs: 100, carbsFloor: 50 });
+      expect([fresh.fat, within.fat, over.fat]).toEqual([133, 120, 111]);
+    });
+  });
+
   describe('an entry', () => {
     it('of a recipe holds its servings, with the figures of one serving worked out when it was written', async () => {
       const recipe = await aLibraryRecipe();

@@ -40,6 +40,7 @@ import {
   fitServings,
   safetyFloor,
   macrosForCalories,
+  shownTarget,
   rebalanceDays,
   REBALANCE_TOLERANCE,
   sizeDay,
@@ -1823,7 +1824,12 @@ export class MealPlansService {
           items: written.get(isoDate(day.date)) ?? [],
         },
         calorieTarget: day.calorieTarget,
-        targetMacros: aimOfDay(day, plan),
+        targetMacros: shownTarget(
+          aimOfDay(day, plan),
+          day.calorieTarget,
+          plan.dietType,
+          dayNutrition.carbs,
+        ),
         ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
         macrosOff:
           !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan)),
@@ -1861,7 +1867,12 @@ export class MealPlansService {
         today,
       ),
       averageDailyNutrition: average,
-      targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
+      targetMacros: shownTarget(
+        macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
+        plan.calorieTarget,
+        plan.dietType,
+        average.carbs,
+      ),
       averageOff: {
         calories: standingOf(average.calories, meanTarget, eaten.length === 0).offTarget,
         macros: eaten.length > 0 && macrosOff(average, plan),

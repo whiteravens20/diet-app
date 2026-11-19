@@ -58,7 +58,7 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
 const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
   profileId: PROFILE,
   date: TODAY,
-  target: { calories: 2000, protein: 125, fat: 67, carbs: 225, from: 'plan' },
+  target: { calories: 2000, protein: 125, fat: 67, carbs: 225, carbsFloor: null, from: 'plan' },
   plan: {
     id: PLAN,
     skipped: false,
@@ -490,7 +490,14 @@ describe('the diary', () => {
     const plan = aDay().plan!;
     await renderPage(
       aDay({
-        target: { calories: 2000, protein: 125, fat: 67, carbs: 225, from: 'profile' },
+        target: {
+          calories: 2000,
+          protein: 125,
+          fat: 67,
+          carbs: 225,
+          carbsFloor: null,
+          from: 'profile',
+        },
         plan: { ...plan, skipped: true, calorieDelta: 0, offTarget: null },
       }),
     );

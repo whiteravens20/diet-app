@@ -12,6 +12,16 @@ export const Macros = z.object({
 });
 export type Macros = z.infer<typeof Macros>;
 
+/**
+ * What a day aims at of protein, fat and carbohydrate, in grams, as a person
+ * reads it. On a diet whose carbohydrate is a ceiling and not an aim (low-carb,
+ * keto), `carbs` is that ceiling and `carbsFloor` the least the diet holds a
+ * day to; `fat` is then what protein and the day's carbohydrate, kept inside
+ * that band, leave of the energy. On the other diets `carbsFloor` is null.
+ */
+export const TargetMacros = Macros.extend({ carbsFloor: z.number().min(0).nullable() });
+export type TargetMacros = z.infer<typeof TargetMacros>;
+
 /** How much the protein, fat and carbohydrate of something change, in grams: under nothing for less. */
 export const MacroChange = z.object({
   protein: z.number(),
@@ -245,7 +255,7 @@ export const CalorieCalculation = z.object({
   /** How far the target really is under maintenance; negative when a typed target is above it. */
   dailyDeficit: z.number(),
   dailyTarget: z.number(), // final calorie target
-  targetMacros: Macros,
+  targetMacros: TargetMacros,
   source: z.enum(['calculated', 'manual_override']),
   /** The lowest a calculated target goes for this profile. */
   safetyFloor: z.number(),

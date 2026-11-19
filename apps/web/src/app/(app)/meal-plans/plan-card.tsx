@@ -63,6 +63,7 @@ import { UseUp } from './use-up';
 import { TargetMovedLine } from './target-moved-line';
 import { WeekLine } from './week-line';
 import { DOT, held } from '@/lib/figure-line';
+import { bandValues } from '@/lib/carbs-band';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
@@ -710,6 +711,7 @@ export function PlanCard({
                   fatTarget: day.targetMacros.fat,
                   carbs: day.dayNutrition.carbs,
                   carbsTarget: day.targetMacros.carbs,
+                  ...bandValues(day.targetMacros),
                 })}
               </p>
             )}
@@ -1252,6 +1254,7 @@ export function PlanCard({
                               fatTarget: offer.preview.targetMacros.fat,
                               carbs: offer.preview.dayAfter.carbs,
                               carbsTarget: offer.preview.targetMacros.carbs,
+                              ...bandValues(offer.preview.targetMacros),
                             })}
                           </p>
                           <CookingNote
@@ -1675,6 +1678,7 @@ export function PlanCard({
                 fatTarget: plan.targetMacros.fat,
                 carbs: plan.averageDailyNutrition.carbs,
                 carbsTarget: plan.targetMacros.carbs,
+                ...bandValues(plan.targetMacros),
               })}
             </p>
             {plan.averageOff.calories && (

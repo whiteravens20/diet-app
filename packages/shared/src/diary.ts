@@ -9,6 +9,7 @@ import {
   LabelNutrient,
   LabelTotals,
   Nutrition,
+  TargetMacros,
 } from './nutrition.js';
 import { LabelNutrients, ProductSource } from './product.js';
 
@@ -220,7 +221,11 @@ export const DiaryDay = z.object({
    * What the day aims at: the target of the plan's day where a plan holds it
    * and does not skip it, otherwise the profile's own.
    */
-  target: Nutrition.extend({ from: z.enum(['plan', 'profile']) }),
+  target: Nutrition.extend({
+    from: z.enum(['plan', 'profile']),
+    /** As `TargetMacros` has it: the least carbohydrate a diet whose carbohydrate is a ceiling holds the day to; fat is then what protein and the day's carbohydrate leave. */
+    carbsFloor: TargetMacros.shape.carbsFloor,
+  }),
   /**
    * The plan that holds the day, the one made last where several do, with
    * the day's meals as they are now. `offTarget` is where the plan's day

@@ -48,7 +48,12 @@ describe("the custom diet's protein per kilogram", () => {
     const calculation = await calories(profile);
 
     // 2400 kcal: 128 g of protein (512 kcal), 30 % fat (720 kcal, 80 g), the rest 1168 kcal of carbohydrate.
-    expect(calculation.targetMacros).toEqual({ protein: 128, fat: 80, carbs: 292 });
+    expect(calculation.targetMacros).toEqual({
+      protein: 128,
+      fat: 80,
+      carbs: 292,
+      carbsFloor: null,
+    });
     expect(calculation.customSplitHeld).toBe(false);
     // A client that reads the split alone is told what the grams come to, in whole per cent.
     expect(profile.customProteinPerKg).toBe(1.6);

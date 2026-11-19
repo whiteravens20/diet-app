@@ -33,9 +33,10 @@ describe('a plan for the custom diet', () => {
   /** What a plan and each of its days aim at, when they aim at `split`. */
   const aimsAt = (plan: MealPlan, split: typeof OWN): void => {
     for (const day of plan.days)
-      expect(day.targetMacros).toEqual(
-        macrosForCalories(day.calorieTarget, 'custom', sharesOf(split)),
-      );
+      expect(day.targetMacros).toEqual({
+        ...macrosForCalories(day.calorieTarget, 'custom', sharesOf(split)),
+        carbsFloor: null,
+      });
     expect(plan.days.length).toBeGreaterThan(0);
   };
   const changeSplit = (profile: Profile, customMacroSplit: typeof OWN) =>
@@ -123,9 +124,10 @@ describe('a plan for the custom diet', () => {
 
     const plan = await aPlan(t, user, profile);
 
-    expect(plan.days[0]!.targetMacros).toEqual(
-      macrosForCalories(plan.days[0]!.calorieTarget, 'vegan'),
-    );
+    expect(plan.days[0]!.targetMacros).toEqual({
+      ...macrosForCalories(plan.days[0]!.calorieTarget, 'vegan'),
+      carbsFloor: null,
+    });
     expect(
       (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).macroSplit,
     ).toBeNull();

@@ -17,6 +17,7 @@ import {
   type DietType,
   type Macros,
   type Sex,
+  type TargetMacros,
 } from '@diet-app/shared';
 
 /**
@@ -233,6 +234,31 @@ export function distanceOnDiet(shares: Macros, aim: Macros, dietType: string): n
   return splitDistance(shares, { protein: aim.protein, fat: 1 - aim.protein - carbs, carbs });
 }
 
+/**
+ * `aim`, the grams a day of `calories` aims at, as a person reads it: on a
+ * diet whose carbohydrate is a ceiling (`CARB_FLOOR`) with that floor in grams,
+ * and fat as what protein and `carbs`, the day's carbohydrate kept inside the
+ * band, leave of the energy; at the ceiling where the day's is not known.
+ */
+export function shownTarget(
+  aim: Macros,
+  calories: number,
+  dietType: string,
+  carbs?: number | null,
+): TargetMacros {
+  const floor = carbFloor(dietType);
+  if (floor === null) return { ...aim, carbsFloor: null };
+  const carbsFloor = round((calories * floor) / KCAL_PER_GRAM.carbs);
+  const held = Math.min(aim.carbs, Math.max(carbsFloor, carbs ?? aim.carbs));
+  const left = calories - aim.protein * KCAL_PER_GRAM.protein - held * KCAL_PER_GRAM.carbs;
+  return {
+    protein: aim.protein,
+    fat: round(Math.max(0, left) / KCAL_PER_GRAM.fat),
+    carbs: aim.carbs,
+    carbsFloor,
+  };
+}
+
 /** Split a calorie target into target macros (grams) for a diet type; `own` is the split of the custom diet. */
 export function macrosForCalories(
   calories: number,
@@ -377,7 +403,11 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     requestedDeficit,
     dailyDeficit: maintenance - dailyTarget,
     dailyTarget,
-    targetMacros: macrosForCalories(dailyTarget, input.dietType, own?.shares ?? null),
+    targetMacros: shownTarget(
+      macrosForCalories(dailyTarget, input.dietType, own?.shares ?? null),
+      dailyTarget,
+      input.dietType,
+    ),
     customSplitHeld: own?.held ?? false,
     source,
     safetyFloor: floor,

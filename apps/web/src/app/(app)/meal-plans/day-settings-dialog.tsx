@@ -30,6 +30,7 @@ import { useFormat } from '@/lib/use-format';
 import { useSettled } from '@/lib/use-settled';
 import { cn } from '@/lib/utils';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
+import { bandValues } from '@/lib/carbs-band';
 import { CookingNote } from './cooking';
 import { ListNote } from './list-note';
 
@@ -511,6 +512,7 @@ function Outcome({
               protein: preview.targetMacros.then.protein,
               fat: preview.targetMacros.then.fat,
               carbs: preview.targetMacros.then.carbs,
+              ...bandValues(preview.targetMacros.then),
             })}
           </p>
           {preview.belowSafetyFloor && <p className="text-warning">{t('belowFloor')}</p>}

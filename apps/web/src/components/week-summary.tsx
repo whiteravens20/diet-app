@@ -16,6 +16,7 @@ import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
+import { bandValues } from '@/lib/carbs-band';
 
 /**
  * A profile's week in sum: the seven full days before today, or before a day
@@ -63,6 +64,7 @@ export function WeekSummaryCard({ profile, weeks = false }: { profile: Profile; 
                     fatTarget: shown.target.fat,
                     carbs: shown.eaten.carbs,
                     carbsTarget: shown.target.carbs,
+                    ...bandValues(shown.target),
                   })}
                 </p>
               </>

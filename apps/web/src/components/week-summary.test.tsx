@@ -22,7 +22,7 @@ const aWeek = (over: Partial<WeekSummary> = {}): WeekSummary => ({
   counted: 5,
   empty: 2,
   eaten: { calories: 2174, protein: 120, fat: 80, carbs: 270 },
-  target: { calories: 2135, protein: 134, fat: 71, carbs: 240 },
+  target: { calories: 2135, protein: 134, fat: 71, carbs: 240, carbsFloor: null },
   withinTarget: 4,
   water: { counted: 7, averageMl: 1630, target: 2000, reached: 4 },
   weight: { kgPerWeek: -0.5, targetKg: 85, reachesTargetOn: '2027-02-01' },

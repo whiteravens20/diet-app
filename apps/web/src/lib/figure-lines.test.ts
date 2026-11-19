@@ -154,6 +154,8 @@ describe('a line of figures joined by dots', () => {
       fatTarget: 71,
       carbs: 250,
       carbsTarget: 249,
+      band: 'none',
+      carbsFloor: 0,
     };
     expect(pieces(say('pl')('mealPlans.planMacros', figures))).toEqual([
       'Dzień',
@@ -170,6 +172,27 @@ describe('a line of figures joined by dots', () => {
       'fat 82 of 71 g ·',
       'carbs 250 of 249 g',
     ]);
+  });
+
+  it("breaks the carbohydrate of a day on low-carb or keto, said as the diet's band, nowhere inside it", () => {
+    const day = {
+      protein: 156,
+      proteinTarget: 163,
+      fat: 152,
+      fatTarget: 142,
+      carbs: 59,
+      carbsTarget: 108,
+    };
+    expect(
+      pieces(say('pl')('mealPlans.dayMacros', { ...day, band: 'range', carbsFloor: 54 })),
+    ).toEqual([
+      'Białko 156 z 163 g ·',
+      'tłuszcz 152 z 142 g ·',
+      'węglowodany 59 g, w normie 54–108 g',
+    ]);
+    expect(
+      pieces(say('en')('diary.eatenMacros', { ...day, band: 'ceiling', carbsFloor: 0 })),
+    ).toEqual(['Protein 156 of 163 g ·', 'fat 152 of 142 g ·', 'carbs 59 g, at most 108 g']);
   });
 
   it('keeps the letters of a diary entry with their grams', () => {
