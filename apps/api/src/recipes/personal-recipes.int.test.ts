@@ -16,7 +16,11 @@ import { aPlan, aProfile, aUser, as, asAdmin, race, type TestUser } from '../tes
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
-import { MAX_PERSONAL_RECIPES, PersonalRecipesService } from './personal-recipes.service.js';
+import {
+  MAX_PERSONAL_RECIPES,
+  MAX_WAITING_SUBMISSIONS,
+  PersonalRecipesService,
+} from './personal-recipes.service.js';
 
 let t: TestApp;
 let drafts: AiRecipeDraftService;
@@ -432,11 +436,13 @@ describe("submitting a recipe of one's own", () => {
   });
 
   describe('lets the drafts of one account wait for the curators five at a time', () => {
-    /** Five recipes of the account submitted and waiting, and a sixth not yet submitted. */
+    /** As many recipes of the account submitted and waiting as may wait, and one more not yet submitted. */
     async function fiveWaiting(account: Account): Promise<{ five: string[]; sixth: string }> {
+      expect(MAX_WAITING_SUBMISSIONS).toBe(5);
       const five: string[] = [];
-      for (const chicken of [100, 105, 110, 115, 125]) {
-        const variant = await aRecipeOfTheirOwn(account, chicken);
+      for (let n = 0; n < MAX_WAITING_SUBMISSIONS; n += 1) {
+        // Another amount of chicken for each, none of the others' here: another recipe each time.
+        const variant = await aRecipeOfTheirOwn(account, 101 + n * 7);
         await personal.submit(account.user.id, variant);
         five.push(variant);
       }
