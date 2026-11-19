@@ -54,6 +54,10 @@ export const DiaryMealNutrition = z.object({
 });
 export type DiaryMealNutrition = z.infer<typeof DiaryMealNutrition>;
 
+/** A macronutrient of a meal of one's own that was estimated from its energy, not given. */
+export const EstimatedMacro = z.enum(['protein', 'fat', 'carbs']);
+export type EstimatedMacro = z.infer<typeof EstimatedMacro>;
+
 /** Whose diary, which day and which meal of it an entry is written for. A day still to come takes none. */
 const EntryPlace = z.object({
   profileId: z.string().uuid(),
@@ -95,13 +99,23 @@ export type CreateDiaryEntryRequest = z.infer<typeof CreateDiaryEntryRequest>;
  * A change of an entry: the meal it is under, and how much of it there was:
  * servings for a recipe or a meal of one's own, a quantity in its own unit
  * for an ingredient or a product. Its figures change in proportion to the
- * amount.
+ * amount. A meal of one's own also takes its name and the figures of a
+ * serving anew.
  */
 export const UpdateDiaryEntryRequest = z
   .object({
     mealType: MealType.optional(),
     servings: Servings.optional(),
     quantity: z.number().gt(0).max(5000).optional(),
+    /** For a meal of one's own: what it is called. */
+    name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name).optional(),
+    /**
+     * For a meal of one's own: the figures of one serving. Its energy, and of
+     * the macronutrients those given now; one given before and not named here
+     * stays as it was, one estimated before is estimated again from the new
+     * energy.
+     */
+    nutrition: DiaryMealNutrition.optional(),
     /**
      * For an entry of a product: a product of the reader's own it is of from
      * now on, whose label gives its figures for the same amount, as when its
@@ -114,7 +128,9 @@ export const UpdateDiaryEntryRequest = z
       change.mealType !== undefined ||
       change.servings !== undefined ||
       change.quantity !== undefined ||
-      change.productId !== undefined,
+      change.productId !== undefined ||
+      change.name !== undefined ||
+      change.nutrition !== undefined,
     { message: 'Name at least one thing to change.' },
   );
 export type UpdateDiaryEntryRequest = z.infer<typeof UpdateDiaryEntryRequest>;
@@ -162,6 +178,8 @@ export const DiaryEntry = z.object({
   labelAtLeast: z.array(LabelNutrient).max(LabelNutrient.options.length),
   /** A figure was estimated: of a meal written by its energy, or of a product whose label lacks it. */
   estimated: z.boolean(),
+  /** Of a meal of one's own, the macronutrients that were estimated from its energy; empty for the other kinds. */
+  estimatedMacros: z.array(EstimatedMacro).max(EstimatedMacro.options.length),
   createdAt: z.string().datetime(),
 });
 export type DiaryEntry = z.infer<typeof DiaryEntry>;

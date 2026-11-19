@@ -535,6 +535,67 @@ describe('the diary of a profile', () => {
       ]);
     });
 
+    it("takes a meal of one's own anew by its figures: those given before stay, those estimated are estimated again", async () => {
+      // The profile is on the balanced diet: a quarter of the energy from protein, 30 % from fat, 45 % from carbohydrate.
+      const meal = await written({
+        kind: 'meal',
+        name: 'Snack',
+        nutrition: { calories: 500, protein: 30 },
+      });
+      const change = (body: object) =>
+        t.http().patch(`/api/diary/entries/${meal.id}`).set(as(user)).send(body).expect(200);
+
+      // 30 g of protein carry 120 kcal of 700; fat and carbohydrate share the 580 left, 30 to 45.
+      const moreEnergy = (await change({ nutrition: { calories: 700 } })).body as DiaryEntry;
+      // Fat given now; the protein given at first stays; carbohydrate takes the 400 kcal left. Two servings of it.
+      const named = (
+        await change({ name: 'Pierogi', servings: 2, nutrition: { calories: 700, fat: 20 } })
+      ).body as DiaryEntry;
+
+      expect(meal).toMatchObject({ estimated: true, estimatedMacros: ['fat', 'carbs'] });
+      expect(moreEnergy).toMatchObject({
+        estimated: true,
+        estimatedMacros: ['fat', 'carbs'],
+        nutrition: { calories: 700, protein: 30, fat: 26, carbs: 87 },
+      });
+      expect(named).toMatchObject({
+        name: 'Pierogi',
+        servings: 2,
+        estimated: true,
+        estimatedMacros: ['carbs'],
+        nutrition: { calories: 1400, protein: 60, fat: 40, carbs: 200 },
+      });
+    });
+
+    it("takes a name and figures for a meal of one's own alone, none that hold more energy than the whole", async () => {
+      const recipe = await aLibraryRecipe();
+      const ofRecipe = await written({ kind: 'recipe', recipeId: recipe.id, servings: 1 });
+      const meal = await written({
+        kind: 'meal',
+        name: 'Soup',
+        nutrition: { calories: 300, protein: 10, fat: 10, carbs: 40 },
+      });
+      const change = (id: string, body: object) =>
+        t.http().patch(`/api/diary/entries/${id}`).set(as(user)).send(body);
+
+      const figures = await change(ofRecipe.id, { nutrition: { calories: 100 } }).expect(400);
+      const name = await change(ofRecipe.id, { name: 'Mine' }).expect(400);
+      const over = await change(meal.id, { nutrition: { calories: 100, protein: 50 } }).expect(400);
+
+      expect([figures, name].map((answer) => answer.body.issues[0].path)).toEqual([
+        'nutrition',
+        'name',
+      ]);
+      expect(over.body.error).toBe('DIARY_MACROS_OVER_ENERGY');
+      // Nothing of the meal changed.
+      expect((await dayOf(day(0))).entries.find((entry) => entry.id === meal.id)).toMatchObject({
+        name: 'Soup',
+        estimated: false,
+        estimatedMacros: [],
+        nutrition: { calories: 300, protein: 10, fat: 10, carbs: 40 },
+      });
+    });
+
     it('takes it away, and answers one that is gone as not there', async () => {
       const entry = await aMeal(300);
 
@@ -931,7 +992,8 @@ describe('the diary of a profile', () => {
         .send({ eaten: true })
         .expect(200);
       const eaten = (await planOf(plan.id)).days[0]!.meals.find((m) => m.id === meal.id)!;
-      const soup = await aMeal(300);
+      // Known by its energy alone: its macronutrients are estimated.
+      const soup = await written({ kind: 'meal', name: 'Soup', nutrition: { calories: 300 } });
       const rice = await written({
         kind: 'ingredient',
         ingredientId: (await ingredient('white-rice')).id,
@@ -961,6 +1023,40 @@ describe('the diary of a profile', () => {
         servings: eaten.servings * eaten.quantityScale,
       });
       expect(copied.day.entries[2]!.amount).toEqual(rice.amount);
+      // A meal of one's own keeps what was estimated of it.
+      expect(copied.day.entries[1]).toMatchObject({
+        estimated: soup.estimated,
+        estimatedMacros: soup.estimatedMacros,
+      });
+    });
+
+    it("copies a planned meal of one's own eaten on the day with what was estimated of it", async () => {
+      const plan = await aPlan(t, user, profile, { startDate: day(0), durationDays: 1 });
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day(0)}/custom-meal`)
+        .set(as(user))
+        .set('X-Client-Date', day(0))
+        .send({ name: 'Pizza out', mealType: 'dinner', nutrition: { calories: 900 } })
+        .expect(201);
+      const own = (await planOf(plan.id)).days[0]!.meals.find((m) => m.source === 'USER_CUSTOM')!;
+      await t
+        .http()
+        .patch(`/api/meal-plans/${plan.id}/meals/${own.id}/eaten`)
+        .set(as(user))
+        .set('X-Client-Date', day(0))
+        .send({ eaten: true })
+        .expect(200);
+
+      const copied = (await copy({ from: day(0), to: day(-3) }).expect(201))
+        .body as DiaryCopyResult;
+
+      expect(own.estimated).toBe(true);
+      expect(copied.day.entries.find((entry) => entry.kind === 'meal')).toMatchObject({
+        name: 'Pizza out',
+        estimated: true,
+        estimatedMacros: ['protein', 'fat', 'carbs'],
+      });
     });
 
     it('copies nothing into a day it would fill past the most, and nothing twice under one key', async () => {

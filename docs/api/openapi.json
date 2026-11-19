@@ -14762,6 +14762,13 @@
           "estimated": {
             "type": "boolean"
           },
+          "estimatedMacros": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EstimatedMacro"
+            }
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -14785,6 +14792,7 @@
           "label",
           "labelAtLeast",
           "estimated",
+          "estimatedMacros",
           "createdAt"
         ],
         "additionalProperties": false
@@ -15148,6 +15156,14 @@
           "APPROVED",
           "REJECTED",
           "SHIPPED"
+        ]
+      },
+      "EstimatedMacro": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "fat",
+          "carbs"
         ]
       },
       "EvenWeekRequest": {
@@ -26096,6 +26112,14 @@
             "type": "number",
             "exclusiveMinimum": 0,
             "maximum": 5000
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/DiaryMealNutrition"
           },
           "productId": {
             "type": "string",

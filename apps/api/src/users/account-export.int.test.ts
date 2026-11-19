@@ -259,6 +259,7 @@ describe('everything an account holds, as one file', () => {
         label: null,
         labelAtLeast: [],
         estimated: false,
+        estimatedMacros: [],
         createdAt: expect.any(String),
       },
     ]);

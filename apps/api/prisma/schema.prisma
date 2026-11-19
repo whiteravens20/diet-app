@@ -428,6 +428,10 @@ model DiaryEntry {
   // A figure was estimated: of a meal of its own written without them, or of
   // a product whose label lacks it.
   estimated    Boolean        @default(false)
+  // Of a meal of its own, the macronutrients (`EstimatedMacro`s of the shared
+  // contract) estimated from its energy: a change of its figures estimates
+  // them again and keeps the ones that were given.
+  estimatedMacros String[]    @default([])
   createdAt    DateTime       @default(now())
 
   @@index([profileId, date])

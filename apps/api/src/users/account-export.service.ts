@@ -186,6 +186,8 @@ export class AccountExportService {
         // Those of them that are only a part of what it holds.
         labelAtLeast: entry.labelAtLeast,
         estimated: entry.estimated,
+        // Of a meal of one's own, which macronutrients were estimated.
+        estimatedMacros: entry.estimatedMacros,
         createdAt: entry.createdAt.toISOString(),
       }),
     );

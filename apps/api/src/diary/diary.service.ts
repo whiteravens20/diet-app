@@ -11,6 +11,7 @@ import {
   DIARY_DAYS_BACK,
   DIARY_QUANTITY_LIMITS,
   MAX_DIARY_ENTRIES_A_DAY,
+  EstimatedMacro,
   dayAfter,
   type CopyDiaryDayRequest,
   type CreateDiaryEntryRequest,
@@ -127,6 +128,7 @@ type Written = Pick<
   | 'quantity'
   | 'unit'
   | 'estimated'
+  | 'estimatedMacros'
   | 'fiber'
   | 'sugars'
   | 'salt'
@@ -440,6 +442,14 @@ export class DiaryService {
     });
     if (!row) throw entryNotFound();
     if (change.productId !== undefined) return this.toOwnProduct(userId, locale, row, change);
+    if (change.name !== undefined || change.nutrition !== undefined) {
+      if (row.kind !== 'meal')
+        throw refused(
+          change.nutrition !== undefined ? 'nutrition' : 'name',
+          "Only a meal of one's own takes a name and figures of its own.",
+        );
+      return this.ownMealAnew(userId, locale, row, change);
+    }
     const inAmount = row.kind === 'ingredient' || row.kind === 'product';
     if (change.servings !== undefined && inAmount)
       throw refused(
@@ -468,6 +478,72 @@ export class DiaryService {
     });
     if (changed.count === 0) throw entryNotFound();
     return this.entry(userId, locale, id);
+  }
+
+  /**
+   * A meal of one's own with its name, servings or figures changed. The
+   * figures are of one serving: the energy given, the macronutrients given
+   * now, those given before as they were, and the rest estimated from the
+   * energy that is left in the proportions of the day's target, as when it was
+   * written.
+   */
+  private async ownMealAnew(
+    userId: string,
+    locale: Locale,
+    row: {
+      id: string;
+      profileId: string;
+      date: Date;
+      servings: number | null;
+      calories: number;
+      protein: number;
+      fat: number;
+      carbs: number;
+      estimatedMacros: string[];
+    },
+    change: UpdateDiaryEntryRequest,
+  ): Promise<DiaryEntry> {
+    const before = row.servings ?? 1;
+    const servings = change.servings ?? before;
+    let figures = scaledFigures(row, servings / before);
+    let guessed = row.estimatedMacros;
+    if (change.nutrition) {
+      const { calories, ...given } = change.nutrition;
+      const known: Partial<Macros> = {};
+      for (const macro of EstimatedMacro.options) {
+        const now = given[macro];
+        if (now !== undefined) known[macro] = now;
+        else if (!row.estimatedMacros.includes(macro)) known[macro] = row[macro] / before;
+      }
+      const profile = await this.profile(userId, row.profileId);
+      const macros = estimatedMacros(
+        calories,
+        known,
+        (await this.aimOfDay(profile, isoDate(row.date))).split,
+      );
+      if (!macros) {
+        throw new BadRequestException({
+          error: 'DIARY_MACROS_OVER_ENERGY',
+          message:
+            'The protein, fat and carbohydrate given hold more energy than the calories given.',
+        });
+      }
+      figures = scaledFigures({ calories, ...macros }, servings);
+      guessed = EstimatedMacro.options.filter((macro) => known[macro] === undefined);
+    }
+    const changed = await this.prisma.diaryEntry.updateMany({
+      where: { id: row.id, profile: { userId } },
+      data: {
+        mealType: change.mealType,
+        name: change.name,
+        servings: change.servings,
+        estimated: guessed.length > 0,
+        estimatedMacros: guessed,
+        ...figures,
+      },
+    });
+    if (changed.count === 0) throw entryNotFound();
+    return this.entry(userId, locale, row.id);
   }
 
   /**
@@ -578,6 +654,7 @@ export class DiaryService {
                   source: true,
                   customName: true,
                   customMacros: true,
+                  estimated: true,
                   rests: true,
                   plate: true,
                   recipe: {
@@ -610,7 +687,9 @@ export class DiaryService {
                 kind: 'meal',
                 name: meal.customName ?? '',
                 servings,
-                estimated: false,
+                // A planned meal of its own keeps whether it was estimated, not which figure: all of them were.
+                estimated: meal.estimated,
+                estimatedMacros: meal.estimated ? [...EstimatedMacro.options] : [],
                 ...scaledFigures(customMacros(meal.customMacros), servings),
               };
             }
@@ -641,6 +720,7 @@ export class DiaryService {
             quantity: entry.quantity,
             unit: entry.unit,
             estimated: entry.estimated,
+            estimatedMacros: entry.estimatedMacros,
             calories: entry.calories,
             protein: entry.protein,
             fat: entry.fat,
@@ -961,12 +1041,13 @@ export class DiaryService {
           'The protein, fat and carbohydrate given hold more energy than the calories given.',
       });
     }
+    const guessed = EstimatedMacro.options.filter((macro) => known[macro] === undefined);
     return {
       kind: 'meal',
       name: req.name,
       servings: req.servings,
-      estimated:
-        known.protein === undefined || known.fat === undefined || known.carbs === undefined,
+      estimated: guessed.length > 0,
+      estimatedMacros: guessed,
       ...scaledFigures({ calories, ...macros }, req.servings),
     };
   }
