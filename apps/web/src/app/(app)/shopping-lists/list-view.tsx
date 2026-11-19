@@ -475,7 +475,7 @@ export function ListView({
             <ul className="divide-y divide-border">
               {g.items.map((i) => (
                 <ItemRow
-                  key={`${i.id}-${i.alreadyHaveQuantity}-${i.purchasedQuantity ?? 'na'}-${i.checked}`}
+                  key={i.id}
                   item={i}
                   busy={busy}
                   locked={locked}
@@ -519,6 +519,13 @@ export interface RowPatch {
 const typed = (field: string): number | null =>
   field.trim() === '' ? null : Math.max(0, Number(field) || 0);
 
+/** What a field of a row shows of an amount: nothing for none. */
+const fieldOf = (amount: number): string => (amount > 0 ? String(amount) : '');
+
+/** What was bought of a row beyond what was at home, as the API keeps it. */
+const boughtOf = (item: ShoppingListItem): number =>
+  Math.max(0, (item.purchasedQuantity ?? item.alreadyHaveQuantity) - item.alreadyHaveQuantity);
+
 /**
  * A row of the list: what is still to be bought of it, ticked off with its box
  * or its name, and the packs it takes. How much of it is at home and how much
@@ -555,17 +562,24 @@ function ItemRow({
   const unitName = useUnitName();
   const amountsId = useId();
   // What was bought beyond what was at home, as the API has it.
-  const boughtBefore = Math.max(
-    0,
-    (item.purchasedQuantity ?? item.alreadyHaveQuantity) - item.alreadyHaveQuantity,
-  );
+  const boughtBefore = boughtOf(item);
   // Local copies of the two fields, so that they can be typed in without a
-  // request for every key. They are sent when the field is left. The parent
-  // makes the row anew when the server changed it, so these begin fresh then.
-  const [home, setHome] = useState(
-    item.alreadyHaveQuantity > 0 ? String(item.alreadyHaveQuantity) : '',
-  );
-  const [bought, setBought] = useState(boughtBefore > 0 ? String(boughtBefore) : '');
+  // request for every key. They are sent when the field is left. What the
+  // server answers goes into a field unless it is being typed in: the answer to
+  // what was left in one field comes while the other is typed in, and must not
+  // take what is typed there.
+  const [home, setHome] = useState(() => fieldOf(item.alreadyHaveQuantity));
+  const [bought, setBought] = useState(() => fieldOf(boughtBefore));
+  const [typing, setTyping] = useState<'home' | 'bought' | null>(null);
+  const [answered, setAnswered] = useState(item);
+  if (
+    answered.alreadyHaveQuantity !== item.alreadyHaveQuantity ||
+    answered.purchasedQuantity !== item.purchasedQuantity
+  ) {
+    setAnswered(item);
+    if (typing !== 'home') setHome(fieldOf(item.alreadyHaveQuantity));
+    if (typing !== 'bought') setBought(fieldOf(boughtBefore));
+  }
   // Eggs come whole; half a loaf's slice is as fine as it gets.
   const step = item.unit === 'piece' ? 0.5 : 1;
 
@@ -692,12 +706,16 @@ function ItemRow({
               step={step}
               className={field}
               value={home}
-              disabled={busy}
+              disabled={locked}
+              onFocus={() => setTyping('home')}
               // A number under nothing is not taken; an empty field is.
               onChange={(e) =>
                 (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)
               }
-              onBlur={send}
+              onBlur={() => {
+                setTyping(null);
+                send();
+              }}
             />
             {unitName(item.displayUnit)}
           </label>
@@ -709,11 +727,15 @@ function ItemRow({
               step={step}
               className={field}
               value={bought}
-              disabled={busy}
+              disabled={locked}
+              onFocus={() => setTyping('bought')}
               onChange={(e) =>
                 (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)
               }
-              onBlur={send}
+              onBlur={() => {
+                setTyping(null);
+                send();
+              }}
             />
             {unitName(item.displayUnit)}
           </label>

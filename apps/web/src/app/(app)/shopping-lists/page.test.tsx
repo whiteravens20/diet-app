@@ -545,6 +545,41 @@ describe('a row of a shopping list', () => {
     expect(said('White rice')).toBe('White rice');
   });
 
+  it('keeps what is typed into one field while the server answers the other, and sends it once it is left', async () => {
+    await renderPage(aListOf([anEntry('White rice', 'grains')], []));
+    let answer!: (list: ShoppingList) => void;
+    const patch = vi
+      .spyOn(api, 'patch')
+      .mockImplementationOnce(
+        () => new Promise<ShoppingList>((resolve) => (answer = resolve)) as never,
+      )
+      .mockResolvedValue(aListOf([anEntry('White rice', 'grains')], []) as never);
+    await userEvent.click(pencil('White rice'));
+
+    await userEvent.type(atHome(), '50');
+    // Leaving what is at home sends it; what was bought is typed in while that is answered.
+    await userEvent.tab();
+    await userEvent.type(bought(), '1');
+    answer(
+      aListOf(
+        [anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50 })],
+        [],
+      ),
+    );
+    await vi.waitFor(() =>
+      expect(
+        shownWith.getQueryData<ShoppingList[]>(['shopping-lists', PLAN])?.[0]?.groups[0]?.items[0]
+          ?.alreadyHaveQuantity,
+      ).toBe(50),
+    );
+    await userEvent.type(bought(), '00');
+
+    expect(bought()).toHaveValue(100);
+    expect(bought()).toHaveFocus();
+    await userEvent.tab();
+    expect(patch).toHaveBeenLastCalledWith(expect.any(String), { purchasedQuantity: 150 });
+  });
+
   it('shows what is at home and what was bought as two numbers, and what is left to buy of the need', async () => {
     await aRow(
       anEntry('White rice', 'grains', {
@@ -731,6 +766,42 @@ describe('a row of a shopping list', () => {
       expect(screen.queryByRole('button', { name: /^Bought in packs/ })).toBeNull();
     });
 
+    it('waits for the answer to a change of the list before it can be pressed: the server counts the packs', async () => {
+      await renderPage(
+        aListOf(
+          [
+            anEntry('Salmon', 'grains', {
+              totalQuantity: 435,
+              toBuyQuantity: 435,
+              packs: TWO_PACKS,
+            }),
+          ],
+          [anEntry('Broccoli', 'vegetables')],
+        ),
+      );
+      let give!: (list: ShoppingList) => void;
+      vi.spyOn(api, 'patch').mockReturnValue(
+        new Promise<ShoppingList>((resolve) => (give = resolve)) as never,
+      );
+
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Broccoli' }));
+
+      expect(packsOf('Salmon')).toBeDisabled();
+      give(
+        aListOf(
+          [
+            anEntry('Salmon', 'grains', {
+              totalQuantity: 435,
+              toBuyQuantity: 435,
+              packs: TWO_PACKS,
+            }),
+          ],
+          [anEntry('Broccoli', 'vegetables', { checked: true })],
+        ),
+      );
+      await vi.waitFor(() => expect(packsOf('Salmon')).toBeEnabled());
+    });
+
     it('takes the packs back while what is at home is typed anew: the server counts them from that', async () => {
       await aRow(
         anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }),
@@ -796,17 +867,11 @@ describe('a tick on a row of a shopping list', () => {
     });
     expect(box('Rolled oats')).toBeEnabled();
     expect(box('Broccoli')).toBeEnabled();
-    // What the server works out of a row waits for its answer.
-    expect(
-      screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0],
-    ).toBeDisabled();
+    // So can a row's amounts be typed in: a field being typed in takes no answer of the server.
+    expect(screen.getByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })).toBeEnabled();
 
     first.give(ticked(aList, 'White rice'));
-    await vi.waitFor(() =>
-      expect(
-        screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0],
-      ).toBeEnabled(),
-    );
+    await vi.waitFor(() => expect(patch).toHaveBeenCalledOnce());
     expect(box('White rice')).toBeChecked();
   });
 
