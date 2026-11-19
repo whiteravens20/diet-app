@@ -2301,6 +2301,8 @@
     "aiSaving": "Saving…",
     "aiSave": "Save provider",
     "aiDelete": "Remove",
+    "aiChange": "Change",
+    "aiKeyKept": "Leave it empty to keep the saved key; type a new one to replace it.",
     "aiDeleteConfirm": "Remove this provider configuration?",
     "aiFailed": "Could not save the provider.",
     "aiDeleteFailed": "Could not remove the provider.",

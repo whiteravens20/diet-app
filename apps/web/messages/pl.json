@@ -2301,6 +2301,8 @@
     "aiSaving": "Zapisywanie…",
     "aiSave": "Zapisz dostawcę",
     "aiDelete": "Usuń",
+    "aiChange": "Zmień",
+    "aiKeyKept": "Zostaw puste, by zachować zapisany klucz; wpisz nowy, by go wymienić.",
     "aiDeleteConfirm": "Usunąć tę konfigurację dostawcy?",
     "aiFailed": "Nie udało się zapisać dostawcy.",
     "aiDeleteFailed": "Nie udało się usunąć dostawcy.",

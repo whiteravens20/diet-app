@@ -237,13 +237,14 @@ export function AiProvidersCard() {
     queryKey: ['ai-providers'],
     queryFn: () => api.get<AiProviderConfig[]>('/ai/providers'),
   });
-  const [editing, setEditing] = useState(false);
+  /** The form open: for a provider to add, or for a saved one to change. */
+  const [editing, setEditing] = useState<AiProviderConfig | 'new' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: (dto: AiProviderConfigInput) => api.put<AiProviderConfig>('/ai/providers', dto),
     onSuccess: () => {
-      setEditing(false);
+      setEditing(null);
       qc.invalidateQueries({ queryKey: ['ai-providers'] });
     },
     onError: (err) => setError(errorText(err, t('aiFailed'))),
@@ -298,6 +299,17 @@ export function AiProvidersCard() {
                     type="button"
                     size="sm"
                     variant="ghost"
+                    onClick={() => {
+                      setError(null);
+                      setEditing(p);
+                    }}
+                  >
+                    {t('aiChange')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
                     className="text-destructive"
                     disabled={remove.isPending}
                     onClick={() => {
@@ -314,9 +326,12 @@ export function AiProvidersCard() {
 
         {editing ? (
           <ProviderForm
+            // A form of its own for each entry: one opened for another starts from that one's choices.
+            key={editing === 'new' ? 'new' : editing.id}
             saved={list}
+            entry={editing === 'new' ? undefined : editing}
             onCancel={() => {
-              setEditing(false);
+              setEditing(null);
               setError(null);
             }}
             onSubmit={(dto) => save.mutate(dto)}
@@ -324,7 +339,7 @@ export function AiProvidersCard() {
             error={error}
           />
         ) : (
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing('new')}>
             {t('aiAddProvider')}
           </Button>
         )}
@@ -341,9 +356,15 @@ export function AiProvidersCard() {
  * the returned list on success so the user picks a real model instead of
  * typing one. Saving without a successful test is still allowed (the user
  * may know the model id), but the dropdown is the happy path.
+ *
+ * Opened for a saved entry, it starts from that entry's model, choice and
+ * priority, with the provider fixed. A provider whose key is saved and can be
+ * read needs none typed: an empty field keeps it, for the save and for the
+ * test alike, and a key typed replaces it.
  */
 function ProviderForm({
   saved,
+  entry,
   onCancel,
   onSubmit,
   saving,
@@ -351,6 +372,8 @@ function ProviderForm({
 }: {
   /** The account's saved configurations: a new save of one starts from its choices. */
   saved: AiProviderConfig[];
+  /** The saved configuration being changed; none when a provider is added. */
+  entry?: AiProviderConfig | undefined;
   onCancel: () => void;
   onSubmit: (dto: AiProviderConfigInput) => void;
   saving: boolean;
@@ -358,14 +381,16 @@ function ProviderForm({
 }) {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
-  const [provider, setProvider] = useState<AiProvider>('openai');
+  const [provider, setProvider] = useState<AiProvider>(entry?.provider ?? 'openai');
   const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
-  const [model, setModel] = useState('');
-  const [priority, setPriority] = useState(0);
+  const [baseUrl, setBaseUrl] = useState(entry?.baseUrl ?? '');
+  const [model, setModel] = useState(entry?.model ?? '');
+  const [priority, setPriority] = useState(entry?.priority ?? 0);
   const [dataPolicy, setDataPolicy] = useState<AiDataPolicy>(
     () => saved.find((p) => p.provider === 'openrouter')?.dataPolicy ?? 'no_training',
   );
+  // The key saved for the provider chosen, as long as it can be read.
+  const keyKept = saved.some((p) => p.provider === provider && p.hasKey && !p.keyUnreadable);
   const [testResult, setTestResult] = useState<AiTestConnectionResponse | null>(null);
 
   const test = useMutation({
@@ -417,7 +442,8 @@ function ProviderForm({
         <select
           name="provider"
           required
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          disabled={entry !== undefined}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-70"
           value={provider}
           onChange={(e) => {
             setProvider(e.target.value as AiProvider);
@@ -482,7 +508,8 @@ function ProviderForm({
           label={t('aiApiKey')}
           secret="key"
           name="apiKey"
-          required
+          required={!keyKept}
+          hint={keyKept ? t('aiKeyKept') : undefined}
           placeholder="sk-…"
           autoComplete="off"
           value={apiKey}

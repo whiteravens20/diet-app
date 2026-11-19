@@ -289,6 +289,95 @@ describe("the choice of the endpoints OpenRouter may send an account's requests 
   });
 });
 
+describe('a saved AI provider, changed', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const saved: AiProviderConfig = {
+    id: '33333333-3333-4333-8333-333333333333',
+    provider: 'openrouter',
+    model: 'openai/gpt-6-luna',
+    priority: 2,
+    enabled: true,
+    hasKey: true,
+    keyUnreadable: false,
+    baseUrl: null,
+    dataPolicy: 'no_retention',
+  };
+
+  /** The providers card of an account with `entry` saved, its form opened to change it; what it sends is caught. */
+  async function changing(entry: AiProviderConfig) {
+    vi.spyOn(api, 'get').mockImplementation(((path: string) =>
+      Promise.resolve(path === '/ai/providers' ? [entry] : [])) as never);
+    const put = vi
+      .spyOn(api, 'put')
+      .mockImplementation(((_path: string, body: unknown) =>
+        Promise.resolve({ ...entry, ...(body as object) })) as never);
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ ok: true, models: ['openai/gpt-6-luna'], error: null } as never);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <AiProvidersCard />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await screen.findByText(`· ${entry.model}`);
+    await userEvent.click(screen.getByRole('button', { name: s.aiChange }));
+    return { put, post };
+  }
+
+  it('opens from its model, choice and priority, with the provider fixed and no key asked for', async () => {
+    await changing(saved);
+
+    expect(screen.getByRole('combobox')).toHaveValue('openrouter');
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: s.aiModel })).toHaveValue('openai/gpt-6-luna');
+    expect(screen.getByRole('spinbutton')).toHaveValue(2);
+    expect(
+      within(screen.getByRole('group', { name: s.aiDataPolicy })).getByRole('radio', {
+        name: new RegExp(`^${s.aiDataPolicyNoRetention}`),
+      }),
+    ).toBeChecked();
+    expect(screen.getByLabelText(s.aiApiKey)).not.toBeRequired();
+    expect(screen.getByText(s.aiKeyKept)).toBeInTheDocument();
+  });
+
+  it('sends the change without a key, so that the saved one stays, and tests with it', async () => {
+    const { put, post } = await changing(saved);
+
+    await userEvent.click(
+      within(screen.getByRole('group', { name: s.aiDataPolicy })).getByRole('radio', {
+        name: new RegExp(`^${s.aiDataPolicyNoTraining}`),
+      }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: s.aiTestConnection }));
+    await userEvent.click(screen.getByRole('button', { name: s.aiSave }));
+
+    expect(post).toHaveBeenCalledWith('/ai/test', expect.objectContaining({ apiKey: undefined }));
+    expect(put).toHaveBeenCalledWith('/ai/providers', {
+      provider: 'openrouter',
+      model: 'openai/gpt-6-luna',
+      apiKey: undefined,
+      baseUrl: undefined,
+      dataPolicy: 'no_training',
+      priority: 2,
+      enabled: true,
+    });
+  });
+
+  it('asks for the key again where the saved one can no longer be read', async () => {
+    await changing({ ...saved, keyUnreadable: true });
+
+    expect(screen.getByLabelText(s.aiApiKey)).toBeRequired();
+    expect(screen.queryByText(s.aiKeyKept)).not.toBeInTheDocument();
+  });
+});
+
 describe('the AI providers of an account, when they cannot be read', () => {
   afterEach(() => {
     vi.restoreAllMocks();
