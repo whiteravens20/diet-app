@@ -237,7 +237,7 @@ describe('the recipe library, a page at a time', () => {
 
     const pages = within(screen.getByRole('navigation', { name: texts.pagination.label }));
     expect(pages.getByText('Page 1 of 6')).toBeInTheDocument();
-    expect(pages.getByText('Showing 1–36 of 183')).toBeInTheDocument();
+    expect(pages.getByText('Showing 1–\u206036 of 183')).toBeInTheDocument();
     expect(pages.getByRole('button', { name: texts.pagination.prev })).toHaveAttribute(
       'aria-disabled',
       'true',

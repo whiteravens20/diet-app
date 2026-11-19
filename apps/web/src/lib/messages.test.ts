@@ -219,6 +219,18 @@ describe('the texts of the application, in every language of the folder', () => 
     },
   );
 
+  // A line may break after a dash: the two numbers of a range keep together
+  // only with a word joiner after it, so that no line ends with "50–".
+  it('join the two numbers of a range so that no line breaks after its dash, in any file', () => {
+    const parted = [...files].flatMap(([code, all]) =>
+      [...all]
+        .filter(([, text]) => /(\}|\d)–(?!\u2060)(\{|\d)/.test(text))
+        .map(([key]) => `${code}: ${key}`),
+    );
+
+    expect(parted).toEqual([]);
+  });
+
   // A number on its own (`{kcal, number}`) and the `#` of a count would set
   // thousands apart, each language in its own way.
   it('write every number with nothing between its thousands, in any file', () => {

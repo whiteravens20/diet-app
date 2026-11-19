@@ -455,7 +455,7 @@ describe('the profile form, on the custom diet', () => {
 
     expect(
       screen.getByText(
-        'This split goes past the limits: protein 10–45%, fat 15–75%, carbohydrates 5–70%.',
+        'This split goes past the limits: protein 10–\u206045%, fat 15–\u206075%, carbohydrates 5–\u206070%.',
       ),
     ).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toHaveTextContent(plain(texts.splitLimitsRefused));

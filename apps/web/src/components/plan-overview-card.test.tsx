@@ -120,7 +120,7 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     );
     await screen.findByRole('heading', { name: texts.title.active });
 
-    const carbs = screen.getByText('59 g, in range 54–108 g');
+    const carbs = screen.getByText('59 g, in range 54–\u2060108 g');
     expect(screen.getByText('152 of 142 g')).toBeInTheDocument();
     // The band begins at the floor, half way along a bar that ends at the ceiling.
     const band = carbs.closest('li')!.querySelector<HTMLElement>('[data-band]');

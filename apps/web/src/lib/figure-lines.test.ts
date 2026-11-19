@@ -5,6 +5,7 @@ import path from 'node:path';
 import { LOCALES } from '@diet-app/shared';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
+import { plain } from '@/testing/spaces';
 
 /**
  * A line of figures joined by dots, "Białko 136 z 134 g · tłuszcz 82 z 71 g", breaks only after a
@@ -52,8 +53,12 @@ const withoutComments = (code: string): string =>
   code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
 /** Where a narrow screen may break a text: its pieces between plain spaces, a held space shown as one. */
+/**
+ * The pieces a narrow screen may break a line into: at a plain space, and after a dash with no word
+ * joiner after it; a no-break space reads as the space it is, a word joiner as nothing.
+ */
 const pieces = (text: string): string[] =>
-  text.split(' ').map((piece) => piece.replaceAll('\u00a0', ' '));
+  text.split(/ |(?<=–)(?!\u2060)/).map((piece) => plain(piece));
 
 describe('a line of figures joined by dots', () => {
   it.each(LISTED)('never lets a dot of %s start a line', (file) => {

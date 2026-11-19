@@ -2,12 +2,13 @@
 
 /**
  * Texts as the eye reads them, for a test: a line of figures holds its pairs with no-break spaces
- * (`lib/figure-line.ts`), which a reader sees as plain ones.
+ * (`lib/figure-line.ts`), which a reader sees as plain ones, and the two numbers of a range with a
+ * word joiner after its dash, which a reader does not see at all.
  */
 
-/** A text with its no-break spaces read as plain ones. */
+/** A text with its no-break spaces read as plain ones, and its word joiners as nothing. */
 export const plain = (text: string | null | undefined): string =>
-  (text ?? '').replaceAll('\u00a0', ' ');
+  (text ?? '').replaceAll('\u00a0', ' ').replaceAll('\u2060', '');
 
 /**
  * A name to find an element by, each space matching a plain or a no-break one; `start` matches its

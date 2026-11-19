@@ -15,8 +15,12 @@ import pl from '../../messages/pl.json';
 const FONTS = join(__dirname, '..', '..', 'public', 'fonts');
 const DATA = join(__dirname, '..', '..', '..', '..', 'data');
 
-/** Pictures of the page, which the sheet never gets. */
-const NOT_PRINTED = new Set(['✨']);
+/**
+ * What the sheet never gets: a picture of the page, and the word joiner that keeps the two numbers
+ * of a range on one line of the screen, which has no width and no glyph, in texts of figures no
+ * document holds.
+ */
+const NOT_PRINTED = new Set(['✨', '\u2060']);
 
 /** The characters a TrueType file has a glyph for, read from its character map. */
 function charactersOf(file: Buffer): Set<number> {
