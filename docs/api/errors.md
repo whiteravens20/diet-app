@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 207 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 209 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -176,6 +176,8 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `RECIPE_NOT_ELIGIBLE` | 400 | That recipe can't go into this plan. | Tego przepisu nie można dodać do tego planu. |
 | `RECIPE_NOT_FOUND` | 404 | Recipe not found. | Nie znaleziono przepisu. |
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |
+| `RECIPE_SUBMISSIONS_WAITING` | 403 | As many of your recipes as may wait at a time are waiting for the curators already. You can suggest another once they have decided on one of them. | Na kuratorów czeka już tyle Twoich przepisów, ile może czekać naraz. Kolejny zgłosisz, gdy rozstrzygną któryś z nich. |
+| `RECIPE_SUBMIT_EMAIL_UNCONFIRMED` | 403 | Recipes are suggested for the library from an account whose e-mail address is confirmed. Confirm yours, then suggest the recipe again. | Przepisy do biblioteki zgłasza się z konta z potwierdzonym adresem e-mail. Potwierdź swój adres i zgłoś przepis jeszcze raz. |
 | `RECIPE_SWAP_NOT_SUBMITTABLE` | 409 | A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library. | Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki. |
 | `RECIPE_WORDS_ONLY_OF_A_SWAP` | 409 | Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version. | Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |

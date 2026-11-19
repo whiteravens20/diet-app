@@ -1512,6 +1512,24 @@
       "pl": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki."
     }
   },
+  "RECIPE_SUBMISSIONS_WAITING": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "As many of your recipes as may wait at a time are waiting for the curators already. You can suggest another once they have decided on one of them.",
+      "pl": "Na kuratorów czeka już tyle Twoich przepisów, ile może czekać naraz. Kolejny zgłosisz, gdy rozstrzygną któryś z nich."
+    }
+  },
+  "RECIPE_SUBMIT_EMAIL_UNCONFIRMED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "Recipes are suggested for the library from an account whose e-mail address is confirmed. Confirm yours, then suggest the recipe again.",
+      "pl": "Przepisy do biblioteki zgłasza się z konta z potwierdzonym adresem e-mail. Potwierdź swój adres i zgłoś przepis jeszcze raz."
+    }
+  },
   "RECIPE_SWAP_NOT_SUBMITTABLE": {
     "statuses": [
       409

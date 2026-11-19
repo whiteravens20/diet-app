@@ -455,6 +455,8 @@
     "RECIPE_SWAP_NOT_SUBMITTABLE": "A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library.",
     "RECIPE_WORDS_ONLY_OF_A_SWAP": "Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version.",
     "RECIPE_NOT_SUBMITTABLE": "This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library.",
+    "RECIPE_SUBMISSIONS_WAITING": "As many of your recipes as may wait at a time are waiting for the curators already. You can suggest another once they have decided on one of them.",
+    "RECIPE_SUBMIT_EMAIL_UNCONFIRMED": "Recipes are suggested for the library from an account whose e-mail address is confirmed. Confirm yours, then suggest the recipe again.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI proposed an ingredient it was not offered — try again.",
     "NO_ELIGIBLE_INGREDIENTS": "No ingredients match your diet and allergen settings.",
     "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",

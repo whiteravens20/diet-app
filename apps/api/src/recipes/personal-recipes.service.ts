@@ -23,6 +23,9 @@ export const MAX_AI_DRAFTS_PER_DAY = 20;
 /** The most recipes one account may write or edit by hand within 24 hours. */
 export const MAX_OWN_RECIPES_PER_DAY = 50;
 
+/** The most drafts with recipes of one account in them that may wait for the curators at a time. */
+export const MAX_WAITING_SUBMISSIONS = 5;
+
 /** How long a deleted personal recipe that nothing uses is kept before it is removed for good. */
 const KEEP_DELETED_DAYS = 7;
 
@@ -245,9 +248,59 @@ export class PersonalRecipesService {
       });
     }
     const fingerprint = recipe.fingerprint;
+    // From a confirmed address alone: what an account opened for the purpose
+    // would cost is the curators' time.
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { emailVerified: true },
+    });
+    if (!account?.emailVerified) {
+      throw new ForbiddenException({
+        error: 'RECIPE_SUBMIT_EMAIL_UNCONFIRMED',
+        message: 'Recipes are submitted from an account whose e-mail address is confirmed.',
+      });
+    }
     await this.prisma.$transaction(async (tx) => {
+      // The account's own lock first, as saving takes it: submissions of one
+      // account are counted one at a time.
+      await lock(tx, `personal-recipes:${userId}`);
       await lock(tx, fingerprint);
+      await this.assertWaitingRoom(tx, userId, fingerprint);
       await this.mirror(tx, recipe.id, fingerprint, [recipe.id]);
+    });
+  }
+
+  /**
+   * Refuse a submission that would leave more drafts with the account's
+   * recipes in them waiting for the curators than it may have at a time.
+   * Counted through each draft's recipes and their owner, so the curators
+   * still never see who sent what, and a recipe deleted since still counts
+   * while its draft waits. A recipe that joins a draft already waiting with
+   * one of the account's own, or a draft already decided, adds nothing to
+   * wait for.
+   */
+  private async assertWaitingRoom(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    fingerprint: string,
+  ): Promise<void> {
+    const mine = (
+      await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })
+    ).map((row) => row.id);
+    const waiting = await tx.recipeDraft.findMany({
+      where: { status: 'PENDING', sourceRecipeIds: { hasSome: mine } },
+      select: { fingerprint: true },
+    });
+    if (waiting.length < MAX_WAITING_SUBMISSIONS) return;
+    if (waiting.some((draft) => draft.fingerprint === fingerprint)) return;
+    const same = await tx.recipeDraft.findUnique({
+      where: { fingerprint },
+      select: { status: true },
+    });
+    if (same && same.status !== 'PENDING') return;
+    throw new ForbiddenException({
+      error: 'RECIPE_SUBMISSIONS_WAITING',
+      message: `At most ${MAX_WAITING_SUBMISSIONS} drafts with your recipes wait for the curators at a time. Submit another once they have decided on one.`,
     });
   }
 

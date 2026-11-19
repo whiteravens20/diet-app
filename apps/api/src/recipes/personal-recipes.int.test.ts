@@ -69,12 +69,15 @@ async function tofuForChicken(account: Account): Promise<string> {
   return (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId!;
 }
 
-/** A recipe of the account's own that a model wrote, as it is stored: no recipe of the library is made the same way. */
-async function aRecipeOfTheirOwn(account: Account): Promise<string> {
+/**
+ * A recipe of the account's own that a model wrote, as it is stored: no recipe of the library is
+ * made the same way. Another amount of chicken makes another recipe.
+ */
+async function aRecipeOfTheirOwn(account: Account, chicken = 120): Promise<string> {
   const lines = await Promise.all(
     (
       [
-        ['chicken-breast', 120],
+        ['chicken-breast', chicken],
         ['tomato', 150],
         ['white-rice', 60],
       ] as const
@@ -414,6 +417,101 @@ describe("submitting a recipe of one's own", () => {
     expect(queue).toHaveLength(1);
     expect(queue[0]!.id).not.toBe(first!.id);
     expect(queue[0]!.sourceRecipeIds).toEqual([variant]);
+  });
+
+  it('is refused from an account whose e-mail address is not confirmed, and nothing reaches the curators', async () => {
+    const account = await anAccount();
+    const variant = await aRecipeOfTheirOwn(account);
+    await t.prisma.user.update({ where: { id: account.user.id }, data: { emailVerified: false } });
+
+    await expect(personal.submit(account.user.id, variant)).rejects.toMatchObject({
+      status: 403,
+      response: { error: 'RECIPE_SUBMIT_EMAIL_UNCONFIRMED' },
+    });
+    expect(await t.prisma.recipeDraft.count()).toBe(0);
+  });
+
+  describe('lets the drafts of one account wait for the curators five at a time', () => {
+    /** Five recipes of the account submitted and waiting, and a sixth not yet submitted. */
+    async function fiveWaiting(account: Account): Promise<{ five: string[]; sixth: string }> {
+      const five: string[] = [];
+      for (const chicken of [100, 105, 110, 115, 125]) {
+        const variant = await aRecipeOfTheirOwn(account, chicken);
+        await personal.submit(account.user.id, variant);
+        five.push(variant);
+      }
+      return { five, sixth: await aRecipeOfTheirOwn(account, 130) };
+    }
+    const waitingRefusal = {
+      status: 403,
+      response: { error: 'RECIPE_SUBMISSIONS_WAITING' },
+    };
+
+    it('refuses a sixth while they wait, and takes it once the curators decided one', async () => {
+      const account = await anAccount();
+      const { five, sixth } = await fiveWaiting(account);
+
+      await expect(personal.submit(account.user.id, sixth)).rejects.toMatchObject(waitingRefusal);
+      expect(await t.prisma.recipeDraft.count()).toBe(5);
+
+      const decided = await t.prisma.recipeDraft.findFirstOrThrow({
+        where: { sourceRecipeIds: { has: five[0]! } },
+      });
+      await t.prisma.recipeDraft.update({
+        where: { id: decided.id },
+        data: { status: 'REJECTED' },
+      });
+      await personal.submit(account.user.id, sixth);
+      expect(await t.prisma.recipeDraft.count({ where: { status: 'PENDING' } })).toBe(5);
+    });
+
+    it('lets one of the five be sent again, which adds nothing to wait for', async () => {
+      const account = await anAccount();
+      const { five } = await fiveWaiting(account);
+
+      await personal.submit(account.user.id, five[2]!);
+
+      expect(await t.prisma.recipeDraft.count()).toBe(5);
+    });
+
+    it('still counts a draft whose recipe was deleted since: the draft waits all the same', async () => {
+      const account = await anAccount();
+      const { five, sixth } = await fiveWaiting(account);
+
+      await t.http().delete(`/api/recipes/${five[0]}`).set(as(account.user)).expect(204);
+
+      await expect(personal.submit(account.user.id, sixth)).rejects.toMatchObject(waitingRefusal);
+    });
+
+    it("counts each account's on their own", async () => {
+      const [one, other] = [await anAccount(), await anAccount()];
+      await fiveWaiting(one);
+
+      await personal.submit(other.user.id, await aRecipeOfTheirOwn(other, 140));
+
+      expect(await t.prisma.recipeDraft.count()).toBe(6);
+    });
+
+    it('hold when submissions arrive together', async () => {
+      const account = await anAccount();
+      for (const chicken of [100, 105, 110, 115]) {
+        await personal.submit(account.user.id, await aRecipeOfTheirOwn(account, chicken));
+      }
+      const more = [
+        await aRecipeOfTheirOwn(account, 150),
+        await aRecipeOfTheirOwn(account, 155),
+        await aRecipeOfTheirOwn(account, 160),
+      ];
+
+      const answers = await race(3, (n) =>
+        t.http().post(`/api/recipes/${more[n]}/submit`).set(as(account.user)),
+      );
+
+      expect(
+        answers.map((answer) => (answer.status === 'fulfilled' ? answer.value.status : 0)).sort(),
+      ).toEqual([204, 403, 403]);
+      expect(await t.prisma.recipeDraft.count()).toBe(5);
+    });
   });
 
   it("is refused for another user's recipe as if it did not exist", async () => {
