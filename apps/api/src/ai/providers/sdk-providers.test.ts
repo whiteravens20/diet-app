@@ -292,6 +292,277 @@ describe('the endpoints OpenRouter may send a request to', () => {
   );
 });
 
+describe('what a refusal says can be done', () => {
+  const refusal = (status: number, body: unknown, headers: Record<string, string>) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json', ...headers },
+    });
+
+  /** A provider, its status, the body and headers it answered with, and what that says can be done. */
+  const refusals = [
+    // In the shapes of OpenAI's list of error codes, read on 2026-11-19.
+    [
+      'openai',
+      401,
+      {
+        error: {
+          message: 'Incorrect API key provided',
+          type: 'invalid_request_error',
+          code: 'invalid_api_key',
+        },
+      },
+      {},
+      'key_refused',
+    ],
+    [
+      'openai',
+      429,
+      {
+        error: {
+          message: 'Credit balance exhausted',
+          type: 'insufficient_quota',
+          code: 'credit_balance_exhausted',
+        },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'openai',
+      429,
+      {
+        error: {
+          message: 'Project spend limit reached',
+          type: 'insufficient_quota',
+          code: 'project_spend_limit_exceeded',
+        },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'openai',
+      429,
+      {
+        error: {
+          message: 'You exceeded your current quota',
+          type: 'insufficient_quota',
+          code: null,
+        },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'openai',
+      429,
+      {
+        error: {
+          message: 'Rate limit reached for requests',
+          type: 'requests',
+          code: 'rate_limit_exceeded',
+        },
+      },
+      { 'retry-after': '2' },
+      'busy',
+    ],
+    [
+      'openai',
+      503,
+      {
+        error: {
+          message: 'Model temporarily overloaded',
+          type: 'service_unavailable_error',
+          code: 'server_is_overloaded',
+        },
+      },
+      {},
+      'busy',
+    ],
+    [
+      'openai',
+      404,
+      {
+        error: {
+          message: 'The model `nobody` does not exist',
+          type: 'invalid_request_error',
+          code: 'model_not_found',
+        },
+      },
+      {},
+      'request_refused',
+    ],
+    [
+      'openai',
+      500,
+      { error: { message: 'The server had an error', type: 'server_error' } },
+      {},
+      'other',
+    ],
+    // In the shapes of OpenRouter's list of error codes, read the same day.
+    ['openrouter', 401, { error: { code: 401, message: 'User not found.' } }, {}, 'key_refused'],
+    [
+      'openrouter',
+      402,
+      {
+        error: {
+          code: 402,
+          message: 'Insufficient credits. Add more using https://openrouter.ai/credits',
+        },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'openrouter',
+      403,
+      {
+        error: {
+          code: 403,
+          message: 'Key limit exceeded. $5.00 of $5.00 used; resets 2026-12-01T00:00:00.000Z.',
+          metadata: { limit_source: 'openrouter_key_limit', limit_usd: 5, spend_usd: 5 },
+        },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'openrouter',
+      403,
+      {
+        error: {
+          code: 403,
+          message: 'Your input was flagged',
+          metadata: { reasons: ['moderation'] },
+        },
+      },
+      {},
+      'request_refused',
+    ],
+    [
+      'openrouter',
+      429,
+      // As OpenRouter answered on the live instance that day, where one provider of the model kept no data.
+      {
+        error: {
+          code: 429,
+          message:
+            'openai/gpt-6-luna is temporarily rate-limited upstream. Please retry shortly, or add your own provider key to use your own limits: https://openrouter.ai/workspaces/default/byok',
+        },
+      },
+      {},
+      'busy',
+    ],
+    ['openrouter', 502, { error: { code: 502, message: 'Provider returned error' } }, {}, 'busy'],
+    [
+      'openrouter',
+      503,
+      {
+        error: {
+          code: 503,
+          message: 'No available model provider meets your routing requirements',
+        },
+      },
+      {},
+      'busy',
+    ],
+    [
+      'openrouter',
+      400,
+      { error: { code: 400, message: 'nobody/no-such-model is not a valid model ID' } },
+      {},
+      'request_refused',
+    ],
+    // In the shapes of Anthropic's list of errors, read the same day.
+    [
+      'anthropic',
+      401,
+      { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } },
+      {},
+      'key_refused',
+    ],
+    [
+      'anthropic',
+      402,
+      {
+        type: 'error',
+        error: { type: 'billing_error', message: 'There is an issue with your billing.' },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'anthropic',
+      429,
+      {
+        type: 'error',
+        error: {
+          type: 'rate_limit_error',
+          message: 'Number of requests has exceeded your rate limit.',
+        },
+      },
+      { 'retry-after': '20' },
+      'busy',
+    ],
+    [
+      'anthropic',
+      429,
+      {
+        type: 'error',
+        error: { type: 'rate_limit_error', message: 'You have reached your monthly spend cap.' },
+      },
+      {},
+      'no_credits',
+    ],
+    [
+      'anthropic',
+      529,
+      { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } },
+      {},
+      'busy',
+    ],
+    [
+      'anthropic',
+      404,
+      { type: 'error', error: { type: 'not_found_error', message: 'model: nobody' } },
+      {},
+      'request_refused',
+    ],
+    [
+      'anthropic',
+      500,
+      { type: 'error', error: { type: 'api_error', message: 'Internal server error' } },
+      {},
+      'other',
+    ],
+  ] as const;
+
+  it.each(
+    refusals.map(
+      ([name, status, body, headers, expected]) => [name, status, expected, body, headers] as const,
+    ),
+  )('of %s answering %i is %s', async (name, status, expected, body, headers) => {
+    transport(() => refusal(status, body, headers));
+
+    const failed = await failure(cases[name]!.adapter.chat(messages, options()));
+
+    expect(failed.failure).toBe(expected);
+    expect(sent).toHaveLength(1);
+  });
+
+  it.each(Object.keys(cases))('of %s, which could not be reached, is none', async (name) => {
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+
+    const failed = await failure(cases[name]!.adapter.chat(messages, options()));
+
+    expect(failed.failure).toBe('other');
+    expect(failed.timedOut).toBe(false);
+  });
+});
+
 describe('asking for an answer without thinking first', () => {
   const openrouter = cases.openrouter!.adapter;
   const refusal = {

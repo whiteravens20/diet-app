@@ -11,6 +11,7 @@ import {
   type CompletionResult,
 } from '../provider.interface.js';
 import type { Reasoning } from '../operations.js';
+import { openRouterFailure } from './failures.js';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -91,6 +92,7 @@ export class OpenRouterProvider implements AiProviderAdapter {
         err instanceof Error ? err.message : String(err),
         err instanceof OpenAI.APIConnectionTimeoutError,
         refusedForDataPolicy(err),
+        openRouterFailure(err),
       );
     }
   }

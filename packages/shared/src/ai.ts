@@ -95,8 +95,10 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           config, or `admin` with no configured admin
  *                           default (the operator didn't set
  *                           `AI_DEFAULT_PROVIDER`).
- * - `all_providers_failed`— every provider in the chain errored (auth,
- *                           network, model error). Details in `failoverChain`.
+ * - `all_providers_failed`— every provider in the chain errored in a way none
+ *                           of the reasons below names: no answer, an error of
+ *                           the provider's own server. Details in
+ *                           `failoverChain`.
  * - `data_policy_refused` — OpenRouter refused a request of the user's own
  *                           key: no endpoint of the model meets the choice
  *                           of endpoints the key's entry made, or the
@@ -108,6 +110,23 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           operator's provider, under `AI_ADMIN_DATA_POLICY`
  *                           or the operator's OpenRouter account: the user
  *                           can change nothing of it.
+ * - `key_refused`         — the provider refused the user's own key: wrong,
+ *                           revoked or expired. It has to be checked, or
+ *                           entered anew.
+ * - `no_credits`          — the account behind the user's own key has no
+ *                           credits left, or reached a limit of its spending.
+ * - `request_refused`     — the provider refused the request of the user's own
+ *                           key as it is: the model's name, a permission or a
+ *                           setting of the account at the provider.
+ * - `instance_provider_refused` — any of those three refusals of a request of
+ *                           the operator's provider: the operator's to settle,
+ *                           the user can change nothing of it.
+ * - `no_retention_busy`   — the model is overloaded for now at the providers
+ *                           that keep no data, the only ones the user's own
+ *                           OpenRouter entry allows; allowing those that do
+ *                           not train on the data gives more of them.
+ * - `provider_busy`       — the model or its provider is overloaded or down
+ *                           for now: the same request may pass later.
  * - `provider_timeout`    — at least one provider's request was aborted on
  *                           the client-side deadline (default 60s). Distinct
  *                           from `all_providers_failed` so the UI can surface
@@ -138,6 +157,12 @@ export const AiFallbackReason = z.enum([
   'all_providers_failed',
   'data_policy_refused',
   'instance_data_policy_refused',
+  'key_refused',
+  'no_credits',
+  'request_refused',
+  'instance_provider_refused',
+  'no_retention_busy',
+  'provider_busy',
   'provider_timeout',
   'key_unreadable',
   'invalid_output',

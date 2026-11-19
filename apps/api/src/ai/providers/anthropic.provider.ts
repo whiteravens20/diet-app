@@ -9,6 +9,7 @@ import {
   type CompletionOptions,
   type CompletionResult,
 } from '../provider.interface.js';
+import { anthropicFailure } from './failures.js';
 
 /**
  * Anthropic Messages API adapter. It sends no temperature, which the Messages
@@ -51,6 +52,8 @@ export class AnthropicProvider implements AiProviderAdapter {
         'anthropic',
         err instanceof Error ? err.message : String(err),
         err instanceof Anthropic.APIConnectionTimeoutError,
+        false,
+        anthropicFailure(err),
       );
     }
   }

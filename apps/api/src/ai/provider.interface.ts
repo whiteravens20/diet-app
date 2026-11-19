@@ -68,6 +68,22 @@ export interface AiProviderAdapter {
   chat(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult>;
 }
 
+/**
+ * What a provider's refusal says can be done about it, as its status and body
+ * tell: each adapter reads its provider's own words.
+ */
+export type AiFailure =
+  /** The key was refused: wrong, revoked or expired. */
+  | 'key_refused'
+  /** The account behind the key has no credits left, or reached a limit of its spending. */
+  | 'no_credits'
+  /** The model or its provider is overloaded or down for now: the same request may pass later. */
+  | 'busy'
+  /** The request was refused as it is: the model's name, a permission or a setting of the account. */
+  | 'request_refused'
+  /** Anything else: no answer, an error of the provider's own server, an answer that could not be read. */
+  | 'other';
+
 /** Raised when an adapter cannot serve a request — triggers failover. */
 export class AiProviderError extends Error {
   constructor(
@@ -81,6 +97,8 @@ export class AiProviderError extends Error {
      * of the OpenRouter account the key belongs to.
      */
     public readonly refusedForDataPolicy: boolean = false,
+    /** What the refusal says can be done about it. */
+    public readonly failure: AiFailure = 'other',
   ) {
     super(message);
   }

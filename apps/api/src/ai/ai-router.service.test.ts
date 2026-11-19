@@ -11,6 +11,7 @@ import { AiRouterService } from './ai-router.service.js';
 import type { Operation } from './operations.js';
 import {
   AiProviderError,
+  type AiFailure,
   type AiProviderAdapter,
   type CompletionOptions,
   type CompletionResult,
@@ -316,6 +317,107 @@ describe('AiRouterService.chat', () => {
         fallbackReason: null,
         failoverChain: ['openrouter'],
       });
+    });
+  });
+
+  describe('a provider that refused, as its words say what can be done', () => {
+    const refusing =
+      (provider: AiProvider, failure: AiFailure): Behaviour =>
+      async () => {
+        throw new AiProviderError(provider, `refused: ${failure}`, false, false, failure);
+      };
+
+    it.each([
+      ['key_refused', 'key_refused'],
+      ['no_credits', 'no_credits'],
+      ['request_refused', 'request_refused'],
+      ['busy', 'provider_busy'],
+      ['other', 'all_providers_failed'],
+    ] as const)("is said as %s for the user's own key", async (failure, reason) => {
+      const { router } = setup({
+        chain: [{ provider: 'openai' }],
+        behaviour: { openai: refusing('openai', failure) },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBeNull();
+      expect(result.meta).toMatchObject({
+        usedDeterministicFallback: true,
+        fallbackReason: reason,
+        failoverChain: ['openai'],
+      });
+    });
+
+    it.each(['key_refused', 'no_credits', 'request_refused'] as const)(
+      "is the operator's to see to when the instance's provider says %s: no word of a key the user has not got",
+      async (failure) => {
+        const { router } = setup({
+          mode: 'admin',
+          chain: [{ provider: 'openrouter', mode: 'admin' }],
+          behaviour: { openrouter: refusing('openrouter', failure) },
+        });
+
+        const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+        expect(result.meta.fallbackReason).toBe('instance_provider_refused');
+      },
+    );
+
+    it("is busy for anybody, the instance's provider as well", async () => {
+      const { router } = setup({
+        mode: 'admin',
+        chain: [{ provider: 'openrouter', mode: 'admin', dataPolicy: 'no_retention' }],
+        behaviour: { openrouter: refusing('openrouter', 'busy') },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.meta.fallbackReason).toBe('provider_busy');
+    });
+
+    it("is busy where only the providers that keep no data may serve, when that was the user's own choice", async () => {
+      // As on 2026-11-19: one provider of the model kept no data, and it was rate-limited.
+      const { router } = setup({
+        chain: [{ provider: 'openrouter', dataPolicy: 'no_retention' }],
+        behaviour: { openrouter: refusing('openrouter', 'busy') },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.meta.fallbackReason).toBe('no_retention_busy');
+    });
+
+    it('names the most lasting of the reasons when the entries of a chain failed for different ones', async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openrouter' }, { provider: 'openai' }, { provider: 'anthropic' }],
+        behaviour: {
+          openrouter: refusing('openrouter', 'busy'),
+          openai: refusing('openai', 'no_credits'),
+          anthropic: refusing('anthropic', 'key_refused'),
+        },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      // A key stays refused until it is changed, where a busy model may answer next time.
+      expect(result.meta.fallbackReason).toBe('key_refused');
+      expect(result.meta.failoverChain).toEqual(['openrouter', 'openai', 'anthropic']);
+    });
+
+    it('is no reason at all when the next provider of the chain answers', async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openai' }, { provider: 'anthropic' }],
+        behaviour: {
+          openai: refusing('openai', 'key_refused'),
+          anthropic: async () => answer('ok'),
+        },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBe('ok');
+      expect(result.meta.fallbackReason).toBeNull();
     });
   });
 

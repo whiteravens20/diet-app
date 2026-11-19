@@ -125,11 +125,26 @@ describe('OllamaProvider', () => {
     expect(loading.message).toContain('503');
     expect(loading.message).toContain('model is loading');
     expect(loading.timedOut).toBe(false);
+    expect(loading.failure).toBe('busy');
+  });
+
+  it('reports a model the server does not have as a request to change', async () => {
+    respond = (_body, res) =>
+      json(res, 404, { error: "model 'test-model' not found, try pulling it first" });
+    const missing = await failure(chat());
+    expect(missing.failure).toBe('request_refused');
+  });
+
+  it("reports any other status as the server's own error", async () => {
+    respond = (_body, res) => json(res, 500, { error: 'unexpected EOF' });
+    const broken = await failure(chat());
+    expect(broken.failure).toBe('other');
   });
 
   it('reports a host that refuses the connection as a failure, not as a timeout', async () => {
     const refused = await failure(chat({ baseUrl: 'http://127.0.0.1:1' }));
     expect(refused.timedOut).toBe(false);
+    expect(refused.failure).toBe('other');
   });
 
   it('does not follow a redirect to wherever a server points', async () => {

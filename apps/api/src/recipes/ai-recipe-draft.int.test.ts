@@ -475,9 +475,25 @@ describe('drafting a recipe with a model', () => {
       expect(await refusal(ask())).toMatchObject({ status: 503, error: 'AI_UNAVAILABLE' });
     });
 
-    // OpenRouter is not what the stand-in model answers as: the router's word
-    // for its refusal (tested with the router) is what the draft is refused with.
-    describe('when OpenRouter refused for the rule of the data', () => {
+    it("says that the instance's model is busy, when its server says it cannot take the request now", async () => {
+      t.model.reply({ status: 503, text: 'server busy, please try again' });
+
+      expect(await refusal(ask())).toMatchObject({ status: 503, error: 'AI_PROVIDER_BUSY' });
+    });
+
+    it("leaves a request the instance's provider refused to its operator, with no word of a key", async () => {
+      t.model.reply({ status: 404, text: "model 'test-model' not found, try pulling it first" });
+
+      expect(await refusal(ask())).toMatchObject({
+        status: 503,
+        error: 'AI_INSTANCE_PROVIDER_REFUSED',
+      });
+    });
+
+    // OpenRouter and the user's own keys are not what the stand-in model answers
+    // as: the router's word for their refusals (tested with the router) is what
+    // the draft is refused with.
+    describe('when a provider refused, as the router words it', () => {
       afterEach(() => {
         vi.restoreAllMocks();
       });
@@ -485,6 +501,12 @@ describe('drafting a recipe with a model', () => {
       it.each([
         ['data_policy_refused', 409, 'AI_DATA_POLICY_REFUSED'],
         ['instance_data_policy_refused', 503, 'AI_INSTANCE_DATA_POLICY_REFUSED'],
+        ['key_refused', 409, 'AI_KEY_REFUSED'],
+        ['no_credits', 409, 'AI_NO_CREDITS'],
+        ['request_refused', 409, 'AI_REQUEST_REFUSED'],
+        ['instance_provider_refused', 503, 'AI_INSTANCE_PROVIDER_REFUSED'],
+        ['no_retention_busy', 503, 'AI_NO_RETENTION_BUSY'],
+        ['provider_busy', 503, 'AI_PROVIDER_BUSY'],
       ] as const)('says so, as %s, and asks no second time', async (reason, status, error) => {
         const chat = vi.spyOn(t.app.get(AiRouterService), 'chat').mockResolvedValue({
           text: null,

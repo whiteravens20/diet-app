@@ -12171,6 +12171,12 @@
           "all_providers_failed",
           "data_policy_refused",
           "instance_data_policy_refused",
+          "key_refused",
+          "no_credits",
+          "request_refused",
+          "instance_provider_refused",
+          "no_retention_busy",
+          "provider_busy",
           "provider_timeout",
           "key_unreadable",
           "invalid_output"

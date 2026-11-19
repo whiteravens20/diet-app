@@ -544,6 +544,42 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
         message:
           "No endpoint of this instance's model on OpenRouter meets the rules its operator set for the data.",
       });
+    // What the provider of the user's own key refused: the key, the account
+    // behind it, or the request as it is. Each stays until the user changes it.
+    case 'key_refused':
+      return new ConflictException({
+        error: 'AI_KEY_REFUSED',
+        message: 'The AI provider refused your key. Check it, or enter a new one.',
+      });
+    case 'no_credits':
+      return new ConflictException({
+        error: 'AI_NO_CREDITS',
+        message:
+          'Your account at the AI provider has no credits left, or reached a limit of its spending.',
+      });
+    case 'request_refused':
+      return new ConflictException({
+        error: 'AI_REQUEST_REFUSED',
+        message:
+          'The AI provider refused the request. Check the model, and the settings of your account at the provider.',
+      });
+    case 'instance_provider_refused':
+      return new ServiceUnavailableException({
+        error: 'AI_INSTANCE_PROVIDER_REFUSED',
+        message:
+          "The provider of this instance's AI refused the request: its operator has to see to it.",
+      });
+    case 'no_retention_busy':
+      return new ServiceUnavailableException({
+        error: 'AI_NO_RETENTION_BUSY',
+        message:
+          "The model is overloaded for now at the providers that keep no data, the only ones your key's choice allows. Try again in a few minutes, or allow the providers that do not train on the data.",
+      });
+    case 'provider_busy':
+      return new ServiceUnavailableException({
+        error: 'AI_PROVIDER_BUSY',
+        message: 'The model is overloaded at its provider for now. Try again in a few minutes.',
+      });
     case 'provider_timeout':
       return new ServiceUnavailableException({
         error: 'AI_PROVIDER_TIMEOUT',

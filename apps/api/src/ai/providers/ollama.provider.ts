@@ -59,6 +59,11 @@ export class OllamaProvider implements AiProviderAdapter {
         throw new AiProviderError(
           'ollama',
           `Ollama HTTP ${res.status} ${res.statusText}${res.text ? `: ${res.text.slice(0, 200)}` : ''}`,
+          false,
+          false,
+          // A model the server does not have is a 404, and a server whose queue
+          // is full or whose model is still loading a 503; anything else is its own error.
+          res.status === 404 ? 'request_refused' : res.status === 503 ? 'busy' : 'other',
         );
       }
       const body = JSON.parse(res.text) as OllamaChatResponse;

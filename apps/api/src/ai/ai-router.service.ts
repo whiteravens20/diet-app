@@ -19,6 +19,46 @@ import { AiProviderError, type AiProviderAdapter, type ChatMessage } from './pro
 /** A provider is not tried with less time than this left; the request is reported as timed out instead. */
 const SHORTEST_ATTEMPT_MS = 1_000;
 
+/**
+ * Why a chain failed, when its entries failed for different reasons: the most
+ * lasting first. A choice of the data, a key, an account to pay or a model's
+ * name stays wrong until somebody changes it, where a provider busy or too slow
+ * may answer next time.
+ */
+const FAILED_FIRST: readonly AiFallbackReason[] = [
+  'data_policy_refused',
+  'instance_data_policy_refused',
+  'key_refused',
+  'no_credits',
+  'request_refused',
+  'instance_provider_refused',
+  'no_retention_busy',
+  'provider_busy',
+  'provider_timeout',
+  'all_providers_failed',
+];
+
+/**
+ * What one failed call tells the person. A refusal of the operator's key, its
+ * account or its request is the operator's to settle: the person is only told
+ * that the instance's provider refused, never to check a key they do not have.
+ * A model busy where the person's own choice keeps OpenRouter to the providers
+ * that store no data is told apart: fewer providers serve it then, and the
+ * choice is the person's to widen.
+ */
+function failedFor(err: unknown, cfg: ResolvedProviderConfig): AiFallbackReason {
+  if (!(err instanceof AiProviderError)) return 'all_providers_failed';
+  const own = cfg.owner === 'user';
+  if (err.refusedForDataPolicy) return own ? 'data_policy_refused' : 'instance_data_policy_refused';
+  if (err.timedOut) return 'provider_timeout';
+  if (err.failure === 'busy')
+    return own && cfg.provider === 'openrouter' && cfg.dataPolicy === 'no_retention'
+      ? 'no_retention_busy'
+      : 'provider_busy';
+  if (err.failure === 'other') return 'all_providers_failed';
+  return own ? err.failure : 'instance_provider_refused';
+}
+
 /** Result of a routed AI call. `text` is null when every provider failed. */
 export interface RoutedResult {
   text: string | null;
@@ -78,9 +118,8 @@ export class AiRouterService {
     if (chain.length === 0) return fallback('no_provider');
 
     const failoverChain: AiProvider[] = [];
-    let anyTimedOut = false;
-    /** Whose entry OpenRouter refused for its rule of the data, if one was. */
-    let dataPolicyRefused: ResolvedProviderConfig['owner'] | null = null;
+    /** Why each entry asked failed, or was not asked for want of time. */
+    const failed = new Set<AiFallbackReason>();
     let refused: AiFallbackReason | null = null;
     let unreadableKey = false;
     let asked = 0;
@@ -91,7 +130,7 @@ export class AiRouterService {
       const started = Date.now();
       const timeoutMs = Math.floor((deadline - started) / (chain.length - index));
       if (timeoutMs < SHORTEST_ATTEMPT_MS) {
-        anyTimedOut = true;
+        failed.add('provider_timeout');
         break;
       }
       // A saved key that can no longer be decrypted: nothing to ask with.
@@ -168,9 +207,7 @@ export class AiRouterService {
         };
       } catch (err) {
         const timedOut = err instanceof AiProviderError && err.timedOut;
-        if (timedOut) anyTimedOut = true;
-        if (err instanceof AiProviderError && err.refusedForDataPolicy)
-          dataPolicyRefused = cfg.owner;
+        failed.add(failedFor(err, cfg));
         this.logger.warn(`AI provider ${cfg.provider} failed: ${describe(err)}`);
         failoverChain.push(cfg.provider);
         await this.settle(call.id, {
@@ -185,18 +222,9 @@ export class AiRouterService {
     if (asked === 0 && unreadableKey) return fallback('key_unreadable', failoverChain);
     if (asked === 0 && refused) return fallback(refused);
     // Every provider in the chain failed — caller uses the deterministic
-    // engine. A refusal for the rule of the data comes first: it stays until
-    // somebody changes a choice, where a provider too slow may answer next
-    // time. Then a timeout, so the UI can hint at "your model is too slow"
-    // instead of a generic "didn't respond".
+    // engine, and the UI says why, the most lasting reason first.
     return fallback(
-      dataPolicyRefused === 'operator'
-        ? 'instance_data_policy_refused'
-        : dataPolicyRefused === 'user'
-          ? 'data_policy_refused'
-          : anyTimedOut
-            ? 'provider_timeout'
-            : 'all_providers_failed',
+      FAILED_FIRST.find((reason) => failed.has(reason)) ?? 'all_providers_failed',
       failoverChain,
     );
   }

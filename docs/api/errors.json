@@ -98,6 +98,24 @@
       "pl": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana."
     }
   },
+  "AI_INSTANCE_PROVIDER_REFUSED": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "This instance's AI provider refused the request — its operator has to see to it.",
+      "pl": "Dostawca AI tej instancji odrzucił zapytanie — musi to sprawdzić jej operator."
+    }
+  },
+  "AI_KEY_REFUSED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The AI provider refused your key — check it, or enter a new one, in the AI settings.",
+      "pl": "Dostawca AI odrzucił Twój klucz — sprawdź go albo wpisz nowy w ustawieniach AI."
+    }
+  },
   "AI_KEY_UNREADABLE": {
     "statuses": [
       409
@@ -143,6 +161,33 @@
       "pl": "AI instancji nie jest dostępne dla Twojego konta."
     }
   },
+  "AI_NO_CREDITS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Your account at the AI provider has no credits left, or reached its spending limit.",
+      "pl": "Na Twoim koncie u dostawcy AI skończyły się środki albo został wyczerpany limit wydatków."
+    }
+  },
+  "AI_NO_RETENTION_BUSY": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "The model is overloaded for now at the providers that keep no data, the only ones your choice allows. Try again in a few minutes, or choose “No training on the data” in the AI settings: more providers serve it then.",
+      "pl": "Model jest teraz przeciążony u dostawców, którzy nie przechowują danych, a tylko na nich pozwala Twój wybór. Spróbuj za kilka minut albo wybierz w ustawieniach AI „Bez trenowania na danych”: dostawców jest wtedy więcej."
+    }
+  },
+  "AI_PROVIDER_BUSY": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "The model is overloaded at the AI provider for now — try again in a few minutes.",
+      "pl": "Model jest teraz przeciążony u dostawcy AI — spróbuj ponownie za kilka minut."
+    }
+  },
   "AI_PROVIDER_TIMEOUT": {
     "statuses": [
       503
@@ -150,6 +195,15 @@
     "messages": {
       "en": "AI provider was too slow — try a smaller model or a cloud provider.",
       "pl": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze."
+    }
+  },
+  "AI_REQUEST_REFUSED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The AI provider refused the request — check the model in the AI settings, and the settings of your account at the provider.",
+      "pl": "Dostawca AI odrzucił zapytanie — sprawdź model w ustawieniach AI oraz ustawienia swojego konta u dostawcy."
     }
   },
   "AI_UNAVAILABLE": {

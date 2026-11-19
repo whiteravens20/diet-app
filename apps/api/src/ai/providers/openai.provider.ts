@@ -9,6 +9,7 @@ import {
   type CompletionOptions,
   type CompletionResult,
 } from '../provider.interface.js';
+import { openAiFailure } from './failures.js';
 
 /** OpenAI Chat Completions adapter. */
 @Injectable()
@@ -37,6 +38,8 @@ export class OpenAiProvider implements AiProviderAdapter {
         'openai',
         describe(err),
         err instanceof OpenAI.APIConnectionTimeoutError,
+        false,
+        openAiFailure(err),
       );
     }
   }
