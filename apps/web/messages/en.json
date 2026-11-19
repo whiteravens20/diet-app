@@ -2573,6 +2573,7 @@
     "dayReached": "{day}: {amount}, target reached",
     "inTarget": "On target: {reached, number, ::group-off}\u00a0of {days, plural, one {{days, number, ::group-off}\u00a0day} other {{days, number, ::group-off}\u00a0days}}",
     "errAdd": "The water could not be saved.",
+    "chartLater": "The week’s chart shows from the second day with water.",
     "errRemove": "The water entry could not be removed."
   },
   "weekSummary": {

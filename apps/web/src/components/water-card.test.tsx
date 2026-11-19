@@ -173,6 +173,23 @@ describe("the water of a profile's day", () => {
     ]);
   });
 
+  it('draws no chart for a week with water on fewer than two days, a line in its place, and keeps its buttons', async () => {
+    // Water on one day of the seven: today's.
+    shown(aDay({ days: aDay().days.map((d) => ({ ...d, ml: d.day === DAY ? 500 : 0 })) }));
+
+    expect(await screen.findByText(texts.chartLater)).toBeInTheDocument();
+    expect(screen.queryByTestId('water-chart')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^On target:/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^\+200/ })).toBeInTheDocument();
+  });
+
+  it('draws the chart from the second day with water on', async () => {
+    shown(aDay({ days: aDay().days.map((d, at) => ({ ...d, ml: at < 5 ? 0 : 400 })) }));
+
+    expect(await screen.findByTestId('water-chart')).toBeInTheDocument();
+    expect(screen.queryByText(texts.chartLater)).not.toBeInTheDocument();
+  });
+
   it('says only what was drunk where the profile names no target', async () => {
     shown(aDay({ target: null, ml: 1250 }));
 

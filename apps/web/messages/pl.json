@@ -2573,6 +2573,7 @@
     "dayReached": "{day}: {amount}, cel osiągnięty",
     "inTarget": "W celu: {reached, number, ::group-off}\u00a0z {days, plural, one {{days, number, ::group-off}\u00a0dnia} few {{days, number, ::group-off}\u00a0dni} many {{days, number, ::group-off}\u00a0dni} other {{days, number, ::group-off}\u00a0dnia}}",
     "errAdd": "Nie udało się zapisać wody.",
+    "chartLater": "Wykres tygodnia pojawi się od drugiego dnia z\u00a0wodą.",
     "errRemove": "Nie udało się usunąć wpisu wody."
   },
   "weekSummary": {

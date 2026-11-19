@@ -178,7 +178,11 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
             </span>
           </Button>
         )}
-        {shown && (
+        {/* A chart of a week with water on fewer than two days tells nothing: a line stands in its place. */}
+        {shown && shown.days.filter((d) => d.ml > 0).length < 2 && (
+          <p className="text-sm text-muted-foreground">{t('chartLater')}</p>
+        )}
+        {shown && shown.days.filter((d) => d.ml > 0).length >= 2 && (
           <div className="space-y-1">
             <WaterDaysChart days={shown.days} target={target} shown={day} height={CHART_HEIGHT} />
             <ul className="sr-only" aria-label={t('daysLabel', { day: fmt.day(day) })}>
