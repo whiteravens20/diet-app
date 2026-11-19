@@ -114,9 +114,26 @@ jobs:
       - name: Mirror script
         run: node --test infra/mirror/mirror.test.mjs
 
-  docker:
-    name: docker
+  # The stack and the browser tests against it, in three jobs that run at the same time, each
+  # with a stack of its own and some of the browser's readers: on a desktop, on a phone, and in
+  # Safari's engine on an iPhone.
+  stack:
+    name: docker (${{ matrix.part }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: desktop
+            projects: desktop-en desktop-pl desktop-en-dark
+            browser: chromium
+          - part: phone
+            projects: phone-en phone-pl
+            browser: chromium
+            template: true
+          - part: iPhone
+            projects: iphone-pl
+            browser: webkit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -162,9 +179,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      - name: Install the browsers the tests drive
+      - name: Install the browser the tests drive
         working-directory: apps/web
-        run: npx playwright install --with-deps chromium webkit
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: npx playwright install --with-deps "$BROWSER"
       # The products the tests look for: no test depends on Open Food Facts.
       - name: Give the stack the products of the browser tests
         run: |
@@ -176,11 +195,15 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:3000
           E2E_PRODUCTS: '1'
+          PROJECTS: ${{ matrix.projects }}
         run: |
+          projects=()
+          for project in $PROJECTS; do projects+=(--project "$project"); done
           E2E_ADMIN_USER="$(sed -n 's/^ADMIN_USER=//p' ../../.env)" \
           E2E_ADMIN_PASSWORD="$(sed -n 's/^ADMIN_PASSWORD=//p' ../../.env)" \
-            npx playwright test
+            npx playwright test "${projects[@]}"
       - name: Check that the unedited template is refused
+        if: matrix.template
         run: |
           docker compose --env-file .env -f infra/docker-compose.yml down -v
           cp .env.example .env
@@ -191,3 +214,17 @@ jobs:
             exit 1
           fi
           docker compose --env-file .env -f infra/docker-compose.yml logs --no-color api | grep -q 'JWT_ACCESS_SECRET'
+
+  # The check that branch protection asks for: green when every job of the stack is.
+  docker:
+    name: docker
+    needs: stack
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that every job of the stack passed
+        env:
+          RESULT: ${{ needs.stack.result }}
+        run: |
+          echo "The jobs of the stack ended: $RESULT."
+          test "$RESULT" = success
