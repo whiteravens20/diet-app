@@ -1093,6 +1093,22 @@ describe('the shopping page with nothing to show yet', () => {
     );
   });
 
+  it('asks which plan over the list where the profile has two or more, the newest chosen', async () => {
+    renderWith({
+      plans: [
+        { id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' },
+        { id: 'older-plan', startDate: '2025-12-29', durationDays: 7, dietType: 'vegan' },
+      ],
+      lists: [aList],
+    });
+
+    const plan = await screen.findByRole('combobox', { name: texts.plan });
+    expect(plan).toHaveValue(PLAN);
+    expect(within(plan).getAllByRole('option')).toHaveLength(2);
+    const firstRow = await screen.findByRole('checkbox', { name: 'White rice' });
+    expect(plan.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('has the form a list is made with open while the plan has no list', async () => {
     renderWith({
       plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
@@ -1127,19 +1143,18 @@ describe('the shopping page with a list', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows the list first, the plan it is of over it, and the form for another list folded under it', async () => {
+  it('shows the list first, and the form for another list folded under it', async () => {
     await renderPage();
     const head = screen.getByRole('button', { name: texts.generate });
-    const plan = screen.getByRole('combobox', { name: texts.plan });
     const firstRow = screen.getByRole('checkbox', { name: 'White rice' });
 
     expect(head).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.getByRole('button', { name: texts.generateButton, hidden: true }),
     ).not.toBeVisible();
-    // The plan, then the list, then the form.
-    expect(plan.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(firstRow.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // A profile of one plan is not asked which.
+    expect(screen.queryByRole('combobox', { name: texts.plan })).toBeNull();
 
     await userEvent.click(head);
     expect(screen.getByRole('button', { name: texts.generateButton })).toBeVisible();

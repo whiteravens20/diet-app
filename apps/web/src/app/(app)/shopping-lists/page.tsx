@@ -312,32 +312,34 @@ export default function ShoppingListsPage() {
           }
         />
       ) : (
-        // The plan whose lists are shown, and which a new list is made from.
-        <div className="max-w-md">
-          <Field label={t('plan')}>
-            <select
-              className={selectClass}
-              value={activePlanId ?? ''}
-              onChange={(e) => {
-                setPickedPlan(e.target.value);
-                setPickedList(null);
-                setRange({});
-                setFormError(null);
-                setMakingAsked(null);
-              }}
-            >
-              {planList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {t('planOption', {
-                    date: fmt.date(p.startDate),
-                    days: p.durationDays,
-                    dietType: tDiet(p.dietType),
-                  })}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        // The plan whose lists are shown, and which a new list is made from: asked where the profile has more than one.
+        planList.length > 1 && (
+          <div className="max-w-md">
+            <Field label={t('plan')}>
+              <select
+                className={selectClass}
+                value={activePlanId ?? ''}
+                onChange={(e) => {
+                  setPickedPlan(e.target.value);
+                  setPickedList(null);
+                  setRange({});
+                  setFormError(null);
+                  setMakingAsked(null);
+                }}
+              >
+                {planList.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {t('planOption', {
+                      date: fmt.date(p.startDate),
+                      days: p.durationDays,
+                      dietType: tDiet(p.dietType),
+                    })}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
