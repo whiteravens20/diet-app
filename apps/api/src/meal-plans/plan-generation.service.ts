@@ -30,7 +30,6 @@ import {
   type PlanRelaxation,
   type RelaxationNeeded,
   type UnfilledMeal,
-  type Unit,
 } from '@diet-app/shared';
 import {
   amountsPerServing,
@@ -58,7 +57,6 @@ import {
   packRests,
   reuseScore,
   type ClosingPlan,
-  type MealRest,
   type WasteLevel,
   type PackKitchen,
   type KeptMeal,
@@ -75,7 +73,6 @@ import {
   type ToppedAssignment,
   type ToppingOption,
 } from '../engine/index.js';
-import { labelOfAmount, roundLabel } from '../engine/label-totals.js';
 import { holdProfile } from '../common/hold.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
@@ -105,6 +102,7 @@ import {
   isSkipped,
   parseDayOverrides,
   type DayOverridesJson,
+  storedRestOf,
 } from './plan-days.js';
 import { planBaseOf, type BaseProfile, type PlanBase } from './plan-base.js';
 import { menuNeeds, type PackedMeal } from './plan-menu.js';
@@ -2080,38 +2078,6 @@ interface Drawn {
     kitchen?: PackKitchen,
     thawed?: ReadonlyMap<string, readonly HeldPackage[]>,
   ) => Promise<Optimised>;
-}
-
-/** A rest as a meal keeps it: its amount and what that holds, to a tenth; null for one too small to keep. */
-function storedRestOf(
-  food: {
-    canonicalUnit: Unit;
-    caloriesPer100: number;
-    proteinPer100: number;
-    fatPer100: number;
-    carbsPer100: number;
-    fiberPer100: number | null;
-    sugarsPer100: number | null;
-    saltPer100: number | null;
-    saturatedFatPer100: number | null;
-  },
-  rest: MealRest,
-): StoredRest | null {
-  const tenth = (value: number): number => Math.round(value * 10) / 10;
-  const amount = tenth(rest.amount);
-  if (amount <= 0) return null;
-  return {
-    ingredientId: rest.ingredientId,
-    amount,
-    unit: food.canonicalUnit,
-    figures: {
-      calories: tenth((food.caloriesPer100 * amount) / 100),
-      protein: tenth((food.proteinPer100 * amount) / 100),
-      fat: tenth((food.fatPer100 * amount) / 100),
-      carbs: tenth((food.carbsPer100 * amount) / 100),
-    },
-    label: roundLabel(labelOfAmount(food, amount)),
-  };
 }
 
 /**

@@ -23,6 +23,7 @@ import {
   sharesOf,
 } from '../engine/nutrition.js';
 import {
+  labelOfAmount,
   roundLabel,
   scaleLabel,
   storedTotals,
@@ -188,6 +189,38 @@ export const plateAsJson = (
 export function restsOf(stored: unknown): StoredRest[] {
   const parsed = z.array(StoredRest).safeParse(stored);
   return parsed.success ? parsed.data : [];
+}
+
+/** A rest as a meal keeps it: its amount and what that holds, to a tenth; null for one too small to keep. */
+export function storedRestOf(
+  food: {
+    canonicalUnit: Unit;
+    caloriesPer100: number;
+    proteinPer100: number;
+    fatPer100: number;
+    carbsPer100: number;
+    fiberPer100: number | null;
+    sugarsPer100: number | null;
+    saltPer100: number | null;
+    saturatedFatPer100: number | null;
+  },
+  rest: { ingredientId: string; amount: number },
+): StoredRest | null {
+  const tenth = (value: number): number => Math.round(value * 10) / 10;
+  const amount = tenth(rest.amount);
+  if (amount <= 0) return null;
+  return {
+    ingredientId: rest.ingredientId,
+    amount,
+    unit: food.canonicalUnit,
+    figures: {
+      calories: tenth((food.caloriesPer100 * amount) / 100),
+      protein: tenth((food.proteinPer100 * amount) / 100),
+      fat: tenth((food.fatPer100 * amount) / 100),
+      carbs: tenth((food.carbsPer100 * amount) / 100),
+    },
+    label: roundLabel(labelOfAmount(food, amount)),
+  };
 }
 
 /** Rests as a meal's row keeps them: none is no value. */

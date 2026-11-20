@@ -90,6 +90,21 @@ export interface ClosingPlan {
   dislikedIngredientIds?: ReadonlySet<string>;
 }
 
+/**
+ * As much of a plan as the count of a kitchen's packs reads (`kitchenNeeds`, `potsOf`): its days, by their number, its
+ * meals, and what a serving of each recipe takes. A plan the planner closes is one; so is one read back from where
+ * it is kept.
+ */
+export interface PackedPlan {
+  recipes: readonly Pick<OptimizerRecipe, 'id' | 'amounts'>[];
+  days: readonly unknown[];
+  assignments: readonly Pick<
+    SizedAssignment,
+    'dayIndex' | 'slot' | 'recipeId' | 'servings' | 'quantityScale'
+  >[];
+  mealPrepFriendly: boolean;
+}
+
 export interface ClosingInput {
   /** The plans of one kitchen, on the same days: one, or the two of a joint plan. */
   plans: readonly ClosingPlan[];
@@ -584,7 +599,7 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
 }
 
 /** A plan's meals by day, each day's in the order they are eaten, as places among its assignments. */
-function mealsByDay(plan: Pick<ClosingPlan, 'days' | 'assignments'>): number[][] {
+function mealsByDay(plan: Pick<PackedPlan, 'days' | 'assignments'>): number[][] {
   const days: number[][] = Array.from({ length: plan.days.length }, () => []);
   plan.assignments.forEach((meal, index) => days[meal.dayIndex]?.push(index));
   for (const day of days)
@@ -598,7 +613,7 @@ function mealsByDay(plan: Pick<ClosingPlan, 'days' | 'assignments'>): number[][]
  * first. None in a plan that does not cook ahead.
  */
 function cookingsOfPlan(
-  plan: Pick<ClosingPlan, 'days' | 'assignments' | 'mealPrepFriendly'>,
+  plan: Pick<PackedPlan, 'days' | 'assignments' | 'mealPrepFriendly'>,
 ): number[][] {
   if (!plan.mealPrepFriendly) return [];
   const days = mealsByDay(plan);
@@ -614,7 +629,7 @@ function cookingsOfPlan(
  * itself, not the user's.
  */
 export function potsOf(
-  plans: readonly Pick<ClosingPlan, 'days' | 'assignments' | 'mealPrepFriendly'>[],
+  plans: readonly Pick<PackedPlan, 'days' | 'assignments' | 'mealPrepFriendly'>[],
   shared: readonly { dayIndex: number; slot: MealType }[] = [],
 ): { pots: Pot[]; sharing: ReadonlySet<string> } {
   const meals = plans.map((plan) => plan.assignments);
@@ -701,9 +716,7 @@ export type PlateShares = ReadonlyMap<number, ReadonlyMap<string, number>>;
  * its share of the plate (`shares`). A row for every pack of `packs`.
  */
 export function kitchenNeeds(
-  plans: readonly (Pick<ClosingPlan, 'recipes' | 'days' | 'assignments' | 'mealPrepFriendly'> & {
-    shares?: PlateShares;
-  })[],
+  plans: readonly (PackedPlan & { shares?: PlateShares })[],
   fixed: DailyNeeds | undefined,
   packs: ReadonlyMap<string, Pack>,
 ): Map<string, number[]> {

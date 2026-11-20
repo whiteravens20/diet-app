@@ -2,6 +2,7 @@
 
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { followRests, wasteLevelOf } from './rests-follow.js';
 
 /**
  * Write a change that was computed from the plan as it stood at
@@ -36,22 +37,40 @@ export function writePlans<T>(
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
+    /** The plans claimed that count their packs (a plan that wastes less or nothing), with the kitchen each is of. */
+    const counting: { planId: string; kitchen: string }[] = [];
     for (const { planId, revision } of [...plans].sort((a, b) =>
       a.planId.localeCompare(b.planId),
     )) {
-      const claimed = await tx.mealPlan.updateMany({
-        where: { id: planId, revision },
-        data: { revision: { increment: 1 } },
-      });
-      if (claimed.count !== 1) {
+      const claimed = await tx.$queryRaw<{ options: unknown; jointPlanId: string | null }[]>`
+        UPDATE "MealPlan" SET "revision" = "revision" + 1
+        WHERE "id" = ${planId} AND "revision" = ${revision}
+        RETURNING "options", "jointPlanId"`;
+      if (claimed.length !== 1) {
         throw new ConflictException({
           error: 'PLAN_CHANGED',
           message: 'The plan changed while this request was running. Reload it and try again.',
         });
       }
+      if (wasteLevelOf(claimed[0]!.options))
+        counting.push({ planId, kitchen: claimed[0]!.jointPlanId ?? planId });
     }
     const written = await write(tx);
     for (const { planId } of plans) await unlinkDiverged(tx, planId);
+    // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose
+    // rests change and that this change did not claim moves on as well: a client that holds it reads it again.
+    const claimed = new Set(plans.map((plan) => plan.planId));
+    const kitchens = new Set<string>();
+    for (const { planId, kitchen } of counting) {
+      if (kitchens.has(kitchen)) continue;
+      kitchens.add(kitchen);
+      const followed = await followRests(tx, planId);
+      for (const other of new Set(followed.map((one) => one.planId)))
+        if (!claimed.has(other)) {
+          await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
+          claimed.add(other);
+        }
+    }
     return written;
   });
 }

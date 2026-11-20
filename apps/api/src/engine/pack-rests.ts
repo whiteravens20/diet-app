@@ -18,10 +18,11 @@ import type { MealType } from '@diet-app/shared';
 import {
   kitchenNeeds,
   potsOf,
-  type ClosingPlan,
+  type PackedPlan,
   type PlateShares,
   type Pot,
 } from './close-packs.js';
+import type { OptimizerRecipe } from './optimizer.js';
 import { packUse, SPOONFUL, type DailyNeeds, type Pack } from './packs.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
@@ -41,11 +42,13 @@ export const LESS_WASTE_RESTS: RestCaps = { ofOwn: 0.5, ofMeal: 0.1, ofDay: 0.03
 /** The rests of a plan that wastes nothing: as much again as the meal takes, 15 % more of its energy, 5 % of the day. */
 export const NO_WASTE_RESTS: RestCaps = { ofOwn: 1, ofMeal: 0.15, ofDay: 0.05 };
 
-/** A plan of the kitchen as it was finished, with what the toppings of its meals take and hold. */
-export interface RestPlan extends Pick<
-  ClosingPlan,
-  'recipes' | 'days' | 'assignments' | 'mealPrepFriendly'
-> {
+/**
+ * A plan of the kitchen as it was finished, or as it stands, with what the toppings of its meals take and hold: what
+ * the rests are worked out from. Its days say their target and what stays on them.
+ */
+export interface RestPlan extends PackedPlan {
+  recipes: readonly Pick<OptimizerRecipe, 'id' | 'amounts' | 'caloriesPerServing'>[];
+  days: readonly { dailyCalorieTarget: number; kept?: readonly { calories: number }[] }[];
   /** The topping of a meal, by the meal's place among the assignments: what it takes of a pack, and its energy. */
   toppings?: ReadonlyMap<number, { ingredientId: string; amount: number; calories: number }>;
   /** The person's own plates of the shared dishes: what each holds of each ingredient (`PlateShares`). */

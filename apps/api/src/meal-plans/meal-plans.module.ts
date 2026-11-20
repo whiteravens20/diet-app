@@ -10,6 +10,7 @@ import { IngredientSwapService } from './ingredient-swap.service.js';
 import { LeftoversService } from './leftovers.service.js';
 import { MealPlansController } from './meal-plans.controller.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { RestsFollowOnStart } from './rests-follow.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanCalendarService } from './plan-calendar.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -30,6 +31,7 @@ import { UseUpService } from './use-up.service.js';
     DayVariationsService,
     DaySettingsService,
     LeftoversService,
+    RestsFollowOnStart,
   ],
   exports: [MealPlansService, PlanGenerationService, IngredientSwapService],
 })
