@@ -281,7 +281,10 @@ function MealPlansContent() {
     invalidate().then(() => setEdited(qc.getQueryData<MealPlan>(['meal-plan', planId]) ?? null));
   const fail = (fallback: string) => (e: unknown) => {
     // Another request changed the plan first, so the one on screen is stale.
-    if (e instanceof ApiClientError && (e.code === 'PLAN_CHANGED' || e.code === 'FROZEN_REST_GONE'))
+    if (
+      e instanceof ApiClientError &&
+      ['PLAN_CHANGED', 'FROZEN_REST_GONE', 'PACK_LEFT_GONE'].includes(e.code)
+    )
       void invalidate();
     setError((e instanceof ApiClientError ? unfilledMeal(e) : null) ?? errorText(e, fallback));
   };
@@ -542,6 +545,22 @@ function MealPlansContent() {
     onError: fail(t('errKeepFrozen')),
   });
 
+  const keepLeft = useMutation({
+    mutationFn: async (v: {
+      planId: string;
+      packs: readonly { ingredientId: string; date: string }[];
+    }) => {
+      // Each pack of the food in turn: the plan answers the next as it stands after the one before.
+      for (const pack of v.packs)
+        await api.post<MealPlan>(`/meal-plans/${v.planId}/left`, {
+          ingredientId: pack.ingredientId,
+          date: pack.date,
+        });
+    },
+    onSuccess: (_done, v) => void invalidateEdited(v.planId),
+    onError: fail(t('errKeepFrozen')),
+  });
+
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
@@ -595,6 +614,7 @@ function MealPlansContent() {
     removeMeal.isPending ||
     setApart.isPending ||
     keepFrozen.isPending ||
+    keepLeft.isPending ||
     rebalance.isPending ||
     remove.isPending;
 
@@ -1126,6 +1146,10 @@ function MealPlansContent() {
               onKeepFrozen={(ingredientId, date) => {
                 setError(null);
                 keepFrozen.mutate({ planId: plan.id, ingredientId, date });
+              }}
+              onKeepLeft={(packs) => {
+                setError(null);
+                keepLeft.mutate({ planId: plan.id, packs });
               }}
               profileName={fmt.text(active?.name ?? '')}
               onSpread={(date) => {

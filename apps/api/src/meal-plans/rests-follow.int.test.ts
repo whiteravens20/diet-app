@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { restsOf } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -241,6 +242,70 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
 
       expect(await yogurtOf(eaten)).toBeCloseTo(60);
       expect(await yogurtOf(later)).toBe(0);
+    });
+  });
+
+  describe('what a pack leaves', () => {
+    it('goes into the pantry as fresh food dated its last day, once, from the plan', async () => {
+      const [{ id: stew }, { id: yogurt }] = await Promise.all(
+        [STEW, YOGURT].map((slug) => t.prisma.recipe.findUniqueOrThrow({ where: { slug } })),
+      );
+      const made = await aPlan(t, user, profile, { startDate: '2026-02-02', durationDays: 1 });
+      for (const [index, meal] of made.days[0]!.meals.entries())
+        await t.prisma.plannedMeal.update({
+          where: { id: meal.id },
+          data: {
+            recipeId: index === 1 ? yogurt : stew,
+            servings: index === 1 ? 1.5 : 1,
+            quantityScale: 1,
+            source: 'CATALOGUE',
+            eatenAt: null,
+            rests: [],
+          },
+        });
+      const read = async () =>
+        (await t.http().get(`/api/meal-plans/${made.id}`).set(as(user)).expect(200))
+          .body as MealPlan;
+      // 300 g of a pack of 400 g that keeps a week: 100 g left, until the 8th.
+      const left = (await read()).packs.open.find((pack) => pack.ingredientId === yogurtId)!;
+      expect(left).toMatchObject({
+        left: 100,
+        date: '2026-02-02',
+        until: '2026-02-08',
+        inPantry: false,
+      });
+
+      const give = () =>
+        t
+          .http()
+          .post(`/api/meal-plans/${made.id}/left`)
+          .set(as(user))
+          .send({ ingredientId: yogurtId, date: left.date });
+      // The day before the pack is opened, nothing goes in: it is not even bought.
+      plansTodayIs('2026-02-01');
+      expect((await give().expect(409)).body.error).toBe('PACK_NOT_OPENED_YET');
+      plansTodayIs('2026-02-02');
+      const after = (await give().expect(200)).body as MealPlan;
+      expect(after.packs.open.find((pack) => pack.ingredientId === yogurtId)!.inPantry).toBe(true);
+      await give().expect(200);
+
+      const rows = await t.prisma.inventoryItem.findMany({
+        where: { profileId: profile.id, ingredientId: yogurtId },
+      });
+      expect(
+        rows.map((row) => [row.quantity, row.frozen, row.bestBefore?.toISOString().slice(0, 10)]),
+      ).toEqual([[100, false, '2026-02-08']]);
+      // A pack the plan does not open that day is no pack to give.
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/meal-plans/${made.id}/left`)
+            .set(as(user))
+            .send({ ingredientId: yogurtId, date: '2026-02-03' })
+            .expect(409)
+        ).body.error,
+      ).toBe('PACK_LEFT_GONE');
     });
   });
 

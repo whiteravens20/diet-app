@@ -359,6 +359,8 @@
     "PROFILE_LIMIT_REACHED": "Osiągnięto maksymalną liczbę profili.",
     "PLAN_NOT_FOUND": "Nie znaleziono planu posiłków.",
     "FROZEN_REST_GONE": "Plan nie zamraża już tej resztki albo zjada ją całą sam. Plan został odświeżony.",
+    "PACK_LEFT_GONE": "Plan nie zostawia już nic z tego opakowania. Plan został odświeżony.",
+    "PACK_NOT_OPENED_YET": "Plan otworzy to opakowanie później: to, co z niego zostanie, dodasz do spiżarni od tego dnia.",
     "PLAN_CHANGED": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie.",
     "PLAN_TARGET_TYPED": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia.",
     "DAY_NOT_FOUND": "Nie znaleziono dnia w tym planie.",
@@ -1857,6 +1859,9 @@
       "sheetDay": "{kcal, number, ::group-off}\u00a0z {target, number, ::group-off}\u00a0kcal"
     },
     "packs": {
+      "keep": "Dodaj do spiżarni",
+      "inPantry": "Dodano do spiżarni.",
+      "keepFor": "Dodaj do spiżarni: {name}, {amount}",
       "line": "Produkty nietrwałe po otwarciu: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z {wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.} few {, a z {wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} many {, a z {wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} other {, a z {wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.}}",
       "lineJoint": "Produkty nietrwałe po otwarciu, liczone razem z\u00a0drugim planem ({name}): oba jadłospisy zużywają {percent}% tego, co kupują{wasted, plural, =0 {.} one {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.} few {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} many {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowań zostaje ponad jedna piąta.} other {, a\u00a0z\u00a0{wasted, number, ::group-off}\u00a0opakowania zostaje ponad jedna piąta.}}",
       "left": "{name}: zostaje {left} z opakowania {size}",

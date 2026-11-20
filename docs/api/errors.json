@@ -1206,6 +1206,24 @@
       "pl": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro."
     }
   },
+  "PACK_LEFT_GONE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The plan no longer leaves anything of this pack. The plan has been reloaded.",
+      "pl": "Plan nie zostawia już nic z tego opakowania. Plan został odświeżony."
+    }
+  },
+  "PACK_NOT_OPENED_YET": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The plan opens this pack on a later day: what it leaves can go into the pantry from that day.",
+      "pl": "Plan otworzy to opakowanie później: to, co z niego zostanie, dodasz do spiżarni od tego dnia."
+    }
+  },
   "PANTRY_FULL": {
     "statuses": [
       409

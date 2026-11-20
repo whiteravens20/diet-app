@@ -29,6 +29,7 @@ import {
   DayVariations,
   GeneratePlanRequest,
   KeepFrozenRequest,
+  KeepLeftRequest,
   LeftoverOffer,
   MealPlan,
   MealPlanPage,
@@ -346,6 +347,24 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.generation.retarget(user.id, locale, id, dto.revision, today);
+  }
+
+  /**
+   * "Dodaj do spiżarni": what a pack the menu opens and does not finish leaves goes into the pantry as fresh food,
+   * dated its last day, once (`KeepLeftRequest`).
+   */
+  @Post(':id/left')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
+  keepLeft(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(KeepLeftRequest)) dto: KeepLeftRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.keepLeft(user.id, locale, id, dto, today);
   }
 
   /**

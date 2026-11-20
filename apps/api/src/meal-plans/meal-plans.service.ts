@@ -20,6 +20,7 @@ import {
   type CookingChange,
   type DiaryEntry,
   type KeepFrozenRequest,
+  type KeepLeftRequest,
   type Locale,
   type MealPlan,
   type MealPlanDay,
@@ -121,7 +122,12 @@ import {
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
-import { releasePlanLists, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
+import {
+  lockStockRows,
+  releasePlanLists,
+  settleHouseholds,
+  TRANSACTION,
+} from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
 import { writePlan, writePlans } from './plan-write.js';
@@ -363,6 +369,100 @@ export class MealPlansService {
           },
         });
     });
+    return this.get(userId, locale, planId, clientToday);
+  }
+
+  /**
+   * "Dodaj do spiżarni" of what a pack the menu opens leaves (`KeepLeftRequest`): it goes into the pantry as fresh
+   * food, added to what is fresh of the food there, dated the pack's last day where that is sooner, once for the
+   * kitchen. A pack the menu no longer leaves anything of answers 409 `PACK_LEFT_GONE`, and one it opens on a later
+   * day 409 `PACK_NOT_OPENED_YET`: until then the pantry would hold what was not even bought, and a shopping list
+   * would count it as at home.
+   */
+  async keepLeft(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    asked: KeepLeftRequest,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
+    const plan = await this.get(userId, locale, planId, clientToday);
+    const pack = plan.packs.open.find(
+      (one) => one.ingredientId === asked.ingredientId && one.date === asked.date,
+    );
+    if (!pack || pack.left < 1)
+      throw new ConflictException({
+        error: 'PACK_LEFT_GONE',
+        message: 'The plan no longer leaves anything of this pack.',
+      });
+    if (pack.inPantry) return plan;
+    if (pack.date > (clientToday ?? this.today()))
+      throw new ConflictException({
+        error: 'PACK_NOT_OPENED_YET',
+        message: 'The plan opens this pack on a later day.',
+      });
+    await this.prisma.$transaction(async (tx) => {
+      // One at a time for a kitchen: the plans of a joint plan are held in one order, and the second finds what
+      // either gave.
+      const { jointPlanId } = await tx.mealPlan.findUniqueOrThrow({
+        where: { id: planId },
+        select: { jointPlanId: true },
+      });
+      await tx.$queryRaw(
+        jointPlanId
+          ? Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "jointPlanId" = ${jointPlanId} ORDER BY "id" FOR UPDATE`
+          : Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${planId} FOR UPDATE`,
+      );
+      const kitchen = await tx.mealPlan.findMany({
+        where: jointPlanId ? { jointPlanId, profile: { userId } } : { id: planId },
+        select: { id: true, profileId: true, packsKept: true },
+      });
+      const given = (one: { packsKept: unknown }) =>
+        KeptLeft.parse(one.packsKept).some(
+          (kept) => kept.ingredientId === pack.ingredientId && kept.date === pack.date,
+        );
+      if (kitchen.some(given)) return;
+      const { profileId } = kitchen.find((one) => one.id === planId)!;
+      // Rows of lists first, then the pantry: the order every writer takes its locks in.
+      await lockStockRows(tx, profileId, pack.ingredientId);
+      await lockPantry(tx, profileId, pack.ingredientId);
+      const until = new Date(pack.until);
+      const fresh = await tx.inventoryItem.findFirst({
+        where: { profileId, ingredientId: pack.ingredientId, unit: pack.unit, frozen: false },
+      });
+      if (fresh) {
+        assertWithinCeiling(fresh.quantity + pack.left, pack.unit);
+        await tx.inventoryItem.update({
+          where: { id: fresh.id },
+          data: {
+            quantity: fresh.quantity + pack.left,
+            bestBefore: fresh.bestBefore && fresh.bestBefore < until ? fresh.bestBefore : until,
+          },
+        });
+      } else {
+        assertWithinCeiling(pack.left, pack.unit);
+        await assertRoomInPantry(tx, profileId);
+        await tx.inventoryItem.create({
+          data: {
+            profileId,
+            ingredientId: pack.ingredientId,
+            unit: pack.unit,
+            quantity: pack.left,
+            bestBefore: until,
+          },
+        });
+      }
+      for (const one of kitchen)
+        await tx.mealPlan.update({
+          where: { id: one.id },
+          data: {
+            packsKept: [
+              ...KeptLeft.parse(one.packsKept),
+              { ingredientId: pack.ingredientId, date: pack.date, amount: pack.left },
+            ] satisfies KeptLeft,
+          },
+        });
+    }, TRANSACTION);
     return this.get(userId, locale, planId, clientToday);
   }
 
@@ -1926,6 +2026,7 @@ export class MealPlansService {
           freezerOf(plan.report),
         ),
         plan.frozenKept,
+        plan.packsKept,
       ),
       generationMode: modelHadAPart(plan.days),
       options,
@@ -1976,6 +2077,8 @@ interface PlanWithRelations {
   report: unknown;
   /** The rests of meat and fish it freezes that the pantry was given (`KeptFrozen`). */
   frozenKept: unknown;
+  /** What its packs leave that the pantry was given (`KeptLeft`). */
+  packsKept: unknown;
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it, and its target now. */
@@ -2166,6 +2269,7 @@ function joined(
         oneFreezer(freezerOf(mine.plan.report), freezerOf(theirs.plan.report)),
       ),
       mine.plan.frozenKept,
+      mine.plan.packsKept,
     ),
   };
 }
@@ -2179,15 +2283,23 @@ const KeptFrozen = z
   .catch([]);
 type KeptFrozen = z.infer<typeof KeptFrozen>;
 
-/** The packs of a plan, each rest it freezes marked where the pantry was given it already. */
-function keptMarked(packs: PlanPacks, kept: unknown): PlanPacks {
-  const given = new Set(KeptFrozen.parse(kept).map((rest) => `${rest.ingredientId} ${rest.date}`));
+/**
+ * What packs a plan opens and does not finish leave that "Dodaj do spiżarni" gave the pantry as fresh food
+ * (`MealPlan.packsKept`): each by its ingredient and the day its pack is opened, with what was given. Anything that is
+ * not one reads as none.
+ */
+const KeptLeft = KeptFrozen;
+type KeptLeft = KeptFrozen;
+
+/** The packs of a plan, each rest it freezes and each pack it leaves something of marked where the pantry was given it already. */
+function keptMarked(packs: PlanPacks, frozen: unknown, left: unknown): PlanPacks {
+  const key = (one: { ingredientId: string; date: string }) => `${one.ingredientId} ${one.date}`;
+  const frozenGiven = new Set(KeptFrozen.parse(frozen).map(key));
+  const leftGiven = new Set(KeptLeft.parse(left).map(key));
   return {
     ...packs,
-    frozen: packs.frozen.map((rest) => ({
-      ...rest,
-      inPantry: given.has(`${rest.ingredientId} ${rest.date}`),
-    })),
+    open: packs.open.map((pack) => ({ ...pack, inPantry: leftGiven.has(key(pack)) })),
+    frozen: packs.frozen.map((rest) => ({ ...rest, inPantry: frozenGiven.has(key(rest)) })),
   };
 }
 

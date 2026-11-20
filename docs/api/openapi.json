@@ -5764,6 +5764,80 @@
         }
       }
     },
+    "/api/meal-plans/{id}/left": {
+      "post": {
+        "operationId": "MealPlans_keepLeft",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "\"Dodaj do spiżarni\": what a pack the menu opens and does not finish leaves goes into the pantry as fresh food, dated its last day, once (`KeepLeftRequest`).",
+        "description": "\"Dodaj do spiżarni\": what a pack the menu opens and does not finish leaves goes into the pantry as fresh food, dated its last day, once (`KeepLeftRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepLeftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}": {
       "delete": {
         "operationId": "MealPlans_removeMeal",
@@ -16961,6 +17035,22 @@
           "date"
         ]
       },
+      "KeepLeftRequest": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "date"
+        ]
+      },
       "KindLimit": {
         "type": "object",
         "properties": {
@@ -19901,6 +19991,15 @@
           },
           "wasted": {
             "type": "boolean"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "until": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "inPantry": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -19910,7 +20009,10 @@
           "packSize",
           "packs",
           "left",
-          "wasted"
+          "wasted",
+          "date",
+          "until",
+          "inPantry"
         ],
         "additionalProperties": false
       },

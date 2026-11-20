@@ -187,6 +187,7 @@ export function PlanCard({
   onOfferFor,
   onSetApart,
   onKeepFrozen,
+  onKeepLeft,
   profileName,
   onSpread,
   onResizeDay,
@@ -244,6 +245,8 @@ export function PlanCard({
   onSetApart: (sharedMealId: string, apart: boolean) => void;
   /** "Dodaj do spiżarni": give the pantry what is left of a rest the plan freezes, once. */
   onKeepFrozen: (ingredientId: string, date: string) => void;
+  /** "Dodaj do spiżarni" of what packs of one food leave, each pack not given yet. */
+  onKeepLeft: (packs: readonly { ingredientId: string; date: string }[]) => void;
   /** The name of the profile whose plan this is: what a portion of a shared pot is called beside the other's. */
   profileName: string;
   /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
@@ -1691,6 +1694,8 @@ export function PlanCard({
               <PlanPacksLine
                 packs={plan.packs}
                 together={plan.joint ? fmt.text(plan.joint.profileName) : undefined}
+                busy={busy}
+                onKeepLeft={onKeepLeft}
               >
                 {plan.packs.open.some((pack) => pack.wasted) && (
                   <UseUp

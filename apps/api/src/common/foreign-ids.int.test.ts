@@ -406,6 +406,12 @@ const ASKS: Ask[] = [
     (ids) => `/api/meal-plans/${ids.plan}/frozen`,
     (_ids, shared) => ({ ingredientId: shared.ingredient, date: '2026-01-05' }),
   ],
+  [
+    'give the pantry what a pack of a plan leaves',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/left`,
+    (_ids, shared) => ({ ingredientId: shared.ingredient, date: '2026-01-05' }),
+  ],
 
   ['read the week of a profile in sum', 'get', (ids) => `/api/diary/week?profileId=${ids.profile}`],
   [

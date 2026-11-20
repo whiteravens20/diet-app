@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTranslator, NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1560,6 +1560,9 @@ describe('the plan page, on how a day stands against its target', () => {
       packSize: 500,
       packs: 2,
       left: 20,
+      date: '2026-01-05',
+      until: '2026-01-07',
+      inPantry: false,
       wasted: false,
     } as const;
     const milk = {
@@ -1569,6 +1572,9 @@ describe('the plan page, on how a day stands against its target', () => {
       packSize: 1000,
       packs: 1,
       left: 500,
+      date: '2026-01-05',
+      until: '2026-01-07',
+      inPantry: false,
       wasted: true,
     } as const;
     const feta = {
@@ -1578,6 +1584,9 @@ describe('the plan page, on how a day stands against its target', () => {
       packSize: 200,
       packs: 1,
       left: 160,
+      date: '2026-01-05',
+      until: '2026-01-07',
+      inPantry: false,
       wasted: true,
     } as const;
 
@@ -1602,7 +1611,7 @@ describe('the plan page, on how a day stands against its target', () => {
       await userEvent.click(line);
       const packs = within(line.closest('details')!)
         .getAllByRole('listitem')
-        .map((pack) => plain(pack.textContent));
+        .map((pack) => plain(pack.firstElementChild?.textContent));
       expect(packs).toEqual([
         'Feta cheese: 160 g left of a pack of 200 g, more than a fifth of it',
         'Whole milk: 500 ml left of a pack of 1000 ml, more than a fifth of it',
@@ -1611,6 +1620,87 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.getByText(messages.mealPlans.packs.explain)).toBeInTheDocument();
       // A plan that takes nothing out of the freezer does not say that what it held goes first.
       expect(screen.queryByText(messages.mealPlans.packs.explainFreezer)).toBeNull();
+    });
+
+    it('gives the pantry what a pack leaves, each of its packs once, and says when it has', async () => {
+      const plan = aPlan({
+        packs: {
+          bought: 2200,
+          used: 1520,
+          open: [feta, milk, chicken],
+          frozen: [],
+          fromFreezer: [],
+        },
+      });
+      await opened(plan);
+      const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Add to the pantry: Whole milk, 500\u00a0ml' }),
+      );
+      expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/left`, {
+        ingredientId: milk.ingredientId,
+        date: milk.date,
+      });
+    });
+
+    it('reads the plan again when the pack no longer leaves anything, and says so', async () => {
+      const plan = aPlan({
+        packs: { bought: 1000, used: 500, open: [milk], frozen: [], fromFreezer: [] },
+      });
+      await opened(plan);
+      vi.spyOn(api, 'post').mockRejectedValue(
+        new ApiClientError(409, 'PACK_LEFT_GONE', 'the text of the API'),
+      );
+      const reads = () =>
+        vi.mocked(api.get).mock.calls.filter(([path]) => path === `/meal-plans/${plan.id}`).length;
+      const before = reads();
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Add to the pantry: Whole milk, 500\u00a0ml' }),
+      );
+
+      expect(await screen.findByText(messages.errors.PACK_LEFT_GONE)).toBeInTheDocument();
+      await waitFor(() => expect(reads()).toBeGreaterThan(before));
+    });
+
+    it('offers the pantry nothing of a pack it was given', async () => {
+      await opened(
+        aPlan({
+          packs: {
+            bought: 1000,
+            used: 500,
+            open: [{ ...milk, inPantry: true }],
+            frozen: [],
+            fromFreezer: [],
+          },
+        }),
+      );
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+
+      expect(screen.getByText(messages.mealPlans.packs.inPantry)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Add to the pantry: Whole milk/ })).toBeNull();
+    });
+
+    it('offers the pantry nothing of a pack the plan opens on a later day', async () => {
+      await opened(
+        aPlan({
+          packs: {
+            bought: 1000,
+            used: 500,
+            open: [{ ...milk, date: '2100-01-04', until: '2100-01-10' }],
+            frozen: [],
+            fromFreezer: [],
+          },
+        }),
+      );
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+
+      expect(screen.getByText(/^Whole milk:/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Add to the pantry: Whole milk/ })).toBeNull();
+      expect(screen.queryByText(messages.mealPlans.packs.inPantry)).toBeNull();
     });
 
     it('names a food left of in several packs once, its rests added up, and says of how many much is left', async () => {
@@ -1622,6 +1712,9 @@ describe('the plan page, on how a day stands against its target', () => {
         packs: 3,
         left,
         wasted: left > packSize / 5,
+        date: '2026-01-05',
+        until: '2026-01-07',
+        inPantry: false,
       });
       const chicken = (left: number) => pack('c', 'Chicken breast', 500, left);
       const spinach = (left: number) => pack('s', 'Spinach', 200, left);
@@ -1655,7 +1748,7 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(
         within(details)
           .getAllByRole('listitem')
-          .map((line) => plain(line.textContent)),
+          .map((line) => plain(line.firstElementChild?.textContent)),
       ).toEqual([
         'Chicken breast: 543 g left in total of 3 packs of 500 g, more than a fifth of each',
         'Turkey breast: 460 g left in total of 2 packs of 500 g, more than a fifth of each',
@@ -2848,6 +2941,9 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     packSize: 500,
     packs: 1,
     left: 350,
+    date: '2026-01-05',
+    until: '2026-01-07',
+    inPantry: false,
     wasted: true,
   } as const;
   const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {

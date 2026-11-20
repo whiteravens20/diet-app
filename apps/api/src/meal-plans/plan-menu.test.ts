@@ -94,6 +94,10 @@ describe('what a menu comes to in packs that do not keep', () => {
         packs: 1,
         left: 750,
         wasted: true,
+        // Opened on the menu's day, kept a week; what is given to the pantry is read from the plan.
+        date: '2026-01-05',
+        until: '2026-01-11',
+        inPantry: false,
       },
       {
         ingredientId: 'chicken',
@@ -103,6 +107,9 @@ describe('what a menu comes to in packs that do not keep', () => {
         packs: 1,
         left: 75,
         wasted: false,
+        date: '2026-01-05',
+        until: '2026-01-06',
+        inPantry: false,
       },
     ]);
   });
@@ -165,8 +172,21 @@ describe('what a menu comes to in packs that do not keep', () => {
         packs: 1,
         left: 100,
         wasted: false,
+        date: '2026-01-05',
+        until: '2026-01-11',
+        inPantry: false,
       },
     ]);
+  });
+
+  it('keeps a pack opened on the last days of the calendar no further than the calendar goes', () => {
+    const packs = planPacks(
+      [{ day: 0, factor: 1, lines: [line('milk', milk, 250)] }],
+      ['2100-12-30', '2100-12-31'],
+      'en',
+    );
+
+    expect(packs.open).toMatchObject([{ date: '2100-12-30', until: '2100-12-31' }]);
   });
 
   it('counts day by day: chicken of the first day and of the fourth takes two packs, the first thrown away', () => {

@@ -5,6 +5,8 @@
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { PlanPacks } from '@diet-app/shared';
+import { Button } from '@/components/ui/button';
+import { localDate } from '@/lib/http';
 import { useAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 
@@ -26,10 +28,18 @@ function byFood<T extends { ingredientId: string }>(items: readonly T[]): T[][] 
 export function PlanPacksLine({
   packs,
   together,
+  busy = false,
+  onKeepLeft,
   children,
 }: {
   packs: PlanPacks;
   together?: string;
+  busy?: boolean;
+  /**
+   * "Dodaj do spiżarni" of what a pack leaves: each of its food's packs opened by today and not given yet, one after
+   * another. Before the day a pack is opened, the pantry would hold what was not even bought.
+   */
+  onKeepLeft?: (packs: readonly { ingredientId: string; date: string }[]) => void;
   children?: ReactNode;
 }) {
   const t = useTranslations('mealPlans.packs');
@@ -37,6 +47,7 @@ export function PlanPacksLine({
   const amount = useAmount();
   const fmt = useFormat();
   const wasted = packs.open.filter((pack) => pack.wasted).length;
+  const today = localDate();
   return (
     <details>
       <summary className="cursor-pointer">
@@ -65,18 +76,48 @@ export function PlanPacksLine({
                 ),
                 size: amount(first.packSize, first.unit),
               };
+              const toGive = food.filter((pack) => !pack.inPantry && pack.date <= today);
               return (
-                <li key={first.ingredientId} className={much > 0 ? 'text-warning' : undefined}>
-                  {food.length === 1
-                    ? t(much > 0 ? 'leftMuch' : 'left', said)
-                    : t(
-                        much === 0
-                          ? 'leftTotal'
-                          : much === food.length
-                            ? 'leftTotalAllMuch'
-                            : 'leftTotalMuch',
-                        { ...said, count: food.length, much },
-                      )}
+                <li
+                  key={first.ingredientId}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1"
+                >
+                  <span className={much > 0 ? 'text-warning' : undefined}>
+                    {food.length === 1
+                      ? t(much > 0 ? 'leftMuch' : 'left', said)
+                      : t(
+                          much === 0
+                            ? 'leftTotal'
+                            : much === food.length
+                              ? 'leftTotalAllMuch'
+                              : 'leftTotalMuch',
+                          { ...said, count: food.length, much },
+                        )}
+                  </span>
+                  {onKeepLeft &&
+                    (toGive.length === 0 ? (
+                      food.some((pack) => pack.inPantry) && (
+                        <span className="text-muted-foreground">{t('inPantry')}</span>
+                      )
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="-my-1"
+                        disabled={busy}
+                        aria-label={t('keepFor', {
+                          name: said.name,
+                          amount: amount(
+                            toGive.reduce((sum, pack) => sum + pack.left, 0),
+                            first.unit,
+                          ),
+                        })}
+                        onClick={() => onKeepLeft(toGive)}
+                      >
+                        {t('keep')}
+                      </Button>
+                    ))}
                 </li>
               );
             })}

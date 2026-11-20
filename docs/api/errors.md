@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 209 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 211 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -142,6 +142,8 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `OWN_PRODUCT_NOT_SENDABLE` | 409 | A product goes to the base with its code, calories, protein, fat and carbohydrates. | Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami. |
 | `OWN_PRODUCT_SEND_LIMIT` | 429 | You can send at most 10 products to the base in 24 hours. | W ciągu doby możesz wysłać do bazy najwyżej 10 produktów. |
 | `OWN_RECIPE_DAILY_LIMIT` | 429 | You have saved as many recipes of your own today as you may. Try again tomorrow. | Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro. |
+| `PACK_LEFT_GONE` | 409 | The plan no longer leaves anything of this pack. The plan has been reloaded. | Plan nie zostawia już nic z tego opakowania. Plan został odświeżony. |
+| `PACK_NOT_OPENED_YET` | 409 | The plan opens this pack on a later day: what it leaves can go into the pantry from that day. | Plan otworzy to opakowanie później: to, co z niego zostanie, dodasz do spiżarni od tego dnia. |
 | `PANTRY_FULL` | 409 | The pantry already holds as many items as it can. Remove one first. | Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich. |
 | `PAYLOAD_TOO_LARGE` | 413 | The request is too large. | Żądanie jest zbyt duże. |
 | `PERSONAL_RECIPE_LIMIT` | 403 | You have as many recipes of your own as an account can hold. Delete some you no longer use. | Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz. |

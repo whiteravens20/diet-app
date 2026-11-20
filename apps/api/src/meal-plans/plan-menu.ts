@@ -1,6 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import {
+  dayAfter,
+  LAST_DAY,
   MEAL_SLOTS_BY_COUNT,
   type Locale,
   type PlanPacks,
@@ -162,6 +164,8 @@ export function planPacks(
       .filter((pack) => Math.round(pack.left) >= 1)
       .map((pack) => {
         const ingredient = known.get(pack.ingredientId)!;
+        // The days of a pack counted from the plan's first, the last of them past the plan's end where it keeps longer.
+        const day = (index: number): string => dayAfter(dates[0]!, index);
         return {
           ingredientId: pack.ingredientId,
           name: pickIngredient(locale, ingredient.translations, ingredient.name),
@@ -170,6 +174,11 @@ export function planPacks(
           packs: pack.packs,
           left: Math.round(pack.left),
           wasted: pack.wasted,
+          date: day(pack.until - packs.get(pack.ingredientId)!.keepDays + 1),
+          // A plan on the calendar's last days keeps its packs no further than the calendar goes.
+          until: [day(pack.until), LAST_DAY].sort()[0]!,
+          // Read from the plan by whoever reads it (`keptMarked`).
+          inPantry: false,
         };
       }),
     frozen: use.frozen
