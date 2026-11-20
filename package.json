@@ -53,6 +53,7 @@
     "multer": "^2.5.0",
     "mysql2": "^3.23.1",
     "deepmerge-ts": "^8.0.0",
+    "effect": "^3.22.1",
     "vite": "^8.2.4",
     "next": {
       "postcss": "^8.5.10"
