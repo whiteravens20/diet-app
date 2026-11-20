@@ -207,7 +207,9 @@ describe('the window of a recipe', () => {
       portion: { servings: 3, whole: true },
     });
 
-    expect(await dialog.findByText('including 30 g left of a pack')).toBeInTheDocument();
+    expect(
+      await dialog.findByText('including 30 g, so that nothing is left in the pack'),
+    ).toBeInTheDocument();
     expect(dialog.getByText('180 g')).toBeInTheDocument();
   });
 

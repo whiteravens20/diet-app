@@ -142,7 +142,7 @@ describe('a recipe sent to somebody', () => {
     await userEvent.click(screen.getByRole('button', { name: texts.text }));
 
     expect(lines(writeText.mock.calls[0]![0] as string)[3]).toBe(
-      '- Oats: 120 g — including 30 g left of a pack',
+      '- Oats: 120 g — including 30 g, so that nothing is left in the pack',
     );
   });
 

@@ -2504,7 +2504,7 @@
     "edit": "Edit",
     "portionFromPlan": "Below are the amounts of the original recipe, for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}{same, select, yes {: as much as your meal in the plan.} other {. Your meal in the plan is {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.}}",
     "portionWholeFromPlan": "Below are the amounts of the original recipe, for {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}{same, select, yes {: as much as this cooking in the plan.} other {. This cooking in the plan comes to {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}.}}",
-    "restOfPack": "including {amount} left of a pack"
+    "restOfPack": "including {amount}, so that nothing is left in the pack"
   },
   "ownRecipe": {
     "newTitle": "Write a recipe",
