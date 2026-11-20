@@ -63,6 +63,7 @@ describe('the rests of packs a meal finishes', () => {
     servings: 1,
     quantityScale: 1,
     plate: null,
+    pieces: [],
     source: 'CATALOGUE',
     customMacros: null,
     recipe: {
@@ -99,6 +100,40 @@ describe('the rests of packs a meal finishes', () => {
       salt: { grams: 1.1, atLeast: false },
       saturatedFat: { grams: 3.3, atLeast: false },
     });
+  });
+
+  it("count what the meal's pot takes whole of an egg in its figures and label: the whole pieces less the exact ones", () => {
+    // An egg of 55 g: 143 kcal, 12.6 g protein, 9.5 g fat, 0.7 g carbohydrate, 0.4 g salt, 3.1 g saturated fat in 100 g.
+    const egg = {
+      ingredientId: 'egg',
+      // A serving takes 1.5 eggs, which its pot takes as 2: a third more.
+      exact: 82.5,
+      factor: 2 / 1.5,
+      per100: { calories: 143, protein: 12.6, fat: 9.5, carbs: 0.7 },
+      label: { fiber: 0, sugars: null, salt: 0.4, saturatedFat: 3.1 },
+    };
+    // Half an egg more: 27.5 g, 39 kcal, 3.5 g protein, 2.6 g fat, 0.2 g carbohydrate.
+    expect(mealNutrition({ ...meal, rests: null, pieces: [egg] })).toEqual({
+      calories: 539,
+      protein: 33,
+      fat: 18,
+      carbs: 60,
+    });
+    expect(mealLabel({ ...meal, rests: null, pieces: [egg] })).toEqual({
+      fiber: { grams: 4, atLeast: false },
+      // What the egg says nothing of moves nothing.
+      sugars: { grams: 5, atLeast: false },
+      salt: { grams: 1.1, atLeast: false },
+      saturatedFat: { grams: 3.9, atLeast: false },
+    });
+    // A pot that takes less than its meals do exactly takes as much less: 2.5 eggs as 2.
+    expect(
+      mealNutrition({ ...meal, rests: null, pieces: [{ ...egg, exact: 137.5, factor: 2 / 2.5 }] }),
+    ).toEqual({ calories: 461, protein: 27, fat: 12, carbs: 60 });
+    // A factor of one is the meal as it was planned.
+    expect(mealNutrition({ ...meal, rests: null, pieces: [{ ...egg, factor: 1 }] })).toEqual(
+      mealNutrition({ ...meal, rests: null }),
+    );
   });
 
   it("count a person's own plate of a shared dish in the meal's figures and label, as large as the portion", () => {

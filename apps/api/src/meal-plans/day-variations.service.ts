@@ -46,6 +46,7 @@ import { menuNeeds, packedMealsOf, PACKED_LINES, type PackedMeal } from './plan-
 import { partnerPacked } from './plan-packs-store.js';
 import { writePlan } from './plan-write.js';
 import { LANGUAGE } from './swap-shared.js';
+import { pieced, piecesOfOffer, pieceUsesOf, WHOLE_LINES } from './whole-pieces-store.js';
 
 /** How many ways to fill a day are offered at most. */
 const MOST_WAYS = 3;
@@ -170,7 +171,8 @@ export class DayVariationsService {
     }
 
     // What every meal of the plan takes now, and the recipes of the ways and of the meals that stay.
-    const [menu, recipes] = await Promise.all([
+    const offered = [...new Set(ways.flatMap((way) => way.placed.map((meal) => meal.recipeId)))];
+    const [menu, recipes, wholeLines, pieces] = await Promise.all([
       this.prisma.plannedMeal.findMany({
         where: { day: { planId } },
         select: {
@@ -213,7 +215,18 @@ export class DayVariationsService {
           translations: { select: { locale: true, title: true } },
         },
       }),
+      // What the dishes of the ways would take whole, each cooked on its own as it would be once planned.
+      this.prisma.recipe.findMany({
+        where: { id: { in: offered } },
+        select: { id: true, servings: true, ingredients: WHOLE_LINES },
+      }),
+      // And what the meals that stay take whole now, in their pots.
+      pieceUsesOf(
+        this.prisma,
+        day.meals.map((meal) => meal.id),
+      ),
     ]);
+    const wholeOf = new Map(wholeLines.map((recipe) => [recipe.id, recipe]));
     const recipeOf = new Map(recipes.map((recipe) => [recipe.id, recipe]));
     // The packs are counted day by day, as the plan counts them (`packedMealsOf`), with the other plan of a joint
     // plan: the two are cooked in one kitchen.
@@ -242,7 +255,8 @@ export class DayVariationsService {
     const rest = packedOf((meal) => meal.dayId !== dayId || stays.has(meal.id));
 
     // A meal's topping counts with it, in what stays and in the day as it is.
-    const withTopping = (meal: (typeof day.meals)[number]) => {
+    const withTopping = (row: (typeof day.meals)[number]) => {
+      const meal = pieced(row, pieces);
       const topping = toppingFiguresOf(meal, toppingFoods);
       return topping ? sumNutrition([mealNutrition(meal), topping.nutrition]) : mealNutrition(meal);
     };
@@ -277,6 +291,7 @@ export class DayVariationsService {
               rests: meal.rests,
               // An offer is made in the recipe's own proportions; a shared meal gets its plates where it is taken.
               plate: null,
+              pieces: piecesOfOffer(wholeOf.get(recipe.id)!, amount),
               source: 'CATALOGUE',
               customMacros: null,
               recipe,

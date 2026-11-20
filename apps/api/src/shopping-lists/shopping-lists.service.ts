@@ -55,6 +55,7 @@ import { pickIngredient } from '../recipes/recipes.service.js';
 import { plateOfMeal, plateShare, restsOf } from '../meal-plans/plan-days.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 import { freezerOf } from '../meal-plans/generation-report.js';
+import { pieceFactorOf, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
 export const TRANSACTION = { timeout: 30_000, maxWait: 10_000 } as const;
@@ -441,7 +442,7 @@ async function householdsOf(
 
 export const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
-type Reader = Pick<Tx, 'ingredient' | 'mealPlanDay'>;
+type Reader = Pick<Tx, 'ingredient' | 'mealPlanDay' | '$queryRaw'>;
 
 export async function loadIngredients(
   db: Pick<Tx, 'ingredient'>,
@@ -469,7 +470,7 @@ type DatedLine = PlanIngredientLine & { date: Date };
 
 /** Every ingredient line the plan's menu has between two dates, as the menu is now. */
 export async function planLines(
-  db: Pick<Tx, 'mealPlanDay' | 'ingredient'>,
+  db: Reader,
   planId: string,
   from: Date,
   to: Date,
@@ -480,6 +481,7 @@ export async function planLines(
       date: true,
       meals: {
         select: {
+          id: true,
           source: true,
           servings: true,
           quantityScale: true,
@@ -513,6 +515,11 @@ export async function planLines(
   const toppings = days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
     ? await toppingIngredientsOf(db)
     : new Map<string, { id: string; unit: 'g' | 'ml' | 'piece' }>();
+  // Eggs and tortillas are bought as their pots take them: whole.
+  const pieces = await pieceUsesOf(
+    db,
+    days.flatMap((day) => day.meals.map((meal) => meal.id)),
+  );
   const lines: DatedLine[] = [];
   for (const day of days) {
     for (const meal of day.meals) {
@@ -536,8 +543,11 @@ export async function planLines(
         lines.push({
           date: day.date,
           ingredientId: line.ingredientId,
-          // A person's own plate of a shared dish takes each line at its part's share.
-          quantity: line.quantity * plateShare(plate, line.ingredient),
+          // A person's own plate of a shared dish takes each line at its part's share, and its pot an egg whole.
+          quantity:
+            line.quantity *
+            plateShare(plate, line.ingredient) *
+            pieceFactorOf(pieces.get(meal.id) ?? [], line.ingredientId),
           unit: line.unit,
           recipeServings: meal.recipe.servings,
           // Effective amount folds the rebalancer multiplier into servings.

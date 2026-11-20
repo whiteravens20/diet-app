@@ -16,8 +16,9 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { PLATE_RANGE } from '../engine/plates.js';
-import { plateOfMeal, storedPlateOf } from './plan-days.js';
+import { plateOfMeal, storedPlateOf, wholeAddition } from './plan-days.js';
 import { plateDishesOf } from './plates-store.js';
+import { pieceUsesOf } from './whole-pieces-store.js';
 
 describe('a person’s own plate of a dish both people of a joint plan eat', () => {
   let t: TestApp;
@@ -89,9 +90,12 @@ describe('a person’s own plate of a dish both people of a joint plan eat', () 
         select: { plate: true },
       });
       expect(plateOfMeal(stored)!.vegetables).toBeGreaterThanOrEqual(1);
+      // What the pot's eggs and tortillas, taken whole, add to the plate.
+      const uses = (await pieceUsesOf(t.prisma, [meal.id])).get(meal.id) ?? [];
       // The plate moves energy between the parts of the dish, and keeps the portion's.
       const factor = meal.servings * meal.quantityScale;
-      const portion = meal.recipe!.nutritionPerServing.calories * factor;
+      const portion =
+        meal.recipe!.nutritionPerServing.calories * factor + wholeAddition(uses, 'calories');
       expect(Math.abs(meal.nutrition.calories - portion)).toBeLessThanOrEqual(
         Math.max(2, portion * 0.01),
       );
@@ -103,7 +107,10 @@ describe('a person’s own plate of a dish both people of a joint plan eat', () 
       const change = plateOfMeal(plate)!.perServing;
       for (const key of ['protein', 'fat', 'carbs'] as const)
         expect(meal.nutrition[key]).toBe(
-          Math.round((meal.recipe!.nutritionPerServing[key] + change[key]) * factor),
+          Math.round(
+            (meal.recipe!.nutritionPerServing[key] + change[key]) * factor +
+              wholeAddition(uses, key),
+          ),
         );
       // The pot takes what both plates take, line by line.
       meal.shared!.pot.forEach((line, index) => {

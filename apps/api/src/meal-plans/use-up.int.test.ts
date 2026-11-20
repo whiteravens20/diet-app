@@ -6,6 +6,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { UseUpService } from './use-up.service.js';
@@ -16,6 +17,7 @@ const CHICKEN_RICE = 'chicken-rice-broccoli'; // 150 g of chicken, 600 kcal
 const TOFU_BOWL = 'tofu-rice-bowl'; // 622 kcal
 const STEW = 'chickpea-tomato-stew'; // 671 kcal
 const BAKED_TOFU = 'baked-tofu-with-broccoli'; // 483 kcal
+const EGG_RICE = 'egg-fried-rice'; // two eggs a serving
 
 describe('the swaps that would use up what a plan opens', () => {
   let t: TestApp;
@@ -139,6 +141,25 @@ describe('the swaps that would use up what a plan opens', () => {
       expect(lunch!.after.calories).toBeGreaterThan(590);
       expect(lunch!.after.calories).toBeLessThan(610);
       expect(lunch!.after.protein).toBeGreaterThan(lunch!.before.protein);
+    });
+
+    it('say what a meal of eggs holds now as the plan shows it, its pan taking them whole', async () => {
+      const rice = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: EGG_RICE } });
+      // Two eggs and a half, cooked as three.
+      await t.prisma.plannedMeal.update({
+        where: { id: mealOf(1, 'lunch').id },
+        data: { recipeId: rice.id, servings: 1.25 },
+      });
+      const shown = (
+        await t.app.get(MealPlansService).get(user.id, 'en', plan.id)
+      ).days[1]!.meals.find((meal) => meal.mealType === 'lunch')!;
+
+      const lunch = (await suggestions()).suggestions.find(
+        (suggestion) => suggestion.plannedMealId === shown.id,
+      );
+
+      expect(lunch).toBeDefined();
+      expect(lunch!.before).toEqual(shown.nutrition);
     });
 
     it('offer for a meal no recipe that another meal of its day holds', async () => {

@@ -76,6 +76,7 @@ import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
 import { entryDto, entryWith, languages } from './diary-entries.js';
+import { pieced, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
 type Figures = Macros & { calories: number };
@@ -217,12 +218,20 @@ export class DiaryService {
     );
     const entered = rows.length > 0 ? [fromEntries] : [];
     // The foods of the toppings, read only for a day that has any.
-    const toppingFoods = planDay?.meals.some((meal) => meal.toppingKey !== null)
-      ? await toppingFoodsOf(this.prisma)
-      : (new Map() as ToppingFoods);
+    const [toppingFoods, pieces] = await Promise.all([
+      planDay?.meals.some((meal) => meal.toppingKey !== null)
+        ? toppingFoodsOf(this.prisma)
+        : (new Map() as ToppingFoods),
+      pieceUsesOf(
+        this.prisma,
+        (planDay?.meals ?? []).map((meal) => meal.id),
+      ),
+    ]);
     const meals: DiaryPlanMeal[] = [...(planDay?.meals ?? [])]
       .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType))
-      .map((meal) => {
+      .map((row) => {
+        // Its pot's eggs and tortillas whole, as the plan counts them.
+        const meal = pieced(row, pieces);
         // A topping is eaten with its meal.
         const topping = toppingFiguresOf(meal, toppingFoods);
         const food = meal.toppingKey !== null ? toppingFoods.get(meal.toppingKey) : undefined;
@@ -319,6 +328,7 @@ export class DiaryService {
           meals: {
             where: { eatenAt: { not: null } },
             select: {
+              id: true,
               servings: true,
               quantityScale: true,
               source: true,
@@ -352,17 +362,22 @@ export class DiaryService {
       if (!planOf.has(isoDate(day.date))) planOf.set(isoDate(day.date), day);
     const entriesOf = new Map(sums.map((row) => [isoDate(row.date), row]));
     // The foods of the toppings eaten, read only where any was.
-    const toppingFoods = [...planOf.values()].some((day) =>
-      day.meals.some((meal) => meal.toppingKey !== null),
-    )
-      ? await toppingFoodsOf(this.prisma)
-      : (new Map() as ToppingFoods);
+    const [toppingFoods, pieces] = await Promise.all([
+      [...planOf.values()].some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+        ? toppingFoodsOf(this.prisma)
+        : (new Map() as ToppingFoods),
+      pieceUsesOf(
+        this.prisma,
+        [...planOf.values()].flatMap((day) => day.meals.map((meal) => meal.id)),
+      ),
+    ]);
     const days: DayFigures[] = [];
     for (let date = from; date <= to; date = dayAfter(date, 1)) {
       const planDay = planOf.get(date) ?? null;
       const entries = entriesOf.get(date);
       const meals = sumNutrition(
-        (planDay?.meals ?? []).flatMap((meal) => {
+        (planDay?.meals ?? []).flatMap((row) => {
+          const meal = pieced(row, pieces);
           const topping = toppingFiguresOf(meal, toppingFoods);
           return topping ? [mealNutrition(meal), topping.nutrition] : [mealNutrition(meal)];
         }),

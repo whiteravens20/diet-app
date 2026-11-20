@@ -1072,6 +1072,10 @@ model PlannedMeal {
   // quantityScale. Default 1.0 = untouched. Nutrition and
   // shopping-list quantities read the product of the two.
   quantityScale Float     @default(1.0)
+  // Takes eggs and tortillas in whole pieces, as its pot does (`engine/whole-pieces.ts`). False for a
+  // meal eaten before they were taken whole, whose figures a diary and its weeks counted already: it
+  // keeps what it was planned with, and so does every meal cooked in one pot with it.
+  wholePieces   Boolean   @default(true)
   lastRebalanceAt DateTime?
   // A model chose this recipe for the meal, out of what the engine allowed,
   // and this is the reason it gave, when it gave one. Cleared when the meal

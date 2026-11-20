@@ -38,6 +38,7 @@ import {
   type PlateDish,
 } from '../engine/plates.js';
 import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
+import type { PieceUse } from '../engine/whole-pieces.js';
 
 /**
  * Persisted per-day overrides. The resolved per-day calorie target lives in
@@ -258,6 +259,8 @@ export interface MealAmount {
   rests: unknown;
   /** A person's own plate of a shared dish (`plateOfMeal`), which changes what a serving holds. */
   plate: unknown;
+  /** What it takes of eggs and tortillas, which its pot takes whole (`pieceUsesOf`). */
+  pieces: readonly PieceUse[];
   source: string;
   customMacros: unknown;
   recipe: {
@@ -267,6 +270,9 @@ export interface MealAmount {
     carbsPerServing: number;
   } | null;
 }
+
+/** A planned meal as a read of it holds it, before what it takes whole is put beside it (`pieced`). */
+export type MealRow = Omit<MealAmount, 'pieces'>;
 
 interface Amounts {
   calories: number;
@@ -278,7 +284,8 @@ interface Amounts {
 /**
  * What a planned meal amounts to: one serving of its recipe, or the macros
  * somebody typed for a meal of their own, times its servings and the factor
- * a rebalance left on it.
+ * a rebalance left on it, and what its pot's whole eggs and tortillas add to
+ * or take from that.
  */
 export function mealNutrition(meal: MealAmount): Amounts {
   const factor = meal.servings * meal.quantityScale;
@@ -295,13 +302,19 @@ export function mealNutrition(meal: MealAmount): Amounts {
   const plate = meal.source === 'USER_CUSTOM' ? null : plateOfMeal(meal.plate);
   const plus = (of: keyof Amounts): number =>
     rests.reduce((sum, rest) => sum + rest.figures[of], 0) +
-    (plate ? plate.perServing[of] * factor : 0);
+    (plate ? plate.perServing[of] * factor : 0) +
+    wholeAddition(meal.pieces, of);
   return {
     calories: Math.round(per.calories * factor + plus('calories')),
     protein: Math.round(per.protein * factor + plus('protein')),
     fat: Math.round(per.fat * factor + plus('fat')),
     carbs: Math.round(per.carbs * factor + plus('carbs')),
   };
+}
+
+/** What a meal's pots taking its eggs and tortillas whole add to a figure of it, against what it takes exactly: less where a pot rounds down. */
+export function wholeAddition(uses: readonly PieceUse[], of: keyof Amounts): number {
+  return uses.reduce((sum, use) => sum + (use.factor - 1) * (use.exact / 100) * use.per100[of], 0);
 }
 
 /** As much of a planned meal as says what it holds of fibre, sugars, salt and saturated fat. */
@@ -312,6 +325,8 @@ export interface MealLabelAmount {
   rests: unknown;
   /** A person's own plate of a shared dish (`plateOfMeal`), which changes what a serving holds. */
   plate: unknown;
+  /** What it takes of eggs and tortillas, which its pot takes whole (`pieceUsesOf`). */
+  pieces: readonly PieceUse[];
   source: string;
   recipe: { labelPerServing: unknown } | null;
 }
@@ -327,11 +342,32 @@ export function mealLabel(meal: MealLabelAmount): LabelTotals {
   if (!serving) return UNKNOWN_LABEL;
   const factor = meal.servings * meal.quantityScale;
   const plate = plateOfMeal(meal.plate);
-  const dish = scaleLabel(plate ? plateLabel(serving, plate) : serving, factor);
+  const dish = piecesLabel(
+    scaleLabel(plate ? plateLabel(serving, plate) : serving, factor),
+    meal.pieces,
+  );
   const rests = restsOf(meal.rests);
   return roundLabel(
     rests.length > 0 ? sumLabels([dish, ...rests.map((rest) => rest.label)]) : dish,
   );
+}
+
+/** A dish's label with what its pot's whole eggs and tortillas add or take: each known figure moved, never under none. */
+function piecesLabel(dish: LabelTotals, uses: readonly PieceUse[]): LabelTotals {
+  if (uses.length === 0) return dish;
+  const by = (nutrient: keyof PieceUse['label']): number =>
+    uses.reduce(
+      (sum, use) => sum + (use.factor - 1) * (use.exact / 100) * (use.label[nutrient] ?? 0),
+      0,
+    );
+  const moved = (figure: LabelTotals[keyof LabelTotals], change: number) =>
+    figure ? { ...figure, grams: Math.max(0, figure.grams + change) } : figure;
+  return {
+    fiber: moved(dish.fiber, by('fiber')),
+    sugars: moved(dish.sugars, by('sugars')),
+    salt: moved(dish.salt, by('salt')),
+    saturatedFat: moved(dish.saturatedFat, by('saturatedFat')),
+  };
 }
 
 /** A serving's label with a plate's change: each known figure moved by the plate's grams, never under none. */

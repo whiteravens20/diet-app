@@ -41,6 +41,7 @@ import {
   UnitConversionError,
   type RecipeFacts,
 } from '../engine/index.js';
+import type { PieceUse } from '../engine/whole-pieces.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -54,7 +55,7 @@ import {
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { settleNewRecipes } from './plan-days.js';
+import { settleNewRecipes, wholeAddition } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -64,6 +65,7 @@ import {
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
+import { pieceFactorOf, piecesOfOffer, pieceUsesOf } from './whole-pieces-store.js';
 
 // What each prompt asks the model to answer with. A reason is welcome and
 // never required: a pick without one is still a pick.
@@ -102,14 +104,32 @@ export class IngredientSwapService {
     const s = await this.substitution(userId, req, clientToday);
     // The servings of the recipe that are on the plate.
     const portion = s.meal.servings * s.meal.quantityScale;
-    const held = (perServing: Nutrition): Nutrition => ({
-      calories: Math.round(perServing.calories * portion),
-      protein: Math.round(perServing.protein * portion),
-      fat: Math.round(perServing.fat * portion),
-      carbs: Math.round(perServing.carbs * portion),
+    // Eggs and tortillas as the plan shows them: whole in the meal's pot now, and whole once it changes.
+    const now = (await pieceUsesOf(this.prisma, [s.meal.id])).get(s.meal.id) ?? [];
+    const ingredientOf = new Map([
+      ...s.recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const),
+      [s.to.id, s.to] as const,
+    ]);
+    const then = piecesOfOffer(
+      {
+        servings: s.recipe.servings,
+        ingredients: s.lines.map((line) => ({
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: ingredientOf.get(line.ingredientId)!,
+        })),
+      },
+      portion,
+      { now, plate: s.meal.plate },
+    );
+    const held = (perServing: Nutrition, pieces: readonly PieceUse[]): Nutrition => ({
+      calories: Math.round(perServing.calories * portion + wholeAddition(pieces, 'calories')),
+      protein: Math.round(perServing.protein * portion + wholeAddition(pieces, 'protein')),
+      fat: Math.round(perServing.fat * portion + wholeAddition(pieces, 'fat')),
+      carbs: Math.round(perServing.carbs * portion + wholeAddition(pieces, 'carbs')),
     });
-    const before = held(s.before);
-    const after = held(s.facts.perServing);
+    const before = held(s.before, now);
+    const after = held(s.facts.perServing, then);
     const taken = (ingredient: typeof s.from, amount: number): PlannedIngredient =>
       toPlannedIngredients(
         [
@@ -133,8 +153,13 @@ export class IngredientSwapService {
         fat: after.fat - before.fat,
         carbs: after.carbs - before.carbs,
       },
-      from: taken(s.from, s.amountLeaving),
-      to: taken(s.to, s.amountComing),
+      from: taken(s.from, s.amountLeaving * pieceFactorOf(now, s.from.id)),
+      // What the meal's line of the substitute grows by, the line whole before and after.
+      to: taken(
+        s.to,
+        (s.amountThere + s.amountComing) * pieceFactorOf(then, s.to.id) -
+          s.amountThere * pieceFactorOf(now, s.to.id),
+      ),
       sizing: s.sizing,
       merged: s.merged,
       violations: s.violations,
@@ -552,6 +577,7 @@ export class IngredientSwapService {
       from,
       to,
       amountLeaving,
+      amountThere,
       amountComing,
       sizing,
       merged,

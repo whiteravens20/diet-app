@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { diaryDays } from '../diary/diary-days.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { isoDate, isSkipped, mealNutrition, standingOf, sumNutrition } from './plan-days.js';
+import { pieced, pieceUsesOf } from './whole-pieces-store.js';
 
 /**
  * The days of a profile's plans, as a calendar shows them: read from the
@@ -53,6 +54,7 @@ export class PlanCalendarService {
         overrides: true,
         meals: {
           select: {
+            id: true,
             servings: true,
             quantityScale: true,
             source: true,
@@ -66,17 +68,18 @@ export class PlanCalendarService {
       },
       orderBy: { date: 'asc' },
     });
-    const diary = await diaryDays(
-      this.prisma,
-      asked.profileId,
-      new Date(asked.from),
-      new Date(asked.to),
-    );
+    const [diary, pieces] = await Promise.all([
+      diaryDays(this.prisma, asked.profileId, new Date(asked.from), new Date(asked.to)),
+      pieceUsesOf(
+        this.prisma,
+        days.flatMap((day) => day.meals.map((meal) => meal.id)),
+      ),
+    ]);
 
     return {
       days: days.map((day) => {
         const calories =
-          sumNutrition(day.meals.map(mealNutrition)).calories +
+          sumNutrition(day.meals.map((meal) => mealNutrition(pieced(meal, pieces)))).calories +
           (diary.get(isoDate(day.date))?.nutrition.calories ?? 0);
         const skipped = isSkipped(day);
         return {

@@ -59,11 +59,19 @@ import {
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { aimOfDay, isoDate, settleNewRecipes, mealNutrition, sumNutrition } from './plan-days.js';
+import {
+  aimOfDay,
+  isoDate,
+  settleNewRecipes,
+  mealNutrition,
+  sumNutrition,
+  wholeAddition,
+} from './plan-days.js';
 import { toppingAskOfDay, toppingFoodsOf } from './toppings-store.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { writePlans } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
+import { exactly, piecesOfOffer } from './whole-pieces-store.js';
 
 // What the prompt asks the model to answer with. A reason is welcome and
 // never required: a pick without one is still a pick. A topping is named only
@@ -567,8 +575,11 @@ export class MealSwapService {
     const held = current.caloriesPerServing * meal.servings * meal.quantityScale || share;
     // What the day holds without this meal: its other meals and what its diary holds as eaten.
     const entered = diary.get(isoDate(meal.day.date))?.nutrition;
+    // The choice of a dish fits the day on what its servings hold, before the pots round their eggs and tortillas.
     const rest = sumNutrition([
-      ...daySlots.filter((other) => other.id !== meal.id).map(mealNutrition),
+      ...daySlots
+        .filter((other) => other.id !== meal.id)
+        .map((other) => mealNutrition(exactly(other))),
       ...(entered ? [entered] : []),
     ]);
     return {
@@ -739,11 +750,13 @@ export class MealSwapService {
     const recipe = toRecipeDto(row, locale);
     const servings = fitServings(replacement.caloriesPerServing, held);
     const perServing = recipe.nutritionPerServing;
+    // Its eggs and tortillas whole, as the meal will hold them.
+    const pieces = piecesOfOffer(row, servings);
     const after = {
-      calories: Math.round(perServing.calories * servings),
-      protein: Math.round(perServing.protein * servings),
-      fat: Math.round(perServing.fat * servings),
-      carbs: Math.round(perServing.carbs * servings),
+      calories: Math.round(perServing.calories * servings + wholeAddition(pieces, 'calories')),
+      protein: Math.round(perServing.protein * servings + wholeAddition(pieces, 'protein')),
+      fat: Math.round(perServing.fat * servings + wholeAddition(pieces, 'fat')),
+      carbs: Math.round(perServing.carbs * servings + wholeAddition(pieces, 'carbs')),
     };
     const takers = takingIt(slot, replacement, waived);
     const dayAfter = {

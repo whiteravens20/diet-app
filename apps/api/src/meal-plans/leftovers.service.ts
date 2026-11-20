@@ -33,6 +33,7 @@ import {
   scaleRests,
 } from './plan-days.js';
 import { writePlans } from './plan-write.js';
+import { pieced, pieceUsesOf } from './whole-pieces-store.js';
 
 /** A meal as it was before a leftover took its place or was left of it: what undoing the leftover writes back. */
 const StoredMeal = z.object({
@@ -158,10 +159,14 @@ export class LeftoversService {
       .filter(takesALeftover)
       .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
     if (places.length === 0) throw noPlace();
-    const [cooked, sharedWith, other] = await Promise.all([
+    const [cooked, sharedWith, other, pieces] = await Promise.all([
       this.plans.cookedWith(this.prisma, next.plan.id, PlanOptions.parse(next.plan.options)),
       this.sharedWith(userId, places),
       this.otherSide(userId, source),
+      pieceUsesOf(
+        this.prisma,
+        places.map((meal) => meal.id),
+      ),
     ]);
     const date = isoDate(next.date);
     return {
@@ -176,7 +181,7 @@ export class LeftoversService {
             meal.source === 'USER_CUSTOM' || !meal.recipe
               ? (meal.customName ?? '')
               : pickTitle(locale, meal.recipe.translations, meal.recipe.title),
-          calories: mealNutrition(meal).calories,
+          calories: mealNutrition(pieced(meal, pieces)).calories,
           sharedWith: sharedWith.get(meal.id) ?? null,
           cookAhead: cooking.length === 0 ? null : cooksFirst(date, meal.mealType, cooking),
           cookedWith: cooking.map((one) => ({

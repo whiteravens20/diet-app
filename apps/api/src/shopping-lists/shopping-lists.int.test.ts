@@ -264,7 +264,7 @@ describe('shopping lists and the pantry', () => {
       });
     });
 
-    it('rounds a need up, never down: a scaled meal that takes 3.3 eggs asks for four', async () => {
+    it('rounds a need up, never down, and buys the eggs a pot takes: a scaled meal of 3.3 eggs is cooked with three', async () => {
       const breakfast = plan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
       await t.prisma.plannedMeal.update({
         where: { id: breakfast.id },
@@ -273,7 +273,8 @@ describe('shopping lists and the pantry', () => {
 
       const list = await listFor(0);
 
-      expect(rowOf(list, 'Large egg').totalQuantity).toBe(4);
+      // A pot takes its eggs whole, the nearest number of them.
+      expect(rowOf(list, 'Large egg').totalQuantity).toBe(3);
       // 77 g of bread are 2.2 slices.
       expect(rowOf(list, 'Wholegrain bread').totalQuantity).toBe(3);
     });

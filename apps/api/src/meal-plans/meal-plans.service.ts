@@ -107,7 +107,6 @@ import {
   parseDayOverrides,
   standingOf,
   sumNutrition,
-  type MealAmount,
   restsOf,
   restsAsJson,
   settleNewRecipes,
@@ -117,6 +116,7 @@ import {
   sharesOfPlanDay,
   storedPlateOf,
   type StoredPlate,
+  type MealRow,
 } from './plan-days.js';
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
@@ -133,6 +133,14 @@ import {
   type Candidate,
   type Restrictions,
 } from './eligibility.js';
+import {
+  pieceFactorOf,
+  pieceUsesOf,
+  piecedDays,
+  selfContained,
+  usesOfPlans,
+  type PieceUses,
+} from './whole-pieces-store.js';
 
 /**
  * Reading a plan, and what changes a meal without choosing another recipe: a
@@ -232,6 +240,7 @@ export class MealPlansService {
             overrides: true,
             meals: {
               select: {
+                id: true,
                 servings: true,
                 quantityScale: true,
                 source: true,
@@ -247,11 +256,15 @@ export class MealPlansService {
       },
     });
     const byId = new Map(plans.map((plan) => [plan.id, plan]));
+    const pieces = await pieceUsesOf(
+      this.prisma,
+      plans.flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => meal.id))),
+    );
     return {
       items: page.flatMap(({ id }) => {
         const plan = byId.get(id);
         // Deleted between the two reads: it is on no page any more.
-        return plan ? [this.toSummary(plan)] : [];
+        return plan ? [this.toSummary(plan, pieces)] : [];
       }),
       page: query.page,
       pageSize: query.pageSize,
@@ -421,7 +434,8 @@ export class MealPlansService {
             day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
         ),
     );
-    const [restrictions, diary, lists, nextElsewhere, toppingFoods] = await Promise.all([
+    const mealIds = plan.days.flatMap((day) => day.meals.map((meal) => meal.id));
+    const [restrictions, diary, lists, nextElsewhere, toppingFoods, pieces] = await Promise.all([
       restrictionsFor(this.prisma, plan),
       diaryOfDays(this.prisma, plan.profileId, plan.days),
       this.prisma.shoppingList.findMany({
@@ -435,6 +449,8 @@ export class MealPlansService {
       plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
         ? toppingFoodsOf(this.prisma)
         : (new Map() as ToppingFoods),
+      // A plan with every pot in it is worked out as it was read; one that shares a pot reads the other plan too.
+      selfContained(plan) ? usesOfPlans([plan], mealIds) : pieceUsesOf(this.prisma, mealIds),
     ]);
     const nextDays = new Map([...nextElsewhere, ...ownNext]);
     // The entries themselves are read only for a plan whose days hold any.
@@ -460,8 +476,10 @@ export class MealPlansService {
         nextDays,
         toppingFoods,
         packed,
+        pieces,
       ),
       packed,
+      pieces,
     };
   }
 
@@ -1605,14 +1623,14 @@ export class MealPlansService {
     };
   }
 
-  private toSummary(plan: SummarisedPlan): MealPlanSummary {
+  private toSummary(plan: SummarisedPlan, pieces: PieceUses): MealPlanSummary {
     return {
       id: plan.id,
       profileId: plan.profileId,
       startDate: isoDate(plan.startDate),
       durationDays: plan.durationDays,
       dietType: plan.dietType,
-      averageDailyNutrition: averageDay(plan.days),
+      averageDailyNutrition: averageDay(piecedDays(plan.days, pieces)),
       ingredientReuseScore: plan.reuseScore,
       generationMode: modelHadAPart(plan.days),
       options: PlanOptions.parse(plan.options),
@@ -1623,7 +1641,7 @@ export class MealPlansService {
   }
 
   private toDto(
-    plan: PlanWithRelations,
+    given: PlanWithRelations,
     locale: Locale,
     restrictions: Restrictions,
     diary: Map<string, DiaryOnDay>,
@@ -1638,7 +1656,11 @@ export class MealPlansService {
     toppingFoods: ToppingFoods,
     /** What the meals take of the packs (`packedMealsOf`). */
     packed: readonly PackedMeal[],
+    /** What the meals take whole of eggs and tortillas (`pieceUsesOf`). */
+    pieces: PieceUses,
   ): MealPlan {
+    // Every figure of a meal below counts its pot's whole eggs and tortillas.
+    const plan = { ...given, days: piecedDays(given.days, pieces) };
     const listed = (date: Date): boolean =>
       lists.some((list) => list.fromDate <= date && date <= list.toDate);
     const floor = safetyFloor(plan.profile?.sex ?? null);
@@ -1678,7 +1700,8 @@ export class MealPlansService {
               sum +
               (meal.servings *
                 meal.quantityScale *
-                plateShare(plateOfMeal(meal.plate), line.ingredient)) /
+                plateShare(plateOfMeal(meal.plate), line.ingredient) *
+                pieceFactorOf(meal.pieces, line.ingredientId)) /
                 servings,
             0,
           ),
@@ -1746,7 +1769,8 @@ export class MealPlansService {
           recipe,
           ingredients: toPlannedIngredients(
             m.recipe.ingredients,
-            ofRecipe,
+            // Its pot's eggs and tortillas whole: the meal's share of them.
+            (line) => ofRecipe * pieceFactorOf(m.pieces, line.ingredientId),
             locale,
             restAmounts([m]),
             (line) => plateShare(plateOfMeal(m.plate), line.ingredient),
@@ -1905,7 +1929,7 @@ const SCALE_SLACK = 1e-6;
 
 /** A plan as far as its summary takes: the row, and what its meals amount to. */
 type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
-  days: { overrides: unknown; meals: (MealAmount & { modelPicked: boolean })[] }[];
+  days: { overrides: unknown; meals: (MealRow & { id: string; modelPicked: boolean })[] }[];
   joint: { plans: { id: string; profileId: string; profile: { name: string } }[] } | null;
 };
 
@@ -1988,6 +2012,8 @@ interface Assembled {
   dto: MealPlan;
   /** What the plan's meals take of the packs, each on its day of the plan. */
   packed: readonly PackedMeal[];
+  /** What the plan's meals take whole of eggs and tortillas (`pieceUsesOf`). */
+  pieces: PieceUses;
 }
 
 /** What the rests of packs these meals finish come to, by ingredient, in each ingredient's own unit. */
@@ -2020,6 +2046,8 @@ function joined(
     new Map(assembled.dto.days.flatMap((day) => day.meals).map((meal) => [meal.id, meal]));
   const myMeals = meals(mine);
   const theirMeals = meals(theirs);
+  const myPieces = mine.pieces;
+  const theirPieces = theirs.pieces;
   const theirsByShared = new Map<string, PlannedMeal>();
   for (const day of theirs.plan.days)
     for (const row of day.meals) {
@@ -2067,9 +2095,16 @@ function joined(
         const servings = Math.max(1, row.recipe.servings);
         const mine = plateOfMeal(row.plate);
         const theirsPlate = plateOfMeal(theirRows.get(other.id)?.plate);
+        // Each portion takes its eggs and tortillas at its pot's factor: one pot's where the two are cooked together.
+        const whole = (pieces: PieceUses, id: string, line: RecipeLine): number =>
+          pieceFactorOf(pieces.get(id) ?? [], line.ingredientId);
         const all = (line: RecipeLine): number =>
-          (cooked(meal, myMeals) * plateShare(mine, line.ingredient) +
-            cooked(other, theirMeals) * plateShare(theirsPlate, line.ingredient)) /
+          (cooked(meal, myMeals) *
+            plateShare(mine, line.ingredient) *
+            whole(myPieces, row.id, line) +
+            cooked(other, theirMeals) *
+              plateShare(theirsPlate, line.ingredient) *
+              whole(theirPieces, other.id, line)) /
           servings;
         return {
           ...meal,

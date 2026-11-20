@@ -97,15 +97,17 @@ describe('quantities as a client receives them', () => {
     it('carries its ingredients in the amounts it takes: servings and the rebalancer both counted', async () => {
       const meal = await eggsOnToast(1.5, 0.9);
 
-      // 1.35 of a serving: 222.75 g of egg, 94.5 g of bread, 6.75 ml of oil.
+      // 1.35 of a serving: 4.05 eggs, cooked as four, 94.5 g of bread, 6.75 ml of oil.
       expect(amounts(meal.ingredients)).toEqual({
         'Large egg': '4 piece',
         'Wholegrain bread': '2.5 slice',
         'Olive oil': '7 ml',
       });
       const egg = meal.ingredients.find((line) => line.name === 'Large egg')!;
-      expect(egg.quantity).toBeCloseTo(222.75, 6);
+      expect(egg.quantity).toBeCloseTo(220, 6);
       expect(egg.unit).toBe('g');
+      const bread = meal.ingredients.find((line) => line.name === 'Wholegrain bread')!;
+      expect(bread.quantity).toBeCloseTo(94.5, 6);
       // The recipe itself stays as written.
       expect(amounts(meal.recipe!.ingredients)).toEqual({
         'Large egg': '3 piece',

@@ -48,6 +48,7 @@ import {
   parseDayOverrides,
   type DayOverridesJson,
   plateAsJson,
+  wholeAddition,
 } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import {
@@ -61,6 +62,8 @@ import {
 } from './plan-weeks.js';
 import { writePlan } from './plan-write.js';
 import { toppingKcal } from './toppings-store.js';
+import type { PieceUse } from '../engine/whole-pieces.js';
+import { pieceUsesOf, piecedDays } from './whole-pieces-store.js';
 
 /** What a meal's recipe is read for here: what a serving holds, and how long it takes. */
 const RECIPE = {
@@ -136,11 +139,30 @@ export class DaySettingsService {
             plan,
           )
         : null;
+    // What the pots take whole once the dishes are sized as the change sizes them, a meal it takes away gone.
+    const piecesThen = resized
+      ? await pieceUsesOf(
+          this.prisma,
+          left.map((meal) => meal.id),
+          new Map([
+            ...resized.scales,
+            ...change.fates
+              .filter((fate) => fate.fate === 'removed')
+              .map((fate) => [fate.mealId, 0] as const),
+          ]),
+        )
+      : new Map<string, PieceUse[]>();
     const dayCalories =
       change.drawn.length > 0
         ? null
         : resized
-          ? resized.kcal
+          ? Math.round(
+              resized.kcal +
+                left.reduce(
+                  (sum, meal) => sum + wholeAddition(piecesThen.get(meal.id) ?? [], 'calories'),
+                  0,
+                ),
+            )
           : left.reduce((sum, meal) => sum + mealNutrition(meal).calories, 0) +
             (await toppingKcal(this.prisma, left)) +
             (entered?.nutrition.calories ?? 0);
@@ -155,14 +177,17 @@ export class DaySettingsService {
       };
       // A dish the change cannot move, one at a bound of its portion, stays as it is.
       if (servings.now === servings.then) return { ...fate, fate: 'stays' as const };
-      const kcal = mealNutrition(meal).calories;
       return {
         ...fate,
         portion: {
           servings,
           calories: {
-            now: Math.round(kcal),
-            then: Math.round(now > 0 ? (kcal * then) / now : kcal),
+            now: mealNutrition(meal).calories,
+            then: mealNutrition({
+              ...meal,
+              quantityScale: then,
+              pieces: piecesThen.get(meal.id) ?? [],
+            }).calories,
           },
         },
       };
@@ -633,15 +658,23 @@ export class DaySettingsService {
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const index = plan.days.findIndex((one) => one.id === dayId);
-    const day =
+    const found =
       index < 0
         ? null
         : await this.prisma.mealPlanDay.findUnique({
             where: { id: dayId },
             include: { meals: { include: { recipe: RECIPE } } },
           });
-    if (!day)
+    if (!found)
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
+    // What the day's meals come to counts their pots' eggs and tortillas whole.
+    const [day] = piecedDays(
+      [found],
+      await pieceUsesOf(
+        this.prisma,
+        found.meals.map((meal) => meal.id),
+      ),
+    );
     const date = isoDate(day.date);
     const today = clientToday ?? this.plans.today();
     // Dates in this form compare as text.
