@@ -62,7 +62,7 @@ test.describe('a product in the diary', () => {
     await expect(snack.getByText(diary.entrySource!)).toBeVisible();
     expect(await barriers(page), 'the day with a product written').toEqual([]);
     // Of today, it sized the plan's day again, and said so.
-    await planNoteClosed(page, messages);
+    await planNoteClosed(page, messages, await written);
 
     await snack
       .getByRole('button', { name: diary.editLabel!.replace('{name}', entryName) })
@@ -73,7 +73,7 @@ test.describe('a product in the diary', () => {
     await edit.getByRole('button', { name: (messages.common as Texts).save!, exact: true }).click();
     expect((await changed).status()).toBe(200);
     await expect(snack.getByText(/300/)).toBeVisible();
-    await planNoteClosed(page, messages);
+    await planNoteClosed(page, messages, await changed);
 
     // Taken away again, so that the plan's day is as the other tests find it.
     const removed = answered(page, 'DELETE', '/api/diary/entries/');
@@ -243,7 +243,7 @@ test.describe("a product of one's own", () => {
     await window.getByRole('button', { name: diary.submit!, exact: true }).click();
     expect((await written).status()).toBe(201);
     await expect(page.getByText(BREAD.name).first()).toBeVisible();
-    await planNoteClosed(page, messages);
+    await planNoteClosed(page, messages, await written);
 
     const removedEntry = answered(page, 'DELETE', '/api/diary/entries/');
     await page

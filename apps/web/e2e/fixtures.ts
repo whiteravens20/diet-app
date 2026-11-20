@@ -9,6 +9,7 @@ import {
   type BrowserContext,
   type Locator,
   type Page,
+  type Response,
 } from '@playwright/test';
 import { accountOf, STATE, type Account } from './accounts';
 import { loose } from './patterns';
@@ -241,12 +242,24 @@ export async function theFormForAPlan(page: Page, messages: Messages): Promise<v
 }
 
 /**
- * An entry of today sizes the day of the account's plan again, and says so as the plan's page does: the note is seen,
- * then closed, so that it stands over nothing a test presses next.
+ * An entry of today sizes the day of the account's plan again where that moves a portion (the answer's `planChange`),
+ * and says so as the plan's page does: the note is seen, then closed, so that it stands over nothing a test presses
+ * next. Where the answer moved nothing, no note is there.
  */
-export async function planNoteClosed(page: Page, messages: Messages): Promise<void> {
+export async function planNoteClosed(
+  page: Page,
+  messages: Messages,
+  answer: Response,
+): Promise<void> {
+  const written = (await answer.json()) as {
+    planChange?: { rebalance?: { changes?: unknown[] } | null } | null;
+  };
   const plans = messages.mealPlans as Record<string, string>;
   const note = page.getByText(plans.rebalanceTitle!, { exact: true });
+  if ((written.planChange?.rebalance?.changes?.length ?? 0) === 0) {
+    await expect(note).toHaveCount(0);
+    return;
+  }
   await expect(note).toBeVisible();
   await page.getByRole('button', { name: plans.rebalanceDismiss!, exact: true }).click();
   await expect(note).toHaveCount(0);
