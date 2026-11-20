@@ -298,6 +298,9 @@ describe('everything an account holds, as one file', () => {
       startDate: plan.startDate,
       durationDays: 2,
       dietType: 'balanced',
+      // What the plan gave the pantry of its frozen rests and of what its packs leave: nothing yet.
+      frozenKept: [],
+      packsKept: [],
     });
     expect(exported!.days.map((day) => day.date)).toEqual(plan.days.map((day) => day.date));
     const firstDay = exported!.days[0]!.meals;

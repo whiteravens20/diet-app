@@ -352,6 +352,8 @@ export class AccountExportService {
         options: plan.options,
         // The rests of meat and fish the plan froze that were given to the pantry: ingredient, day and amount.
         frozenKept: plan.frozenKept,
+        // What the packs the plan opens left that was given to the pantry: ingredient, day the pack opened and amount.
+        packsKept: plan.packsKept,
         createdAt: plan.createdAt.toISOString(),
         // Made together with another plan of the account, which has the same id here.
         jointPlanId: plan.jointPlanId,
