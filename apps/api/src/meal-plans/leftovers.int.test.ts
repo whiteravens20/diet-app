@@ -495,23 +495,30 @@ describe('a leftover: what is left of a meal, eaten the next day', () => {
     expect(leftover.cooking).toBeNull();
   });
 
-  it('opens no pack: what it takes was opened with the meal it was left of', async () => {
+  it('opens no pack: what it takes was taken of the packs with the meal it was left of, on the day that was cooked', async () => {
     const packed = await t.prisma.recipeIngredient.findMany({
       where: { ingredient: { perishable: true, packSize: { not: null } } },
-      select: { recipeId: true },
+      select: { recipeId: true, ingredientId: true },
     });
-    const opening = new Set(packed.map((line) => line.recipeId));
-    const meal = dayOf(plan, TODAY).meals.find((one) => one.recipe && opening.has(one.recipe.id))!;
+    const takes = (recipeId: string): Set<string> =>
+      new Set(packed.filter((line) => line.recipeId === recipeId).map((line) => line.ingredientId));
+    const place = at(plan, TOMORROW, 'breakfast')!;
+    // A dish of today that takes of a pack the meal it takes the place of does not.
+    const only = (meal: PlannedMeal): string[] =>
+      meal.recipe
+        ? [...takes(meal.recipe.id)].filter((food) => !takes(place.recipe!.id).has(food))
+        : [];
+    const meal = dayOf(plan, TODAY).meals.find((one) => only(one).length > 0)!;
     expect(meal).toBeDefined();
-    const after = await carried(meal, { mealType: 'breakfast', left: 1 });
-    const leftover = at(after, TOMORROW, 'breakfast')!;
+    const foods = new Set(only(meal));
+    const ofFoods = (packs: MealPlan['packs']) =>
+      packs.open.filter((pack) => foods.has(pack.ingredientId));
 
-    // However much it is, the packs of the plan stay as they are.
-    await t.prisma.plannedMeal.update({
-      where: { id: leftover.id },
-      data: { quantityScale: leftover.quantityScale * 3 },
-    });
-    expect((await read()).packs).toEqual(after.packs);
+    const after = await carried(meal, { mealType: 'breakfast', left: 1 });
+
+    // The meal it was left of is gone from its day, and its dish is still taken of the packs it was cooked from.
+    expect(at(after, TODAY, meal.mealType)).toBeUndefined();
+    expect(ofFoods(after.packs)).toEqual(ofFoods(plan.packs));
   });
 
   it('lets one of two leftovers of a meal asked for at once through', async () => {

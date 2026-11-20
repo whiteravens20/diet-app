@@ -349,18 +349,18 @@ export interface CountedMeal extends MenuMeal {
 type ToppingFood = PackedLine['ingredient'] & { id: string };
 
 /**
- * What the meals of a plan take of the packs, as every count of a plan reads
- * them: a meal on its day, one eaten from a dish cooked ahead on the day the
- * dish is cooked (in a plan made for cooking ahead), a leftover not at all (it
- * was cooked with the meal it was left of), a topping with its meal, a meal of
- * the user's own not at all. `days` are the days of the plan in order, each
- * with the meals to count.
+ * The day each meal of a plan that cooks a dish is cooked on, by the meal: a meal on its day, one eaten from a dish
+ * cooked ahead on the day the dish is cooked (in a plan made for cooking ahead), a leftover on the day the meal it was
+ * left of was cooked, since it was cooked with it. A leftover of a dish cooked before the plan's days has none: it takes
+ * nothing of the plan's packs. `days` are the days of the plan in order, each with its meals.
  */
-export function packedMealsOf(
-  days: readonly { date: Date; meals: readonly CountedMeal[] }[],
+export function cookedDaysOf(
+  days: readonly {
+    date: Date;
+    meals: readonly (MenuMeal & { source: string; recipe: unknown })[];
+  }[],
   mealPrepFriendly: boolean,
-  toppingFoods: ReadonlyMap<string, ToppingFood>,
-): PackedMeal[] {
+): Map<string, number> {
   const cookedOnDay = new Map<string, number>();
   if (mealPrepFriendly)
     for (const places of cookingsOf(
@@ -373,16 +373,52 @@ export function packedMealsOf(
       })),
     ).cookings)
       for (const place of places) cookedOnDay.set(place.meal.id, places[0]!.day);
+  const dayOf = new Map(days.map((day, index) => [isoDate(day.date), index]));
+  days.forEach((day, dayIndex) => {
+    for (const meal of day.meals) {
+      if (meal.source === 'USER_CUSTOM' || !meal.recipe || cookedOnDay.has(meal.id)) continue;
+      if (!meal.leftoverFromDate) {
+        cookedOnDay.set(meal.id, dayIndex);
+        continue;
+      }
+      const at = dayOf.get(isoDate(meal.leftoverFromDate));
+      if (at === undefined) continue;
+      // The meal it was left of, where it was eaten in part and stays: the day its dish was cooked.
+      const source = days[at]!.meals.find(
+        (one) =>
+          !one.leftoverFromDate &&
+          one.mealType === meal.leftoverFromMealType &&
+          one.recipeId === meal.recipeId,
+      );
+      cookedOnDay.set(meal.id, (source && cookedOnDay.get(source.id)) ?? at);
+    }
+  });
+  return cookedOnDay;
+}
+
+/**
+ * What the meals of a plan take of the packs, as every count of a plan reads
+ * them: a meal on the day it is cooked (`cookedDaysOf`), a leftover with it on
+ * the day the meal it was left of was cooked, a topping with its meal, a meal
+ * of the user's own not at all. `days` are the days of the plan in order, each
+ * with the meals to count.
+ */
+export function packedMealsOf(
+  days: readonly { date: Date; meals: readonly CountedMeal[] }[],
+  mealPrepFriendly: boolean,
+  toppingFoods: ReadonlyMap<string, ToppingFood>,
+): PackedMeal[] {
+  const cookedOnDay = cookedDaysOf(days, mealPrepFriendly);
   const packed: PackedMeal[] = [];
   days.forEach((day, dayIndex) => {
     for (const meal of day.meals) {
-      if (meal.source !== 'USER_CUSTOM' && meal.recipe && !meal.leftoverFromDate) {
-        const day = cookedOnDay.get(meal.id) ?? dayIndex;
+      const cooked = cookedOnDay.get(meal.id);
+      if (meal.source !== 'USER_CUSTOM' && meal.recipe && cooked !== undefined) {
         const plate = plateOfMeal(meal.plate);
         packed.push({
-          day,
-          mealId: meal.id,
-          rank: rankOf(meal.mealType),
+          day: cooked,
+          // A pack is said at a meal that cooks, not at a leftover of one.
+          ...(meal.leftoverFromDate ? {} : { mealId: meal.id, rank: rankOf(meal.mealType) }),
           factor: (meal.servings * meal.quantityScale) / Math.max(1, meal.recipe.servings),
           // A person's own plate takes each line at its part's share.
           lines: plate
@@ -399,7 +435,7 @@ export function packedMealsOf(
           );
           if (line)
             packed.push({
-              day,
+              day: cooked,
               factor: 1,
               lines: [
                 {
