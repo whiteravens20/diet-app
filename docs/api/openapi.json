@@ -20000,6 +20000,9 @@
           "until": {
             "$ref": "#/components/schemas/CalendarDay"
           },
+          "forThePantry": {
+            "type": "boolean"
+          },
           "inPantry": {
             "type": "boolean"
           }
@@ -20014,6 +20017,7 @@
           "wasted",
           "date",
           "until",
+          "forThePantry",
           "inPantry"
         ],
         "additionalProperties": false

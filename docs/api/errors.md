@@ -142,7 +142,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `OWN_PRODUCT_NOT_SENDABLE` | 409 | A product goes to the base with its code, calories, protein, fat and carbohydrates. | Do bazy trafia produkt z kodem, kaloriami, białkiem, tłuszczem i węglowodanami. |
 | `OWN_PRODUCT_SEND_LIMIT` | 429 | You can send at most 10 products to the base in 24 hours. | W ciągu doby możesz wysłać do bazy najwyżej 10 produktów. |
 | `OWN_RECIPE_DAILY_LIMIT` | 429 | You have saved as many recipes of your own today as you may. Try again tomorrow. | Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro. |
-| `PACK_LEFT_GONE` | 409 | The plan no longer leaves anything of this pack. The plan has been reloaded. | Plan nie zostawia już nic z tego opakowania. Plan został odświeżony. |
+| `PACK_LEFT_GONE` | 409 | The plan no longer leaves enough of this pack to put into the pantry. The plan has been reloaded. | Plan nie zostawia już z tego opakowania tyle, żeby dodać to do spiżarni. Plan został odświeżony. |
 | `PACK_NOT_OPENED_YET` | 409 | The plan opens this pack on a later day: what it leaves can go into the pantry from that day. | Plan otworzy to opakowanie później: to, co z niego zostanie, dodasz do spiżarni od tego dnia. |
 | `PANTRY_FULL` | 409 | The pantry already holds as many items as it can. Remove one first. | Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich. |
 | `PAYLOAD_TOO_LARGE` | 413 | The request is too large. | Żądanie jest zbyt duże. |

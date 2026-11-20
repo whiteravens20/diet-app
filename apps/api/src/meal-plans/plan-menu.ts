@@ -15,6 +15,7 @@ import {
   thawAll,
   keepDaysOf,
   packUse,
+  SPOONFUL,
   toCanonical,
   UnitConversionError,
   type ConvertibleIngredient,
@@ -177,6 +178,8 @@ export function planPacks(
           date: day(pack.until - packs.get(pack.ingredientId)!.keepDays + 1),
           // A plan on the calendar's last days keeps its packs no further than the calendar goes.
           until: [day(pack.until), LAST_DAY].sort()[0]!,
+          // A spoonful of the pack or more: less is no rest to speak of, for a meal or for the pantry.
+          forThePantry: pack.left >= SPOONFUL * pack.packSize,
           // Read from the plan by whoever reads it (`keptMarked`).
           inPantry: false,
         };

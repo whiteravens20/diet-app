@@ -1562,6 +1562,7 @@ describe('the plan page, on how a day stands against its target', () => {
       left: 20,
       date: '2026-01-05',
       until: '2026-01-07',
+      forThePantry: true,
       inPantry: false,
       wasted: false,
     } as const;
@@ -1574,6 +1575,7 @@ describe('the plan page, on how a day stands against its target', () => {
       left: 500,
       date: '2026-01-05',
       until: '2026-01-07',
+      forThePantry: true,
       inPantry: false,
       wasted: true,
     } as const;
@@ -1586,6 +1588,7 @@ describe('the plan page, on how a day stands against its target', () => {
       left: 160,
       date: '2026-01-05',
       until: '2026-01-07',
+      forThePantry: true,
       inPantry: false,
       wasted: true,
     } as const;
@@ -1684,6 +1687,25 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.queryByRole('button', { name: /^Add to the pantry: Whole milk/ })).toBeNull();
     });
 
+    it('offers the pantry nothing of a pack that leaves less than a spoonful of it', async () => {
+      await opened(
+        aPlan({
+          packs: {
+            bought: 1000,
+            used: 970,
+            open: [{ ...milk, left: 30, wasted: false, forThePantry: false }],
+            frozen: [],
+            fromFreezer: [],
+          },
+        }),
+      );
+      await userEvent.click(screen.getByText(/^Packs that do not keep once opened/));
+
+      expect(screen.getByText(/^Whole milk:/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Add to the pantry: Whole milk/ })).toBeNull();
+      expect(screen.queryByText(messages.mealPlans.packs.inPantry)).toBeNull();
+    });
+
     it('offers the pantry nothing of a pack the plan opens on a later day', async () => {
       await opened(
         aPlan({
@@ -1714,6 +1736,7 @@ describe('the plan page, on how a day stands against its target', () => {
         wasted: left > packSize / 5,
         date: '2026-01-05',
         until: '2026-01-07',
+        forThePantry: true,
         inPantry: false,
       });
       const chicken = (left: number) => pack('c', 'Chicken breast', 500, left);
@@ -2943,6 +2966,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     left: 350,
     date: '2026-01-05',
     until: '2026-01-07',
+    forThePantry: true,
     inPantry: false,
     wasted: true,
   } as const;

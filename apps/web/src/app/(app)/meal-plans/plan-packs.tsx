@@ -77,7 +77,9 @@ export function PlanPacksLine({
                 ),
                 size: amount(first.packSize, first.unit),
               };
-              const toGive = food.filter((pack) => !pack.inPantry && pack.date <= today);
+              const toGive = food.filter(
+                (pack) => pack.forThePantry && !pack.inPantry && pack.date <= today,
+              );
               return (
                 <li
                   key={first.ingredientId}

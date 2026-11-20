@@ -902,6 +902,11 @@ export const PlanOpenPack = z.object({
   date: CalendarDay,
   /** The last day it keeps once opened: what is left of it keeps until then. */
   until: CalendarDay,
+  /**
+   * Enough is left to give the pantry: a spoonful of a pack (a twentieth) or more. Less is no rest to speak of, for a
+   * meal or for the pantry; the plan only says it.
+   */
+  forThePantry: z.boolean(),
   /** Given to the pantry already ("Dodaj do spiżarni", `KeepLeftRequest`): it is given once. */
   inPantry: z.boolean(),
 });
@@ -910,8 +915,8 @@ export type PlanOpenPack = z.infer<typeof PlanOpenPack>;
 /**
  * "Dodaj do spiżarni" of what a pack the menu opens leaves (`PlanOpenPack`): it goes into the pantry as fresh food,
  * with the pack's last day as its date, once, from the day the pack is opened. Asked again, the plan is answered as it
- * is; a pack the menu no longer leaves anything of answers 409 `PACK_LEFT_GONE`, one opened on a later day 409
- * `PACK_NOT_OPENED_YET`.
+ * is; a pack the menu no longer leaves enough of (`PlanOpenPack.forThePantry`) answers 409 `PACK_LEFT_GONE`, one opened
+ * on a later day 409 `PACK_NOT_OPENED_YET`.
  */
 export const KeepLeftRequest = z.object({
   ingredientId: z.string().uuid(),

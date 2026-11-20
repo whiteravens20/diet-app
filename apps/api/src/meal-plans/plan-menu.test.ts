@@ -97,6 +97,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         // Opened on the menu's day, kept a week; what is given to the pantry is read from the plan.
         date: '2026-01-05',
         until: '2026-01-11',
+        forThePantry: true,
         inPantry: false,
       },
       {
@@ -109,6 +110,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         wasted: false,
         date: '2026-01-05',
         until: '2026-01-06',
+        forThePantry: true,
         inPantry: false,
       },
     ]);
@@ -174,9 +176,33 @@ describe('what a menu comes to in packs that do not keep', () => {
         wasted: false,
         date: '2026-01-05',
         until: '2026-01-11',
+        forThePantry: true,
         inPantry: false,
       },
     ]);
+  });
+
+  it('says what a pack leaves is enough for the pantry from a spoonful of it, a twentieth', () => {
+    const packs = planPacks(
+      [
+        { day: 0, factor: 1, lines: [line('milk', milk, 950)] },
+        { day: 0, factor: 1, lines: [line('chicken', chicken, 475)] },
+      ],
+      days(1),
+      'en',
+    );
+
+    // 50 ml of a litre is a spoonful; 25 g of 500 g is one too, and the line of what is left says both.
+    expect(packs.open.map((pack) => [pack.ingredientId, pack.left, pack.forThePantry])).toEqual([
+      ['chicken', 25, true],
+      ['milk', 50, true],
+    ]);
+    const less = planPacks(
+      [{ day: 0, factor: 1, lines: [line('milk', milk, 951)] }],
+      days(1),
+      'en',
+    );
+    expect(less.open.map((pack) => [pack.left, pack.forThePantry])).toEqual([[49, false]]);
   });
 
   it('keeps a pack opened on the last days of the calendar no further than the calendar goes', () => {

@@ -363,6 +363,44 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
     });
   });
 
+  it('leaves a pack of which less than a spoonful is left out of the pantry', async () => {
+    const [{ id: stew }, { id: yogurt }] = await Promise.all(
+      [STEW, YOGURT].map((slug) => t.prisma.recipe.findUniqueOrThrow({ where: { slug } })),
+    );
+    const made = await aPlan(t, user, profile, { startDate: '2026-02-02', durationDays: 1 });
+    for (const [index, meal] of made.days[0]!.meals.entries())
+      await t.prisma.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: index === 1 ? yogurt : stew,
+          servings: index === 1 ? 1.95 : 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+          rests: [],
+        },
+      });
+    plansTodayIs('2026-02-02');
+    // 390 g of a pack of 400 g: 10 g are left, less than the spoonful of 20 g.
+    const left = (
+      (await t.http().get(`/api/meal-plans/${made.id}`).set(as(user)).expect(200)).body as MealPlan
+    ).packs.open.find((pack) => pack.ingredientId === yogurtId)!;
+    expect(left).toMatchObject({ left: 10, forThePantry: false });
+
+    const refused = await t
+      .http()
+      .post(`/api/meal-plans/${made.id}/left`)
+      .set(as(user))
+      .send({ ingredientId: yogurtId, date: left.date })
+      .expect(409);
+    expect(refused.body.error).toBe('PACK_LEFT_GONE');
+    expect(
+      await t.prisma.inventoryItem.count({
+        where: { profileId: profile.id, ingredientId: yogurtId },
+      }),
+    ).toBe(0);
+  });
+
   describe('of a plan still ahead', () => {
     let plan: MealPlan;
     let yogurtMeal: string;

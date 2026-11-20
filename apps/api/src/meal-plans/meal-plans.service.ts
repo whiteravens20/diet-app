@@ -382,9 +382,9 @@ export class MealPlansService {
   /**
    * "Dodaj do spiżarni" of what a pack the menu opens leaves (`KeepLeftRequest`): it goes into the pantry as fresh
    * food, added to what is fresh of the food there, dated the pack's last day where that is sooner, once for the
-   * kitchen. A pack the menu no longer leaves anything of answers 409 `PACK_LEFT_GONE`, and one it opens on a later
-   * day 409 `PACK_NOT_OPENED_YET`: until then the pantry would hold what was not even bought, and a shopping list
-   * would count it as at home.
+   * kitchen. A pack the menu no longer leaves enough of (a spoonful, `PlanOpenPack.forThePantry`) answers 409
+   * `PACK_LEFT_GONE`, and one it opens on a later day 409 `PACK_NOT_OPENED_YET`: until then the pantry would hold what
+   * was not even bought, and a shopping list would count it as at home.
    */
   async keepLeft(
     userId: string,
@@ -397,10 +397,10 @@ export class MealPlansService {
     const pack = plan.packs.open.find(
       (one) => one.ingredientId === asked.ingredientId && one.date === asked.date,
     );
-    if (!pack || pack.left < 1)
+    if (!pack?.forThePantry)
       throw new ConflictException({
         error: 'PACK_LEFT_GONE',
-        message: 'The plan no longer leaves anything of this pack.',
+        message: 'The plan no longer leaves enough of this pack to put into the pantry.',
       });
     if (pack.inPantry) return plan;
     if (pack.date > (clientToday ?? this.today()))

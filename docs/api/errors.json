@@ -1211,8 +1211,8 @@
       409
     ],
     "messages": {
-      "en": "The plan no longer leaves anything of this pack. The plan has been reloaded.",
-      "pl": "Plan nie zostawia już nic z tego opakowania. Plan został odświeżony."
+      "en": "The plan no longer leaves enough of this pack to put into the pantry. The plan has been reloaded.",
+      "pl": "Plan nie zostawia już z tego opakowania tyle, żeby dodać to do spiżarni. Plan został odświeżony."
     }
   },
   "PACK_NOT_OPENED_YET": {
