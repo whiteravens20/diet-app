@@ -63,6 +63,7 @@ import { DraftService, type Actor } from '../admin/drafts/draft.service.js';
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
 import { Answers } from '../common/answers.decorator.js';
 import { ProductReviewService } from '../products/product-review.service.js';
+import { listedLocale } from '../common/listed-locale.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { Passwords } from '../common/passwords.js';
@@ -262,9 +263,11 @@ export class ReviewController {
   async patchRecipeSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
-    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) query: TargetLocaleQuery,
     @Body(new ZodValidationPipe(RecipeReviewPatchBody)) patch: RecipeReviewPatchBody,
   ): Promise<RecipeReviewSlice> {
+    // The language names the fields of the text that is checked: as the list holds it.
+    const locale = listedLocale(query.locale);
     return toRecipeReviewSlice(
       await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)),
       locale,
@@ -348,10 +351,12 @@ export class ReviewController {
   async patchIngredientNameSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
-    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) query: TargetLocaleQuery,
     @Body(new ZodValidationPipe(IngredientNameReviewPatchBody))
     patch: IngredientNameReviewPatchBody,
   ): Promise<IngredientNameReviewSlice> {
+    // The language names the fields of the text that is checked: as the list holds it.
+    const locale = listedLocale(query.locale);
     return toIngredientNameReviewSlice(
       await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)),
       locale,

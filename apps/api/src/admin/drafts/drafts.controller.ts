@@ -62,6 +62,7 @@ import {
   type TargetLocale,
 } from '@diet-app/shared';
 import { Answers, AnswersListOf, AnswersWithAFile } from '../../common/answers.decorator.js';
+import { listedLocale } from '../../common/listed-locale.js';
 import { requiredUuid, ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
@@ -117,10 +118,12 @@ export class DraftsController {
   async startNamerRun(
     @Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec,
   ): Promise<DraftRunnerState> {
+    // The languages name the fields of what the run checks: as the list holds them.
+    const targetLocales = body.targetLocales?.map(listedLocale);
     const spec: IngredientNamerStartSpec =
       body.scope === 'specific-slugs'
-        ? { scope: body.scope, slugs: body.slugs ?? [], targetLocales: body.targetLocales }
-        : { scope: body.scope, targetLocales: body.targetLocales };
+        ? { scope: body.scope, slugs: body.slugs ?? [], targetLocales }
+        : { scope: body.scope, targetLocales };
     const started = await this.namer.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -358,7 +361,8 @@ export class DraftsController {
   async startTranslations(
     @Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec,
   ): Promise<DraftRunnerState> {
-    if (!(await this.translations.start(body))) {
+    // The language names the fields of the drafts and the file of examples: as the list holds it.
+    if (!(await this.translations.start({ ...body, locale: listedLocale(body.locale) }))) {
       throw new ConflictException({
         error: 'TRANSLATIONS_IN_PROGRESS',
         message: 'A run that fills a language is already in progress.',
