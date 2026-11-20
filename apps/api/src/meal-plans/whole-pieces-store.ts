@@ -60,7 +60,7 @@ function inUnit(
 }
 
 /** A planned meal as its pot is worked out from it. */
-export interface PotMeal {
+interface PotMeal {
   id: string;
   mealType: string;
   recipeId: string | null;
