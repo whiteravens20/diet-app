@@ -19,6 +19,7 @@ import {
   storedRestOf,
   type StoredRest,
 } from './plan-days.js';
+import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { cookedDaysOf } from './plan-menu.js';
 import { toppingFoodsOf } from './toppings-store.js';
@@ -53,6 +54,7 @@ const INGREDIENT = {
 /** A plan of a kitchen as its rests are worked out from it. */
 const KITCHEN_PLAN = {
   id: true,
+  profileId: true,
   options: true,
   jointPlanId: true,
   days: {
@@ -161,7 +163,10 @@ export async function followRests(
     ? await toppingFoodsOf(tx)
     : new Map();
 
-  const worked = restsOfKitchen(plans, level, toppingFoods, today);
+  // What the diary of a day holds stays on the day, as the plan was made around it.
+  const diaries: ReadonlyMap<string, DiaryOnDay>[] = [];
+  for (const plan of plans) diaries.push(await diaryOfDays(tx, plan.profileId, plan.days));
+  const worked = restsOfKitchen(plans, level, toppingFoods, today, diaries);
   const followed: FollowedRest[] = [];
   for (const plan of plans)
     for (const day of plan.days) {
@@ -197,17 +202,19 @@ function sameRests(a: readonly StoredRest[], b: readonly StoredRest[]): boolean 
 /**
  * The rests each meal of the kitchen's plans takes as the plans stand, by meal, of the foods counted in packs
  * (`counted`): every meal of a recipe that cooks is placed as the planner placed it, on its day of the first plan's
- * days, so that its pots and a dish cooked ahead come out as they did; the meals of one's own and the leftovers are
- * what stays on a day. A leftover was cooked with the meal it was left of: its dish and its rests are taken of the
- * packs on the day that meal was cooked. A meal eaten, or of a day gone (before `today`), keeps its rests: where the
- * work gives it less of a pack than it took (a meal after it now takes from the pack and finishes it), what it took
- * beyond is gone from the pack, and the rests are worked out again with that.
+ * days, so that its pots and a dish cooked ahead come out as they did; the meals of one's own, the leftovers and what
+ * the diary of a day holds (`diaries`, by plan) are what stays on a day, as the plan was made around them. A leftover
+ * was cooked with the meal it was left of: its dish and its rests are taken of the packs on the day that meal was
+ * cooked. A meal eaten, or of a day gone (before `today`), keeps its rests: where the work gives it less of a pack than
+ * it took (a meal after it now takes from the pack and finishes it), what it took beyond is gone from the pack, and the
+ * rests are worked out again with that.
  */
 function restsOfKitchen(
   plans: readonly KitchenPlan[],
   level: WasteLevel,
   toppingFoods: ReadonlyMap<string, PackFood>,
   today: string,
+  diaries: readonly ReadonlyMap<string, DiaryOnDay>[],
 ): Map<string, StoredRest[]> & { counted: ReadonlySet<string> } {
   const dayOf = new Map(plans[0]!.days.map((day, index) => [isoDate(day.date), index]));
   /** What stays as it is takes of the packs on each day of the first plan's days. */
@@ -236,12 +243,15 @@ function restsOfKitchen(
 
   const placed = plans.map(() => [] as KitchenMeal[]);
   const restPlans: RestPlan[] = plans.map((plan, p) => {
-    const days = plans[0]!.days.map((day) => ({
-      dailyCalorieTarget:
-        plan.days.find((one) => isoDate(one.date) === isoDate(day.date))?.calorieTarget ??
-        day.calorieTarget,
-      kept: [] as { calories: number }[],
-    }));
+    const days = plans[0]!.days.map((day) => {
+      const diary = diaries[p]!.get(isoDate(day.date));
+      return {
+        dailyCalorieTarget:
+          plan.days.find((one) => isoDate(one.date) === isoDate(day.date))?.calorieTarget ??
+          day.calorieTarget,
+        kept: diary ? [{ calories: diary.nutrition.calories }] : ([] as { calories: number }[]),
+      };
+    });
     const recipes = new Map<string, RestPlan['recipes'][number]>();
     const assignments: RestPlan['assignments'][number][] = [];
     const toppings = new Map<number, { ingredientId: string; amount: number; calories: number }>();

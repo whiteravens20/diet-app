@@ -87,6 +87,60 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
     expect(rests).toBeGreaterThan(0);
   });
 
+  it("come out as the plan was made with them where the pantry's freezer holds a package the plan thaws", async () => {
+    const chicken = await t.prisma.ingredient.findUniqueOrThrow({
+      where: { slug: 'chicken-breast' },
+    });
+    await t.prisma.inventoryItem.create({
+      data: {
+        profileId: profile.id,
+        ingredientId: chicken.id,
+        quantity: 300,
+        unit: 'g',
+        frozen: true,
+        parcel: 1,
+        bestBefore: new Date('2026-03-31'),
+      },
+    });
+    for (const options of [{ lessWaste: true }, { noWaste: true }]) {
+      const made = await aPlan(t, user, profile, {
+        startDate: '2026-02-02',
+        durationDays: 7,
+        ...options,
+      });
+
+      expect(await follow(made.id), JSON.stringify(options)).toEqual([]);
+    }
+  });
+
+  it('come out as the plan was made with them where the diary of its days holds what fills them', async () => {
+    // A feast written on each day of the plan before it is made: the plan is made around it, and no rest fits a day.
+    const today = new Date().toISOString().slice(0, 10);
+    for (let day = 0; day < 7; day += 1)
+      await t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({
+          profileId: profile.id,
+          date: `2026-02-0${2 + day}`,
+          mealType: 'lunch',
+          kind: 'meal',
+          name: 'Feast',
+          nutrition: { calories: 3000, protein: 100, fat: 100, carbs: 400 },
+        })
+        .expect(201);
+    const made = await aPlan(t, user, profile, {
+      startDate: '2026-02-02',
+      durationDays: 7,
+      lessWaste: true,
+    });
+
+    expect(await restsOfPlan(made.id)).toEqual([]);
+    expect(await follow(made.id)).toEqual([]);
+  });
+
   it("of a dish both people of a joint plan eat is the pot's, each portion its share", async () => {
     const [{ id: stew }, { id: yogurt }] = await Promise.all(
       [STEW, YOGURT].map((slug) => t.prisma.recipe.findUniqueOrThrow({ where: { slug } })),
@@ -452,6 +506,31 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
 
       // 1.5 servings take 300 g: the 100 g left hold more than a tenth of the meal, and are no rest.
       await scale(1.5 / 1.75);
+      await follow(plan.id);
+      expect(await yogurtRest()).toBe(0);
+    });
+
+    it('gives no rest where what the diary of its day holds leaves the day no room for it', async () => {
+      const { calorieTarget } = await t.prisma.mealPlanDay.findFirstOrThrow({
+        where: { planId: plan.id },
+      });
+      // A feast of the day's whole window written into the diary: 48.5 kcal more would take the day past it.
+      const feast = Math.round(calorieTarget * 1.1);
+      await t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(user))
+        .set('X-Client-Date', new Date().toISOString().slice(0, 10))
+        .send({
+          profileId: profile.id,
+          date: '2026-02-02',
+          mealType: 'lunch',
+          kind: 'meal',
+          name: 'Feast',
+          nutrition: { calories: feast, protein: 0, fat: 0, carbs: Math.round(feast / 4) },
+        })
+        .expect(201);
+
       await follow(plan.id);
       expect(await yogurtRest()).toBe(0);
     });
