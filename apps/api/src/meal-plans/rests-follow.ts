@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PlanOptions, type MealType } from '@diet-app/shared';
 import { potsOf } from '../engine/close-packs.js';
 import { packRests, type RestInput, type RestPlan } from '../engine/pack-rests.js';
@@ -468,6 +468,13 @@ export class RestsFollowOnStart implements OnApplicationBootstrap {
       if (kitchens.has(kitchen)) continue;
       kitchens.add(kitchen);
       written += await this.prisma.$transaction(async (tx) => {
+        // The plans of the kitchen held in one order, as every write of a kitchen holds them: no change of a plan comes
+        // between the reading of its rests and their writing.
+        await tx.$queryRaw(
+          plan.jointPlanId
+            ? Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "jointPlanId" = ${plan.jointPlanId} ORDER BY "id" FOR UPDATE`
+            : Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`,
+        );
         const followed = await followRests(tx, plan.id, today);
         for (const changed of new Set(followed.map((one) => one.planId)))
           await tx.mealPlan.update({
