@@ -95,8 +95,9 @@ export async function pieceUsesOf(
   scales: ReadonlyMap<string, number> = new Map(),
 ): Promise<Map<string, PieceUse[]>> {
   if (mealIds.length === 0) return new Map();
-  // Each set of ids is worked out before the rows that use it (`= ANY(ARRAY(...))`), so that the rows are
-  // found by their indexes and never by a scan of every plan's days.
+  // Each set of ids is worked out before the rows that use it (`= ANY(ARRAY(...))`), so that the planner knows how
+  // few rows it reads and needs no compiling of the query; the meals of the plans are read once, those of a plan a
+  // leftover links them to only where there is one, and the lines of eggs and tortillas from the two foods' side.
   const rows = await db.$queryRaw<PotRow[]>`
     WITH "asked" AS MATERIALIZED (
       SELECT d."planId", m."sharedMealId"
@@ -109,27 +110,33 @@ export async function pieceUsesOf(
       WHERE m."sharedMealId" = ANY(
         ARRAY(SELECT "sharedMealId" FROM "asked" WHERE "sharedMealId" IS NOT NULL)
       )
-    ), "linked" AS MATERIALIZED (
-      SELECT m."id", m."givenLeftoverId"
+    ), "nearMeals" AS MATERIALIZED (
+      SELECT d."planId", d."date", m."id", m."mealType", m."recipeId", m."servings", m."quantityScale", m."plate", m."source",
+        m."wholePieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
       FROM "MealPlanDay" d JOIN "PlannedMeal" m ON m."dayId" = d."id"
       WHERE d."planId" = ANY(ARRAY(SELECT "planId" FROM "near"))
-    ), "plans" AS MATERIALIZED (
-      SELECT "planId" FROM "near"
-      UNION
+    ), "farther" AS MATERIALIZED (
       SELECT d."planId" FROM "PlannedMeal" l JOIN "MealPlanDay" d ON d."id" = l."dayId"
       WHERE l."id" = ANY(
-        ARRAY(SELECT "givenLeftoverId" FROM "linked" WHERE "givenLeftoverId" IS NOT NULL)
+        ARRAY(SELECT "givenLeftoverId" FROM "nearMeals" WHERE "givenLeftoverId" IS NOT NULL)
       )
       UNION
       SELECT d."planId" FROM "PlannedMeal" o JOIN "MealPlanDay" d ON d."id" = o."dayId"
-      WHERE o."givenLeftoverId" = ANY(ARRAY(SELECT "id" FROM "linked"))
-    )
-    SELECT p."id" AS "planId", p."options", d."date", m."id", m."mealType", m."recipeId",
-      m."servings", m."quantityScale", m."plate", m."source"::text AS "source", m."wholePieces",
-      m."sharedMealId", s."apart", m."givenLeftoverId", m."leftoverFromDate",
-      m."leftoverFromMealType", r."servings" AS "recipeServings",
-      (
-        SELECT json_agg(
+      WHERE o."givenLeftoverId" = ANY(
+        ARRAY(SELECT "id" FROM "nearMeals" WHERE "leftoverFromDate" IS NOT NULL)
+      )
+      EXCEPT
+      SELECT "planId" FROM "near"
+    ), "meals" AS MATERIALIZED (
+      SELECT * FROM "nearMeals"
+      UNION ALL
+      SELECT d."planId", d."date", m."id", m."mealType", m."recipeId", m."servings", m."quantityScale", m."plate", m."source",
+        m."wholePieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
+      FROM "MealPlanDay" d JOIN "PlannedMeal" m ON m."dayId" = d."id"
+      WHERE d."planId" = ANY(ARRAY(SELECT "planId" FROM "farther"))
+    ), "lines" AS MATERIALIZED (
+      SELECT ri."recipeId", r."servings",
+        json_agg(
           json_build_object(
             'quantity', ri."quantity",
             'unit', ri."unit",
@@ -144,17 +151,23 @@ export async function pieceUsesOf(
             )
           )
           ORDER BY ri."position"
-        )
-        FROM "RecipeIngredient" ri JOIN "Ingredient" i ON i."id" = ri."ingredientId"
-        WHERE ri."recipeId" = m."recipeId" AND i."slug" = ANY(${[...WHOLE_PIECE_SLUGS]}::text[])
-      ) AS "lines"
-    FROM "MealPlanDay" d
-    JOIN "MealPlan" p ON p."id" = d."planId"
-    JOIN "PlannedMeal" m ON m."dayId" = d."id"
+        ) AS "lines"
+      FROM "Ingredient" i
+      JOIN "RecipeIngredient" ri ON ri."ingredientId" = i."id"
+      JOIN "Recipe" r ON r."id" = ri."recipeId"
+      WHERE i."slug" = ANY(${[...WHOLE_PIECE_SLUGS]}::text[])
+        AND ri."recipeId" = ANY(ARRAY(SELECT DISTINCT "recipeId" FROM "meals" WHERE "recipeId" IS NOT NULL))
+      GROUP BY ri."recipeId", r."servings"
+    )
+    SELECT m."planId", p."options", m."date", m."id", m."mealType", m."recipeId", m."servings",
+      m."quantityScale", m."plate", m."source"::text AS "source", m."wholePieces", m."sharedMealId",
+      s."apart", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType",
+      l."servings" AS "recipeServings", l."lines"
+    FROM "meals" m
+    JOIN "MealPlan" p ON p."id" = m."planId"
     LEFT JOIN "SharedMeal" s ON s."id" = m."sharedMealId"
-    LEFT JOIN "Recipe" r ON r."id" = m."recipeId"
-    WHERE d."planId" = ANY(ARRAY(SELECT "planId" FROM "plans"))
-    ORDER BY d."planId", d."date"`;
+    LEFT JOIN "lines" l ON l."recipeId" = m."recipeId"
+    ORDER BY m."planId", m."date"`;
   const plans = new Map<
     string,
     { options: unknown; days: Map<string, { date: Date; meals: PotMeal[] }> }

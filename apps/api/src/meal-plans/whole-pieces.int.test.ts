@@ -149,6 +149,33 @@ describe('eggs in planned meals', () => {
     );
   });
 
+  it('are counted whole in the list of plans, as the plan counts them', async () => {
+    const made = await aPlan(t, user, profile, { durationDays: 2 });
+    await noEggs(made);
+    await serve(meal(made, 0, 'breakfast'), EGGS, 1.75);
+    const listed = async (): Promise<number> =>
+      (
+        (await t.http().get(`/api/meal-plans?profileId=${profile.id}`).set(as(user)).expect(200))
+          .body as { items: { id: string; averageDailyNutrition: { calories: number } }[] }
+      ).items.find((item) => item.id === made.id)!.averageDailyNutrition.calories;
+    const averageOf = (plan: MealPlan): number =>
+      Math.round(
+        plan.days.reduce(
+          (sum, day) => sum + day.meals.reduce((all, one) => all + one.nutrition.calories, 0),
+          0,
+        ) / plan.days.length,
+      );
+
+    const whole = await listed();
+    expect(whole).toBe(averageOf(await read(made)));
+    // The same plan with the meal as it was planned: a quarter of an egg more in one of two days.
+    await t.prisma.plannedMeal.update({
+      where: { id: meal(made, 0, 'breakfast').id },
+      data: { wholePieces: false },
+    });
+    expect((await listed()) - whole).toBeCloseTo(19.7 / 2, -0.5);
+  });
+
   it('keep what a meal eaten before they were taken whole was planned with', async () => {
     const made = await aPlan(t, user, profile, { durationDays: 2 });
     await noEggs(made);

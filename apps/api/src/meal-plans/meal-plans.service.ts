@@ -139,6 +139,7 @@ import {
   piecedDays,
   selfContained,
   usesOfPlans,
+  WHOLE_LINES,
   type PieceUses,
 } from './whole-pieces-store.js';
 
@@ -236,11 +237,15 @@ export class MealPlansService {
           },
         },
         days: {
+          orderBy: { date: 'asc' },
           select: {
+            date: true,
             overrides: true,
             meals: {
               select: {
                 id: true,
+                mealType: true,
+                recipeId: true,
                 servings: true,
                 quantityScale: true,
                 source: true,
@@ -248,7 +253,12 @@ export class MealPlansService {
                 rests: true,
                 plate: true,
                 modelPicked: true,
-                recipe: { select: amount },
+                wholePieces: true,
+                sharedMealId: true,
+                givenLeftoverId: true,
+                leftoverFromDate: true,
+                leftoverFromMealType: true,
+                recipe: { select: { ...amount, servings: true, ingredients: WHOLE_LINES } },
               },
             },
           },
@@ -256,10 +266,15 @@ export class MealPlansService {
       },
     });
     const byId = new Map(plans.map((plan) => [plan.id, plan]));
-    const pieces = await pieceUsesOf(
-      this.prisma,
-      plans.flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => meal.id))),
-    );
+    // The pots of a plan with every pot in it are worked out as it was read; the others read the plans they share with.
+    const mealIdsOf = (of: readonly (typeof plans)[number][]) =>
+      of.flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => meal.id)));
+    const own = plans.filter((plan) => selfContained(plan));
+    const sharing = plans.filter((plan) => !selfContained(plan));
+    const pieces: PieceUses = new Map([
+      ...usesOfPlans(own, mealIdsOf(own)),
+      ...(sharing.length > 0 ? await pieceUsesOf(this.prisma, mealIdsOf(sharing)) : []),
+    ]);
     return {
       items: page.flatMap(({ id }) => {
         const plan = byId.get(id);
