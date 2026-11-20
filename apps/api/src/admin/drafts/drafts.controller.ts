@@ -361,8 +361,10 @@ export class DraftsController {
   async startTranslations(
     @Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec,
   ): Promise<DraftRunnerState> {
-    // The language names the fields of the drafts and the file of examples: as the list holds it.
-    if (!(await this.translations.start({ ...body, locale: listedLocale(body.locale) }))) {
+    // The language names the fields of the drafts and the file of examples: as the list holds it, field by field, so
+    // that nothing of the request's own string comes along with it.
+    const spec = { locale: listedLocale(body.locale), limit: body.limit };
+    if (!(await this.translations.start(spec))) {
       throw new ConflictException({
         error: 'TRANSLATIONS_IN_PROGRESS',
         message: 'A run that fills a language is already in progress.',
