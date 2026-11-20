@@ -50,7 +50,8 @@ export function PlanPacksLine({
   const today = localDate();
   return (
     <details>
-      <summary className="cursor-pointer">
+      {/* As tall as a target is to be (24 px): the button of a pack's rest stands right under it once unfolded. */}
+      <summary className="cursor-pointer py-1">
         {together !== undefined
           ? t('lineJoint', {
               percent: Math.round((packs.used / packs.bought) * 100),
