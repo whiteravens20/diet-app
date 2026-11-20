@@ -116,6 +116,22 @@ describe("today's card on the dashboard", () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it("says in a word that the plan's day was sized again where what it writes moved it", async () => {
+    shown(aDay());
+    vi.spyOn(api, 'post').mockResolvedValue({
+      planChange: {
+        plan: { id: 'p', days: [] },
+        rebalance: { changes: [{ mealId: 'm', before: 1, after: 0.8 }] },
+      },
+    } as never);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: texts.addTitle }));
+    await user.click(screen.getByRole('button', { name: 'Write it' }));
+
+    expect(await screen.findByText(messages.mealPlans.rebalanceTitle)).toBeInTheDocument();
+  });
+
   it('says why where the day cannot be read, and still offers to add to it', async () => {
     shown(new ApiClientError(503, 'UNAVAILABLE', 'down'));
 

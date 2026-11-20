@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { barriers, expect, loose, settled, test } from './fixtures';
+import { barriers, expect, loose, planNoteClosed, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -61,6 +61,8 @@ test.describe('a product in the diary', () => {
     await expect(snack.getByText(entryName)).toBeVisible();
     await expect(snack.getByText(diary.entrySource!)).toBeVisible();
     expect(await barriers(page), 'the day with a product written').toEqual([]);
+    // Of today, it sized the plan's day again, and said so.
+    await planNoteClosed(page, messages);
 
     await snack
       .getByRole('button', { name: diary.editLabel!.replace('{name}', entryName) })
@@ -71,6 +73,7 @@ test.describe('a product in the diary', () => {
     await edit.getByRole('button', { name: (messages.common as Texts).save!, exact: true }).click();
     expect((await changed).status()).toBe(200);
     await expect(snack.getByText(/300/)).toBeVisible();
+    await planNoteClosed(page, messages);
 
     // Taken away again, so that the plan's day is as the other tests find it.
     const removed = answered(page, 'DELETE', '/api/diary/entries/');
@@ -240,6 +243,7 @@ test.describe("a product of one's own", () => {
     await window.getByRole('button', { name: diary.submit!, exact: true }).click();
     expect((await written).status()).toBe(201);
     await expect(page.getByText(BREAD.name).first()).toBeVisible();
+    await planNoteClosed(page, messages);
 
     const removedEntry = answered(page, 'DELETE', '/api/diary/entries/');
     await page

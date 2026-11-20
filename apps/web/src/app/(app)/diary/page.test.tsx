@@ -453,6 +453,40 @@ describe('the diary', () => {
     });
   });
 
+  it("says of an entry of today how it sized the plan's day, as the plan's page says it, with the way back", async () => {
+    await renderPage();
+    const figures = (calories: number) => ({ calories, protein: 0, fat: 0, carbs: 0 });
+    const posted = vi.spyOn(api, 'post').mockResolvedValue({
+      ...anEntry(),
+      planChange: {
+        plan: { id: PLAN, revision: 3, days: [] },
+        rebalance: {
+          scope: 'day',
+          feasibility: 'in-window',
+          changes: [{ mealId: SOUP, before: 1, after: 0.8 }],
+          unabsorbedKcal: 0,
+          macrosBefore: figures(2350),
+          macrosAfter: figures(2000),
+        },
+      },
+    } as never);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: texts.addTitle }));
+    const window = within(screen.getByRole('dialog', { name: texts.addTitle }));
+    await user.click(window.getByRole('radio', { name: texts.kindMeal }));
+    await user.type(window.getByRole('textbox', { name: texts.mealName }), 'Cake at work');
+    await user.type(window.getByRole('spinbutton', { name: texts.calories }), '350');
+    await user.click(window.getByRole('button', { name: texts.submit }));
+
+    expect(await screen.findByText(messages.mealPlans.rebalanceTitle)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: messages.mealPlans.rebalanceUndo }));
+    expect(posted).toHaveBeenLastCalledWith(`/meal-plans/${PLAN}/rebalance`, {
+      scope: 'day',
+      restore: [{ mealId: SOUP, scale: 1 }],
+    });
+  });
+
   it("marks a meal of the plan as eaten, which rebalances the plan's day as its page does", async () => {
     await renderPage();
     const patched = vi

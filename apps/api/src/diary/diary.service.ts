@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
@@ -15,14 +16,16 @@ import {
   dayAfter,
   type CopyDiaryDayRequest,
   type CreateDiaryEntryRequest,
-  type DiaryCopyResult,
   type DiaryDay,
   type DiaryEntry,
   type DiaryPlanMeal,
   type Locale,
   type Macros,
   type MealType,
+  type RebalanceResult,
   type UpdateDiaryEntryRequest,
+  type WrittenDiaryCopy,
+  type WrittenDiaryEntry,
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
@@ -53,7 +56,7 @@ import {
   toCanonical,
   UnitConversionError,
 } from '../engine/index.js';
-import { mealRank } from '../meal-plans/meal-plans.service.js';
+import { mealRank, MealPlansService } from '../meal-plans/meal-plans.service.js';
 import {
   aimOfDay as aimOfPlanDay,
   sharesOfPlanDay,
@@ -147,7 +150,12 @@ type Written = Pick<
  */
 @Injectable()
 export class DiaryService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger('Diary');
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plans: MealPlansService,
+  ) {}
 
   /** A day of a profile's diary, with what it aims at and, where a plan holds it, the plan's meals. */
   async day(userId: string, locale: Locale, profileId: string, date: string): Promise<DiaryDay> {
@@ -416,7 +424,7 @@ export class DiaryService {
     req: CreateDiaryEntryRequest,
     key: string | null,
     today: string | null,
-  ): Promise<DiaryEntry> {
+  ): Promise<WrittenDiaryEntry> {
     this.refuseDayOutside(req.date, today);
     return writeOnce(this.prisma, {
       userId,
@@ -440,9 +448,13 @@ export class DiaryService {
           await keep(tx, row.id);
           return row.id;
         });
-        return this.entry(userId, locale, id);
+        const entry = await this.entry(userId, locale, id);
+        return {
+          ...entry,
+          planChange: await this.followPlan(userId, locale, req.profileId, req.date, today),
+        };
       },
-      replay: (id) => this.entry(userId, locale, id),
+      replay: async (id) => ({ ...(await this.entry(userId, locale, id)), planChange: null }),
     });
   }
 
@@ -453,6 +465,21 @@ export class DiaryService {
    * moved to a product of the reader's own, whose label then gives its figures.
    */
   async update(
+    userId: string,
+    locale: Locale,
+    id: string,
+    change: UpdateDiaryEntryRequest,
+    today: string | null = null,
+  ): Promise<WrittenDiaryEntry> {
+    const entry = await this.changed(userId, locale, id, change);
+    return {
+      ...entry,
+      planChange: await this.followPlan(userId, locale, entry.profileId, entry.date, today),
+    };
+  }
+
+  /** The entry `id` with `change` made to it (`update`). */
+  private async changed(
     userId: string,
     locale: Locale,
     id: string,
@@ -627,12 +654,22 @@ export class DiaryService {
     return this.entry(userId, locale, row.id);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
+  /**
+   * Remove an entry. The day of the plan the diary shows for it follows, where it is today, as it does a new entry;
+   * nothing is said of that: a removal has a way back of its own, the entry written again.
+   */
+  async remove(userId: string, id: string, today: string | null = null): Promise<void> {
     // An entry of somebody else's profile is answered as one that is not there.
+    const row = await this.prisma.diaryEntry.findFirst({
+      where: { id, profile: { userId } },
+      select: { profileId: true, date: true },
+    });
+    if (!row) throw entryNotFound();
     const removed = await this.prisma.diaryEntry.deleteMany({
       where: { id, profile: { userId } },
     });
     if (removed.count === 0) throw entryNotFound();
+    await this.followPlan(userId, null, row.profileId, isoDate(row.date), today);
   }
 
   /**
@@ -649,7 +686,7 @@ export class DiaryService {
     req: CopyDiaryDayRequest,
     key: string | null,
     today: string | null,
-  ): Promise<DiaryCopyResult> {
+  ): Promise<WrittenDiaryCopy> {
     this.refuseDayOutside(req.to, today);
     const { profileId, from, to } = req;
     return writeOnce(this.prisma, {
@@ -773,13 +810,61 @@ export class DiaryService {
           await keep(tx, String(copies.length));
           return copies.length;
         });
-        return { copied, day: await this.day(userId, locale, profileId, to) };
+        // The plan's day follows first, so that the day read says where it stands now.
+        const planChange =
+          copied > 0 ? await this.followPlan(userId, locale, profileId, to, today) : null;
+        return { copied, day: await this.day(userId, locale, profileId, to), planChange };
       },
       replay: async (kept) => ({
         copied: Number(kept),
         day: await this.day(userId, locale, profileId, to),
+        planChange: null,
       }),
     });
+  }
+
+  /**
+   * What a change of the diary does to the day of the plan the diary shows for it (`DiaryDay.plan`, the plan made last
+   * where several hold the day): a change of today sizes that day again with what the diary holds counted as eaten, as
+   * a meal of one's own added to the plan sizes it, so that the plan follows what was eaten as soon as it is written.
+   * Answered as a change of the plan is, or, without a `locale`, with nothing; null for another day, or a day no plan
+   * holds. A change of the diary stands whatever the plan does: a plan changed at the same moment is waited out once,
+   * and a plan that cannot be sized now is left to the diary's "Dopasuj porcje dnia".
+   */
+  private async followPlan(
+    userId: string,
+    locale: Locale | null,
+    profileId: string,
+    date: string,
+    clientToday: string | null,
+  ): Promise<RebalanceResult | null> {
+    const today = clientToday ?? isoDate(new Date());
+    if (date !== today) return null;
+    const planDay = await this.prisma.mealPlanDay.findFirst({
+      where: { date: new Date(date), plan: { profileId } },
+      orderBy: [...MADE_LAST],
+      select: { planId: true },
+    });
+    if (!planDay) return null;
+    const resize = async (): Promise<RebalanceResult | null> => {
+      if (locale === null) {
+        await this.plans.resizeDay(userId, planDay.planId, date, today);
+        return null;
+      }
+      return this.plans.rebalance(userId, locale, planDay.planId, { scope: 'day', date }, today);
+    };
+    try {
+      return await resize().catch((err: unknown) => {
+        // Another change of the plan came between its reading and its writing: once more, from the plan as it is now.
+        if (err instanceof ConflictException && planChangedMeanwhile(err)) return resize();
+        throw err;
+      });
+    } catch (err) {
+      this.logger.error(
+        `Could not size the day of plan ${planDay.planId} to the diary: ${String(err)}`,
+      );
+      return null;
+    }
   }
 
   /** The profile, when it is this user's; otherwise the 404 every route that names a profile gives. */
@@ -1124,6 +1209,12 @@ function perServing(recipe: {
     fat: recipe.fatPerServing,
     carbs: recipe.carbsPerServing,
   };
+}
+
+/** A refusal of a change of a plan made from a plan another change moved on meanwhile. */
+function planChangedMeanwhile(err: ConflictException): boolean {
+  const answer = err.getResponse();
+  return typeof answer === 'object' && (answer as { error?: unknown }).error === 'PLAN_CHANGED';
 }
 
 function entryNotFound(): NotFoundException {

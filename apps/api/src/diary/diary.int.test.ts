@@ -10,6 +10,8 @@ import type {
   PlanCalendar,
   Profile,
   RebalanceResult,
+  WrittenDiaryCopy,
+  WrittenDiaryEntry,
 } from '@diet-app/shared';
 import { DIARY_DAYS_BACK, MAX_DIARY_ENTRIES_A_DAY } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -54,8 +56,12 @@ describe('the diary of a profile', () => {
     if (locale) request.set('Accept-Language', locale);
     return request.send({ profileId: profile.id, date: day(0), mealType: 'lunch', ...entry });
   };
-  const written = async (entry: Record<string, unknown>): Promise<DiaryEntry> =>
-    (await write(entry).expect(201)).body;
+  /** The entry an entry written is answered with, without what it did to the plan. */
+  const written = async (entry: Record<string, unknown>): Promise<DiaryEntry> => {
+    const answer: Partial<WrittenDiaryEntry> = { ...(await write(entry).expect(201)).body };
+    delete answer.planChange;
+    return answer as DiaryEntry;
+  };
   const aMeal = (calories: number, date = day(0)) =>
     written({
       kind: 'meal',
@@ -776,10 +782,11 @@ describe('the diary of a profile', () => {
     });
 
     it('counts the entries in the day of the plan, in where it stands and in the calendar', async () => {
-      const before = planDay(plan, day(0));
-      const entry = await aMeal(1200);
+      // Of yesterday: a day gone, whose meals an entry leaves as they are.
+      const before = planDay(plan, day(-1));
+      const entry = await aMeal(1200, day(-1));
 
-      const after = planDay(await planOf(plan.id), day(0));
+      const after = planDay(await planOf(plan.id), day(-1));
       const calendar = (
         await t
           .http()
@@ -787,7 +794,7 @@ describe('the diary of a profile', () => {
           .set(as(user))
           .expect(200)
       ).body as PlanCalendar;
-      const shown = await dayOf(day(0));
+      const shown = await dayOf(day(-1));
 
       expect(after.diary).toEqual({
         entries: 1,
@@ -797,8 +804,8 @@ describe('the diary of a profile', () => {
       expect(after.dayNutrition.calories).toBe(before.dayNutrition.calories + 1200);
       expect(after.calorieDelta).toBe(after.dayNutrition.calories - after.calorieTarget);
       expect(after.offTarget).toBe('over');
-      expect(planDay(await planOf(plan.id), day(1)).diary).toBeNull();
-      expect(calendar.days.find((d) => d.date === day(0))).toMatchObject({
+      expect(planDay(await planOf(plan.id), day(0)).diary).toBeNull();
+      expect(calendar.days.find((d) => d.date === day(-1))).toMatchObject({
         calories: after.dayNutrition.calories,
         offTarget: 'over',
       });
@@ -852,9 +859,15 @@ describe('the diary of a profile', () => {
     });
 
     it('leaves room for the entries when the day is rebalanced, so that a second rebalance changes nothing', async () => {
-      await aMeal(600);
-
-      const first = await rebalance({ scope: 'day', date: day(0) });
+      const first = (
+        (
+          await write({
+            kind: 'meal',
+            name: 'Out',
+            nutrition: { calories: 600, protein: 0, fat: 0, carbs: 150 },
+          }).expect(201)
+        ).body as WrittenDiaryEntry
+      ).planChange!;
       const second = await rebalance({ scope: 'day', date: day(0) });
 
       const today = planDay(first.plan, day(0));
@@ -867,6 +880,89 @@ describe('the diary of a profile', () => {
       // The day a meal is marked as eaten is rebalanced with the entries counted as well.
       const eaten = await eat(today.meals[0]!.id);
       expect(planDay(eaten.plan, day(0)).offTarget).toBeNull();
+    });
+
+    describe('follows the diary', () => {
+      const meal = (calories: number) => ({
+        kind: 'meal',
+        name: 'Out',
+        nutrition: { calories, protein: 0, fat: 0, carbs: calories / 4 },
+      });
+      const mealsOfToday = async () => mealsKcal(planDay(await planOf(plan.id), day(0)));
+
+      it("is sized again by an entry of today, which says how as a meal of one's own added to the plan does", async () => {
+        const before = await mealsOfToday();
+
+        const written = (await write(meal(600)).expect(201)).body as WrittenDiaryEntry;
+
+        const change = written.planChange!;
+        expect(change.plan.id).toBe(plan.id);
+        expect(change.rebalance).toMatchObject({ scope: 'day' });
+        expect(change.rebalance!.changes.length).toBeGreaterThan(0);
+        const today = planDay(change.plan, day(0));
+        expect(today.offTarget).toBeNull();
+        expect(await mealsOfToday()).toBeLessThan(before);
+        // What the diary says of the plan's day is the day as it stands now.
+        expect((await dayOf(day(0))).plan).toMatchObject({ offTarget: null });
+      });
+
+      it('is sized again by a change and by a removal of an entry of today', async () => {
+        const written = (await write(meal(300)).expect(201)).body as WrittenDiaryEntry;
+        const withOne = await mealsOfToday();
+
+        const changed = (
+          await t
+            .http()
+            .patch(`/api/diary/entries/${written.id}`)
+            .set(as(user))
+            .set('X-Client-Date', day(0))
+            .send({ servings: 3 })
+            .expect(200)
+        ).body as WrittenDiaryEntry;
+        expect(changed.planChange!.rebalance!.changes.length).toBeGreaterThan(0);
+        const withThree = await mealsOfToday();
+        expect(withThree).toBeLessThan(withOne);
+
+        await t
+          .http()
+          .delete(`/api/diary/entries/${written.id}`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .expect(204);
+        expect(await mealsOfToday()).toBeGreaterThan(withThree);
+        expect((await dayOf(day(0))).plan).toMatchObject({ offTarget: null });
+      });
+
+      it('is sized again by a copy into today', async () => {
+        await aMeal(500, day(-1));
+        const before = await mealsOfToday();
+
+        const copied = (
+          await t
+            .http()
+            .post('/api/diary/copy')
+            .set(as(user))
+            .set('X-Client-Date', day(0))
+            .send({ profileId: profile.id, from: day(-1), to: day(0) })
+            .expect(201)
+        ).body as WrittenDiaryCopy;
+
+        expect(copied.copied).toBeGreaterThan(0);
+        expect(copied.planChange!.rebalance!.changes.length).toBeGreaterThan(0);
+        expect(await mealsOfToday()).toBeLessThan(before);
+        // The day the copy answers with stands where the plan's day stands now.
+        expect(copied.day.plan).toMatchObject({ offTarget: null });
+      });
+
+      it('is left as it is by an entry of another day, which says nothing of the plan', async () => {
+        const yesterday = mealsKcal(planDay(plan, day(-1)));
+
+        const written = (await write({ ...meal(600), date: day(-1) }).expect(201))
+          .body as WrittenDiaryEntry;
+
+        expect(written.planChange).toBeNull();
+        expect(mealsKcal(planDay(await planOf(plan.id), day(-1)))).toBe(yesterday);
+      });
     });
 
     it('spreads what the entries of a day put over its target over the days from today on', async () => {

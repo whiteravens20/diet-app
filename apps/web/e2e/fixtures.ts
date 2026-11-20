@@ -240,6 +240,18 @@ export async function theFormForAPlan(page: Page, messages: Messages): Promise<v
   if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
 }
 
+/**
+ * An entry of today sizes the day of the account's plan again, and says so as the plan's page does: the note is seen,
+ * then closed, so that it stands over nothing a test presses next.
+ */
+export async function planNoteClosed(page: Page, messages: Messages): Promise<void> {
+  const plans = messages.mealPlans as Record<string, string>;
+  const note = page.getByText(plans.rebalanceTitle!, { exact: true });
+  await expect(note).toBeVisible();
+  await page.getByRole('button', { name: plans.rebalanceDismiss!, exact: true }).click();
+  await expect(note).toHaveCount(0);
+}
+
 /** The rules a page is held to: WCAG 2.1 and 2.2, levels A and AA. */
 const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

@@ -10,9 +10,9 @@ import { useState } from 'react';
 import type {
   CreateDiaryEntryRequest,
   DiaryDay,
-  DiaryEntry,
   MealType,
   Profile,
+  WrittenDiaryEntry,
 } from '@diet-app/shared';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
@@ -36,6 +36,7 @@ const AddEntryDialog = dynamic(
  */
 export function TodayCard({ profile }: { profile: Profile }) {
   const t = useTranslations('diary');
+  const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
   const today = localDate();
@@ -45,15 +46,24 @@ export function TodayCard({ profile }: { profile: Profile }) {
   });
   const [adding, setAdding] = useState<MealType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // An entry of today sizes the day of its plan again: said here in a word, the plan shows how.
+  const [resized, setResized] = useState(false);
   const add = useMutation({
-    mutationFn: (body: CreateDiaryEntryRequest) => api.post<DiaryEntry>('/diary/entries', body),
-    onMutate: () => setError(null),
-    onSuccess: async () => {
+    mutationFn: (body: CreateDiaryEntryRequest) =>
+      api.post<WrittenDiaryEntry>('/diary/entries', body),
+    onMutate: () => {
+      setError(null);
+      setResized(false);
+    },
+    onSuccess: async (written) => {
       setAdding(null);
+      setResized((written.planChange?.rebalance?.changes.length ?? 0) > 0);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['diary'] }),
         qc.invalidateQueries({ queryKey: ['plan-overview'] }),
         qc.invalidateQueries({ queryKey: ['week-summary', profile.id] }),
+        qc.invalidateQueries({ queryKey: ['meal-plans'] }),
+        qc.invalidateQueries({ queryKey: ['meal-plan'] }),
       ]);
     },
     onError: (e) => setError(errorText(e, t('errAdd'))),
@@ -74,6 +84,11 @@ export function TodayCard({ profile }: { profile: Profile }) {
           <p className="text-2xl font-semibold tabular-nums">
             {shown.estimated && '≈ '}
             {t('eatenLine', { eaten: shown.eaten.calories, target: shown.target.calories })}
+          </p>
+        )}
+        {resized && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {tPlans('rebalanceTitle')}
           </p>
         )}
         <div className="flex flex-wrap gap-2">

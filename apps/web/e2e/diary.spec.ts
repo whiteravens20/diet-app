@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { barriers, expect, settled, test } from './fixtures';
+import { barriers, expect, planNoteClosed, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -44,6 +44,8 @@ test.describe('the diary of a day', () => {
     await expect(snack.getByText(name)).toBeVisible();
     await expect(snack.getByText(`≈ ${diary.estimated}`)).toBeVisible();
     expect(await barriers(page), 'the day with the entry').toEqual([]);
+    // Of today, it sized the plan's day again, and said so.
+    await planNoteClosed(page, messages);
 
     // Taken away again, so that the plan's day is as the other tests find it.
     const removed = answered(page, 'DELETE', '/api/diary/entries/');

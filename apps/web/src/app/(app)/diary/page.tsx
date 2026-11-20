@@ -10,7 +10,6 @@ import { useTranslations } from 'next-intl';
 import { Suspense, useId, useState } from 'react';
 import type {
   CreateDiaryEntryRequest,
-  DiaryCopyResult,
   DiaryDay,
   DiaryEntry,
   DiaryPlanMeal,
@@ -19,6 +18,8 @@ import type {
   RebalanceRequest,
   RebalanceResult,
   UpdateDiaryEntryRequest,
+  WrittenDiaryCopy,
+  WrittenDiaryEntry,
 } from '@diet-app/shared';
 import {
   DIARY_DAYS_BACK,
@@ -149,21 +150,28 @@ function DiaryContent() {
     setNotice(null);
   };
 
+  /** An entry of today sizes the day of its plan again, as a meal of one's own does there: said with the plan's note. */
+  const planChanged = (written: { planChange: RebalanceResult | null }) => {
+    if (written.planChange) setToast(wordOf(written.planChange.plan.id, written.planChange));
+  };
   const add = useMutation({
-    mutationFn: (body: CreateDiaryEntryRequest) => api.post<DiaryEntry>('/diary/entries', body),
+    mutationFn: (body: CreateDiaryEntryRequest) =>
+      api.post<WrittenDiaryEntry>('/diary/entries', body),
     onMutate: nextStep,
-    onSuccess: async () => {
+    onSuccess: async (written) => {
       setAdding(null);
+      planChanged(written);
       await refresh();
     },
     onError: (e) => setDialogError(errorText(e, t('errAdd'))),
   });
   const update = useMutation({
     mutationFn: ({ id, change }: { id: string; change: UpdateDiaryEntryRequest }) =>
-      api.patch<DiaryEntry>(`/diary/entries/${id}`, change),
+      api.patch<WrittenDiaryEntry>(`/diary/entries/${id}`, change),
     onMutate: nextStep,
-    onSuccess: async () => {
+    onSuccess: async (written) => {
       setEditing(null);
+      planChanged(written);
       await refresh();
     },
     onError: (e) => setDialogError(errorText(e, t('errUpdate'))),
@@ -218,10 +226,11 @@ function DiaryContent() {
   });
   const copy = useMutation({
     mutationFn: (from: string) =>
-      api.post<DiaryCopyResult>('/diary/copy', { profileId: active!.id, from, to: date }),
+      api.post<WrittenDiaryCopy>('/diary/copy', { profileId: active!.id, from, to: date }),
     onSuccess: async (result) => {
       setCopying(false);
       setNotice(t('copied', { count: result.copied }));
+      planChanged(result);
       await refresh();
     },
     onError: (e) => setError(errorText(e, t('errCopy'))),

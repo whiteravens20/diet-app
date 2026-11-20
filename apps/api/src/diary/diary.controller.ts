@@ -16,12 +16,12 @@ import { Throttle } from '@nestjs/throttler';
 import {
   CopyDiaryDayRequest,
   CreateDiaryEntryRequest,
-  DiaryCopyResult,
   DiaryDay,
   DiaryDayQuery,
-  DiaryEntry,
   UpdateDiaryEntryRequest,
   type Locale,
+  WrittenDiaryCopy,
+  WrittenDiaryEntry,
 } from '@diet-app/shared';
 import { Answers } from '../common/answers.decorator.js';
 import { ClientDate } from '../common/client-date.decorator.js';
@@ -59,11 +59,12 @@ export class DiaryController {
    * amount, a product in grams or millilitres, or a meal of one's own by its
    * figures. What a meal of one's own leaves out, or a product's label lacks, is
    * estimated from its energy. Its figures are worked out now and kept. Sent again with the same `Idempotency-Key` within a week, it is
-   * answered with the entry the first request wrote and writes nothing.
+   * answered with the entry the first request wrote and writes nothing. An entry of today sizes the day of the plan the
+   * diary shows again, as a meal of one's own added to the plan does, and says how (`WrittenDiaryEntry.planChange`).
    */
   @Post('entries')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
-  @Answers(DiaryEntry)
+  @Answers(WrittenDiaryEntry)
   create(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -77,26 +78,33 @@ export class DiaryController {
   /**
    * Change an entry: the meal it is under, or how much of it there was, which
    * changes its figures in proportion. An entry of a product can be moved to a
-   * product of the reader's own, whose label then gives its figures.
+   * product of the reader's own, whose label then gives its figures. A change of
+   * an entry of today sizes the day of the plan the diary shows again, and says
+   * how (`WrittenDiaryEntry.planChange`).
    */
   @Patch('entries/:id')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
-  @Answers(DiaryEntry)
+  @Answers(WrittenDiaryEntry)
   update(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(UpdateDiaryEntryRequest)) dto: UpdateDiaryEntryRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.diary.update(user.id, locale, id, dto);
+    return this.diary.update(user.id, locale, id, dto, today);
   }
 
-  /** Remove an entry. */
+  /** Remove an entry; the day of the plan the diary shows follows, where it is today, as it does a new entry. */
   @Delete('entries/:id')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.diary.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    await this.diary.remove(user.id, id, today);
   }
 
   /**
@@ -104,11 +112,13 @@ export class DiaryController {
    * before it: the entries of the day, and the meals its plan marked as eaten,
    * which come in as entries. Nothing is copied where the day would then hold
    * more than the most. Sent again with the same `Idempotency-Key` within a
-   * week, it is answered with the day as it is now and copies nothing.
+   * week, it is answered with the day as it is now and copies nothing. A copy
+   * into today sizes the day of the plan the diary shows again, and says how
+   * (`WrittenDiaryCopy.planChange`).
    */
   @Post('copy')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(DiaryCopyResult)
+  @Answers(WrittenDiaryCopy)
   copy(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

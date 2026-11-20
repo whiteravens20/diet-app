@@ -923,6 +923,23 @@ export class MealPlansService {
   }
 
   /**
+   * Sizes one day of a plan again, as a change of the plan does (`rebalanceDayInternal`), and answers what it did
+   * without the plan read back: what a removal from the diary of that day asks of it (`DiaryService`).
+   */
+  async resizeDay(
+    userId: string,
+    planId: string,
+    date: string,
+    clientToday: string | null = null,
+  ): Promise<RebalanceSummary | null> {
+    const { revision } = await this.planOf(userId, planId);
+    const day = await this.loadDay(userId, planId, date);
+    return writePlan(this.prisma, planId, revision, (tx) =>
+      this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
+    );
+  }
+
+  /**
    * The profile, when it is this user's; otherwise the refusal every route
    * that names a profile gives. Here and in every loader like it, something
    * that is somebody else's is answered as something that is not there: the
