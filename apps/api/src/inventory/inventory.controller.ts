@@ -59,7 +59,7 @@ export class InventoryController {
     return this.inventory.upsert(user.id, locale, profileId, body, key);
   }
 
-  /** Change a row of the pantry. */
+  /** Change a row of the pantry. Lowered, the rows of the profile's lists not ticked count on no more than the pantry holds. */
   @Patch(':id')
   @Answers(InventoryItem)
   patch(
@@ -91,7 +91,11 @@ export class InventoryController {
     return this.inventory.freeze(user.id, locale, id, dto, today, key);
   }
 
-  /** Take a row out of the pantry. */
+  /**
+   * Take a row out of the pantry: the food is not at home. The profile's shopping lists follow: a row that took of it
+   * counts it at home no more (it unticks where it no longer meets the need), a row not ticked counts on no more than
+   * the pantry holds, and nothing of it comes back to the pantry when a list is removed.
+   */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {

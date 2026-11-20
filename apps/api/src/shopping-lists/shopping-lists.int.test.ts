@@ -9,6 +9,7 @@ import {
 } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { netEffect, pantryStock } from '../engine/pantry.js';
+import { InventoryService } from '../inventory/inventory.service.js';
 import { readMoves } from '../inventory/pantry-store.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -893,6 +894,112 @@ describe('shopping lists and the pantry', () => {
       // One of them got the stock; they did not both get it.
       expect(claims.reduce((sum, claim) => sum + claim, 0)).toBeLessThanOrEqual(100);
       expect(claims).not.toContain(-1);
+    });
+  });
+
+  describe('what the pantry no longer holds', () => {
+    let inventory: InventoryService;
+    beforeEach(async () => {
+      await menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      inventory = t.app.get(InventoryService);
+    });
+
+    /** The pantry's rows of an ingredient. */
+    const rowsOf = async (slug: string) =>
+      t.prisma.inventoryItem.findMany({
+        where: { profileId: profile.id, ingredientId: (await ingredient(slug)).id },
+      });
+    const again = (list: ShoppingList): Promise<ShoppingList> => lists.get(user.id, 'en', list.id);
+
+    it('is at home for no list once its row is removed, and nothing of it comes back when the list goes', async () => {
+      await stock('firm-tofu', 400, 'g');
+      const list = await listFor(0);
+      // 180 g of tofu at home: the row ticks itself and takes them.
+      expect(rowOf(list, 'Firm tofu')).toMatchObject({ alreadyHaveQuantity: 180, checked: true });
+      expect(await pantry('firm-tofu')).toEqual(['220 g']);
+
+      for (const row of await rowsOf('firm-tofu')) await inventory.remove(user.id, row.id);
+
+      expect(rowOf(await again(list), 'Firm tofu')).toMatchObject({
+        alreadyHaveQuantity: 0,
+        checked: false,
+        toBuyQuantity: 180,
+      });
+      await lists.remove(user.id, list.id, BEFORE);
+      expect(await pantry('firm-tofu')).toEqual([]);
+      expect(rowOf(await listFor(0), 'Firm tofu')).toMatchObject({
+        alreadyHaveQuantity: 0,
+        checked: false,
+      });
+    });
+
+    it('is counted on by no row that did not take it, once its row is removed', async () => {
+      await stock('broccoli', 100, 'g');
+      const list = await listFor(0);
+      // 250 g of broccoli, 100 g of them at home: too little to tick the row, so nothing is taken.
+      expect(rowOf(list, 'Broccoli')).toMatchObject({ alreadyHaveQuantity: 100, checked: false });
+
+      for (const row of await rowsOf('broccoli')) await inventory.remove(user.id, row.id);
+
+      expect(rowOf(await again(list), 'Broccoli')).toMatchObject({
+        alreadyHaveQuantity: 0,
+        checked: false,
+      });
+    });
+
+    it('is counted on in no more than the pantry holds once its row is lowered', async () => {
+      await stock('broccoli', 100, 'g');
+      const list = await listFor(0);
+      const [row] = await rowsOf('broccoli');
+
+      await inventory.patch(user.id, 'en', row!.id, { quantity: 40 });
+
+      expect(rowOf(await again(list), 'Broccoli')).toMatchObject({
+        alreadyHaveQuantity: 40,
+        checked: false,
+      });
+    });
+
+    it('takes from a row of a list what it took from the row that is gone, and the rest goes back where it was taken from', async () => {
+      await stock('firm-tofu', 100, 'g');
+      await stock('firm-tofu', 300, 'g', null, true);
+      const list = await listFor(0);
+      const item = rowOf(list, 'Firm tofu');
+      expect(item).toMatchObject({ alreadyHaveQuantity: 180, checked: true });
+      const moves = readMoves(
+        (await t.prisma.shoppingListItem.findUniqueOrThrow({ where: { id: item.id } })).pantryMoves,
+      );
+      const fromFrozen = -moves
+        .filter((move) => move.frozen)
+        .reduce((sum, move) => sum + move.quantity, 0);
+      expect(fromFrozen).toBeGreaterThan(0);
+
+      const frozen = (await rowsOf('firm-tofu')).find((row) => row.frozen)!;
+      await inventory.remove(user.id, frozen.id);
+
+      // Too little at home now to meet the need: the row unticks, and what it took of what is fresh goes back.
+      expect(rowOf(await again(list), 'Firm tofu')).toMatchObject({
+        alreadyHaveQuantity: 180 - fromFrozen,
+        checked: false,
+      });
+      expect(await pantry('firm-tofu')).toEqual(['100 g']);
+    });
+
+    it('takes from what a row bought what it put into the row that is gone', async () => {
+      const list = await listFor(0);
+      // Nothing at home; 300 g bought where 180 g are needed: 120 g go into the pantry.
+      await edit(list, 'Firm tofu', { purchasedQuantity: 300 });
+      expect(await pantry('firm-tofu')).toEqual(['120 g']);
+
+      for (const row of await rowsOf('firm-tofu')) await inventory.remove(user.id, row.id);
+
+      expect(rowOf(await again(list), 'Firm tofu')).toMatchObject({
+        purchasedQuantity: 180,
+        checked: true,
+      });
+      // Removed before its days, the list puts what was bought for it into the pantry: its 180 g, none of the 120 g.
+      await lists.remove(user.id, list.id, BEFORE);
+      expect(await pantry('firm-tofu')).toEqual(['180 g']);
     });
   });
 

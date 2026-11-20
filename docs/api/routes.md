@@ -179,8 +179,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 |---|---|---|---|---|---|
 | `GET /api/inventory` | an account | What a profile's pantry holds, by aisle and by name as the request's language sorts names. | `?profileId=` | 200 a list of `InventoryItem` |  |
 | `POST /api/inventory` | an account | Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing. | `UpsertInventoryItemRequest` | 201 `InventoryItem` |  |
-| `DELETE /api/inventory/:id` | an account | Take a row out of the pantry. |  | 204 |  |
-| `PATCH /api/inventory/:id` | an account | Change a row of the pantry. | `PatchInventoryItem` | 200 `InventoryItem` |  |
+| `DELETE /api/inventory/:id` | an account | Take a row out of the pantry: the food is not at home. The profile's shopping lists follow: a row that took of it counts it at home no more (it unticks where it no longer meets the need), a row not ticked counts on no more than the pantry holds, and nothing of it comes back to the pantry when a list is removed. |  | 204 |  |
+| `PATCH /api/inventory/:id` | an account | Change a row of the pantry. Lowered, the rows of the profile's lists not ticked count on no more than the pantry holds. | `PatchInventoryItem` | 200 `InventoryItem` |  |
 | `POST /api/inventory/:id/freeze` | an account | "Zamroź": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit allows, each dated 30 days from the client's day; none adds to a package there is. Answered with the profile's pantry as it is then. Sent again with the same `Idempotency-Key` within a week, it is answered with the pantry as it is now. | `FreezeInventoryItem` | 200 a list of `InventoryItem` |  |
 
 ## meal-plans

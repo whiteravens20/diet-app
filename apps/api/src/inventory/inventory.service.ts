@@ -23,6 +23,11 @@ import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry, newParcels } from './pantry-store.js';
+import {
+  forgetStock,
+  lockStockRows,
+  TRANSACTION,
+} from '../shopping-lists/shopping-lists.service.js';
 
 /**
  * Per-profile pantry, as the user keeps it by hand. Mutations are all
@@ -189,6 +194,7 @@ export class InventoryService {
     const row = await this.loadOwned(userId, id);
     if (body.quantity !== undefined) assertWithinCeiling(body.quantity, row.unit);
     const updated = await this.prisma.$transaction(async (tx) => {
+      await lockStockRows(tx, row.profileId, row.ingredientId);
       await lockPantry(tx, row.profileId, row.ingredientId);
       // A shopping row may have used the last of it since it was read.
       const changed = await tx.inventoryItem.updateMany({
@@ -199,11 +205,13 @@ export class InventoryService {
         },
       });
       if (changed.count === 0) throw this.notFound();
+      // Less of it at home: the lists count on no more than there is.
+      if (body.quantity !== undefined) await forgetStock(tx, row.profileId, row.ingredientId, null);
       return tx.inventoryItem.findUniqueOrThrow({
         where: { id: row.id },
         include: this.withIngredient(locale),
       });
-    });
+    }, TRANSACTION);
     return this.toDto(updated, locale);
   }
 
@@ -261,12 +269,20 @@ export class InventoryService {
     });
   }
 
+  /**
+   * A row removed is food that is not at home: what the profile's lists took of it, or count on, goes with it
+   * (`forgetStock`), and nothing of it comes back when a list is removed.
+   */
   async remove(userId: string, id: string): Promise<void> {
     const row = await this.loadOwned(userId, id);
     await this.prisma.$transaction(async (tx) => {
+      await lockStockRows(tx, row.profileId, row.ingredientId);
       await lockPantry(tx, row.profileId, row.ingredientId);
-      await tx.inventoryItem.deleteMany({ where: { id: row.id } });
-    });
+      const gone = await tx.inventoryItem.findUnique({ where: { id: row.id } });
+      if (!gone) return;
+      await tx.inventoryItem.delete({ where: { id: gone.id } });
+      await forgetStock(tx, gone.profileId, gone.ingredientId, gone);
+    }, TRANSACTION);
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {

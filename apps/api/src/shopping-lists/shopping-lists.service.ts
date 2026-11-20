@@ -38,8 +38,10 @@ import {
   UnitConversionError,
   withAtHome,
   type AggregatedItem,
+  type PantryMove,
   type PlanIngredientLine,
   type ShoppingIngredient,
+  type ShoppingRowState,
 } from '../engine/index.js';
 import { levelOf } from '../engine/waste-levels.js';
 import {
@@ -928,4 +930,152 @@ export async function settleHouseholds(tx: Tx, ids: readonly string[]): Promise<
   );
   const gone = named.filter((id) => !kept.has(id));
   if (gone.length > 0) await tx.householdList.deleteMany({ where: { id: { in: gone } } });
+}
+
+/** A row of the pantry that is gone, as the moves of a list's row name the row they were made to. */
+export interface GoneStock {
+  unit: Unit;
+  frozen: boolean;
+  parcel: number | null;
+}
+
+/**
+ * Hold the rows of the profile's lists of a food, before the pantry is (`lockPantry`): rows first, the order every
+ * writer takes its locks in. For a change of the pantry that the lists follow (`forgetStock`).
+ */
+export async function lockStockRows(
+  tx: Tx,
+  profileId: string,
+  ingredientId: string,
+): Promise<void> {
+  await tx.$queryRaw(
+    Prisma.sql`SELECT i."id" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE p."profileId" = ${profileId} AND i."ingredientId" = ${ingredientId} ORDER BY i."id" FOR UPDATE OF i`,
+  );
+}
+
+/**
+ * The lists follow the pantry: what it no longer holds of a food is at home for none of them. Run in the transaction
+ * that removed a row of the pantry (`gone`) or lowered one (`gone` null), the lists' rows of the food held first
+ * (`lockStockRows`) and then the pantry. A row that took food from the row that is gone loses that part of what is
+ * at home, as when its pencil says so (`withAtHome`): it unticks where it no longer meets the need, and the rest of
+ * its ledger is settled; what it took from the row that is gone is forgotten, so nothing of it comes back when the
+ * list goes, and what it put there of what was bought is not at home either. A row that counts on the pantry without
+ * having taken anything (not ticked) then counts on no more than the pantry holds of the food that it may take, the
+ * rows of older lists first.
+ */
+export async function forgetStock(
+  tx: Tx,
+  profileId: string,
+  ingredientId: string,
+  gone: GoneStock | null,
+): Promise<void> {
+  const ingredient = await tx.ingredient.findUnique({ where: { id: ingredientId } });
+  if (!ingredient) return;
+  const inUnit = (quantity: number, from: Unit, to: Unit): number | null => {
+    try {
+      return convertUnit(quantity, from, to, ingredient);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      return null;
+    }
+  };
+  const read = () =>
+    tx.shoppingListItem.findMany({
+      where: { ingredientId, list: { plan: { profileId } } },
+      include: { list: { select: { planId: true, createdAt: true, householdId: true } } },
+      orderBy: [{ list: { createdAt: 'asc' } }, { id: 'asc' }],
+    });
+  const thawedOf = new Map<string, ReadonlySet<number>>();
+  const thawed = async (planId: string): Promise<ReadonlySet<number>> => {
+    if (!thawedOf.has(planId))
+      thawedOf.set(planId, (await thawedParcels(tx, planId)).get(ingredientId) ?? new Set());
+    return thawedOf.get(planId)!;
+  };
+  const households = new Set<string>();
+  /** A row's new state, its ledger settled to what the row now means to do to the pantry. */
+  const write = async (
+    row: Awaited<ReturnType<typeof read>>[number],
+    state: Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity' | 'checked'>,
+    moves: readonly PantryMove[],
+  ): Promise<void> => {
+    const target = inUnit(
+      intendedPantryEffect({ ...row, ...state }),
+      row.unit,
+      ingredient.canonicalUnit,
+    );
+    const ledger =
+      target === null
+        ? moves
+        : await settlePantry(
+            tx,
+            profileId,
+            ingredient,
+            moves,
+            target,
+            await thawed(row.list.planId),
+          );
+    await tx.shoppingListItem.update({
+      where: { id: row.id },
+      data: {
+        ...state,
+        ...(state.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
+        pantryMoves: ledger as unknown as Prisma.InputJsonValue,
+      },
+    });
+    if (row.list.householdId) households.add(row.list.householdId);
+  };
+
+  // What the rows took from the row that is gone, or put there.
+  if (gone) {
+    const there = (move: PantryMove): boolean =>
+      move.unit === gone.unit &&
+      Boolean(move.frozen) === gone.frozen &&
+      (move.parcel ?? 0) === (gone.parcel ?? 0);
+    for (const row of await read()) {
+      const moves = readMoves(row.pantryMoves);
+      const net = moves.filter(there).reduce((sum, move) => sum + move.quantity, 0);
+      if (!moves.some(there)) continue;
+      const lost = inUnit(net, gone.unit, row.unit);
+      if (lost === null) continue;
+      const state =
+        lost < 0
+          ? withAtHome(row, row.alreadyHaveQuantity + lost)
+          : {
+              alreadyHaveQuantity: row.alreadyHaveQuantity,
+              purchasedQuantity: Math.max(0, (row.purchasedQuantity ?? row.totalQuantity) - lost),
+              checked: row.checked,
+            };
+      await write(
+        row,
+        state,
+        moves.filter((move) => !there(move)),
+      );
+    }
+  }
+
+  // What the rows not ticked count on, within what the pantry still holds that each may take.
+  const stock = await tx.inventoryItem.findMany({
+    where: { profileId, ingredientId },
+    select: { unit: true, quantity: true, frozen: true, parcel: true },
+  });
+  let counted = 0;
+  for (const row of await read()) {
+    if (row.checked || row.alreadyHaveQuantity <= 0) continue;
+    const claim = inUnit(row.alreadyHaveQuantity, row.unit, ingredient.canonicalUnit);
+    if (claim === null) continue;
+    const may = mayTakeOf(ingredient, await thawed(row.list.planId));
+    const held = stock
+      .filter(may)
+      .reduce(
+        (sum, one) => sum + (inUnit(one.quantity, one.unit, ingredient.canonicalUnit) ?? 0),
+        0,
+      );
+    const kept = Math.max(0, Math.min(claim, held - counted));
+    counted += kept;
+    if (kept >= claim - 1e-6) continue;
+    const have = inUnit(kept, ingredient.canonicalUnit, row.unit);
+    if (have === null) continue;
+    await write(row, withAtHome(row, have), readMoves(row.pantryMoves));
+  }
+  await settleHouseholds(tx, [...households]);
 }

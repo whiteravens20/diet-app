@@ -4757,8 +4757,8 @@
         "tags": [
           "inventory"
         ],
-        "summary": "Take a row out of the pantry.",
-        "description": "Take a row out of the pantry.\n\nAsked by an account.",
+        "summary": "Take a row out of the pantry: the food is not at home.",
+        "description": "Take a row out of the pantry: the food is not at home. The profile's shopping lists follow: a row that took of it counts it at home no more (it unticks where it no longer meets the need), a row not ticked counts on no more than the pantry holds, and nothing of it comes back to the pantry when a list is removed.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -4790,7 +4790,7 @@
           "inventory"
         ],
         "summary": "Change a row of the pantry.",
-        "description": "Change a row of the pantry.\n\nAsked by an account.",
+        "description": "Change a row of the pantry. Lowered, the rows of the profile's lists not ticked count on no more than the pantry holds.\n\nAsked by an account.",
         "security": [
           {
             "account": []

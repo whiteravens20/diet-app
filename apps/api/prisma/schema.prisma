@@ -1247,7 +1247,9 @@ model ShoppingListItem {
   totalQuantity         Float
   unit                  Unit
   // What the list took as already at home when it was made: the pantry's
-  // stock less the open claims of the profile's other lists. Never changes.
+  // stock less the open claims of the profile's other lists. Changed since only
+  // by the user, through the row, and by the pantry no longer holding it: a row
+  // of the pantry removed or lowered (`forgetStock`).
   alreadyHaveQuantity   Float           @default(0)
   // Everything the user has for this row, the part already at home included.
   // Null until first edit. The row ticks itself (`checked = true`) when this
