@@ -449,21 +449,24 @@ export function PlanCard({
             ? tFreezer('freeze', { name, portion: portions[0]! })
             : tFreezer('freezePortions', { name, portions: fmt.list(portions) })}
         </span>
+        {/* Given from the day the rest is frozen: before it, the pantry would hold what was not even bought. */}
         {rest.left > 0 &&
           (rest.inPantry ? (
             <span className="text-muted-foreground">{tFreezer('inPantry')}</span>
           ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-my-1"
-              disabled={busy}
-              aria-label={tFreezer('keepFor', { name, amount: amount(rest.left, rest.unit) })}
-              onClick={() => onKeepFrozen(rest.ingredientId, rest.date)}
-            >
-              {tFreezer('keep')}
-            </Button>
+            rest.date <= today && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-my-1"
+                disabled={busy}
+                aria-label={tFreezer('keepFor', { name, amount: amount(rest.left, rest.unit) })}
+                onClick={() => onKeepFrozen(rest.ingredientId, rest.date)}
+              >
+                {tFreezer('keep')}
+              </Button>
+            )
           ))}
       </div>
     );

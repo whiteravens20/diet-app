@@ -4417,6 +4417,33 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
     });
   });
 
+  it('gives the pantry nothing of a rest the plan freezes on a later day', async () => {
+    // The same two days, still to come.
+    const plan = twoDays();
+    const later = { '2026-01-05': '2100-01-04', '2026-01-06': '2100-01-05' } as Record<
+      string,
+      string
+    >;
+    const rest = plan.packs.frozen[0]!;
+    await opened({
+      ...plan,
+      startDate: later[plan.startDate] ?? plan.startDate,
+      days: plan.days.map((day) => ({ ...day, date: later[day.date]! })),
+      packs: {
+        ...plan.packs,
+        frozen: [
+          {
+            ...rest,
+            date: later[rest.date]!,
+            thawed: rest.thawed.map((one) => ({ ...one, date: later[one.date]! })),
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText(/^Freeze the rest of the pack at once/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Add to the pantry as frozen/ })).toBeNull();
+  });
   it('says a rest the pantry was given is there, and offers it no more', async () => {
     await opened(twoDays({ inPantry: true }));
 

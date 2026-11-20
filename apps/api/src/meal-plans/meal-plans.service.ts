@@ -298,7 +298,9 @@ export class MealPlansService {
    * "Dodaj do spiżarni" of a rest of meat or fish the plan puts in the freezer (`KeepFrozenRequest`): what is left of
    * it once the plan is over goes into the profile's pantry as a package of its own in the freezer, dated
    * `FROZEN_KEEPS_DAYS` from the day it went in, and the plan keeps that it gave it. A rest
-   * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`.
+   * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`, and
+   * one it freezes on a later day 409 `REST_NOT_FROZEN_YET`: until then the pantry would hold what was not even bought,
+   * and a shopping list would count it as at home.
    * The two plans of a joint plan share one kitchen and its rests: a rest goes into the pantry of the plan it was
    * given from, once, and both plans keep that it was given.
    */
@@ -319,6 +321,11 @@ export class MealPlansService {
         message: 'The plan no longer puts this rest in the freezer, or eats all of it itself.',
       });
     if (rest.inPantry) return plan;
+    if (rest.date > (clientToday ?? this.today()))
+      throw new ConflictException({
+        error: 'REST_NOT_FROZEN_YET',
+        message: 'The plan puts this rest in the freezer on a later day.',
+      });
     await this.prisma.$transaction(async (tx) => {
       // One at a time for a kitchen: the plans of a joint plan are held in one order, and the second finds the rest
       // given from either.

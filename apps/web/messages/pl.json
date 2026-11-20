@@ -361,6 +361,7 @@
     "FROZEN_REST_GONE": "Plan nie zamraża już tej resztki albo zjada ją całą sam. Plan został odświeżony.",
     "PACK_LEFT_GONE": "Plan nie zostawia już nic z tego opakowania. Plan został odświeżony.",
     "PACK_NOT_OPENED_YET": "Plan otworzy to opakowanie później: to, co z niego zostanie, dodasz do spiżarni od tego dnia.",
+    "REST_NOT_FROZEN_YET": "Plan zamrozi tę resztę później: do spiżarni dodasz ją od tego dnia.",
     "PLAN_CHANGED": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie.",
     "PLAN_TARGET_TYPED": "Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia.",
     "DAY_NOT_FOUND": "Nie znaleziono dnia w tym planie.",

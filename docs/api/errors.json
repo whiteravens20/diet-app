@@ -1584,6 +1584,15 @@
       "pl": "Wybierz inny składnik z katalogu, którym go zastąpić."
     }
   },
+  "REST_NOT_FROZEN_YET": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The plan freezes this rest on a later day: it can go into the pantry from that day.",
+      "pl": "Plan zamrozi tę resztę później: do spiżarni dodasz ją od tego dnia."
+    }
+  },
   "REVIEWER_DISABLED": {
     "statuses": [
       401,

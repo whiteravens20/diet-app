@@ -361,6 +361,7 @@
     "FROZEN_REST_GONE": "The plan no longer freezes this rest, or eats all of it itself. The plan has been reloaded.",
     "PACK_LEFT_GONE": "The plan no longer leaves anything of this pack. The plan has been reloaded.",
     "PACK_NOT_OPENED_YET": "The plan opens this pack on a later day: what it leaves can go into the pantry from that day.",
+    "REST_NOT_FROZEN_YET": "The plan freezes this rest on a later day: it can go into the pantry from that day.",
     "PLAN_CHANGED": "The plan changed in the meantime. It has been reloaded; try again.",
     "PLAN_TARGET_TYPED": "This plan keeps the target typed when it was made: the profile's target does not change it.",
     "DAY_NOT_FOUND": "Day not found in this plan.",

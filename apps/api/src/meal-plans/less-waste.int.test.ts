@@ -11,6 +11,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -466,6 +467,14 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         bestBefore: new Date('2026-01-25'),
       },
     });
+
+    // The day before the plan freezes it, nothing goes in: it is not even bought.
+    plansTodayIs('2026-01-04');
+    const early = await keep('2026-01-05');
+    expect(early.status).toBe(409);
+    expect(early.body.error).toBe('REST_NOT_FROZEN_YET');
+    expect((await pantry()).filter((row) => row.quantity === 350)).toEqual([]);
+    plansTodayIs('2026-01-05');
 
     // Asked twice at the same moment, and once more: given once.
     const answers = await Promise.all([keep('2026-01-05'), keep('2026-01-05')]);

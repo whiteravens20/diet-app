@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 211 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 212 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -184,6 +184,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `RECIPE_WORDS_ONLY_OF_A_SWAP` | 409 | Only the text of a recipe made by swapping an ingredient can be corrected in place. Any other recipe is edited as a new version. | Sam tekst można poprawić na miejscu tylko w przepisie z wymiany składnika. Każdy inny przepis zmienisz jako nową wersję. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |
 | `REPLACEMENT_NOT_IN_CATALOGUE` | 422 | Choose another ingredient of the catalogue to replace it with. | Wybierz inny składnik z katalogu, którym go zastąpić. |
+| `REST_NOT_FROZEN_YET` | 409 | The plan freezes this rest on a later day: it can go into the pantry from that day. | Plan zamrozi tę resztę później: do spiżarni dodasz ją od tego dnia. |
 | `REVIEWER_DISABLED` | 401, 403 | Reviewer interface is disabled. | Panel recenzenta jest wyłączony. |
 | `SAME_INGREDIENT` | 400 | An ingredient cannot take its own place. Choose another one. | Składnik nie może zastąpić samego siebie. Wybierz inny. |
 | `SCALE_OUT_OF_RANGE` | 400 | That would leave a meal with less than half a serving or more than three. | Posiłek miałby wtedy mniej niż pół porcji albo więcej niż trzy. |
