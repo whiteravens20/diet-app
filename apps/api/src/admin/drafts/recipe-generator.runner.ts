@@ -40,6 +40,7 @@ import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter, CompletionResult } from '../../ai/provider.interface.js';
 import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
+import { listedLocale } from '../../common/listed-locale.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
   RECIPE_GENERATOR_PROMPT_VERSION,
@@ -189,9 +190,10 @@ export class RecipeGeneratorRunner {
 
   private async run(spec: RecipeGenerateSpec, batchId: string): Promise<void> {
     try {
+      // The languages name the fields of every draft the run checks: as the list holds them.
       const targetLocales: Locale[] =
         spec.targetLocales && spec.targetLocales.length > 0
-          ? spec.targetLocales
+          ? spec.targetLocales.map(listedLocale)
           : (['en', ...NON_CANONICAL_LOCALES] as Locale[]);
       const targetLocalesWithEn: Locale[] = targetLocales.includes('en' as Locale)
         ? targetLocales
