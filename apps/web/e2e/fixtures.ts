@@ -261,7 +261,12 @@ export async function planNoteClosed(
     return;
   }
   await expect(note).toBeVisible();
-  await page.getByRole('button', { name: plans.rebalanceDismiss!, exact: true }).click();
+  // The note's own button: another of the page may bear the same word ("Zamknij").
+  await page
+    .locator('div', { has: note })
+    .last()
+    .getByRole('button', { name: plans.rebalanceDismiss!, exact: true })
+    .click();
   await expect(note).toHaveCount(0);
 }
 
