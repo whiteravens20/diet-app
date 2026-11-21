@@ -158,7 +158,14 @@ export class DiaryService {
   ) {}
 
   /** A day of a profile's diary, with what it aims at and, where a plan holds it, the plan's meals. */
-  async day(userId: string, locale: Locale, profileId: string, date: string): Promise<DiaryDay> {
+  async day(
+    userId: string,
+    locale: Locale,
+    profileId: string,
+    date: string,
+    /** The day it is for the client: a day gone is sized again no more. */
+    today?: string | null,
+  ): Promise<DiaryDay> {
     const profile = await this.profile(userId, profileId);
     const [planDay, rows] = await Promise.all([
       this.prisma.mealPlanDay.findFirst({
@@ -169,7 +176,7 @@ export class DiaryService {
           calorieTarget: true,
           overrides: true,
           plan: {
-            select: { dietType: true, macroSplit: true, calorieTarget: true },
+            select: { dietType: true, macroSplit: true, calorieTarget: true, jointPlanId: true },
           },
           meals: {
             select: {
@@ -183,6 +190,7 @@ export class DiaryService {
               rests: true,
               plate: true,
               eatenAt: true,
+              leftoverFromDate: true,
               toppingKey: true,
               toppingAmount: true,
               // Shared and cooked in one pot: the portion is a split's, near what the plan says.
@@ -282,6 +290,7 @@ export class DiaryService {
       ...entered,
     ]);
     const aim = this.aimOf(profile, skipped ? null : planDay);
+    const standing = standingOf(planned.calories, planDay?.calorieTarget ?? 0, skipped);
     return {
       profileId,
       date,
@@ -295,7 +304,18 @@ export class DiaryService {
             id: planDay.planId,
             skipped,
             meals,
-            ...standingOf(planned.calories, planDay.calorieTarget, skipped),
+            ...standing,
+            // Offered where the day stands off its target, from today on, as the plan's view offers it.
+            resizes:
+              !skipped &&
+              date >= (today ?? this.plans.today()) &&
+              standing.offTarget !== null &&
+              this.plans.resizes(
+                planDay.meals,
+                planDay,
+                rows.length > 0 ? { nutrition: fromEntries } : null,
+                planDay.plan,
+              ),
           }
         : null,
       entries: rows.map((row) => entryDto(row, locale)),
@@ -813,11 +833,11 @@ export class DiaryService {
         // The plan's day follows first, so that the day read says where it stands now.
         const planChange =
           copied > 0 ? await this.followPlan(userId, locale, profileId, to, today) : null;
-        return { copied, day: await this.day(userId, locale, profileId, to), planChange };
+        return { copied, day: await this.day(userId, locale, profileId, to, today), planChange };
       },
       replay: async (kept) => ({
         copied: Number(kept),
-        day: await this.day(userId, locale, profileId, to),
+        day: await this.day(userId, locale, profileId, to, today),
         planChange: null,
       }),
     });

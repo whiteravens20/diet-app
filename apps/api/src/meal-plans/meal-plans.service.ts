@@ -1374,7 +1374,7 @@ export class MealPlansService {
   resizedDay(
     meals: RebalanceMealRow[],
     day: { calorieTarget: number; overrides: unknown },
-    diary: DiaryOnDay | null,
+    diary: Pick<DiaryOnDay, 'nutrition'> | null,
     plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
   ): { kcal: number; scales: Map<string, number> } {
     const rows = [...meals.map(toRebalanceRow), ...restRebalanceRows(meals), ...diaryRows(diary)];
@@ -1383,6 +1383,37 @@ export class MealPlansService {
       kcal: Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories),
       scales,
     };
+  }
+
+  /**
+   * Whether sizing a day again would give one of its meals another portion (`MealPlanDay.resizes`), worked out as
+   * `rebalanceDayInternal` would size it and not written. A day of a joint plan chooses its plates and toppings again
+   * as well: it is offered wherever it has a meal of a recipe not eaten yet.
+   */
+  resizes(
+    meals: RebalanceMealRow[],
+    day: { calorieTarget: number; overrides: unknown },
+    diary: Pick<DiaryOnDay, 'nutrition'> | null,
+    plan: {
+      dietType: string;
+      macroSplit: unknown;
+      calorieTarget: number;
+      jointPlanId: string | null;
+    },
+  ): boolean {
+    const movable = meals.some(
+      (meal) =>
+        meal.source !== 'USER_CUSTOM' &&
+        meal.recipe !== null &&
+        meal.eatenAt === null &&
+        meal.leftoverFromDate === null,
+    );
+    if (!movable) return false;
+    if (plan.jointPlanId !== null) return true;
+    const { scales } = this.resizedDay(meals, day, diary, plan);
+    return meals.some(
+      (meal) => Math.abs((scales.get(meal.id) ?? meal.quantityScale) - meal.quantityScale) >= 1e-9,
+    );
   }
 
   /**
@@ -1973,6 +2004,7 @@ export class MealPlansService {
       );
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
+      const standing = standingOf(dayNutrition.calories, day.calorieTarget, skipped);
       return {
         id: day.id,
         date: isoDate(day.date),
@@ -1993,7 +2025,13 @@ export class MealPlansService {
           plan.dietType,
           dayNutrition.carbs,
         ),
-        ...standingOf(dayNutrition.calories, day.calorieTarget, skipped),
+        ...standing,
+        // Offered where the day stands off its target, from today on.
+        resizes:
+          !skipped &&
+          isoDate(day.date) >= today &&
+          standing.offTarget !== null &&
+          this.resizes(orderedMeals, day, entered, plan),
         macrosOff:
           !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan)),
         skipped,
@@ -2498,7 +2536,10 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
  * eaten, like a meal marked as eaten. None where the diary holds nothing for
  * the day. Its id is no meal's.
  */
-function diaryRows(diary: DiaryOnDay | null | undefined, id = 'diary'): RebalanceRow[] {
+function diaryRows(
+  diary: Pick<DiaryOnDay, 'nutrition'> | null | undefined,
+  id = 'diary',
+): RebalanceRow[] {
   return diary ? [{ id, per: diary.nutrition, servings: 1, quantityScale: 1, locked: true }] : [];
 }
 

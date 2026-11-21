@@ -155,6 +155,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       targetMacros: { protein: 100, fat: 62, carbs: 260, carbsFloor: null },
       calorieDelta: -1770,
       offTarget: null,
+      resizes: false,
       macrosOff: false,
       skipped: false,
       belowSafetyFloor: false,
@@ -1950,6 +1951,7 @@ describe('the plan page, on how a day stands against its target', () => {
       aDay({
         date: today,
         offTarget: 'over',
+        resizes: true,
         diary: {
           entries: 2,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
@@ -2088,19 +2090,19 @@ describe('the plan page, on how a day stands against its target', () => {
     expect(within(rows[3] as HTMLElement).getByText('1 serving')).toBeVisible();
   });
 
-  it('offers no resizing of a day that has no meal from a recipe left to resize', async () => {
+  it('offers no resizing of a day off its target where the server says sizing it again would move nothing', async () => {
     const today = localDate();
-    const day = aPlan().days[0]!;
+    // Meals of a recipe not eaten yet, at the bounds of their portions: the server's word decides.
     await opened(
       aDay({
         date: today,
         offTarget: 'over',
+        resizes: false,
         diary: {
           entries: 1,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
           items: [],
         },
-        meals: day.meals.map((meal) => ({ ...meal, eatenAt: `${today}T08:00:00.000Z` })),
       }),
     );
 
@@ -2126,6 +2128,7 @@ describe('the plan page, on how a day stands against its target', () => {
       aDay({
         date: today,
         offTarget: 'over',
+        resizes: true,
         diary: {
           entries: 2,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
@@ -3906,7 +3909,7 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     const plan = aPairOfDays();
     await opened({
       ...plan,
-      days: [{ ...plan.days[0]!, offTarget: 'under' }, plan.days[1]!],
+      days: [{ ...plan.days[0]!, offTarget: 'under', resizes: true }, plan.days[1]!],
     });
 
     expect(

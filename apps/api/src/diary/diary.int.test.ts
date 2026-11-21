@@ -18,6 +18,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aPrivateRecipe, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 const DAY_MS = 86_400_000;
@@ -962,6 +963,37 @@ describe('the diary of a profile', () => {
 
         expect(written.planChange).toBeNull();
         expect(mealsKcal(planDay(await planOf(plan.id), day(-1)))).toBe(yesterday);
+      });
+
+      it('says, of a day its entries alone put past its target, that sizing it again moves nothing', async () => {
+        await write(meal(3000)).expect(201);
+        await write(meal(3000)).expect(201);
+
+        const today = planDay(await planOf(plan.id), day(0));
+        expect(today.offTarget).toBe('over');
+        expect(today.resizes).toBe(false);
+        expect((await dayOf(day(0))).plan).toMatchObject({ offTarget: 'over', resizes: false });
+      });
+
+      it('says, of a day put past its target whose sizing was taken back, that sizing it again moves its meals, and of a day gone that it is not offered', async () => {
+        // Today for the plans as for the diary: yesterday is a day gone for both.
+        plansTodayIs(day(0));
+        const written = (await write(meal(900)).expect(201)).body as WrittenDiaryEntry;
+        await rebalance({
+          scope: 'day',
+          date: day(0),
+          restore: written.planChange!.rebalance!.changes.map((change) => ({
+            mealId: change.mealId,
+            scale: change.before,
+          })),
+        });
+        await write({ ...meal(900), date: day(-1) }).expect(201);
+
+        const shown = await planOf(plan.id);
+        expect(planDay(shown, day(0))).toMatchObject({ offTarget: 'over', resizes: true });
+        expect(planDay(shown, day(-1))).toMatchObject({ offTarget: 'over', resizes: false });
+        expect((await dayOf(day(0))).plan).toMatchObject({ offTarget: 'over', resizes: true });
+        expect((await dayOf(day(-1))).plan).toMatchObject({ offTarget: 'over', resizes: false });
       });
     });
 

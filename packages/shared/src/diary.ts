@@ -243,6 +243,8 @@ export const DiaryDay = z.object({
       meals: z.array(DiaryPlanMeal),
       calorieDelta: z.number(),
       offTarget: z.enum(['over', 'under']).nullable(),
+      /** `MealPlanDay.resizes` of the same day: whether sizing it again would give a meal another portion. */
+      resizes: z.boolean(),
     })
     .nullable(),
   /** The entries of the day, under the meals they were written for, the first written first. */

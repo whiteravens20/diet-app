@@ -40,8 +40,9 @@ export class DiaryController {
   /**
    * A day of a profile's diary: the entries written for it, the meals of the
    * plan that holds it (the one made last where several do), what was eaten
-   * against the day's target, and where the plan's day stands with the
-   * entries counted as eaten.
+   * against the day's target, where the plan's day stands with the entries
+   * counted as eaten, and whether sizing it again would give a meal another
+   * portion.
    */
   @Get('day')
   @Answers(DiaryDay)
@@ -49,8 +50,9 @@ export class DiaryController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Query(new ZodValidationPipe(DiaryDayQuery)) query: DiaryDayQuery,
+    @ClientDate() today: string | null,
   ) {
-    return this.diary.day(user.id, locale, query.profileId, query.date);
+    return this.diary.day(user.id, locale, query.profileId, query.date, today);
   }
 
   /**

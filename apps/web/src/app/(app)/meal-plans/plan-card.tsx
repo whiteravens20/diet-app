@@ -649,30 +649,27 @@ export function PlanCard({
                     )}
                   </span>
                 </p>
-                {/* A day of today or after it is resized with its own meals first: those from a recipe, not eaten yet. */}
-                {day.date >= today &&
-                  day.meals.some(
-                    (m) => m.eatenAt === null && m.source !== 'USER_CUSTOM' && m.recipe !== null,
-                  ) && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          changing.current = dayAnchor(plan.id, day.date);
-                          onResizeDay(day.date);
-                        }}
-                        disabled={busy}
-                        aria-describedby={`${day.id}-resize`}
-                      >
-                        {t('resizeDay')}
-                      </Button>
-                      <span id={`${day.id}-resize`} className="text-muted-foreground">
-                        {t(day.diary ? 'resizeDayNote' : 'resizeDayNotePlain')}
-                      </span>
-                    </div>
-                  )}
+                {/* Offered where sizing the day again would move a meal: the server works it out with the day's meals and diary. */}
+                {day.resizes && (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        changing.current = dayAnchor(plan.id, day.date);
+                        onResizeDay(day.date);
+                      }}
+                      disabled={busy}
+                      aria-describedby={`${day.id}-resize`}
+                    >
+                      {t('resizeDay')}
+                    </Button>
+                    <span id={`${day.id}-resize`} className="text-muted-foreground">
+                      {t(day.diary ? 'resizeDayNote' : 'resizeDayNotePlain')}
+                    </span>
+                  </div>
+                )}
                 {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
                 {plan.days.some(
                   (other) => other.id !== day.id && other.date >= today && !other.skipped,

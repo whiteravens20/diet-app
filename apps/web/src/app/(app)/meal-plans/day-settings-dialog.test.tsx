@@ -33,6 +33,7 @@ const DAY: MealPlanDay = {
   targetMacros: { protein: 125, fat: 67, carbs: 225, carbsFloor: null },
   calorieDelta: 0,
   offTarget: null,
+  resizes: false,
   macrosOff: false,
   skipped: false,
   belowSafetyFloor: false,

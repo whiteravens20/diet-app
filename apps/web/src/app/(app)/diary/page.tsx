@@ -572,8 +572,8 @@ function DaySummary({
   const plan = day.plan;
   // Where nothing is written, the plan's day stands as its own meals put it.
   const written = day.entries.length > 0;
-  // A meal from a recipe that is not eaten yet is all a rebalance moves.
-  const resizable = plan?.meals.some((meal) => !meal.eaten && meal.recipeId !== null) ?? false;
+  // Offered where sizing the day again would move a meal, as the server works it out.
+  const resizable = plan?.resizes ?? false;
   return (
     <Card>
       <CardHeader>

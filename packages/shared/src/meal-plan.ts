@@ -670,6 +670,13 @@ export const MealPlanDay = z.object({
    */
   offTarget: z.enum(['over', 'under']).nullable(),
   /**
+   * Whether sizing the day again ("Dopasuj porcje dnia") would give a meal another portion, where the day stands
+   * off its target, from today on: false where its meals are at their bounds already (what its diary holds passes
+   * the target alone), and on a day on target, gone or skipped, where nothing is offered. A day of a joint plan, whose
+   * plates and toppings are chosen again as well, is offered wherever it has a meal of a recipe not eaten yet.
+   */
+  resizes: z.boolean(),
+  /**
    * What the day holds lies far from the split of protein, fat and carbohydrate
    * it aims at: over 12 % of its energy would have to move. False for a skipped day.
    */

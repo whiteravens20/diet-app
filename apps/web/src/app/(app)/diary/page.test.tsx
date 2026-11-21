@@ -89,6 +89,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
     ],
     calorieDelta: 150,
     offTarget: null,
+    resizes: false,
   },
   entries: [anEntry()],
   eaten: { calories: 750, protein: 34, fat: 19, carbs: 109 },
@@ -503,7 +504,9 @@ describe('the diary', () => {
   });
 
   it("offers to resize the plan's meals when the entries put its day off its target, and says what that does", async () => {
-    await renderPage(aDay({ plan: { ...aDay().plan!, calorieDelta: 450, offTarget: 'over' } }));
+    await renderPage(
+      aDay({ plan: { ...aDay().plan!, calorieDelta: 450, offTarget: 'over', resizes: true } }),
+    );
     const posted = vi.spyOn(api, 'post').mockResolvedValue({ plan: {}, rebalance: null } as never);
     const user = userEvent.setup();
 
@@ -536,7 +539,9 @@ describe('the diary', () => {
   });
 
   it('says of a press that changes nothing that the portions cannot come any closer', async () => {
-    await renderPage(aDay({ plan: { ...aDay().plan!, calorieDelta: 450, offTarget: 'over' } }));
+    await renderPage(
+      aDay({ plan: { ...aDay().plan!, calorieDelta: 450, offTarget: 'over', resizes: true } }),
+    );
     const figures = { calories: 0, protein: 0, fat: 0, carbs: 0 };
     vi.spyOn(api, 'post').mockResolvedValue({
       plan: {},
