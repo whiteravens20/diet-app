@@ -176,12 +176,15 @@ export function WeightCard({ profile }: { profile: Profile }) {
                   onClick={onRemoveLatest}
                   disabled={remove.isPending}
                   title={t('removeLatestLabel', { weight: latestWeight, date: latestDate })}
-                  className="text-muted-foreground"
+                  className="h-auto min-h-8 py-1 text-left text-muted-foreground"
                 >
-                  <Undo2 size={14} aria-hidden />
-                  <span className="ml-1">{t('removeLatest')}</span>
-                  <span className="ml-1 text-xs">
-                    ({t('removeLatestLabel', { weight: latestWeight, date: latestDate })})
+                  <Undo2 size={14} aria-hidden className="shrink-0" />
+                  {/* One run of words, which a narrow card wraps as a line of text, the weight and its day whole. */}
+                  <span>
+                    {t('removeLatest')}{' '}
+                    <span className="whitespace-nowrap text-xs">
+                      ({t('removeLatestLabel', { weight: latestWeight, date: latestDate })})
+                    </span>
                   </span>
                 </Button>
               )}
