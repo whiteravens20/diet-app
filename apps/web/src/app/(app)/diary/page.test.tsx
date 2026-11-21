@@ -258,6 +258,26 @@ describe('the diary', () => {
     expect(dinner.queryByText(/shared pot/)).toBeNull();
   });
 
+  it("opens a meal of the plan's recipe in its window from its name, and leaves a meal of one's own as it is", async () => {
+    const day = aDay();
+    await renderPage({
+      ...day,
+      plan: {
+        ...day.plan!,
+        meals: [day.plan!.meals[0]!, { ...day.plan!.meals[1]!, recipeId: null }],
+      },
+    });
+
+    const breakfast = within(screen.getByRole('region', { name: 'Breakfast' }));
+    expect(breakfast.getByRole('link', { name: 'Oat porridge' })).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=${PROFILE}&plan=${PLAN}&day=${TODAY}&meal=${OATS}&from=diary`,
+    );
+    const dinner = within(screen.getByRole('region', { name: 'Dinner' }));
+    expect(dinner.getByText('Tomato soup')).toBeInTheDocument();
+    expect(dinner.queryByRole('link', { name: 'Tomato soup' })).toBeNull();
+  });
+
   it('opens on the day a link names, and goes to the days on either side and back to today', async () => {
     const yesterday = dayAfter(TODAY, -1);
     address.search = `profile=${PROFILE}&date=${yesterday}`;

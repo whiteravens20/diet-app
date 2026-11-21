@@ -136,11 +136,19 @@ function MealPlansContent() {
   const active = list.find((p) => p.id === activeId) ?? null;
 
   // A link from elsewhere may name a plan and a day of it (`?plan=&day=`): the page then opens on the plan at that day, as its own calendar would lead there.
+  // It may name a meal of the day too (`&meal=`), whose window opens; one opened for the diary (`&from=diary`) goes back to it on closing.
   const [linked] = useState(() => {
     const planId = params.get('plan');
     const date = params.get('day');
+    const meal = params.get('meal');
     return planId && date && /^[0-9a-f-]{36}$/i.test(planId) && CalendarDay.safeParse(date).success
-      ? { planId, date }
+      ? {
+          planId,
+          date,
+          ...(meal && /^[0-9a-f-]{36}$/i.test(meal)
+            ? { meal, back: params.get('from') === 'diary' }
+            : {}),
+        }
       : null;
   });
 

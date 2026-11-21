@@ -216,7 +216,7 @@ export function PlanCard({
   unanswered?: Read;
   open: boolean;
   /** The day of this plan that a link or the calendar leads to, until the card has gone there. */
-  sought: { date: string } | null;
+  sought: { date: string; meal?: string; back?: boolean } | null;
   onFound: () => void;
   /** The plan as the last change left it, once it has been read again. */
   edited: MealPlan | null;
@@ -306,11 +306,37 @@ export function PlanCard({
     shared?: SharedPortion;
     pot?: PotPortions;
     topping: { name: string; amount: string; kcal: number } | null;
+    /** Opened for the diary: closing the window goes back to it. */
+    back?: boolean;
   } | null>(null);
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
   const cookWords = useCookingWords();
   const shownAmount = useShownAmount();
+  /** The window of a meal of a recipe, as its name opens it: the recipe in the plan's amounts, its pot, plates and topping. */
+  const windowOf = (plan: MealPlan, m: PlannedMealView) => ({
+    id: m.recipe!.id,
+    picked: m.modelPick,
+    label: m.label,
+    scale: m.quantityScale,
+    shared: m.shared
+      ? {
+          name: m.shared.with.profileName,
+          servings: Math.round(m.shared.with.servings * 10) / 10,
+          kcal: Math.round(m.shared.with.calories),
+          eaten: m.shared.with.eaten,
+          plates: platesOf(m),
+        }
+      : undefined,
+    ...toCook(plan, m),
+    // A dish both cook in one pot is opened with what the pot takes.
+    ...toCookTogether(plan, m),
+    topping: m.topping && {
+      name: m.topping.ingredient.name,
+      amount: shownAmount(m.topping.ingredient.display),
+      kcal: m.topping.nutrition.calories,
+    },
+  });
   const amount = useAmount();
   const tFreezer = useTranslations('mealPlans.freezer');
   const tSplit = useTranslations('split');
@@ -354,6 +380,11 @@ export function PlanCard({
   if (sought && plan && sought !== ledTo) {
     setLedTo(sought);
     if (days.some((day) => day.date === sought.date)) goToDay(sought.date);
+    // A meal the link names opens in its window: one of a recipe, as its name would open it.
+    const meal = days
+      .find((day) => day.date === sought.date)
+      ?.meals.find((one) => one.id === sought.meal);
+    if (meal?.recipe) setOpenRecipe({ ...windowOf(plan, meal), back: sought.back });
   }
   useEffect(() => {
     if (sought && sought === ledTo) onFound();
@@ -853,31 +884,7 @@ export function PlanCard({
                             ) : (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setOpenRecipe({
-                                    id: m.recipe!.id,
-                                    picked: m.modelPick,
-                                    label: m.label,
-                                    scale: m.quantityScale,
-                                    shared: m.shared
-                                      ? {
-                                          name: m.shared.with.profileName,
-                                          servings: Math.round(m.shared.with.servings * 10) / 10,
-                                          kcal: Math.round(m.shared.with.calories),
-                                          eaten: m.shared.with.eaten,
-                                          plates: platesOf(m),
-                                        }
-                                      : undefined,
-                                    ...toCook(plan, m),
-                                    // A dish both cook in one pot is opened with what the pot takes.
-                                    ...toCookTogether(plan, m),
-                                    topping: m.topping && {
-                                      name: m.topping.ingredient.name,
-                                      amount: shownAmount(m.topping.ingredient.display),
-                                      kcal: m.topping.nutrition.calories,
-                                    },
-                                  })
-                                }
+                                onClick={() => setOpenRecipe(windowOf(plan, m))}
                                 className="text-left font-medium text-primary wrap-anywhere hover:underline"
                               >
                                 {title}
@@ -1928,7 +1935,11 @@ export function PlanCard({
           scale={openRecipe.scale}
           shared={openRecipe.shared}
           topping={openRecipe.topping}
-          onClose={() => setOpenRecipe(null)}
+          onClose={() => {
+            setOpenRecipe(null);
+            // Opened for the diary: back to it.
+            if (openRecipe.back) window.history.back();
+          }}
         />
       )}
     </Card>

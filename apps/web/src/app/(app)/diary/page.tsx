@@ -751,7 +751,17 @@ function MealSection({
             <li key={meal.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-48">
                 <p id={`${id}-${meal.id}`} className="break-words text-sm font-medium">
-                  {fmt.text(meal.name)}
+                  {/* A meal of a recipe opens in its window, as the plan shows it; closing it comes back here. */}
+                  {meal.recipeId && day.plan ? (
+                    <Link
+                      href={`/meal-plans?profile=${day.profileId}&plan=${day.plan.id}&day=${day.date}&meal=${meal.id}&from=diary`}
+                      className="text-primary hover:underline"
+                    >
+                      {fmt.text(meal.name)}
+                    </Link>
+                  ) : (
+                    fmt.text(meal.name)
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {t('fromPlan')}

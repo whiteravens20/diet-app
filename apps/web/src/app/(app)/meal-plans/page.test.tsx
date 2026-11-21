@@ -3254,6 +3254,31 @@ describe('the plan page, on what the planner proposes for a plan', () => {
   });
 
   it.each([
+    ['the diary', '&from=diary', 1],
+    ['elsewhere', '', 0],
+  ])(
+    'opens the window of the meal a link from %s names, and goes back on closing it only to the diary',
+    async (_from, from, backs) => {
+      const plan = aPlan();
+      const meal = plan.days[0]!.meals[0]!;
+      address.search = `plan=${plan.id}&day=2026-01-05&meal=${meal.id}${from}`;
+      const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+
+      await renderPage(aSupply(), [plan]);
+
+      const opened = await screen.findByRole('dialog', { name: messages.recipeModal.title });
+      await userEvent.click(
+        within(opened).getByRole('button', { name: messages.recipeModal.close }),
+      );
+
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: messages.recipeModal.title })).toBeNull(),
+      );
+      expect(back).toHaveBeenCalledTimes(backs);
+    },
+  );
+
+  it.each([
     ['a plan that is no id', 'plan=..%2Fusers%2Fme&day=2026-01-05'],
     ['a day that is no day', 'plan=11111111-1111-4111-8111-111111111111&day=tomorrow'],
     ['a plan without a day', 'plan=11111111-1111-4111-8111-111111111111'],
