@@ -6,8 +6,9 @@ import Image from 'next/image';
  * Page header banner: the page title beside a curated food photo. The words
  * stand on the theme `background` colour and never on the photo, so they keep
  * their contrast in light and dark, in every palette and at every width,
- * whatever the photo shows. On a narrow screen the photo is a strip over the
- * words; from the `sm` width on it fills the banner beside them. Either way it
+ * whatever the photo shows. On a narrow screen the photo is a thin strip over
+ * the words, so that the page begins within the first fifth of a phone's
+ * screen; from the `sm` width on it fills the banner beside them. Either way it
  * fades into the side the words are on. The photo is decorative (`alt=""`):
  * the heading carries the meaning. From the `sm` width on every page's banner
  * is as tall, so a subtitle stays short enough to fit it, and what a page lets
@@ -24,7 +25,7 @@ export function PageBanner({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background sm:grid sm:min-h-44 sm:grid-cols-[min(60%,36rem)_1fr]">
-      <div className="relative h-24 sm:order-last sm:h-auto">
+      <div className="relative h-10 sm:order-last sm:h-auto">
         <Image
           src={image}
           alt=""
@@ -33,9 +34,9 @@ export function PageBanner({
           sizes="(min-width: 40rem) 60vw, 100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent to-70% sm:bg-gradient-to-r sm:to-40%" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent to-50% sm:bg-gradient-to-r sm:to-40%" />
       </div>
-      <div className="px-6 pb-8 pt-3 sm:self-center sm:py-6">
+      <div className="px-5 pb-4 pt-1 sm:self-center sm:px-6 sm:py-6">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
       </div>

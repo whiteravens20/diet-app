@@ -272,6 +272,33 @@ test.describe('the navigation', () => {
   });
 });
 
+test.describe("a page's banner", () => {
+  test('is a thin strip of its photograph over the title on a phone, and the photograph beside the title on a wide screen', async ({
+    session,
+  }) => {
+    const page = session.page;
+    // The page whose words under its title are the longest.
+    await page.goto('/shopping-lists');
+    await settled(page);
+    const title = page.getByRole('heading', { level: 1 });
+    const banner = title.locator('xpath=../..');
+    const [whole, photo, words] = await Promise.all([
+      banner.boundingBox(),
+      banner.locator('img').boundingBox(),
+      title.boundingBox(),
+    ]);
+    if (narrow(page)) {
+      expect(photo!.height).toBe(40);
+      expect(photo!.y + photo!.height).toBeLessThanOrEqual(words!.y);
+      // What the page is for begins within the first third of the screen, under the banner.
+      expect(whole!.height).toBeLessThanOrEqual(page.viewportSize()!.height * 0.3);
+    } else {
+      expect(whole!.height).toBeGreaterThanOrEqual(176);
+      expect(photo!.x).toBeGreaterThanOrEqual(words!.x + words!.width);
+    }
+  });
+});
+
 test.describe('on the narrowest screens the application is used on', () => {
   /**
    * How far the page can be moved sideways: nothing, when everything fits the
