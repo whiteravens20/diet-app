@@ -33,26 +33,26 @@ function line(c: CalorieCalculation, meals = 4, locale: 'en' | 'pl' = 'en'): str
 describe("the line under the day's figure", () => {
   it('says what the target comes from, and not the target, which the figure above says once', () => {
     expect(line(calories())).toBe(
-      `Maintenance 2178${NBSP}kcal${NBSP}· deficit 545${NBSP}kcal${NBSP}· 4${NBSP}meals a day`,
+      `Maintenance${NBSP}2178${NBSP}kcal${NBSP}· deficit${NBSP}545${NBSP}kcal${NBSP}· 4${NBSP}meals${NBSP}a${NBSP}day`,
     );
     expect(line(calories())).not.toContain('1633');
   });
 
   it('opens with a target set by hand', () => {
     expect(line(calories({ source: 'manual_override' }))).toBe(
-      `Target set by hand${NBSP}· maintenance 2178${NBSP}kcal${NBSP}· deficit 545${NBSP}kcal${NBSP}· 4${NBSP}meals a day`,
+      `Target${NBSP}set${NBSP}by${NBSP}hand${NBSP}· maintenance${NBSP}2178${NBSP}kcal${NBSP}· deficit${NBSP}545${NBSP}kcal${NBSP}· 4${NBSP}meals${NBSP}a${NBSP}day`,
     );
   });
 
   it('says a surplus where the target stands over the expenditure, and a meal in the singular', () => {
     expect(line(calories({ dailyDeficit: -300 }), 1)).toBe(
-      `Maintenance 2178${NBSP}kcal${NBSP}· surplus 300${NBSP}kcal${NBSP}· 1${NBSP}meal a day`,
+      `Maintenance${NBSP}2178${NBSP}kcal${NBSP}· surplus${NBSP}300${NBSP}kcal${NBSP}· 1${NBSP}meal${NBSP}a${NBSP}day`,
     );
   });
 
   it('reads the same in Polish', () => {
     expect(line(calories({ source: 'manual_override' }), 3, 'pl')).toBe(
-      `Cel ustawiony ręcznie${NBSP}· zapotrzebowanie 2178${NBSP}kcal${NBSP}· deficyt 545${NBSP}kcal${NBSP}· 3${NBSP}posiłki dziennie`,
+      `Cel${NBSP}ustawiony${NBSP}ręcznie${NBSP}· zapotrzebowanie${NBSP}2178${NBSP}kcal${NBSP}· deficyt${NBSP}545${NBSP}kcal${NBSP}· 3${NBSP}posiłki${NBSP}dziennie`,
     );
   });
 });

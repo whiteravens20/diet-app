@@ -2943,7 +2943,7 @@
     "generatePlan": "Ułóż plan posiłków",
     "macroSplit": "Docelowy podział makro",
     "customSplitHeld": "Białko na kg trzymane na granicy: przy obecnej wadze i celu wychodziło poza granice podziału.",
-    "figures": "{source, select, manual {Cel ustawiony ręcznie · zapotrzebowanie} other {Zapotrzebowanie}} {maintenance} kcal · {kind, select, surplus {nadwyżka} other {deficyt}} {amount} kcal · {meals, plural, one {{meals, number, ::group-off} posiłek} few {{meals, number, ::group-off} posiłki} many {{meals, number, ::group-off} posiłków} other {{meals, number, ::group-off} posiłku}} dziennie",
+    "figures": "{source, select, manual {Cel ustawiony ręcznie · zapotrzebowanie} other {Zapotrzebowanie}} {maintenance} kcal · {kind, select, surplus {nadwyżka} other {deficyt}} {amount} kcal · {meals, plural, one {{meals, number, ::group-off} posiłek} few {{meals, number, ::group-off} posiłki} many {{meals, number, ::group-off} posiłków} other {{meals, number, ::group-off} posiłku}} dziennie",
     "more": "Tydzień, makro i\u00a0zestawy ulubionych",
     "kcal": "kcal",
     "protein": "Białko",
