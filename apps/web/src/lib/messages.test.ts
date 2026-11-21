@@ -231,6 +231,16 @@ describe('the texts of the application, in every language of the folder', () => 
     expect(parted).toEqual([]);
   });
 
+  // A Polish word of one letter (w, z, i, a, o, u) left at the end of a line
+  // reads as a stray letter: each is held to the word after it.
+  it('hold every Polish word of one letter to the word after it', () => {
+    const loose = [...(files.get('pl') ?? [])]
+      .filter(([, text]) => /(?:^|[\s(„"»>])[wziaouWZIAOU] (?=\S)/u.test(text))
+      .map(([key]) => key);
+
+    expect(loose).toEqual([]);
+  });
+
   // A number on its own (`{kcal, number}`) and the `#` of a count would set
   // thousands apart, each language in its own way.
   it('write every number with nothing between its thousands, in any file', () => {
