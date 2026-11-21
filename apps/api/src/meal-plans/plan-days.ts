@@ -533,11 +533,26 @@ export function macrosOff(
   return shares !== null && distanceOnDiet(shares, split, plan.dietType) > MACROS_OFF;
 }
 
-/** What a day of a plan holds on average, over the days that are not skipped. */
-export function averageDay(days: { overrides: unknown; meals: MealAmount[] }[]): Amounts {
-  const eaten = days.filter((day) => !isSkipped(day));
+/**
+ * What a day of a plan holds as it stands, as the plan shows the day: its meals, the toppings eaten with them, and
+ * what the diary holds of the day, which a day resized around the diary needs to stand at its target.
+ */
+export function dayAsItStands(
+  meals: readonly MealAmount[],
+  toppings: readonly Amounts[],
+  diary: Amounts | null,
+): Amounts {
+  return sumNutrition([...meals.map(mealNutrition), ...toppings, ...(diary ? [diary] : [])]);
+}
+
+/**
+ * What a day of a plan holds on average, each day as it stands (`dayAsItStands`), over the days that are not
+ * skipped: the average a plan's days are measured by, so that a day resized around its diary is no shortfall.
+ */
+export function averageDay(days: readonly { skipped: boolean; nutrition: Amounts }[]): Amounts {
+  const eaten = days.filter((day) => !day.skipped);
   if (eaten.length === 0) return { calories: 0, protein: 0, fat: 0, carbs: 0 };
-  const total = sumNutrition(eaten.map((day) => sumNutrition(day.meals.map(mealNutrition))));
+  const total = sumNutrition(eaten.map((day) => day.nutrition));
   return {
     calories: Math.round(total.calories / eaten.length),
     protein: Math.round(total.protein / eaten.length),

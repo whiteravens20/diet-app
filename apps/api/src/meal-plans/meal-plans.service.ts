@@ -97,6 +97,7 @@ import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js
 import { labelNotes, roundLabel, sumLabels } from '../engine/label-totals.js';
 import {
   averageDay,
+  dayAsItStands,
   customMacros,
   aimOfDay,
   dayMealCount,
@@ -264,6 +265,8 @@ export class MealPlansService {
                 givenLeftoverId: true,
                 leftoverFromDate: true,
                 leftoverFromMealType: true,
+                toppingKey: true,
+                toppingAmount: true,
                 recipe: { select: { ...amount, servings: true, ingredients: WHOLE_LINES } },
               },
             },
@@ -281,11 +284,21 @@ export class MealPlansService {
       ...usesOfPlans(own, mealIdsOf(own)),
       ...(sharing.length > 0 ? await pieceUsesOf(this.prisma, mealIdsOf(sharing)) : []),
     ]);
+    // A day of a plan is summed as the plan shows it: with the toppings of its meals and what the diary holds of it.
+    const allDays = plans
+      .flatMap((plan) => plan.days)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    const [toppingFoods, diary] = await Promise.all([
+      allDays.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+        ? toppingFoodsOf(this.prisma)
+        : (new Map() as ToppingFoods),
+      diaryOfDays(this.prisma, query.profileId, allDays),
+    ]);
     return {
       items: page.flatMap(({ id }) => {
         const plan = byId.get(id);
         // Deleted between the two reads: it is on no page any more.
-        return plan ? [this.toSummary(plan, pieces)] : [];
+        return plan ? [this.toSummary(plan, pieces, toppingFoods, diary)] : [];
       }),
       page: query.page,
       pageSize: query.pageSize,
@@ -1793,14 +1806,30 @@ export class MealPlansService {
     };
   }
 
-  private toSummary(plan: SummarisedPlan, pieces: PieceUses): MealPlanSummary {
+  private toSummary(
+    plan: SummarisedPlan,
+    pieces: PieceUses,
+    toppingFoods: ToppingFoods,
+    diary: Map<string, DiaryOnDay>,
+  ): MealPlanSummary {
+    const days = piecedDays(plan.days, pieces).map((day) => ({
+      skipped: isSkipped(day),
+      nutrition: dayAsItStands(
+        day.meals,
+        day.meals.flatMap((meal) => {
+          const figures = toppingFiguresOf(meal, toppingFoods);
+          return figures ? [figures.nutrition] : [];
+        }),
+        diary.get(isoDate(day.date))?.nutrition ?? null,
+      ),
+    }));
     return {
       id: plan.id,
       profileId: plan.profileId,
       startDate: isoDate(plan.startDate),
       durationDays: plan.durationDays,
       dietType: plan.dietType,
-      averageDailyNutrition: averageDay(piecedDays(plan.days, pieces)),
+      averageDailyNutrition: averageDay(days),
       ingredientReuseScore: plan.reuseScore,
       generationMode: modelHadAPart(plan.days),
       options: PlanOptions.parse(plan.options),
@@ -2042,7 +2071,10 @@ export class MealPlansService {
       };
     });
 
-    const average = averageDay(plan.days);
+    // The days as they stand, their diary included: a day resized around its diary is no shortfall of the plan.
+    const average = averageDay(
+      days.map((day) => ({ skipped: day.skipped, nutrition: day.dayNutrition })),
+    );
     // What the days the plan eats on aim at, each by its own target.
     const eaten = plan.days.filter((day) => !isSkipped(day));
     const meanTarget =
@@ -2107,7 +2139,16 @@ const SCALE_SLACK = 1e-6;
 
 /** A plan as far as its summary takes: the row, and what its meals amount to. */
 type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
-  days: { overrides: unknown; meals: (MealRow & { id: string; modelPicked: boolean })[] }[];
+  days: {
+    date: Date;
+    overrides: unknown;
+    meals: (MealRow & {
+      id: string;
+      modelPicked: boolean;
+      toppingKey: string | null;
+      toppingAmount: number | null;
+    })[];
+  }[];
   joint: { plans: { id: string; profileId: string; profile: { name: string } }[] } | null;
 };
 
