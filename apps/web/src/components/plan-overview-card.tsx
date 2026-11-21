@@ -29,10 +29,9 @@ const PlanDaysChart = dynamic(
 const MACROS = ['protein', 'fat', 'carbs'] as const;
 
 /**
- * What the plan a profile is living by comes to: what a day of it holds
- * against what it aims at, how much of what was due is eaten, how much of it
- * fits the diet and is made of favourites, how far the shopping is, and its
- * days side by side. Read-only: every figure is the API's.
+ * What the plan a profile is living by comes to, in what changes while it runs: what a day of it holds against what
+ * it aims at, how much of what was due is eaten, how far the shopping is, its macronutrients, and its days side by
+ * side where they differ. Read-only: every figure is the API's.
  */
 export function PlanOverviewCard({ profile }: { profile: Profile }) {
   const t = useTranslations('planOverview');
@@ -75,7 +74,7 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
     );
   }
 
-  const { plan, energy, eaten, onDiet, favourites, shopping } = overview;
+  const { plan, energy, eaten, shopping } = overview;
   const days = planDates(plan.startDate, plan.durationDays);
   const share = (part: PlanOverview['eaten']): string =>
     fmt.percent(part.of === 0 ? 0 : part.meals / part.of);
@@ -91,13 +90,6 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
       value: eaten.of === 0 ? t('eatenNotYet') : share(eaten),
       hint: eaten.of === 0 ? t('eatenNotYetHint') : t('eatenHint', eaten),
     },
-    {
-      label: t('onDiet'),
-      value: share(onDiet),
-      hint: t('onDietHint', { ...onDiet, diet: tDiet(plan.dietType) }),
-    },
-    { label: t('favourites'), value: share(favourites), hint: t('favouritesHint', favourites) },
-    { label: t('reuse'), value: fmt.percent(overview.ingredientReuse), hint: t('reuseHint') },
     {
       label: t('shopping'),
       value:
@@ -128,7 +120,7 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
         </Link>
       </CardHeader>
       <CardContent className="space-y-6">
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="grid gap-4 sm:grid-cols-3">
           {figures.map((figure) => (
             <div key={figure.label} className="rounded-lg border border-border p-4">
               <dt className="text-sm text-muted-foreground">{figure.label}</dt>
@@ -188,10 +180,15 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
         </div>
 
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">{t('days')}</h4>
-          <div aria-hidden>
-            <PlanDaysChart days={overview.days} />
-          </div>
+          {/* A chart of days that hold the same says nothing: drawn, with its heading, where they differ. */}
+          {daysDiffer(overview.days) && (
+            <>
+              <h4 className="text-sm font-medium">{t('days')}</h4>
+              <div aria-hidden data-days-chart>
+                <PlanDaysChart days={overview.days} />
+              </div>
+            </>
+          )}
           {/* The same days in words and numbers, for whoever does not see the chart. */}
           <table className="sr-only">
             <caption>{t('days')}</caption>
@@ -216,4 +213,16 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Whether a plan's days differ enough for a chart of them to say something: a day skipped, targets of their own, or
+ * what the days hold apart by a twentieth of the target they aim at on average.
+ */
+function daysDiffer(days: PlanOverview['days']): boolean {
+  if (days.some((day) => day.skipped)) return true;
+  if (new Set(days.map((day) => day.target)).size > 1) return true;
+  const held = days.map((day) => day.calories);
+  const target = days.reduce((sum, day) => sum + day.target, 0) / Math.max(1, days.length);
+  return held.length > 1 && Math.max(...held) - Math.min(...held) >= target / 20;
 }

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanOverview, Profile } from '@diet-app/shared';
@@ -84,18 +84,39 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     );
   });
 
-  it('says each figure with what it is a share of', async () => {
+  it('says the figures that change while the plan runs, each with what it is a share of, and no other', async () => {
     shown(anOverview());
     await screen.findByRole('heading', { name: texts.title.active });
 
     expect(figure(texts.energy)).toBe('1880 kcalOn average, against a target of 1900 kcal.');
     expect(figure(texts.eaten)).toBe('50%3 of the 6 meals that were due by today.');
-    expect(figure(texts.onDiet)).toBe('89%8 of 9 meals fit the diet of the plan (Vegan).');
-    expect(figure(texts.favourites)).toBe(
-      '22%2 of 9 meals are of a recipe marked as a favourite or as eaten often.',
-    );
-    expect(figure(texts.reuse)).toBe(`58%${texts.reuseHint}`);
     expect(figure(texts.shopping)).toBe('25%5 of 20 entries ticked on the plan’s lists.');
+    expect(document.querySelectorAll('dt')).toHaveLength(3);
+  });
+
+  it('draws the days where they differ: a day skipped, a target of their own, or apart by a twentieth', async () => {
+    const days = (calories: number[], targets = calories.map(() => 1900)) =>
+      calories.map((kcal, i) => ({
+        date: `2026-01-0${5 + i}`,
+        calories: kcal,
+        target: targets[i]!,
+        skipped: false,
+      }));
+    const drawn = async (overview: PlanOverview): Promise<boolean> => {
+      shown(overview);
+      await screen.findByRole('heading', { name: texts.title.active });
+      const chart = document.querySelector('[data-days-chart]') !== null;
+      // The heading goes with the chart; the days in words stay for whoever does not see it.
+      expect(screen.queryByRole('heading', { name: texts.days }) !== null).toBe(chart);
+      expect(screen.getByRole('table', { name: texts.days })).toBeInTheDocument();
+      cleanup();
+      return chart;
+    };
+
+    expect(await drawn(anOverview())).toBe(true);
+    expect(await drawn(anOverview({ days: days([1890, 1905, 1898]) }))).toBe(false);
+    expect(await drawn(anOverview({ days: days([1860, 1955, 1900]) }))).toBe(true);
+    expect(await drawn(anOverview({ days: days([1900, 1900], [1900, 1700]) }))).toBe(true);
   });
 
   it('says what a day holds of each macro against what it aims at', async () => {
