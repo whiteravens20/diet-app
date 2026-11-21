@@ -23,6 +23,7 @@ import {
   type GeneratePlanRequest,
   type MealPlan,
   type MealPlanPage,
+  type MealPlanSummary,
   type PlanRelaxation,
   type Profile,
   type RebalanceResult,
@@ -103,6 +104,13 @@ const withMore = (
   more: readonly PlanRelaxation[],
 ): PlanRelaxation[] =>
   PLAN_RELAXATIONS.filter((kind) => allowed.includes(kind) || more.includes(kind));
+
+/** The plans of a page with those under way on `today` first, the rest in the list's order: today's plan is what the page is opened for. */
+const underWayFirst = (plans: readonly MealPlanSummary[], today: string): MealPlanSummary[] => {
+  const runs = (plan: MealPlanSummary) =>
+    plan.startDate <= today && dayAfter(plan.startDate, plan.durationDays - 1) >= today;
+  return [...plans.filter(runs), ...plans.filter((plan) => !runs(plan))];
+};
 
 function MealPlansContent() {
   const t = useTranslations('mealPlans');
@@ -931,39 +939,7 @@ function MealPlansContent() {
         </CardContent>
       </Card>
 
-      <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
-
-      {activeId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('calendar.title')}</CardTitle>
-            <p className="text-sm text-muted-foreground">{t('calendar.lead')}</p>
-          </CardHeader>
-          <CardContent>
-            <PlanCalendar
-              key={activeId}
-              profileId={activeId}
-              today={localDate()}
-              onOpen={(planId, date) => {
-                // The list is narrowed to the plans that hold the day, so that the plan is on the page whatever page of the list it was on.
-                setStatus('');
-                setFrom(date);
-                setTo(date);
-                setPage(1);
-                setOpenPlan(planId);
-                setSought({ planId, date });
-              }}
-              onStart={(date) => {
-                // A day without a plan is where the next one can begin: the form above takes it.
-                setStartDate(date);
-                flushSync(() => setFormAsked(true));
-                startDateField.current?.scrollIntoView({ block: 'center' });
-                startDateField.current?.focus({ preventScroll: true });
-              }}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} folded />
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1057,7 +1033,7 @@ function MealPlansContent() {
             description={t('noPlans')}
           />
         ) : (
-          (plans.data?.items ?? []).map((plan) => (
+          underWayFirst(plans.data?.items ?? [], localDate()).map((plan) => (
             <PlanCard
               key={plan.id}
               summary={plan}
@@ -1208,6 +1184,38 @@ function MealPlansContent() {
           </nav>
         )}
       </section>
+
+      {activeId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('calendar.title')}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t('calendar.lead')}</p>
+          </CardHeader>
+          <CardContent>
+            <PlanCalendar
+              key={activeId}
+              profileId={activeId}
+              today={localDate()}
+              onOpen={(planId, date) => {
+                // The list is narrowed to the plans that hold the day, so that the plan is on the page whatever page of the list it was on.
+                setStatus('');
+                setFrom(date);
+                setTo(date);
+                setPage(1);
+                setOpenPlan(planId);
+                setSought({ planId, date });
+              }}
+              onStart={(date) => {
+                // A day without a plan is where the next one can begin: the form above takes it.
+                setStartDate(date);
+                flushSync(() => setFormAsked(true));
+                startDateField.current?.scrollIntoView({ block: 'center' });
+                startDateField.current?.focus({ preventScroll: true });
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {(error || refused || inTheWay || notice) && (
         // Over the foot of the screen: what an action came to is seen from wherever it was pressed, and nothing has to move to make room for it.

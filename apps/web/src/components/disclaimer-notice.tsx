@@ -4,6 +4,11 @@ import { Info } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { SOURCE_URL } from '@/lib/project-links';
 
+type BodyKey = 'aiPlans' | 'enginePlans' | 'aiRecipeDraft' | 'aiActivated';
+
+/** What a disclaimer says beyond its caution, where it says more: under "How it works", as the plans page folds its note. */
+const MORE: Partial<Record<BodyKey, 'enginePlansMore'>> = { enginePlans: 'enginePlansMore' };
+
 /**
  * Soft, neutral disclaimer box reused across surfaces that touch AI or
  * algorithmic decisions affecting the user's diet. Two variants live on the
@@ -14,6 +19,7 @@ import { SOURCE_URL } from '@/lib/project-links';
  */
 export function DisclaimerNotice({
   bodyKey,
+  folded = false,
   className,
 }: {
   /**
@@ -21,10 +27,33 @@ export function DisclaimerNotice({
    * `'aiRecipeDraft'`, `'aiActivated'`. The key resolves to the disclaimer
    * body; the shared report-a-bug line is appended automatically.
    */
-  bodyKey: 'aiPlans' | 'enginePlans' | 'aiRecipeDraft' | 'aiActivated';
+  bodyKey: BodyKey;
+  /**
+   * The caution alone stands open, and what more the body says, with the report-a-bug line, is under "How it works";
+   * a body that says no more stands whole.
+   */
+  folded?: boolean;
   className?: string;
 }) {
   const t = useTranslations('disclaimers');
+  const tCommon = useTranslations('common');
+  const more = MORE[bodyKey];
+  const bugReport = (
+    <p className="text-xs text-muted-foreground">
+      {t.rich('bugReport', {
+        link: (chunks) => (
+          <a
+            href={`${SOURCE_URL}/issues/new`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline underline-offset-2"
+          >
+            {chunks}
+          </a>
+        ),
+      })}
+    </p>
+  );
   return (
     <aside
       role="note"
@@ -36,20 +65,17 @@ export function DisclaimerNotice({
       <Info size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden />
       <div className="space-y-1">
         <p className="leading-relaxed">{t(bodyKey)}</p>
-        <p className="text-xs text-muted-foreground">
-          {t.rich('bugReport', {
-            link: (chunks) => (
-              <a
-                href={`${SOURCE_URL}/issues/new`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline underline-offset-2"
-              >
-                {chunks}
-              </a>
-            ),
-          })}
-        </p>
+        {folded && more ? (
+          <details className="text-xs text-muted-foreground">
+            <summary className="w-fit cursor-pointer py-1">{tCommon('howItWorks')}</summary>
+            <div className="mt-1 space-y-1">
+              <p className="leading-relaxed">{t(more)}</p>
+              {bugReport}
+            </div>
+          </details>
+        ) : (
+          bugReport
+        )}
       </div>
     </aside>
   );

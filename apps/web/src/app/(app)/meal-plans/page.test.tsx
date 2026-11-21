@@ -368,6 +368,64 @@ async function refusedWith(details: UnfilledMeal) {
   await userEvent.click(generate);
 }
 
+describe('the plan page, its parts in their order', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('lists the plan under way first, the rest in the order of the list, all of them before the calendar', async () => {
+    onTheDay('2026-01-10');
+    // The list answers the plan that begins last first: the one to come, the one under way, the one that is over.
+    await renderPage(aSupply(), [
+      aPlan({
+        id: '11111111-1111-4111-8111-1111111111a1',
+        startDate: '2026-01-20',
+        durationDays: 5,
+      }),
+      aPlan({
+        id: '11111111-1111-4111-8111-1111111111a2',
+        startDate: '2026-01-08',
+        durationDays: 7,
+      }),
+      aPlan({
+        id: '11111111-1111-4111-8111-1111111111a3',
+        startDate: '2026-01-01',
+        durationDays: 3,
+      }),
+    ]);
+
+    const heads = await screen.findAllByText(/^\d+-day plan · Vegan$/);
+    expect(heads.map((head) => plain(head.textContent))).toEqual([
+      '7-day plan · Vegan',
+      '5-day plan · Vegan',
+      '3-day plan · Vegan',
+    ]);
+    const calendar = await screen.findByRole('heading', {
+      name: messages.mealPlans.calendar.title,
+    });
+    expect(heads.at(-1)!.compareDocumentPosition(calendar)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("keeps the engine's caution open and folds the rest of its note with the line to report a bug", async () => {
+    await renderPage(aSupply(), [aPlan()]);
+
+    expect(screen.getByText(messages.disclaimers.enginePlans)).toBeVisible();
+    const how = screen.getByText(messages.disclaimers.enginePlansMore).closest('details')!;
+    expect(how).not.toHaveAttribute('open');
+    expect(within(how).getByText(messages.common.howItWorks)).toBeInTheDocument();
+    expect(within(how).getByRole('link', { name: 'Open an issue' })).toBeInTheDocument();
+  });
+
+  it('keeps the note of an account with AI whole, its caution and the line to report a bug open', async () => {
+    await renderPage(aSupply(), [aPlan()], 'admin');
+
+    expect(await screen.findByText(messages.disclaimers.aiPlans)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open an issue' })).toBeVisible();
+    expect(screen.queryByText(messages.common.howItWorks)).toBeNull();
+  });
+});
+
 describe('the plan page, where the catalogue is short of recipes', () => {
   afterEach(() => {
     vi.restoreAllMocks();

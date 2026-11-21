@@ -123,7 +123,8 @@
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",
-    "enginePlans": "Plans and swaps are put together by the app's built-in engine — quickly and the same way every time, but still review every result against your own dietary needs and health. After an ingredient swap the recipe text is adjusted by plain replacement: it may read awkwardly, and a step that names the old ingredient by another word still names it. The ingredient list is the one to follow.",
+    "enginePlans": "Plans and swaps are put together by the app's built-in engine — quickly and the same way every time, but still review every result against your own dietary needs and health.",
+    "enginePlansMore": "After an ingredient swap the recipe text is adjusted by plain replacement: it may read awkwardly, and a step that names the old ingredient by another word still names it. The ingredient list is the one to follow.",
     "aiRecipeDraft": "AI-drafted recipes can contain mistakes. Double-check the ingredients, quantities and steps before relying on the result.",
     "aiActivated": "AI helps draft recipes and pick swaps, but it can make mistakes. Always review AI-generated content against your own dietary needs and health.",
     "bugReport": "Spotted a bug? <link>Open an issue</link> on the source repository."
