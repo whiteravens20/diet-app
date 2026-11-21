@@ -420,9 +420,10 @@ describe('the plan page, its parts in their order', () => {
   it('keeps the note of an account with AI whole, its caution and the line to report a bug open', async () => {
     await renderPage(aSupply(), [aPlan()], 'admin');
 
-    expect(await screen.findByText(messages.disclaimers.aiPlans)).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Open an issue' })).toBeVisible();
-    expect(screen.queryByText(messages.common.howItWorks)).toBeNull();
+    const note = (await screen.findByText(messages.disclaimers.aiPlans)).closest('aside')!;
+    expect(note).toBeVisible();
+    expect(within(note).getByRole('link', { name: 'Open an issue' })).toBeVisible();
+    expect(within(note).queryByText(messages.common.howItWorks)).toBeNull();
   });
 });
 
@@ -877,8 +878,11 @@ describe('the plan page, when a plan is made again', () => {
     const lessWaste = asked.getByRole('radio', { name: messages.mealPlans.lessWaste });
 
     expect(asked.getByRole('radio', { name: messages.mealPlans.wasteUsual })).toBeChecked();
-    expect(lessWaste).toHaveAccessibleDescription(/uses about 64% of the pantry instead of 34%/);
     await userEvent.click(lessWaste);
+    // What the level chosen costs, under its line.
+    expect(asked.getByText(messages.common.howItWorks).closest('details')).toHaveTextContent(
+      /uses about 64% of the pantry instead of 34%/,
+    );
     await recalculate(asked);
 
     expect(rerolls(post)).toEqual([
@@ -896,13 +900,13 @@ describe('the plan page, when a plan is made again', () => {
     const noWaste = asked.getByRole('radio', { name: messages.mealPlans.noWaste });
 
     expect(noWaste).not.toBeChecked();
-    expect(noWaste).toHaveAccessibleDescription(
+    await userEvent.click(noWaste);
+    expect(asked.getByText(messages.common.howItWorks).closest('details')).toHaveTextContent(
       spaced(
         'The same recipe may come up to 3 days in a row (your profile: 2) and up to 5 times a week (your profile: 3), even twice in one day.',
         { anywhere: true },
       ),
     );
-    await userEvent.click(noWaste);
     await recalculate(asked);
 
     expect(rerolls(post)).toEqual([
@@ -921,7 +925,7 @@ describe('the plan page, when a plan is made again', () => {
     const radio = (name: string) => asked.getByRole('radio', { name });
 
     expect(radio(messages.mealPlans.lessWaste)).toBeChecked();
-    expect(radio(messages.mealPlans.lessWaste)).toHaveAccessibleDescription(
+    expect(asked.getByText(messages.common.howItWorks).closest('details')).toHaveTextContent(
       /uses about 65% of the pantry instead of 35%/,
     );
     await recalculate(asked);
@@ -2527,6 +2531,13 @@ describe('the plan page, on what a plan is made for', () => {
   });
 
   const level = (name: string) => screen.getByRole('radio', { name });
+  /** The rest of what the chosen level of waste does, under "How it works" beneath its line: the only one there is. */
+  const folded = () => {
+    const levels = within(screen.getByRole('group', { name: messages.mealPlans.wasteLevel }));
+    const [how, ...more] = levels.getAllByText(messages.common.howItWorks);
+    expect(more).toEqual([]);
+    return how!.closest('details')!;
+  };
   const pantryBox = () =>
     screen.getByRole('checkbox', { name: messages.mealPlans.preferInventory });
 
@@ -2536,21 +2547,28 @@ describe('the plan page, on what a plan is made for', () => {
 
     expect(screen.getByRole('group', { name: messages.mealPlans.wasteLevel })).toBeInTheDocument();
     expect(level(messages.mealPlans.wasteUsual)).toBeChecked();
+    // Each level says in a line what it does.
     expect(level(messages.mealPlans.wasteUsual)).toHaveAccessibleDescription(
-      spaced(messages.mealPlans.wasteUsualHint),
+      spaced(messages.mealPlans.wasteUsualLine),
     );
-    // Vegan, as the instance measured it.
-    expect(lessWaste).toHaveAccessibleDescription(
+    expect(lessWaste).toHaveAccessibleDescription(spaced(messages.mealPlans.lessWasteLine));
+    expect(level(messages.mealPlans.noWaste)).toHaveAccessibleDescription(
+      spaced(messages.mealPlans.noWasteLine),
+    );
+    expect(folded()).toHaveTextContent(
+      spaced(messages.mealPlans.wasteUsualHint, { anywhere: true }),
+    );
+    await userEvent.click(lessWaste);
+
+    // The rest of the level chosen stands folded under its line. Vegan, as the instance measured it.
+    const rest = folded();
+    expect(rest).not.toHaveAttribute('open');
+    expect(rest).toHaveTextContent(
       /uses about 64% of the pantry instead of 34%, and about 84% of such packs instead of 74%\. In return a week has about 14% fewer different recipes/,
     );
     // How much the rest of a pack may add to a day, before the plan is made.
-    expect(lessWaste).toHaveAccessibleDescription(
-      /a day may get up to 3% of its calorie target extra\./,
-    );
-    expect(lessWaste).toHaveAccessibleDescription(
-      expect.stringContaining(messages.mealPlans.lessWasteLimits),
-    );
-    await userEvent.click(lessWaste);
+    expect(rest).toHaveTextContent(/a day may get up to 3% of its calorie target extra\./);
+    expect(rest).toHaveTextContent(spaced(messages.mealPlans.lessWasteLimits, { anywhere: true }));
 
     expect(await sent()).toMatchObject({ lessWaste: true, noWaste: false });
   });
@@ -2558,10 +2576,11 @@ describe('the plan page, on what a plan is made for', () => {
   it('asks for a plan that wastes nothing when it is chosen, and says what it gives, what it loosens of the profile and what it keeps', async () => {
     await renderPage();
     const noWaste = level(messages.mealPlans.noWaste);
+    await userEvent.click(noWaste);
     const says = (text: string) =>
-      expect(noWaste).toHaveAccessibleDescription(spaced(text, { anywhere: true }));
+      expect(folded()).toHaveTextContent(spaced(text, { anywhere: true }));
 
-    says('meat and fish within 3 days at most, anything else within 5.');
+    says('meat or fish within 3 days at most, anything else within 5.');
     // Vegan, as the instance measured it for this level.
     says(
       'uses about 94% of such packs instead of 74% and about 44% of the pantry instead of 34%. In return a week has about 54% fewer different recipes.',
@@ -2571,7 +2590,6 @@ describe('the plan page, on what a plan is made for', () => {
     );
     says('allergens, the avoid list and the diet work as always.');
     says('a day may get up to 5% of its calorie target extra');
-    await userEvent.click(noWaste);
 
     expect(await sent()).toMatchObject({ lessWaste: true, noWaste: true, respectInventory: true });
   });
@@ -2583,13 +2601,14 @@ describe('the plan page, on what a plan is made for', () => {
       maxTimesPerWeekSameMeal: 6,
     };
     await renderPage();
+    await userEvent.click(level(messages.mealPlans.noWaste));
 
-    expect(level(messages.mealPlans.noWaste)).toHaveAccessibleDescription(
+    expect(folded()).toHaveTextContent(
       spaced('The same recipe may come up to 4 days in a row and up to 6 times a week, even', {
         anywhere: true,
       }),
     );
-    expect(level(messages.mealPlans.noWaste)).not.toHaveAccessibleDescription(/your profile/);
+    expect(folded()).not.toHaveTextContent(/your profile/);
   });
 
   it('asks for a usual plan while its choice is left as it is', async () => {
@@ -2641,32 +2660,37 @@ describe('the plan page, on what a plan is made for', () => {
     const noWaste = () => level(messages.mealPlans.noWaste);
 
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'high_protein');
-    expect(lessWaste()).toHaveAccessibleDescription(
+    // Both levels freeze the meat and fish they do not eat fresh, and say so.
+    const freezes =
+      /Meat and fish it does not eat fresh it has you freeze on the day the pack is opened: none of it goes in the bin\./;
+    await userEvent.click(lessWaste());
+    expect(folded()).toHaveTextContent(
       /uses about 61% of the pantry instead of 31%, and about 81% of such packs instead of 71%\. In return a week has about 11% fewer/,
     );
-    // Both levels freeze the meat and fish they do not eat fresh, and say so.
-    for (const choice of [lessWaste(), noWaste()])
-      expect(choice).toHaveAccessibleDescription(
-        /Meat and fish it does not eat fresh it has you freeze on the day the pack is opened: none of it goes in the bin\./,
-      );
-    expect(noWaste()).toHaveAccessibleDescription(
+    expect(folded()).toHaveTextContent(freezes);
+    await userEvent.click(noWaste());
+    expect(folded()).toHaveTextContent(
       /uses about 91% of such packs instead of 71% and about 41% of the pantry instead of 31%\. In return a week has about 51% fewer/,
     );
+    expect(folded()).toHaveTextContent(freezes);
     await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
-    expect(lessWaste()).toHaveAccessibleDescription(
-      spaced(messages.mealPlans.lessWasteHintCustom, { start: true }),
-    );
-    expect(noWaste()).toHaveAccessibleDescription(
+    expect(folded()).toHaveTextContent(
       spaced(
-        createTranslator({ locale: 'en', messages })('mealPlans.noWasteHintCustom', {
-          meatDays: 3,
-          otherDays: 5,
-        }),
-        { start: true },
+        plain(
+          createTranslator({ locale: 'en', messages })('mealPlans.noWasteHintCustom', {
+            meatDays: 3,
+            otherDays: 5,
+          }),
+        ),
+        { anywhere: true },
       ),
     );
-    for (const choice of [lessWaste(), noWaste()])
-      expect(choice).not.toHaveAccessibleDescription(/instead of/);
+    expect(folded()).not.toHaveTextContent(/instead of/);
+    await userEvent.click(lessWaste());
+    expect(folded()).toHaveTextContent(
+      spaced(messages.mealPlans.lessWasteHintCustom, { anywhere: true }),
+    );
+    expect(folded()).not.toHaveTextContent(/instead of/);
   });
 
   /** The API keeps the custom diet's targets a change names in the profile, as it answers them from here on. */

@@ -29,11 +29,12 @@ export const repeatsOf = (
 });
 
 /**
- * The choice of how much a plan does to waste less, each level with what it
- * gives and costs said beside it: in figures for the plan's diet, as the
- * instance measured them, and in words for the custom diet, which has none, or
- * while the figures are on their way. Of a plan that wastes nothing it says
- * which limits of the profile it loosens, and to what.
+ * The choice of how much a plan does to waste less, each level with a line of
+ * what it does, and the chosen one with the rest under "How it works": what it
+ * gives and costs in figures for the plan's diet, as the instance measured
+ * them, and in words for the custom diet, which has none, or while the figures
+ * are on their way. Of a plan that wastes nothing it says which limits of the
+ * profile it loosens, and to what.
  */
 export function WasteLevelChoice({
   diet,
@@ -49,13 +50,14 @@ export function WasteLevelChoice({
   repeats: { daysInARow: number; timesAWeek: number };
 }) {
   const t = useTranslations('mealPlans');
+  const tCommon = useTranslations('common');
   const name = useId();
   const plans = useConfig().data?.plans;
   const less = diet === 'custom' ? undefined : plans?.lessWaste[diet];
   const none = diet === 'custom' ? undefined : plans?.noWaste[diet];
   const rules = plans?.waste;
 
-  const option = (value: WasteLevel, label: string, said: ReactNode[]) => (
+  const option = (value: WasteLevel, label: string, line: string, said: ReactNode[]) => (
     <div>
       <label className="flex items-center gap-2">
         <input
@@ -69,11 +71,20 @@ export function WasteLevelChoice({
         />
         {label}
       </label>
-      <div id={`${name}-${value}`} className="ml-6 mt-1 space-y-1 text-xs text-muted-foreground">
-        {said.map((one, index) => (
-          <p key={index}>{one}</p>
-        ))}
-      </div>
+      <p id={`${name}-${value}`} className="ml-6 mt-1 text-xs text-muted-foreground">
+        {line}
+      </p>
+      {/* The rest of what the chosen level does and costs, under its line, for whoever asks. */}
+      {level === value && said.length > 0 && (
+        <details className="ml-6 text-xs text-muted-foreground">
+          <summary className="w-fit cursor-pointer py-1">{tCommon('howItWorks')}</summary>
+          <div className="mt-1 space-y-1">
+            {said.map((one, index) => (
+              <p key={index}>{one}</p>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 
@@ -81,8 +92,8 @@ export function WasteLevelChoice({
     <fieldset className="text-sm">
       <legend className="font-medium">{t('wasteLevel')}</legend>
       <div className="mt-2 space-y-3">
-        {option('usual', t('wasteUsual'), [t('wasteUsualHint')])}
-        {option('less', t('lessWaste'), [
+        {option('usual', t('wasteUsual'), t('wasteUsualLine'), [t('wasteUsualHint')])}
+        {option('less', t('lessWaste'), t('lessWasteLine'), [
           less
             ? t('lessWasteHint', {
                 pantryNow: less.pantry.now,
@@ -99,6 +110,7 @@ export function WasteLevelChoice({
         {option(
           'none',
           t('noWaste'),
+          t('noWasteLine'),
           rules
             ? [
                 none
