@@ -83,10 +83,10 @@ describe('a line of figures joined by dots', () => {
   };
 
   it.each(LISTED)(
-    'breaks every line of macronutrients of %s only after a dot, its opening words aside',
+    'breaks every line of figures of %s only after a dot, its opening words aside',
     (file) => {
       const loose = [...texts(read(file))]
-        .filter(([key, text]) => /macros/i.test(key) && text.includes('\u00a0· '))
+        .filter(([key, text]) => /macros|figures/i.test(key) && text.includes('\u00a0· '))
         .filter(([, text]) =>
           argued(text)
             .split(': ')
