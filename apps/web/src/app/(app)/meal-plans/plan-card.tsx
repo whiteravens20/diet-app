@@ -565,42 +565,62 @@ export function PlanCard({
         </button>
         {dayOpen && (
           <div className="space-y-2 border-t border-border p-3">
-            <div className="flex flex-wrap items-center gap-x-3">
-              {!day.skipped && day.date >= today && (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setWaysFor({ id: day.id, date: day.date })}
-                    disabled={busy}
-                  >
-                    {t('otherWays')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setReroll({ scope: 'day', day: day.date })}
-                    disabled={busy}
-                  >
-                    {t('changeDay')}
-                  </Button>
-                </>
-              )}
-              {/* A day before today is history: its settings stay as they were. */}
-              {day.date >= today && (
+            {/* The ways to change a day fold behind one button, as a meal's do. A day before today is history: its
+                dishes and its settings stay as they were. */}
+            {day.date >= today && (
+              <div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSettingsFor(day)}
-                  disabled={busy}
+                  aria-label={t('actionFor', { action: t('dayChanges'), title: fmt.day(day.date) })}
+                  aria-expanded={openActions === day.id}
+                  aria-controls={`${day.id}-actions`}
+                  onClick={() => setOpenActions(openActions === day.id ? null : day.id)}
                 >
-                  {t('daySettingsButton')}
+                  {t('dayChanges')} <span aria-hidden>{openActions === day.id ? '▲' : '▾'}</span>
                 </Button>
-              )}
-            </div>
+                <div
+                  id={`${day.id}-actions`}
+                  role="group"
+                  aria-label={t('dayActions', { day: fmt.day(day.date) })}
+                  hidden={openActions !== day.id}
+                  className="ml-3 flex flex-wrap items-center gap-x-3"
+                >
+                  {!day.skipped && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setWaysFor({ id: day.id, date: day.date })}
+                        disabled={busy}
+                      >
+                        {t('otherWays')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReroll({ scope: 'day', day: day.date })}
+                        disabled={busy}
+                      >
+                        {t('changeDay')}
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSettingsFor(day)}
+                    disabled={busy}
+                  >
+                    {t('daySettingsButton')}
+                  </Button>
+                </div>
+              </div>
+            )}
             <DaySettingsLine day={day} />
             {day.date < today && <p className="text-xs text-muted-foreground">{t('dayIsOver')}</p>}
             {thawsHere && thawsHere.forToday.length > 0 && (
@@ -699,8 +719,14 @@ export function PlanCard({
             )}
             {!day.skipped && (
               <>
-                <LabelLine totals={day.dayLabel} />
-                <LabelLegend totals={day.dayLabel} className="mt-0" />
+                {/* What the label adds stands behind a tap: the figures above are what a day is planned by. */}
+                <details className="text-xs text-muted-foreground">
+                  <summary className="w-fit cursor-pointer py-1">{t('dayLabel')}</summary>
+                  <div className="mt-1 space-y-1">
+                    <LabelLine totals={day.dayLabel} />
+                    <LabelLegend totals={day.dayLabel} className="mt-0" />
+                  </div>
+                </details>
                 <LabelNotes notes={day.labelNotes} />
               </>
             )}

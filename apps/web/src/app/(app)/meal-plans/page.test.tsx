@@ -292,6 +292,12 @@ const ofAMeal = (action: string): RegExp => new RegExp(`^${action}: `);
 const unfoldMeal = () =>
   userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.changeMeal) }));
 
+/** Unfold the ways the one day on the page that can be changed, or the one in `where`, can be. */
+const unfoldDay = (where: { getByRole: typeof screen.getByRole } = screen) =>
+  userEvent.click(
+    where.getByRole('button', { name: new RegExp(`^${messages.mealPlans.dayChanges}: `) }),
+  );
+
 /** Make it the given day for the page, which reads the clock for what has passed. The date alone is replaced: the timers a test waits on stay real. */
 const onTheDay = (day: string) =>
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${day}T12:00:00`) });
@@ -415,6 +421,47 @@ describe('the plan page, its parts in their order', () => {
     expect(how).not.toHaveAttribute('open');
     expect(within(how).getByText(messages.common.howItWorks)).toBeInTheDocument();
     expect(within(how).getByRole('link', { name: 'Open an issue' })).toBeInTheDocument();
+  });
+
+  it('folds the ways to change a day behind one button', async () => {
+    onTheDay('2026-01-05');
+    await renderPage(aSupply(), [aPlan()]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+
+    const changes = await screen.findByRole('button', {
+      name: new RegExp(`^${messages.mealPlans.dayChanges}: `),
+    });
+    expect(changes).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: messages.mealPlans.otherWays })).toBeNull();
+    await userEvent.click(changes);
+
+    expect(changes).toHaveAttribute('aria-expanded', 'true');
+    for (const way of [
+      messages.mealPlans.otherWays,
+      messages.mealPlans.changeDay,
+      messages.mealPlans.daySettingsButton,
+    ])
+      expect(screen.getByRole('button', { name: way })).toBeVisible();
+  });
+
+  it("folds the day's label behind a tap, under its macros", async () => {
+    const plan = aPlan();
+    plan.days[0]!.dayLabel = {
+      fiber: { grams: 31, atLeast: false },
+      sugars: { grams: 40, atLeast: true },
+      salt: null,
+      saturatedFat: { grams: 12, atLeast: false },
+    };
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+
+    // The figures of the label and what "≥" and "—" stand for, both behind the tap.
+    const label = (await screen.findByText(messages.mealPlans.dayLabel)).closest('details')!;
+    expect(label).not.toHaveAttribute('open');
+    expect(label).toHaveTextContent(new RegExp(`${messages.labelFigures.fiber}\\s*31`));
+    expect(
+      within(label).getByText(messages.labelFigures.legendAtLeast, { exact: false }),
+    ).toBeInTheDocument();
   });
 
   it('keeps the note of an account with AI whole, its caution and the line to report a bug open', async () => {
@@ -1031,6 +1078,7 @@ describe('the plan page, when a plan is made again', () => {
 
     const third = within(document.getElementById(dayAnchor(plan.id, '2026-01-07'))!);
     await userEvent.click(third.getByRole('button', { expanded: false }));
+    await unfoldDay(third);
     await userEvent.click(third.getByRole('button', { name: messages.mealPlans.changeDay }));
     const asked = await rerollWindow();
 
@@ -3125,6 +3173,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
       aiMeta: null,
     } as never);
 
+    await unfoldDay();
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.otherWays }));
 
     const dialog = within(
@@ -3137,15 +3186,21 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     expect(await dialog.findByText(messages.mealPlans.variations.none)).toBeInTheDocument();
   });
 
-  it('offers no other ways for a day the user skips', async () => {
+  it('offers no other ways for a day the user skips, and its settings still', async () => {
+    // The day is today: a day gone by has no changes at all.
+    onTheDay('2026-01-05');
     const plan = aPlan();
     await renderPage(aSupply(), [
       { ...plan, days: [{ ...plan.days[0]!, skipped: true, meals: [] }] },
     ]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
     await screen.findByText(messages.mealPlans.daySkipped);
+    await unfoldDay();
 
     expect(screen.queryByRole('button', { name: messages.mealPlans.otherWays })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: messages.mealPlans.daySettingsButton }),
+    ).toBeVisible();
   });
 
   it('offers, with the packs a plan leaves more than a fifth of, to look for what would use them up', async () => {
@@ -3977,6 +4032,8 @@ describe('the plan page, on a dish cooked for two days and on what a change come
 
     expect(screen.getByText(messages.mealPlans.dayIsOver)).toBeVisible();
     expect(screen.getAllByRole('button', { name: ofAMeal('Change') })).toHaveLength(1);
+    // Today's changes alone: the day that is over has none.
+    await unfoldDay();
     expect(screen.getAllByRole('button', { name: messages.mealPlans.otherWays })).toHaveLength(1);
     expect(
       screen.getAllByRole('button', { name: ofAMeal(messages.mealPlans.remove) }).length,

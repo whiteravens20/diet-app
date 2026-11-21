@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { barriers, expect, settled, test, theFormForAPlan } from './fixtures';
+import { barriers, expect, loose, settled, test, theFormForAPlan } from './fixtures';
 
 type Texts = Record<string, string>;
 
@@ -41,6 +41,10 @@ test.describe('what the planner proposes for a plan', () => {
         new URL(res.url()).pathname ===
         `/api/meal-plans/${plan.id}/days/${plan.days[0]!.id}/variations`,
     );
+    await card
+      .getByRole('button', { name: new RegExp(`^${loose(`${plans.dayChanges!}: `)}`) })
+      .first()
+      .click();
     await card.getByRole('button', { name: plans.otherWays!, exact: true }).first().click();
     const ways = (await (await offered).json()) as {
       variations: { offer: string; meals: { recipeId: string | null }[] }[];

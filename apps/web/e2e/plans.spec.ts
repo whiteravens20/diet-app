@@ -402,9 +402,13 @@ test.describe('a plan that is made again', () => {
     try {
       await anOpenPlan(page, messages);
 
-      // The second day is unfolded beside the first: the second button of its kind on the page.
+      // The second day is unfolded beside the first, and its changes: the second button of their kind on the page.
       await page.locator('[id^="plan-"] > button[aria-expanded="false"]').first().click();
-      await page.getByRole('button', { name: plans.changeDay!, exact: true }).nth(1).click();
+      await page
+        .getByRole('button', { name: new RegExp(`^${loose(`${plans.dayChanges!}: `)}`) })
+        .nth(1)
+        .click();
+      await page.getByRole('button', { name: plans.changeDay!, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: reroll.title! });
 
       await expect(dialog.getByLabel(reroll.day!, { exact: true })).toBeChecked();
