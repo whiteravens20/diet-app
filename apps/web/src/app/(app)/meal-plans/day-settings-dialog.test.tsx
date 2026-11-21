@@ -129,6 +129,14 @@ const save = (dialog: Awaited<ReturnType<typeof opened>>['dialog']) =>
 /** A field is named by its label and the hint under it: it is found by the label it begins with. */
 const kindField = (dialog: Awaited<ReturnType<typeof opened>>['dialog']) =>
   dialog.getByRole('combobox', { name: new RegExp(`^${texts.kind}`) });
+/** The rows of the table of the day's meals under its heads, each as the texts of its cells. */
+const mealRows = (dialog: Awaited<ReturnType<typeof opened>>['dialog']) =>
+  within(dialog.getByRole('table'))
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent));
+/** A figure before and after, as the table holds it on one line. */
+const moved = (now: string, then: string) => `${now}\u00a0→\u00a0${then}`;
 
 describe('the window in which the settings of a day are changed', () => {
   afterEach(() => {
@@ -154,10 +162,10 @@ describe('the window in which the settings of a day are changed', () => {
     expect(
       dialog.getByText('It aims at protein 144 g, fat 77 g, carbohydrate 259 g.'),
     ).toBeInTheDocument();
-    expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual([
-      'breakfast: the same dish in a new portion',
-      'lunch: the same dish in a new portion',
-      'dinner: the same dish in a new portion',
+    expect(mealRows(dialog)).toEqual([
+      ['breakfast', 'the same dish in a new portion'],
+      ['lunch', 'the same dish in a new portion'],
+      ['dinner', 'the same dish in a new portion'],
     ]);
     expect(dialog.getByText('The day will hold about 2310 kcal.')).toBeInTheDocument();
     expect(dialog.getByText(texts.listOutOfDate)).toBeInTheDocument();
@@ -223,11 +231,11 @@ describe('the window in which the settings of a day are changed', () => {
     );
 
     expect(await dialog.findByText("The day's target stays at 2000 kcal.")).toBeInTheDocument();
-    expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual([
-      'breakfast: stays: it was eaten',
-      'lunch: a new recipe: this one takes longer than the limit',
-      'dinner: the same dish in a new portion',
-      'Added: snack.',
+    expect(mealRows(dialog)).toEqual([
+      ['breakfast', 'stays: it was eaten'],
+      ['lunch', 'a new recipe: this one takes longer than the limit'],
+      ['dinner', 'the same dish in a new portion'],
+      ['snack', 'added'],
     ]);
     expect(dialog.getByText(texts.drawnNote)).toBeInTheDocument();
   });
@@ -268,14 +276,26 @@ describe('the window in which the settings of a day are changed', () => {
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
 
     await vi.waitFor(() =>
-      expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual(
-        [
-          'breakfast: stays: it was eaten',
-          'lunch: the same dish: 1 → 1.5 servings, 520 → 780 kcal',
-          'dinner: the same dish: 1 → 2 servings, 600 → 1200 kcal',
-        ].map((line) => line.replace(/ (?=→|servings|kcal)|(?<=→) /g, '\u00a0')),
-      ),
+      expect(mealRows(dialog)).toEqual([
+        ['breakfast', 'stays: it was eaten'],
+        ['lunch', moved('1', '1.5'), moved('520', '780')],
+        ['dinner', moved('1', '2'), moved('600', '1200')],
+      ]),
     );
+    expect(
+      within(dialog.getByRole('table'))
+        .getAllByRole('columnheader')
+        .map((head) => head.textContent),
+    ).toEqual([texts.tableMeal, texts.tablePortion, texts.tableKcal]);
+  });
+
+  it('says what each kind of day does under "How it works", folded beneath the choice', async () => {
+    const { dialog } = await opened(() => aPreview({ unchanged: true }));
+
+    expect(dialog.getByRole('combobox', { name: texts.kind })).toBeInTheDocument();
+    const how = dialog.getByText(messages.common.howItWorks).closest('details')!;
+    expect(how).not.toHaveAttribute('open');
+    expect(within(how).getByText(texts.kindHint)).toBeInTheDocument();
   });
 
   it('says what the day falls short of, and spreads it over the next days unless the box is unticked', async () => {
@@ -439,13 +459,19 @@ describe('the window in which the settings of a day are changed', () => {
     const { dialog, put } = await opened(() => aPreview({ week: UNEVEN }));
     await userEvent.selectOptions(kindField(dialog), texts.kinds.training);
 
+    // The week's effect in one line; its pace and what evening it out does, folded under it.
     expect(
       await dialog.findByText(
-        /^The week's average daily target: 2000 → 2043 kcal, at a plan target of 2000 kcal\. At this average target, weight falls by about 0\.46 kg a week\.$/,
+        /^The week's average daily target: 2000\s→\s2043\skcal, at a plan target of 2000\skcal\.$/,
       ),
     ).toBeInTheDocument();
+    const more = dialog.getByText(texts.weekMore).closest('details')!;
+    expect(more).not.toHaveAttribute('open');
     expect(
-      dialog.getByText(/gives this day 2240 kcal and changes the targets of 4 other days/),
+      within(more).getByText(/^At this average target, weight falls by about 0\.46\skg a week\.$/),
+    ).toBeInTheDocument();
+    expect(
+      within(more).getByText(/gives this day 2240 kcal and changes the targets of 4 other days/),
     ).toBeInTheDocument();
     expect(dialog.queryByText(texts.otherDays)).not.toBeInTheDocument();
     const alone = await dialog.findByRole('button', { name: texts.saveDay });
@@ -500,9 +526,12 @@ describe('the window in which the settings of a day are changed', () => {
 
     expect(
       await dialog.findByText(
-        /^This week's average daily target is 2043 kcal, at a plan target of 2000 kcal\./,
+        /^The week's average daily target: 2043\skcal, at a plan target of 2000\skcal\.$/,
       ),
     ).toBeInTheDocument();
+    const more = dialog.getByText(texts.weekMore).closest('details')!;
+    expect(more).not.toHaveAttribute('open');
+    expect(within(more).getByText(texts.evenWeekNote)).toBeInTheDocument();
     await userEvent.click(dialog.getByRole('button', { name: texts.evenWeek }));
 
     await vi.waitFor(() =>
@@ -598,10 +627,10 @@ describe('the window in which the settings of a day are changed', () => {
     expect(dialog.queryByRole('combobox', { name: new RegExp(`^${texts.mealCount}`) })).toBeNull();
     expect(dialog.queryByRole('spinbutton', cookTime)).toBeNull();
     expect(dialog.getAllByRole('combobox')).toHaveLength(1);
-    expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual([
-      'breakfast: stays: it was eaten',
-      'lunch: goes: the day is skipped',
-      'dinner: goes: the day is skipped',
+    expect(mealRows(dialog)).toEqual([
+      ['breakfast', 'stays: it was eaten'],
+      ['lunch', 'goes: the day is skipped'],
+      ['dinner', 'goes: the day is skipped'],
     ]);
   });
 });

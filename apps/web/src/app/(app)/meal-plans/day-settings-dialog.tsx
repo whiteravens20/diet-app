@@ -4,7 +4,7 @@
 
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   DaySettings,
   MAX_CALORIE_TARGET,
@@ -237,19 +237,26 @@ export function DaySettingsDialog({
           }
         }}
       >
-        <Field label={t('kind')} hint={t('kindHint')}>
-          <select
-            className={selectClass}
-            value={kind}
-            onChange={(e) => setKind(e.target.value as Kind)}
-          >
-            {KINDS.map((option) => (
-              <option key={option} value={option}>
-                {t(`kinds.${option}`)}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="space-y-1">
+          <Field label={t('kind')}>
+            <select
+              className={selectClass}
+              value={kind}
+              onChange={(e) => setKind(e.target.value as Kind)}
+            >
+              {KINDS.map((option) => (
+                <option key={option} value={option}>
+                  {t(`kinds.${option}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {/* What each kind does to the day's target: under the choice, for whoever asks. */}
+          <details className="text-xs text-muted-foreground">
+            <summary className="w-fit cursor-pointer py-1">{tCommon('howItWorks')}</summary>
+            <p className="mt-1">{t('kindHint')}</p>
+          </details>
+        </div>
         {kind !== 'skip' && (
           <>
             <Field label={t('mealCount')}>
@@ -479,17 +486,25 @@ function Outcome({
 }) {
   const t = useTranslations('mealPlans.daySettings');
   const fmt = useFormat();
+  /** A figure before and after, held on one line. */
+  const change = (now: number, then: number, digits = 0) =>
+    `${fmt.number(now, digits)}\u00a0→\u00a0${fmt.number(then, digits)}`;
   if (preview.unchanged)
     return (
       <>
         <p>{t('unchanged')}</p>
         {weekOff && weekOff.average !== null && (
-          <p className="text-muted-foreground">
-            {t('evenWeekNote', {
-              average: fmt.number(weekOff.average),
-              target: fmt.number(weekOff.target),
-            })}
-          </p>
+          <>
+            <p className="text-muted-foreground">
+              {t('weekAverage', {
+                kcal: fmt.number(weekOff.average),
+                target: fmt.number(weekOff.target),
+              })}
+            </p>
+            <WeekMore>
+              <p>{t('evenWeekNote')}</p>
+            </WeekMore>
+          </>
         )}
         <ListNote days="several" listed={weekOff?.listOutOfDate === true} />
       </>
@@ -518,26 +533,55 @@ function Outcome({
           {preview.belowSafetyFloor && <p className="text-warning">{t('belowFloor')}</p>}
         </>
       )}
-      <ul className="space-y-0.5">
-        {preview.meals.map((meal) => (
-          <li key={meal.mealId}>
-            <span className="text-muted-foreground">{mealName(meal.mealType)}:</span>{' '}
-            {meal.portion
-              ? t('fateResizedPortion', {
-                  from: meal.portion.servings.now,
-                  to: meal.portion.servings.then,
-                  kcalFrom: Math.round(meal.portion.calories.now),
-                  kcalTo: Math.round(meal.portion.calories.then),
-                })
-              : t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
-          </li>
-        ))}
-        {preview.added.length > 0 && (
-          <li>
-            {t('added', { meals: fmt.list(preview.added.map((slot: MealType) => mealName(slot))) })}
-          </li>
-        )}
-      </ul>
+      {/* Each meal of the day: its portion and kcal before and after where it takes another portion, what becomes of it otherwise. */}
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-border text-left text-muted-foreground">
+            <th scope="col" className="py-1 pr-3 font-medium">
+              {t('tableMeal')}
+            </th>
+            <th scope="col" className="py-1 pr-3 text-right font-medium">
+              {t('tablePortion')}
+            </th>
+            <th scope="col" className="py-1 text-right font-medium">
+              {t('tableKcal')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {preview.meals.map((meal) => (
+            <tr key={meal.mealId} className="border-b border-border last:border-0">
+              <th scope="row" className="py-1 pr-3 text-left font-normal text-muted-foreground">
+                {mealName(meal.mealType)}
+              </th>
+              {meal.portion ? (
+                <>
+                  <td className="py-1 pr-3 text-right tabular-nums">
+                    {change(meal.portion.servings.now, meal.portion.servings.then, 2)}
+                  </td>
+                  <td className="py-1 text-right tabular-nums">
+                    {change(meal.portion.calories.now, meal.portion.calories.then)}
+                  </td>
+                </>
+              ) : (
+                <td colSpan={2} className="py-1">
+                  {t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
+                </td>
+              )}
+            </tr>
+          ))}
+          {preview.added.map((slot: MealType) => (
+            <tr key={slot} className="border-b border-border last:border-0">
+              <th scope="row" className="py-1 pr-3 text-left font-normal text-muted-foreground">
+                {mealName(slot)}
+              </th>
+              <td colSpan={2} className="py-1">
+                {t('fateAdded')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {drawn && <p className="text-muted-foreground">{t('drawnNote')}</p>}
       {preview.dayCalories !== null && !skip && (
         <p className={preview.fits ? 'text-muted-foreground' : 'text-warning'}>
@@ -589,21 +633,36 @@ function WeekOutcome({ week }: { week: NonNullable<DaySettingsPreview['week']> }
               from: fmt.number(now),
               to: fmt.number(alone),
               target: fmt.number(week.target),
-            })}{' '}
-        {Math.abs(pace) < 0.05
-          ? t('weekPaceKeep')
-          : t(pace > 0 ? 'weekPaceLoss' : 'weekPaceGain', { weight })}
+            })}
       </p>
-      {week.unevenAlone && (
-        <p className="text-muted-foreground">
-          {t('weekEvenNote', {
-            dayTarget: fmt.number(week.evenedTarget),
-            days: week.otherDays,
-            evened: fmt.number(evened),
-          })}
+      <WeekMore>
+        <p>
+          {Math.abs(pace) < 0.05
+            ? t('weekPaceKeep')
+            : t(pace > 0 ? 'weekPaceLoss' : 'weekPaceGain', { weight })}
         </p>
-      )}
+        {week.unevenAlone && (
+          <p>
+            {t('weekEvenNote', {
+              dayTarget: fmt.number(week.evenedTarget),
+              days: week.otherDays,
+              evened: fmt.number(evened),
+            })}
+          </p>
+        )}
+      </WeekMore>
       <ListNote days="several" listed={week.unevenAlone && week.listOutOfDate} />
     </>
+  );
+}
+
+/** The rest of what a change does to its week, under its one line: the pace it comes to and what evening it out does. */
+function WeekMore({ children }: { children: ReactNode }) {
+  const t = useTranslations('mealPlans.daySettings');
+  return (
+    <details className="text-muted-foreground">
+      <summary className="w-fit cursor-pointer py-1">{t('weekMore')}</summary>
+      <div className="mt-1 space-y-1">{children}</div>
+    </details>
   );
 }
