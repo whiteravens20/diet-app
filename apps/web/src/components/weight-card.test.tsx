@@ -96,6 +96,12 @@ const anEntry = (over: Partial<WeightEntry> = {}): WeightEntry => ({
   ...over,
 });
 
+/** Two days of weights: the fewest a trend is drawn from. */
+const TWO_DAYS = [
+  { date: '2026-11-04', kg: 79.4, mean: 79.4 },
+  { date: '2026-11-05', kg: 79, mean: 79.2 },
+];
+
 describe('the weights a profile logs', () => {
   const languages = Object.getOwnPropertyDescriptor(window.navigator, 'languages');
 
@@ -177,9 +183,7 @@ describe('the weights a profile logs', () => {
   });
 
   it('are drawn with a line at the weight the profile works towards', async () => {
-    await shown(aProfile({ targetWeightKg: 72 }), 'kg', {
-      days: [{ date: '2026-11-05', kg: 79, mean: 79 }],
-    });
+    await shown(aProfile({ targetWeightKg: 72 }), 'kg', { days: TWO_DAYS });
 
     expect(await screen.findByTestId('weight-chart')).toHaveTextContent(
       `A line at 72: ${messages.weightCard.targetLabel}`,
@@ -187,9 +191,16 @@ describe('the weights a profile logs', () => {
   });
 
   it('are drawn with no line while the profile names no weight to work towards, its own weight being the newest logged', async () => {
-    await shown(aProfile(), 'kg', { days: [{ date: '2026-11-05', kg: 79, mean: 79 }] });
+    await shown(aProfile(), 'kg', { days: TWO_DAYS });
 
     expect(await screen.findByTestId('weight-chart')).toHaveTextContent('No line');
+  });
+
+  it('are not drawn from one weight: a line of words says from which day they are', async () => {
+    await shown(aProfile(), 'kg', { days: [{ date: '2026-11-05', kg: 79, mean: 79 }] });
+
+    expect(await screen.findByText(messages.weightCard.emptyState)).toBeInTheDocument();
+    expect(screen.queryByTestId('weight-chart')).toBeNull();
   });
 
   it('go by where the reader is until the account chooses: kilograms outside the countries that weigh in pounds', async () => {

@@ -2577,7 +2577,7 @@
     "targetLabel": "target",
     "seriesEntry": "Logged",
     "seriesMa7": "7-day average",
-    "emptyState": "Log a weight to see your 90-day trend.",
+    "emptyState": "The 90-day chart shows from the second day with a weight logged.",
     "removeLatest": "Remove last entry",
     "removeLatestLabel": "{weight} · {date}",
     "removeLatestConfirm": "Remove the last logged weight ({weight} · {date})?",

@@ -2577,7 +2577,7 @@
     "targetLabel": "cel",
     "seriesEntry": "Wpis",
     "seriesMa7": "Średnia 7\u00a0dni",
-    "emptyState": "Zapisz wagę, aby zobaczyć trend z 90\u00a0dni.",
+    "emptyState": "Wykres z\u00a090\u00a0dni pojawi się od drugiego dnia z\u00a0zapisaną wagą.",
     "removeLatest": "Usuń ostatni wpis",
     "removeLatestLabel": "{weight} · {date}",
     "removeLatestConfirm": "Usunąć ostatnią zapisaną wagę ({weight} · {date})?",

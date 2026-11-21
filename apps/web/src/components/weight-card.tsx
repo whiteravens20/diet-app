@@ -115,7 +115,8 @@ export function WeightCard({ profile }: { profile: Profile }) {
     kg: shownWeight(day.kg, unit),
     mean: shownWeight(day.mean, unit),
   }));
-  const hasData = points.length > 0;
+  // A trend is drawn from two weights on: one is a point, which says nothing a line of words does not.
+  const hasData = points.length > 1;
   // The line across the chart: where the profile wants to be, where it says.
   const target =
     profile.targetWeightKg !== null
@@ -187,17 +188,15 @@ export function WeightCard({ profile }: { profile: Profile }) {
             </div>
           </form>
 
-          <div className="min-h-[200px]">
-            {hasData ? (
+          {hasData ? (
+            <div className="min-h-[200px]">
               <WeightChart points={points} target={target} unit={unit} />
-            ) : unread(days) ? (
-              <ReadsFailed reads={[days]} unanswered />
-            ) : (
-              <div className="flex h-full min-h-[200px] items-center justify-center rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-                {t('emptyState')}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : unread(days) ? (
+            <ReadsFailed reads={[days]} unanswered />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('emptyState')}</p>
+          )}
         </div>
       </CardContent>
     </Card>
