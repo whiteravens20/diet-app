@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Page, Response } from '@playwright/test';
-import { expect, settled, test } from './fixtures';
+import { expect, narrowScreen, settled, test } from './fixtures';
+import { loose } from './patterns';
 
 type Texts = Record<string, string>;
 
@@ -37,6 +38,18 @@ test.describe('the recipe library', () => {
     await settled(page);
     expect(all.total).toBeGreaterThan(1);
 
+    // On a phone the ways of narrowing beside the search stand behind one button; a wide screen has them open.
+    const filters = page.getByRole('button', { name: new RegExp(`^${loose(recipes.filters!)}`) });
+    if (narrowScreen(page)) {
+      await expect(meal).toBeHidden();
+      await expect(filters).toHaveAttribute('aria-expanded', 'false');
+      await filters.click();
+      await expect(filters).toHaveAttribute('aria-expanded', 'true');
+    } else {
+      await expect(filters).toBeHidden();
+    }
+    await expect(meal).toBeVisible();
+
     // By the meal a recipe is for: what the API answers is what the page shows.
     const byMeal = listed(
       page,
@@ -66,6 +79,8 @@ test.describe('the recipe library', () => {
       true,
     );
     await expect(cards).toHaveCount(light.items.length);
+    // The button counts the two at work.
+    if (narrowScreen(page)) await expect(filters).toContainText('2');
 
     // With nothing left to choose from, the page says so.
     const none = listed(page, (query) => query.get('maxCalories') === '1');

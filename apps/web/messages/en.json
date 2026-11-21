@@ -2399,6 +2399,8 @@
     "maxPrepMinutes": "Max prep minutes",
     "maxPrepMinutesPlaceholder": "e.g. 20",
     "clearFilters": "Clear filters",
+    "filters": "Filters",
+    "filtersOn": "{count, plural, one {Filters: {count, number, ::group-off}\u00a0at work} other {Filters: {count, number, ::group-off}\u00a0at work}}",
     "moreFilters": "More filters",
     "moreFiltersOn": "{count, plural, one {More filters: {count, number, ::group-off}\u00a0at work} other {More filters: {count, number, ::group-off}\u00a0at work}}",
     "cuisine": "Cuisine",

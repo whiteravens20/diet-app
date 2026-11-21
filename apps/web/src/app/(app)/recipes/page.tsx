@@ -7,7 +7,7 @@ import { PenLine, Pencil, Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useId, useMemo, useState } from 'react';
 import type {
   Allergen,
   MarkedFilter,
@@ -155,6 +155,13 @@ function RecipesContent() {
     [cuisine, minProtein, maxFat, maxCarbs].filter(Boolean).length +
     (ingredientIds.length > 0 ? 1 : 0) +
     (withoutAllergens.length > 0 ? 1 : 0);
+  // On a phone the ways of narrowing beside the search stand behind one button, which counts those at work.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const atWork =
+    [dietType, mealType, difficulty, maxCalories, maxPrepMinutes, marked].filter(Boolean).length +
+    more +
+    (usesFavorites ? 1 : 0);
+  const filterIds = useId();
 
   // Library vs My Recipes share the same card UI but hit different
   // endpoints. `mine` skips the filter sidebar's server params (the personal
@@ -268,70 +275,90 @@ function RecipesContent() {
             placeholder={t('searchPlaceholder')}
           />
         </Field>
-        <Field label={t('dietType')}>
-          <select
-            className={selectClass}
-            value={dietType}
-            onChange={(e) => setDietType(e.target.value)}
+        <div className="sm:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            aria-expanded={filtersOpen}
+            aria-controls={`${filterIds}-fields ${filterIds}-more ${filterIds}-marks`}
+            onClick={() => setFiltersOpen((open) => !open)}
           >
-            <option value="">{t('any')}</option>
-            {DIET_TYPES.map((d) => (
-              <option key={d} value={d}>
-                {tDiet(d)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('mealType')}>
-          <select
-            className={selectClass}
-            value={mealType}
-            onChange={(e) => setMealType(e.target.value)}
-          >
-            <option value="">{t('any')}</option>
-            {MEAL_TYPES.map((m) => (
-              <option key={m} value={m}>
-                {tMeal(m)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('difficulty')}>
-          <select
-            className={selectClass}
-            value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-          >
-            <option value="">{t('any')}</option>
-            {DIFFICULTIES.map((d) => (
-              <option key={d} value={d}>
-                {tDifficulty(d)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t('maxCalories')}>
-          <Input
-            type="number"
-            min={0}
-            value={maxCalories}
-            onChange={(e) => setMaxCalories(e.target.value)}
-            placeholder={t('maxCaloriesPlaceholder')}
-          />
-        </Field>
-        <Field label={t('maxPrepMinutes')}>
-          <Input
-            type="number"
-            min={0}
-            value={maxPrepMinutes}
-            onChange={(e) => setMaxPrepMinutes(e.target.value)}
-            placeholder={t('maxPrepMinutesPlaceholder')}
-          />
-        </Field>
+            {atWork > 0 ? t('filtersOn', { count: atWork }) : t('filters')}
+          </Button>
+        </div>
+        <div id={`${filterIds}-fields`} className={filtersOpen ? 'contents' : 'hidden sm:contents'}>
+          <Field label={t('dietType')}>
+            <select
+              className={selectClass}
+              value={dietType}
+              onChange={(e) => setDietType(e.target.value)}
+            >
+              <option value="">{t('any')}</option>
+              {DIET_TYPES.map((d) => (
+                <option key={d} value={d}>
+                  {tDiet(d)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('mealType')}>
+            <select
+              className={selectClass}
+              value={mealType}
+              onChange={(e) => setMealType(e.target.value)}
+            >
+              <option value="">{t('any')}</option>
+              {MEAL_TYPES.map((m) => (
+                <option key={m} value={m}>
+                  {tMeal(m)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('difficulty')}>
+            <select
+              className={selectClass}
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+            >
+              <option value="">{t('any')}</option>
+              {DIFFICULTIES.map((d) => (
+                <option key={d} value={d}>
+                  {tDifficulty(d)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('maxCalories')}>
+            <Input
+              type="number"
+              min={0}
+              value={maxCalories}
+              onChange={(e) => setMaxCalories(e.target.value)}
+              placeholder={t('maxCaloriesPlaceholder')}
+            />
+          </Field>
+          <Field label={t('maxPrepMinutes')}>
+            <Input
+              type="number"
+              min={0}
+              value={maxPrepMinutes}
+              onChange={(e) => setMaxPrepMinutes(e.target.value)}
+              placeholder={t('maxPrepMinutesPlaceholder')}
+            />
+          </Field>
+        </div>
       </div>
 
       {/* The narrower ways to look stay folded until they are wanted; the count says when one of them is at work. */}
-      <details className={tab === 'mine' ? 'hidden' : 'rounded-md border border-border px-3 py-2'}>
+      <details
+        id={`${filterIds}-more`}
+        className={
+          tab === 'mine'
+            ? 'hidden'
+            : `${filtersOpen ? 'block' : 'hidden sm:block'} rounded-md border border-border px-3 py-2`
+        }
+      >
         <summary className="cursor-pointer text-sm font-medium">
           {more > 0 ? t('moreFiltersOn', { count: more }) : t('moreFilters')}
         </summary>
@@ -395,7 +422,14 @@ function RecipesContent() {
         </div>
       </details>
 
-      <div className={tab === 'mine' ? 'hidden' : 'flex flex-wrap items-center gap-4'}>
+      <div
+        id={`${filterIds}-marks`}
+        className={
+          tab === 'mine'
+            ? 'hidden'
+            : `${filtersOpen ? 'flex' : 'hidden sm:flex'} flex-wrap items-center gap-4`
+        }
+      >
         {anyServerFilter && (
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
             {t('clearFilters')}

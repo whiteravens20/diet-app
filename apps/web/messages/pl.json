@@ -2399,6 +2399,8 @@
     "maxPrepMinutes": "Maks. czas przygotowania",
     "maxPrepMinutesPlaceholder": "np. 20",
     "clearFilters": "Wyczyść filtry",
+    "filters": "Filtry",
+    "filtersOn": "{count, plural, one {Filtry: {count, number, ::group-off}\u00a0aktywny} few {Filtry: {count, number, ::group-off}\u00a0aktywne} many {Filtry: {count, number, ::group-off}\u00a0aktywnych} other {Filtry: {count, number, ::group-off}\u00a0aktywnego}}",
     "moreFilters": "Więcej filtrów",
     "moreFiltersOn": "{count, plural, one {Więcej filtrów: {count, number, ::group-off}\u00a0aktywny} few {Więcej filtrów: {count, number, ::group-off}\u00a0aktywne} many {Więcej filtrów: {count, number, ::group-off}\u00a0aktywnych} other {Więcej filtrów: {count, number, ::group-off}\u00a0aktywnego}}",
     "cuisine": "Kuchnia",

@@ -187,6 +187,24 @@ describe('the recipe library, narrowed', () => {
     });
   });
 
+  it('keeps the ways of narrowing beside the search behind one button on a phone, which counts those at work', async () => {
+    await renderPage();
+    const button = screen.getByRole('button', { name: texts.filters });
+    const fields = screen.getByLabelText(texts.dietType).closest('[id$="-fields"]')!;
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(button.getAttribute('aria-controls')!.split(' ')).toContain(fields.id);
+    expect(fields).toHaveClass('hidden', 'sm:contents');
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(fields).not.toHaveClass('hidden');
+
+    await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'vegan');
+    await userEvent.selectOptions(screen.getByLabelText(texts.cuisine), 'asian');
+    expect(await askedWith('cuisine', 'asian')).toMatchObject({ dietType: 'vegan' });
+    expect(button).toHaveTextContent('Filters: 2 at work');
+  });
+
   it('takes every filter away at once', async () => {
     await renderPage();
     await userEvent.selectOptions(screen.getByLabelText(texts.cuisine), 'asian');
