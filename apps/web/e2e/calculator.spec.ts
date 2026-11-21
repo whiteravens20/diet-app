@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import type { Request } from '@playwright/test';
 import { expect, loose, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
@@ -13,14 +14,22 @@ test.describe('the calculator', () => {
     const texts = messages.calculator as Texts;
     const profile = messages.profile as Texts;
     const preview = messages.caloriePreview as Texts;
-    // Whatever is sent for keeping while the calculator is used. The session's own requests keep nothing of what is typed.
+    // Whatever is sent for keeping while the calculator is used. The session's own requests keep nothing of what is
+    // typed, nor does the account's time zone or language, which a page saves once where this browser's differ.
     const sent: string[] = [];
-    const watch = (request: { method(): string; url(): string }): void => {
+    const watch = (request: Request): void => {
       const path = new URL(request.url()).pathname;
+      const preferences =
+        request.method() === 'PATCH' &&
+        path === '/api/users/me' &&
+        Object.keys((request.postDataJSON() ?? {}) as object).every(
+          (key) => key === 'timeZone' || key === 'locale',
+        );
       if (
         request.method() !== 'GET' &&
         path !== '/api/profiles/calories' &&
-        !path.startsWith('/api/auth/')
+        !path.startsWith('/api/auth/') &&
+        !preferences
       )
         sent.push(`${request.method()} ${path}`);
     };
