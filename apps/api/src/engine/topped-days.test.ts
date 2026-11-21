@@ -283,22 +283,23 @@ describe('the meals of a plan plated', () => {
     dailyCalorieTarget: 2000,
     macroAim: HIGH_PROTEIN,
   };
+  // The shared pasta is the dinner: the stew at lunch may grow for the day's protein, as lunch is the main meal.
   const sized: SizedAssignment[] = [
-    { dayIndex: 0, slot: 'lunch', recipeId: 'chicken-pasta', servings: 1, quantityScale: 1 },
-    { dayIndex: 0, slot: 'dinner', recipeId: 'bean-stew', servings: 1, quantityScale: 1 },
+    { dayIndex: 0, slot: 'lunch', recipeId: 'bean-stew', servings: 1, quantityScale: 1 },
+    { dayIndex: 0, slot: 'dinner', recipeId: 'chicken-pasta', servings: 1, quantityScale: 1 },
   ];
-  const lunchOnly = (meal: SizedAssignment) => (meal.slot === 'lunch' ? PLATE : null);
+  const dinnerOnly = (meal: SizedAssignment) => (meal.slot === 'dinner' ? PLATE : null);
   const run = (plated: boolean, kitchen?: ReturnType<typeof packKitchen>) =>
     topAssignments(
       [day],
       recipes,
       sized,
       energyShares(HIGH_PROTEIN)!,
-      lunchOnly,
+      dinnerOnly,
       OPTIONS,
       () => anyone,
       kitchen,
-      (meal) => (plated && meal.slot === 'lunch' ? PASTA : null),
+      (meal) => (plated && meal.slot === 'dinner' ? PASTA : null),
     );
 
   /** How far the day of a run is from its split: its meals at their portions and plates, with their toppings. */
@@ -325,25 +326,25 @@ describe('the meals of a plan plated', () => {
   };
 
   it('give a shared dish served on a plate the person’s own plate first, and a topping only where the day stays off', () => {
-    const lunch = run(true).find((meal) => meal.slot === 'lunch')!;
+    const dinner = run(true).find((meal) => meal.slot === 'dinner')!;
 
-    expect(lunch.plate!.protein).toBeGreaterThan(1);
-    expect(lunch.plate!.starch).toBeLessThan(1);
+    expect(dinner.plate!.protein).toBeGreaterThan(1);
+    expect(dinner.plate!.starch).toBeLessThan(1);
     // The day the topping brought back without the plate is brought back by the plate, with no more food.
-    expect(run(false).find((meal) => meal.slot === 'lunch')!.topping).not.toBeNull();
-    expect(lunch.topping).toBeNull();
+    expect(run(false).find((meal) => meal.slot === 'dinner')!.topping).not.toBeNull();
+    expect(dinner.topping).toBeNull();
     expect(awayOf(run(true))).toBeLessThanOrEqual(MACROS_OFF);
     // The plate is the person's at the dish both eat, and nowhere else.
-    expect(run(false).find((meal) => meal.slot === 'lunch')!.plate).toBeUndefined();
-    expect(run(true).find((meal) => meal.slot === 'dinner')!.plate).toBeUndefined();
+    expect(run(false).find((meal) => meal.slot === 'dinner')!.plate).toBeUndefined();
+    expect(run(true).find((meal) => meal.slot === 'lunch')!.plate).toBeUndefined();
   });
 
   it('take what the plate holds more of an ingredient from the kitchen’s packs, and give back what it holds less of', () => {
     const needs = new Map<string, number[]>();
-    const lunch = run(true, packKitchen(needs, 1)).find((meal) => meal.slot === 'lunch')!;
+    const dinner = run(true, packKitchen(needs, 1)).find((meal) => meal.slot === 'dinner')!;
 
-    expect(needs.get('chicken')![0]).toBeCloseTo(100 * (lunch.plate!.protein - 1), 6);
-    expect(needs.get('pasta')![0]).toBeCloseTo(120 * (lunch.plate!.starch - 1), 6);
+    expect(needs.get('chicken')![0]).toBeCloseTo(100 * (dinner.plate!.protein - 1), 6);
+    expect(needs.get('pasta')![0]).toBeCloseTo(120 * (dinner.plate!.starch - 1), 6);
     expect(needs.get('oil')).toBeUndefined();
   });
 });

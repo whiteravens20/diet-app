@@ -22,6 +22,7 @@ function meal(
     quantityScale: opts.quantityScale ?? 1,
     locked: opts.locked ?? false,
     ...(opts.macros ? { macros: opts.macros } : {}),
+    ...(opts.slot ? { slot: opts.slot } : {}),
   };
 }
 
@@ -228,6 +229,191 @@ describe('sizing the meals of a day for its macros', () => {
     const { scales } = sizeDay(meals, 900, aim);
 
     expect(scales.get('only')).toBeCloseTo(1.5, 9);
+  });
+});
+
+describe('lunch, the main meal of a day', () => {
+  // One meal nearly all protein, one nearly all carbohydrate, one nearly all fat.
+  const lean = { protein: 130, fat: 3, carbs: 5 };
+  const starch = { protein: 10, fat: 2, carbs: 135 };
+  const rich = { protein: 3, fat: 64, carbs: 3 };
+  /** What a time of day holds at these portions: its meal and what is eaten with it. */
+  const at = (meals: RebalanceMeal[], scales: Map<string, number>, slot: RebalanceMeal['slot']) =>
+    dayKcal(
+      meals.filter((one) => one.slot === slot),
+      scales,
+    );
+
+  it('moves no energy into dinner past lunch, however near that would bring the macros', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast', macros: rich }),
+      meal('lunch', 600, { slot: 'lunch', macros: starch }),
+      meal('dinner', 600, { slot: 'dinner', macros: lean }),
+    ];
+    const { scales } = sizeDay(meals, 1800, { protein: 400, fat: 0, carbs: 0 });
+
+    expect(at(meals, scales, 'dinner')).toBeLessThanOrEqual(at(meals, scales, 'lunch') + 1e-6);
+    expect(dayKcal(meals, scales)).toBeCloseTo(1800, 5);
+  });
+
+  it('moves no energy into dinner past a lunch typed in by hand, which stays as it is', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast', macros: rich }),
+      meal('lunch', 600, { slot: 'lunch', locked: true, macros: starch }),
+      meal('dinner', 600, { slot: 'dinner', macros: lean }),
+    ];
+    const { scales } = sizeDay(meals, 1800, { protein: 400, fat: 0, carbs: 0 });
+
+    expect(at(meals, scales, 'dinner')).toBeLessThanOrEqual(at(meals, scales, 'lunch') + 1e-6);
+  });
+
+  it('lets lunch grow for the macros as before', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast', macros: rich }),
+      meal('lunch', 600, { slot: 'lunch', macros: lean }),
+      meal('dinner', 600, { slot: 'dinner', macros: starch }),
+    ];
+    const { scales } = sizeDay(meals, 1800, { protein: 400, fat: 0, carbs: 0 });
+
+    expect(scales.get('lunch')!).toBeGreaterThan(1.2);
+  });
+
+  it('brings dinner down to lunch where the portions put it above, the day as it was', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast' }),
+      meal('lunch', 400, { slot: 'lunch' }),
+      meal('dinner', 800, { slot: 'dinner' }),
+    ];
+    const { scales } = sizeDay(meals, 1800, NO_AIM);
+
+    expect(at(meals, scales, 'lunch')).toBeCloseTo(600, 6);
+    expect(at(meals, scales, 'dinner')).toBeCloseTo(600, 6);
+    expect(scales.get('breakfast')).toBeCloseTo(1, 9);
+    expect(dayKcal(meals, scales)).toBeCloseTo(1800, 6);
+  });
+
+  it('counts what is eaten with a meal, and moves only the meal', () => {
+    const meals = [
+      meal('lunch', 600, { slot: 'lunch' }),
+      meal('dinner', 600, { slot: 'dinner' }),
+      meal('rest:dinner:0', 200, { slot: 'dinner', locked: true }),
+    ];
+    const { scales } = sizeDay(meals, 1400, NO_AIM);
+
+    expect(scales.get('rest:dinner:0')).toBe(1);
+    expect(at(meals, scales, 'dinner')).toBeCloseTo(at(meals, scales, 'lunch'), 6);
+  });
+
+  it('moves no more than lunch may grow: up to the largest serving', () => {
+    const meals = [
+      meal('breakfast', 450, { slot: 'breakfast' }),
+      meal('lunch', 300, { slot: 'lunch', servings: 2.5 }),
+      meal('dinner', 1200, { slot: 'dinner' }),
+    ];
+    const { scales } = sizeDay(meals, 2400, NO_AIM);
+
+    expect(2.5 * scales.get('lunch')!).toBeCloseTo(3, 9);
+    expect(at(meals, scales, 'dinner')).toBeCloseTo(1050, 6);
+  });
+
+  it('leaves dinner to the rest of a day whose lunch is eaten', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast', locked: true }),
+      meal('lunch', 400, { slot: 'lunch', locked: true }),
+      meal('dinner', 800, { slot: 'dinner' }),
+    ];
+    const { scales } = sizeDay(meals, 1800, NO_AIM);
+
+    expect(scales.get('dinner')).toBe(1);
+  });
+
+  it('leaves a day without lunch as it is', () => {
+    const meals = [
+      meal('breakfast', 600, { slot: 'breakfast' }),
+      meal('dinner', 1200, { slot: 'dinner' }),
+    ];
+    const { scales } = sizeDay(meals, 1800, NO_AIM);
+
+    expect(scales.get('breakfast')).toBe(1);
+    expect(scales.get('dinner')).toBe(1);
+  });
+
+  it('leaves a day on its target as it is where dinner stands no higher than lunch', () => {
+    const meals = [
+      meal('lunch', 600, { slot: 'lunch', quantityScale: 1.01 }),
+      meal('dinner', 600, { slot: 'dinner', quantityScale: 0.98 }),
+    ];
+    const { scales } = sizeDay(meals, 1200, NO_AIM);
+
+    expect(scales.get('lunch')).toBe(1.01);
+    expect(scales.get('dinner')).toBe(0.98);
+  });
+
+  it('brings dinner down to lunch on a day the run of days sizes again', () => {
+    const over: DayToRebalance = {
+      target: 1700,
+      meals: [
+        meal('a-breakfast', 600, { slot: 'breakfast' }),
+        meal('a-lunch', 400, { slot: 'lunch' }),
+        meal('a-dinner', 1000, { slot: 'dinner' }),
+      ],
+    };
+    const other: DayToRebalance = {
+      target: 2000,
+      meals: [
+        meal('b-breakfast', 600, { slot: 'breakfast' }),
+        meal('b-lunch', 800, { slot: 'lunch' }),
+        meal('b-dinner', 600, { slot: 'dinner' }),
+      ],
+    };
+    const { scales } = rebalanceDays([over, other]);
+
+    expect(at(over.meals, scales, 'dinner')).toBeCloseTo(at(over.meals, scales, 'lunch'), 6);
+    expect(dayKcal(over.meals, scales)).toBeCloseTo(1700, 6);
+    for (const one of other.meals) expect(scales.get(one.id)).toBe(1);
+  });
+
+  it('sizes what the planner placed with dinner no larger than lunch', () => {
+    const recipes = [
+      {
+        id: 'eggs',
+        caloriesPerServing: 400,
+        proteinPerServing: 25,
+        fatPerServing: 28,
+        carbsPerServing: 10,
+      },
+      {
+        id: 'salad',
+        caloriesPerServing: 300,
+        proteinPerServing: 15,
+        fatPerServing: 15,
+        carbsPerServing: 25,
+      },
+      {
+        id: 'stew',
+        caloriesPerServing: 1000,
+        proteinPerServing: 60,
+        fatPerServing: 45,
+        carbsPerServing: 90,
+      },
+    ] as OptimizerRecipe[];
+    const sized = sizeAssignments(
+      [{ mealSlots: ['breakfast', 'lunch', 'dinner'], dailyCalorieTarget: 2000 }],
+      recipes,
+      [
+        { dayIndex: 0, slot: 'breakfast', recipeId: 'eggs', servings: 1 },
+        { dayIndex: 0, slot: 'lunch', recipeId: 'salad', servings: 2 },
+        { dayIndex: 0, slot: 'dinner', recipeId: 'stew', servings: 1 },
+      ],
+      { protein: 0.2, fat: 0.35, carbs: 0.45 },
+    );
+    const kcal = (slot: string) => {
+      const one = sized.find((placed) => placed.slot === slot)!;
+      const of = recipes.find((recipe) => recipe.id === one.recipeId)!;
+      return of.caloriesPerServing * one.servings * one.quantityScale;
+    };
+
+    expect(kcal('dinner')).toBeLessThanOrEqual(kcal('lunch') + 0.01 * 2000);
   });
 });
 

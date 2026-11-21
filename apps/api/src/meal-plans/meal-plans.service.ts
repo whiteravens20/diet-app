@@ -1130,12 +1130,15 @@ export class MealPlansService {
       ...diaryRows(diary.get(isoDate(day.date))),
     ];
     const per100Of = new Map(ask.options.map((option) => [option.topping.key, option.per100]));
+    const mealTypeOf = new Map(day.meals.map((m) => [m.id, m.mealType]));
     const toppingRows = (
       of: readonly { mealId: string; key: string | null; amount: number | null }[],
     ) =>
       of.flatMap(({ mealId, key, amount }) => {
         const per100 = key !== null && amount !== null ? per100Of.get(key) : undefined;
-        return per100 ? [toppingRebalanceRow(mealId, per100, amount!)] : [];
+        return per100
+          ? [toppingRebalanceRow(mealId, mealTypeOf.get(mealId)!, per100, amount!)]
+          : [];
       });
     const stays = toppingRows(
       day.meals
@@ -2429,6 +2432,8 @@ interface RebalanceRow {
   servings: number;
   quantityScale: number;
   locked: boolean;
+  /** The time of day of its meal, for a meal and what is eaten with it (`RebalanceMeal.slot`); none for the diary. */
+  slot?: MealType;
 }
 
 /** What the days a swap changed held before it, for the revision of the plan it left. */
@@ -2507,6 +2512,7 @@ const REBALANCE_MACRO_SELECT = {
 
 export type RebalanceMealRow = {
   id: string;
+  mealType: string;
   source: 'CATALOGUE' | 'USER_CUSTOM';
   customMacros: unknown;
   /** The rests of packs it finishes (`restsOf`): what they hold is counted, and never moved. */
@@ -2569,6 +2575,7 @@ function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
     quantityScale: m.quantityScale,
     // Pinned out of the rebalance set: user-owned custom macros, already eaten, or a leftover, which is food there is.
     locked: m.source === 'USER_CUSTOM' || m.eatenAt != null || m.leftoverFromDate != null,
+    slot: m.mealType as MealType,
   };
 }
 
@@ -2585,7 +2592,9 @@ function diaryRows(
 }
 
 /** The rests of packs a day's meals finish, as rows the sizing of the day counts and never moves: grams of a pack, not a portion. */
-function restRebalanceRows(meals: readonly { id: string; rests: unknown }[]): RebalanceRow[] {
+function restRebalanceRows(
+  meals: readonly { id: string; mealType: string; rests: unknown }[],
+): RebalanceRow[] {
   return meals.flatMap((meal) =>
     restsOf(meal.rests).map((rest, index) => ({
       id: `rest:${meal.id}:${index}`,
@@ -2593,15 +2602,22 @@ function restRebalanceRows(meals: readonly { id: string; rests: unknown }[]): Re
       servings: 1,
       quantityScale: 1,
       locked: true,
+      slot: meal.mealType as MealType,
     })),
   );
 }
 
 /** A meal's topping as a row the sizing of its day counts and never moves. */
-function toppingRebalanceRow(mealId: string, per100: MacroQuad, amount: number): RebalanceRow {
+function toppingRebalanceRow(
+  mealId: string,
+  mealType: string,
+  per100: MacroQuad,
+  amount: number,
+): RebalanceRow {
   const part = amount / 100;
   return {
     id: `topping:${mealId}`,
+    slot: mealType as MealType,
     per: {
       calories: per100.calories * part,
       protein: per100.protein * part,
@@ -2621,6 +2637,7 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   quantityScale: r.quantityScale,
   locked: r.locked,
   macros: { protein: r.per.protein, fat: r.per.fat, carbs: r.per.carbs },
+  ...(r.slot ? { slot: r.slot } : {}),
 });
 
 /** Sum the effective macros of meals given a per-meal scale lookup. */

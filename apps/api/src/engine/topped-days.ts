@@ -15,7 +15,7 @@
  *
  * Pure: the same day gives the same toppings and portions.
  */
-import type { Macros } from '@diet-app/shared';
+import type { Macros, MealType } from '@diet-app/shared';
 import type { PackKitchen } from './close-packs.js';
 import type { OptimizerDay, OptimizerRecipe } from './optimizer.js';
 import {
@@ -47,10 +47,16 @@ import {
 const toppingId = (mealId: string): string => `topping:${mealId}`;
 
 /** A meal's topping as a row the sizing of its day counts and never moves. */
-function toppingRow(mealId: string, per100: Figures, amount: number): RebalanceMeal {
+function toppingRow(
+  mealId: string,
+  slot: MealType,
+  per100: Figures,
+  amount: number,
+): RebalanceMeal {
   const part = amount / 100;
   return {
     id: toppingId(mealId),
+    slot,
     calories: per100.calories * part,
     servings: 1,
     quantityScale: 1,
@@ -105,7 +111,8 @@ export function topAndSizeDay(
       leavesMore,
     );
     if (choice === null) break;
-    rows.push(toppingRow(choice.mealId, per100Of.get(choice.key)!, choice.amount));
+    const meal = open.find((place) => place.mealId === choice.mealId)!.meal;
+    rows.push(toppingRow(choice.mealId, meal, per100Of.get(choice.key)!, choice.amount));
     toppings.push(choice);
     had.set(choice.key, (had.get(choice.key) ?? 0) + 1);
     open = open.filter((place) => place.mealId !== choice.mealId);

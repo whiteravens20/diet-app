@@ -16,7 +16,7 @@
  *
  * Pure and deterministic: same inputs → same scales. No randomness, no I/O.
  */
-import { KCAL_PER_GRAM, type Macros } from '@diet-app/shared';
+import { KCAL_PER_GRAM, type Macros, type MealType } from '@diet-app/shared';
 import {
   SERVING_MAX,
   SERVING_MIN,
@@ -37,6 +37,11 @@ export interface RebalanceMeal {
   locked: boolean;
   /** Grams of protein, fat and carbohydrate in a baseline serving. Left out: the meal is not sized for them. */
   macros?: Macros;
+  /**
+   * The time of day it is eaten at: a meal of the day, and what is eaten with it (the rests of packs it finishes, its
+   * topping). Left out for what stays on the day by itself, such as its diary.
+   */
+  slot?: MealType;
 }
 
 type Feasibility = 'in-window' | 'best-effort';
@@ -67,6 +72,61 @@ const totalKcal = (meals: RebalanceMeal[], scales: Map<string, number>) =>
 
 const within = (value: number, target: number, tolerance: number) =>
   Math.abs(value - target) <= tolerance * target;
+
+/** What a time of day holds at these portions, in kcal: its meal and what is eaten with it. */
+const kcalAt = (
+  meals: readonly RebalanceMeal[],
+  slot: MealType,
+  scales: ReadonlyMap<string, number>,
+) =>
+  meals
+    .filter((m) => m.slot === slot)
+    .reduce((sum, m) => sum + effectiveKcal(m, scales.get(m.id) ?? m.quantityScale), 0);
+
+/**
+ * How far dinner stands above lunch at these portions, in kcal: zero or less where it does not, and zero on a day
+ * without both. Lunch is the day's main meal, as the planner shares the day out (`SLOT_WEIGHT`): sizing keeps dinner
+ * no larger than it wherever lunch can take more.
+ */
+function dinnerLead(meals: readonly RebalanceMeal[], scales: ReadonlyMap<string, number>): number {
+  if (!meals.some((m) => m.slot === 'lunch') || !meals.some((m) => m.slot === 'dinner')) return 0;
+  return kcalAt(meals, 'dinner', scales) - kcalAt(meals, 'lunch', scales);
+}
+
+/** The one meal of a time of day that sizing may change: none where there is no such meal, or more than one. */
+function movableAt(meals: readonly RebalanceMeal[], slot: MealType): RebalanceMeal | undefined {
+  const free = meals.filter(
+    (m) => m.slot === slot && !m.locked && m.calories > 0 && m.servings > 0,
+  );
+  return free.length === 1 ? free[0] : undefined;
+}
+
+/**
+ * Dinner brought down to lunch where it stands above it, whatever left it so (a lunch that could not hold its part of
+ * the day, a dish swapped in): half the difference moves from dinner to lunch, as far as lunch's portion may grow and
+ * dinner's may shrink. The day's energy stays what it was.
+ */
+function dinnerToLunch(
+  meals: readonly RebalanceMeal[],
+  scales: Map<string, number>,
+): Map<string, number> {
+  const lead = dinnerLead(meals, scales);
+  const lunch = movableAt(meals, 'lunch');
+  const dinner = movableAt(meals, 'dinner');
+  if (lead <= 0 || !lunch || !dinner) return scales;
+  const perLunch = lunch.calories * lunch.servings;
+  const perDinner = dinner.calories * dinner.servings;
+  const moved = Math.min(
+    lead / 2,
+    (highestScale(lunch) - scales.get(lunch.id)!) * perLunch,
+    (scales.get(dinner.id)! - SERVING_MIN / dinner.servings) * perDinner,
+  );
+  if (moved <= 0) return scales;
+  const next = new Map(scales);
+  next.set(lunch.id, scales.get(lunch.id)! + moved / perLunch);
+  next.set(dinner.id, scales.get(dinner.id)! - moved / perDinner);
+  return next;
+}
 
 /**
  * Water-filling solver: distribute `target` across `meals` by giving every
@@ -153,7 +213,7 @@ function heldBy(meals: RebalanceMeal[], scales: Map<string, number>): Macros {
  * while that brings the day nearer `aim`. The day's energy stays what it was, a
  * meal stays within `MACRO_BAND` of where it began, within the bounds of a
  * serving and of its growth, and a meal that is pinned, or that says nothing of
- * its macros, stays.
+ * its macros, stays. No move leaves dinner further above lunch (`dinnerLead`).
  */
 function evenOutMacros(
   meals: RebalanceMeal[],
@@ -187,6 +247,16 @@ function evenOutMacros(
       carbs: held.carbs - from.macros!.carbs * less + to.macros!.carbs * more,
     };
   };
+  /** Whether moving `kcal` from one meal to another would leave dinner above lunch, and further than it stands. */
+  const widensDinnerLead = (from: RebalanceMeal, to: RebalanceMeal, kcal: number): boolean => {
+    if (!meals.some((m) => m.slot === 'lunch')) return false;
+    const by =
+      (to.slot === 'dinner' ? kcal : 0) -
+      (from.slot === 'dinner' ? kcal : 0) +
+      (from.slot === 'lunch' ? kcal : 0) -
+      (to.slot === 'lunch' ? kcal : 0);
+    return by > 0 && dinnerLead(meals, scales) + by > 0;
+  };
   for (const step of MACRO_STEPS) {
     const kcal = step * target;
     for (;;) {
@@ -199,6 +269,7 @@ function evenOutMacros(
           if (to === from) continue;
           const higher = scales.get(to.id)! + kcal / (to.calories * to.servings);
           if (higher > bounds.get(to.id)!.highest) continue;
+          if (widensDinnerLead(from, to, kcal)) continue;
           const after = movedTo(from, to, kcal);
           const away = energyAway(after, aim);
           if (away < nearest) {
@@ -224,19 +295,23 @@ function evenOutMacros(
 
 /**
  * Size the meals of a day that are not pinned: together they come to what is
- * left of `target`, and within that each takes the portion that brings the day
- * nearest `aim`. A day that is on its target already, with nothing much to gain
- * for its macros, stays as it is: a portion does not change for less, so a day
- * asked again stays. `best-effort` flags a day that the bounds of a serving keep
- * outside the window (e.g. a huge custom meal that overshoots the target alone).
+ * left of `target`, within that each takes the portion that brings the day
+ * nearest `aim`, and dinner comes no larger than lunch where lunch can take it
+ * (`dinnerToLunch`). A day that is on its target already, with nothing much to
+ * gain for its macros or for its dinner, stays as it is: a portion does not
+ * change for less, so a day asked again stays. `best-effort` flags a day that
+ * the bounds of a serving keep outside the window (e.g. a huge custom meal that
+ * overshoots the target alone).
  */
 export function sizeDay(meals: RebalanceMeal[], target: number, aim: Macros): RebalanceResult {
-  const sized = evenOutMacros(meals, solve(meals, target), aim, target);
+  const sized = dinnerToLunch(meals, evenOutMacros(meals, solve(meals, target), aim, target));
   const now = new Map(meals.map((m) => [m.id, m.quantityScale]));
   const stays =
     within(totalKcal(meals, now), target, ON_TARGET) &&
     energyAway(heldBy(meals, now), aim) <=
-      energyAway(heldBy(meals, sized), aim) + NOTHING_MUCH * target;
+      energyAway(heldBy(meals, sized), aim) + NOTHING_MUCH * target &&
+    Math.max(0, dinnerLead(meals, now)) - Math.max(0, dinnerLead(meals, sized)) <=
+      NOTHING_MUCH * target;
   const scales = stays ? now : sized;
   return {
     scales,
@@ -283,6 +358,7 @@ export function assignedDayMeals(
       const recipe = recipeOf.get(meal.recipeId)!;
       return {
         id: meal.slot,
+        slot: meal.slot,
         calories: recipe.caloriesPerServing,
         servings: meal.servings,
         quantityScale: 1,
@@ -372,7 +448,7 @@ export function rebalanceDays(
   const settle = (d: DayToRebalance, target: number): void => {
     const now = d.meals.map((m) => ({ ...m, quantityScale: scales.get(m.id)! }));
     const even = solve(now, target);
-    const sized = d.aim ? evenOutMacros(now, even, d.aim, target) : even;
+    const sized = dinnerToLunch(now, d.aim ? evenOutMacros(now, even, d.aim, target) : even);
     for (const [id, scale] of sized) scales.set(id, scale);
   };
 
