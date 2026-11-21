@@ -721,11 +721,17 @@ function fill(
         const welcome = offered.filter((r) => !holdsDisliked(r));
         const liked = welcome.length > 0 ? welcome : offered;
         // Of those, one that stays far under the budget even at the largest
-        // serving is left out, unless nothing else is there.
+        // serving is left out, unless nothing else is there. Lunch, the day's
+        // main meal, takes a dish that reaches its whole budget where there is
+        // one: what it cannot hold would go to dinner, the meal after it.
         const reaching = liked.filter(
           (r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget,
         );
-        const choosable = reaching.length > 0 ? reaching : liked;
+        const whole =
+          slot === 'lunch'
+            ? reaching.filter((r) => r.caloriesPerServing * SERVING_MAX >= budget)
+            : [];
+        const choosable = whole.length > 0 ? whole : reaching.length > 0 ? reaching : liked;
         // In a plan made for cooking ahead the second day of two is the dish of
         // the first, where the limits leave it. A first day takes another dish
         // than the meal had the day before, and of those one that could be on

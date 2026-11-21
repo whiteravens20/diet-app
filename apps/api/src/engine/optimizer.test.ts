@@ -320,6 +320,35 @@ describe('optimisePlan', () => {
   });
 });
 
+describe('lunch, the main meal of a day', () => {
+  // A day of 2700 kcal: breakfast takes its 750, which leaves lunch a budget of 1050.
+  const breakfast = recipe('porridge', ['breakfast'], 750);
+  const dinner = recipe('stew', ['dinner'], 600);
+  // A light lunch the person favours, which at three servings holds 780 kcal; and a hearty one that can hold 1200.
+  const light = { ...recipe('salad', ['lunch'], 260), isFavorite: true, eatenOften: true };
+  const hearty = recipe('goulash', ['lunch'], 400);
+  const lunchOf = (recipes: OptimizerRecipe[], seed: number) =>
+    optimisePlan({
+      ...baseInput,
+      recipes,
+      days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2700),
+      seed,
+    }).assignments.find((meal) => meal.slot === 'lunch')!;
+
+  it('takes a dish that reaches its whole budget where there is one, whatever else it would rather', () => {
+    for (let seed = 1; seed <= 12; seed += 1)
+      expect(lunchOf([breakfast, light, hearty, dinner], seed).recipeId).toBe('goulash');
+  });
+
+  it('takes the dish it would rather where none reaches its budget', () => {
+    const lighter = recipe('soup', ['lunch'], 250);
+    for (let seed = 1; seed <= 12; seed += 1)
+      expect(['salad', 'soup']).toContain(
+        lunchOf([breakfast, light, lighter, dinner], seed).recipeId,
+      );
+  });
+});
+
 describe('a plan that wastes less', () => {
   it('takes the recipe the pantry covers far more often than one made as ever, against the variety of its week', () => {
     // Five breakfasts alike but for what they are made of; the pantry holds all of the first.
