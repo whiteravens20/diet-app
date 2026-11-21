@@ -38,6 +38,7 @@ import {
   CookingNote,
   mealsOfCooking,
   platesOf,
+  portionOf,
   toCook,
   toCookTogether,
   useCookingWords,
@@ -143,8 +144,8 @@ export const dayAnchor = (planId: string, date: string): string => `plan-${planI
 /** The name a meal of a plan has on the page. */
 const mealAnchor = (mealId: string): string => `meal-${mealId}`;
 
-/** From how far off a whole recipe a meal's portion is worth a mark of its own. */
-const AUTO_BALANCED_FROM = 0.05;
+/** From how far off its plan's portion a meal's portion is worth a mark of its own on the card: a tenth. */
+const PORTION_CHIP_FROM = 0.1;
 
 /** How near its target a day stays as it is, as a share of the target: the API does not fit it then. */
 const DAY_ON_TARGET = 0.02;
@@ -287,6 +288,8 @@ export function PlanCard({
     picked: PlannedMealView['modelPick'];
     portion: MealPortion;
     label: PlannedMealView['label'];
+    /** How far the planner sized the meal off its plan's portion. */
+    scale: number;
     pot?: PotPortions;
     topping: { name: string; amount: string; kcal: number } | null;
   } | null>(null);
@@ -852,6 +855,7 @@ export function PlanCard({
                                     id: m.recipe!.id,
                                     picked: m.modelPick,
                                     label: m.label,
+                                    scale: m.quantityScale,
                                     ...toCook(plan, m),
                                     // A dish both cook in one pot is opened with what the pot takes.
                                     ...toCookTogether(plan, m),
@@ -907,12 +911,12 @@ export function PlanCard({
                                 {t('onlyRecipeChip')}
                               </span>
                             )}
-                            {/* A small difference is the sizing of an ordinary day, and says nothing to the reader; a leftover and the meal it was left of are parts of a portion, not resized. */}
-                            {Math.abs(m.quantityScale - 1) >= AUTO_BALANCED_FROM &&
+                            {/* The portion in words once it is a tenth off the plan's: a smaller difference is the sizing of an ordinary day and says nothing to the reader; the factor itself is in the meal's window. A leftover and the meal it was left of are parts of a portion, not resized. */}
+                            {Math.abs(m.quantityScale - 1) >= PORTION_CHIP_FROM &&
                               !m.leftover &&
                               !m.carriedTo && (
                                 <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                                  {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
+                                  {t('portionChip', { servings: portionOf(m) })}
                                 </span>
                               )}
                             {m.cookAhead && (
@@ -1912,6 +1916,7 @@ export function PlanCard({
           portion={openRecipe.portion}
           pot={openRecipe.pot}
           label={openRecipe.label}
+          scale={openRecipe.scale}
           topping={openRecipe.topping}
           onClose={() => setOpenRecipe(null)}
         />

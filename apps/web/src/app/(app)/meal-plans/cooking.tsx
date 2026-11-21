@@ -46,6 +46,10 @@ const servingsOf = (meal: Pick<PlannedMeal, 'servings' | 'quantityScale'>): numb
 
 const shown = (servings: number): number => Math.round(servings * 10) / 10;
 
+/** A meal's portion as the card and its window say it: its servings as sized, to a tenth. */
+export const portionOf = (meal: Pick<PlannedMeal, 'servings' | 'quantityScale'>): number =>
+  shown(servingsOf(meal));
+
 /** What a meal opened from a plan takes: of this meal alone, or of the whole of a dish to cook now. */
 export interface MealPortion {
   servings: number;

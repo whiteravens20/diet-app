@@ -38,7 +38,7 @@ const oats = {
 /** The window of the recipe, opened; `answer` is what the API says of it, `meal` what a meal of a plan gives it. */
 function renderWindow(
   answer: () => Promise<unknown>,
-  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion' | 'pot'> = {},
+  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion' | 'pot' | 'scale'> = {},
 ) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never),
@@ -144,6 +144,29 @@ describe('the window of a recipe', () => {
     const dialog = renderWindow(() => Promise.resolve(oats), { portion });
 
     expect(await dialog.findByText(spaced(said))).toBeInTheDocument();
+  });
+
+  it("gives beside the portion the factor the planner sized the meal by, from a twentieth off its plan's portion", async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 1.2, whole: false },
+      scale: 1.22,
+    });
+
+    expect(await dialog.findByText('auto-balanced ×1.22')).toBeInTheDocument();
+  });
+
+  it('gives no factor of a meal the planner sized by less', async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 1, whole: false },
+      scale: 1.04,
+    });
+
+    expect(
+      await dialog.findByText(
+        spaced('Below are the amounts for your meal: 1 serving, as in the original recipe.'),
+      ),
+    ).toBeInTheDocument();
+    expect(dialog.queryByText(/auto-balanced/)).toBeNull();
   });
 
   it('says of a pot as big as the recipe that the original makes as many too', async () => {

@@ -25,6 +25,9 @@ import { Dialog } from '@/components/ui/dialog';
  * Recipe detail in a window over the page. Lazy-loads the recipe by id when
  * opened. A click beside it, the close button and Esc dismiss it.
  */
+/** From how far off its plan's portion a meal's factor is said beside its portion: a twentieth, as it ever was. */
+const SCALED_FROM = 0.05;
+
 export function RecipeModal({
   recipeId,
   amounts,
@@ -32,6 +35,7 @@ export function RecipeModal({
   portion,
   pot,
   label,
+  scale,
   topping,
   onClose,
 }: {
@@ -55,6 +59,8 @@ export function RecipeModal({
   };
   /** Fibre, sugars, salt and saturated fat of the planned meal the modal was opened from. */
   label?: LabelTotals;
+  /** How far the planner sized the meal off its plan's portion; its card says the portion in words instead. */
+  scale?: number;
   /** What is put on this meal's plate alone, beside the dish and outside its pot. */
   topping?: { name: string; amount: string; kcal: number } | null;
   onClose: () => void;
@@ -143,6 +149,11 @@ export function RecipeModal({
                   mine: portion.servings,
                   same: sameServings(recipe.data.servings, portion.servings),
                 })}
+            {scale !== undefined && Math.abs(scale - 1) >= SCALED_FROM && (
+              <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                {t('scaled', { scale: fmt.fixed(scale, 2) })}
+              </span>
+            )}
           </p>
         )}
         {recipe.data && topping && (

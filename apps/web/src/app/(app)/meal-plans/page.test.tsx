@@ -4283,6 +4283,48 @@ describe('the plan page, on a plan made together with another profile', () => {
   });
 });
 
+describe('the plan page, on a portion the planner sized', () => {
+  /** The one meal of the plan, as `over` says it. */
+  const withMeal = (over: Partial<MealPlan['days'][number]['meals'][number]>): MealPlan => {
+    const plan = aPlan();
+    return {
+      ...plan,
+      days: [{ ...plan.days[0]!, meals: [{ ...plan.days[0]!.meals[0]!, ...over }] }],
+    };
+  };
+  const open = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("says a meal's portion in words once it is a tenth off its plan's, and no factor", async () => {
+    await open(withMeal({ servings: 1, quantityScale: 1.22 }));
+
+    expect(screen.getByText('1.2 servings')).toBeInTheDocument();
+    expect(screen.queryByText(/×\s?1[.,]22/)).toBeNull();
+  });
+
+  it('says nothing of a portion sized by less', async () => {
+    await open(withMeal({ servings: 2, quantityScale: 1.06 }));
+
+    expect(screen.queryByText('2.1 servings')).toBeNull();
+  });
+
+  it('says a portion made smaller as well', async () => {
+    await open(withMeal({ servings: 1, quantityScale: 0.2 }));
+
+    expect(screen.getByText('0.2 servings')).toBeInTheDocument();
+  });
+});
+
 describe('the plan page, on what is left of a meal', () => {
   const texts = messages.mealPlans.leftover;
   /** The one meal of the plan, as `over` says it. */
@@ -4339,7 +4381,7 @@ describe('the plan page, on what is left of a meal', () => {
 
     expect(screen.getByText('From Sunday')).toBeInTheDocument();
     // A part of a portion, not a portion resized.
-    expect(screen.queryByText(/×\s?0[.,]50/)).toBeNull();
+    expect(screen.queryByText('0.5 servings')).toBeNull();
     expect(
       screen.getByText('No cooking: this is what was left of the dinner from Sunday.'),
     ).toBeInTheDocument();
