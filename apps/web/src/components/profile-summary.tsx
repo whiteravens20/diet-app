@@ -103,19 +103,21 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
 /**
  * What the profile's target comes from, in one line under the day's figure: the expenditure, the deficit or surplus
- * taken from it and the meals a day. The target itself stands once, as the day's figure (a plan's day rounds it to
+ * taken from it, or the weight kept where there is neither, and the meals a day. The target itself stands once, as the day's figure (a plan's day rounds it to
  * tens, so the two would differ beside each other); a target set by hand says so first.
  */
 export function TargetLine({ calories, meals }: { calories: CalorieCalculation; meals: number }) {
   const t = useTranslations('profileSummary');
   const fmt = useFormat();
+  const gap = Math.round(calories.dailyDeficit);
   return (
     <p className="text-sm text-muted-foreground">
       {t('figures', {
         source: calories.source === 'manual_override' ? 'manual' : 'calculated',
         maintenance: fmt.number(calories.maintenance),
-        kind: calories.dailyDeficit < 0 ? 'surplus' : 'deficit',
-        amount: fmt.number(Math.abs(calories.dailyDeficit)),
+        // A target that is the expenditure keeps the weight: said so, not as a deficit of nothing.
+        kind: gap < 0 ? 'surplus' : gap === 0 ? 'keep' : 'deficit',
+        amount: fmt.number(Math.abs(gap)),
         meals,
       })}
     </p>

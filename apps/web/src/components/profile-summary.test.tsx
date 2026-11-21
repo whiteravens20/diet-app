@@ -50,6 +50,15 @@ describe("the line under the day's figure", () => {
     );
   });
 
+  it('says the weight kept, not a deficit of nothing, where the target is the expenditure', () => {
+    expect(line(calories({ dailyDeficit: 0 }))).toBe(
+      `Maintenance${NBSP}2178${NBSP}kcal${NBSP}· maintaining${NBSP}weight${NBSP}· 4${NBSP}meals${NBSP}a${NBSP}day`,
+    );
+    expect(line(calories({ dailyDeficit: 0.4 }), 4, 'pl')).toBe(
+      `Zapotrzebowanie${NBSP}2178${NBSP}kcal${NBSP}· utrzymanie${NBSP}wagi${NBSP}· 4${NBSP}posiłki${NBSP}dziennie`,
+    );
+  });
+
   it('reads the same in Polish', () => {
     expect(line(calories({ source: 'manual_override' }), 3, 'pl')).toBe(
       `Cel${NBSP}ustawiony${NBSP}ręcznie${NBSP}· zapotrzebowanie${NBSP}2178${NBSP}kcal${NBSP}· deficyt${NBSP}545${NBSP}kcal${NBSP}· 3${NBSP}posiłki${NBSP}dziennie`,
