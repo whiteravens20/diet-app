@@ -7,6 +7,7 @@ import { ExternalLink, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { DOT } from '@/lib/figure-line';
 import { useId } from 'react';
 import type { DisplayAmount, LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -25,6 +26,23 @@ import { Dialog } from '@/components/ui/dialog';
  * Recipe detail in a window over the page. Lazy-loads the recipe by id when
  * opened. A click beside it, the close button and Esc dismiss it.
  */
+/** A plate of a shared dish: what each person's holds of a line whose amount differs from the recipe's. */
+interface PlateRow {
+  ingredientId: string;
+  name: string;
+  mine: DisplayAmount;
+  theirs: DisplayAmount;
+}
+
+/** Of a meal two people share: the other person's portion of it and the plates that differ. */
+export interface SharedPortion {
+  name: string;
+  servings: number;
+  kcal: number;
+  eaten: boolean;
+  plates: PlateRow[];
+}
+
 /** From how far off its plan's portion a meal's factor is said beside its portion: a twentieth, as it ever was. */
 const SCALED_FROM = 0.05;
 
@@ -36,6 +54,7 @@ export function RecipeModal({
   pot,
   label,
   scale,
+  shared,
   topping,
   onClose,
 }: {
@@ -61,11 +80,15 @@ export function RecipeModal({
   label?: LabelTotals;
   /** How far the planner sized the meal off its plan's portion; its card says the portion in words instead. */
   scale?: number;
+  /** Of a meal two people share: the other person's portion and plates; a pot says the portions in its own line. */
+  shared?: SharedPortion;
   /** What is put on this meal's plate alone, beside the dish and outside its pot. */
   topping?: { name: string; amount: string; kcal: number } | null;
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
+  // Whose plates differ from the recipe: those of the pot, or of a dish each person cooks apart.
+  const plated = pot ?? shared;
   const tDetail = useTranslations('recipeDetail');
   const tSplit = useTranslations('split');
   const shownAmount = useShownAmount();
@@ -156,6 +179,16 @@ export function RecipeModal({
             )}
           </p>
         )}
+        {recipe.data && shared && !pot && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            {t('sharedLine', {
+              name: fmt.text(shared.name),
+              servings: shared.servings,
+              kcal: shared.kcal,
+            })}
+            {shared.eaten && `${DOT}${t('sharedEaten')}`}
+          </p>
+        )}
         {recipe.data && topping && (
           <p className="mb-4 text-sm">
             {t('toppingNote', {
@@ -165,12 +198,16 @@ export function RecipeModal({
             })}
           </p>
         )}
-        {recipe.data && pot && pot.plates.length > 0 && (
+        {recipe.data && plated && plated.plates.length > 0 && (
           <section className="mb-4 space-y-2" aria-labelledby={`${platesId}-title`}>
             <h3 id={`${platesId}-title`} className="text-sm font-semibold">
               {t('platesTitle')}
             </h3>
-            <p className="text-sm text-muted-foreground">{t('platesIntro')}</p>
+            {/* The rest of a pot is split by portion; a dish each person cooks apart has no pot to split. */}
+            <p className="text-sm text-muted-foreground">
+              {t('platesIntro')}
+              {pot && ` ${t('platesPot')}`}
+            </p>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -181,12 +218,12 @@ export function RecipeModal({
                     {t('platesYou')}
                   </th>
                   <th scope="col" className="py-1 text-right font-medium">
-                    {fmt.text(pot.name)}
+                    {fmt.text(plated.name)}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {pot.plates.map((row) => (
+                {plated.plates.map((row) => (
                   <tr key={row.ingredientId} className="border-b border-border last:border-0">
                     <th scope="row" className="py-1 pr-3 text-left font-normal">
                       {fmt.text(row.name)}
@@ -198,9 +235,11 @@ export function RecipeModal({
                 ))}
               </tbody>
             </table>
-            <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
-              {tSplit('partRisk')}
-            </p>
+            {pot && (
+              <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+                {tSplit('partRisk')}
+              </p>
+            )}
           </section>
         )}
         {recipe.data && (

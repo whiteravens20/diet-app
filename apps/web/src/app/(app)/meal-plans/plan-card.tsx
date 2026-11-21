@@ -49,6 +49,7 @@ import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import type { OffTargetWays } from './day-off-target-dialog';
+import type { SharedPortion } from '@/components/recipe-modal';
 import { useAmount, useShownAmount } from '@/lib/ingredient-format';
 import { frozenOfDay, thawsByDay, type ThawLine } from './freezer';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
@@ -301,25 +302,14 @@ export function PlanCard({
     label: PlannedMealView['label'];
     /** How far the planner sized the meal off its plan's portion. */
     scale: number;
+    /** Of a meal two people share: the other person's portion and what each plate holds otherwise than the recipe. */
+    shared?: SharedPortion;
     pot?: PotPortions;
     topping: { name: string; amount: string; kcal: number } | null;
   } | null>(null);
   // Whether the recipe on offer is to go on the meal it was asked for alone, by the meal it was ticked for.
   const [onlyFor, setOnlyFor] = useState<string | null>(null);
   const cookWords = useCookingWords();
-  /** What a person's plate of a shared dish holds more and less of than the recipe, by the names of its lines. */
-  const plateWords = (who: string, lines: readonly PlannedIngredient[]): string => {
-    const more = lines.filter((line) => (line.share ?? 1) > 1).map((line) => line.name);
-    const less = lines.filter((line) => (line.share ?? 1) < 1).map((line) => line.name);
-    const changes = [
-      ...(more.length > 0 ? [t('plateMore', { foods: fmt.list(more) })] : []),
-      ...(less.length > 0 ? [t('plateLess', { foods: fmt.list(less) })] : []),
-    ];
-    return t('plateLine', {
-      who,
-      changes: changes.length > 0 ? changes.join('; ') : t('plateAsRecipe'),
-    });
-  };
   const shownAmount = useShownAmount();
   const amount = useAmount();
   const tFreezer = useTranslations('mealPlans.freezer');
@@ -737,7 +727,11 @@ export function PlanCard({
                   m.leftoverOffer && m.leftoverOffer !== 'ok'
                     ? LEFTOVER_OFF[m.leftoverOffer]
                     : null;
-                const folded = swappable || carries || undoable;
+                // A shared meal is marked eaten for both, and cooked apart or in one pot, from its group.
+                const eatenByBoth =
+                  !!m.shared && !eaten && !m.shared.with.eaten && day.date <= today;
+                const cooksApart = !!m.shared && !m.leftover;
+                const folded = swappable || carries || undoable || eatenByBoth || cooksApart;
                 // What follows for the other meal of its cooking when this one leaves it.
                 const apart = cookWords.apart(m, day.date, today);
                 // The dish of the day before, for a meal that was parted from it: a press brings the two together again.
@@ -839,6 +833,15 @@ export function PlanCard({
                                     picked: m.modelPick,
                                     label: m.label,
                                     scale: m.quantityScale,
+                                    shared: m.shared
+                                      ? {
+                                          name: m.shared.with.profileName,
+                                          servings: Math.round(m.shared.with.servings * 10) / 10,
+                                          kcal: Math.round(m.shared.with.calories),
+                                          eaten: m.shared.with.eaten,
+                                          plates: platesOf(m),
+                                        }
+                                      : undefined,
                                     ...toCook(plan, m),
                                     // A dish both cook in one pot is opened with what the pot takes.
                                     ...toCookTogether(plan, m),
@@ -922,21 +925,6 @@ export function PlanCard({
 
                         <span className="ml-3 flex flex-wrap items-center gap-x-4 sm:ml-0">
                           {/* Both eat it: one press marks it eaten for both, as the box marks it for this plan alone. */}
-                          {m.shared && !eaten && !m.shared.with.eaten && day.date <= today && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label={named(t('eatenTogether'))}
-                              onClick={() => {
-                                changing.current = mealAnchor(m.id);
-                                onToggleEaten(m.id, true, true);
-                              }}
-                              disabled={busy}
-                            >
-                              {t('eatenTogether')}
-                            </Button>
-                          )}
                           {eaten && (
                             <span className="text-xs font-medium text-muted-foreground">
                               {t('eatenBadge')}
@@ -979,6 +967,34 @@ export function PlanCard({
                           hidden={!actionsOpen}
                           className="ml-3 flex flex-wrap items-center gap-x-1"
                         >
+                          {eatenByBoth && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('eatenTogether'))}
+                              onClick={() => {
+                                changing.current = mealAnchor(m.id);
+                                onToggleEaten(m.id, true, true);
+                              }}
+                              disabled={busy}
+                            >
+                              {t('eatenTogether')}
+                            </Button>
+                          )}
+                          {/* Cooked apart, each portion is its own; in one pot the pot is split by weight, as near as a split comes. A leftover is cooked already. */}
+                          {cooksApart && (
+                            <label className="inline-flex min-h-8 items-center gap-1.5 px-3 text-sm">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={m.shared!.apart}
+                                disabled={busy}
+                                onChange={() => onSetApart(m.shared!.id, !m.shared!.apart)}
+                              />
+                              {t('cookApart')}
+                            </label>
+                          )}
                           {swappable && parted && dayBefore && (
                             <Button
                               type="button"
@@ -1365,40 +1381,6 @@ export function PlanCard({
                             amount: shownAmount(m.topping.ingredient.display),
                             kcal: m.topping.nutrition.calories,
                           })}
-                        </p>
-                      )}
-                      {m.shared && (
-                        <div className="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          <span>
-                            {t('sharedLine', {
-                              name: fmt.text(m.shared.with.profileName),
-                              servings: Math.round(m.shared.with.servings * 10) / 10,
-                              kcal: Math.round(m.shared.with.calories),
-                            })}
-                            {m.shared.with.eaten && `${DOT}${t('sharedEaten')}`}
-                          </span>
-                          {/* Cooked apart, each portion is its own; in one pot the pot is split by weight, as near as a split comes. A leftover is cooked already. */}
-                          {!m.leftover && (
-                            <label className="-my-2 inline-flex items-center gap-1.5 py-2">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={m.shared.apart}
-                                disabled={busy}
-                                onChange={() => onSetApart(m.shared!.id, !m.shared!.apart)}
-                              />
-                              {t('cookApart')}
-                            </label>
-                          )}
-                        </div>
-                      )}
-                      {m.shared && platesOf(m).length > 0 && (
-                        <p className="ml-6 text-xs text-muted-foreground">
-                          {plateWords(t('plateYou'), m.ingredients)}{' '}
-                          {plateWords(
-                            fmt.text(m.shared.with.profileName),
-                            m.shared.with.ingredients,
-                          )}
                         </p>
                       )}
                       {((m.cookAhead === 'cook' && m.cooking) ||
@@ -1918,6 +1900,7 @@ export function PlanCard({
           pot={openRecipe.pot}
           label={openRecipe.label}
           scale={openRecipe.scale}
+          shared={openRecipe.shared}
           topping={openRecipe.topping}
           onClose={() => setOpenRecipe(null)}
         />

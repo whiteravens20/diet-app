@@ -38,7 +38,10 @@ const oats = {
 /** The window of the recipe, opened; `answer` is what the API says of it, `meal` what a meal of a plan gives it. */
 function renderWindow(
   answer: () => Promise<unknown>,
-  meal: Pick<Parameters<typeof RecipeModal>[0], 'amounts' | 'portion' | 'pot' | 'scale'> = {},
+  meal: Pick<
+    Parameters<typeof RecipeModal>[0],
+    'amounts' | 'portion' | 'pot' | 'scale' | 'shared'
+  > = {},
 ) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never),
@@ -167,6 +170,46 @@ describe('the window of a recipe', () => {
       ),
     ).toBeInTheDocument();
     expect(dialog.queryByText(/auto-balanced/)).toBeNull();
+  });
+
+  it("says the other person's portion of a meal each cooks apart, and what their plates hold otherwise", async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 1, whole: false },
+      shared: {
+        name: 'Ewa',
+        servings: 1.2,
+        kcal: 439,
+        eaten: true,
+        plates: [
+          {
+            ingredientId: '55555555-5555-4555-8555-555555555555',
+            name: 'Rolled oats',
+            mine: { quantity: 60, unit: 'g' },
+            theirs: { quantity: 80, unit: 'g' },
+          },
+        ],
+      },
+    });
+
+    expect(
+      await dialog.findByText(spaced('Ewa: 1.2 servings · 439 kcal · eaten'), { exact: false }),
+    ).toBeInTheDocument();
+    const plates = dialog.getByRole('table');
+    expect(within(plates).getByRole('columnheader', { name: 'Ewa' })).toBeInTheDocument();
+    expect(within(plates).getByRole('row', { name: /Rolled oats/ })).toHaveTextContent(
+      /60\s?g.*80\s?g/,
+    );
+  });
+
+  it('leaves the portions of a pot to the line of the pot', async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 2, whole: false },
+      pot: { mine: 1, name: 'Ewa', theirs: 1, plates: [] },
+      shared: { name: 'Ewa', servings: 1, kcal: 300, eaten: false, plates: [] },
+    });
+
+    expect(await dialog.findByText(/of which you 1, Ewa 1/)).toBeInTheDocument();
+    expect(dialog.queryByText(/^Ewa: /)).toBeNull();
   });
 
   it('says of a pot as big as the recipe that the original makes as many too', async () => {

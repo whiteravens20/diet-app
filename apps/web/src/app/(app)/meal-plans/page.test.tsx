@@ -4102,14 +4102,16 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(screen.queryByRole('combobox', { name: messages.mealPlans.jointPlanWith })).toBeNull();
   });
 
-  it('says whose plan it was made with, what the other eats of a shared meal, and marks it eaten for both', async () => {
+  it('says whose plan it was made with, marks a shared meal as one, and marks it eaten for both from its changes', async () => {
     const plan = together();
     await open(plan);
     const patch = vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
 
     expect(screen.getByText('Planned together with: Ewa')).toBeInTheDocument();
     expect(screen.getByText(messages.mealPlans.sharedChip)).toBeInTheDocument();
-    expect(screen.getByText(spaced('Ewa: 1.1 servings · 540 kcal'))).toBeInTheDocument();
+    // The other person's portion is in the meal's window, not on its card.
+    expect(screen.queryByText(spaced('Ewa: 1.1 servings · 540 kcal'))).toBeNull();
+    await unfoldMeal();
     await userEvent.click(
       screen.getByRole('button', { name: ofAMeal(messages.mealPlans.eatenTogether) }),
     );
@@ -4128,6 +4130,7 @@ describe('the plan page, on a plan made together with another profile', () => {
     await open(plan);
     const patch = vi.spyOn(api, 'patch').mockResolvedValue(plan as never);
 
+    await unfoldMeal();
     await userEvent.click(screen.getByRole('checkbox', { name: messages.mealPlans.cookApart }));
 
     expect(patch).toHaveBeenCalledWith(`/meal-plans/${plan.id}/shared-meals/${SHARED}`, {
@@ -4229,26 +4232,30 @@ describe('the plan page, on a plan made together with another profile', () => {
       return plan;
     };
 
-    it('says what each plate holds more and less of than the recipe', async () => {
+    it('says nothing of the plates on the card: the meal’s window shows them', async () => {
       await open(onPlates());
 
-      expect(
-        screen.getByText(
-          'Your plate – more: Chicken breast; less: Basmati rice. Ewa – more: Basmati rice; less: Chicken breast.',
-        ),
-      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Your plate –/)).toBeNull();
+      expect(screen.queryByText(/Basmati rice/)).toBeNull();
     });
 
-    it('says of a plate that is the recipe’s that it is', async () => {
+    it('shows both plates in the window of a meal each person cooks apart', async () => {
       const plan = onPlates();
-      const meal = plan.days[0]!.meals[0]!;
-      meal.ingredients = meal.ingredients.map(({ share: _share, ...rest }) => rest);
+      plan.days[0]!.meals[0]!.shared!.apart = true;
       await open(plan);
-      expect(
-        screen.getByText(
-          'Your plate – as in the recipe. Ewa – more: Basmati rice; less: Chicken breast.',
-        ),
-      ).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Oat porridge' }));
+
+      const window = within(
+        await screen.findByRole('dialog', { name: messages.recipeModal.title }),
+      );
+      const table = await window.findByRole('table');
+      expect(within(table).getByRole('columnheader', { name: 'Ewa' })).toBeInTheDocument();
+      expect(within(table).getByRole('row', { name: /Chicken breast/ })).toBeInTheDocument();
+      expect(window.getByText(/^Ewa: /)).toBeInTheDocument();
+      // Each cooks a portion of their own: there is no pot to split.
+      expect(window.getByText(messages.recipeModal.platesIntro)).toBeInTheDocument();
+      expect(window.queryByText(messages.recipeModal.platesPot, { exact: false })).toBeNull();
+      expect(window.queryByText(messages.split.partRisk)).toBeNull();
     });
 
     it('says nothing of plates where neither differs from the recipe', async () => {
@@ -4273,6 +4280,9 @@ describe('the plan page, on a plan made together with another profile', () => {
           .getAllByRole('cell')
           .map((cell) => plain(cell.textContent)),
       ).toEqual(['155 g', '85 g']);
+      expect(
+        window.getByText(messages.recipeModal.platesPot, { exact: false }),
+      ).toBeInTheDocument();
       expect(window.getByText(messages.split.partRisk)).toBeInTheDocument();
     });
 

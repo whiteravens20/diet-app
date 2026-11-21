@@ -1538,10 +1538,8 @@
   },
   "mealPlans": {
     "sharedChip": "Shared",
-    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
     "toppingLine": "A topping on your plate: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
     "offerTopping": "The model also picked a topping for your plate: {name}. The plan sets its amount, so that the day keeps its target.",
-    "sharedEaten": "eaten",
     "cookApart": "Cook apart",
     "eatenTogether": "Eaten by both",
     "removeShared": "{name} has this dish in their plan.",
@@ -2166,12 +2164,7 @@
     "errRetarget": "The profile's target could not be taken.",
     "errEvenWeek": "Could not even out the week.",
     "listOutOfDateDay": "The shopping list that covers this day will need to be made again.",
-    "listOutOfDateDays": "The shopping list that covers these days will need to be made again.",
-    "plateYou": "Your plate",
-    "plateMore": "more: {foods}",
-    "plateLess": "less: {foods}",
-    "plateLine": "{who} – {changes}.",
-    "plateAsRecipe": "as in the recipe"
+    "listOutOfDateDays": "The shopping list that covers these days will need to be made again."
   },
   "inventory": {
     "title": "Inventory",
@@ -2646,9 +2639,12 @@
     "openPage": "Open original recipe",
     "portionMeal": "Below are the amounts for your meal: {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}{same, select, yes {, as in the original recipe.} other {. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}.}}",
     "scaled": "auto-balanced ×{scale}",
+    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0serving} other {{servings, number, ::group-off}\u00a0servings}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "sharedEaten": "eaten",
     "portionWhole": "Below are the amounts for the whole cooking: {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}{same, select, yes {, as in the original recipe.} other {. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}.}}",
     "platesTitle": "The plates",
-    "platesIntro": "The plan shares these ingredients out otherwise than the recipe, so that each person's day keeps their split of macronutrients. Split the rest of the pot by the size of each portion.",
+    "platesIntro": "The plan shares these ingredients out otherwise than the recipe, so that each person's day keeps their split of macronutrients.",
+    "platesPot": "Split the rest of the pot by the size of each portion.",
     "platesIngredient": "Ingredient",
     "platesYou": "You"
   },

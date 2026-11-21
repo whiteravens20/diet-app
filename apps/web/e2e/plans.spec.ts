@@ -201,9 +201,11 @@ test.describe('a plan made together with another profile', () => {
     expect(shared, 'a meal both have on the first day').toBeDefined();
     const row = page.locator(`[id="meal-${shared!.id}"]`);
     await expect(row.getByText(plans.sharedChip!, { exact: true })).toBeVisible();
-    await expect(row.getByText(new RegExp(`^${loose('Ewa: ')}`))).toBeVisible();
+    // The other person's portion is said in the meal's window, below.
+    await expect(row.getByText(new RegExp(`^${loose('Ewa: ')}`))).toHaveCount(0);
 
-    // One press marks it eaten in both plans.
+    // One press among the meal's changes marks it eaten in both plans.
+    await row.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).click();
     const marked = page.waitForResponse(
       (res) =>
         res.request().method() === 'PATCH' &&
@@ -226,6 +228,10 @@ test.describe('a plan made together with another profile', () => {
       name: (messages.recipeModal as Texts).title!,
     });
     await expect(recipeWindow.getByRole('heading', { level: 1 })).toBeVisible();
+    // Ewa's portion: in the pot's line where both eat from one pot, in a line of its own where each cooks apart.
+    await expect(
+      recipeWindow.getByText(new RegExp(`${loose('Ewa')}(:\\s|\\s\\d)`)).first(),
+    ).toBeVisible();
     const tops = await Promise.all(
       ['Adam', 'Ewa'].map(
         async (name) =>

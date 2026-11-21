@@ -1538,10 +1538,8 @@
   },
   "mealPlans": {
     "sharedChip": "Wspólne",
-    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0porcja} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
     "toppingLine": "Dodatek na Twój talerz: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
     "offerTopping": "Model wybrał też dodatek na Twój talerz: {name}. Ilość dobierze plan, tak by dzień trzymał cel.",
-    "sharedEaten": "zjedzone",
     "cookApart": "Gotuj osobno",
     "eatenTogether": "Zjedzone u\u00a0obu osób",
     "removeShared": "{name} ma to danie w\u00a0swoim planie.",
@@ -2166,12 +2164,7 @@
     "errRetarget": "Nie udało się przyjąć celu profilu.",
     "errEvenWeek": "Nie udało się wyrównać tygodnia.",
     "listOutOfDateDay": "Lista zakupów obejmująca ten dzień będzie do odświeżenia.",
-    "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia.",
-    "plateYou": "Twój talerz",
-    "plateMore": "więcej: {foods}",
-    "plateLess": "mniej: {foods}",
-    "plateLine": "{who} – {changes}.",
-    "plateAsRecipe": "jak w\u00a0przepisie"
+    "listOutOfDateDays": "Lista zakupów obejmująca te dni będzie do odświeżenia."
   },
   "inventory": {
     "title": "Spiżarnia",
@@ -2646,9 +2639,12 @@
     "openPage": "Otwórz oryginalny przepis",
     "portionMeal": "Poniżej podane są ilości dla Twojego posiłku: {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}{same, select, yes {, tak jak w\u00a0oryginalnym przepisie.} other {. Oryginalny przepis jest na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}.}}",
     "scaled": "przeliczono ×{scale}",
+    "sharedLine": "{name}: {servings, plural, one {{servings, number, ::group-off}\u00a0porcja} few {{servings, number, ::group-off}\u00a0porcje} many {{servings, number, ::group-off}\u00a0porcji} other {{servings, number, ::group-off}\u00a0porcji}}\u00a0· {kcal, number, ::group-off}\u00a0kcal",
+    "sharedEaten": "zjedzone",
     "portionWhole": "Poniżej podane są ilości na całe gotowanie: {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}{same, select, yes {, tak jak w\u00a0oryginalnym przepisie.} other {. Oryginalny przepis jest na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}.}}",
     "platesTitle": "Talerze",
-    "platesIntro": "Plan dzieli te składniki inaczej niż przepis, żeby dzień każdej osoby trzymał jej podział makroskładników. Resztę garnka podziel według wielkości porcji.",
+    "platesIntro": "Plan dzieli te składniki inaczej niż przepis, żeby dzień każdej osoby trzymał jej podział makroskładników.",
+    "platesPot": "Resztę garnka podziel według wielkości porcji.",
     "platesIngredient": "Składnik",
     "platesYou": "Ty"
   },
