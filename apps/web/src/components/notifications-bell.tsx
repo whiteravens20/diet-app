@@ -225,7 +225,7 @@ export function WaterAmounts({
         </span>
       )}
       <Link
-        href={`/dashboard#${waterCardAnchor(reminder.profileId)}`}
+        href={`/dashboard?profile=${reminder.profileId}#${waterCardAnchor(reminder.profileId)}`}
         onClick={() => {
           water.read(reminder);
           onGone();

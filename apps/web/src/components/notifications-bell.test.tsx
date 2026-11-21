@@ -223,7 +223,7 @@ describe('NotificationsBell', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
 
     const go = await screen.findByRole('link', { name: messages.notifications.waterGo });
-    expect(go).toHaveAttribute('href', `/dashboard#water-${PROFILE}`);
+    expect(go).toHaveAttribute('href', `/dashboard?profile=${PROFILE}#water-${PROFILE}`);
     await userEvent.click(go);
     expect(post).toHaveBeenCalledWith(`/notifications/${reminder.id}/read`);
     expect(screen.queryByRole('dialog', { name: 'Notifications' })).not.toBeInTheDocument();

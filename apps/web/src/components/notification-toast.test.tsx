@@ -202,7 +202,7 @@ describe('a notification that comes in', () => {
     await screen.findByRole('status');
 
     const go = screen.getByRole('link', { name: text.waterGo });
-    expect(go).toHaveAttribute('href', `/dashboard#water-${PROFILE}`);
+    expect(go).toHaveAttribute('href', `/dashboard?profile=${PROFILE}#water-${PROFILE}`);
     await userEvent.click(go);
     expect(post).toHaveBeenCalledExactlyOnceWith(`/notifications/${ONE}/read`);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
