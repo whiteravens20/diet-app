@@ -1841,7 +1841,12 @@
       "legendOff": "The day is more than a tenth off its target.",
       "legendEaten": "Meals marked as eaten, out of the meals of the day.",
       "legendMore": "+1\u00a0and the like: so many more plans hold the same day. The calendar shows the plan made last.",
-      "legendKeys": "On a keyboard the arrow keys move among the days, and Page Up and Page Down among the months."
+      "legendKeys": "On a keyboard the arrow keys move among the days, and Page Up and Page Down among the months.",
+      "markPlan": "a plan's day",
+      "markOff": "off target",
+      "markEaten": "eaten",
+      "markMore": "more plans",
+      "marksHelp": "What the calendar's marks mean"
     },
     "export": {
       "csv": "Download CSV",

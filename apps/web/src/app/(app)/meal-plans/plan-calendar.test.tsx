@@ -144,9 +144,18 @@ describe("the calendar of a profile's plans", () => {
     expect(cell(/^Wed, Jan 14:/).closest('td')).toHaveTextContent(`14${texts.skipped}+1`);
   });
 
-  it('says in words what the marks in a day mean', async () => {
+  it('names each mark of a day in one row, and says what they mean in sentences behind the question mark', async () => {
     await open();
 
+    for (const word of [texts.markPlan, texts.markOff, texts.markEaten, texts.markMore])
+      expect(screen.getByText(word)).toBeVisible();
+    const help = screen.getByRole('button', { name: texts.marksHelp });
+    expect(help).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText(plain(texts.legendDay))).not.toBeVisible();
+
+    await userEvent.click(help);
+
+    expect(help).toHaveAttribute('aria-expanded', 'true');
     for (const line of [
       texts.legendDay,
       texts.legendOff,
@@ -154,7 +163,7 @@ describe("the calendar of a profile's plans", () => {
       texts.legendMore,
       texts.legendKeys,
     ])
-      expect(screen.getByText(plain(line))).toBeInTheDocument();
+      expect(screen.getByText(plain(line))).toBeVisible();
   });
 
   it('leafs to the month after and the one before, and back to the month it is', async () => {

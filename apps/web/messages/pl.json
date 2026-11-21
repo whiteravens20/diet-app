@@ -1841,7 +1841,12 @@
       "legendOff": "Dzień odbiega od celu o więcej niż jedną dziesiątą.",
       "legendEaten": "Posiłki oznaczone jako zjedzone, spośród posiłków danego dnia.",
       "legendMore": "+1\u00a0i podobne: tyle innych planów obejmuje ten sam dzień. Kalendarz pokazuje plan utworzony najpóźniej.",
-      "legendKeys": "Na klawiaturze strzałki przechodzą między dniami, a Page Up i Page Down między miesiącami."
+      "legendKeys": "Na klawiaturze strzałki przechodzą między dniami, a Page Up i Page Down między miesiącami.",
+      "markPlan": "dzień planu",
+      "markOff": "poza celem",
+      "markEaten": "zjedzone",
+      "markMore": "więcej planów",
+      "marksHelp": "Co znaczą znaczki kalendarza"
     },
     "export": {
       "csv": "Pobierz CSV",

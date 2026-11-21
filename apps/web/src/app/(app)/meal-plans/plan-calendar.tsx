@@ -43,6 +43,9 @@ export function PlanCalendar({
   const t = useTranslations('mealPlans.calendar');
   const fmt = useFormat();
   const title = useId();
+  const marks = useId();
+  // Whether the sentences that say what the marks mean are open.
+  const [marksOpen, setMarksOpen] = useState(false);
   const [month, setMonth] = useState(() => monthOf(today));
   const weeks = useMemo(() => weeksOf(month), [month]);
   const from = weeks[0]![0]!;
@@ -290,23 +293,54 @@ export function PlanCalendar({
         </p>
       )}
 
-      {/* What the marks in a day mean is said in words: a mark alone says it to nobody who does not already know. */}
-      <ul className="space-y-0.5 text-xs text-muted-foreground">
-        <li>{t('legendDay')}</li>
-        <li className="flex items-center gap-1">
-          <span
-            aria-hidden
-            className="size-2.5 shrink-0 rounded-sm border border-warning/60 bg-warning/10"
-          />
-          {t('legendOff')}
-        </li>
-        <li className="flex items-center gap-1">
-          <Check size={10} aria-hidden className="shrink-0" />
-          {t('legendEaten')}
-        </li>
-        <li className="hidden sm:list-item">{t('legendMore')}</li>
-        <li>{t('legendKeys')}</li>
-      </ul>
+      {/* The marks of a day in one row, each with its word; what they mean in full, in sentences, behind the question mark:
+          a mark alone says it to nobody who does not already know. */}
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className="size-2.5 shrink-0 rounded-sm border border-primary/40 bg-primary/5"
+            />
+            {t('markPlan')}
+          </span>
+          <span className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className="size-2.5 shrink-0 rounded-sm border border-warning/60 bg-warning/10"
+            />
+            {t('markOff')}
+          </span>
+          <span className="flex items-center gap-1">
+            <Check size={10} aria-hidden className="shrink-0" />
+            {t('markEaten')}
+          </span>
+          {/* A phone's cell has no room for the other plans of a day: their mark is not there to explain. */}
+          <span className="hidden items-center gap-1 sm:flex">
+            <span aria-hidden className="tabular-nums">
+              +1
+            </span>
+            {t('markMore')}
+          </span>
+          <button
+            type="button"
+            aria-expanded={marksOpen}
+            aria-controls={marks}
+            aria-label={t('marksHelp')}
+            onClick={() => setMarksOpen(!marksOpen)}
+            className="inline-flex size-6 items-center justify-center rounded-full border border-border font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            ?
+          </button>
+        </div>
+        <ul id={marks} hidden={!marksOpen} className="space-y-0.5">
+          <li>{t('legendDay')}</li>
+          <li>{t('legendOff')}</li>
+          <li>{t('legendEaten')}</li>
+          <li className="hidden sm:list-item">{t('legendMore')}</li>
+          <li>{t('legendKeys')}</li>
+        </ul>
+      </div>
     </div>
   );
 }
