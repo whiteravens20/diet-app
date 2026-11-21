@@ -68,7 +68,9 @@ export function WeightChart({
           domain={domain}
           tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
           tickFormatter={(kg: number) => fmt.number(kg, 1)}
-          width={32}
+          // As wide as its longest figure: a weight of three digits and one decimal (105,3 kg, 230,6 lb) is cut
+          // short by any width set for two.
+          width="auto"
         />
         <Tooltip
           contentStyle={{
