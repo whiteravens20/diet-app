@@ -660,10 +660,17 @@ test.describe('the plans of a profile, by when they are and by how their days st
     expect((await added).ok()).toBe(true);
     await expect(dialog).toBeHidden();
 
-    // The other meals of the day are as small as they may be made, and the day still holds more than a tenth over.
-    await expect(card.getByText(plans.dayOver!, { exact: true }).first()).toBeVisible();
-    await expect(card.getByText(plans.dayOverHint!, { exact: true }).first()).toBeVisible();
-    expect(await barriers(page), 'a plan with a day over its target').toEqual([]);
+    // The other meals of the day are as small as they may be made, and the day still holds more than a tenth over:
+    // its mark opens the question of what to do, which says why and offers the days after it.
+    const mark = card.getByRole('button', { name: plans.dayOver!, exact: true }).first();
+    await expect(mark).toBeVisible();
+    await mark.click();
+    const asked = page.getByRole('dialog');
+    await expect(asked.getByText(plans.dayOverHint!, { exact: true })).toBeVisible();
+    await expect(asked.getByRole('button', { name: plans.spread!, exact: true })).toBeVisible();
+    expect(await barriers(page), 'a plan with a day over its target, asked what to do').toEqual([]);
+    await asked.getByRole('button', { name: common.close!, exact: true }).click();
+    await expect(asked).toBeHidden();
 
     page.once('dialog', (asked) => void asked.accept());
     const gone = page.waitForResponse(

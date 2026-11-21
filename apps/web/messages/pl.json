@@ -2021,6 +2021,8 @@
     "openInDiary": "Otwórz w dzienniku: {name}",
     "dayOverDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel.",
     "dayUnderDiaryHint": "Licząc wpisy dziennika jako zjedzone, ten dzień ma o ponad jedną dziesiątą mniej kalorii niż jego cel.",
+    "offTargetQuestionOver": "Ten dzień ma {kcal, number, ::group-off} kcal ponad cel: co z tym zrobić?",
+    "offTargetQuestionUnder": "Temu dniu brakuje {kcal, number, ::group-off} kcal do celu: co z tym zrobić?",
     "resizeDay": "Dopasuj porcje dnia",
     "resizeDayNote": "Liczy wpisy dziennika jako zjedzone i daje niezjedzonym posiłkom z przepisów inne porcje, żeby dzień jak najbardziej zbliżył się do celu.",
     "resizeNothing": "Porcje są już tak blisko celu, jak pozwalają ich granice.",

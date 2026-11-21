@@ -2021,6 +2021,8 @@
     "openInDiary": "Open in the diary: {name}",
     "dayOverDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth over its target.",
     "dayUnderDiaryHint": "With the diary's entries counted as eaten, this day holds more than a tenth under its target.",
+    "offTargetQuestionOver": "This day is {kcal, number, ::group-off} kcal over its target: what is to be done?",
+    "offTargetQuestionUnder": "This day is {kcal, number, ::group-off} kcal short of its target: what is to be done?",
     "resizeDay": "Resize the day's meals",
     "resizeDayNote": "Counts the diary's entries as eaten and gives the meals from recipes that are not eaten other portions, so that the day comes as close to its target as it can.",
     "resizeNothing": "The portions are as close to the target as their limits allow.",

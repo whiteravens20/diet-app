@@ -48,6 +48,7 @@ import {
 import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
+import type { OffTargetWays } from './day-off-target-dialog';
 import { useAmount, useShownAmount } from '@/lib/ingredient-format';
 import { frozenOfDay, thawsByDay, type ThawLine } from './freezer';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
@@ -85,6 +86,12 @@ const RecipeModal = dynamic(
 /** Fetched when the settings of a day are opened: no first visit of the page waits for the window. */
 const DaySettingsDialog = dynamic(
   () => import('./day-settings-dialog').then((dialog) => dialog.DaySettingsDialog),
+  { ssr: false },
+);
+
+/** Fetched when a day off its target is asked what to do. */
+const DayOffTargetDialog = dynamic(
+  () => import('./day-off-target-dialog').then((dialog) => dialog.DayOffTargetDialog),
   { ssr: false },
 );
 
@@ -140,6 +147,10 @@ const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' |
 
 /** The name a day of a plan has on the page, for whatever leads to it. */
 export const dayAnchor = (planId: string, date: string): string => `plan-${planId}-${date}`;
+
+/** Another day of the plan, from today on and not skipped, can take a part of a day's gap. */
+const spreadsFrom = (plan: MealPlan, day: MealPlanDay, today: string): boolean =>
+  plan.days.some((other) => other.id !== day.id && other.date >= today && !other.skipped);
 
 /** The name a meal of a plan has on the page. */
 const mealAnchor = (mealId: string): string => `meal-${mealId}`;
@@ -321,6 +332,8 @@ export function PlanCard({
   const [waysFor, setWaysFor] = useState<{ id: string; date: string } | null>(null);
   // The day whose settings are open in a window, while it is open.
   const [settingsFor, setSettingsFor] = useState<MealPlanDay | null>(null);
+  // The day off its target whose question is open, with the ways it has.
+  const [offTargetFor, setOffTargetFor] = useState<OffTargetWays | null>(null);
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
   // The meal whose rest is being carried to the next day, or the leftover being carried back, while its window is open.
@@ -632,14 +645,39 @@ export function PlanCard({
                 )}
               </p>
             )}
-            {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
-            {!day.skipped && day.offTarget && (
-              <div className="space-y-1 text-xs">
-                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
+            {/* A day off its target says so for as long as it is: a notice that goes away is easy to miss. Where the plan has
+                a way to close the gap, the mark opens the question of what to do, with each way said before it is pressed;
+                where it has none, the mark says why in a line of its own. */}
+            {!day.skipped &&
+              day.offTarget &&
+              (day.resizes || spreadsFrom(plan, day, today) ? (
+                <p className="text-xs">
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={() =>
+                      setOffTargetFor({
+                        day,
+                        spreads: spreadsFrom(plan, day, today),
+                        listed: plan.days.some(
+                          (other) =>
+                            other.listed &&
+                            !other.skipped &&
+                            other.date >= (day.date < today ? day.date : today),
+                        ),
+                      })
+                    }
+                    className="inline-flex min-h-6 items-center gap-0.5 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium text-warning hover:bg-warning/25"
+                  >
+                    {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
+                    <ChevronRight size={12} aria-hidden />
+                  </button>
+                </p>
+              ) : (
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-warning">
                   <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
                     {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
                   </span>
-                  {/* A day the diary put off its target has not been resized with it: nothing says that resizing could not close the gap. */}
                   <span>
                     {t(
                       day.diary
@@ -652,62 +690,7 @@ export function PlanCard({
                     )}
                   </span>
                 </p>
-                {/* Offered where sizing the day again would move a meal: the server works it out with the day's meals and diary. */}
-                {day.resizes && (
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        changing.current = dayAnchor(plan.id, day.date);
-                        onResizeDay(day.date);
-                      }}
-                      disabled={busy}
-                      aria-describedby={`${day.id}-resize`}
-                    >
-                      {t('resizeDay')}
-                    </Button>
-                    <span id={`${day.id}-resize`} className="text-muted-foreground">
-                      {t(day.diary ? 'resizeDayNote' : 'resizeDayNotePlain')}
-                    </span>
-                  </div>
-                )}
-                {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
-                {plan.days.some(
-                  (other) => other.id !== day.id && other.date >= today && !other.skipped,
-                ) && (
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      // The remaining days of the plan take it: from today, or from the day itself where it is over already.
-                      onClick={() => {
-                        changing.current = dayAnchor(plan.id, day.date);
-                        onSpread(day.date < today ? day.date : today);
-                      }}
-                      disabled={busy}
-                      aria-describedby={`${day.id}-spread`}
-                    >
-                      {t('spread')}
-                    </Button>
-                    <span id={`${day.id}-spread`} className="text-muted-foreground">
-                      {t(day.offTarget === 'over' ? 'spreadNoteOver' : 'spreadNoteUnder')}
-                    </span>
-                    <ListNote
-                      days="several"
-                      listed={plan.days.some(
-                        (other) =>
-                          other.listed &&
-                          !other.skipped &&
-                          other.date >= (day.date < today ? day.date : today),
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+              ))}
             {!day.skipped && (
               <p className="text-xs text-muted-foreground">
                 {t('dayMacros', {
@@ -1839,6 +1822,24 @@ export function PlanCard({
             changing.current = mealAnchor(undoing.id);
             onLeftover(result, null, null);
           }}
+        />
+      )}
+      {offTargetFor && (
+        <DayOffTargetDialog
+          ways={offTargetFor}
+          busy={busy}
+          onResize={() => {
+            changing.current = dayAnchor(summary.id, offTargetFor.day.date);
+            onResizeDay(offTargetFor.day.date);
+            setOffTargetFor(null);
+          }}
+          onSpread={() => {
+            changing.current = dayAnchor(summary.id, offTargetFor.day.date);
+            // The remaining days of the plan take it: from today, or from the day itself where it is over already.
+            onSpread(offTargetFor.day.date < today ? offTargetFor.day.date : today);
+            setOffTargetFor(null);
+          }}
+          onClose={() => setOffTargetFor(null)}
         />
       )}
       {settingsFor && (

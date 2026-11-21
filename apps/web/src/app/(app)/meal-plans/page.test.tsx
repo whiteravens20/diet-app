@@ -1960,9 +1960,7 @@ describe('the plan page, on how a day stands against its target', () => {
       }),
     );
 
-    expect(screen.getByText(messages.mealPlans.dayOverDiaryHint)).toBeVisible();
-    // Nothing says that resizing the day could not close the gap: it was not resized with the entries.
-    expect(screen.queryByText(messages.mealPlans.dayOverHint)).toBeNull();
+    // The day keeps what the diary adds to it and the mark; what to do is asked in a window the mark opens.
     expect(
       screen.getByText('The diary adds 700 kcal to this day (2 entries).', { exact: false }),
     ).toBeVisible();
@@ -1970,7 +1968,17 @@ describe('the plan page, on how a day stands against its target', () => {
       'href',
       `/diary?profile=${aPlan().profileId}&date=${today}`,
     );
-    const resize = screen.getByRole('button', { name: messages.mealPlans.resizeDay });
+    expect(screen.queryByText(messages.mealPlans.dayOverDiaryHint)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.dayOver }));
+    const asked = within(
+      await screen.findByRole('dialog', {
+        name: /^This day is \d+\skcal over its target/,
+      }),
+    );
+    expect(asked.getByText(messages.mealPlans.dayOverDiaryHint)).toBeVisible();
+    // Nothing says that resizing the day could not close the gap: it was not resized with the entries.
+    expect(asked.queryByText(messages.mealPlans.dayOverHint)).toBeNull();
+    const resize = asked.getByRole('button', { name: messages.mealPlans.resizeDay });
     expect(resize).toHaveAccessibleDescription(messages.mealPlans.resizeDayNote);
     await userEvent.click(resize);
 
@@ -2108,6 +2116,8 @@ describe('the plan page, on how a day stands against its target', () => {
 
     expect(screen.getByText(messages.mealPlans.dayOverDiaryHint)).toBeVisible();
     expect(screen.queryByRole('button', { name: messages.mealPlans.resizeDay })).toBeNull();
+    // With no way to close the gap, the mark opens no window.
+    expect(screen.queryByRole('button', { name: messages.mealPlans.dayOver })).toBeNull();
   });
 
   it('says of a press that changes nothing that the portions cannot come any closer', async () => {
@@ -2137,9 +2147,47 @@ describe('the plan page, on how a day stands against its target', () => {
       }),
     );
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.resizeDay }));
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.dayOver }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: messages.mealPlans.resizeDay }),
+    );
 
     expect(await screen.findByText(messages.mealPlans.resizeNothing)).toBeVisible();
+  });
+
+  it('asks how far a day is off its target and offers to spread it over the days ahead, saying first what that does', async () => {
+    const today = localDate();
+    const tomorrow = new Date(Date.parse(`${today}T12:00:00Z`) + 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const posted = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ plan: aPlan(), rebalance: null } as never);
+    const plan = aPlan();
+    await opened({
+      ...plan,
+      days: [
+        { ...plan.days[0]!, date: today, offTarget: 'over', calorieDelta: 412.4, resizes: false },
+        { ...plan.days[0]!, id: '66666666-6666-4666-8666-666666666666', date: tomorrow },
+      ],
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.dayOver }));
+    const asked = within(
+      await screen.findByRole('dialog', {
+        name: 'This day is 412\u00a0kcal over its target: what is to be done?',
+      }),
+    );
+    expect(asked.getByText(messages.mealPlans.dayOverHint)).toBeVisible();
+    expect(asked.queryByRole('button', { name: messages.mealPlans.resizeDay })).toBeNull();
+    const spread = asked.getByRole('button', { name: messages.mealPlans.spread });
+    expect(spread).toHaveAccessibleDescription(messages.mealPlans.spreadNoteOver);
+    await userEvent.click(spread);
+
+    expect(posted).toHaveBeenCalledWith(`/meal-plans/${plan.id}/rebalance`, {
+      scope: 'plan',
+      date: today,
+    });
   });
 
   it('says nothing of the kind of a day inside its window, nor of a day that is skipped', async () => {
@@ -3912,8 +3960,9 @@ describe('the plan page, on a dish cooked for two days and on what a change come
       days: [{ ...plan.days[0]!, offTarget: 'under', resizes: true }, plan.days[1]!],
     });
 
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.dayUnder }));
     expect(
-      screen.getByRole('button', { name: messages.mealPlans.resizeDay }),
+      await screen.findByRole('button', { name: messages.mealPlans.resizeDay }),
     ).toHaveAccessibleDescription(messages.mealPlans.resizeDayNotePlain);
   });
 
