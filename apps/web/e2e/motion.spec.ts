@@ -35,7 +35,7 @@ test.describe('somebody who asked their system for less motion', () => {
     expect(longest ?? 0).toBeLessThan(1);
   });
 
-  test('is the only one who gets that: without the wish the tiles of the dashboard come in', async ({
+  test('is the only one who gets that: without the wish the dashboard comes in', async ({
     session,
   }) => {
     const page = session.page;
@@ -43,10 +43,10 @@ test.describe('somebody who asked their system for less motion', () => {
     await page.goto('/dashboard');
     await settled(page);
 
-    const tile = page.locator('.rise-in').first();
-    await expect(tile).toBeVisible();
-    expect(await tile.evaluate((element) => getComputedStyle(element).animationName)).toBe(
-      'rise-in',
+    const shown = page.locator('main .page-in');
+    await expect(shown).toBeVisible();
+    expect(await shown.evaluate((element) => getComputedStyle(element).animationName)).toBe(
+      'page-in',
     );
 
     await page.emulateMedia({ reducedMotion: 'reduce' });

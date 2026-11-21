@@ -235,7 +235,7 @@ test.describe('what a profile drinks', () => {
     });
     expect(saved).toMatchObject({ waterTargetMl: had === '' ? null : Number(had) });
     await expect(
-      page.getByText(textsOf(messages, 'profileSummary').dailyTarget!).first(),
+      page.getByText(textsOf(messages, 'profileSummary').more!, { exact: true }),
     ).toBeVisible();
     await expect(amount()).toHaveCount(0);
 

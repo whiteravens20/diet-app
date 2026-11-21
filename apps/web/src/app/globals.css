@@ -276,12 +276,6 @@ body {
     transform: scale(0.97);
   }
 }
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
 @keyframes drawer-in {
   from {
     transform: translateX(-100%);
@@ -312,9 +306,6 @@ body {
   /* A panel that drops from a button, and a tile that takes its place. */
   .pop-in {
     animation: dialog-in 150ms ease-out;
-  }
-  .rise-in {
-    animation: rise-in 350ms ease-out both;
   }
   /* A page of the app that takes the place of another. */
   .page-in {

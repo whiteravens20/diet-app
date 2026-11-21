@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type {
   CreateDiaryEntryRequest,
   DiaryDay,
@@ -32,9 +32,9 @@ const AddEntryDialog = dynamic(
 /**
  * What a profile ate today against the day's target, first on the dashboard as on the phone: the
  * diary's window that adds an entry opens over the dashboard, and the diary of the day is one press
- * away.
+ * away. `children` stands under what was eaten: the target's own figures.
  */
-export function TodayCard({ profile }: { profile: Profile }) {
+export function TodayCard({ profile, children }: { profile: Profile; children?: ReactNode }) {
   const t = useTranslations('diary');
   const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
@@ -86,6 +86,7 @@ export function TodayCard({ profile }: { profile: Profile }) {
             {t('eatenLine', { eaten: shown.eaten.calories, target: shown.target.calories })}
           </p>
         )}
+        {children}
         {resized && (
           <p role="status" className="text-sm text-muted-foreground">
             {tPlans('rebalanceTitle')}
