@@ -5,10 +5,16 @@ import { expect, settled, test } from './fixtures';
 
 type Texts = Record<string, string>;
 
-/** The answer to the next change of the account's settings. */
+/**
+ * The answer to the next change of the account's weight unit. Every page may save the account's
+ * time zone or language of its own accord, by the same request: that answer is not this one.
+ */
 const settingsSaved = (page: Page): Promise<Response> =>
   page.waitForResponse(
-    (res) => res.request().method() === 'PATCH' && new URL(res.url()).pathname === '/api/users/me',
+    (res) =>
+      res.request().method() === 'PATCH' &&
+      new URL(res.url()).pathname === '/api/users/me' &&
+      'weightUnit' in ((res.request().postDataJSON() as Record<string, unknown> | null) ?? {}),
   );
 
 test.describe('the weight of a profile', () => {
