@@ -211,8 +211,15 @@ export const GeneratePlanRequest = z
         path: ['dayOverrides'],
         message: 'A joint plan is made without settings of its days: each changes its own after.',
       });
-    // A first day outside the years there are is refused where it stands; what follows is about a plan that begins inside them.
-    if (request.startDate > LAST_DAY) return;
+    // A first day that is no day of the years there are, or a length out of its bounds, is refused where it stands; what
+    // follows is about a plan that begins on a day and lasts as long as a plan may.
+    if (
+      !CalendarDay.safeParse(request.startDate).success ||
+      !Number.isInteger(request.durationDays) ||
+      request.durationDays < 1 ||
+      request.durationDays > MAX_PLAN_DAYS
+    )
+      return;
     const lastDay = dayAfter(request.startDate, request.durationDays - 1);
     if (lastDay > LAST_DAY)
       ctx.addIssue({

@@ -68,4 +68,20 @@ describe('a request that holds what no request may', () => {
     // The only account is the one the test signed in with: the address stays free.
     expect(await t.prisma.user.count()).toBe(1);
   });
+
+  it('is refused by the field for a plan whose first day is no day or whose length is out of its bounds', async () => {
+    for (const [field, over] of [
+      ['startDate', { startDate: '2026-13-01' }],
+      ['startDate', { startDate: '0000-00-00' }],
+      ['durationDays', { durationDays: 1e9 }],
+    ] as const) {
+      const refused = await t
+        .http()
+        .post('/api/meal-plans/generate')
+        .set(as(user))
+        .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 7, ...over })
+        .expect(400);
+      expect(refusedAt(refused.body).paths).toContain(field);
+    }
+  });
 });

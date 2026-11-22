@@ -5,6 +5,7 @@ import {
   CaloriePreviewRequest,
   DietType,
   FdcDataTypes,
+  GeneratePlanRequest,
   MacroChange,
   Macros,
   MacroSplit,
@@ -114,6 +115,37 @@ describe('API contract schemas', () => {
     for (const count of [2, 3, 4, 5]) {
       expect(MEAL_SLOTS_BY_COUNT[count]).toHaveLength(count);
     }
+  });
+});
+
+describe('a request for a plan', () => {
+  const asked = (over: Record<string, unknown>) =>
+    GeneratePlanRequest.safeParse({
+      profileId: '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f',
+      startDate: '2026-02-02',
+      durationDays: 7,
+      ...over,
+    });
+
+  it('is refused by the field for a first day that is no day, or a length out of its bounds, and never throws', () => {
+    for (const [field, over] of [
+      ['startDate', { startDate: 'x' }],
+      ['startDate', { startDate: '2026-02-30' }],
+      ['startDate', { startDate: '2026-13-01' }],
+      ['startDate', { startDate: '0000-00-00' }],
+      ['durationDays', { durationDays: 1e9 }],
+      ['durationDays', { durationDays: 1e308 }],
+      ['durationDays', { durationDays: 2.5 }],
+    ] as const) {
+      const result = asked(over);
+      expect(result.success).toBe(false);
+      expect(result.error!.issues.map((issue) => issue.path.join('.'))).toContain(field);
+    }
+  });
+
+  it('still says of a plan that would run past the last day there is that it would', () => {
+    const result = asked({ startDate: '2100-12-30', durationDays: 7 });
+    expect(result.error!.issues.map((issue) => issue.path.join('.'))).toEqual(['durationDays']);
   });
 });
 
