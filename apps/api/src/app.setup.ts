@@ -7,6 +7,7 @@ import { applySecurityHeaders } from './common/security.js';
 import type { Env } from './config/env.js';
 import { parseTrustProxy } from './config/trust-proxy.js';
 import { RequestTimes, timeRequests } from './health/request-times.js';
+import { takeClientAddress, WebServer } from './rate-limit/web-server.js';
 
 /** Where Swagger UI is mounted, global prefix included. */
 export const SWAGGER_PATH = 'api/docs';
@@ -26,6 +27,8 @@ export function configureApp(app: INestApplication): void {
   // believed. Off unless the operator says which proxies wrote it.
   const trustProxy = parseTrustProxy(config.get('TRUST_PROXY', { infer: true }));
   if (trustProxy !== false) app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  // Without a proxy the operator vouches for, the bundled web server's word for the connection it accepted, a public one.
+  else app.use(takeClientAddress(app.get(WebServer)));
 
   app.use(timeRequests(app.get(RequestTimes)));
   app.setGlobalPrefix('api');

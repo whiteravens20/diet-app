@@ -230,7 +230,10 @@ services:
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     # Same image, different command: the Next.js standalone server under /web.
-    command: ['node', '/web/apps/web/server.js']
+    # The file it loads first writes the address of each connection it accepts into a header of its own, which
+    # the API believes from this service alone, for a public address, and counts its limits by where TRUST_PROXY is
+    # empty.
+    command: ['node', '--require', '/web/apps/web/client-address.cjs', '/web/apps/web/server.js']
     environment:
       # The two settings of the instance the web server is told, and nothing
       # else from .env: it holds none of the instance's secrets. Whether the

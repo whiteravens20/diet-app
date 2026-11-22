@@ -74,7 +74,7 @@ export function describeTrustProxy(setting: TrustProxy, behindProxy = false): st
   if (setting === false) {
     return behindProxy
       ? '! client address: that of the proxy for every visitor alike. The public origin is https, so a proxy stands in front, and TRUST_PROXY is off: limits by address cannot tell visitors apart until it is set'
-      : 'client address: that of the connection (TRUST_PROXY is off; behind the web server every client then counts as one)';
+      : 'client address: that of the connection the bundled web server accepted, which it says in its own header, where that is a public address (TRUST_PROXY is off; a private, loopback or link-local one, and a request that reaches the API another way, count as their connection)';
   }
   if (typeof setting === 'number')
     return `client address: from X-Forwarded-For, written by ${setting} trusted ${setting === 1 ? 'proxy' : 'proxies'}`;

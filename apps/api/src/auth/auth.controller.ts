@@ -36,6 +36,7 @@ import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { Env } from '../config/env.js';
 import { SignUps } from '../rate-limit/sign-ups.js';
+import { addressGiven } from '../rate-limit/web-server.js';
 import {
   byAccount,
   byAccountAndAddress,
@@ -103,7 +104,7 @@ export class AuthController {
     return token;
   }
 
-  /** Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`); the fourth is 429 `TOO_MANY_SIGN_UPS`. */
+  /** Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`, or the bundled web server's word for a public one); the fourth is 429 `TOO_MANY_SIGN_UPS`. */
   @Post('register')
   @Answers(AuthResponse)
   async register(
@@ -112,7 +113,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const giveBack = this.signUps.take(req.ip);
+    const giveBack = this.signUps.take(req.ip, addressGiven(req));
     try {
       return this.begun(
         req,

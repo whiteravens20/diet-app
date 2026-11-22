@@ -159,7 +159,10 @@ services:
   web:
     <<: *app-image
     # Same image, different command: the Next.js standalone server under /web.
-    command: ['node', '/web/apps/web/server.js']
+    # The file it loads first writes the address of each connection it accepts into a header of its own, which
+    # the API believes from this service alone, for a public address, and counts its limits by where TRUST_PROXY is
+    # empty.
+    command: ['node', '--require', '/web/apps/web/client-address.cjs', '/web/apps/web/server.js']
     restart: unless-stopped
     # Confined as `api` is. The resized pictures Next.js keeps are in memory, owned by the image's user (`node`, 1000),
     # who could not write a directory a tmpfs gives to root.

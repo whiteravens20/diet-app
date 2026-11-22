@@ -154,7 +154,7 @@
           "admin"
         ],
         "summary": "What the API sees of the connection the administrator is on.",
-        "description": "What the API sees of the connection the administrator is on. Opened through the public address of the instance, it shows whether the reverse proxy passes the client's address on and whether `TRUST_PROXY` is set to believe it.\n\nAsked by the administrator.",
+        "description": "What the API sees of the connection the administrator is on. Opened through the public address of the instance, it shows whether the reverse proxy passes the client's address on and whether `TRUST_PROXY` is set to believe it. Without it, the address the web server says it accepted the connection from is the client's, unless a proxy stands before the web server: its address then differs from the one the proxy wrote last.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []
@@ -3163,7 +3163,7 @@
           "auth"
         ],
         "summary": "Open an account, and a session with it.",
-        "description": "Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`); the fourth is 429 `TOO_MANY_SIGN_UPS`.\n\nAsked by anyone.\n\nLimited to 10 in a minute, for each sender.",
+        "description": "Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`, or the bundled web server's word for a public one); the fourth is 429 `TOO_MANY_SIGN_UPS`.\n\nAsked by anyone.\n\nLimited to 10 in a minute, for each sender.",
         "security": [],
         "parameters": [
           {

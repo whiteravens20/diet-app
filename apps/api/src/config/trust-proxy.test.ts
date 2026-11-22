@@ -38,7 +38,7 @@ describe('TRUST_PROXY', () => {
 
   it('says in one line whose word is taken', () => {
     expect(describeTrustProxy(false)).toMatch(
-      /^client address: that of the connection \(TRUST_PROXY is off/,
+      /^client address: that of the connection the bundled web server accepted, which it says in its own header, where that is a public address \(TRUST_PROXY is off/,
     );
     expect(describeTrustProxy(false, true)).toMatch(
       /^! client address: that of the proxy for every visitor alike/,

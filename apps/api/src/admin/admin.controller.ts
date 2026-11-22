@@ -43,6 +43,8 @@ import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.j
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
+import { countedAddress } from '../rate-limit/client-address.js';
+import { addressGiven } from '../rate-limit/web-server.js';
 import { COVERAGE_TARGET, MACRO_OUT_OF_REACH } from '../engine/coverage.js';
 import { macroSplitOf } from '../engine/nutrition.js';
 import { IngredientsService } from '../ingredients/ingredients.service.js';
@@ -89,7 +91,9 @@ export class AdminController {
    * What the API sees of the connection the administrator is on. Opened
    * through the public address of the instance, it shows whether the reverse
    * proxy passes the client's address on and whether `TRUST_PROXY` is set to
-   * believe it.
+   * believe it. Without it, the address the web server says it accepted the
+   * connection from is the client's, unless a proxy stands before the web
+   * server: its address then differs from the one the proxy wrote last.
    */
   @Get('connection')
   @UseGuards(AdminSessionGuard)
@@ -103,13 +107,18 @@ export class AdminController {
     const clientAddress = req.ip ?? null;
     const peerAddress = req.socket.remoteAddress ?? null;
     const trustProxy = parseTrustProxy(this.config.get('TRUST_PROXY', { infer: true }));
+    const lastForwarded = (forwardedFor ?? '').split(',').at(-1)?.trim() ?? '';
     return {
       clientAddress,
       peerAddress,
       forwardedFor,
       forwardedHops,
       trustProxy,
-      countedAsProxy: forwardedFor !== null && clientAddress === peerAddress,
+      countedAsProxy:
+        forwardedFor !== null &&
+        (addressGiven(req)
+          ? countedAddress(lastForwarded) !== countedAddress(clientAddress)
+          : clientAddress === peerAddress),
       overTrusted: typeof trustProxy === 'number' && forwardedHops < trustProxy,
     };
   }

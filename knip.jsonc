@@ -9,10 +9,12 @@
       "entry": ["src/main.ts", "src/worker.ts", "scripts/*.ts"],
     },
     "apps/web": {
-      // The icon script is run by hand: nothing imports it.
+      // The icon script is run by hand: nothing imports it. The web server's container loads
+      // client-address.cjs before the server (`node --require`): nothing imports it either.
       "entry": [
         "src/app/**/{page,layout,loading,error,not-found,route,template,default}.tsx",
         "scripts/make-icons.mjs",
+        "client-address.cjs",
       ],
       // The icon script draws with the image library the framework brings for its own pictures.
       "ignoreDependencies": ["sharp"],

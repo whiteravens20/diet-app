@@ -14,6 +14,7 @@ import {
 } from '@nestjs/throttler';
 import type { Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
+import { addressGiven } from './web-server.js';
 import { countedAddress } from './client-address.js';
 import { REQUEST_WEIGHT, type RequestWeight } from './request-weight.js';
 import { CREDENTIAL_COUNTS, type CredentialCount } from './trackers.js';
@@ -28,11 +29,12 @@ import { CREDENTIAL_COUNTS, type CredentialCount } from './trackers.js';
  * refresh), so that guessing at one account uses up nobody else's tries.
  *
  * An address says who the sender is only as far as `TRUST_PROXY` lets it be
- * known. Behind the web server with `TRUST_PROXY` off it is the same for
- * everybody, and what is counted against it is one allowance for the whole
- * instance. On a route that tries a credential that would let a handful of
- * requests keep every user out, so there the address is counted only once
- * `TRUST_PROXY` says whose word to take for it.
+ * known, or as the bundled web server says whose connection it accepted, where
+ * that is a public address (`web-server.ts`). Behind a proxy that `TRUST_PROXY`
+ * does not name it is the same for everybody, and what is counted against it
+ * is one allowance for the whole instance. On a route that tries a credential that would let a
+ * handful of requests keep every user out, so there the address is counted
+ * only once it is known to be the sender's.
  */
 @Injectable()
 export class ClientThrottlerGuard extends ThrottlerGuard {
@@ -79,9 +81,10 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
     }
     if (!counts) return super.handleRequest(request);
 
-    const sender = await this.getTracker(this.getRequestResponse(context).req);
+    const { req } = this.getRequestResponse(context);
+    const sender = await this.getTracker(req);
     // Not an address that everybody behind the proxy shares: see above.
-    if (this.addressKnown || sender.startsWith('user:')) {
+    if (this.addressKnown || addressGiven(req) || sender.startsWith('user:')) {
       await super.handleRequest({ ...request, getTracker: () => sender });
     }
     for (const count of counts) {

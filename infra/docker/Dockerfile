@@ -6,7 +6,7 @@
 #   api      node apps/api/dist/main.js                    (the default)
 #   worker   node apps/api/dist/worker.js
 #   db-init  /app/node_modules/.bin/prisma migrate deploy   (in /app/apps/api)
-#   web      node /web/apps/web/server.js
+#   web      node --require /web/apps/web/client-address.cjs /web/apps/web/server.js
 #
 # One image means one tag to pull and pin: the web and the API it talks to can
 # never be from different versions. Multi-stage, Alpine, non-root. Build
@@ -113,6 +113,8 @@ RUN mkdir -p /app/instance-data/recipes && chown -R node:node /app/instance-data
 COPY --from=build /app/apps/web/.next/standalone /web
 COPY --from=build /app/apps/web/.next/static /web/apps/web/.next/static
 COPY --from=build /app/apps/web/public /web/apps/web/public
+# Loaded before the web server: it hands the API the address of each connection it accepted.
+COPY --from=build /app/apps/web/client-address.cjs /web/apps/web/client-address.cjs
 # The template of the terms of service, shown where the operator mounted no
 # terms of their own at /terms. The web server reads it two levels above its
 # own directory.

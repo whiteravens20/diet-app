@@ -21,9 +21,10 @@ const MAX_ADDRESSES = 10_000;
  * bound on a day.
  *
  * A client is its address as every limit counts it (`countedAddress`), and it
- * is counted only where the address is the client's own, as `TRUST_PROXY`
- * says: behind the web server without it every visitor has the web server's
- * address, and one visitor would keep everybody else from signing up. Only
+ * is counted only where the address is the client's own, as `TRUST_PROXY` or
+ * the bundled web server says: behind a proxy nobody vouches for every visitor
+ * has the same address, and one visitor would keep everybody else from signing
+ * up. Only
  * the sign-ups that opened an account count: a refused one (an address that
  * has an account, a password that is too short) gives its place back.
  *
@@ -45,11 +46,12 @@ export class SignUps {
 
   /**
    * Take a place for an account that `address` is about to open: refused while
-   * it has opened as many in the last day. Returns what gives the place back,
+   * it has opened as many in the last day. `given`: the bundled web server said
+   * it is the client's own, a public address (`web-server.ts`). Returns what gives the place back,
    * for a sign-up that then fails.
    */
-  take(address: string | undefined): () => void {
-    if (!this.addressKnown) return () => undefined;
+  take(address: string | undefined, given = false): () => void {
+    if (!this.addressKnown && !given) return () => undefined;
     const client = countedAddress(address);
     const now = this.now();
     const recent = (this.opened.get(client) ?? []).filter((at) => at > now - DAY_MS);

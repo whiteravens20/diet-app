@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
 import { asAdmin, aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { WebServer } from './web-server.js';
 
 /** One reverse proxy stands in front and is trusted: it writes the client's address into the header. */
 describe('rate limits behind one trusted proxy', () => {
@@ -47,6 +48,25 @@ describe('rate limits behind one trusted proxy', () => {
       expect(Number(held.headers['retry-after'])).toBeGreaterThan(600);
       // The owner, at another address, signs in as if nothing had happened.
       expect((await login('203.0.113.102', owner.email, owner.password)).status).toBe(200);
+    });
+
+    it("takes the proxy's word for the address, whatever the web server's own header says", async () => {
+      // The tests' requests come from the loopback, which the web server's name is made to resolve to.
+      const web = t.app.get(WebServer);
+      web.resolve = async () => ['127.0.0.1', '::1'];
+      await web.refresh();
+      try {
+        const owner = await aUser(t);
+        const tried = (client: string, password: string) =>
+          login('203.0.113.131', owner.email, password).set('X-Client-Address', client);
+        for (let i = 0; i < 10; i += 1)
+          expect((await tried(`203.0.113.${140 + i}`, 'not-the-password')).status).toBe(401);
+
+        expect((await tried('203.0.113.150', owner.password)).status).toBe(429);
+      } finally {
+        web.resolve = async () => [];
+        await web.refresh();
+      }
     });
 
     it('takes every address of one IPv6 network for the one client it is', async () => {

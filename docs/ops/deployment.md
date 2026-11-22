@@ -140,9 +140,23 @@ default; nginx stops at 60 seconds unless `proxy_read_timeout` is raised.
 ### Telling the API who the client is
 
 The API never sees a visitor's own connection: requests reach it from the web server, or
-from the reverse proxy. Left alone it therefore takes every visitor for one client. The
-visitor's address arrives in the `X-Forwarded-For` header, which the API believes only
-when told to, because without a proxy in front anybody can write that header themselves.
+from the reverse proxy. Without a proxy in front, the web server says whose connection it
+accepted: it writes that address into a header of its own, `X-Client-Address`, over
+whatever a visitor wrote there, and the API believes that header from the web service
+alone, by the address the Compose network gives it, only while `TRUST_PROXY` is empty, and
+only for a public address. An address of a private network, the loopback, or a link-local
+or carrier-grade NAT range is one that many visitors may stand behind (a proxy, the host, a
+home router), so it counts as the connection it came on, as without the header: the web
+port published on the loopback, as both Compose files publish it, gives every connection
+the Compose network's gateway address. An instance whose web port visitors reach directly
+from the internet (`127.0.0.1:` dropped from it) then counts each visitor by their own
+address, with nothing to set; visitors on a local network share one count. A request that
+reaches the API any other way counts as its connection.
+
+Behind a reverse proxy the web server's connection is the proxy's, so every visitor has
+the proxy's address again. The visitor's address arrives in the `X-Forwarded-For` header,
+which the API believes only when told to, because without a proxy in front anybody can
+write that header themselves:
 
 1. Put a reverse proxy in front and make sure the app cannot be reached around it. With
    `docker-compose.prod.yml` the web port is bound to `127.0.0.1` for exactly this; with
