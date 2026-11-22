@@ -1070,7 +1070,7 @@ describe('shopping lists and the pantry', () => {
     it('happens with its plan, by the same rule', async () => {
       // This plan lies in the past, so its food counts as eaten.
       await shopped();
-      await plans.remove(user.id, plan.id);
+      await plans.remove(user.id, 'en', plan.id);
       expect(await pantry('white-rice')).toEqual(['340 g']);
       expect(await t.prisma.shoppingList.count()).toBe(0);
 
@@ -1088,7 +1088,7 @@ describe('shopping lists and the pantry', () => {
         await ingredient('white-rice'),
       ).quantity;
 
-      await plans.remove(user.id, future.id);
+      await plans.remove(user.id, 'en', future.id);
 
       const after = pantryStock(
         await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }),

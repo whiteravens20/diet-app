@@ -549,6 +549,46 @@ describe('the plan page, where the catalogue is short of recipes', () => {
   });
 });
 
+describe('the plan page, on removing a plan', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says before a plan is removed that what was eaten from it stays in the diary', async () => {
+    await renderPage(aSupply(), [aPlan()]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const removed = vi.spyOn(api, 'delete');
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.common.delete }));
+
+    expect(confirm).toHaveBeenCalledWith(messages.mealPlans.deleteConfirm);
+    expect(messages.mealPlans.deleteConfirm).toContain(
+      'What was eaten from it stays in the diary.',
+    );
+    expect(removed).not.toHaveBeenCalled();
+  });
+
+  it('names the day whose diary has no room for what was eaten from the plan', async () => {
+    await renderPage(aSupply(), [aPlan()]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(api, 'delete').mockRejectedValue(
+      new ApiClientError(409, 'PLAN_DIARY_FULL', 'the text of the API', undefined, undefined, {
+        date: '2026-01-05',
+      }),
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.common.delete }));
+
+    expect(
+      await screen.findByText(
+        spaced(
+          'The diary of Jan 5, 2026 is full and has no room for what was eaten from the plan that day. Remove an entry of that day first, then the plan.',
+        ),
+      ),
+    ).toBeVisible();
+  });
+});
+
 describe('the plan page, where a plan does not fit inside its limits', () => {
   afterEach(() => {
     vi.useRealTimers();

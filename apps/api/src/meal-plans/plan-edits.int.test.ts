@@ -171,7 +171,10 @@ describe('editing a plan', () => {
     async () => {
       const meal = plan.days[0]!.meals[0]!;
 
-      const results = await Promise.allSettled([swap(meal.id), plans.remove(user.id, plan.id)]);
+      const results = await Promise.allSettled([
+        swap(meal.id),
+        plans.remove(user.id, 'en', plan.id),
+      ]);
 
       for (const outcome of outcomes(results)) {
         expect(['ok', 'PLAN_CHANGED', 'PLAN_NOT_FOUND', 'MEAL_NOT_FOUND']).toContain(outcome);

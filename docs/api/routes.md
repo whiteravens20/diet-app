@@ -189,7 +189,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 |---|---|---|---|---|---|
 | `GET /api/meal-plans` | an account | The plans of a profile, a page at a time, narrowed by their days and by whether they are over. | query `PlanListQuery` | 200 `MealPlanPage` |  |
 | `GET /api/meal-plans/:id` | an account | One plan, with its days and their meals. |  | 200 `MealPlan` |  |
-| `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. |  | 204 |  |
+| `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry; what was eaten from it stays in the diary, each meal marked eaten as an entry of its day. |  | 204 |  |
 | `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. A day takes one while it holds fewer than twenty meals. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate` | an account | Re-roll the meals of a single day. | `RegenerateDayRequest` | 201 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate/preview` | an account | What re-rolling the meals of a single day would do, as the preview of the plan says it of that day. | `RegenerateDayRequest` | 200 `RerollPreview` | 60 in a minute |

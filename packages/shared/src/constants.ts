@@ -156,6 +156,13 @@ export const MAX_PLANS_PER_PROFILE = 100;
 /** The most meals a day of a plan holds when one of the user's own is added: a day the planner makes holds at most five. */
 export const MAX_MEALS_ON_A_PLAN_DAY = 20;
 
+/**
+ * The most entries a day of a profile's diary can hold at all: what was written into it, and beside that
+ * the meals eaten from plans removed since, which a removal keeps as entries of their days. A removal that
+ * would take a day over it is refused.
+ */
+export const MAX_DIARY_ENTRIES_KEPT = MAX_DIARY_ENTRIES_A_DAY + MAX_MEALS_ON_A_PLAN_DAY;
+
 /** The most meals eaten on one day in a profile's plans besides one of them: a full day of each of the others. */
 export const MAX_OTHER_PLAN_MEALS_A_DAY = (MAX_PLANS_PER_PROFILE - 1) * MAX_MEALS_ON_A_PLAN_DAY;
 

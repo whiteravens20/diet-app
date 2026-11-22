@@ -1269,6 +1269,15 @@
       "pl": "Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich."
     }
   },
+  "PLAN_DIARY_FULL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The diary of one of this plan's days is full and has no room for what was eaten from it. Remove an entry of that day first.",
+      "pl": "Dziennik jednego z dni tego planu jest pełny i nie zmieści tego, co z niego zjedzono. Usuń najpierw któryś wpis z tego dnia."
+    }
+  },
   "PLAN_LIMIT_REACHED": {
     "statuses": [
       409

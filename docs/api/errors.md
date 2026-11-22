@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 212 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 213 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -149,6 +149,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PERSONAL_RECIPE_LIMIT` | 403 | You have as many recipes of your own as an account can hold. Delete some you no longer use. | Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz. |
 | `PLAN_CHANGED` | 409 | The plan changed in the meantime. It has been reloaded; try again. | Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie. |
 | `PLAN_DAY_FULL` | 409 | This day of the plan already holds as many meals as it can. Remove a meal first. | Ten dzień planu ma już tyle posiłków, ile może mieć. Najpierw usuń któryś z nich. |
+| `PLAN_DIARY_FULL` | 409 | The diary of one of this plan's days is full and has no room for what was eaten from it. Remove an entry of that day first. | Dziennik jednego z dni tego planu jest pełny i nie zmieści tego, co z niego zjedzono. Usuń najpierw któryś wpis z tego dnia. |
 | `PLAN_LIMIT_REACHED` | 409 | This profile already has as many meal plans as it can hold. Delete an old plan first. | Ten profil ma już tyle planów, ile może mieć. Najpierw usuń któryś ze starych planów. |
 | `PLAN_NEEDS_RELAXATION` | 422 | The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for. | Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie. |
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |

@@ -4,7 +4,7 @@ import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
 import {
   LAST_DAY,
-  MAX_DIARY_ENTRIES_A_DAY,
+  MAX_DIARY_ENTRIES_KEPT,
   MAX_OTHER_PLAN_MEALS_A_DAY,
   OWN_MEAL_LIMITS,
 } from './constants.js';
@@ -650,7 +650,7 @@ export const MealPlanDay = z.object({
     .object({
       entries: z.number().int().min(0),
       nutrition: Nutrition,
-      items: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
+      items: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_KEPT),
       otherPlans: z.array(EatenInOtherPlan).max(MAX_OTHER_PLAN_MEALS_A_DAY),
     })
     .nullable(),

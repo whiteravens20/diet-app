@@ -385,11 +385,18 @@ export class MealPlansController {
     return this.plans.keepFrozen(user.id, locale, id, dto, today);
   }
 
-  /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */
+  /**
+   * Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry;
+   * what was eaten from it stays in the diary, each meal marked eaten as an entry of its day.
+   */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.plans.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+  ) {
+    await this.plans.remove(user.id, locale, id);
   }
 
   /** A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. */

@@ -5119,7 +5119,7 @@
           "meal-plans"
         ],
         "summary": "Delete a plan.",
-        "description": "Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry.\n\nAsked by an account.",
+        "description": "Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry; what was eaten from it stays in the diary, each meal marked eaten as an entry of its day.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -5133,6 +5133,15 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -14722,7 +14731,7 @@
             ]
           },
           "entries": {
-            "maxItems": 40,
+            "maxItems": 60,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DiaryEntry"
@@ -18421,7 +18430,7 @@
                     "$ref": "#/components/schemas/Nutrition"
                   },
                   "items": {
-                    "maxItems": 40,
+                    "maxItems": 60,
                     "type": "array",
                     "items": {
                       "$ref": "#/components/schemas/DiaryEntry"

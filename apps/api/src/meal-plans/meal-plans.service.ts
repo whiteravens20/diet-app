@@ -14,6 +14,7 @@ import {
   dayAfter,
   fitsDiet,
   FROZEN_KEEPS_DAYS,
+  MAX_DIARY_ENTRIES_KEPT,
   MAX_MEALS_ON_A_PLAN_DAY,
   PlanOptions,
   TARGET_MOVED_LEAST_KCAL,
@@ -133,7 +134,8 @@ import {
   TRANSACTION,
 } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/diary-days.js';
-import { diaryMealOf } from '../diary/eaten-meals.js';
+import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
+import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
 import { planChangedMeanwhile, writePlan, writePlans } from './plan-write.js';
 import {
@@ -173,8 +175,14 @@ export class MealPlansService {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
-  /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
-  async remove(userId: string, planId: string): Promise<void> {
+  /**
+   * Delete a plan and everything under it (days, meals, shopping lists cascade). What was eaten from it is
+   * the person's and stays: each meal marked eaten is written into the diary as an entry of its day and
+   * time of day, with the figures the day counted for it and named in the language of the request, so
+   * that the day reads the same after the removal as before. A day those entries would take over
+   * `MAX_DIARY_ENTRIES_KEPT` refuses the removal, 409 `PLAN_DIARY_FULL` with that day.
+   */
+  async remove(userId: string, locale: Locale, planId: string): Promise<void> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true },
@@ -182,12 +190,52 @@ export class MealPlansService {
     if (!plan?.profile || plan.profile.userId !== userId)
       throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const profileId = plan.profile.id;
+    const first = isoDate(plan.startDate);
+    const last = dayAfter(first, plan.durationDays - 1);
     // The plan takes its shopping lists with it. What was obtained for the
     // days still ahead is in the kitchen and goes into the pantry first, by
     // the rule a list deleted on its own follows; a household list left with
     // one part is that plan's list alone.
     await this.prisma.$transaction(
       async (tx) => {
+        // Counted while the profile is held, as an entry written into the diary is.
+        await holdProfile(tx, profileId);
+        const eaten = await eatenMeals(tx, profileId, new Date(first), new Date(last), {
+          only: planId,
+        });
+        if (eaten.length > 0) {
+          const dates = [...new Set(eaten.map((meal) => meal.date))];
+          const held = new Map(
+            (
+              await tx.diaryEntry.groupBy({
+                by: ['date'],
+                where: { profileId, date: { in: dates.map((date) => new Date(date)) } },
+                _count: true,
+              })
+            ).map((row) => [isoDate(row.date), row._count]),
+          );
+          const full = dates.find(
+            (date) =>
+              (held.get(date) ?? 0) + eaten.filter((meal) => meal.date === date).length >
+              MAX_DIARY_ENTRIES_KEPT,
+          );
+          if (full)
+            throw new ConflictException({
+              error: 'PLAN_DIARY_FULL',
+              message: `The diary of ${full} holds too many entries to keep what was eaten from the plan that day: remove an entry of it first.`,
+              details: { date: full },
+            });
+          // The entries keep the order of the day: the first of them is the first written.
+          const now = Date.now();
+          await tx.diaryEntry.createMany({
+            data: eaten.map((meal, index) => ({
+              ...entryOfEaten(meal, locale),
+              profileId,
+              date: new Date(meal.date),
+              createdAt: new Date(now + index),
+            })),
+          });
+        }
         const households = await releasePlanLists(tx, planId, profileId);
         // A plan made together with another leaves it a plan of its own, whose shared meals are its own again.
         if (plan.jointPlanId) await tx.jointPlan.deleteMany({ where: { id: plan.jointPlanId } });

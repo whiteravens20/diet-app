@@ -4,6 +4,7 @@ import * as z from './zod.js';
 import {
   DIARY_QUANTITY_LIMITS,
   MAX_DIARY_ENTRIES_A_DAY,
+  MAX_DIARY_ENTRIES_KEPT,
   MAX_OTHER_PLAN_MEALS_A_DAY,
   OWN_MEAL_LIMITS,
 } from './constants.js';
@@ -259,8 +260,11 @@ export const DiaryDay = z.object({
       resizes: z.boolean(),
     })
     .nullable(),
-  /** The entries of the day, under the meals they were written for, the first written first. */
-  entries: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
+  /**
+   * The entries of the day, under the meals they were written for, the first written first. Beside the
+   * `MAX_DIARY_ENTRIES_A_DAY` written into it, a day holds the meals eaten from plans removed since.
+   */
+  entries: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_KEPT),
   /** The meals marked eaten on the day in the profile's other plans that hold it, under their times of day. */
   otherPlans: z.array(EatenInOtherPlan).max(MAX_OTHER_PLAN_MEALS_A_DAY),
   /** What was eaten: the meals marked as eaten in the plan and in the profile's other plans, and every entry. */

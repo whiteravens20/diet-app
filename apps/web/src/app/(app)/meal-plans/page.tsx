@@ -302,7 +302,15 @@ function MealPlansContent() {
       ['PLAN_CHANGED', 'FROZEN_REST_GONE', 'PACK_LEFT_GONE'].includes(e.code)
     )
       void invalidate();
-    setError((e instanceof ApiClientError ? unfilledMeal(e) : null) ?? errorText(e, fallback));
+    setError(
+      (e instanceof ApiClientError ? (unfilledMeal(e) ?? diaryFull(e)) : null) ??
+        errorText(e, fallback),
+    );
+  };
+  // A removal the diary of a day has no room for names that day, so that the entry to remove can be found.
+  const diaryFull = (e: ApiClientError): string | null => {
+    const date = e.code === 'PLAN_DIARY_FULL' ? e.details?.date : undefined;
+    return typeof date === 'string' ? t('deleteDiaryFull', { date: fmt.date(date) }) : null;
   };
   // A plan that could not be made names the meal it had no recipe for, and
   // tells a catalogue without one from a profile that rules out what there is.
