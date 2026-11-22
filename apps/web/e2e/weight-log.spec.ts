@@ -15,8 +15,12 @@ test.describe('the weight of a profile', () => {
   test('is read and typed in pounds once the account chooses them, and in kilograms again once it chooses those', async ({
     session,
     messages,
+    appLocale,
   }) => {
     const page = session.page;
+    // The profile's weight suggested in the field, as the page's language writes a number ("176,4" in Polish).
+    const suggested = (value: number) =>
+      value.toLocaleString(appLocale, { maximumFractionDigits: 1, useGrouping: false });
     const settings = messages.settings as Texts;
     const card = messages.weightCard as Texts;
     const unitChoice = (name: string) =>
@@ -38,7 +42,7 @@ test.describe('the weight of a profile', () => {
     // The dashboard follows: the profile weighs 80 kg, which is 176.4 lb.
     await page.goto('/dashboard');
     await settled(page);
-    await expect(field('lb')).toHaveAttribute('placeholder', '176.4');
+    await expect(field('lb')).toHaveAttribute('placeholder', suggested(176.4));
     await expect(field('kg')).toHaveCount(0);
 
     // And back, for the tests after this one.
@@ -51,6 +55,6 @@ test.describe('the weight of a profile', () => {
     );
     await page.goto('/dashboard');
     await settled(page);
-    await expect(field('kg')).toHaveAttribute('placeholder', '80');
+    await expect(field('kg')).toHaveAttribute('placeholder', suggested(80));
   });
 });

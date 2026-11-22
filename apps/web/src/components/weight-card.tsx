@@ -152,7 +152,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
                 max={bounds.max}
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
-                placeholder={String(shownToOne(profile.weightKg, unit))}
+                placeholder={fmt.number(shownToOne(profile.weightKg, unit), 1)}
               />
             </Field>
             <p className="text-xs text-muted-foreground">

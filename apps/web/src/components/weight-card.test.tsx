@@ -9,6 +9,7 @@ import type { Profile, WeightDay, WeightEntry, WeightUnit } from '@diet-app/shar
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import messages from '../../messages/en.json';
+import plMessages from '../../messages/pl.json';
 import { WeightCard } from './weight-card';
 
 // The chart is fetched on demand and draws nothing in a DOM without a size: a stand-in says which line it was given.
@@ -53,7 +54,9 @@ async function shown(
   profile: Profile,
   unit: WeightUnit | null,
   logged: { entries?: WeightEntry[]; days?: WeightDay[] } = {},
+  locale: 'en' | 'pl' = 'en',
 ) {
+  const texts = locale === 'pl' ? plMessages : messages;
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/users/me'
@@ -68,7 +71,7 @@ async function shown(
   const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
   const reads: Record<string, number> = {};
   render(
-    <NextIntlClientProvider locale="en" messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={texts}>
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
@@ -77,13 +80,15 @@ async function shown(
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  const field = await screen.findByLabelText(`Today's weight (${unit ?? 'kg'})`);
+  const field = await screen.findByLabelText(
+    texts.weightCard.formLabel.replace('{unit}', unit ?? 'kg'),
+  );
   await waitFor(() => expect(reads).toEqual({ profiles: 1, calories: 1, diary: 1 }));
   return {
     post,
     field,
     reads,
-    log: () => userEvent.click(screen.getByRole('button', { name: messages.weightCard.log })),
+    log: () => userEvent.click(screen.getByRole('button', { name: texts.weightCard.log })),
   };
 }
 
@@ -130,6 +135,12 @@ describe('the weights a profile logs', () => {
     await log();
 
     expect(post).toHaveBeenCalledWith('/weights', { profileId: aProfile().id, kg: 79.4 });
+  });
+
+  it("suggest the profile's weight as the reader's language writes a number: a decimal comma in Polish", async () => {
+    const { field } = await shown(aProfile({ weightKg: 64.2 }), 'kg', {}, 'pl');
+
+    expect(field).toHaveAttribute('placeholder', '64,2');
   });
 
   it('are typed and shown in pounds for an account that chose them, and sent in kilograms', async () => {
