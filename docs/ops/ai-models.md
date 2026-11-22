@@ -233,6 +233,34 @@ draft. 181 calls cost $0.13.
   kept. The rotation goes by the account's recipes, so drafts asked one at a
   time, days apart, rotate alike.
 
+On 2026-11-22, `openai/gpt-6-luna` through OpenRouter as an account's own
+key: 82 drafts for eaters with filters (balanced; vegan with gluten and soy
+left out; keto with dairy left out; vegetarian with eggs and nuts left out,
+foods never to plan, one disliked and favourites; high-protein in English and
+in Polish; low-carb with gluten left out; seven allergens at once), $0.051 in
+all. 77 were kept and 5 refused by the app's own rules (keto 3 of 10); none of
+the 77 held an allergen, a food never to plan, a disliked food or one off the
+diet; the median call took 6.2 s and the slowest 8.3 s. Two things changed the
+request after it:
+
+- **A high-protein draft is offered every ingredient the profile may eat.**
+  The offer was narrowed to the ingredients marked as fitting the diet, and the
+  catalogue marks as high-protein only the protein-rich foods (50 of the 114
+  curated ones): thirteen high-protein drafts were meat or fish with a green
+  vegetable, no fat, onion, garlic, tomato or potato, at 220 to 386 kcal for a
+  main meal, where the same profile asked as balanced got cod stewed with
+  potatoes and tomatoes. A diet a recipe does not have to qualify for
+  (balanced, high-protein, custom) now narrows nothing, and the prompt says
+  that the dish is built on a protein-rich main ingredient. The substitutes a
+  model may choose among for a high-protein plan's meal were narrowed the same
+  way (36 of 40 lines had one, against 40 of 40 as balanced) and are not now.
+- **A draft's amounts are what a cook measures.** Asked for a number of
+  kilocalories, the model met it to the kilocalorie with amounts like 34.4 ml
+  of olive oil or 94.3 g of mozzarella in 6 of 10 drafts. The app now rounds
+  grams and millilitres to fives from 20 up and to whole ones below, pieces to
+  halves, before the engine counts the dish, and holds the rounded dish to the
+  fifth of the calories asked; the prompt asks for such amounts.
+
 #### Measured for the admin recipe batch
 
 The same run on 2026-10-13, through OpenRouter: twelve recipes in English and
