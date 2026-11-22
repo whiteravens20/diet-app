@@ -277,3 +277,7 @@ export const WATER_PACE_FROM_HOUR = 8;
 export const WATER_PACE_TO_HOUR = 20;
 export const WATER_REMINDER_BEHIND_ML = 250;
 export const WATER_REMINDER_EVERY_HOURS = 3;
+
+/** When a profile is reminded to weigh itself, by the account's clock: from the first hour to before the last. */
+export const WEIGHT_REMINDER_FROM_HOUR = 7;
+export const WEIGHT_REMINDER_TO_HOUR = 21;

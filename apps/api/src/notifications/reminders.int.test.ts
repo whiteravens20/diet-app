@@ -14,6 +14,7 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { CookingReminderService } from './cooking-reminder.service.js';
 import { WaterReminderService } from './water-reminder.service.js';
+import { WeightReminderService } from './weight-reminder.service.js';
 
 describe('the reminders that keep the hours of an account', () => {
   let t: TestApp;
@@ -21,6 +22,7 @@ describe('the reminders that keep the hours of an account', () => {
   let profile: Profile;
   let cooking: CookingReminderService;
   let water: WaterReminderService;
+  let weight: WeightReminderService;
   const at = (moment: string) => new Date(moment);
 
   beforeAll(async () => {
@@ -29,6 +31,7 @@ describe('the reminders that keep the hours of an account', () => {
     await seedCatalogue(t.prisma);
     cooking = t.app.get(CookingReminderService);
     water = t.app.get(WaterReminderService);
+    weight = t.app.get(WeightReminderService);
   });
 
   afterAll(async () => {
@@ -43,7 +46,7 @@ describe('the reminders that keep the hours of an account', () => {
 
   const zone = (timeZone: string | null) =>
     t.prisma.user.update({ where: { id: user.id }, data: { timeZone } });
-  const reminders = (type: 'water_reminder' | 'cooking_reminder') =>
+  const reminders = (type: 'water_reminder' | 'cooking_reminder' | 'weight_reminder') =>
     t.prisma.notification.findMany({
       where: { profileId: profile.id, type },
       orderBy: { createdAt: 'asc' },
@@ -125,6 +128,30 @@ describe('the reminders that keep the hours of an account', () => {
         data: { waterTargetMl: 2000, waterReminders: false },
       });
       expect(await water.scan(at(`${day}T14:00:00Z`))).toBe(0);
+    });
+  });
+
+  describe('weighing', () => {
+    beforeEach(async () => {
+      await t.prisma.profile.update({
+        where: { id: profile.id },
+        data: { weightReminderCadence: 'daily' },
+      });
+    });
+
+    it("reminds a profile that is due only in the account's daytime, from 7 to before 21", async () => {
+      await zone('Europe/Warsaw');
+      // 02:00 and 21:30 in Warsaw: nothing; 08:00: the reminder.
+      expect(await weight.scan(at('2026-11-09T01:00:00Z'))).toBe(0);
+      expect(await weight.scan(at('2026-11-09T20:30:00Z'))).toBe(0);
+      expect(await reminders('weight_reminder')).toHaveLength(0);
+      expect(await weight.scan(at('2026-11-10T07:00:00Z'))).toBe(1);
+      expect(await reminders('weight_reminder')).toHaveLength(1);
+    });
+
+    it('reminds at any hour an account whose clients never sent its time zone', async () => {
+      await zone(null);
+      expect(await weight.scan(at('2026-11-09T01:00:00Z'))).toBe(1);
     });
   });
 

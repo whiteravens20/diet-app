@@ -1,8 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable, Logger } from '@nestjs/common';
-import type { WeightReminderPayload } from '@diet-app/shared';
+import {
+  WEIGHT_REMINDER_FROM_HOUR,
+  WEIGHT_REMINDER_TO_HOUR,
+  type WeightReminderPayload,
+} from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { localClock } from './local-clock.js';
 import { NotificationsService } from './notifications.service.js';
 
 /**
@@ -15,7 +20,10 @@ import { NotificationsService } from './notifications.service.js';
  * `Profile.lastWeightReminderAt` so the reminder fires at most once per
  * cadence window even if the user keeps not logging. Two scans that run at
  * once (two workers, or an old and a new one while the instance is updated)
- * remind a profile once between them.
+ * remind a profile once between them. Where the account's clients sent its
+ * time zone, a reminder is made only from `WEIGHT_REMINDER_FROM_HOUR` to
+ * before `WEIGHT_REMINDER_TO_HOUR` by that clock, as water and cooking are:
+ * a profile due at night is reminded in the morning.
  */
 @Injectable()
 export class WeightReminderService {
@@ -34,6 +42,7 @@ export class WeightReminderService {
         id: true,
         weightReminderCadence: true,
         lastWeightReminderAt: true,
+        user: { select: { timeZone: true } },
         weightEntries: {
           select: { recordedAt: true },
           orderBy: { recordedAt: 'desc' },
@@ -51,6 +60,7 @@ export class WeightReminderService {
         ? Math.floor((now.getTime() - lastEntry.getTime()) / DAY_MS)
         : Number.POSITIVE_INFINITY;
       if (daysSinceLastEntry < cadenceDays) continue;
+      if (!inDaytime(now, p.user.timeZone)) continue;
 
       // Debounce: once a reminder fired for this cadence window, hold off
       // for at least one cadence period regardless of whether the user
@@ -107,3 +117,15 @@ export class WeightReminderService {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whether `now` is in the hours a weight is reminded of, by the clock of `zone`; any hour for an account without one. */
+function inDaytime(now: Date, zone: string | null): boolean {
+  if (!zone) return true;
+  try {
+    const { hour } = localClock(now, zone);
+    return hour >= WEIGHT_REMINDER_FROM_HOUR && hour < WEIGHT_REMINDER_TO_HOUR;
+  } catch {
+    // A zone this runtime does not know reminds as an account without one.
+    return true;
+  }
+}

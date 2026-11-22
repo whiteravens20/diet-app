@@ -30,9 +30,10 @@ function makePrisma(profiles: FakeProfile[]) {
         .fn()
         .mockImplementation(({ where }: { where: { weightReminderCadence: { in: string[] } } }) =>
           Promise.resolve(
-            profiles.filter((p) =>
-              where.weightReminderCadence.in.includes(p.weightReminderCadence),
-            ),
+            profiles
+              .filter((p) => where.weightReminderCadence.in.includes(p.weightReminderCadence))
+              // Each with its account as the scan reads it: one whose clients sent no time zone, reminded at any hour.
+              .map((p) => ({ ...p, user: { timeZone: null } })),
           ),
         ),
       // Every reminder is free to claim.
