@@ -1499,6 +1499,7 @@
     "openHousehold": "Otwórz listę dla domu",
     "csvShares": "Dla kogo",
     "buyLater": "Z\u00a0tego {packs, plural, one {{packs, number, ::group-off}\u00a0opakowanie} few {{packs, number, ::group-off}\u00a0opakowania} many {{packs, number, ::group-off}\u00a0opakowań} other {{packs, number, ::group-off}\u00a0opakowania}} kup najwcześniej {weekday, select, mon {w\u00a0poniedziałek} tue {we\u00a0wtorek} wed {w\u00a0środę} thu {w\u00a0czwartek} fri {w\u00a0piątek} sat {w\u00a0sobotę} sun {w\u00a0niedzielę} other {}} ({date}).",
+    "frozenKept": "W\u00a0zamrażarce zostaje jeszcze {amount}: plan tego nie rozmraża.",
     "csvBuyLater": "Kiedy kupić",
     "replacesPart": "Lista z tych dni jest częścią listy dla domu: {profiles}. Nowa lista zajmie jej miejsce, a lista dla domu straci część tego planu."
   },
@@ -1909,7 +1910,10 @@
       "intoFreezerRest": "{amount} ({day})",
       "fromFreezer": "Z zamrażarki, z tego, co w niej było, gdy plan powstał: {items}.",
       "fromFreezerItem": "{name}, porcja {amount}",
-      "fromFreezerItemLeft": "{name}, porcja {amount}, z niej plan zje {eaten}"
+      "fromFreezerItemLeft": "{name}, porcja {amount}, z niej plan zje {eaten}",
+      "staysFrozenTitle": "Zostaje w\u00a0zamrażarce:",
+      "staysFrozenWhole": "{name}, {amount}{count, plural, one {} few {, {count, number, ::group-off}\u00a0paczki} many {, {count, number, ::group-off}\u00a0paczek} other {, {count, number, ::group-off}\u00a0paczki}}: w\u00a0dwa dni plan zje z\u00a0tego najwyżej {most}, a\u00a0rozmrożone trzeba zjeść w\u00a02\u00a0dni. Mrożąc, dziel na porcje do {most}.",
+      "staysFrozenLater": "{name}, {amount}: zamrożone po ułożeniu planu, a\u00a0plan liczy zamrażarkę z\u00a0dnia, w\u00a0którym powstał. Ułóż plan ponownie, żeby z\u00a0tego skorzystał."
     },
     "useUp": {
       "ask": "Co by je zużyło?",

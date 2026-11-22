@@ -32,6 +32,7 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   alreadyHaveQuantity: 0,
   toBuyQuantity: 200,
   purchasedQuantity: null,
+  frozenKept: 0,
   pantryBestBefore: null,
   estimatedCalories: 400,
   packs: null,
@@ -449,6 +450,20 @@ describe('a row of fresh meat or fish needed on a later day', () => {
     expect(
       screen.getByText(spaced('Of these, buy 1 pack on Saturday (Jan 10) at the earliest.')),
     ).toBeInTheDocument();
+  });
+
+  it('says what of the food stays in the freezer, which the list does not count', async () => {
+    await renderPage(aListOf([chicken({ frozenKept: 220 })], []));
+
+    expect(
+      screen.getByText(spaced('220 g more stays in the freezer: the plan does not thaw it.')),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing of the freezer where it keeps nothing of the food', async () => {
+    await renderPage(aListOf([chicken()], []));
+
+    expect(screen.queryByText(/stays in the freezer/)).toBeNull();
   });
 
   it('says nothing of when to buy a row that is ticked', async () => {

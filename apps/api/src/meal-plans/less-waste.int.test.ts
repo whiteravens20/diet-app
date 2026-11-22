@@ -6,6 +6,7 @@ import {
   RegenerateRequest,
   type MealPlan,
   type Profile,
+  type ShoppingList,
 } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -372,6 +373,81 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
       expect(plan.packs.fromFreezer).toMatchObject([
         { ingredientId: chicken.id, amount: 40, eaten: 40 },
       ]);
+    } finally {
+      generation.today = today;
+    }
+  });
+
+  it('says which packages of the freezer the plan leaves there and why, and its list counts none of them', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const salmon = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'salmon' } });
+      const frozenSalmon = (parcel: number, quantity: number) =>
+        t.prisma.inventoryItem.create({
+          data: {
+            profileId: adam.id,
+            ingredientId: salmon.id,
+            quantity,
+            unit: 'g',
+            bestBefore: new Date('2026-03-01'),
+            frozen: true,
+            parcel,
+          },
+        });
+      // In the freezer before the plan is made: no day and the next of it eat 600 g of salmon.
+      await frozenSalmon(1, 600);
+      const made = await generation.generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
+      );
+      // Salmon at the first lunch alone: 140 g on a day and the next at the most.
+      await menu(made, 0, [
+        'oat-porridge-with-banana',
+        'salmon-with-rice',
+        'chicken-tomato-skillet',
+      ]);
+      await menu(made, 1, ['milk-porridge', 'chicken-rice-broccoli', 'peanut-tofu-stir-fry']);
+      await menu(made, 2, ['milk-porridge', 'tofu-rice-bowl', 'baked-tofu-with-broccoli']);
+      // Frozen after the plan was made, which counts what the freezer held then.
+      await frozenSalmon(2, 300);
+
+      const plan = await read(made.id);
+
+      expect(plan.packs.staysFrozen).toEqual([
+        {
+          ingredientId: salmon.id,
+          name: 'Salmon',
+          unit: 'g',
+          amount: 300,
+          packages: 1,
+          why: 'later',
+          mostInTwoDays: 140,
+        },
+        {
+          ingredientId: salmon.id,
+          name: 'Salmon',
+          unit: 'g',
+          amount: 600,
+          packages: 1,
+          why: 'whole',
+          mostInTwoDays: 140,
+        },
+      ]);
+      const list = (
+        await t
+          .http()
+          .post('/api/shopping-lists/generate')
+          .set(as(user))
+          .send({ planId: made.id })
+          .expect(201)
+      ).body as ShoppingList;
+      const row = list.groups
+        .flatMap((group) => group.items)
+        .find((item) => item.ingredientId === salmon.id)!;
+      expect(row).toMatchObject({ totalQuantity: 140, alreadyHaveQuantity: 0, frozenKept: 900 });
     } finally {
       generation.today = today;
     }

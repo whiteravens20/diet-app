@@ -170,7 +170,7 @@ export class ShoppingListsService {
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
-    return this.toDtos(rows, locale);
+    return this.toDtos(rows, locale, plan.profileId);
   }
 
   /**
@@ -193,7 +193,7 @@ export class ShoppingListsService {
 
   async get(userId: string, locale: Locale, listId: string): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
-    return (await this.toDtos([list], locale))[0]!;
+    return (await this.toDtos([list], locale, list.plan.profileId))[0]!;
   }
 
   /** Update an item's purchased quantity or checked state: see `editRow`. */
@@ -260,8 +260,12 @@ export class ShoppingListsService {
     return list;
   }
 
-  /** Lists of one plan as the contract shows them: see `itemDto` for their rows. */
-  private async toDtos(lists: StoredList[], locale: Locale): Promise<ShoppingList[]> {
+  /** Lists of one plan of `profileId` as the contract shows them: see `itemDto` for their rows. */
+  private async toDtos(
+    lists: StoredList[],
+    locale: Locale,
+    profileId: string,
+  ): Promise<ShoppingList[]> {
     if (lists.length === 0) return [];
     const ids = [...new Set(lists.flatMap((list) => list.items.map((item) => item.ingredientId)))];
     const ingredients = await loadIngredients(this.prisma, ids);
@@ -270,11 +274,18 @@ export class ShoppingListsService {
     const lines = await planLines(this.prisma, lists[0]!.planId, from, to);
     const households = await householdsOf(this.prisma, lists);
     const freezes = await freezesOf(this.prisma, [lists[0]!.planId]);
+    const frozen = await frozenKeptOf(this.prisma, profileId, lists[0]!.planId, ingredients);
 
     return lists.map((list) => {
       const items = list.items.map((item) => {
         const ingredient = ingredients.get(item.ingredientId);
-        return itemDto(item, ingredient, locale, freshOf(item, ingredient, lines, list, freezes));
+        return itemDto(
+          item,
+          ingredient,
+          locale,
+          freshOf(item, ingredient, lines, list, freezes),
+          frozen.get(item.ingredientId),
+        );
       });
       return {
         id: list.id,
@@ -305,6 +316,8 @@ export function itemDto(
   ingredient: IngredientRow | undefined,
   locale: Locale,
   fresh: Fresh | null = null,
+  /** What the freezer holds of the food that the row does not count, in the food's canonical unit (`frozenKeptOf`). */
+  frozen = 0,
 ): ShoppingListItem {
   // A row in pieces is called what its ingredient calls a piece.
   const displayUnit: DisplayUnit =
@@ -325,6 +338,7 @@ export function itemDto(
     alreadyHaveQuantity: item.alreadyHaveQuantity,
     toBuyQuantity: toBuy,
     purchasedQuantity: item.purchasedQuantity,
+    frozenKept: ingredient && frozen > 0 ? inRowUnit(frozen, item.unit, ingredient) : 0,
     pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
     estimatedCalories: item.estimatedCalories,
     packs: ingredient
@@ -673,6 +687,44 @@ export async function settleRow(
     target,
     thawed.get(ingredient.id),
   );
+}
+
+/**
+ * What the freezer of `profileId` holds of each food that a list of `planId` does not count (`mayTakeOf`): the packages
+ * of a food in packs that the plan does not take out, in the food's canonical unit; foods the rows do not name left out.
+ */
+export async function frozenKeptOf(
+  db: Tx,
+  profileId: string,
+  planId: string,
+  ingredients: ReadonlyMap<string, IngredientRow>,
+): Promise<Map<string, number>> {
+  const [rows, thawed] = await Promise.all([
+    db.inventoryItem.findMany({
+      where: { profileId, frozen: true, ingredientId: { in: [...ingredients.keys()] } },
+      select: { ingredientId: true, quantity: true, unit: true, parcel: true },
+    }),
+    thawedParcels(db, planId),
+  ]);
+  const kept = new Map<string, number>();
+  for (const row of rows) {
+    const ingredient = ingredients.get(row.ingredientId)!;
+    if (mayTakeOf(ingredient, thawed.get(row.ingredientId) ?? NONE)({ ...row, frozen: true }))
+      continue;
+    const { quantity } = pantryStock([{ ...row, bestBefore: null }], ingredient);
+    if (quantity > 0) kept.set(row.ingredientId, (kept.get(row.ingredientId) ?? 0) + quantity);
+  }
+  return kept;
+}
+
+/** An amount in an ingredient's canonical unit in `unit`, to a tenth; 0 where it can no longer be converted. */
+function inRowUnit(amount: number, unit: Unit, ingredient: IngredientRow): number {
+  try {
+    return Math.round(convertUnit(amount, ingredient.canonicalUnit, unit, ingredient) * 10) / 10;
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return 0;
+  }
 }
 
 /** Nothing of the freezer taken out. */

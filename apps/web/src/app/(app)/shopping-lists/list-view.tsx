@@ -654,6 +654,12 @@ function ItemRow({
                 {later}
               </span>
             ))}
+            {/* What the freezer keeps of the food that the row does not count: the plan leaves it there. */}
+            {item.frozenKept > 0 && (
+              <span className="block text-xs text-muted-foreground">
+                {t('frozenKept', { amount: rowAmount(item.frozenKept, item, formatQty) })}
+              </span>
+            )}
           </span>
         </label>
         {/* What is left to buy, the packs and the pencil go under the name together where the line is short, the pencil with the packs where even that line is. */}

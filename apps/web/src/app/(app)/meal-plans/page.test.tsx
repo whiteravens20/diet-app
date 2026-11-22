@@ -179,7 +179,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   targetMacros: { protein: 100, fat: 62, carbs: 260, carbsFloor: null },
   averageOff: { calories: null, macros: false },
   ingredientReuseScore: 0,
-  packs: { bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] },
+  packs: { bought: 0, used: 0, open: [], frozen: [], staysFrozen: [], fromFreezer: [] },
   generationMode: 'deterministic',
   options: {
     dietType: null,
@@ -1759,6 +1759,7 @@ describe('the plan page, on how a day stands against its target', () => {
             used: 1520,
             open: [feta, milk, chicken],
             frozen: [],
+            staysFrozen: [],
             fromFreezer: [],
           },
         }),
@@ -1790,6 +1791,7 @@ describe('the plan page, on how a day stands against its target', () => {
           used: 1520,
           open: [feta, milk, chicken],
           frozen: [],
+          staysFrozen: [],
           fromFreezer: [],
         },
       });
@@ -1808,7 +1810,14 @@ describe('the plan page, on how a day stands against its target', () => {
 
     it('reads the plan again when the pack no longer leaves anything, and says so', async () => {
       const plan = aPlan({
-        packs: { bought: 1000, used: 500, open: [milk], frozen: [], fromFreezer: [] },
+        packs: {
+          bought: 1000,
+          used: 500,
+          open: [milk],
+          frozen: [],
+          staysFrozen: [],
+          fromFreezer: [],
+        },
       });
       await opened(plan);
       vi.spyOn(api, 'post').mockRejectedValue(
@@ -1835,6 +1844,7 @@ describe('the plan page, on how a day stands against its target', () => {
             used: 500,
             open: [{ ...milk, inPantry: true }],
             frozen: [],
+            staysFrozen: [],
             fromFreezer: [],
           },
         }),
@@ -1853,6 +1863,7 @@ describe('the plan page, on how a day stands against its target', () => {
             used: 970,
             open: [{ ...milk, left: 30, wasted: false, forThePantry: false }],
             frozen: [],
+            staysFrozen: [],
             fromFreezer: [],
           },
         }),
@@ -1872,6 +1883,7 @@ describe('the plan page, on how a day stands against its target', () => {
             used: 500,
             open: [{ ...milk, date: '2100-01-04', until: '2100-01-10' }],
             frozen: [],
+            staysFrozen: [],
             fromFreezer: [],
           },
         }),
@@ -1919,6 +1931,7 @@ describe('the plan page, on how a day stands against its target', () => {
               spinach(10),
             ],
             frozen: [],
+            staysFrozen: [],
             fromFreezer: [],
           },
         }),
@@ -1941,7 +1954,14 @@ describe('the plan page, on how a day stands against its target', () => {
     it('says so when one pack is left much of, and when none is', async () => {
       await opened(
         aPlan({
-          packs: { bought: 1500, used: 980, open: [milk, chicken], frozen: [], fromFreezer: [] },
+          packs: {
+            bought: 1500,
+            used: 980,
+            open: [milk, chicken],
+            frozen: [],
+            staysFrozen: [],
+            fromFreezer: [],
+          },
         }),
       );
 
@@ -1954,7 +1974,9 @@ describe('the plan page, on how a day stands against its target', () => {
 
     it('says that every pack is used up when the menu finishes them all', async () => {
       await opened(
-        aPlan({ packs: { bought: 500, used: 500, open: [], frozen: [], fromFreezer: [] } }),
+        aPlan({
+          packs: { bought: 500, used: 500, open: [], frozen: [], staysFrozen: [], fromFreezer: [] },
+        }),
       );
 
       await userEvent.click(
@@ -2006,6 +2028,7 @@ describe('the plan page, on how a day stands against its target', () => {
                 inPantry: false,
               },
             ],
+            staysFrozen: [],
             fromFreezer: [
               {
                 ingredientId: chicken.ingredientId,
@@ -2039,10 +2062,69 @@ describe('the plan page, on how a day stands against its target', () => {
       expect(screen.queryByText(messages.mealPlans.packs.explain)).toBeNull();
     });
 
+    it('says what of the foods of the menu the plan leaves in the freezer, and why', async () => {
+      await opened(
+        aPlan({
+          packs: {
+            bought: 300,
+            used: 285,
+            open: [],
+            frozen: [],
+            fromFreezer: [],
+            // As the server gives them: by the food's name, frozen after the plan was made first.
+            staysFrozen: [
+              {
+                ingredientId: chicken.ingredientId,
+                name: 'Bacon',
+                unit: 'g',
+                amount: 300,
+                packages: 1,
+                why: 'later',
+                mostInTwoDays: 130,
+              },
+              {
+                ingredientId: chicken.ingredientId,
+                name: 'Bacon',
+                unit: 'g',
+                amount: 440,
+                packages: 2,
+                why: 'whole',
+                mostInTwoDays: 130,
+              },
+            ],
+          },
+        }),
+      );
+
+      await userEvent.click(
+        screen.getByText('Packs that do not keep once opened: the menu uses 95% of what it buys.'),
+      );
+      expect(screen.getByText(messages.mealPlans.freezer.staysFrozenTitle)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          spaced(
+            'Bacon, 440 g, 2 packages: the plan eats at most 130 g of it in 2 days, and thawed it has to be eaten within 2 days. Freeze it in portions of up to 130 g.',
+          ),
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Bacon, 300 g: frozen after the plan was made, and a plan counts the freezer as it was on the day it was made. Make the plan again to use it.',
+        ),
+      ).toBeInTheDocument();
+    });
+
     it('says of a plan made together with another that it counts the packs of both menus', async () => {
       await opened(
         aPlan({
-          packs: { bought: 1500, used: 980, open: [milk, chicken], frozen: [], fromFreezer: [] },
+          packs: {
+            bought: 1500,
+            used: 980,
+            open: [milk, chicken],
+            frozen: [],
+            staysFrozen: [],
+            fromFreezer: [],
+          },
           joint: {
             planId: '99999999-9999-4999-8999-999999999999',
             profileId: '99999999-9999-4999-8999-999999999998',
@@ -3297,7 +3379,14 @@ describe('the plan page, on what the planner proposes for a plan', () => {
 
   it('offers, with the packs a plan leaves more than a fifth of, to look for what would use them up', async () => {
     const plan = aPlan({
-      packs: { bought: 500, used: 150, open: [chicken], frozen: [], fromFreezer: [] },
+      packs: {
+        bought: 500,
+        used: 150,
+        open: [chicken],
+        frozen: [],
+        staysFrozen: [],
+        fromFreezer: [],
+      },
     });
     await opened(plan);
     const post = vi
@@ -3318,6 +3407,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
           used: 480,
           open: [{ ...chicken, left: 20, wasted: false }],
           frozen: [],
+          staysFrozen: [],
           fromFreezer: [],
         },
       }),
@@ -4769,6 +4859,7 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
             ...rest,
           },
         ],
+        staysFrozen: [],
         fromFreezer: [],
       },
     };
@@ -4868,6 +4959,7 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
       packs: {
         ...plan.packs,
         frozen: [],
+        staysFrozen: [],
         fromFreezer: [
           {
             ingredientId: CHICKEN,

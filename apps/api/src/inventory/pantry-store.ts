@@ -165,11 +165,15 @@ export async function newParcels(
   return Array.from({ length: count }, (_, at) => lastParcel - count + 1 + at);
 }
 
-/** A package a profile holds in the freezer: its number, what it holds in the ingredient's canonical unit, its day. */
+/**
+ * A package a profile holds in the freezer: its number, what it holds in the ingredient's canonical unit, its day,
+ * and when it went in.
+ */
 export interface FrozenPackage {
   parcel: number;
   amount: number;
   bestBefore: string | null;
+  frozenAt: Date;
 }
 
 /** Packages in the order they are taken out: the one going off first first, one with no day last, then by number. */
@@ -211,6 +215,7 @@ export async function frozenPackages(
         parcel: row.parcel,
         amount: quantity,
         bestBefore: row.bestBefore ? row.bestBefore.toISOString().slice(0, 10) : null,
+        frozenAt: row.createdAt,
       },
     ]);
   }

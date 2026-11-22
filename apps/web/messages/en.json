@@ -1499,6 +1499,7 @@
     "openHousehold": "Open the household list",
     "csvShares": "For whom",
     "buyLater": "Of these, buy {packs, plural, one {{packs, number, ::group-off}\u00a0pack} other {{packs, number, ::group-off}\u00a0packs}} on {weekday, select, mon {Monday} tue {Tuesday} wed {Wednesday} thu {Thursday} fri {Friday} sat {Saturday} sun {Sunday} other {}} ({date}) at the earliest.",
+    "frozenKept": "{amount} more stays in the freezer: the plan does not thaw it.",
     "csvBuyLater": "When to buy",
     "replacesPart": "A list of these days is a part of a household list: {profiles}. A new list takes its place, and the household list loses this plan's part."
   },
@@ -1909,7 +1910,10 @@
       "intoFreezerRest": "{amount} ({day})",
       "fromFreezer": "From the freezer, of what it held when the plan was made: {items}.",
       "fromFreezerItem": "{name}, a portion of {amount}",
-      "fromFreezerItemLeft": "{name}, a portion of {amount}, of which the plan eats {eaten}"
+      "fromFreezerItemLeft": "{name}, a portion of {amount}, of which the plan eats {eaten}",
+      "staysFrozenTitle": "Stays in the freezer:",
+      "staysFrozenWhole": "{name}, {amount}{count, plural, one {} other {, {count, number, ::group-off}\u00a0packages}}: the plan eats at most {most} of it in 2\u00a0days, and thawed it has to be eaten within 2\u00a0days. Freeze it in portions of up to {most}.",
+      "staysFrozenLater": "{name}, {amount}: frozen after the plan was made, and a plan counts the freezer as it was on the day it was made. Make the plan again to use it."
     },
     "useUp": {
       "ask": "What would use them up?",

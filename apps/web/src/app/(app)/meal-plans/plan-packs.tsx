@@ -163,6 +163,24 @@ export function PlanPacksLine({
             })}
           </p>
         )}
+        {/* What the freezer holds of the menu's foods that the plan leaves there, and why. */}
+        {packs.staysFrozen.length > 0 && (
+          <div>
+            <p>{tFreezer('staysFrozenTitle')}</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {packs.staysFrozen.map((kept) => (
+                <li key={`${kept.ingredientId}:${kept.why}`}>
+                  {tFreezer(kept.why === 'later' ? 'staysFrozenLater' : 'staysFrozenWhole', {
+                    name: fmt.text(kept.name),
+                    amount: amount(kept.amount, kept.unit),
+                    count: kept.packages,
+                    most: amount(kept.mostInTwoDays, kept.unit),
+                  })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {/* What the freezer held goes first only in a plan that took something out of it. */}
         <p>{t(packs.fromFreezer.length > 0 ? 'explainFreezer' : 'explain')}</p>
         {children}

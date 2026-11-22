@@ -26,6 +26,7 @@ import {
   isStale,
   freshOf,
   freezesOf,
+  frozenKeptOf,
   itemDto,
   loadIngredients,
   makeList,
@@ -318,10 +319,16 @@ export class HouseholdListsService {
     for (const household of households) {
       const parts = await Promise.all(
         household.parts.map(async (part) => {
-          const lines = await planLines(this.prisma, part.planId, part.fromDate, part.toDate);
-          return { part, lines, stale: isStale(part, lines, ingredients) };
+          const [lines, frozen] = await Promise.all([
+            planLines(this.prisma, part.planId, part.fromDate, part.toDate),
+            frozenKeptOf(this.prisma, part.plan.profileId, part.planId, ingredients),
+          ]);
+          return { part, lines, frozen, stale: isStale(part, lines, ingredients) };
         }),
       );
+      // What each part's freezer keeps of a food that its plan leaves there: the kitchen's, for the summed row.
+      const frozenOf = (ingredientId: string): number =>
+        parts.reduce((sum, { frozen }) => sum + (frozen.get(ingredientId) ?? 0), 0);
       // One kitchen: the days of every part, for the packs of fresh meat and fish.
       const kitchen = parts.flatMap(({ lines }) => lines);
       const freezes = await freezesOf(
@@ -344,6 +351,7 @@ export class HouseholdListsService {
             ingredient,
             locale,
             freshOf(item, ingredient, kitchen, household, freezes),
+            frozenOf(item.ingredientId),
           ),
           shares: shares.map(({ part, item: share }) => ({
             profileId: part.plan.profileId,

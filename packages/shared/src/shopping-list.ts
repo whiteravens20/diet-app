@@ -85,6 +85,13 @@ export const ShoppingListItem = z.object({
    */
   purchasedQuantity: z.number().min(0).nullable().default(null),
   /**
+   * What the freezer holds of the food that the row does not count as at home,
+   * in `unit`: packages the plan leaves frozen (`PlanPacks.staysFrozen`), which
+   * it would not eat in the days a thawed package keeps, or which went in after
+   * the plan was made.
+   */
+  frozenKept: z.number().min(0).default(0),
+  /**
    * Earliest best-before across pantry rows that contributed to
    * `alreadyHaveQuantity`. Surfaced on the "from pantry" chip so the user sees
    * urgency while shopping. Null when no contribution or no recorded expiry.

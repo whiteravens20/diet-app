@@ -16229,6 +16229,11 @@
               }
             ]
           },
+          "frozenKept": {
+            "default": 0,
+            "type": "number",
+            "minimum": 0
+          },
           "pantryBestBefore": {
             "default": null,
             "anyOf": [
@@ -16343,6 +16348,7 @@
           "alreadyHaveQuantity",
           "toBuyQuantity",
           "purchasedQuantity",
+          "frozenKept",
           "pantryBestBefore",
           "estimatedCalories",
           "packs",
@@ -20049,6 +20055,50 @@
         ],
         "additionalProperties": false
       },
+      "PlanFrozenKept": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "packages": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "why": {
+            "type": "string",
+            "enum": [
+              "whole",
+              "later"
+            ]
+          },
+          "mostInTwoDays": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "ingredientId",
+          "name",
+          "unit",
+          "amount",
+          "packages",
+          "why",
+          "mostInTwoDays"
+        ],
+        "additionalProperties": false
+      },
       "PlanFrozenRest": {
         "type": "object",
         "properties": {
@@ -20496,6 +20546,13 @@
             "items": {
               "$ref": "#/components/schemas/PlanFreezerStock"
             }
+          },
+          "staysFrozen": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanFrozenKept"
+            }
           }
         },
         "required": [
@@ -20503,7 +20560,8 @@
           "used",
           "open",
           "frozen",
-          "fromFreezer"
+          "fromFreezer",
+          "staysFrozen"
         ],
         "additionalProperties": false
       },
@@ -25832,6 +25890,11 @@
               }
             ]
           },
+          "frozenKept": {
+            "default": 0,
+            "type": "number",
+            "minimum": 0
+          },
           "pantryBestBefore": {
             "default": null,
             "anyOf": [
@@ -25920,6 +25983,7 @@
           "alreadyHaveQuantity",
           "toBuyQuantity",
           "purchasedQuantity",
+          "frozenKept",
           "pantryBestBefore",
           "estimatedCalories",
           "packs",

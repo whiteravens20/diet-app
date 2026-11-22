@@ -16,6 +16,7 @@ import {
   isDueSoon,
   keepDaysOf,
   packUse,
+  pantryStock,
   SPOONFUL,
   toCanonical,
   UnitConversionError,
@@ -119,8 +120,11 @@ export function planPacks(
   locale: Locale,
   freezes?: (ingredient: { category?: string | null }) => boolean,
   freezer?: Freezer | null,
+  /** The freezers of the kitchen's profiles as they are now, for what the plan leaves in them; none: nothing is said. */
+  freezersNow: readonly FreezerNow[] = [],
 ): PlanPacks {
   const { needs, packs, known } = menuNeeds(meals, dates.length, freezes);
+  const staysFrozen = keptFrozen(needs, known, freezersNow, locale);
   /** The first meal of a day, in the order they are eaten, that takes the ingredient. */
   const mealOf = (ingredientId: string, day: number): string | null =>
     meals
@@ -215,7 +219,73 @@ export function planPacks(
     fromFreezer: fromFreezer.sort((a, b) =>
       a.date === b.date ? a.name.localeCompare(b.name) : a.date < b.date ? -1 : 1,
     ),
+    staysFrozen,
   };
+}
+
+/** A frozen row of a profile's pantry as it is kept: a package of one food, its number and when it went in. */
+export interface FrozenRow {
+  ingredientId: string;
+  quantity: number;
+  unit: Unit;
+  parcel: number;
+  frozenAt: Date;
+}
+
+/** A freezer of a profile of the plan's kitchen as it is now, for what the plan leaves in it (`keptFrozen`). */
+export interface FreezerNow {
+  /** Its packages. */
+  rows: readonly FrozenRow[];
+  /** The numbers of the packages the profile's plan takes out, by food (`thawedParcels`). */
+  taken: ReadonlyMap<string, ReadonlySet<number>>;
+  /** When the profile's plan was made: a package frozen later is no part of the freezer it took out of. */
+  madeAt: Date;
+}
+
+/**
+ * The packages of the freezers of a menu's foods that its plan leaves frozen (`PlanPacks.staysFrozen`): of every food
+ * the menu takes from packs (`needs`, before the freezer takes any), the packages the plan does not take out, as those
+ * frozen after it was made and the others, with the most the menu eats of the food on a day and the next.
+ */
+function keptFrozen(
+  needs: ReadonlyMap<string, readonly number[]>,
+  known: ReadonlyMap<string, PackedLine['ingredient']>,
+  freezersNow: readonly FreezerNow[],
+  locale: Locale,
+): PlanPacks['staysFrozen'] {
+  const kept: PlanPacks['staysFrozen'] = [];
+  for (const now of freezersNow) {
+    for (const ingredientId of new Set(now.rows.map((one) => one.ingredientId))) {
+      const row = needs.get(ingredientId);
+      const ingredient = known.get(ingredientId);
+      if (!row || !ingredient || !row.some((need) => need > SPOONFUL)) continue;
+      const taken = now.taken.get(ingredientId);
+      const left = now.rows
+        .filter((one) => one.ingredientId === ingredientId && !taken?.has(one.parcel))
+        .map((one) => ({
+          ...one,
+          amount: pantryStock([{ ...one, bestBefore: null }], ingredient).quantity,
+        }));
+      const mostInTwoDays = Math.round(
+        Math.max(0, ...row.map((need, day) => need + (row[day + 1] ?? 0))),
+      );
+      for (const why of ['whole', 'later'] as const) {
+        const these = left.filter((one) => one.frozenAt > now.madeAt === (why === 'later'));
+        const amount = Math.round(these.reduce((sum, one) => sum + one.amount, 0));
+        if (amount < 1) continue;
+        kept.push({
+          ingredientId,
+          name: pickIngredient(locale, ingredient.translations, ingredient.name),
+          unit: ingredient.canonicalUnit,
+          amount,
+          packages: these.length,
+          why,
+          mostInTwoDays,
+        });
+      }
+    }
+  }
+  return kept.sort((a, b) => a.name.localeCompare(b.name, locale) || (a.why < b.why ? -1 : 1));
 }
 
 /** A meal of a day as the cooking ahead reads it. */

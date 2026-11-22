@@ -143,7 +143,7 @@ describe('what a menu comes to in packs that do not keep', () => {
         days(1),
         'en',
       ),
-    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [], staysFrozen: [] });
   });
 
   it('says what is left to the gram, and takes a pack that is left a fraction of one for finished', () => {
@@ -240,7 +240,14 @@ describe('what a menu comes to in packs that do not keep', () => {
       'en',
     );
 
-    expect(packs).toEqual({ bought: 500, used: 500, open: [], frozen: [], fromFreezer: [] });
+    expect(packs).toEqual({
+      bought: 500,
+      used: 500,
+      open: [],
+      frozen: [],
+      fromFreezer: [],
+      staysFrozen: [],
+    });
   });
 
   it('counts by the kind of food where the database has no keep days yet: meat keeps two', () => {
@@ -260,7 +267,7 @@ describe('what a menu comes to in packs that do not keep', () => {
   it('leaves out a meal on a day the menu does not have', () => {
     expect(
       planPacks([{ day: 5, factor: 1, lines: [line('chicken', chicken, 200)] }], days(2), 'en'),
-    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [], staysFrozen: [] });
   });
 
   it('is nothing for a menu without such a pack', () => {
@@ -270,13 +277,14 @@ describe('what a menu comes to in packs that do not keep', () => {
         days(1),
         'en',
       ),
-    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [] });
+    ).toEqual({ bought: 0, used: 0, open: [], frozen: [], fromFreezer: [], staysFrozen: [] });
     expect(planPacks([], days(1), 'en')).toEqual({
       bought: 0,
       used: 0,
       open: [],
       frozen: [],
       fromFreezer: [],
+      staysFrozen: [],
     });
   });
 });

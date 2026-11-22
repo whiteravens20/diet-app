@@ -1015,6 +1015,26 @@ export const PlanFreezerStock = z.object({
 export type PlanFreezerStock = z.infer<typeof PlanFreezerStock>;
 
 /**
+ * Packages of the profile's freezer, of a food the plan's menu takes, that the plan leaves frozen, and why: `whole`,
+ * no day and the next of the plan eat one whole within the days a thawed package keeps (`THAWED_KEEPS_DAYS`), and none
+ * is dated soon; `later`, they went into the freezer after the plan was made, and a plan takes out only what the
+ * freezer held then. The shopping list does not count them either.
+ */
+export const PlanFrozenKept = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** What it is counted in: grams or millilitres. */
+  unit: Unit,
+  /** What the packages hold together, to the gram or millilitre. */
+  amount: z.number().int().min(1),
+  packages: z.number().int().min(1),
+  why: z.enum(['whole', 'later']),
+  /** The most the plan eats of the food on a day and the next: the largest package it would take out whole. */
+  mostInTwoDays: z.number().int().min(0),
+});
+export type PlanFrozenKept = z.infer<typeof PlanFrozenKept>;
+
+/**
  * What a plan's menu comes to in packs that do not keep once they are opened:
  * the whole packs it takes (`bought`) against what it uses of them (`used`),
  * grams and millilitres added up as they are, and the packs it does not
@@ -1031,6 +1051,8 @@ export const PlanPacks = z.object({
   frozen: z.array(PlanFrozenRest),
   /** What the plan takes of what the pantry held in the freezer when it was made: counted before the packs above. */
   fromFreezer: z.array(PlanFreezerStock),
+  /** What the freezer holds of the menu's foods that the plan leaves there, the food first by name. */
+  staysFrozen: z.array(PlanFrozenKept).default([]),
 });
 export type PlanPacks = z.infer<typeof PlanPacks>;
 
