@@ -382,6 +382,7 @@ export class MealSwapService {
     const summary = await writePlans(
       this.prisma,
       [{ planId: req.planId, revision: req.revision }, ...(theirPlan ? [theirPlan] : [])],
+      today,
       async (tx) => {
         await this.plans.rememberSwap(
           tx,

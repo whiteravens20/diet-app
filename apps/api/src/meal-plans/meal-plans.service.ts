@@ -720,54 +720,62 @@ export class MealPlansService {
         }
 
         const overrides = parseDayOverrides(day.overrides);
-        const summary = await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
-          // Adding a meal to a previously-skipped day un-skips it (it now has content).
-          if (overrides?.skip) {
-            const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
-            delete rest.skip;
-            await tx.mealPlanDay.update({
-              where: { id: day.id },
+        const summary = await writePlan(
+          this.prisma,
+          planId,
+          day.plan.revision,
+          clientToday ?? this.today(),
+          async (tx) => {
+            // Adding a meal to a previously-skipped day un-skips it (it now has content).
+            if (overrides?.skip) {
+              const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
+              delete rest.skip;
+              await tx.mealPlanDay.update({
+                where: { id: day.id },
+                data: {
+                  overrides:
+                    Object.keys(rest).length > 0
+                      ? (rest as Prisma.InputJsonValue)
+                      : Prisma.JsonNull,
+                },
+              });
+            }
+            if (req.replaces) {
+              const replaced = await tx.plannedMeal.deleteMany({
+                where: { id: req.replaces, dayId: day.id },
+              });
+              if (replaced.count !== 1)
+                throw new NotFoundException({
+                  error: 'MEAL_NOT_FOUND',
+                  message: 'Planned meal not found.',
+                });
+            }
+            // Counted once a meal it replaces has left the day.
+            if (
+              (await tx.plannedMeal.count({ where: { dayId: day.id } })) >= MAX_MEALS_ON_A_PLAN_DAY
+            ) {
+              throw new ConflictException({
+                error: 'PLAN_DAY_FULL',
+                message: `A day of a plan holds at most ${MAX_MEALS_ON_A_PLAN_DAY} meals: remove one first.`,
+              });
+            }
+            await tx.plannedMeal.create({
               data: {
-                overrides:
-                  Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull,
+                dayId: day.id,
+                recipeId: null,
+                mealType: req.mealType,
+                servings: req.servings,
+                quantityScale: 1,
+                source: 'USER_CUSTOM',
+                customName: req.name,
+                customMacros: { calories, ...macros },
+                estimated,
               },
             });
-          }
-          if (req.replaces) {
-            const replaced = await tx.plannedMeal.deleteMany({
-              where: { id: req.replaces, dayId: day.id },
-            });
-            if (replaced.count !== 1)
-              throw new NotFoundException({
-                error: 'MEAL_NOT_FOUND',
-                message: 'Planned meal not found.',
-              });
-          }
-          // Counted once a meal it replaces has left the day.
-          if (
-            (await tx.plannedMeal.count({ where: { dayId: day.id } })) >= MAX_MEALS_ON_A_PLAN_DAY
-          ) {
-            throw new ConflictException({
-              error: 'PLAN_DAY_FULL',
-              message: `A day of a plan holds at most ${MAX_MEALS_ON_A_PLAN_DAY} meals: remove one first.`,
-            });
-          }
-          await tx.plannedMeal.create({
-            data: {
-              dayId: day.id,
-              recipeId: null,
-              mealType: req.mealType,
-              servings: req.servings,
-              quantityScale: 1,
-              source: 'USER_CUSTOM',
-              customName: req.name,
-              customMacros: { calories, ...macros },
-              estimated,
-            },
-          });
-          await keep(tx, planId);
-          return this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today());
-        });
+            await keep(tx, planId);
+            return this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today());
+          },
+        );
         return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
       },
       replay: (id) => this.buildRebalanceResult(userId, locale, id, 'day', null),
@@ -798,6 +806,7 @@ export class MealPlansService {
         { planId, revision: meal.day.plan.revision },
         ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
       ],
+      today,
       async (tx) => {
         if (other) {
           await tx.plannedMeal.delete({ where: { id: other.id } });
@@ -854,6 +863,7 @@ export class MealPlansService {
         { planId, revision: meal.day.plan.revision },
         ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
       ],
+      today,
       async (tx) => {
         const at = eaten ? new Date() : null;
         // What a meal is eaten with is kept as the person saw it, before any day around it is sized again.
@@ -1030,7 +1040,7 @@ export class MealPlansService {
 
     const restore = req.restore;
     if (restore && restore.length > 0) {
-      await writePlan(this.prisma, planId, revision, (tx) =>
+      await writePlan(this.prisma, planId, revision, clientToday ?? this.today(), (tx) =>
         this.restoreScales(planId, restore, tx),
       );
       return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
@@ -1038,16 +1048,24 @@ export class MealPlansService {
 
     if (req.scope === 'plan') {
       const today = clientToday ?? this.today();
-      const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-        this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
+      const summary = await writePlan(
+        this.prisma,
+        planId,
+        revision,
+        clientToday ?? this.today(),
+        (tx) => this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
       );
       return this.buildRebalanceResult(userId, locale, planId, 'plan', summary);
     }
 
     // The contract refuses a single day without its date before it gets here.
     const day = await this.loadDay(userId, planId, req.date!);
-    const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-      this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
+    const summary = await writePlan(
+      this.prisma,
+      planId,
+      revision,
+      clientToday ?? this.today(),
+      (tx) => this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
@@ -1064,7 +1082,7 @@ export class MealPlansService {
   ): Promise<RebalanceSummary | null> {
     const { revision } = await this.planOf(userId, planId);
     const day = await this.loadDay(userId, planId, date);
-    return writePlan(this.prisma, planId, revision, (tx) =>
+    return writePlan(this.prisma, planId, revision, clientToday ?? this.today(), (tx) =>
       this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
   }
@@ -1800,7 +1818,12 @@ export class MealPlansService {
   }
 
   /** Take back the last swap of a plan, on the plan as that swap left it. */
-  async undoSwap(userId: string, locale: Locale, req: UndoSwapRequest): Promise<RebalanceResult> {
+  async undoSwap(
+    userId: string,
+    locale: Locale,
+    req: UndoSwapRequest,
+    clientToday: string | null = null,
+  ): Promise<RebalanceResult> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
       select: {
@@ -1840,6 +1863,7 @@ export class MealPlansService {
         { planId: req.planId, revision: req.revision },
         ...(together ? [{ planId: together.plan.id, revision: together.plan.revision }] : []),
       ],
+      clientToday ?? this.today(),
       async (tx) => {
         for (const [planId, taken] of [
           [req.planId, swap],

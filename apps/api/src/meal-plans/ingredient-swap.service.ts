@@ -248,38 +248,44 @@ export class IngredientSwapService {
     );
 
     const together = req.together ? s.cooking.filter((other) => mayCarry(other, s.today)) : [];
-    const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
-      await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
-        meal.dayId,
-        ...together.map((other) => other.dayId),
-      ]);
-      // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
-      await tx.plannedMeal.updateMany({
-        where: { id: { in: [req.plannedMealId, ...together.map((other) => other.id)] } },
-        data: { recipeId: variantId, modelPicked: false, modelReason: null },
-      });
-      // A rest of a pack of the ingredient that gave place goes with it.
-      await settleNewRecipes(tx, [req.plannedMealId, ...together.map((other) => other.id)]);
-      // What the recipe is outside of the meals say for as long as they hold it.
-      await this.plans.noteOutsideLimits(tx, req.planId, [
-        req.plannedMealId,
-        ...together.map((other) => other.id),
-      ]);
-      // The substitution changed the meal's macros, so the day total moved —
-      // run the same rebalance pipeline as every other edit, on each day it changed.
-      const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, s.today);
-      const others = await Promise.all(
-        [...new Set(together.map((other) => other.dayId))]
-          .filter((dayId) => dayId !== meal.dayId)
-          .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, s.today)),
-      );
-      return (
-        summary && {
-          ...summary,
-          changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
-        }
-      );
-    });
+    const summary = await writePlan(
+      this.prisma,
+      req.planId,
+      meal.day.plan.revision,
+      clientToday ?? this.plans.today(),
+      async (tx) => {
+        await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
+          meal.dayId,
+          ...together.map((other) => other.dayId),
+        ]);
+        // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+        await tx.plannedMeal.updateMany({
+          where: { id: { in: [req.plannedMealId, ...together.map((other) => other.id)] } },
+          data: { recipeId: variantId, modelPicked: false, modelReason: null },
+        });
+        // A rest of a pack of the ingredient that gave place goes with it.
+        await settleNewRecipes(tx, [req.plannedMealId, ...together.map((other) => other.id)]);
+        // What the recipe is outside of the meals say for as long as they hold it.
+        await this.plans.noteOutsideLimits(tx, req.planId, [
+          req.plannedMealId,
+          ...together.map((other) => other.id),
+        ]);
+        // The substitution changed the meal's macros, so the day total moved —
+        // run the same rebalance pipeline as every other edit, on each day it changed.
+        const summary = await this.plans.rebalanceDayInternal(meal.dayId, tx, s.today);
+        const others = await Promise.all(
+          [...new Set(together.map((other) => other.dayId))]
+            .filter((dayId) => dayId !== meal.dayId)
+            .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, s.today)),
+        );
+        return (
+          summary && {
+            ...summary,
+            changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
+          }
+        );
+      },
+    );
     return {
       ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
       aiMeta: variant.aiMeta,

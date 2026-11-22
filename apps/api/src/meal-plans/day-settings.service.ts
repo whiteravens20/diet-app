@@ -428,14 +428,20 @@ export class DaySettingsService {
       });
     }
     if (changes) {
-      await writePlan(this.prisma, planId, request.revision, async (tx) => {
-        const own = evened.get(context.day.id);
-        if (own !== undefined && own !== context.day.calorieTarget) {
-          await tx.mealPlanDay.update({ where: { id: dayId }, data: { calorieTarget: own } });
-          await this.plans.rebalanceDayInternal(dayId, tx, context.today);
-        }
-        await this.evenOthers(tx, context, evened);
-      });
+      await writePlan(
+        this.prisma,
+        planId,
+        request.revision,
+        clientToday ?? this.plans.today(),
+        async (tx) => {
+          const own = evened.get(context.day.id);
+          if (own !== undefined && own !== context.day.calorieTarget) {
+            await tx.mealPlanDay.update({ where: { id: dayId }, data: { calorieTarget: own } });
+            await this.plans.rebalanceDayInternal(dayId, tx, context.today);
+          }
+          await this.evenOthers(tx, context, evened);
+        },
+      );
     }
     return this.plans.get(userId, locale, planId);
   }
@@ -473,25 +479,31 @@ export class DaySettingsService {
       .map((fate) => fate.mealId);
 
     if (change.drawn.length === 0) {
-      await writePlan(this.prisma, planId, request.revision, async (tx) => {
-        await tx.mealPlanDay.update({
-          where: { id: dayId },
-          data: { calorieTarget: change.target, overrides: asJson(change.overrides) },
-        });
-        if (gone.length > 0) await tx.plannedMeal.deleteMany({ where: { id: { in: gone } } });
-        // The dishes that stay, brought to the day's target.
-        if (change.resizes)
-          await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
-        await this.evenOthers(tx, context, evened);
-        // What the day falls short of goes to the days after it, inside their windows.
-        if (request.spreadShort)
-          await this.plans.rebalanceRestInternal(
-            planId,
-            tx,
-            context.date,
-            clientToday ?? this.plans.today(),
-          );
-      });
+      await writePlan(
+        this.prisma,
+        planId,
+        request.revision,
+        clientToday ?? this.plans.today(),
+        async (tx) => {
+          await tx.mealPlanDay.update({
+            where: { id: dayId },
+            data: { calorieTarget: change.target, overrides: asJson(change.overrides) },
+          });
+          if (gone.length > 0) await tx.plannedMeal.deleteMany({ where: { id: { in: gone } } });
+          // The dishes that stay, brought to the day's target.
+          if (change.resizes)
+            await this.plans.rebalanceDayInternal(dayId, tx, clientToday ?? this.plans.today());
+          await this.evenOthers(tx, context, evened);
+          // What the day falls short of goes to the days after it, inside their windows.
+          if (request.spreadShort)
+            await this.plans.rebalanceRestInternal(
+              planId,
+              tx,
+              context.date,
+              clientToday ?? this.plans.today(),
+            );
+        },
+      );
       return this.plans.get(userId, locale, planId);
     }
 
@@ -572,7 +584,7 @@ export class DaySettingsService {
       : new Map<string, CookedMeal[]>();
     const before = StoredReport.nullable().parse(prepared.plan.report ?? null);
     const report = before ? withDaysAgain(before, result.report, [context.date]) : null;
-    await writePlan(this.prisma, planId, request.revision, async (tx) => {
+    await writePlan(this.prisma, planId, request.revision, today, async (tx) => {
       // A lock that could not enter the plan has left the overrides of the day in the draw.
       await tx.mealPlanDay.update({
         where: { id: dayId },

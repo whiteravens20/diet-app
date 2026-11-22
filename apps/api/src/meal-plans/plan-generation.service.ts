@@ -126,10 +126,16 @@ export class PlanGenerationService {
   ) {}
 
   /** Deterministically generate and persist a meal plan. */
-  async generate(userId: string, locale: Locale, asked: GeneratePlanRequest): Promise<MealPlan> {
+  async generate(
+    userId: string,
+    locale: Locale,
+    asked: GeneratePlanRequest,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
     // A plan that wastes nothing wastes less as well.
     const req = asked.noWaste ? { ...asked, lessWaste: true } : asked;
-    if (req.withProfileId) return this.generateJoint(userId, locale, req, req.withProfileId);
+    const today = clientToday ?? this.today();
+    if (req.withProfileId) return this.generateJoint(userId, locale, req, req.withProfileId, today);
     const profile = await this.plans.loadProfile(userId, req.profileId);
     // A profile that holds the most plans is told so before a plan is worked out for nothing.
     await refuseFullProfile(this.prisma, profile.id);
@@ -171,6 +177,7 @@ export class PlanGenerationService {
 
     const seed = this.nextSeed();
     const result = await this.optimiseFor(userId, profile, {
+      today,
       days: resolvedDays.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
       planTarget: baseCalorieTarget,
       dietType,
@@ -230,6 +237,7 @@ export class PlanGenerationService {
     locale: Locale,
     req: GeneratePlanRequest,
     withProfileId: string,
+    today: string,
   ): Promise<MealPlan> {
     const profiles = [
       await this.plans.loadProfile(userId, req.profileId),
@@ -280,6 +288,7 @@ export class PlanGenerationService {
     );
     const [first, second] = sides as [(typeof sides)[number], (typeof sides)[number]];
     const ask = (side: typeof first) => ({
+      today,
       planTarget: side.base.target,
       dietType: side.dietType,
       macroSplit: side.macroSplit,
@@ -463,7 +472,7 @@ export class PlanGenerationService {
       return target === day.calorieTarget ? [] : [{ id: day.id, target }];
     });
     if (base.target !== plan.calorieTarget || moved.length > 0) {
-      await writePlan(this.prisma, planId, revision, async (tx) => {
+      await writePlan(this.prisma, planId, revision, today, async (tx) => {
         await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
         for (const day of moved) {
           await tx.mealPlanDay.update({
@@ -797,6 +806,7 @@ export class PlanGenerationService {
       macroSplit,
       dropIneligibleLocks: options.dropIneligibleLocks,
       fixed,
+      today,
     };
   }
 
@@ -837,7 +847,7 @@ export class PlanGenerationService {
     const outcome = await this.outcomeOf(prepared, result, options);
     // Made again for this plan alone, its new meals share nothing: the links of the meals that gave place go with
     // them (`writePlan`), and a meal both ate that stays on its day stays shared.
-    await writePlan(this.prisma, planId, prepared.plan.revision, (tx) =>
+    await writePlan(this.prisma, planId, prepared.plan.revision, today, (tx) =>
       this.writeReroll(tx, prepared, result, seed, outcome, today),
     );
   }
@@ -956,6 +966,7 @@ export class PlanGenerationService {
         { planId: mine.plan.id, revision: mine.plan.revision },
         { planId: theirs.plan.id, revision: theirs.plan.revision },
       ],
+      today,
       async (tx) => {
         await this.writeReroll(tx, mine, ofMine, seed, mineOutcome, today);
         await this.writeReroll(tx, theirs, ofTheirs, theirSeed, theirOutcome, today);
@@ -1001,6 +1012,7 @@ export class PlanGenerationService {
   /** What the optimiser is asked for the days that were prepared. */
   private askOf(prepared: Prepared, seed: number, fixed: readonly PackedMeal[]) {
     return {
+      today: prepared.today,
       days: prepared.days,
       planTarget: prepared.whole ? prepared.base.target : prepared.plan.calorieTarget,
       dietType: prepared.dietType,
@@ -1313,6 +1325,8 @@ export class PlanGenerationService {
       } | null;
     },
     opts: {
+      /** The day it is for whoever asked: what the freezer holds is taken out from it on. */
+      today: string;
       days: ResolvedDay[];
       /** The plan's own calorie target, whose protein every day keeps. */
       planTarget: number;
@@ -1521,7 +1535,7 @@ export class PlanGenerationService {
     // What the freezer holds now, where the plan counts the pantry: packages, each taken out whole for a meal from
     // today on, the one going off first first, and only where the plan eats it whole within the days it keeps thawed
     // (`eatenWhole`); any other stays frozen.
-    const thawFrom = [dates[0]!, this.today()].sort()[1]!;
+    const thawFrom = [dates[0]!, opts.today].sort()[1]!;
     const frozen = countsPantry
       ? await frozenPackages(this.prisma, profile.id)
       : new Map<string, FrozenPackage[]>();

@@ -459,57 +459,63 @@ export class DayVariationsService {
     const cookedWith = req.together
       ? await this.plans.cookedWith(this.prisma, planId, PlanOptions.parse(plan.options))
       : new Map<string, CookedMeal[]>();
-    await writePlan(this.prisma, planId, offer.revision, async (tx) => {
-      // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
-      const meals = await tx.plannedMeal.findMany({
-        where: { dayId },
-        select: { id: true, eatenAt: true, source: true, mealType: true, leftoverFromDate: true },
-      });
-      const staying = meals
-        .filter(
-          (meal) =>
-            meal.eatenAt !== null ||
-            meal.source === 'USER_CUSTOM' ||
-            meal.leftoverFromDate !== null,
-        )
-        .map((meal) => meal.id);
-      await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
-      await tx.plannedMeal.createMany({
-        data: offer.meals.map(([mealType, recipeId, servings, quantityScale, rests]) => ({
-          dayId,
-          recipeId,
-          mealType,
-          servings,
-          quantityScale,
-          ...(rests ? { rests: restsAsJson(restsOf(rests)) } : {}),
-          modelPicked: offer.picked,
-          modelReason: offer.picked ? offer.reason : null,
-        })),
-      });
-      await tx.mealPlan.update({ where: { id: planId }, data: { reuseScore: offer.reuse } });
-      await this.plans.carryToOtherDays(
-        tx,
-        planId,
-        cookedWith,
-        meals
-          .filter((meal) => !staying.includes(meal.id))
-          .flatMap((meal) => {
-            const placed = offer.meals.find(([mealType]) => mealType === meal.mealType);
-            return placed ? [{ mealId: meal.id, recipeId: placed[1] }] : [];
-          }),
-        new Set([dayId]),
-        clientToday ?? this.plans.today(),
-      );
-      const written = await tx.plannedMeal.findMany({
-        where: { dayId, id: { notIn: staying } },
-        select: { id: true },
-      });
-      await this.plans.noteOutsideLimits(
-        tx,
-        planId,
-        written.map((meal) => meal.id),
-      );
-    });
+    await writePlan(
+      this.prisma,
+      planId,
+      offer.revision,
+      clientToday ?? this.plans.today(),
+      async (tx) => {
+        // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
+        const meals = await tx.plannedMeal.findMany({
+          where: { dayId },
+          select: { id: true, eatenAt: true, source: true, mealType: true, leftoverFromDate: true },
+        });
+        const staying = meals
+          .filter(
+            (meal) =>
+              meal.eatenAt !== null ||
+              meal.source === 'USER_CUSTOM' ||
+              meal.leftoverFromDate !== null,
+          )
+          .map((meal) => meal.id);
+        await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
+        await tx.plannedMeal.createMany({
+          data: offer.meals.map(([mealType, recipeId, servings, quantityScale, rests]) => ({
+            dayId,
+            recipeId,
+            mealType,
+            servings,
+            quantityScale,
+            ...(rests ? { rests: restsAsJson(restsOf(rests)) } : {}),
+            modelPicked: offer.picked,
+            modelReason: offer.picked ? offer.reason : null,
+          })),
+        });
+        await tx.mealPlan.update({ where: { id: planId }, data: { reuseScore: offer.reuse } });
+        await this.plans.carryToOtherDays(
+          tx,
+          planId,
+          cookedWith,
+          meals
+            .filter((meal) => !staying.includes(meal.id))
+            .flatMap((meal) => {
+              const placed = offer.meals.find(([mealType]) => mealType === meal.mealType);
+              return placed ? [{ mealId: meal.id, recipeId: placed[1] }] : [];
+            }),
+          new Set([dayId]),
+          clientToday ?? this.plans.today(),
+        );
+        const written = await tx.plannedMeal.findMany({
+          where: { dayId, id: { notIn: staying } },
+          select: { id: true },
+        });
+        await this.plans.noteOutsideLimits(
+          tx,
+          planId,
+          written.map((meal) => meal.id),
+        );
+      },
+    );
     return this.plans.get(userId, locale, planId);
   }
 

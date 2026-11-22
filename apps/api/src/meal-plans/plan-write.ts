@@ -25,9 +25,11 @@ export function writePlan<T>(
   prisma: PrismaClient,
   planId: string,
   readAtRevision: number,
+  /** The day it is for whoever asked (`X-Client-Date`, else the server's): what is a day gone is by it. */
+  today: string,
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
-  return writePlans(prisma, [{ planId, revision: readAtRevision }], write);
+  return writePlans(prisma, [{ planId, revision: readAtRevision }], today, write);
 }
 
 /**
@@ -40,6 +42,8 @@ export function writePlan<T>(
 export function writePlans<T>(
   prisma: PrismaClient,
   plans: readonly { planId: string; revision: number }[],
+  /** The day it is for whoever asked, as `writePlan` takes it. */
+  today: string,
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
@@ -70,7 +74,7 @@ export function writePlans<T>(
     for (const { planId, kitchen } of counting) {
       if (kitchens.has(kitchen)) continue;
       kitchens.add(kitchen);
-      const followed = await followRests(tx, planId);
+      const followed = await followRests(tx, planId, today);
       for (const other of new Set(followed.map((one) => one.planId)))
         if (!claimed.has(other)) {
           await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });

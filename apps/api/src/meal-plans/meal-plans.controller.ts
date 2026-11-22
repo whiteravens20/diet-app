@@ -169,8 +169,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(GeneratePlanRequest)) dto: GeneratePlanRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.generation.generate(user.id, locale, dto);
+    return this.generation.generate(user.id, locale, dto, today);
   }
 
   /** Make a plan again, or the days of it that the request names. */
@@ -434,8 +435,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(UndoSwapRequest)) dto: UndoSwapRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.undoSwap(user.id, locale, dto);
+    return this.plans.undoSwap(user.id, locale, dto, today);
   }
 
   /**
