@@ -57,7 +57,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     email: { enabled: false, confirmationUnlocksAi: false },
     ai: { ollamaUserPolicy: 'off', operator: null },
     instance: { supportUrl: null, operatorContact: null, androidAppUrl: null, version: '0.0.0' },
-    catalogue: { supply: aSupply() },
+    catalogue: { supply: aSupply(), recipes: 183, ingredients: 419 },
     accounts: { maxProfiles: 2 },
     products: { offered: false, lookups: false },
     plans: {

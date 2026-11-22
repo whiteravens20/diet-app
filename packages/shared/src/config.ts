@@ -152,6 +152,10 @@ export const PublicConfig = z.object({
   }),
   catalogue: z.object({
     supply: CatalogueSupply,
+    /** How many recipes any user's plan may draw on: the shared ones, none a user made for themselves or an update retired. */
+    recipes: z.number().int().min(0),
+    /** How many ingredients the catalogue holds that no update retired. */
+    ingredients: z.number().int().min(0),
   }),
   accounts: z.object({
     /** How many profiles an account may hold on this instance. */

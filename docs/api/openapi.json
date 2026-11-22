@@ -3252,8 +3252,8 @@
         "tags": [
           "config"
         ],
-        "summary": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet.",
-        "description": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet.\n\nAsked by anyone.",
+        "summary": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers, how many recipes and ingredients its catalogue holds and how well it serves each diet.",
+        "description": "What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers, how many recipes and ingredients its catalogue holds and how well it serves each diet.\n\nAsked by anyone.",
         "security": [],
         "responses": {
           "200": {
@@ -22788,10 +22788,20 @@
             "properties": {
               "supply": {
                 "$ref": "#/components/schemas/CatalogueSupply"
+              },
+              "recipes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ingredients": {
+                "type": "integer",
+                "minimum": 0
               }
             },
             "required": [
-              "supply"
+              "supply",
+              "recipes",
+              "ingredients"
             ],
             "additionalProperties": false
           },

@@ -271,7 +271,10 @@ async function renderPage(
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   shownWith = client;
-  client.setQueryData(['config'], aPublicConfig({ catalogue: { supply }, ...operator }));
+  client.setQueryData(
+    ['config'],
+    aPublicConfig({ catalogue: { ...aPublicConfig().catalogue, supply }, ...operator }),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
@@ -1405,7 +1408,10 @@ describe('the list of plans on the plan page', () => {
         ),
       );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    client.setQueryData(['config'], aPublicConfig({ catalogue: { supply: aSupply() } }));
+    client.setQueryData(
+      ['config'],
+      aPublicConfig({ catalogue: { ...aPublicConfig().catalogue, supply: aSupply() } }),
+    );
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
         <QueryClientProvider client={client}>

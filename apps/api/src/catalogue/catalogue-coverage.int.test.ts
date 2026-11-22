@@ -201,6 +201,24 @@ describe('what the catalogue can serve', () => {
     expect(asked[0]).not.toContain('"Recipe"');
   });
 
+  it('publishes how many recipes and ingredients the shared catalogue holds, none a user made for themselves', async () => {
+    await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });
+    // The administrator's statistics count anew, and what they found is what is published.
+    await t.http().get('/api/admin/stats').set(basic).expect(200);
+
+    const { catalogue } = (await t.http().get('/api/config').expect(200)).body;
+    expect(catalogue.recipes).toBe(
+      await t.prisma.recipe.count({
+        where: { createdByUserId: null, retiredAt: null, deletedAt: null },
+      }),
+    );
+    expect(catalogue.recipes).toBeGreaterThan(0);
+    expect(catalogue.ingredients).toBe(
+      await t.prisma.ingredient.count({ where: { retiredAt: null } }),
+    );
+    expect(catalogue.ingredients).toBeGreaterThan(0);
+  });
+
   it('leaves out what a user made for themselves', async () => {
     const before = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body.coverage;
     await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });

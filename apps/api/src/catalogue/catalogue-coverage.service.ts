@@ -15,6 +15,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 /** How long a count is handed out again before the recipes are read anew. */
 const KEPT_FOR_MS = 60_000;
 
+/** The shared catalogue as counted: its recipes per diet and meal, and how many recipes and ingredients it holds. */
+export interface CatalogueCounts {
+  matrix: CoverageMatrix;
+  recipes: number;
+  ingredients: number;
+}
+
 /**
  * What the shared catalogue can serve right now: the recipes any user's plan
  * may draw on, counted per diet and meal. What a user made for themselves and
@@ -22,8 +29,8 @@ const KEPT_FOR_MS = 60_000;
  */
 @Injectable()
 export class CatalogueCoverageService {
-  private kept: { at: number; matrix: CoverageMatrix } | null = null;
-  private counting: Promise<CoverageMatrix> | null = null;
+  private kept: { at: number; counts: CatalogueCounts } | null = null;
+  private counting: Promise<CatalogueCounts> | null = null;
   /** What the plans reached, and the state of the recipes they reached it with. */
   private reached: { with: string; reach: Record<DietType, MacroReach | null> } | null = null;
 
@@ -31,13 +38,18 @@ export class CatalogueCoverageService {
 
   /** Counted now, and kept for those who ask next. */
   async count(): Promise<CoverageMatrix> {
+    return (await this.countAll()).matrix;
+  }
+
+  private async countAll(): Promise<CatalogueCounts> {
     const recipes = await this.prisma.recipe.findMany({
       where: { createdByUserId: null, retiredAt: null, deletedAt: null },
       select: { dietTags: true, mealTypes: true },
     });
-    const matrix = recipesPerDietAndMeal(recipes);
-    this.kept = { at: Date.now(), matrix };
-    return matrix;
+    const ingredients = await this.prisma.ingredient.count({ where: { retiredAt: null } });
+    const counts = { matrix: recipesPerDietAndMeal(recipes), recipes: recipes.length, ingredients };
+    this.kept = { at: Date.now(), counts };
+    return counts;
   }
 
   /**
@@ -143,10 +155,10 @@ export class CatalogueCoverageService {
    * asked, the recipes are read once a minute, and once for all who ask at the
    * same moment.
    */
-  recent(): Promise<CoverageMatrix> {
+  recent(): Promise<CatalogueCounts> {
     if (this.kept && Date.now() - this.kept.at < KEPT_FOR_MS)
-      return Promise.resolve(this.kept.matrix);
-    this.counting ??= this.count().finally(() => {
+      return Promise.resolve(this.kept.counts);
+    this.counting ??= this.countAll().finally(() => {
       this.counting = null;
     });
     return this.counting;

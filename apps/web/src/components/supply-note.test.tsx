@@ -16,7 +16,10 @@ function renderNote(found?: Supply) {
   if (found !== undefined) {
     const supply = aSupply();
     supply.vegan['4'] = found;
-    client.setQueryData(['config'], aPublicConfig({ catalogue: { supply } }));
+    client.setQueryData(
+      ['config'],
+      aPublicConfig({ catalogue: { ...aPublicConfig().catalogue, supply } }),
+    );
   }
   render(
     <NextIntlClientProvider locale="en" messages={messages}>

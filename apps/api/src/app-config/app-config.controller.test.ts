@@ -25,7 +25,10 @@ function configOf(env: Partial<Env>, mail = true) {
     config,
     { enabled: false } as TurnstileService,
     { enabled: mail } as MailService,
-    { recent: () => Promise.resolve(recipesPerDietAndMeal([])) } as CatalogueCoverageService,
+    {
+      recent: () =>
+        Promise.resolve({ matrix: recipesPerDietAndMeal([]), recipes: 183, ingredients: 419 }),
+    } as unknown as CatalogueCoverageService,
   );
   return controller.get();
 }

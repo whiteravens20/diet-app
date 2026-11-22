@@ -42,10 +42,11 @@ export class AppConfigController {
     private readonly coverage: CatalogueCoverageService,
   ) {}
 
-  /** What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet. */
+  /** What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers, how many recipes and ingredients its catalogue holds and how well it serves each diet. */
   @Get()
   @Answers(PublicConfig)
   async get(): Promise<PublicConfig> {
+    const catalogue = await this.coverage.recent();
     return {
       turnstile: {
         enabled: this.turnstile.enabled,
@@ -65,7 +66,11 @@ export class AppConfigController {
         androidAppUrl: this.config.get('ANDROID_APP_URL', { infer: true }) ?? null,
         version: this.config.get('APP_VERSION', { infer: true }) ?? PACKAGE_VERSION,
       },
-      catalogue: { supply: supplyByMealCount(await this.coverage.recent()) },
+      catalogue: {
+        supply: supplyByMealCount(catalogue.matrix),
+        recipes: catalogue.recipes,
+        ingredients: catalogue.ingredients,
+      },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
       products: {
         offered: productsOffered(this.config),

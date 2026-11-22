@@ -110,7 +110,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
-| `GET /api/config` | anyone | What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how well its catalogue serves each diet. |  | 200 `PublicConfig` |  |
+| `GET /api/config` | anyone | What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers, how many recipes and ingredients its catalogue holds and how well it serves each diet. |  | 200 `PublicConfig` |  |
 
 ## csp-reports
 
