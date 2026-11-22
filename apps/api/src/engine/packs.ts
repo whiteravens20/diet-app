@@ -354,10 +354,32 @@ export function thawAll(
   byDay: readonly number[],
   packages: readonly Held[],
 ): { thawed: ({ day: number; eaten: number; left: number } | null)[]; rest: number[] } {
+  return thawing(byDay, packages, () => true);
+}
+
+/**
+ * Packages of one food held in the freezer as a plan being made takes them out (`packagesTaken`): as `thawAll` has
+ * them, except that one the days would not eat whole, and that is not dated soon, stays frozen (null) and leaves the
+ * days' needs to the packages after it and to the packs. What a plan is closed by (`closePacks`), so that no dish is
+ * drawn to a package the plan then leaves in the freezer.
+ */
+export function thawTaken(
+  byDay: readonly number[],
+  packages: readonly Held[],
+): { thawed: ({ day: number; eaten: number; left: number } | null)[]; rest: number[] } {
+  return thawing(byDay, packages, (held, one) => one.left < EATEN_WHOLE || held.due === true);
+}
+
+/** The packages of one food taken out in turn where `comesOut` says so of the thaw `thawPackage` finds for each. */
+function thawing(
+  byDay: readonly number[],
+  packages: readonly Held[],
+  comesOut: (held: Held, one: { eaten: number; left: number }) => boolean,
+): { thawed: ({ day: number; eaten: number; left: number } | null)[]; rest: number[] } {
   let rest = [...byDay];
   const thawed = packages.map((held) => {
     const one = thawPackage(rest, held);
-    if (!one) return null;
+    if (!one || !comesOut(held, one)) return null;
     rest = one.rest;
     return { day: one.day, eaten: one.eaten, left: one.left };
   });

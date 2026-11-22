@@ -1569,34 +1569,64 @@ export class PlanGenerationService {
       this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true });
     const disliked = new Set(profile.preferences?.dislikedIngredientIds ?? []);
     try {
-      const result = optimisePlan(
-        {
-          recipes: optimizerRecipes,
-          days,
-          macroSplit: split,
-          dietType: opts.dietType,
-          mealPrepFriendly: opts.mealPrepFriendly,
-          favoriteIngredientIds,
-          dislikedIngredientIds: disliked,
-          preferredCuisines: new Set([
-            ...(profile.preferences?.preferredCuisines ?? []),
-            ...(joint?.preferences?.preferredCuisines ?? []),
-          ]),
-          inventoryCoverage,
-          maxConsecutiveDaysSameMeal: caps.consecutive,
-          maxTimesPerWeekSameMeal: caps.perWeek,
-          maxRepeatsPerRecipe: perPlan,
-          maxMealsPerKind: perKind,
-          ...(repeats?.twiceADay ? { twiceADay: true } : {}),
-          perishablePacks,
-          allowRelaxations: new Set(opts.allowRelaxations),
-          seed: opts.seed,
-        },
-        level?.weights ?? SCORE_WEIGHTS,
-      );
-      const sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
+      const draw = (coverage: typeof inventoryCoverage) =>
+        optimisePlan(
+          {
+            recipes: optimizerRecipes,
+            days,
+            macroSplit: split,
+            dietType: opts.dietType,
+            mealPrepFriendly: opts.mealPrepFriendly,
+            favoriteIngredientIds,
+            dislikedIngredientIds: disliked,
+            preferredCuisines: new Set([
+              ...(profile.preferences?.preferredCuisines ?? []),
+              ...(joint?.preferences?.preferredCuisines ?? []),
+            ]),
+            inventoryCoverage: coverage,
+            maxConsecutiveDaysSameMeal: caps.consecutive,
+            maxTimesPerWeekSameMeal: caps.perWeek,
+            maxRepeatsPerRecipe: perPlan,
+            maxMealsPerKind: perKind,
+            ...(repeats?.twiceADay ? { twiceADay: true } : {}),
+            perishablePacks,
+            allowRelaxations: new Set(opts.allowRelaxations),
+            seed: opts.seed,
+          },
+          level?.weights ?? SCORE_WEIGHTS,
+        );
       // What stays in the plan, and what another plan of the kitchen takes, with the packs it takes them from.
       const kitchen = menuNeeds(opts.fixed ?? [], days.length);
+      const drawnPacks = new Map([...kitchen.packs, ...perishablePacks]);
+      let result = draw(inventoryCoverage);
+      let sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
+      let pantryStock = pantry.stock;
+      // A package of the freezer the days drawn would not take out, neither eaten whole nor dated soon, draws no dish:
+      // where the choice counted it as pantry, the plan is drawn once more without it.
+      const stays =
+        inventoryCoverage && pantryStock
+          ? stillFrozen(
+              held,
+              eatenWhole(
+                held,
+                [
+                  {
+                    recipes: optimizerRecipes,
+                    days,
+                    assignments: sized,
+                    mealPrepFriendly: opts.mealPrepFriendly,
+                  },
+                ],
+                kitchen.needs,
+                drawnPacks,
+              ),
+            )
+          : new Map<string, number>();
+      if (stays.size > 0) {
+        pantryStock = withoutPackages(pantryStock!, stays);
+        result = draw(coverageOf(optimizerRecipes, requirementsByRecipe, pantryStock));
+        sized = sizeAssignments(days, optimizerRecipes, result.assignments, split);
+      }
       const topped = opts.topped;
       return {
         closing: {
@@ -1616,8 +1646,8 @@ export class PlanGenerationService {
           dislikedIngredientIds: disliked,
         },
         fixed: kitchen.needs,
-        packs: new Map([...kitchen.packs, ...perishablePacks]),
-        pantry: pantry.stock,
+        packs: drawnPacks,
+        pantry: pantryStock,
         held,
         toppingOptions: opts.topped?.options ?? [],
         level: level ?? LESS_WASTE,
@@ -2191,6 +2221,53 @@ async function closeTogether(
     await first.finish(mine!, kitchen, thawed),
     await second.finish(theirs!, kitchen, thawed),
   ];
+}
+
+/**
+ * Of the packages of a freezer a plan may take out, what of each food stays frozen once `taken` came out: in the food's
+ * canonical unit, the packages dated soon left out, which come out wherever any day needs them (`Held.due`).
+ */
+function stillFrozen(
+  held: ReadonlyMap<string, readonly HeldPackage[]>,
+  taken: ReadonlyMap<string, readonly HeldPackage[]>,
+): Map<string, number> {
+  const stays = new Map<string, number>();
+  for (const [ingredientId, list] of held) {
+    const out = new Set(taken.get(ingredientId) ?? []);
+    const amount = list
+      .filter((one) => !out.has(one) && !one.due)
+      .reduce((sum, one) => sum + one.amount, 0);
+    if (amount > 0) stays.set(ingredientId, amount);
+  }
+  return stays;
+}
+
+/** What a pantry holds of each food without the packages that stay frozen (`stillFrozen`). */
+function withoutPackages(
+  stock: ReadonlyMap<string, number>,
+  stays: ReadonlyMap<string, number>,
+): Map<string, number> {
+  const left = new Map(stock);
+  for (const [ingredientId, amount] of stays) {
+    const rest = (left.get(ingredientId) ?? 0) - amount;
+    if (rest > 1e-6) left.set(ingredientId, rest);
+    else left.delete(ingredientId);
+  }
+  return left;
+}
+
+/** How much of each recipe a pantry covers (`recipeCoverage`), for the recipes it covers at all. */
+function coverageOf(
+  recipes: readonly OptimizerRecipe[],
+  requirements: ReadonlyMap<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
+  stock: ReadonlyMap<string, number>,
+): Map<string, number> | undefined {
+  const coverage = new Map<string, number>();
+  for (const recipe of recipes) {
+    const score = recipeCoverage(requirements.get(recipe.id) ?? [], stock);
+    if (score > 0) coverage.set(recipe.id, score);
+  }
+  return coverage.size > 0 ? coverage : undefined;
 }
 
 /** Of a kitchen's packs, those of the foods it holds packages of in the freezer. */

@@ -12,6 +12,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
 import { plansTodayIs } from '../testing/plans-today.js';
+import { restartSeeds } from '../testing/seeds.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -291,6 +292,45 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
       expect(held).toMatchObject({ ingredientId: chicken.id, amount: 5000 });
       expect(held!.eaten).toBeGreaterThan(0);
       expect(held!.eaten).toBeLessThan(5000);
+    } finally {
+      generation.today = today;
+    }
+  });
+
+  it('draws no dish to a package of the freezer it leaves frozen', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const salmon = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'salmon' } });
+      // Ewa is made as Adam is, but for 2 kg of salmon in her freezer, dated far: no day and the next would eat it.
+      await t.prisma.inventoryItem.create({
+        data: {
+          profileId: ewa.id,
+          ingredientId: salmon.id,
+          quantity: 2000,
+          unit: 'g',
+          bestBefore: new Date('2026-03-01'),
+          frozen: true,
+        },
+      });
+      const ask = (profileId: string) =>
+        GeneratePlanRequest.parse({
+          profileId,
+          startDate: '2026-01-05',
+          durationDays: 7,
+          lessWaste: true,
+        });
+      const dishes = (plan: MealPlan) =>
+        plan.days.map((day) => day.meals.map((meal) => meal.recipe?.id ?? null));
+
+      restartSeeds();
+      const without = await generation.generate(user.id, 'en', ask(adam.id));
+      restartSeeds();
+      const beside = await generation.generate(user.id, 'en', ask(ewa.id));
+
+      expect(beside.packs.fromFreezer).toEqual([]);
+      expect(dishes(beside)).toEqual(dishes(without));
     } finally {
       generation.today = today;
     }

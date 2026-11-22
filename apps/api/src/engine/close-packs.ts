@@ -49,7 +49,7 @@ import {
 import {
   packsLeftOver,
   SPOONFUL,
-  thawAll,
+  thawTaken,
   type DailyNeeds,
   type Held,
   type Pack,
@@ -121,9 +121,9 @@ export interface ClosingInput {
   /** What the kitchen's pantry holds of each ingredient, in its own unit, where the plans count it. */
   pantry?: ReadonlyMap<string, number>;
   /**
-   * The packages the kitchen holds in the freezer, by ingredient, in the order they are taken out (`thawAll`): eaten
-   * first, each within the days it keeps thawed, what they leave a rest like a pack's. An ingredient here has its pack
-   * in `packs`.
+   * The packages the kitchen holds in the freezer, by ingredient, in the order they are taken out (`thawTaken`): eaten
+   * first, each within the days it keeps thawed, what they leave a rest like a pack's; one the days would not eat
+   * whole, not dated soon, stays frozen and counts for nothing. An ingredient here has its pack in `packs`.
    */
   held?: ReadonlyMap<string, readonly Held[]>;
   /** How much further from its split than the planner left it a day may come (`SPLIT_SLACK` when left out). */
@@ -217,11 +217,12 @@ export function closePacks(input: ClosingInput): SizedAssignment[][] {
     );
   };
   // What each ingredient's packs leave, all of them in packs, and each by the last day it is eaten from. The packages
-  // held frozen are eaten first, each within the days it keeps thawed, and what one leaves is a rest like a pack's.
+  // held frozen that come out are eaten first, each within the days it keeps thawed, and what one leaves is a rest like
+  // a pack's.
   const held = input.held ?? new Map<string, readonly Held[]>();
   const lotOf = (ingredientId: string, row: number[]): Lot => {
     const size = packs.get(ingredientId)!.size;
-    const { thawed, rest } = thawAll(row, held.get(ingredientId) ?? []);
+    const { thawed, rest } = thawTaken(row, held.get(ingredientId) ?? []);
     const over = packsLeftOver(rest, packs.get(ingredientId)!).map((opened) => ({
       until: opened.until,
       share: opened.left / size,
