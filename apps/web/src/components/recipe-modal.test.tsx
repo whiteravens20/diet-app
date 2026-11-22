@@ -7,7 +7,6 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
-import { IMAGERY } from '@/lib/imagery';
 import messages from '../../messages/en.json';
 import { RecipeModal } from './recipe-modal';
 import { spaced } from '@/testing/spaces';
@@ -63,15 +62,47 @@ describe('the window of a recipe', () => {
     vi.restoreAllMocks();
   });
 
-  it("has a place for the recipe's photo over its text, filled from the app's own photographs, and says nothing of it to a reader", async () => {
+  /** The masks the drawing over a recipe's text is painted through. */
+  const drawn = () =>
+    [
+      ...document.querySelectorAll<HTMLElement>('[data-recipe-photo] [aria-hidden="true"] > div'),
+    ].map((layer) => layer.style.maskImage);
+
+  it.each([
+    ['porridge_dessert', 'dish-porridge'],
+    ['soup', 'dish-soup'],
+    ['salad', 'dish-salad'],
+    ['sandwich', 'dish-sandwich'],
+    ['plate', 'dish-plate'],
+  ] as const)(
+    'has over its text a drawing of its kind of dish (%s), which says nothing to a reader',
+    async (form, drawing) => {
+      const dialog = renderWindow(() =>
+        Promise.resolve({
+          ...oats,
+          traits: { taste: 'sweet', form, starchBase: 'groats' },
+        }),
+      );
+
+      expect(
+        await dialog.findByRole('heading', { name: 'Oat bowl', hidden: true }),
+      ).toBeInTheDocument();
+      expect(drawn()).toEqual([
+        `url("/drawings/${drawing}-fill.webp")`,
+        `url("/drawings/${drawing}-line.webp")`,
+      ]);
+      expect(document.querySelector('[data-recipe-photo] img')).toBeNull();
+    },
+  );
+
+  it('draws a plate over a recipe whose kind of dish is not given', async () => {
     const dialog = renderWindow(() => Promise.resolve(oats));
 
-    expect(
-      await dialog.findByRole('heading', { name: 'Oat bowl', hidden: true }),
-    ).toBeInTheDocument();
-    const photo = document.querySelector('[data-recipe-photo] img')!;
-    expect(decodeURIComponent(photo.getAttribute('src') ?? '')).toContain(IMAGERY.recipes);
-    expect(photo).toHaveAttribute('alt', '');
+    await dialog.findByRole('heading', { name: 'Oat bowl', hidden: true });
+    expect(drawn()).toEqual([
+      'url("/drawings/dish-plate-fill.webp")',
+      'url("/drawings/dish-plate-line.webp")',
+    ]);
   });
 
   it('says nothing of where a recipe written here is from', async () => {

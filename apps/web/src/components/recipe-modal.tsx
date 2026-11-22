@@ -4,23 +4,37 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, X } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { DOT } from '@/lib/figure-line';
 import { useId } from 'react';
-import type { DisplayAmount, LabelTotals, PlannedIngredient, Recipe } from '@diet-app/shared';
+import type {
+  DisplayAmount,
+  LabelTotals,
+  PlannedIngredient,
+  Recipe,
+  RecipeForm,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 import { sameServings } from '@/lib/servings';
 import { ApiClientError } from '@/lib/http';
-import { IMAGERY } from '@/lib/imagery';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RecipeView } from '@/components/recipe-view';
 import { AiMark } from '@/components/ai-mark';
 import { Dialog } from '@/components/ui/dialog';
+import { LineDrawing, type DrawingName } from '@/components/line-drawing';
+
+/** The drawing of each kind of dish, in the place of a recipe's photo. */
+const DISH_DRAWING: Record<RecipeForm, DrawingName> = {
+  plate: 'dish-plate',
+  soup: 'dish-soup',
+  salad: 'dish-salad',
+  sandwich: 'dish-sandwich',
+  porridge_dessert: 'dish-porridge',
+};
 
 /**
  * Recipe detail in a window over the page. Lazy-loads the recipe by id when
@@ -128,19 +142,16 @@ export function RecipeModal({
         </Button>
       </div>
       {/*
-        The place of a recipe's photo. Recipes carry none of their own yet: until
-        they do, the photo of the recipe pages stands here, a board of cut
-        vegetables that is no dish, so that it is taken for none. It says
-        nothing a reader of the page needs (`alt=""`).
+        The place of a recipe's photo. Recipes carry none of their own: a line
+        drawing of its kind of dish stands here (a plate, a soup, a salad, a
+        sandwich, a porridge or dessert), which says what kind of dish it is
+        without passing for a photograph of this one. Decorative.
       */}
       {recipe.data && (
-        <div className="relative h-28 sm:h-36" data-recipe-photo>
-          <Image
-            src={IMAGERY.recipes}
-            alt=""
-            fill
-            sizes="(min-width: 44rem) 42rem, 100vw"
-            className="object-cover"
+        <div className="relative h-28 bg-muted/40 sm:h-36" data-recipe-photo>
+          <LineDrawing
+            name={DISH_DRAWING[recipe.data.traits?.form ?? 'plate']}
+            className="absolute inset-3"
           />
         </div>
       )}
