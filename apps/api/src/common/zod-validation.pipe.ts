@@ -15,9 +15,25 @@ export class ZodValidationPipe<T> implements PipeTransform {
   constructor(readonly schema: ZodType<T>) {}
 
   transform(value: unknown, metadata?: ArgumentMetadata): T {
+    const parameter = metadata?.data ? [metadata.data] : [];
+    // The database takes no text with U+0000 in it: such a value is refused here, before anything is written.
+    const nul = nulAt(value);
+    if (nul) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'VALIDATION_FAILED',
+        message: 'Request payload failed validation.',
+        issues: [
+          {
+            path: [...parameter, ...nul].join('.'),
+            message: 'A text holds a NUL character, which no text may hold.',
+            code: 'custom',
+          },
+        ],
+      });
+    }
     const result = this.schema.safeParse(value);
     if (!result.success) {
-      const parameter = metadata?.data ? [metadata.data] : [];
       throw new BadRequestException({
         statusCode: 400,
         error: 'VALIDATION_FAILED',
@@ -31,6 +47,27 @@ export class ZodValidationPipe<T> implements PipeTransform {
     }
     return result.data;
   }
+}
+
+/** How deep a value is walked for a NUL character: deeper than any request of the contract goes. */
+const NUL_DEPTH = 32;
+
+/**
+ * Where the first text that holds U+0000 is in a value, its objects and arrays walked, keys included;
+ * null where none does.
+ */
+function nulAt(value: unknown, depth = 0): (string | number)[] | null {
+  if (typeof value === 'string') return value.includes('\u0000') ? [] : null;
+  if (value === null || typeof value !== 'object' || depth >= NUL_DEPTH) return null;
+  const items: [string | number, unknown][] = Array.isArray(value)
+    ? value.map((item, index) => [index, item])
+    : Object.entries(value);
+  for (const [key, item] of items) {
+    if (typeof key === 'string' && key.includes('\u0000')) return [key];
+    const below = nulAt(item, depth + 1);
+    if (below) return [key, ...below];
+  }
+  return null;
 }
 
 /** The kind of a refusal, and the bound of one that has a bound. */

@@ -25,6 +25,44 @@ function rejection(run: () => unknown): Rejection {
 describe('ZodValidationPipe', () => {
   const Body = z.object({ name: z.string().min(1), age: z.number().int() });
 
+  it('refuses a text with a NUL character wherever it stands in the value, by its path, before the schema is asked', () => {
+    const Nested = z.object({ name: z.string(), lines: z.array(z.object({ note: z.string() })) });
+    const body = rejection(() =>
+      new ZodValidationPipe(Nested).transform(
+        { name: 'Ann', lines: [{ note: 'ok' }, { note: 'a\u0000b' }] },
+        { type: 'body' },
+      ),
+    );
+    expect(body).toMatchObject({ statusCode: 400, error: 'VALIDATION_FAILED' });
+    expect(body.issues).toEqual([
+      {
+        path: 'lines.1.note',
+        message: 'A text holds a NUL character, which no text may hold.',
+        code: 'custom',
+      },
+    ]);
+    // A key with one, a value of a query named by its parameter, and a text a schema would not even read.
+    expect(
+      rejection(() =>
+        new ZodValidationPipe(z.record(z.string(), z.number())).transform({ 'a\u0000': 1 }),
+      ).issues[0]!.path,
+    ).toBe('a\u0000');
+    expect(
+      rejection(() =>
+        new ZodValidationPipe(z.string()).transform('x\u0000', { type: 'query', data: 'search' }),
+      ).issues[0]!.path,
+    ).toBe('search');
+    expect(
+      rejection(() => new ZodValidationPipe(z.object({})).transform({ extra: '\u0000' })).issues[0]!
+        .path,
+    ).toBe('extra');
+    // A text without one is the schema's to judge.
+    expect(new ZodValidationPipe(Nested).transform({ name: 'Ann', lines: [] })).toEqual({
+      name: 'Ann',
+      lines: [],
+    });
+  });
+
   it('returns the parsed payload', () => {
     expect(new ZodValidationPipe(Body).transform({ name: 'Ann', age: 30 })).toEqual({
       name: 'Ann',

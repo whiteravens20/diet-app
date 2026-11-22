@@ -37,6 +37,36 @@ const databaseError = (code: string) =>
   new Prisma.PrismaClientKnownRequestError('refused', { code, clientVersion: 'test' });
 
 describe('AllExceptionsFilter', () => {
+  it("answers a text the database takes in no encoding as a refused request, not as the server's failure", () => {
+    // As the driver hands on Postgres's refusal of a NUL character in a text.
+    const nul = new Prisma.PrismaClientKnownRequestError('refused', {
+      code: 'P2039',
+      clientVersion: 'test',
+      meta: {
+        modelName: 'Profile',
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: { originalCode: '22021', kind: 'postgres', code: '22021' },
+        },
+      },
+    });
+    expect(answerTo(nul)).toEqual({
+      status: 400,
+      body: {
+        statusCode: 400,
+        error: 'VALIDATION_FAILED',
+        message: 'Request payload failed validation.',
+      },
+    });
+    // Another error of the driver is still the server's.
+    const other = new Prisma.PrismaClientKnownRequestError('refused', {
+      code: 'P2039',
+      clientVersion: 'test',
+      meta: { driverAdapterError: { cause: { code: '53300' } } },
+    });
+    expect(answerTo(other).status).toBe(500);
+  });
+
   it('passes a coded error through unchanged', () => {
     const { status, body } = answerTo(
       new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' }),

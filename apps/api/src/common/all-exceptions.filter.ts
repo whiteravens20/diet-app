@@ -59,6 +59,19 @@ const BY_DATABASE_CODE: Record<string, Answer> = {
   },
 };
 
+/**
+ * A text the database takes in no encoding, a NUL character in it (Postgres `22021`), which the driver hands
+ * on as its own error: the request's fault, refused as a field is. The validation pipe refuses such a text
+ * before anything is written; this is the net under it, for a text that reached the database another way.
+ */
+function textNoDatabaseTakes(exception: unknown): boolean {
+  if (!(exception instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const meta = exception.meta as
+    { driverAdapterError?: { cause?: { code?: unknown; originalCode?: unknown } } } | undefined;
+  const cause = meta?.driverAdapterError?.cause;
+  return cause?.code === '22021' || cause?.originalCode === '22021';
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -101,6 +114,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ...(payload.issues ? { issues: payload.issues } : {}),
         // Only what an error puts under `details` on purpose: nothing else it carries leaves the server.
         ...(isRecord(payload.details) ? { details: payload.details } : {}),
+      });
+      return;
+    }
+
+    if (textNoDatabaseTakes(exception)) {
+      this.logger.warn('Database error 22021 answered as 400 VALIDATION_FAILED');
+      res.status(400).json({
+        statusCode: 400,
+        error: 'VALIDATION_FAILED',
+        message: 'Request payload failed validation.',
       });
       return;
     }
