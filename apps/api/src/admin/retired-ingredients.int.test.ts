@@ -150,6 +150,34 @@ describe('the retired ingredients the instance still uses, in the panel', () => 
     await t.http().get('/api/admin/ingredients/retired').set(asAdmin).expect(200).expect([]);
   });
 
+  it('join a line of the recipe that holds the new ingredient in the same unit already, rather than stand beside it', async () => {
+    const food = await aRetiredFood();
+    const salmon = await ingredient('salmon');
+    const recipe = await aLibraryRecipe('Two salmons on rice', {
+      ingredientId: food.id,
+      quantity: 120,
+    });
+    await t.prisma.recipeIngredient.create({
+      data: { recipeId: recipe.id, ingredientId: salmon.id, quantity: 30, unit: 'g' },
+    });
+
+    await t
+      .http()
+      .post(`/api/admin/ingredients/${food.id}/replace`)
+      .set(asAdmin)
+      .send({ by: salmon.id })
+      .expect(200);
+
+    const after = await t.prisma.recipe.findUniqueOrThrow({
+      where: { id: recipe.id },
+      include: { ingredients: true },
+    });
+    expect(after.ingredients.map((line) => [line.ingredientId, line.quantity, line.unit])).toEqual([
+      [salmon.id, 150, 'g'],
+    ]);
+    expect(after.caloriesPerServing).toBeCloseTo((150 * salmon.caloriesPer100) / 100, 0);
+  });
+
   it('keep each amount when replaced: one in a unit the new ingredient has no weight for is put in grams', async () => {
     // Fillets counted in pieces, where the curated salmon is weighed only in grams.
     const fillets = await t.prisma.ingredient.create({

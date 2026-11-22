@@ -108,7 +108,7 @@ export async function moveUses(
   const [lines, drafts, pantry, rows] = await Promise.all([
     db.recipeIngredient.findMany({
       where: { ingredientId: from.id },
-      select: { id: true, quantity: true, unit: true },
+      select: { id: true, recipeId: true, quantity: true, unit: true },
     }),
     from.slug === null
       ? Promise.resolve([])
@@ -159,12 +159,26 @@ export async function moveUses(
   if (blocked.length > 0) throw new UnitsStandInTheWay(blocked.sort());
   const way = (unit: Unit) => ways.get(unit)!;
 
+  // A recipe that holds `to` in the same unit already gets the amount on that line: one food, one line.
   for (const line of lines) {
     const { factor, unit } = way(line.unit);
-    await db.recipeIngredient.update({
-      where: { id: line.id },
-      data: { ingredientId: to.id, quantity: scaled(line.quantity, factor), unit },
+    const quantity = scaled(line.quantity, factor);
+    const same = await db.recipeIngredient.findFirst({
+      where: { recipeId: line.recipeId, ingredientId: to.id, unit, id: { not: line.id } },
+      select: { id: true, quantity: true },
     });
+    if (same) {
+      await db.recipeIngredient.update({
+        where: { id: same.id },
+        data: { quantity: Math.round((same.quantity + quantity) * 1e6) / 1e6 },
+      });
+      await db.recipeIngredient.delete({ where: { id: line.id } });
+    } else {
+      await db.recipeIngredient.update({
+        where: { id: line.id },
+        data: { ingredientId: to.id, quantity, unit },
+      });
+    }
   }
 
   let draftLines = 0;
