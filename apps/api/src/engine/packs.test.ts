@@ -14,6 +14,7 @@ import {
   packStep,
   packUse,
   packagesTaken,
+  isDueSoon,
   packsFor,
   thawAll,
   thawHeld,
@@ -658,5 +659,39 @@ describe('packages held in the freezer', () => {
       rest: [0, 0, 0, 0],
     });
     expect(packagesTaken([0, 150, 100, 0], [{ amount: 1000, from: 0 }])).toEqual([]);
+  });
+
+  // 220 g of bacon frozen, and five breakfasts of 44, 85, 45, 43 and 68 g: no day and the next eat it whole.
+  const breakfasts = [43.65, 84.9, 45, 42.75, 67.5, 0, 0];
+
+  it('stay frozen where no two days eat them whole and their date is far', () => {
+    expect(packagesTaken(breakfasts, [{ amount: 220, from: 0 }])).toEqual([]);
+  });
+
+  it('come out, dated soon, for the day whose day and the next eat the most of them, and say what is left', () => {
+    const dueSoon = [{ amount: 220, from: 0, due: true }];
+
+    expect(packagesTaken(breakfasts, dueSoon)).toEqual([0]);
+    expect(thawAll(breakfasts, dueSoon)).toEqual({
+      thawed: [{ day: 1, eaten: 129.9, left: 90.1 }],
+      rest: [43.65, 0, 0, 42.75, 67.5, 0, 0],
+    });
+    // Dated soon and eaten whole on some day and the next, it comes out for those as any package does.
+    expect(thawAll([150, 150, 150], [{ amount: 250, from: 0, due: true }]).thawed).toEqual([
+      { day: 0, eaten: 250, left: 0 },
+    ]);
+  });
+
+  it('stay frozen, dated soon, where no day from their own on needs the food', () => {
+    expect(packagesTaken([150, 0, 0], [{ amount: 220, from: 1, due: true }])).toEqual([]);
+  });
+});
+
+describe('a package of the freezer dated soon', () => {
+  it('is one dated within the plan or a week after its last day', () => {
+    expect(isDueSoon('2026-11-25', '2026-11-29')).toBe(true);
+    expect(isDueSoon('2026-12-06', '2026-11-29')).toBe(true);
+    expect(isDueSoon('2026-12-07', '2026-11-29')).toBe(false);
+    expect(isDueSoon(null, '2026-11-29')).toBe(false);
   });
 });

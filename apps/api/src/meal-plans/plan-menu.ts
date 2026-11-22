@@ -13,6 +13,7 @@ import {
   cookAhead,
   frozenLeft,
   thawAll,
+  isDueSoon,
   keepDaysOf,
   packUse,
   SPOONFUL,
@@ -140,7 +141,11 @@ export function planPacks(
     // Each package thawed whole for its meal, in turn, and eaten within the days it keeps thawed.
     const { thawed, rest } = thawAll(
       row,
-      whole.map((one) => ({ amount: one.amount, from })),
+      whole.map((one) => ({
+        amount: one.amount,
+        from,
+        due: isDueSoon(one.bestBefore, dates.at(-1)!),
+      })),
     );
     needs.set(ingredientId, rest);
     thawed.forEach((one, at) => {

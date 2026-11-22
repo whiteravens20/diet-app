@@ -257,6 +257,45 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     }
   });
 
+  it('takes out a package dated within a week of its end for the days that eat most of it, and says what is left', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const today = generation.today;
+    generation.today = () => '2026-01-05';
+    try {
+      const chicken = await t.prisma.ingredient.findFirstOrThrow({
+        where: { slug: 'chicken-breast' },
+      });
+      // 5 kg of chicken that goes off three days after the plan: no day and the next eat it, but no plan after it would.
+      await t.prisma.inventoryItem.create({
+        data: {
+          profileId: adam.id,
+          ingredientId: chicken.id,
+          quantity: 5000,
+          unit: 'g',
+          bestBefore: new Date('2026-01-10'),
+          frozen: true,
+        },
+      });
+
+      const plan = await generation.generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({ profileId: adam.id, startDate: '2026-01-05', durationDays: 3 }),
+      );
+
+      const { report } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      expect((report as { freezer: { stock: unknown[] } | null }).freezer?.stock).toMatchObject([
+        { ingredientId: chicken.id, amount: 5000, bestBefore: '2026-01-10' },
+      ]);
+      const [held] = plan.packs.fromFreezer;
+      expect(held).toMatchObject({ ingredientId: chicken.id, amount: 5000 });
+      expect(held!.eaten).toBeGreaterThan(0);
+      expect(held!.eaten).toBeLessThan(5000);
+    } finally {
+      generation.today = today;
+    }
+  });
+
   it('keeps the packages it takes out of the freezer by their numbers, a larger one it would not eat whole left there', async () => {
     const generation = t.app.get(PlanGenerationService);
     const today = generation.today;

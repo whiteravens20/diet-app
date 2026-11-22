@@ -67,6 +67,7 @@ import {
   fullKindsOn,
   keepDaysOf,
   packagesTaken,
+  isDueSoon,
   topAssignments,
   type Held,
   type Pack,
@@ -1549,7 +1550,12 @@ export class PlanGenerationService {
               ([ingredientId, list]) =>
                 [
                   ingredientId,
-                  list.map((one) => ({ ...one, from: fromDay, profileId: profile.id })),
+                  list.map((one) => ({
+                    ...one,
+                    from: fromDay,
+                    profileId: profile.id,
+                    due: isDueSoon(one.bestBefore, dates.at(-1)!),
+                  })),
                 ] as const,
             ),
     );

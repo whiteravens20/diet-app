@@ -270,6 +270,22 @@ export function freezerWalk(
 export interface Held {
   amount: number;
   from: number;
+  /**
+   * Its date comes within the plan or soon after it (`isDueSoon`): it comes out even where no two days eat it whole,
+   * for the days that eat the most of it, since it would go off before another plan took it.
+   */
+  due?: boolean;
+}
+
+/** How many days after a plan's last day a package of the freezer may be dated and still be taken out by the plan. */
+const DUE_AFTER_PLAN_DAYS = 7;
+
+/** Whether a package dated `bestBefore` goes off by `DUE_AFTER_PLAN_DAYS` after the plan's last day; none without a date. */
+export function isDueSoon(bestBefore: string | null, lastDay: string): boolean {
+  if (!bestBefore) return false;
+  const latest = new Date(`${lastDay}T00:00:00Z`);
+  latest.setUTCDate(latest.getUTCDate() + DUE_AFTER_PLAN_DAYS);
+  return bestBefore <= latest.toISOString().slice(0, 10);
 }
 
 /**
@@ -308,8 +324,9 @@ const EATEN_WHOLE = 1;
 
 /**
  * A package of one food held in the freezer, taken out for the first day from its own on whose day and the next eat
- * it whole, or, where none does, for the first day that needs the food at all (`thawHeld`), with what is left of it.
- * Null where no day from its own on needs the food: it stays frozen.
+ * it whole, or, where none does, for the first day that needs the food at all (`thawHeld`), with what is left of it;
+ * a package dated soon (`Held.due`) for the day whose day and the next eat the most of it. Null where no day from its
+ * own on needs the food: it stays frozen.
  */
 function thawPackage(
   byDay: readonly number[],
@@ -317,12 +334,14 @@ function thawPackage(
 ): { day: number; eaten: number; left: number; rest: number[] } | null {
   const first = thawHeld(byDay, held);
   if (!first || first.left < EATEN_WHOLE) return first;
+  let most = first;
   for (let day = first.day + 1; day < byDay.length; day += 1) {
     if (byDay[day]! <= CRUMB) continue;
     const later = thawOn(byDay, held, day);
     if (later.left < EATEN_WHOLE) return later;
+    if (later.eaten > most.eaten + CRUMB) most = later;
   }
-  return first;
+  return held.due ? most : first;
 }
 
 /**
@@ -348,14 +367,15 @@ export function thawAll(
 /**
  * Which of the packages of one food held in the freezer a plan takes out, by their place in `packages`: in that
  * order, each one the days' needs eat whole within the days it keeps thawed (`thawPackage`), once the packages taken
- * before it are eaten. One they would not eat whole stays frozen, and the next is looked at.
+ * before it are eaten, and each dated soon that any day needs (`Held.due`). One they would not eat whole stays frozen,
+ * and the next is looked at.
  */
 export function packagesTaken(byDay: readonly number[], packages: readonly Held[]): number[] {
   let rest = [...byDay];
   const taken: number[] = [];
   packages.forEach((held, index) => {
     const one = thawPackage(rest, held);
-    if (one && one.left < EATEN_WHOLE) {
+    if (one && (one.left < EATEN_WHOLE || held.due === true)) {
       taken.push(index);
       rest = one.rest;
     }
