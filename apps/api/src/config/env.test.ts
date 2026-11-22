@@ -62,8 +62,33 @@ function servicesOf(file: string): Map<string, string[]> {
   return services;
 }
 
+/** What a service of a Compose file publishes on the host, as its `ports:` list writes it. */
+function publishedBy(lines: readonly string[]): string[] {
+  const at = lines.findIndex((line) => /^ {4}ports:/.test(line));
+  if (at < 0) return [];
+  const listed: string[] = [];
+  for (const line of lines.slice(at + 1)) {
+    const item = /^ {6}- '?([^']+?)'?\s*$/.exec(line);
+    if (!item) break;
+    listed.push(item[1]!);
+  }
+  return listed;
+}
+
 describe('the Compose files', () => {
   const FILES = ['docker-compose.prod.yml', 'docker-compose.yml'];
+
+  it("publish every port on the loopback alone, the reverse proxy's excepted", () => {
+    const published = FILES.flatMap((file) =>
+      [...servicesOf(file)]
+        .filter(([service]) => service !== 'traefik')
+        .flatMap(([service, lines]) =>
+          publishedBy(lines).map((port) => `${file} ${service} ${port}`),
+        ),
+    );
+    expect(published.length).toBeGreaterThanOrEqual(4);
+    for (const port of published) expect(port).toMatch(/ 127\.0\.0\.1:/);
+  });
 
   it('confine the three services that run the application: a read-only root, /tmp in memory, no capability, no new privilege', () => {
     for (const file of FILES)

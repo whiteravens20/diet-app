@@ -112,7 +112,10 @@ Docker (recommended), the whole stack built from the checkout:
 docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
 
-It runs the application's three services with a read-only root, no capabilities and no new privileges.
+It publishes the web, the API and, with the `ollama` profile, Ollama on this machine's loopback alone, and runs the
+application's three services with a read-only root, no capabilities and no new privileges. To reach the web from
+another machine, put a reverse proxy in front of it or drop the `127.0.0.1:` of its port in your own override file;
+an Ollama port open to a network lets anybody on it use and pull models, as it asks nobody who they are.
 
 Local (Node 24 LTS):
 

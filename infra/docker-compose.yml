@@ -121,8 +121,11 @@ services:
       # What the `mirror` service reports of its copy, for the panel: the API
       # only reads it, and gets nothing else of that service.
       - mirror-report:/app/mirror-report:ro
+    # On the loopback alone: the web server reaches the API over the Compose network, and a client on this
+    # machine at this port. Drop the `127.0.0.1:` to open it to the network on purpose: it is the API without the
+    # web server's headers and content security policy in front of it.
     ports:
-      - '${API_PORT:-4000}:4000'
+      - '127.0.0.1:${API_PORT:-4000}:4000'
     healthcheck:
       # 127.0.0.1, not localhost: the API binds IPv4 and busybox wget would
       # otherwise try localhost's IPv6 address first and fail.
@@ -180,8 +183,10 @@ services:
       - ../terms:/terms:ro
     depends_on:
       - api
+    # On the loopback alone, for a reverse proxy on this machine or a browser on it. Drop the `127.0.0.1:` to open it
+    # to the network on purpose.
     ports:
-      - '${WEB_PORT:-3000}:3000'
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
     healthcheck:
       # The standalone server listens on the container's own hostname, which
       # is not the loopback address.
@@ -197,8 +202,10 @@ services:
     restart: unless-stopped
     volumes:
       - ollama-models:/root/.ollama
+    # On the loopback alone, for `ollama pull` from this machine: Ollama asks nobody who they are, so a port open
+    # to the network lets anybody on it run and pull models here. The API reaches it at `http://ollama:11434`.
     ports:
-      - '11434:11434'
+      - '127.0.0.1:11434:11434'
 
   # ── Optional: a copy of the instance's own files in a git repository ───────
   # Enable with `--profile mirror` (or COMPOSE_PROFILES=mirror in .env). Once

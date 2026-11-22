@@ -36,6 +36,16 @@ tagged at all. Every build brings the OS packages of the image up to date.
 
 Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy` (Traefik).
 
+Both stacks publish what they publish on the loopback alone (`127.0.0.1:`): the web, and in
+`infra/docker-compose.yml` the API and Ollama too, so that nothing of the app answers on a
+network before a reverse proxy is put in front of it; `--profile proxy` publishes Traefik's
+port to the network, which is its job. To open a port of another service on purpose, write
+it again without the `127.0.0.1:` in an override file of your own, with `ports: !override`
+(Compose adds a later file's `ports:` to the earlier one's otherwise, and the two then
+collide on the same port). The API answers there without the web server's headers and
+content security policy in front of it, and Ollama asks nobody who they are: anybody who
+reaches its port can run and pull models on the machine.
+
 The services that run the application (`api`, `worker`, `web`) are confined: a read-only
 root, `/tmp` in memory, no Linux capabilities, no new privileges (`read_only`, `tmpfs`,
 `cap_drop: [ALL]`, `no-new-privileges`). What they write goes to their volumes; the web
@@ -751,7 +761,8 @@ lets them be answered meanwhile.
 - PostgreSQL, the API and the web front-end have health checks; the API's fails when it cannot reach the database. The worker has none: Docker restarts it when its process exits.
 - Run `db:migrate` (not `migrate dev`) on deploy; back up the Postgres volume.
 - A database of your own in the place of the Compose one has to be a PostgreSQL that is built with ICU, as the official images are: lists of recipes and ingredients are sorted by the names they show, in the alphabet of the reader's language (`en-x-icu`, `pl-x-icu`).
-- Bind published ports to a private interface in LAN-only deployments.
+- The published ports are on the loopback (see [Compose files](#compose-files)); in a LAN-only
+  deployment bind one to a private interface's address in an override, not to every interface.
 
 ### Whose day it is
 
