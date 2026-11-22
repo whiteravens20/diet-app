@@ -112,6 +112,8 @@ Docker (recommended), the whole stack built from the checkout:
 docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
 
+It runs the application's three services with a read-only root, no capabilities and no new privileges.
+
 Local (Node 24 LTS):
 
 ```bash

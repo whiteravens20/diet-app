@@ -131,6 +131,12 @@ services:
     pull_policy: always
     restart: unless-stopped
     networks: [diet-app]
+    # Confined: nothing the code does writes beside the code, gets back a capability or gains a privilege. What it
+    # writes goes to its volumes and to /tmp in memory.
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     env_file: .env
     environment:
       NODE_ENV: production
@@ -189,6 +195,11 @@ services:
     pull_policy: always
     restart: unless-stopped
     networks: [diet-app]
+    # Confined as `api` is.
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     env_file: .env
     environment:
       NODE_ENV: production
@@ -212,6 +223,12 @@ services:
     pull_policy: always
     restart: unless-stopped
     networks: [diet-app]
+    # Confined as `api` is. The resized pictures Next.js keeps are in memory, owned by the image's user (`node`, 1000),
+    # who could not write a directory a tmpfs gives to root.
+    read_only: true
+    tmpfs: ['/tmp', '/web/apps/web/.next/cache:uid=1000,gid=1000,mode=0755']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     # Same image, different command: the Next.js standalone server under /web.
     command: ['node', '/web/apps/web/server.js']
     environment:

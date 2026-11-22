@@ -40,6 +40,54 @@ function composeDefaults(): Record<string, string | undefined> {
   return found;
 }
 
+/** The services of a Compose file, each with the lines of its block, comments left out. */
+function servicesOf(file: string): Map<string, string[]> {
+  const text = readFileSync(resolve(__dirname, '../../../../infra', file), 'utf8');
+  const services = new Map<string, string[]>();
+  let inServices = false;
+  let current: string[] | null = null;
+  for (const line of text.split('\n')) {
+    if (/^\s*#/.test(line) || line.trim() === '') continue;
+    if (/^\S/.test(line)) {
+      inServices = line.startsWith('services:');
+      current = null;
+      continue;
+    }
+    const name = /^ {2}([a-z][a-z0-9-]*):\s*$/.exec(line);
+    if (inServices && name) {
+      current = [];
+      services.set(name[1]!, current);
+    } else if (current) current.push(line);
+  }
+  return services;
+}
+
+describe('the Compose files', () => {
+  const FILES = ['docker-compose.prod.yml', 'docker-compose.yml'];
+
+  it('confine the three services that run the application: a read-only root, /tmp in memory, no capability, no new privilege', () => {
+    for (const file of FILES)
+      for (const service of ['api', 'worker', 'web']) {
+        const block = servicesOf(file).get(service);
+        expect(block, `${file} ${service}`).toBeDefined();
+        const lines = block!.join('\n');
+        expect(lines, `${file} ${service}`).toMatch(/^ {4}read_only: true$/m);
+        expect(lines, `${file} ${service}`).toMatch(/^ {4}tmpfs: \[(?:'\/tmp'|\/tmp)[,\]]/m);
+        expect(lines, `${file} ${service}`).toMatch(/^ {4}cap_drop: \[ALL\]$/m);
+        expect(lines, `${file} ${service}`).toMatch(
+          /^ {4}security_opt: \['no-new-privileges:true'\]$/m,
+        );
+      }
+  });
+
+  it("keep the web's resized pictures where its own user can write them", () => {
+    for (const file of FILES)
+      expect(servicesOf(file).get('web')!.join('\n')).toContain(
+        "'/web/apps/web/.next/cache:uid=1000,gid=1000,mode=0755'",
+      );
+  });
+});
+
 /** The keys and values of the shipped template, exactly as a parser of `.env` files reads them. */
 function template(): Record<string, string> {
   const text = readFileSync(resolve(__dirname, '../../../../.env.example'), 'utf8');

@@ -36,6 +36,16 @@ tagged at all. Every build brings the OS packages of the image up to date.
 
 Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy` (Traefik).
 
+The services that run the application (`api`, `worker`, `web`) are confined: a read-only
+root, `/tmp` in memory, no Linux capabilities, no new privileges (`read_only`, `tmpfs`,
+`cap_drop: [ALL]`, `no-new-privileges`). What they write goes to their volumes; the web
+keeps the pictures it resizes in memory (`/web/apps/web/.next/cache`, owned by the
+image's user), so they are made again after a restart. An override of yours that mounts a
+directory of the host into one of them read-write keeps working; one that has them write
+inside the image's own tree does not, and says so with `EROFS` in the service's log.
+`db-init` and `data-init` run once at a start and end, unconfined: they migrate the database
+and own the data volume. `postgres`, `ollama` and `traefik` are as their images ship them.
+
 PostgreSQL, Ollama and Traefik are pinned in these files by version and digest, as the
 base image of the application is: the digest is what gets pulled, the version says what
 it is. To move one, read the version and its digest from the registry
