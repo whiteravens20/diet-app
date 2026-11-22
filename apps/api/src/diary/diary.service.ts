@@ -773,8 +773,9 @@ export class DiaryService {
    * where several hold the day): a change of today sizes that day again with what the diary holds counted as eaten, as
    * a meal of one's own added to the plan sizes it, so that the plan follows what was eaten as soon as it is written.
    * Answered as a change of the plan is, or, without a `locale`, with nothing; null for another day, or a day no plan
-   * holds. A change of the diary stands whatever the plan does: a plan changed at the same moment is waited out once,
-   * and a plan that cannot be sized now is left to the diary's "Dopasuj porcje dnia".
+   * holds. A change of the diary stands whatever the plan does: a plan changed at the same moment is read again, and
+   * where another change came meanwhile, once more after the change being written ends; a plan that cannot be sized
+   * even then is left to the diary's "Dopasuj porcje dnia", with a warning in the log, since nothing is lost.
    */
   private async followPlan(
     userId: string,
@@ -798,18 +799,30 @@ export class DiaryService {
       }
       return this.plans.rebalance(userId, locale, planDay.planId, { scope: 'day', date }, today);
     };
+    /** Another change of the plan came between its reading and its writing (`writePlan`). */
+    const meanwhile = (err: unknown): boolean =>
+      err instanceof ConflictException && planChangedMeanwhile(err);
     try {
-      return await resize().catch((err: unknown) => {
-        // Another change of the plan came between its reading and its writing: once more, from the plan as it is now.
-        if (err instanceof ConflictException && planChangedMeanwhile(err)) return resize();
-        throw err;
-      });
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          return await resize();
+        } catch (err) {
+          if (!meanwhile(err) || attempt === 3) throw err;
+          // Once more, from the plan as it is now; the last time after the change being written ends.
+          if (attempt === 2) await this.writeEnded(planDay.planId);
+        }
+      }
     } catch (err) {
-      this.logger.error(
-        `Could not size the day of plan ${planDay.planId} to the diary: ${String(err)}`,
-      );
+      const message = `Could not size the day of plan ${planDay.planId} to the diary: ${String(err)}`;
+      if (meanwhile(err)) this.logger.warn(message);
+      else this.logger.error(message);
       return null;
     }
+  }
+
+  /** Wait for a change of the plan being written to end: its claim holds the plan's row until it is written (`writePlan`). */
+  private async writeEnded(planId: string): Promise<void> {
+    await this.prisma.$queryRaw`SELECT 1 FROM "MealPlan" WHERE "id" = ${planId} FOR SHARE`;
   }
 
   /** The profile, when it is this user's; otherwise the 404 every route that names a profile gives. */

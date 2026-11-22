@@ -957,6 +957,76 @@ describe('the diary of a profile', () => {
         expect(copied.day.plan).toMatchObject({ offTarget: null });
       });
 
+      it('is sized again once two changes of the plan written at the same moment are over', async () => {
+        /** The claims of a change of the plan (`writePlan`) the database holds waiting on another change. */
+        const claimsWaiting = async (): Promise<number> => {
+          const [{ count }] = await t.prisma.$queryRaw<{ count: number }[]>`
+            SELECT count(*)::int AS count FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+              AND query LIKE '%UPDATE "MealPlan" SET "revision"%AND "revision" =%'`;
+          return count;
+        };
+        /** Any change of a plan the database holds waiting on another, a claim or a change held here. */
+        const changesWaiting = async (): Promise<number> => {
+          const [{ count }] = await t.prisma.$queryRaw<{ count: number }[]>`
+            SELECT count(*)::int AS count FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+              AND query LIKE '%UPDATE "MealPlan" SET "revision"%'`;
+          return count;
+        };
+        const until = async (what: string, check: () => Promise<boolean>): Promise<void> => {
+          for (let tries = 0; tries < 250; tries += 1) {
+            if (await check()) return;
+            await new Promise((waited) => setTimeout(waited, 20));
+          }
+          throw new Error(`Never came: ${what}`);
+        };
+        /** A change of the plan being written: it holds the plan from its claim until it is let go. */
+        const aChangeBeingWritten = () => {
+          let letGo!: () => void;
+          const going = new Promise<void>((resolve) => (letGo = resolve));
+          let claimed!: () => void;
+          const holds = new Promise<void>((resolve) => (claimed = resolve));
+          const written = t.prisma.$transaction(
+            async (tx) => {
+              await tx.$executeRaw`UPDATE "MealPlan" SET "revision" = "revision" + 1 WHERE "id" = ${plan.id}`;
+              claimed();
+              await going;
+            },
+            { timeout: 20_000 },
+          );
+          return { holds, end: () => (letGo(), written) };
+        };
+
+        const first = aChangeBeingWritten();
+        await first.holds;
+        const answer = write(meal(600)).then((answered) => answered);
+        // The sizing read the plan before the first change ends, and its claim waits for it.
+        await until(
+          'the sizing waiting on the first change',
+          async () => (await claimsWaiting()) === 1,
+        );
+        // A second change is queued behind the sizing's claim: it takes the plan once the first ends.
+        const second = aChangeBeingWritten();
+        await until('the second change waiting', async () => (await changesWaiting()) === 2);
+        await first.end();
+        await second.holds;
+        // The sizing read the plan again, before the second change ends, and its claim waits for it.
+        await until(
+          'the sizing waiting on the second change',
+          async () => (await claimsWaiting()) === 1,
+        );
+        await second.end();
+
+        const answered = await answer;
+        expect(answered.status).toBe(201);
+        const written = answered.body as WrittenDiaryEntry;
+        // The entry says how the day was sized, as one written alone does.
+        expect(written.planChange).not.toBeNull();
+        expect(written.planChange!.rebalance!.changes.length).toBeGreaterThan(0);
+        expect(planDay(await planOf(plan.id), day(0)).offTarget).toBeNull();
+      });
+
       it('is left as it is by an entry of another day, which says nothing of the plan', async () => {
         const yesterday = mealsKcal(planDay(plan, day(-1)));
 
