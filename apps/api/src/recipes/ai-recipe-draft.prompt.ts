@@ -216,9 +216,10 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
     '2. The catalogue is all there is. A dish that needs something it lacks (a spice, a sauce, ' +
       'a dough, a stock) is not written: choose a dish that does without it. Never name an ' +
       'ingredient the catalogue lacks, in the list or in any text.',
-    '3. A quantity is a number above 0, for the one serving. The unit is "g", or "ml" for an ' +
-      'ingredient the catalogue gives per 100 ml; "piece" only for an ingredient whose line ' +
-      'gives the weight of a piece.',
+    '3. A quantity is a number above 0, for the one serving, as a cook measures it: whole grams ' +
+      'or millilitres, in fives from 20 up, and whole or half pieces. The unit is "g", or "ml" ' +
+      'for an ingredient the catalogue gives per 100 ml; "piece" only for an ingredient whose ' +
+      'line gives the weight of a piece.',
     `4. 2 to ${size.maxSteps} steps, each an imperative sentence with no number in front ` +
       '("Slice the chicken"). A step uses nothing the list does not hold, water alone excepted, ' +
       'and water is never on the list: a step that seasons with salt and pepper means salt and ' +

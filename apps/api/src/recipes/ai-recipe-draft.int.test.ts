@@ -635,6 +635,58 @@ describe('drafting a recipe with a model', () => {
       expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_TARGET' });
     });
 
+    it('stores the amounts a cook measures: grams and millilitres in fives from 20 up and whole below, pieces in halves', async () => {
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: [
+                { slug: 'chicken-breast', quantity: 143.6, unit: 'g' },
+                { slug: 'olive-oil', quantity: 34.4, unit: 'ml' },
+                { slug: 'broccoli', quantity: 17.6, unit: 'g' },
+                { slug: 'large-egg', quantity: 1.3, unit: 'piece' },
+              ],
+            }),
+          ),
+      });
+
+      const { recipe } = await ask();
+
+      const slugOf = new Map(
+        (await t.prisma.ingredient.findMany({ select: { id: true, slug: true } })).map((row) => [
+          row.id,
+          row.slug,
+        ]),
+      );
+      expect(
+        Object.fromEntries(
+          recipe.ingredients.map((line) => [slugOf.get(line.ingredientId), line.quantity]),
+        ),
+      ).toEqual({ 'chicken-breast': 145, 'olive-oil': 35, broccoli: 18, 'large-egg': 1.5 });
+    });
+
+    it('holds the dish its amounts are rounded to to the fifth of the calories asked for', async () => {
+      // Within a fifth of 200 kcal as written (239 kcal), over it once the oil is rounded to 20 ml (242 kcal).
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: [
+                { slug: 'olive-oil', quantity: 19.6, unit: 'ml' },
+                { slug: 'broccoli', quantity: 160, unit: 'g' },
+                { slug: 'tomato', quantity: 140, unit: 'g' },
+              ],
+            }),
+          ),
+      });
+
+      expect(await refusal(ask({ kcalTarget: 200 }))).toMatchObject({
+        status: 400,
+        error: 'AI_DRAFT_OFF_TARGET',
+      });
+      expect(await stored()).toBe(0);
+    });
+
     it('refuses a draft more than a fifth away from the calories asked for, and keeps one within it', async () => {
       t.model.reply({ text: (request) => JSON.stringify(withCalories(request, 650)) });
       expect(await refusal(ask({ kcalTarget: 500 }))).toMatchObject({

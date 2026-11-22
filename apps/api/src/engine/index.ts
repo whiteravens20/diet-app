@@ -19,6 +19,7 @@ export * from './pack-rests.js';
 export * from './waste-levels.js';
 export * from './use-up.js';
 export * from './display.js';
+export * from './kitchen-amounts.js';
 export * from './optimizer.js';
 export * from './rebalance.js';
 export * from './dish-traits.js';

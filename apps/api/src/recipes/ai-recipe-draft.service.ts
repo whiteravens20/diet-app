@@ -20,7 +20,12 @@ import {
   type AiFallbackReason,
   type Locale,
 } from '@diet-app/shared';
-import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
+import {
+  kitchenAmount,
+  recipeFacts,
+  UnitConversionError,
+  type RecipeFacts,
+} from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
@@ -253,9 +258,11 @@ export class AiRecipeDraftService {
       });
     }
 
+    // What the model wrote, in the amounts a cook measures: the engine counts the dish as it will be cooked, and
+    // the checks below judge that dish.
     const resolved = payload.ingredients.map((line) => ({
       ingredientId: offered.get(line.slug)!.id,
-      quantity: line.quantity,
+      quantity: kitchenAmount(line.quantity, line.unit),
       unit: line.unit,
       note: line.note,
     }));
