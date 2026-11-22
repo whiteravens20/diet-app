@@ -90,9 +90,17 @@ export class InventoryService {
             gramsPerPiece: true,
             density: true,
             displayUnit: true,
+            retiredAt: true,
           },
         });
-        if (!ingredient) {
+        // A food the catalogue retired is no new row, as it is no new entry of the diary or line of a recipe; what
+        // the pantry still holds of it may be added to.
+        const retiredAndNew =
+          ingredient?.retiredAt != null &&
+          (await this.prisma.inventoryItem.count({
+            where: { profileId, ingredientId: ingredient.id },
+          })) === 0;
+        if (!ingredient || retiredAndNew) {
           throw new NotFoundException({
             error: 'INGREDIENT_NOT_FOUND',
             message: 'Ingredient not found.',

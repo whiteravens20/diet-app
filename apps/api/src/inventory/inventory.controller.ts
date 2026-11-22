@@ -45,7 +45,7 @@ export class InventoryController {
   }
 
   /**
-   * Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing.
+   * Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. An ingredient the catalogue retired is refused as one that does not exist (404 `INGREDIENT_NOT_FOUND`) unless the pantry still holds it. Sent again with the same `Idempotency-Key` within a week, it is answered with that row as it is now and adds nothing.
    */
   @Post()
   @Answers(InventoryItem)

@@ -223,6 +223,31 @@ describe('the pantry', () => {
     expect(res.body).toMatchObject({ error: 'INGREDIENT_NOT_FOUND' });
   });
 
+  it('refuses a new row of an ingredient the catalogue retired, as the diary and recipes do, and adds to one the pantry holds', async () => {
+    const retire = (slug: string, retiredAt: Date | null) =>
+      t.prisma.ingredient.update({ where: { slug }, data: { retiredAt } });
+    await add('banana', 2, 'piece').then((res) => expect(res.status).toBe(201));
+    await retire('banana', new Date());
+    await retire('broccoli', new Date());
+    try {
+      const refused = await add('broccoli', 200, 'g');
+      expect(refused.status).toBe(404);
+      expect(refused.body).toMatchObject({ error: 'INGREDIENT_NOT_FOUND' });
+      expect(
+        await t.prisma.inventoryItem.count({
+          where: { profileId: profile.id, ingredientId: await ingredientId('broccoli') },
+        }),
+      ).toBe(0);
+      // Food that is still in the kitchen: what is added goes beside it.
+      const added = await add('banana', 1, 'piece');
+      expect(added.status).toBe(201);
+      expect(added.body).toMatchObject({ quantity: 3, unit: 'piece' });
+    } finally {
+      await retire('banana', null);
+      await retire('broccoli', null);
+    }
+  });
+
   describe('what a row is shown as', () => {
     it('calls a piece what the ingredient calls it, and rounds what arithmetic left behind', async () => {
       const bread = await add('wholegrain-bread', 4, 'piece');
