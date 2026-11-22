@@ -18,9 +18,7 @@
     "back": "Back",
     "next": "Next",
     "search": "Search",
-    "filter": "Filter",
     "clear": "Clear",
-    "reset": "Reset",
     "yes": "Yes",
     "no": "No",
     "optional": "optional",
@@ -56,7 +54,6 @@
     "admin": "Admin",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signUp": "Create account",
     "products": "My products"
   },
   "aiMark": {
