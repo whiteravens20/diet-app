@@ -45,6 +45,7 @@ import type { PieceUse } from '../engine/whole-pieces.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ingredientsForDiet } from '../recipes/diet-where.js';
 import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
 import { toPlannedIngredients } from '../recipes/recipes.service.js';
 import type { Env } from '../config/env.js';
@@ -793,8 +794,7 @@ export class IngredientSwapService {
       where: {
         category: from.category,
         id: { notIn: [...excludedIds] },
-        // A custom diet filters nothing.
-        ...(dietType === 'custom' ? {} : { dietCompatibility: { has: dietType } }),
+        ...ingredientsForDiet(dietType),
         NOT: { allergens: { hasSome: [...userAllergens] } },
         retiredAt: null,
       },

@@ -492,3 +492,61 @@ describe('the text of a recipe after an ingredient swap', () => {
     });
   });
 });
+
+describe("a model's substitute for an ingredient of a plan on the high-protein diet", () => {
+  let t: TestApp;
+  let user: TestUser;
+  let plan: MealPlan;
+  let mealId: string;
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    await resetDatabase(t.prisma);
+    await seedCatalogue(t.prisma);
+  });
+
+  afterAll(async () => {
+    await t.close();
+  });
+
+  beforeEach(async () => {
+    await resetUserData(t.prisma);
+    t.model.reset();
+    user = await aUser(t);
+    await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
+    plan = await aPlan(t, user, await aProfile(t, user, { dietType: 'high_protein' }));
+    // The tofu rice bowl in the first lunch: firm tofu, white rice, broccoli, olive oil.
+    mealId = plan.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!.id;
+    const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+    await t.prisma.plannedMeal.update({ where: { id: mealId }, data: { recipeId: bowl.id } });
+  });
+
+  const ingredientId = async (slug: string): Promise<string> =>
+    (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+
+  it('is chosen among every food of the kind of the line, those the catalogue does not mark as rich in protein included', async () => {
+    expect(plan.dietType).toBe('high_protein');
+    // Grains the catalogue does not mark as rich in protein: a high-protein day is a matter of how the day is put together.
+    const grains = await t.prisma.ingredient.findMany({
+      where: { slug: { in: ['rolled-oats', 'wholegrain-bread'] } },
+      select: { id: true, dietCompatibility: true },
+    });
+    expect(grains.every((grain) => !grain.dietCompatibility.includes('high_protein'))).toBe(true);
+    t.model.reply({
+      text: JSON.stringify({ ingredientId: grains[0]!.id, reason: 'More fibre.' }),
+    });
+
+    const answer = await t
+      .http()
+      .post('/api/meal-plans/swap-ingredient/ai-suggest')
+      .set(as(user))
+      .send({
+        planId: plan.id,
+        plannedMealId: mealId,
+        fromIngredientId: await ingredientId('white-rice'),
+      })
+      .expect(201);
+
+    expect(grains.map((grain) => grain.id)).toContain(answer.body.toIngredient.id);
+  });
+});

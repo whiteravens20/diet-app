@@ -26,6 +26,7 @@ import { readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildDraftPrompt } from './ai-recipe-draft.prompt.js';
+import { ingredientsForDiet } from './diet-where.js';
 import { draftCatalogue } from './draft-catalogue.js';
 import {
   listedButNotUsed,
@@ -112,8 +113,7 @@ export class AiRecipeDraftService {
         slug: { not: null },
         retiredAt: null,
         id: { notIn: [...excludedIds] },
-        // A custom diet filters nothing.
-        ...(dietType === 'custom' ? {} : { dietCompatibility: { has: dietType } }),
+        ...ingredientsForDiet(dietType),
         NOT: { allergens: { hasSome: allergens } },
         OR: [{ NOT: { tags: { has: IMPORTED } } }, { id: { in: [...favouriteIds] } }],
       },

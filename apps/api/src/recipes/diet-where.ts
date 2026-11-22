@@ -11,3 +11,13 @@ import { RecipeDietTag } from '@diet-app/shared';
 export function recipesForDiet(diet: string): Prisma.RecipeWhereInput {
   return RecipeDietTag.safeParse(diet).success ? { dietTags: { has: diet } } : {};
 }
+
+/**
+ * The query condition for "ingredients a dish for `diet` may hold": the ingredients' side of
+ * `recipesForDiet`. A diet a recipe has to qualify for narrows them to those the catalogue marks as
+ * fitting it; any other diet (balanced, high-protein, custom) is a matter of how a day is put together,
+ * and takes every ingredient.
+ */
+export function ingredientsForDiet(diet: string): Prisma.IngredientWhereInput {
+  return RecipeDietTag.safeParse(diet).success ? { dietCompatibility: { has: diet } } : {};
+}

@@ -383,6 +383,21 @@ describe('drafting a recipe with a model', () => {
       expect(slugs).not.toContain('whole-milk');
     });
 
+    it('offers a high-protein request every ingredient the profile may eat, those the catalogue does not mark as rich in protein among them', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      await ask({ dietType: 'high_protein' });
+
+      // A high-protein day is a matter of how the day is put together: rice, bread and a banana belong in its dishes.
+      const slugs = offered(t.model.requests[0]!);
+      expect(slugs).toEqual(expect.arrayContaining(['white-rice', 'wholegrain-bread', 'banana']));
+      expect(slugs).toEqual(expect.arrayContaining(['chicken-breast', 'olive-oil']));
+      // The prompt says what the dish is built on, and refuses nothing for it.
+      expect(t.model.requests[0]!.prompt).toContain(
+        '- Diet: high_protein. Every ingredient of the catalogue fits it. The dish is built on a protein-rich main ingredient.',
+      );
+    });
+
     it('refuses a draft that does not fit the diet asked for, and stores nothing', async () => {
       // Every ingredient offered may appear in a low-carbohydrate recipe, rice
       // included; a recipe that is mostly rice is not one.

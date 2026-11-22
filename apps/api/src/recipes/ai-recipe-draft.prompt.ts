@@ -133,10 +133,13 @@ export function buildDraftPrompt(input: DraftPromptInput): { system: string; use
         ? LOW_CARB_BELOW_CARB_ENERGY
         : null;
   asks.push(
-    carbs === null
-      ? `- Diet: ${input.dietType}. Every ingredient of the catalogue fits it.`
-      : `- Diet: ${input.dietType}: under ${percent(carbs)} % of the dish's calories come from ` +
-          'carbohydrate. Build it on protein, fat and low-carbohydrate vegetables.',
+    carbs !== null
+      ? `- Diet: ${input.dietType}: under ${percent(carbs)} % of the dish's calories come from ` +
+          'carbohydrate. Build it on protein, fat and low-carbohydrate vegetables.'
+      : input.dietType === 'high_protein'
+        ? `- Diet: ${input.dietType}. Every ingredient of the catalogue fits it. The dish is built on ` +
+          'a protein-rich main ingredient.'
+        : `- Diet: ${input.dietType}. Every ingredient of the catalogue fits it.`,
   );
   if (input.mealType) {
     const kind = MAIN_MEALS.has(input.mealType)
