@@ -159,37 +159,43 @@
     "failed": "Could not draft a recipe — try again."
   },
   "landing": {
-    "highlights": {
-      "selfHosted": "Self-hosted",
-      "privacy": "Privacy-first",
-      "openSource": "Open source",
-      "aiOptional": "AI optional"
-    },
     "devWarning": {
       "title": "Heads up — early development.",
       "body": "This is pre-release software under active development. Things may break, data may be wiped between updates, and it might just blow up in your face. Don't rely on it for anything important yet."
     },
-    "headline": "Meal planning that actually adds up.",
-    "subhead": "Calorie-targeted plans, nutrition worked out from an ingredient database and shopping lists that write themselves.",
+    "headline": "A week of meals, counted to the calorie.",
+    "subhead": "A plan fitted to your calorie target, figures worked out from an ingredient database, and a shopping list that takes off what your pantry holds.",
     "getStarted": "Get started",
     "signIn": "Sign in",
-    "yours": {
-      "title": "Your diet, on your terms",
-      "body": "You run your diet and your plan: swap meals and ingredients, change a single day, eat something off the plan. The plan says what that changes and fits the portions of the rest of the day."
+    "facts": "Open source\u00a0· on your own server\u00a0· AI only if you want it",
+    "sample": {
+      "label": "An example day",
+      "diet": "Balanced diet\u00a0· 4\u00a0meals",
+      "sum": "{eaten, number, ::group-off}\u00a0of {target, number, ::group-off}\u00a0kcal",
+      "kcal": "{kcal, number, ::group-off}\u00a0kcal",
+      "protein": "Protein {grams, number, ::group-off}\u00a0g",
+      "fat": "fat {grams, number, ::group-off}\u00a0g",
+      "carbs": "carbs {grams, number, ::group-off}\u00a0g",
+      "note": "A day the planner made from the recipes of the base catalogue.",
+      "meals": {
+        "milletBowl": "Millet breakfast bowl with edamame and spinach",
+        "salmonQuinoa": "Salmon with quinoa and spinach",
+        "lentilSoup": "Red lentil and carrot soup",
+        "edamameCakes": "Edamame oat cakes with peanut-lime dip"
+      }
     },
-    "features": {
-      "controlTitle": "Settings that fit you",
-      "controlBody": "One of seven diets or your own macro split, two to five meals a day, the pace you lose weight at or a calorie target of your own. Rule out allergens and ingredients, lean towards the cuisines you like and give a single day its own target. The calorie target is worked out from the newest weight you log.",
-      "plansTitle": "Smart meal plans",
-      "plansBody": "Plans of one day to four weeks, laid out on a calendar. The planner tries to use up whole packs, and you can fill chosen days with a favourite set of meals. When things change, make a day or the whole plan again and keep what you have already eaten.",
-      "diaryTitle": "Diary and barcodes",
-      "diaryBody": "What you eat beside the plan goes into the diary, and the plan counts it as eaten: a recipe, an ingredient, a meal of your own or a product by its barcode, typed or scanned in the Android app. Product figures come from Open Food Facts, and what the base does not know you write from the label.",
-      "listsTitle": "Consolidated lists",
-      "listsBody": "A shopping list made from your plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, with the packs each row takes. What your pantry holds is taken off.",
-      "nutritionTitle": "Worked out, not made up",
-      "nutritionBody": "The calories and macros of a plan and a recipe, and their fibre, sugars, salt and saturated fat, come from a curated ingredient database and are worked out by the app itself: the same inputs always give the same numbers.",
-      "aiTitle": "AI only if you want it",
-      "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
+    "points": {
+      "title": "Your plan, your shopping and your diary in one place",
+      "targetTitle": "Your target, your diet",
+      "targetBody": "One of seven diets or your own macro split, two to five meals a day. The calorie target is worked out from your weight, or you set your own.",
+      "plansTitle": "A plan and its shopping list",
+      "plansBody": "Plans of one day to four weeks, made from the {recipes, plural, one {{recipes, number, ::group-off}\u00a0recipe} other {{recipes, number, ::group-off}\u00a0recipes}} on this server. The shopping list takes off your pantry and counts whole packs.",
+      "plansBodyPlain": "Plans of one day to four weeks, made from the recipes on this server. The shopping list takes off your pantry and counts whole packs.",
+      "diaryTitle": "A diary beside the plan",
+      "diaryBody": "What you eat beside the plan goes into the diary: a recipe, an ingredient, a meal of your own or a product by its barcode. The plan fits the portions of the rest of the day.",
+      "countedTitle": "Worked out, not made up",
+      "countedBody": "The app itself works out calories and macros from a database of {ingredients, plural, one {{ingredients, number, ::group-off}\u00a0ingredient} other {{ingredients, number, ::group-off}\u00a0ingredients}}. A model, if you turn one on, never writes a number.",
+      "countedBodyPlain": "The app itself works out calories and macros from an ingredient database. A model, if you turn one on, never writes a number."
     },
     "android": {
       "title": "Android app",

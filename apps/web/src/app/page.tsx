@@ -1,52 +1,26 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import Link from 'next/link';
-import {
-  Barcode,
-  CalendarRange,
-  CodeXml,
-  Cpu,
-  ListChecks,
-  Server,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  TriangleExclamationPoint,
-  Utensils,
-} from 'lucide-react';
+import { TriangleExclamationPoint } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { AndroidAppCard } from '@/components/android-app-card';
 import { buttonVariants } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Brand } from '@/components/brand';
+import { CatalogueSentence } from '@/components/landing/catalogue-sentence';
+import { SampleDay } from '@/components/landing/sample-day';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { LineDrawing } from '@/components/line-drawing';
 import { ThemeChoice } from '@/components/theme-choice';
 
-const FEATURE_KEYS = [
-  { icon: SlidersHorizontal, titleKey: 'controlTitle', bodyKey: 'controlBody' },
-  { icon: CalendarRange, titleKey: 'plansTitle', bodyKey: 'plansBody' },
-  { icon: Barcode, titleKey: 'diaryTitle', bodyKey: 'diaryBody' },
-  { icon: ListChecks, titleKey: 'listsTitle', bodyKey: 'listsBody' },
-  { icon: Utensils, titleKey: 'nutritionTitle', bodyKey: 'nutritionBody' },
-  { icon: Sparkles, titleKey: 'aiTitle', bodyKey: 'aiBody' },
-] as const;
-
-// Pills shown above the headline. Each keeps a distinct icon — self-hosted
-// uses Server (not Sparkles, which the AI feature card owns).
-const HIGHLIGHT_KEYS = [
-  { icon: Server, key: 'selfHosted' },
-  { icon: ShieldCheck, key: 'privacy' },
-  { icon: CodeXml, key: 'openSource' },
-  { icon: Cpu, key: 'aiOptional' },
-] as const;
+/** What the application does, each point in the person's own nouns; two of them name the instance's catalogue. */
+const POINTS = ['target', 'plans', 'diary', 'counted'] as const;
 
 /** Public landing page. */
 export default function Landing() {
   const t = useTranslations('landing');
-  const tFeatures = useTranslations('landing.features');
   const tCommon = useTranslations('common');
   return (
-    <main className="mx-auto max-w-5xl px-6 py-20">
+    <main className="mx-auto max-w-5xl px-6 py-12 sm:py-16">
       {/* The name and the mark in a quiet row of their own, the language and the theme beside them. */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <Brand name={tCommon('appName')} size={32} className="text-lg" />
@@ -55,53 +29,62 @@ export default function Landing() {
           <ThemeChoice />
         </div>
       </header>
-      <section className="mt-6 text-center">
-        <div className="flex flex-wrap justify-center gap-2">
-          {HIGHLIGHT_KEYS.map((h) => (
-            <span
-              key={h.key}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground"
-            >
-              <h.icon size={13} /> {t(`highlights.${h.key}`)}
-            </span>
-          ))}
+
+      <section className="mt-12 grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+        <div className="min-w-0">
+          <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
+            {t('headline')}
+          </h1>
+          <p className="mt-4 max-w-xl text-pretty text-lg text-muted-foreground">{t('subhead')}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/register" className={buttonVariants({ size: 'lg' })}>
+              {t('getStarted')}
+            </Link>
+            <Link href="/login" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
+              {t('signIn')}
+            </Link>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">{t('facts')}</p>
         </div>
-        <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight">{t('headline')}</h1>
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-          {t('subhead')}
-        </p>
-        <div className="mt-8 flex justify-center gap-3">
-          <Link href="/register" className={buttonVariants({ size: 'lg' })}>
-            {t('getStarted')}
-          </Link>
-          <Link href="/login" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
-            {t('signIn')}
-          </Link>
-        </div>
-        <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm text-warning">
-          <TriangleExclamationPoint size={18} className="mt-0.5 shrink-0" />
-          <p>
-            <span className="font-semibold">{t('devWarning.title')}</span> {t('devWarning.body')}
-          </p>
-        </div>
+        <SampleDay />
       </section>
 
-      <section className="mt-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-balance text-2xl font-semibold tracking-tight">{t('yours.title')}</h2>
-          <p className="mt-2 text-pretty text-muted-foreground">{t('yours.body')}</p>
-        </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {FEATURE_KEYS.map((f) => (
-            <Card key={f.titleKey} className="p-6">
-              <span className="inline-flex rounded-md bg-muted p-2 text-primary">
-                <f.icon size={20} />
-              </span>
-              <h3 className="mt-3 font-semibold">{tFeatures(f.titleKey)}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{tFeatures(f.bodyKey)}</p>
-            </Card>
+      {/* A pea shoot over the points and vegetables in their corner: on a phone the shoot's branch alone, as a strip. */}
+      <section className="relative isolate mt-16 px-1 pb-28 pt-16 sm:mt-20 sm:px-16 sm:pb-16 sm:pt-20">
+        <LineDrawing
+          name="shoot-a"
+          fit="top"
+          className="absolute -left-1 top-0 -z-10 aspect-[16/3] w-[70%] sm:-left-6 sm:-top-8 sm:aspect-video sm:w-[min(62%,520px)]"
+        />
+        <LineDrawing
+          name="vegetables-a"
+          className="absolute -bottom-2 -right-1 -z-10 aspect-[640/476] w-[32%] sm:-bottom-6 sm:-right-6 sm:w-[min(26%,230px)]"
+        />
+        <h2 className="max-w-2xl text-balance text-2xl font-semibold tracking-tight">
+          {t('points.title')}
+        </h2>
+        <dl className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          {POINTS.map((point) => (
+            <div key={point} className="min-w-0">
+              <dt className="font-semibold">{t(`points.${point}Title`)}</dt>
+              <dd className="mt-1 text-pretty text-muted-foreground">
+                {point === 'plans' || point === 'counted' ? (
+                  <CatalogueSentence kind={point} />
+                ) : (
+                  t(`points.${point}Body`)
+                )}
+              </dd>
+            </div>
           ))}
-        </div>
+        </dl>
+        {/* True until the first release, so it stays: quieter than under the buttons, beside the vegetables. */}
+        <p className="mt-12 flex max-w-md items-start gap-2 text-sm text-muted-foreground sm:max-w-[55%]">
+          <TriangleExclamationPoint size={16} className="mt-0.5 shrink-0 text-warning" />
+          <span>
+            <span className="font-medium text-foreground">{t('devWarning.title')}</span>{' '}
+            {t('devWarning.body')}
+          </span>
+        </p>
       </section>
 
       <AndroidAppCard />
