@@ -33,7 +33,7 @@ import {
   scaleRests,
 } from './plan-days.js';
 import { writePlans } from './plan-write.js';
-import { pieced, pieceUsesOf } from './whole-pieces-store.js';
+import { keepPieces, pieced, pieceUsesOf } from './whole-pieces-store.js';
 
 /** A meal as it was before a leftover took its place or was left of it: what undoing the leftover writes back. */
 const StoredMeal = z.object({
@@ -239,6 +239,11 @@ export class LeftoversService {
         await this.carry(tx, theirs, req.theirLeft ?? req.left, false);
         await this.shareLeftovers(tx, mine, theirs, sourceShare?.apart ?? false);
       }
+      // The part eaten is eaten with what its pot, the leftover now in it, makes it take whole.
+      await keepPieces(
+        tx,
+        sides.map((side) => side.source.id),
+      );
       for (const dayId of new Set(sides.flatMap((side) => [side.source.dayId, side.next.id])))
         await this.plans.rebalanceDayInternal(dayId, tx, today);
     });
@@ -301,6 +306,11 @@ export class LeftoversService {
             restored.push(side.stored.source);
         }
         for (const one of restored) await this.linkAgain(tx, one);
+        // A meal written back eaten is eaten with what its pot makes it take whole without the leftover.
+        await keepPieces(tx, [
+          ...sides.map((side) => side.meal.id),
+          ...restored.map((one) => one.id),
+        ]);
         const days = new Set([
           ...sides.map((side) => side.meal.dayId),
           ...sourceDays.map((day) => day.id),

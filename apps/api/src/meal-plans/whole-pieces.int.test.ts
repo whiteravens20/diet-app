@@ -316,6 +316,126 @@ describe('eggs in planned meals', () => {
     expect(eggsOf(now.shared!.pot)).toBeCloseTo(6);
   });
 
+  describe('once a meal of their pot is eaten', () => {
+    const eat = (planId: string, mealId: string, eaten = true) =>
+      t
+        .http()
+        .patch(`/api/meal-plans/${planId}/meals/${mealId}/eaten`)
+        .set(as(user))
+        .send({ eaten })
+        .expect(200);
+    const takeOff = (planId: string, mealId: string) =>
+      t.http().delete(`/api/meal-plans/${planId}/meals/${mealId}`).set(as(user)).expect(200);
+    /** What the diary counts as eaten on a day, and the label figures of it. */
+    const diaryOf = async (date: string): Promise<Pick<DiaryDay, 'eaten' | 'eatenLabel'>> => {
+      const day = (
+        await t
+          .http()
+          .get(`/api/diary/day?profileId=${profile.id}&date=${date}`)
+          .set(as(user))
+          .expect(200)
+      ).body as DiaryDay;
+      return { eaten: day.eaten, eatenLabel: day.eatenLabel };
+    };
+
+    it('keep what the meal a leftover was left of was eaten with once the leftover leaves its day', async () => {
+      const made = await aPlan(t, user, profile, { durationDays: 2 });
+      await noEggs(made);
+      const lunch = meal(made, 0, 'lunch');
+      await serve(lunch, EGGS, 1.5);
+      const date = made.days[0]!.date;
+      // Half of it eaten, the other half the next day's lunch: the plans' day of the tests is the plan's first.
+      await t
+        .http()
+        .post(`/api/meal-plans/${made.id}/meals/${lunch.id}/leftover`)
+        .set(as(user))
+        .send({ mealType: 'lunch', left: 0.5 })
+        .expect(200);
+      const before = meal(await read(made), 0, 'lunch');
+      // 2.25 and 2.25 eggs are 4.5, cooked as five: the half eaten took 2.5 of them.
+      expect(eggsOf(before.ingredients)).toBeCloseTo(2.5);
+      const diary = await diaryOf(date);
+
+      await takeOff(made.id, meal(await read(made), 1, 'lunch').id);
+
+      const after = meal(await read(made), 0, 'lunch');
+      expect(eggsOf(after.ingredients)).toBeCloseTo(2.5);
+      expect(after.nutrition).toEqual(before.nutrition);
+      expect(await diaryOf(date)).toEqual(diary);
+    });
+
+    it("keep what one person ate of a dish both eat when the other's portion changes and when the other plan goes", async () => {
+      const { mine, at, shared } = await sharedEggs();
+      const date = mine.days[at]!.date;
+      await eat(mine.id, shared.id);
+      const before = meal(await read(mine), at, shared.mealType);
+      // 3.75 and 1.5 eggs are 5.25, cooked as five.
+      expect(eggsOf(before.ingredients)).toBeCloseTo((3.75 * 5) / 5.25);
+      const diary = await diaryOf(date);
+
+      // Her portion sized again, as a change of her day sizes it: 1.5 eggs become 0.6.
+      await t.prisma.plannedMeal.update({
+        where: { id: shared.shared!.with.mealId },
+        data: { quantityScale: 0.4 },
+      });
+      const resized = meal(await read(mine), at, shared.mealType);
+      expect(eggsOf(resized.ingredients)).toBeCloseTo(eggsOf(before.ingredients));
+      expect(resized.nutrition).toEqual(before.nutrition);
+      expect(await diaryOf(date)).toEqual(diary);
+
+      // Her plan removed: his portion is a pot of its own, which still holds what he ate.
+      const hers = await t.prisma.plannedMeal.findUniqueOrThrow({
+        where: { id: shared.shared!.with.mealId },
+        select: { day: { select: { planId: true } } },
+      });
+      await t.http().delete(`/api/meal-plans/${hers.day.planId}`).set(as(user)).expect(204);
+      const alone = meal(await read(mine), at, shared.mealType);
+      expect(eggsOf(alone.ingredients)).toBeCloseTo(eggsOf(before.ingredients));
+      expect(alone.nutrition).toEqual(before.nutrition);
+      expect(await diaryOf(date)).toEqual(diary);
+    });
+
+    it('keep what a meal of a dish cooked once for more meals was eaten with once another of them goes', async () => {
+      const made = await aPlan(t, user, profile, { durationDays: 2, mealPrepFriendly: true });
+      await noEggs(made);
+      await serve(meal(made, 0, 'breakfast'), EGGS, 1.25);
+      await serve(meal(made, 1, 'breakfast'), EGGS, 1.5);
+      const date = made.days[0]!.date;
+      await eat(made.id, meal(made, 0, 'breakfast').id);
+      const before = meal(await read(made), 0, 'breakfast');
+      // 3.75 and 4.5 eggs are 8.25, cooked as eight.
+      expect(eggsOf(before.ingredients)).toBeCloseTo((3.75 * 8) / 8.25);
+      const diary = await diaryOf(date);
+
+      await takeOff(made.id, meal(made, 1, 'breakfast').id);
+
+      const after = meal(await read(made), 0, 'breakfast');
+      expect(eggsOf(after.ingredients)).toBeCloseTo(eggsOf(before.ingredients));
+      expect(after.nutrition).toEqual(before.nutrition);
+      expect(await diaryOf(date)).toEqual(diary);
+    });
+
+    it('take their share of the pot as it stands again once the meal is marked not eaten', async () => {
+      const made = await aPlan(t, user, profile, { durationDays: 2, mealPrepFriendly: true });
+      await noEggs(made);
+      await serve(meal(made, 0, 'breakfast'), EGGS, 1.25);
+      await serve(meal(made, 1, 'breakfast'), EGGS, 1.5);
+      const first = meal(made, 0, 'breakfast');
+      await eat(made.id, first.id);
+      expect(
+        (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: first.id } })).keptPieces,
+      ).toEqual({ [eggId]: 8 / 8.25 });
+
+      await eat(made.id, first.id, false);
+      expect(
+        (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: first.id } })).keptPieces,
+      ).toBeNull();
+      // The other breakfast goes: the first is a pot of its own, 3.75 eggs cooked as four.
+      await takeOff(made.id, meal(made, 1, 'breakfast').id);
+      expect(eggsOf(meal(await read(made), 0, 'breakfast').ingredients)).toBeCloseTo(4);
+    });
+  });
+
   describe('in what a change of a meal is shown to come to', () => {
     const ingredientId = async (slug: string): Promise<string> =>
       (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;

@@ -144,6 +144,7 @@ import {
   pieceFactorOf,
   pieceUsesOf,
   piecedDays,
+  keepPieces,
   selfContained,
   usesOfPlans,
   WHOLE_LINES,
@@ -261,6 +262,7 @@ export class MealPlansService {
                 plate: true,
                 modelPicked: true,
                 wholePieces: true,
+                keptPieces: true,
                 sharedMealId: true,
                 givenLeftoverId: true,
                 leftoverFromDate: true,
@@ -792,12 +794,15 @@ export class MealPlansService {
       ],
       async (tx) => {
         const at = eaten ? new Date() : null;
+        // What a meal is eaten with is kept as the person saw it, before any day around it is sized again.
         if (other) {
           await tx.plannedMeal.update({ where: { id: other.id }, data: { eatenAt: at } });
+          await keepPieces(tx, [other.id]);
           await this.rebalanceDayInternal(other.dayId, tx, today);
         }
         if ((meal.eatenAt !== null) === eaten) return null;
         await tx.plannedMeal.update({ where: { id: mealId }, data: { eatenAt: at } });
+        await keepPieces(tx, [mealId]);
         return this.rebalanceDayInternal(meal.dayId, tx, today);
       },
     );

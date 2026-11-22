@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PlanOptions, type Unit } from '@diet-app/shared';
+import { z } from 'zod';
 import { convertUnit, UnitConversionError } from '../engine/units.js';
 import {
   linkedPots,
@@ -69,6 +70,8 @@ interface PotMeal {
   plate: unknown;
   source: string;
   wholePieces: boolean;
+  /** What it took whole when it was eaten (`keptPiecesOf`); null where nothing is kept. */
+  keptPieces: unknown;
   sharedMealId: string | null;
   /** Its dish both people eat is cooked apart, each portion a pot of its own; unknown for a plan read alone. */
   apart?: boolean | null;
@@ -112,7 +115,7 @@ export async function pieceUsesOf(
       )
     ), "nearMeals" AS MATERIALIZED (
       SELECT d."planId", d."date", m."id", m."mealType", m."recipeId", m."servings", m."quantityScale", m."plate", m."source",
-        m."wholePieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
+        m."wholePieces", m."keptPieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
       FROM "MealPlanDay" d JOIN "PlannedMeal" m ON m."dayId" = d."id"
       WHERE d."planId" = ANY(ARRAY(SELECT "planId" FROM "near"))
     ), "farther" AS MATERIALIZED (
@@ -131,7 +134,7 @@ export async function pieceUsesOf(
       SELECT * FROM "nearMeals"
       UNION ALL
       SELECT d."planId", d."date", m."id", m."mealType", m."recipeId", m."servings", m."quantityScale", m."plate", m."source",
-        m."wholePieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
+        m."wholePieces", m."keptPieces", m."sharedMealId", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType"
       FROM "MealPlanDay" d JOIN "PlannedMeal" m ON m."dayId" = d."id"
       WHERE d."planId" = ANY(ARRAY(SELECT "planId" FROM "farther"))
     ), "lines" AS MATERIALIZED (
@@ -160,7 +163,7 @@ export async function pieceUsesOf(
       GROUP BY ri."recipeId", r."servings"
     )
     SELECT m."planId", p."options", m."date", m."id", m."mealType", m."recipeId", m."servings",
-      m."quantityScale", m."plate", m."source"::text AS "source", m."wholePieces", m."sharedMealId",
+      m."quantityScale", m."plate", m."source"::text AS "source", m."wholePieces", m."keptPieces", m."sharedMealId",
       s."apart", m."givenLeftoverId", m."leftoverFromDate", m."leftoverFromMealType",
       l."servings" AS "recipeServings", l."lines"
     FROM "meals" m
@@ -224,10 +227,11 @@ export function selfContained(plan: PotPlan): boolean {
  * What the meals named take whole of the plans given, each with its pot's factor. A pot is a meal
  * cooked on its own, a dish both people of a joint plan eat (but where each portion is cooked
  * apart), a leftover with the meal it was left of, and a dish cooked once for more meals of a plan
- * made for cooking ahead. A meal that takes none is left out of the answer, and so is every meal of
- * a pot that keeps what it was planned with (one of its meals was eaten before pieces were taken
- * whole). `scales` gives meals another `quantityScale`, none at all for a meal that goes: what a
- * change would make of the pots, before it is written.
+ * made for cooking ahead. A meal that was eaten takes what it was eaten with (`keptPiecesOf`), and
+ * the rest of its pot what is left. A meal that takes none is left out of the answer, and so is every
+ * meal of a pot that keeps what it was planned with (one of its meals was eaten before pieces were
+ * taken whole). `scales` gives meals another `quantityScale`, none at all for a meal that goes: what
+ * a change would make of the pots, before it is written.
  */
 export function usesOfPlans(
   plans: readonly PotPlan[],
@@ -267,8 +271,13 @@ export function usesOfPlans(
       const exact = exactPieces(meal.recipe, meal.servings * scale, meal.plate);
       if (exact.size === 0) continue;
       exactOf.set(meal.id, exact);
+      const kept = keptPiecesOf(meal.keptPieces);
       for (const [ingredient, { pieces }] of exact)
-        potTakes.push({ meal: meal.id, ingredient, pieces });
+        potTakes.push(
+          kept
+            ? { meal: meal.id, ingredient, pieces, kept: kept.get(ingredient) ?? 1 }
+            : { meal: meal.id, ingredient, pieces },
+        );
     }
     if (potTakes.length) takes.push(potTakes);
   }
@@ -279,6 +288,50 @@ export function usesOfPlans(
     if (exact) uses.set(mealId, usesOf(exact, factors.get(mealId)));
   }
   return uses;
+}
+
+/** What a meal kept of what it took whole when it was eaten: its pot's factor on each ingredient, by id. */
+const KeptPieces = z.record(z.string(), z.number().positive());
+
+/** What a meal that was eaten took whole then, by ingredient; null for one that keeps nothing. */
+function keptPiecesOf(stored: unknown): Map<string, number> | null {
+  if (stored === null || stored === undefined) return null;
+  const read = KeptPieces.safeParse(stored);
+  return read.success ? new Map(Object.entries(read.data)) : null;
+}
+
+/**
+ * Keep on each of the meals named that is eaten what its pot makes it take whole now, worked out as if it
+ * had kept nothing, and keep nothing on each that is not eaten. For a write that marks a meal eaten or not,
+ * or that changes the portion of one that is eaten, once the meals of its pot are written and before any
+ * day is sized again, so that what is kept is what the person saw.
+ */
+export async function keepPieces(
+  tx: Pick<Prisma.TransactionClient, '$queryRaw' | 'plannedMeal'>,
+  mealIds: readonly string[],
+): Promise<void> {
+  if (mealIds.length === 0) return;
+  const ids = [...new Set(mealIds)];
+  await tx.plannedMeal.updateMany({
+    where: { id: { in: ids } },
+    data: { keptPieces: Prisma.DbNull },
+  });
+  const eaten = await tx.plannedMeal.findMany({
+    where: { id: { in: ids }, eatenAt: { not: null } },
+    select: { id: true },
+  });
+  if (eaten.length === 0) return;
+  const uses = await pieceUsesOf(
+    tx,
+    eaten.map((meal) => meal.id),
+  );
+  for (const [mealId, taken] of uses)
+    await tx.plannedMeal.update({
+      where: { id: mealId },
+      data: {
+        keptPieces: Object.fromEntries(taken.map((use) => [use.ingredientId, use.factor])),
+      },
+    });
 }
 
 type WholeIngredient = Prisma.RecipeIngredientGetPayload<typeof WHOLE_LINES>['ingredient'];

@@ -46,6 +46,11 @@ export interface PotTake {
   meal: string;
   ingredient: string;
   pieces: number;
+  /**
+   * The factor a meal that was eaten keeps from the moment it was eaten: its share stays as it was, and the rest of
+   * the pot takes what is left of the pot's pieces.
+   */
+  kept?: number;
 }
 
 /** The noise of converting units: 1.4999999997 pieces are a half and a whole one. */
@@ -60,22 +65,41 @@ export function wholePieces(exact: number): number {
 /**
  * For each pot, each meal's factor of its exact amount of each ingredient used
  * whole: the pot's whole pieces over its exact ones, the same for every meal of
- * the pot. A meal and an ingredient not named stay as they are (a factor of 1).
+ * the pot. A meal that was eaten keeps its factor (`PotTake.kept`), and what it
+ * holds is part of the pot: the pot's whole pieces are those of what the eaten
+ * meals hold and what the rest take exactly, and the rest share what is left
+ * of them. Where the eaten meals hold every piece of that, the rest are a pot
+ * of their own. A meal and an ingredient not named stay as they are (a factor
+ * of 1).
  */
 export function wholePieceFactors(
   pots: readonly (readonly PotTake[])[],
 ): Map<string, Map<string, number>> {
   const factors = new Map<string, Map<string, number>>();
+  const set = (meal: string, ingredient: string, factor: number): void => {
+    const ofMeal = factors.get(meal) ?? new Map<string, number>();
+    ofMeal.set(ingredient, factor);
+    factors.set(meal, ofMeal);
+  };
   for (const pot of pots) {
+    // By ingredient: what the eaten meals hold, in pieces, and what the rest take exactly.
+    const held = new Map<string, number>();
     const exact = new Map<string, number>();
-    for (const take of pot)
-      exact.set(take.ingredient, (exact.get(take.ingredient) ?? 0) + take.pieces);
     for (const take of pot) {
+      if (take.kept === undefined)
+        exact.set(take.ingredient, (exact.get(take.ingredient) ?? 0) + take.pieces);
+      else {
+        held.set(take.ingredient, (held.get(take.ingredient) ?? 0) + take.pieces * take.kept);
+        set(take.meal, take.ingredient, take.kept);
+      }
+    }
+    for (const take of pot) {
+      if (take.kept !== undefined) continue;
       const total = exact.get(take.ingredient)!;
       if (total <= EPSILON) continue;
-      const ofMeal = factors.get(take.meal) ?? new Map<string, number>();
-      ofMeal.set(take.ingredient, wholePieces(total) / total);
-      factors.set(take.meal, ofMeal);
+      const eaten = held.get(take.ingredient) ?? 0;
+      const left = wholePieces(eaten + total) - eaten;
+      set(take.meal, take.ingredient, (left > EPSILON ? left : wholePieces(total)) / total);
     }
   }
   return factors;

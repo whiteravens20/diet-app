@@ -1081,6 +1081,10 @@ model PlannedMeal {
   // meal eaten before they were taken whole, whose figures a diary and its weeks counted already: it
   // keeps what it was planned with, and so does every meal cooked in one pot with it.
   wholePieces   Boolean   @default(true)
+  // Of a meal that was eaten, the factor its pot put on each ingredient it took whole at that moment, by
+  // ingredient id: what it was eaten with stays, whatever becomes of the rest of its pot. Null for a meal not
+  // eaten, and for one eaten before this was kept, which takes its share of its pot as the pot stands.
+  keptPieces    Json?
   lastRebalanceAt DateTime?
   // A model chose this recipe for the meal, out of what the engine allowed,
   // and this is the reason it gave, when it gave one. Cleared when the meal
