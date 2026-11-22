@@ -56,16 +56,17 @@ import {
   toCanonical,
   UnitConversionError,
 } from '../engine/index.js';
-import { mealRank, MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { planChangedMeanwhile } from '../meal-plans/plan-write.js';
 import {
   aimOfDay as aimOfPlanDay,
   sharesOfPlanDay,
-  customMacros,
   isoDate,
   isSkipped,
   MADE_LAST,
   mealLabel,
   mealNutrition,
+  mealRank,
   standingOf,
   sumNutrition,
 } from '../meal-plans/plan-days.js';
@@ -79,6 +80,7 @@ import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
 import { entryDto, entryWith, languages } from './diary-entries.js';
+import { diaryMealOf, eatenMeals, entryOfEaten, type EatenMeal } from './eaten-meals.js';
 import { pieced, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
@@ -233,6 +235,13 @@ export class DiaryService {
       ),
     );
     const entered = rows.length > 0 ? [fromEntries] : [];
+    // What the profile's other plans that hold the day had eaten on it counts as eaten, as an entry does.
+    const otherPlans = planDay
+      ? await eatenMeals(this.prisma, profileId, new Date(date), new Date(date), {
+          except: planDay.planId,
+        })
+      : [];
+    const elsewhere = otherPlans.map((meal) => meal.nutrition);
     // The foods of the toppings, read only for a day that has any.
     const [toppingFoods, pieces] = await Promise.all([
       planDay?.meals.some((meal) => meal.toppingKey !== null)
@@ -280,15 +289,26 @@ export class DiaryService {
     const eatenLabel = roundLabel(
       sumLabels([
         ...meals.filter((meal) => meal.eaten).map((meal) => meal.label),
+        ...otherPlans.map((meal) => meal.label),
         ...rows.map(fromStoredLabel),
       ]),
     );
-    // Where the plan's day stands is where its view says it stands: its meals, and the entries as eaten.
-    const planned = sumNutrition([...meals.map((meal) => meal.nutrition), ...entered]);
-    const eaten = sumNutrition([
-      ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
+    // Where the plan's day stands is where its view says it stands: its meals, and the entries and what the other
+    // plans had eaten as eaten.
+    const planned = sumNutrition([
+      ...meals.map((meal) => meal.nutrition),
+      ...elsewhere,
       ...entered,
     ]);
+    const eaten = sumNutrition([
+      ...meals.filter((meal) => meal.eaten).map((meal) => meal.nutrition),
+      ...elsewhere,
+      ...entered,
+    ]);
+    const besides =
+      rows.length > 0 || otherPlans.length > 0
+        ? { nutrition: sumNutrition([...elsewhere, ...entered]) }
+        : null;
     const aim = this.aimOf(profile, skipped ? null : planDay);
     const standing = standingOf(planned.calories, planDay?.calorieTarget ?? 0, skipped);
     return {
@@ -310,15 +330,11 @@ export class DiaryService {
               !skipped &&
               date >= (today ?? this.plans.today()) &&
               standing.offTarget !== null &&
-              this.plans.resizes(
-                planDay.meals,
-                planDay,
-                rows.length > 0 ? { nutrition: fromEntries } : null,
-                planDay.plan,
-              ),
+              this.plans.resizes(planDay.meals, planDay, besides, planDay.plan),
           }
         : null,
       entries: rows.map((row) => entryDto(row, locale)),
+      otherPlans: otherPlans.map((meal) => ({ ...diaryMealOf(meal, locale), planId: meal.planId })),
       eaten,
       eatenLabel,
       labelNotes: labelNotes(eatenLabel, labelLimitsOf(profile.preferences)),
@@ -329,10 +345,10 @@ export class DiaryService {
   /**
    * What a profile ate on each day from `from` to `to`, both included, and
    * what each day aimed at, as the day's own view works them out: the meals
-   * of the plan made last that were marked eaten and the entries, against the
-   * plan's day or, where no plan holds it or the plan skips it, the profile.
-   * A day counts once it holds an entry or a meal marked eaten. For the week
-   * in sum and the expenditure worked out from the diary.
+   * marked eaten in any of its plans and the entries, against the day of the
+   * plan made last or, where no plan holds it or the plan skips it, the
+   * profile. A day counts once it holds an entry or a meal marked eaten. For
+   * the week in sum and the expenditure worked out from the diary.
    */
   async figuresOfDays(
     userId: string,
@@ -342,7 +358,7 @@ export class DiaryService {
   ): Promise<DayFigures[]> {
     const profile = await this.profile(userId, profileId);
     const range = { gte: new Date(from), lte: new Date(to) };
-    const [planDays, sums] = await Promise.all([
+    const [planDays, sums, eatenInPlans] = await Promise.all([
       this.prisma.mealPlanDay.findMany({
         where: { date: range, plan: { profileId } },
         orderBy: [{ date: 'asc' }, ...MADE_LAST],
@@ -353,28 +369,6 @@ export class DiaryService {
           plan: {
             select: { dietType: true, macroSplit: true, calorieTarget: true },
           },
-          meals: {
-            where: { eatenAt: { not: null } },
-            select: {
-              id: true,
-              servings: true,
-              quantityScale: true,
-              source: true,
-              customMacros: true,
-              rests: true,
-              plate: true,
-              toppingKey: true,
-              toppingAmount: true,
-              recipe: {
-                select: {
-                  caloriesPerServing: true,
-                  proteinPerServing: true,
-                  fatPerServing: true,
-                  carbsPerServing: true,
-                },
-              },
-            },
-          },
         },
       }),
       this.prisma.diaryEntry.groupBy({
@@ -383,33 +377,22 @@ export class DiaryService {
         _sum: { calories: true, protein: true, fat: true, carbs: true },
         _count: true,
       }),
+      eatenMeals(this.prisma, profileId, range.gte, range.lte),
     ]);
     // Of the plans that hold a day, the one made last, as the day's own view picks it.
     const planOf = new Map<string, (typeof planDays)[number]>();
     for (const day of planDays)
       if (!planOf.has(isoDate(day.date))) planOf.set(isoDate(day.date), day);
     const entriesOf = new Map(sums.map((row) => [isoDate(row.date), row]));
-    // The foods of the toppings eaten, read only where any was.
-    const [toppingFoods, pieces] = await Promise.all([
-      [...planOf.values()].some((day) => day.meals.some((meal) => meal.toppingKey !== null))
-        ? toppingFoodsOf(this.prisma)
-        : (new Map() as ToppingFoods),
-      pieceUsesOf(
-        this.prisma,
-        [...planOf.values()].flatMap((day) => day.meals.map((meal) => meal.id)),
-      ),
-    ]);
+    const eatenOn = new Map<string, EatenMeal[]>();
+    for (const meal of eatenInPlans)
+      eatenOn.set(meal.date, [...(eatenOn.get(meal.date) ?? []), meal]);
     const days: DayFigures[] = [];
     for (let date = from; date <= to; date = dayAfter(date, 1)) {
       const planDay = planOf.get(date) ?? null;
       const entries = entriesOf.get(date);
-      const meals = sumNutrition(
-        (planDay?.meals ?? []).flatMap((row) => {
-          const meal = pieced(row, pieces);
-          const topping = toppingFiguresOf(meal, toppingFoods);
-          return topping ? [mealNutrition(meal), topping.nutrition] : [mealNutrition(meal)];
-        }),
-      );
+      const eatenMealsOfDay = eatenOn.get(date) ?? [];
+      const meals = sumNutrition(eatenMealsOfDay.map((meal) => meal.nutrition));
       const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
       const eaten = wholeFigures({
         calories: meals.calories + (entries?._sum.calories ?? 0),
@@ -425,7 +408,7 @@ export class DiaryService {
           calories: aim.target.calories,
           ...shownTarget(aim.target, aim.target.calories, aim.dietType, eaten.carbs),
         },
-        counted: (entries?._count ?? 0) > 0 || (planDay?.meals.length ?? 0) > 0,
+        counted: (entries?._count ?? 0) > 0 || eatenMealsOfDay.length > 0,
       });
     }
     return days;
@@ -694,9 +677,9 @@ export class DiaryService {
 
   /**
    * Copy what was eaten on one day into another of today or at most
-   * `DIARY_DAYS_BACK` days before it: the entries of `from`, and the meals its
-   * plan marked as eaten, which come in as entries with their figures as they
-   * are now. Nothing is copied when the day it goes to would hold more than
+   * `DIARY_DAYS_BACK` days before it: the entries of `from`, and the meals
+   * marked as eaten that day in the profile's plans, which come in as entries
+   * with the figures the day counts for them. Nothing is copied when the day it goes to would hold more than
    * the most. Sent again with its key, the request is answered with the day as
    * it is now, and copies nothing.
    */
@@ -716,75 +699,17 @@ export class DiaryService {
       request: req,
       write: async (keep) => {
         await this.profile(userId, profileId);
-        const [entries, planDay] = await Promise.all([
+        const [entries, eatenInPlans] = await Promise.all([
           this.prisma.diaryEntry.findMany({
             where: { profileId, date: new Date(from) },
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           }),
-          this.prisma.mealPlanDay.findFirst({
-            where: { date: new Date(from), plan: { profileId } },
-            orderBy: [...MADE_LAST],
-            select: {
-              meals: {
-                where: { eatenAt: { not: null } },
-                select: {
-                  mealType: true,
-                  servings: true,
-                  quantityScale: true,
-                  source: true,
-                  customName: true,
-                  customMacros: true,
-                  estimated: true,
-                  rests: true,
-                  plate: true,
-                  recipe: {
-                    select: {
-                      id: true,
-                      title: true,
-                      caloriesPerServing: true,
-                      proteinPerServing: true,
-                      fatPerServing: true,
-                      carbsPerServing: true,
-                      labelPerServing: true,
-                      translations: {
-                        where: { locale: { in: languages(locale) } },
-                        select: { locale: true, title: true },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          }),
+          eatenMeals(this.prisma, profileId, new Date(from), new Date(from)),
         ]);
-        const eaten = [...(planDay?.meals ?? [])]
-          .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType))
-          .map((meal): Written & { mealType: string } => {
-            const servings = meal.servings * meal.quantityScale;
-            if (meal.source === 'USER_CUSTOM' || !meal.recipe) {
-              return {
-                mealType: meal.mealType,
-                kind: 'meal',
-                name: meal.customName ?? '',
-                servings,
-                // A planned meal of its own keeps whether it was estimated, not which figure: all of them were.
-                estimated: meal.estimated,
-                estimatedMacros: meal.estimated ? [...EstimatedMacro.options] : [],
-                ...scaledFigures(customMacros(meal.customMacros), servings),
-              };
-            }
-            const recipe = meal.recipe;
-            return {
-              mealType: meal.mealType,
-              kind: 'recipe',
-              recipeId: recipe.id,
-              name: pickTitle(locale, recipe.translations, recipe.title),
-              servings,
-              estimated: false,
-              ...scaledFigures(perServing(recipe), servings),
-              ...recipeLabel(recipe.labelPerServing, servings),
-            };
-          });
+        // A meal eaten comes in with the figures the day counted for it, whichever plan it is of.
+        const eaten = eatenInPlans.map((meal): Written & { mealType: string } =>
+          entryOfEaten(meal, locale),
+        );
         const copies = [
           ...eaten,
           ...entries.map((entry): Written & { mealType: string } => ({
@@ -1229,12 +1154,6 @@ function perServing(recipe: {
     fat: recipe.fatPerServing,
     carbs: recipe.carbsPerServing,
   };
-}
-
-/** A refusal of a change of a plan made from a plan another change moved on meanwhile. */
-function planChangedMeanwhile(err: ConflictException): boolean {
-  const answer = err.getResponse();
-  return typeof answer === 'object' && (answer as { error?: unknown }).error === 'PLAN_CHANGED';
 }
 
 function entryNotFound(): NotFoundException {

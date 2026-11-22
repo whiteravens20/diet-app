@@ -866,6 +866,7 @@ describe('the plan page, when a plan is made again', () => {
         entries: 1,
         nutrition: { calories: 400, protein: 10, fat: 10, carbs: 60 },
         items: [],
+        otherPlans: [],
       },
     };
     answering(() => aPreview());
@@ -2072,6 +2073,7 @@ describe('the plan page, on how a day stands against its target', () => {
           entries: 2,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
           items: [],
+          otherPlans: [],
         },
       }),
     );
@@ -2177,6 +2179,7 @@ describe('the plan page, on how a day stands against its target', () => {
           entries: 4,
           nutrition: { calories: 890, protein: 27, fat: 34, carbs: 110 },
           items: [cake, supper, apple, entry({})],
+          otherPlans: [],
         },
       }),
     );
@@ -2214,6 +2217,47 @@ describe('the plan page, on how a day stands against its target', () => {
     expect(within(rows[3] as HTMLElement).getByText('1 serving')).toBeVisible();
   });
 
+  it("shows what another plan of the profile had eaten on the day where its meal stands, linked to that plan, and counts it in the day's line", async () => {
+    const today = localDate();
+    const OLDER = '22222222-2222-4222-8222-222222222222';
+    const EGGS = '33333333-3333-4333-8333-333333333333';
+    const plan = aDay({
+      date: today,
+      diary: {
+        entries: 0,
+        nutrition: { calories: 413, protein: 22, fat: 25, carbs: 20 },
+        items: [],
+        otherPlans: [
+          {
+            id: EGGS,
+            planId: OLDER,
+            mealType: 'breakfast',
+            name: 'Scrambled eggs',
+            recipeId: null,
+            eaten: true,
+            nutrition: { calories: 413, protein: 22, fat: 25, carbs: 20 },
+            label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+            fromPot: false,
+            topping: null,
+          },
+        ],
+      },
+    });
+    await opened(plan);
+
+    const eggs = screen.getByRole('link', { name: 'Open in its plan: Scrambled eggs' });
+    expect(eggs).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=${plan.profileId}&plan=${OLDER}&day=${today}&meal=${EGGS}`,
+    );
+    expect(
+      within(eggs.closest('li')!).getByText(messages.mealPlans.fromOtherPlanChip),
+    ).toBeVisible();
+    expect(
+      screen.getByText(spaced('What was eaten from another plan adds 413 kcal to this day.')),
+    ).toBeVisible();
+  });
+
   it('offers no resizing of a day off its target where the server says sizing it again would move nothing', async () => {
     const today = localDate();
     // Meals of a recipe not eaten yet, at the bounds of their portions: the server's word decides.
@@ -2226,6 +2270,7 @@ describe('the plan page, on how a day stands against its target', () => {
           entries: 1,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
           items: [],
+          otherPlans: [],
         },
       }),
     );
@@ -2259,6 +2304,7 @@ describe('the plan page, on how a day stands against its target', () => {
           entries: 2,
           nutrition: { calories: 700, protein: 20, fat: 30, carbs: 80 },
           items: [],
+          otherPlans: [],
         },
       }),
     );

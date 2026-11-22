@@ -1,7 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { DIARY_QUANTITY_LIMITS, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
+import {
+  DIARY_QUANTITY_LIMITS,
+  MAX_DIARY_ENTRIES_A_DAY,
+  MAX_OTHER_PLAN_MEALS_A_DAY,
+  OWN_MEAL_LIMITS,
+} from './constants.js';
 import { CalendarDay, DisplayAmount, MealType, Unit } from './enums.js';
 import {
   EnteredNutrition,
@@ -217,6 +222,13 @@ export const DiaryPlanMeal = z.object({
 });
 export type DiaryPlanMeal = z.infer<typeof DiaryPlanMeal>;
 
+/**
+ * A meal marked eaten on a day in another plan of the profile that holds the day, not the one a reader
+ * shows for it: what was eaten counts whichever plan it came from. With the plan it is of.
+ */
+export const EatenInOtherPlan = DiaryPlanMeal.extend({ planId: z.string().uuid() });
+export type EatenInOtherPlan = z.infer<typeof EatenInOtherPlan>;
+
 /** A day of a profile's diary. */
 export const DiaryDay = z.object({
   profileId: z.string().uuid(),
@@ -249,7 +261,9 @@ export const DiaryDay = z.object({
     .nullable(),
   /** The entries of the day, under the meals they were written for, the first written first. */
   entries: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
-  /** What was eaten: the plan's meals marked as eaten, and every entry. */
+  /** The meals marked eaten on the day in the profile's other plans that hold it, under their times of day. */
+  otherPlans: z.array(EatenInOtherPlan).max(MAX_OTHER_PLAN_MEALS_A_DAY),
+  /** What was eaten: the meals marked as eaten in the plan and in the profile's other plans, and every entry. */
   eaten: Nutrition,
   /** Fibre, sugars, salt and saturated fat of the same. */
   eatenLabel: LabelTotals,
@@ -262,8 +276,9 @@ export type DiaryDay = z.infer<typeof DiaryDay>;
 
 /**
  * Copy what was eaten on one day into another: the entries of `from`, and
- * the meals its plan marked as eaten, which come in as entries. Nothing is
- * copied when the day it goes to would hold more than the most.
+ * the meals marked as eaten that day in the profile's plans, which come in as
+ * entries. Nothing is copied when the day it goes to would hold more than the
+ * most.
  */
 export const CopyDiaryDayRequest = z
   .object({ profileId: z.string().uuid(), from: CalendarDay, to: CalendarDay })

@@ -33,12 +33,7 @@ import {
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StoredReport, withDaysAgain } from './generation-report.js';
-import {
-  cookingChange,
-  mealRank,
-  MealPlansService,
-  type CookedMeal,
-} from './meal-plans.service.js';
+import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   aimOfDay,
   dayMealCount,
@@ -49,6 +44,7 @@ import {
   type DayOverridesJson,
   plateAsJson,
   wholeAddition,
+  mealRank,
 } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import {
@@ -127,7 +123,7 @@ export class DaySettingsService {
     const left = day.meals.filter((meal) => fateOf.get(meal.id)!.fate !== 'removed');
     // What the diary holds for the day is eaten, and counts as the day's view counts it.
     const entered =
-      (await diaryDays(this.prisma, plan.profileId, day.date, day.date)).get(date) ?? null;
+      (await diaryDays(this.prisma, plan.profileId, day.date, day.date, planId)).get(date) ?? null;
     // What the day comes to is known here only where no recipe is drawn; a skipped day has no target to fit.
     // The dishes that stay are sized as the change sizes them: no one past twice the portion the plan gave it.
     const resized =

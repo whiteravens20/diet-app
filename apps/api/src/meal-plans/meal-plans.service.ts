@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -104,8 +105,10 @@ import {
   macrosOff,
   isoDate,
   isSkipped,
+  MADE_LAST,
   mealLabel,
   mealNutrition,
+  mealRank,
   parseDayOverrides,
   standingOf,
   sumNutrition,
@@ -129,9 +132,10 @@ import {
   settleHouseholds,
   TRANSACTION,
 } from '../shopping-lists/shopping-lists.service.js';
-import { diaryDays, diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
+import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/diary-days.js';
+import { diaryMealOf } from '../diary/eaten-meals.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
-import { writePlan, writePlans } from './plan-write.js';
+import { planChangedMeanwhile, writePlan, writePlans } from './plan-write.js';
 import {
   CANDIDATE,
   dislikedIn,
@@ -159,6 +163,8 @@ import {
  */
 @Injectable()
 export class MealPlansService {
+  private readonly logger = new Logger('MealPlans');
+
   /** The server's own day, for a request that names none; replaceable in a test. */
   today: () => string = () => isoDate(new Date());
 
@@ -286,21 +292,22 @@ export class MealPlansService {
       ...usesOfPlans(own, mealIdsOf(own)),
       ...(sharing.length > 0 ? await pieceUsesOf(this.prisma, mealIdsOf(sharing)) : []),
     ]);
-    // A day of a plan is summed as the plan shows it: with the toppings of its meals and what the diary holds of it.
-    const allDays = plans
-      .flatMap((plan) => plan.days)
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    // A day of a plan is summed as the plan shows it: with the toppings of its meals and what was eaten besides them.
     const [toppingFoods, diary] = await Promise.all([
-      allDays.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+      plans.some((plan) =>
+        plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null)),
+      )
         ? toppingFoodsOf(this.prisma)
         : (new Map() as ToppingFoods),
-      diaryOfDays(this.prisma, query.profileId, allDays),
+      diaryOfPlans(this.prisma, query.profileId, plans),
     ]);
     return {
       items: page.flatMap(({ id }) => {
         const plan = byId.get(id);
         // Deleted between the two reads: it is on no page any more.
-        return plan ? [this.toSummary(plan, pieces, toppingFoods, diary)] : [];
+        return plan
+          ? [this.toSummary(plan, pieces, toppingFoods, diary.get(plan.id) ?? new Map())]
+          : [];
       }),
       page: query.page,
       pageSize: query.pageSize,
@@ -574,7 +581,7 @@ export class MealPlansService {
     const mealIds = plan.days.flatMap((day) => day.meals.map((meal) => meal.id));
     const [restrictions, diary, lists, nextElsewhere, toppingFoods, pieces] = await Promise.all([
       restrictionsFor(this.prisma, plan),
-      diaryOfDays(this.prisma, plan.profileId, plan.days),
+      diaryOfDays(this.prisma, plan.profileId, plan.days, plan.id),
       this.prisma.shoppingList.findMany({
         where: { planId },
         select: { fromDate: true, toDate: true },
@@ -591,10 +598,9 @@ export class MealPlansService {
     ]);
     const nextDays = new Map([...nextElsewhere, ...ownNext]);
     // The entries themselves are read only for a plan whose days hold any.
-    const written =
-      diary.size > 0
-        ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
-        : new Map<string, DiaryEntry[]>();
+    const written = [...diary.values()].some((day) => day.entries > 0)
+      ? await entriesOfDays(this.prisma, locale, plan.profileId, plan.days)
+      : new Map<string, DiaryEntry[]>();
     const packed = packedMealsOf(
       plan.days,
       PlanOptions.parse(plan.options).mealPrepFriendly,
@@ -753,6 +759,14 @@ export class MealPlansService {
         return this.rebalanceDayInternal(meal.dayId, tx, today);
       },
     );
+    if (meal.eatenAt !== null)
+      await this.followEatenElsewhere(
+        userId,
+        meal.day.plan.profileId,
+        isoDate(meal.day.date),
+        planId,
+        today,
+      );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
@@ -806,7 +820,57 @@ export class MealPlansService {
         return this.rebalanceDayInternal(meal.dayId, tx, today);
       },
     );
+    if ((meal.eatenAt !== null) !== eaten)
+      await this.followEatenElsewhere(
+        userId,
+        meal.day.plan.profileId,
+        isoDate(meal.day.date),
+        planId,
+        today,
+      );
+    if (other)
+      await this.followEatenElsewhere(
+        userId,
+        other.day.plan.profileId,
+        isoDate(other.day.date),
+        other.day.planId,
+        today,
+      );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+  }
+
+  /**
+   * What a change of what was eaten in one plan does to the day of the plan made last that holds it, where that is
+   * another plan of the profile: a day of today is sized again, as a change of the diary sizes it, since what any of
+   * the profile's plans had eaten counts as eaten on it. A change of that plan at the same moment is waited out once;
+   * a day that cannot be sized now is left to its own "Dopasuj porcje dnia". Nothing for another day, or where the
+   * plan changed is the one made last.
+   */
+  private async followEatenElsewhere(
+    userId: string,
+    profileId: string,
+    date: string,
+    planId: string,
+    today: string,
+  ): Promise<void> {
+    if (date !== today) return;
+    const shown = await this.prisma.mealPlanDay.findFirst({
+      where: { date: new Date(date), plan: { profileId } },
+      orderBy: [...MADE_LAST],
+      select: { planId: true },
+    });
+    if (!shown || shown.planId === planId) return;
+    const resize = () => this.resizeDay(userId, shown.planId, date, today);
+    try {
+      await resize().catch((err: unknown) => {
+        if (err instanceof ConflictException && planChangedMeanwhile(err)) return resize();
+        throw err;
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Could not size the day of plan ${shown.planId} to what was eaten: ${String(err)}`,
+      );
+    }
   }
 
   /**
@@ -1059,7 +1123,7 @@ export class MealPlansService {
     });
     if (!day?.plan || isSkipped(day) || isoDate(day.date) < today) return null;
     const rows = day.meals.map(toRebalanceRow);
-    const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date);
+    const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date, day.planId);
     const counted = [
       ...rows,
       ...restRebalanceRows(day.meals),
@@ -1283,7 +1347,7 @@ export class MealPlansService {
     if (!plan) return null;
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
-    const diary = await diaryOfDays(db, plan.profileId, days);
+    const diary = await diaryOfDays(db, plan.profileId, days, plan.id);
     const dayRows = days.map((d) => {
       const changed = instead?.dayId === d.id ? instead : undefined;
       const settings = changed
@@ -2054,6 +2118,10 @@ export class MealPlansService {
           entries: entered.entries,
           nutrition: entered.nutrition,
           items: written.get(isoDate(day.date)) ?? [],
+          otherPlans: entered.otherPlans.map((eaten) => ({
+            ...diaryMealOf(eaten, locale),
+            planId: eaten.planId,
+          })),
         },
         calorieTarget: day.calorieTarget,
         targetMacros: shownTarget(
@@ -2415,17 +2483,6 @@ function keptMarked(packs: PlanPacks, frozen: unknown, left: unknown): PlanPacks
 }
 
 /** Canonical eating order for sorting planned meals within a day. */
-const MEAL_RANK: Record<string, number> = {
-  breakfast: 0,
-  second_breakfast: 1,
-  lunch: 2,
-  snack: 3,
-  dinner: 4,
-};
-export function mealRank(slot: string): number {
-  return MEAL_RANK[slot] ?? 99;
-}
-
 // ── Rebalance helpers ───────────────────────────────────────────────────
 
 type MacroQuad = { calories: number; protein: number; fat: number; carbs: number };

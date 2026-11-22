@@ -274,6 +274,7 @@ function DiaryContent() {
     ? EATING_ORDER.filter(
         (slot) =>
           shown.plan?.meals.some((meal) => meal.mealType === slot) ||
+          shown.otherPlans.some((meal) => meal.mealType === slot) ||
           shown.entries.some((entry) => entry.mealType === slot),
       )
     : [];
@@ -382,7 +383,7 @@ function DiaryContent() {
                   setDialogError(null);
                   setAdding(slot);
                 }}
-                onEat={(meal) => eat.mutate({ planId: shown.plan!.id, meal })}
+                onEat={(meal, planId) => eat.mutate({ planId: planId ?? shown.plan!.id, meal })}
                 onEdit={(entry) => {
                   setDialogError(null);
                   setEditing(entry);
@@ -712,7 +713,8 @@ function MealSection({
   canEat: boolean;
   busy: boolean;
   onAdd: () => void;
-  onEat: (meal: DiaryPlanMeal) => void;
+  /** A meal of the day's plan, or of another plan of the profile named by `planId`. */
+  onEat: (meal: DiaryPlanMeal, planId?: string) => void;
   onEdit: (entry: DiaryEntry) => void;
   /** Whether an entry was removed: not shown while it can be taken back, nor once its removal is sent. */
   hidden: (entry: DiaryEntry) => boolean;
@@ -725,6 +727,8 @@ function MealSection({
   const fmt = useFormat();
   const id = useId();
   const planned = day.plan?.meals.filter((meal) => meal.mealType === slot) ?? [];
+  // What another plan of the profile that holds the day had eaten at this time of day counts as eaten too.
+  const others = day.otherPlans.filter((meal) => meal.mealType === slot);
   const entries = day.entries.filter((entry) => entry.mealType === slot && !hidden(entry));
   return (
     <section aria-labelledby={`${id}-title`} className="space-y-2">
@@ -789,6 +793,47 @@ function MealSection({
                   disabled={busy || !canEat}
                   aria-describedby={`${id}-${meal.id}`}
                   onChange={() => onEat(meal)}
+                />
+                {t('eatenToggle')}
+              </label>
+            </li>
+          ))}
+          {others.map((meal) => (
+            <li key={meal.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+              <div className="min-w-0 flex-1 basis-48">
+                <p id={`${id}-${meal.id}`} className="break-words text-sm font-medium">
+                  {/* It opens in its own plan, where it was eaten. */}
+                  <Link
+                    href={`/meal-plans?profile=${day.profileId}&plan=${meal.planId}&day=${day.date}&meal=${meal.id}&from=diary`}
+                    className="text-primary hover:underline"
+                  >
+                    {fmt.text(meal.name)}
+                  </Link>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('fromOtherPlan')}
+                  {DOT}
+                  {meal.fromPot
+                    ? t('mealKcalFromPot', { kcal: meal.nutrition.calories })
+                    : t('mealKcal', { kcal: meal.nutrition.calories })}
+                </p>
+                {meal.topping && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('mealTopping', {
+                      name: fmt.text(meal.topping.name),
+                      amount: shownAmount(meal.topping.display),
+                    })}
+                  </p>
+                )}
+              </div>
+              <label className="flex min-h-6 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={meal.eaten}
+                  disabled={busy}
+                  aria-describedby={`${id}-${meal.id}`}
+                  onChange={() => onEat(meal, meal.planId)}
                 />
                 {t('eatenToggle')}
               </label>

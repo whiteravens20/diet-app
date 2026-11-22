@@ -167,7 +167,7 @@ export class PlanGenerationService {
     });
 
     // What the diary holds already for a day of the plan is eaten: the plan fills what is left of its target.
-    const diary = await diaryOfDays(this.prisma, profile.id, resolvedDays);
+    const diary = await diaryOfDays(this.prisma, profile.id, resolvedDays, null);
 
     const seed = this.nextSeed();
     const result = await this.optimiseFor(userId, profile, {
@@ -253,7 +253,7 @@ export class PlanGenerationService {
           defaultMealCount: own.mealCount ?? profile.mealCount,
           base,
         });
-        const diary = await diaryOfDays(this.prisma, profile.id, days);
+        const diary = await diaryOfDays(this.prisma, profile.id, days, null);
         const options: PlanOptions = {
           dietType: own.dietType ?? null,
           mealCount: own.mealCount ?? null,
@@ -667,7 +667,7 @@ export class PlanGenerationService {
     }
 
     const profile = await this.plans.loadProfile(userId, plan.profileId);
-    const diary = await diaryOfDays(this.prisma, plan.profileId, plan.days);
+    const diary = await diaryOfDays(this.prisma, plan.profileId, plan.days, plan.id);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     // Asked of the whole plan, it is kept with the plan; a part of it is made as the plan is.
     // A plan made again by the whole that is told it wastes less no more wastes nothing either; one that wastes nothing wastes less.

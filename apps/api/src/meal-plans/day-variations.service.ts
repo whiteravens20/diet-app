@@ -25,12 +25,7 @@ import { WeighService } from '../ai/weigh.service.js';
 import { packUse, tallyOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { assertMayEnter, CANDIDATE, pickIndex, restrictionsFor } from './eligibility.js';
-import {
-  cookingChange,
-  mealRank,
-  MealPlansService,
-  type CookedMeal,
-} from './meal-plans.service.js';
+import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   aimOfDay,
   isoDate,
@@ -39,6 +34,7 @@ import {
   restsOf,
   sumNutrition,
   type StoredRest,
+  mealRank,
 } from './plan-days.js';
 import { toppingFiguresOf, toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 import { PlanGenerationService } from './plan-generation.service.js';

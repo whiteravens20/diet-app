@@ -92,6 +92,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
     resizes: false,
   },
   entries: [anEntry()],
+  otherPlans: [],
   eaten: { calories: 750, protein: 34, fat: 19, carbs: 109 },
   eatenLabel: { fiber: null, sugars: null, salt: null, saturatedFat: null },
   labelNotes: [],
@@ -520,6 +521,47 @@ describe('the diary', () => {
 
     expect(patched).toHaveBeenCalledWith(`/meal-plans/${PLAN}/meals/${SOUP}/eaten`, {
       eaten: true,
+    });
+  });
+
+  it('lists under its time of day what another plan of the profile had eaten, linked to its plan, and takes its mark back there', async () => {
+    const OLDER = '22222222-2222-4222-8222-222222222222';
+    const EGGS = '33333333-3333-4333-8333-333333333333';
+    await renderPage(
+      aDay({
+        otherPlans: [
+          {
+            id: EGGS,
+            planId: OLDER,
+            mealType: 'breakfast',
+            name: 'Scrambled eggs',
+            recipeId: RECIPE,
+            eaten: true,
+            nutrition: { calories: 413, protein: 22, fat: 25, carbs: 20 },
+            label: { fiber: null, sugars: null, salt: null, saturatedFat: null },
+            fromPot: false,
+            topping: null,
+          },
+        ],
+      }),
+    );
+    const patched = vi
+      .spyOn(api, 'patch')
+      .mockResolvedValue({ plan: {}, rebalance: null } as never);
+    const user = userEvent.setup();
+
+    const breakfast = within(screen.getByRole('region', { name: 'Breakfast' }));
+    expect(breakfast.getByRole('link', { name: 'Scrambled eggs' })).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=${PROFILE}&plan=${OLDER}&day=${TODAY}&meal=${EGGS}&from=diary`,
+    );
+    expect(breakfast.getByText(texts.fromOtherPlan, { exact: false })).toBeInTheDocument();
+    const marks = breakfast.getAllByRole('checkbox', { name: texts.eatenToggle });
+    expect(marks).toHaveLength(2);
+    await user.click(marks[1]!);
+
+    expect(patched).toHaveBeenCalledWith(`/meal-plans/${OLDER}/meals/${EGGS}/eaten`, {
+      eaten: false,
     });
   });
 

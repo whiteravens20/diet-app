@@ -102,6 +102,7 @@ describe('the diary of a profile', () => {
         target: { calories: own.dailyTarget, ...own.targetMacros, from: 'profile' },
         plan: null,
         entries: [],
+        otherPlans: [],
         eaten: { calories: 0, protein: 0, fat: 0, carbs: 0 },
         // Nothing eaten holds nothing of them, and that is known.
         eatenLabel: {
@@ -801,6 +802,7 @@ describe('the diary of a profile', () => {
         entries: 1,
         nutrition: { calories: 1200, protein: 0, fat: 0, carbs: 300 },
         items: [entry],
+        otherPlans: [],
       });
       expect(after.dayNutrition.calories).toBe(before.dayNutrition.calories + 1200);
       expect(after.calorieDelta).toBe(after.dayNutrition.calories - after.calorieTarget);

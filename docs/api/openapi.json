@@ -14728,6 +14728,13 @@
               "$ref": "#/components/schemas/DiaryEntry"
             }
           },
+          "otherPlans": {
+            "maxItems": 1980,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EatenInOtherPlan"
+            }
+          },
           "eaten": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -14751,6 +14758,7 @@
           "target",
           "plan",
           "entries",
+          "otherPlans",
           "eaten",
           "eatenLabel",
           "labelNotes",
@@ -15282,6 +15290,84 @@
           "REJECTED",
           "SHIPPED"
         ]
+      },
+      "EatenInOtherPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eaten": {
+            "type": "boolean"
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "label": {
+            "$ref": "#/components/schemas/LabelTotals"
+          },
+          "topping": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "display": {
+                    "$ref": "#/components/schemas/DisplayAmount"
+                  }
+                },
+                "required": [
+                  "name",
+                  "display"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fromPot": {
+            "type": "boolean"
+          },
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "mealType",
+          "name",
+          "recipeId",
+          "eaten",
+          "nutrition",
+          "label",
+          "topping",
+          "fromPot",
+          "planId"
+        ],
+        "additionalProperties": false
       },
       "EstimatedMacro": {
         "type": "string",
@@ -18329,7 +18415,7 @@
                 "properties": {
                   "entries": {
                     "type": "integer",
-                    "minimum": 1
+                    "minimum": 0
                   },
                   "nutrition": {
                     "$ref": "#/components/schemas/Nutrition"
@@ -18340,12 +18426,20 @@
                     "items": {
                       "$ref": "#/components/schemas/DiaryEntry"
                     }
+                  },
+                  "otherPlans": {
+                    "maxItems": 1980,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/EatenInOtherPlan"
+                    }
                   }
                 },
                 "required": [
                   "entries",
                   "nutrition",
-                  "items"
+                  "items",
+                  "otherPlans"
                 ],
                 "additionalProperties": false
               },

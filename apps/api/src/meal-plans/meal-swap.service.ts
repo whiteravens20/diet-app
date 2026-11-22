@@ -549,7 +549,7 @@ export class MealSwapService {
         meal.day.plan,
         this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
       ),
-      diaryDays(this.prisma, meal.day.plan.profileId, meal.day.date, meal.day.date),
+      diaryDays(this.prisma, meal.day.plan.profileId, meal.day.date, meal.day.date, planId),
       this.plans.cookedWith(this.prisma, planId, options),
     ]);
     const dayIndex = await this.prisma.mealPlanDay.count({

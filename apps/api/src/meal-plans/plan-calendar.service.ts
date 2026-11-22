@@ -3,7 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import type { PlanCalendar, PlanCalendarQuery } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { diaryDays } from '../diary/diary-days.js';
+import { diaryOfPlans } from '../diary/diary-days.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { isoDate, isSkipped, mealNutrition, standingOf, sumNutrition } from './plan-days.js';
 import { pieced, pieceUsesOf } from './whole-pieces-store.js';
@@ -68,8 +68,15 @@ export class PlanCalendarService {
       },
       orderBy: { date: 'asc' },
     });
+    // Each day is worked out for the plan it shows: what the other plans had eaten counts on it, as the diary does.
+    const byPlan = new Map<string, { id: string; days: { date: Date }[] }>();
+    for (const day of days) {
+      const plan = byPlan.get(day.planId) ?? { id: day.planId, days: [] };
+      plan.days.push(day);
+      byPlan.set(day.planId, plan);
+    }
     const [diary, pieces] = await Promise.all([
-      diaryDays(this.prisma, asked.profileId, new Date(asked.from), new Date(asked.to)),
+      diaryOfPlans(this.prisma, asked.profileId, [...byPlan.values()]),
       pieceUsesOf(
         this.prisma,
         days.flatMap((day) => day.meals.map((meal) => meal.id)),
@@ -80,7 +87,7 @@ export class PlanCalendarService {
       days: days.map((day) => {
         const calories =
           sumNutrition(day.meals.map((meal) => mealNutrition(pieced(meal, pieces)))).calories +
-          (diary.get(isoDate(day.date))?.nutrition.calories ?? 0);
+          (diary.get(day.planId)?.get(isoDate(day.date))?.nutrition.calories ?? 0);
         const skipped = isSkipped(day);
         return {
           date: isoDate(day.date),

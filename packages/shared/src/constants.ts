@@ -150,6 +150,15 @@ export const LAST_DAY = '2100-12-31';
 /** The most entries a day of a profile's diary holds. */
 export const MAX_DIARY_ENTRIES_A_DAY = 40;
 
+/** The most plans a profile keeps: two years of a plan a week. A new one is made once an old one is deleted. */
+export const MAX_PLANS_PER_PROFILE = 100;
+
+/** The most meals a day of a plan holds when one of the user's own is added: a day the planner makes holds at most five. */
+export const MAX_MEALS_ON_A_PLAN_DAY = 20;
+
+/** The most meals eaten on one day in a profile's plans besides one of them: a full day of each of the others. */
+export const MAX_OTHER_PLAN_MEALS_A_DAY = (MAX_PLANS_PER_PROFILE - 1) * MAX_MEALS_ON_A_PLAN_DAY;
+
 /**
  * How many days back a day of the diary still takes a new entry: a year, of a
  * leap year too. With the most a day holds, this bounds what a profile's diary

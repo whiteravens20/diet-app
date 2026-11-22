@@ -12,6 +12,7 @@ import {
   type AddCustomMealRequest,
   type DiaryEntry,
   type DietType,
+  type EatenInOtherPlan,
   type AiMealSwapPreview,
   type MealPlan,
   type MealPlanDay,
@@ -514,14 +515,17 @@ export function PlanCard({
     const thawsHere = thaws.get(day.date);
     const thawing = (thawsHere?.forTomorrow.length ?? 0) + (thawsHere?.forToday.length ?? 0) > 0;
     const frozenHere = frozenOfDay(plan, day);
-    // What the diary holds for a meal the day has none of stands where that meal would in the day:
-    // before the first meal that comes after it, or after the last one.
-    const withoutMeal = (day.diary?.items ?? [])
-      .filter((entry) => !day.meals.some((meal) => meal.mealType === entry.mealType))
-      .sort((a, b) => DAY_ORDER.indexOf(a.mealType) - DAY_ORDER.indexOf(b.mealType));
-    const placeOf = (entry: DiaryEntry): number =>
+    // What the diary holds, and what the profile's other plans had eaten, for a meal the day has none of stands where
+    // that meal would in the day: before the first meal that comes after it, or after the last one.
+    const notOfTheDay = <L extends { mealType: string }>(lines: readonly L[]): L[] =>
+      lines
+        .filter((line) => !day.meals.some((meal) => meal.mealType === line.mealType))
+        .sort((a, b) => DAY_ORDER.indexOf(a.mealType) - DAY_ORDER.indexOf(b.mealType));
+    const withoutMeal = notOfTheDay(day.diary?.items ?? []);
+    const othersWithoutMeal = notOfTheDay(day.diary?.otherPlans ?? []);
+    const placeOf = (line: { mealType: string }): number =>
       day.meals.findIndex(
-        (meal) => DAY_ORDER.indexOf(meal.mealType) > DAY_ORDER.indexOf(entry.mealType),
+        (meal) => DAY_ORDER.indexOf(meal.mealType) > DAY_ORDER.indexOf(line.mealType),
       );
     return (
       // A day can be gone to from the calendar: it is named, and can take the focus.
@@ -670,10 +674,15 @@ export function PlanCard({
               <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                 {day.diary && (
                   <span>
-                    {t('diaryLine', {
-                      kcal: day.diary.nutrition.calories,
-                      count: day.diary.entries,
-                    })}
+                    {day.diary.otherPlans.length > 0
+                      ? t('otherPlansLine', {
+                          from: day.diary.entries > 0 ? 'both' : 'plans',
+                          kcal: day.diary.nutrition.calories,
+                        })
+                      : t('diaryLine', {
+                          kcal: day.diary.nutrition.calories,
+                          count: day.diary.entries,
+                        })}
                   </span>
                 )}
                 {day.date <= today && (
@@ -839,15 +848,19 @@ export function PlanCard({
                     (f.recipe.mealTypes.includes(m.mealType) &&
                       fitsDiet(f.recipe.dietTags, plan.dietType)),
                 );
-                // What the diary holds for this meal of the day follows its last meal of that kind.
-                const written =
-                  day.meals.findLast((one) => one.mealType === m.mealType) === m
-                    ? (day.diary?.items ?? []).filter((entry) => entry.mealType === m.mealType)
-                    : [];
+                // What the diary and the other plans hold for this meal of the day follows its last meal of that kind.
+                const last = day.meals.findLast((one) => one.mealType === m.mealType) === m;
+                const written = last
+                  ? (day.diary?.items ?? []).filter((entry) => entry.mealType === m.mealType)
+                  : [];
+                const eatenElsewhere = last
+                  ? (day.diary?.otherPlans ?? []).filter((meal) => meal.mealType === m.mealType)
+                  : [];
                 return (
                   <Fragment key={m.id}>
                     <DiaryLines
                       entries={withoutMeal.filter((entry) => placeOf(entry) === index)}
+                      others={othersWithoutMeal.filter((meal) => placeOf(meal) === index)}
                       profileId={plan.profileId}
                       date={day.date}
                     />
@@ -1537,12 +1550,18 @@ export function PlanCard({
                         </div>
                       )}
                     </li>
-                    <DiaryLines entries={written} profileId={plan.profileId} date={day.date} />
+                    <DiaryLines
+                      entries={written}
+                      others={eatenElsewhere}
+                      profileId={plan.profileId}
+                      date={day.date}
+                    />
                   </Fragment>
                 );
               })}
               <DiaryLines
                 entries={withoutMeal.filter((entry) => placeOf(entry) === -1)}
+                others={othersWithoutMeal.filter((meal) => placeOf(meal) === -1)}
                 profileId={plan.profileId}
                 date={day.date}
               />
@@ -1978,10 +1997,13 @@ const DAY_ORDER: readonly string[] = MEAL_SLOTS_BY_COUNT[5]!;
  */
 function DiaryLines({
   entries,
+  others,
   profileId,
   date,
 }: {
   entries: readonly DiaryEntry[];
+  /** What the profile's other plans that hold the day had eaten at this time of day, before the entries. */
+  others: readonly EatenInOtherPlan[];
   profileId: string;
   date: string;
 }) {
@@ -1989,35 +2011,60 @@ function DiaryLines({
   const tMeal = useTranslations('enums.mealType');
   const amountOf = useEntryAmount();
   const fmt = useFormat();
-  return entries.map((entry) => (
-    <li key={entry.id} className="space-y-1 py-2">
-      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words pl-6">
-        <span className="text-muted-foreground">
-          {tMeal.has(entry.mealType) ? tMeal(entry.mealType) : entry.mealType.replace('_', ' ')}
-        </span>
-        <span aria-hidden className="hidden sm:inline">
-          ·
-        </span>
-        <Link
-          href={`/diary?profile=${profileId}&date=${date}`}
-          aria-label={t('openInDiary', { name: entry.name })}
-          className="font-medium text-primary wrap-anywhere hover:underline"
-        >
-          {fmt.text(entry.name)}
-        </Link>
-        <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-          {t('fromDiaryChip')}
-        </span>
-        {entry.estimated && (
-          <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-            {t('estimatedChip')}
+  const named = (mealType: string) =>
+    tMeal.has(mealType) ? tMeal(mealType) : mealType.replace('_', ' ');
+  return [
+    ...others.map((meal) => (
+      <li key={meal.id} className="space-y-1 py-2">
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words pl-6">
+          <span className="text-muted-foreground">{named(meal.mealType)}</span>
+          <span aria-hidden className="hidden sm:inline">
+            ·
           </span>
-        )}
-      </p>
-      <p className="ml-6 text-xs text-muted-foreground">{amountOf(entry)}</p>
-      <MacrosLine nutrition={entry.nutrition} />
-    </li>
-  ));
+          <Link
+            href={`/meal-plans?profile=${profileId}&plan=${meal.planId}&day=${date}&meal=${meal.id}`}
+            aria-label={t('openOtherPlan', { name: meal.name })}
+            className="font-medium text-primary wrap-anywhere hover:underline"
+          >
+            {fmt.text(meal.name)}
+          </Link>
+          <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+            {t('fromOtherPlanChip')}
+          </span>
+        </p>
+        <MacrosLine nutrition={meal.nutrition} />
+      </li>
+    )),
+    ...entries.map((entry) => (
+      <li key={entry.id} className="space-y-1 py-2">
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words pl-6">
+          <span className="text-muted-foreground">
+            {tMeal.has(entry.mealType) ? tMeal(entry.mealType) : entry.mealType.replace('_', ' ')}
+          </span>
+          <span aria-hidden className="hidden sm:inline">
+            ·
+          </span>
+          <Link
+            href={`/diary?profile=${profileId}&date=${date}`}
+            aria-label={t('openInDiary', { name: entry.name })}
+            className="font-medium text-primary wrap-anywhere hover:underline"
+          >
+            {fmt.text(entry.name)}
+          </Link>
+          <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+            {t('fromDiaryChip')}
+          </span>
+          {entry.estimated && (
+            <span className="whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+              {t('estimatedChip')}
+            </span>
+          )}
+        </p>
+        <p className="ml-6 text-xs text-muted-foreground">{amountOf(entry)}</p>
+        <MacrosLine nutrition={entry.nutrition} />
+      </li>
+    )),
+  ];
 }
 
 /** Per-meal macros as plain inline text, sitting below the recipe title. Full

@@ -165,7 +165,7 @@ export async function followRests(
 
   // What the diary of a day holds stays on the day, as the plan was made around it.
   const diaries: ReadonlyMap<string, DiaryOnDay>[] = [];
-  for (const plan of plans) diaries.push(await diaryOfDays(tx, plan.profileId, plan.days));
+  for (const plan of plans) diaries.push(await diaryOfDays(tx, plan.profileId, plan.days, plan.id));
   const worked = restsOfKitchen(plans, level, toppingFoods, today, diaries);
   const followed: FollowedRest[] = [];
   for (const plan of plans)

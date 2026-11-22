@@ -2,8 +2,13 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
-import { LAST_DAY, MAX_DIARY_ENTRIES_A_DAY, OWN_MEAL_LIMITS } from './constants.js';
-import { DiaryEntry } from './diary.js';
+import {
+  LAST_DAY,
+  MAX_DIARY_ENTRIES_A_DAY,
+  MAX_OTHER_PLAN_MEALS_A_DAY,
+  OWN_MEAL_LIMITS,
+} from './constants.js';
+import { DiaryEntry, EatenInOtherPlan } from './diary.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import {
@@ -115,11 +120,6 @@ export type RelaxationNeeded = z.infer<typeof RelaxationNeeded>;
 /** The longest a plan may be, in days, and the most meals such a plan holds. */
 export const MAX_PLAN_DAYS = 28;
 
-/** The most plans a profile keeps: two years of a plan a week. A new one is made once an old one is deleted. */
-export const MAX_PLANS_PER_PROFILE = 100;
-
-/** The most meals a day of a plan holds when one of the user's own is added: a day the planner makes holds at most five. */
-export const MAX_MEALS_ON_A_PLAN_DAY = 20;
 export const MAX_PLAN_MEALS = MAX_PLAN_DAYS * MealType.options.length;
 
 /** Request to generate a meal plan. */
@@ -638,18 +638,20 @@ export const MealPlanDay = z.object({
   /** The limits of the profile the day crosses; none for a skipped day. */
   labelNotes: z.array(LabelLimitNote).max(LabelNutrient.options.length),
   /**
-   * What the profile's diary holds for the day besides its meals: how many
-   * entries, what they come to, and the entries themselves, the first written
-   * first, which a plan shows under the meals they were written for. They count
-   * in `dayNutrition` and in where the day stands, as eaten, and a rebalance,
-   * or filling the day again, leaves room for them. Null when the diary holds
-   * none for the day.
+   * What the profile ate on the day besides this plan's meals: the entries of
+   * its diary, the first written first, which a plan shows under the meals
+   * they were written for, and the meals marked eaten that day in its other
+   * plans that hold the day (`otherPlans`), under theirs; how many entries, and
+   * what all of it comes to. It counts in `dayNutrition` and in where the day
+   * stands, as eaten, and a rebalance, or filling the day again, leaves room
+   * for it. Null when there is none of it.
    */
   diary: z
     .object({
-      entries: z.number().int().min(1),
+      entries: z.number().int().min(0),
       nutrition: Nutrition,
       items: z.array(DiaryEntry).max(MAX_DIARY_ENTRIES_A_DAY),
+      otherPlans: z.array(EatenInOtherPlan).max(MAX_OTHER_PLAN_MEALS_A_DAY),
     })
     .nullable(),
   calorieTarget: z.number(),

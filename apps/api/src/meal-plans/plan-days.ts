@@ -68,6 +68,19 @@ export function parseDayOverrides(raw: unknown): DayOverridesJson | null {
 }
 
 /** The date of a day, as the API writes dates. */
+const MEAL_RANK: Record<string, number> = {
+  breakfast: 0,
+  second_breakfast: 1,
+  lunch: 2,
+  snack: 3,
+  dinner: 4,
+};
+
+/** Where a time of day comes in a day: breakfast first, dinner last. */
+export function mealRank(slot: string): number {
+  return MEAL_RANK[slot] ?? 99;
+}
+
 export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

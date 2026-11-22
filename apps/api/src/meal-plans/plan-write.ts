@@ -4,6 +4,12 @@ import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { followRests, wasteLevelOf } from './rests-follow.js';
 
+/** A refusal of a change of a plan made from a plan another change moved on meanwhile (`writePlan`). */
+export function planChangedMeanwhile(err: ConflictException): boolean {
+  const answer = err.getResponse();
+  return typeof answer === 'object' && (answer as { error?: unknown }).error === 'PLAN_CHANGED';
+}
+
 /**
  * Write a change that was computed from the plan as it stood at
  * `readAtRevision`, and return what `write` returns.

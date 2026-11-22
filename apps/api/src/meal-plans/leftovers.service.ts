@@ -20,7 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickTitle } from '../recipes/recipes.service.js';
 import { dateAfter, givesALeftover, takesALeftover } from './leftovers.js';
-import { MealPlansService, mealRank, type CookedMeal } from './meal-plans.service.js';
+import { MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   isoDate,
   isSkipped,
@@ -31,6 +31,7 @@ import {
   restsAsJson,
   restsOf,
   scaleRests,
+  mealRank,
 } from './plan-days.js';
 import { writePlans } from './plan-write.js';
 import { keepPieces, pieced, pieceUsesOf } from './whole-pieces-store.js';
