@@ -138,6 +138,29 @@ describe("the water of a profile's day", () => {
     expect(post).toHaveBeenLastCalledWith('/water', { profileId: PROFILE.id, day: DAY, ml: 120 });
   });
 
+  it('says why an amount of its own cannot be added: a whole number of millilitres from 1 to 5000', async () => {
+    const { post } = shown(aDay());
+    const add = await screen.findByRole('button', { name: texts.add });
+    const field = screen.getByRole('spinbutton', { name: (name) => name.startsWith(texts.own) });
+    const said = 'A whole number of millilitres, from 1 to 5000.';
+
+    for (const wrong of ['0', '-5', '5001', '250.5']) {
+      await userEvent.clear(field);
+      await userEvent.type(field, wrong);
+      // The figure keeps to its word by a no-break space, which `toHaveTextContent` would fold into a plain one.
+      expect(screen.getByRole('alert').textContent).toBe(said);
+      expect(field).toHaveAccessibleDescription(said);
+      expect(field).toBeInvalid();
+      expect(add).toBeDisabled();
+    }
+    await userEvent.clear(field);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await userEvent.type(field, '5000');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(add).toBeEnabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('removes the last entry at a press, naming its amount and time, with no window to confirm', async () => {
     const { remove } = shown(aDay());
     remove.mockResolvedValueOnce(aDay({ ml: 170, entries: 1, last: null }));

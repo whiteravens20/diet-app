@@ -2608,6 +2608,7 @@
     "drunkNoTarget": "{drunk} wypite",
     "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Własna ilość (ml)",
+    "notAnAmount": "Wpisz pełną liczbę mililitrów, od 1\u00a0do {max, number, ::group-off}.",
     "add": "Dodaj wodę",
     "note": "Nie potrzebujesz karty wody? Wyłączysz ją <link>w profilu</link>.",
     "removeLast": "Usuń ostatni wpis",

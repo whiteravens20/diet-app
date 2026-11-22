@@ -7,7 +7,7 @@ import { Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { Profile, WaterDay } from '@diet-app/shared';
 import { MAX_WATER_ENTRY_ML, WATER_AMOUNTS_ML } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
@@ -82,6 +82,8 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
   const own = Number(typed);
   const ownFits =
     typed.trim() !== '' && Number.isInteger(own) && own > 0 && own <= MAX_WATER_ENTRY_ML;
+  const ownWrong = typed.trim() !== '' && !ownFits;
+  const ownSaid = useId();
   const target = shown?.target ?? null;
   const reached = target === null ? [] : (shown?.days ?? []).filter((d) => d.ml >= target);
   const anchor = waterCardAnchor(profile.id);
@@ -134,28 +136,38 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
           ))}
         </div>
         <form
-          className="flex max-w-sm items-end gap-2"
+          className="max-w-sm space-y-1.5"
           onSubmit={(event) => {
             event.preventDefault();
             if (ownFits) add.mutate(own);
           }}
         >
-          <div className="min-w-0 flex-1">
-            <Field label={t('own')}>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={MAX_WATER_ENTRY_ML}
-                step={1}
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-              />
-            </Field>
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <Field label={t('own')}>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_WATER_ENTRY_ML}
+                  step={1}
+                  value={typed}
+                  aria-invalid={ownWrong}
+                  aria-describedby={ownWrong ? ownSaid : undefined}
+                  onChange={(event) => setTyped(event.target.value)}
+                />
+              </Field>
+            </div>
+            <Button type="submit" size="md" variant="outline" disabled={busy || !ownFits}>
+              {t('add')}
+            </Button>
           </div>
-          <Button type="submit" size="md" variant="outline" disabled={busy || !ownFits}>
-            {t('add')}
-          </Button>
+          {/* Under the row, so that the button stays level with the field: why it cannot be pressed. */}
+          {ownWrong && (
+            <p id={ownSaid} role="alert" className="text-xs text-destructive">
+              {t('notAnAmount', { max: MAX_WATER_ENTRY_ML })}
+            </p>
+          )}
         </form>
         {shown?.last && (
           <Button

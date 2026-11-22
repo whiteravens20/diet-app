@@ -2608,6 +2608,7 @@
     "drunkNoTarget": "{drunk} drunk",
     "addMl": "+{ml, number, ::group-off}\u00a0ml",
     "own": "Own amount (ml)",
+    "notAnAmount": "A whole number of millilitres, from 1\u00a0to {max, number, ::group-off}.",
     "add": "Add water",
     "note": "No need for the water card? You can turn it off <link>in the profile</link>.",
     "removeLast": "Remove the last entry",
