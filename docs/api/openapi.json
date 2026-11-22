@@ -18049,6 +18049,14 @@
         ],
         "additionalProperties": false
       },
+      "MacroName": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "fat",
+          "carbs"
+        ]
+      },
       "MacroReach": {
         "type": "object",
         "properties": {
@@ -18161,6 +18169,168 @@
           "protein",
           "fat",
           "carbs"
+        ],
+        "additionalProperties": false
+      },
+      "MacrosOffCause": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "fixed"
+              },
+              "share": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "kind",
+              "share"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cookTime"
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "kind",
+              "minutes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "fewerMeals"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "kind",
+              "count"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "useUp"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "byHand"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "kind",
+              "count"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "singleDish"
+              },
+              "slots": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MealType"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "slots"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "diet"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "MacrosOffWhy": {
+        "type": "object",
+        "properties": {
+          "over": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MacroName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "under": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MacroName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "causes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MacrosOffCause"
+            }
+          }
+        },
+        "required": [
+          "over",
+          "under",
+          "causes"
         ],
         "additionalProperties": false
       },
@@ -18512,6 +18682,17 @@
           "macrosOff": {
             "type": "boolean"
           },
+          "macrosOffWhy": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MacrosOffWhy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "skipped": {
             "type": "boolean"
           },
@@ -18551,6 +18732,7 @@
           "offTarget",
           "resizes",
           "macrosOff",
+          "macrosOffWhy",
           "skipped",
           "belowSafetyFloor",
           "overrides",

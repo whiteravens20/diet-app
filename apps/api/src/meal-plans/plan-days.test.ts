@@ -7,6 +7,8 @@ import {
   mealNutrition,
   restsOf,
   scaleRests,
+  whyMacrosOff,
+  type MealOfDay,
   type StoredRest,
 } from './plan-days.js';
 
@@ -42,6 +44,95 @@ describe('whether a day is far from its split', () => {
     const aim = { protein: 150, fat: 111, carbs: 100 };
     expect(macrosOff(eggsAndFish, { dietType: 'low_carb', macroSplit: null }, aim)).toBe(false);
     expect(macrosOff(eggsAndFish, { dietType: 'balanced', macroSplit: null }, aim)).toBe(true);
+  });
+});
+
+describe("what makes a day's macros off", () => {
+  // The low-carb aim, 30/50/20 of the energy; carbohydrate a ceiling down to a tenth.
+  const lowCarb = { protein: 0.3, fat: 0.5, carbs: 0.2 };
+  /** A meal of the day the plan may change, chosen by the plan. */
+  const planned = (calories: number, protein: number, fat: number, carbs: number): MealOfDay => ({
+    nutrition: { calories, protein, fat, carbs },
+    fixed: false,
+    byHand: false,
+  });
+  // His day of 24 November: an omelet with bacon, one with gouda, one with cheddar and avocado.
+  const omelets = [planned(703, 37, 59, 7), planned(1055, 68, 83, 8), planned(562, 26, 48, 13)];
+  const sum = (meals: readonly MealOfDay[]) =>
+    meals.reduce(
+      (all, meal) => ({
+        calories: all.calories + meal.nutrition.calories,
+        protein: all.protein + meal.nutrition.protein,
+        fat: all.fat + meal.nutrition.fat,
+        carbs: all.carbs + meal.nutrition.carbs,
+      }),
+      { calories: 0, protein: 0, fat: 0, carbs: 0 },
+    );
+  const day = (over: Partial<Parameters<typeof whyMacrosOff>[0]> = {}) =>
+    whyMacrosOff({
+      held: sum(over.meals ?? omelets),
+      aim: lowCarb,
+      dietType: 'low_carb',
+      meals: omelets,
+      besides: null,
+      overrides: null,
+      usualMeals: 3,
+      single: [],
+      ...over,
+    });
+
+  it('names a limit on cooking time, and too much fat for too little protein as the diet measures it', () => {
+    expect(day({ overrides: { cookTimeBudgetMinutes: 15 } })).toEqual({
+      over: 'fat',
+      under: 'protein',
+      causes: [{ kind: 'cookTime', minutes: 15 }],
+    });
+  });
+
+  it('names what the plan does not change where it holds a quarter of the day or more, itself far from the split', () => {
+    // Eaten already: a breakfast of cheese, 85 % of its energy from fat, 43 % of the day's.
+    const eaten = { ...planned(1000, 25, 95, 5), fixed: true };
+    const why = day({ meals: [omelets[0]!, eaten, omelets[2]!] });
+    expect(why.causes).toEqual([{ kind: 'fixed', share: 43 }]);
+    // The diary's entries and other plans' meals are as fixed as a meal eaten: 27 % of the day here.
+    const besides = { calories: 900, protein: 20, fat: 80, carbs: 20 };
+    const all = sum(omelets);
+    expect(
+      day({
+        held: {
+          calories: all.calories + besides.calories,
+          protein: all.protein + besides.protein,
+          fat: all.fat + besides.fat,
+          carbs: all.carbs + besides.carbs,
+        },
+        besides,
+      }).causes,
+    ).toEqual([{ kind: 'fixed', share: 27 }]);
+    // A meal eaten that is itself near the split is no reason, however much of the day it holds.
+    const near = { ...planned(1055, 68, 83, 8), fixed: true };
+    expect(day({ meals: [omelets[0]!, near, omelets[2]!] }).causes).toEqual([{ kind: 'diet' }]);
+  });
+
+  it("names fewer meals than the plan's days have, the pantry used up, meals chosen by hand and dishes that fit alone", () => {
+    const swapped = { ...omelets[1]!, byHand: true };
+    expect(
+      day({
+        meals: [omelets[0]!, swapped, omelets[2]!],
+        overrides: { mealCount: 2, useUpBy: true },
+        single: ['lunch'],
+      }).causes,
+    ).toEqual([
+      { kind: 'fewerMeals', count: 2 },
+      { kind: 'useUp' },
+      { kind: 'byHand', count: 1 },
+      { kind: 'singleDish', slots: ['lunch'] },
+    ]);
+    // A day of more meals than the plan's is no fewer.
+    expect(day({ overrides: { mealCount: 4 } }).causes).toEqual([{ kind: 'diet' }]);
+  });
+
+  it("names the diet's dishes where nothing else made the day", () => {
+    expect(day().causes).toEqual([{ kind: 'diet' }]);
   });
 });
 

@@ -35,6 +35,7 @@ const DAY: MealPlanDay = {
   offTarget: null,
   resizes: false,
   macrosOff: false,
+  macrosOffWhy: null,
   skipped: false,
   belowSafetyFloor: false,
   overrides: null,

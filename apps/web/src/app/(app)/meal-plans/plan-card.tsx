@@ -91,6 +91,12 @@ const DaySettingsDialog = dynamic(
   { ssr: false },
 );
 
+/** Fetched when a day whose macros are off is shown: what makes it so. */
+const MacrosOffWhy = dynamic(() => import('./macros-off-why').then((why) => why.MacrosOffWhy), {
+  ssr: false,
+  loading: () => null,
+});
+
 /** Fetched when a day off its target is asked what to do. */
 const DayOffTargetDialog = dynamic(
   () => import('./day-off-target-dialog').then((dialog) => dialog.DayOffTargetDialog),
@@ -754,9 +760,16 @@ export function PlanCard({
                 })}
               </p>
             )}
-            {!day.skipped && day.macrosOff && (
-              <p className="text-xs text-warning">{t('macrosOffHint')}</p>
-            )}
+            {!day.skipped &&
+              day.macrosOff &&
+              (day.macrosOffWhy ? (
+                <MacrosOffWhy
+                  why={day.macrosOffWhy}
+                  mealName={(slot) => (tMeal.has(slot) ? tMeal(slot) : slot)}
+                />
+              ) : (
+                <p className="text-xs text-warning">{t('macrosOffHint')}</p>
+              ))}
             {!day.skipped && (
               <>
                 {/* What the label adds stands behind a tap: the figures above are what a day is planned by. */}

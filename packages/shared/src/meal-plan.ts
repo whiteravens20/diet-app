@@ -634,6 +634,43 @@ export const MealPlanDayOverrides = DayOverride.omit({ date: true });
 export type MealPlanDayOverrides = z.infer<typeof MealPlanDayOverrides>;
 
 /** One day of a plan. */
+/** A macronutrient, as what a day holds too much or too little of is named (`MacrosOffWhy`). */
+export const MacroName = z.enum(['protein', 'fat', 'carbs']);
+export type MacroName = z.infer<typeof MacroName>;
+
+/** One thing that keeps a day's split of protein, fat and carbohydrate far from its aim (`MacrosOffWhy.causes`). */
+export const MacrosOffCause = z.discriminatedUnion('kind', [
+  /**
+   * What the plan does not change holds `share` per cent of the day's energy, itself far from the split: meals
+   * eaten, meals of one's own, leftovers, the diary's entries and other plans' meals eaten that day.
+   */
+  z.object({ kind: z.literal('fixed'), share: z.number().int().min(0).max(100) }),
+  /** The day takes only recipes of `minutes` of cooking or fewer (`DayOverride.cookTimeBudgetMinutes`). */
+  z.object({ kind: z.literal('cookTime'), minutes: z.number().int().min(0) }),
+  /** The day has `count` meals, fewer than the plan's days (`DayOverride.mealCount`). */
+  z.object({ kind: z.literal('fewerMeals'), count: z.number().int().min(1) }),
+  /** The day takes recipes that use up what goes off in the pantry (`DayOverride.useUpBy`). */
+  z.object({ kind: z.literal('useUp') }),
+  /** `count` of the day's meals were chosen by hand: a swap, a favourite, a dish off the diet. */
+  z.object({ kind: z.literal('byHand'), count: z.number().int().min(1) }),
+  /** When the plan was made, one dish alone fit these times of day. */
+  z.object({ kind: z.literal('singleDish'), slots: z.array(MealType).min(1) }),
+  /** None of the above: the dishes of the diet that fit the profile lie far from the split by themselves. */
+  z.object({ kind: z.literal('diet') }),
+]);
+export type MacrosOffCause = z.infer<typeof MacrosOffCause>;
+
+/**
+ * Why a day's macros are off (`MealPlanDay.macrosOff`): what it holds too much and too little of, against the split
+ * as its diet measures it, and what makes it so, the most telling first.
+ */
+export const MacrosOffWhy = z.object({
+  over: MacroName.nullable(),
+  under: MacroName.nullable(),
+  causes: z.array(MacrosOffCause).min(1),
+});
+export type MacrosOffWhy = z.infer<typeof MacrosOffWhy>;
+
 export const MealPlanDay = z.object({
   id: z.string().uuid(),
   date: z.string().date(),
@@ -690,6 +727,8 @@ export const MealPlanDay = z.object({
    * it aims at: over 12 % of its energy would have to move. False for a skipped day.
    */
   macrosOff: z.boolean(),
+  /** What makes a day's macros off, where they are (`macrosOff`); null otherwise. */
+  macrosOffWhy: MacrosOffWhy.nullable().default(null),
   /**
    * The user skips this day: it is no shortfall, and is left out of the
    * plan's averages. What was eaten of it before it was skipped stays on it.

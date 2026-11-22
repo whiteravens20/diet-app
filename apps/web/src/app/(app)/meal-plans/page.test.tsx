@@ -157,6 +157,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       offTarget: null,
       resizes: false,
       macrosOff: false,
+      macrosOffWhy: null,
       skipped: false,
       belowSafetyFloor: false,
       overrides: null,
@@ -4282,6 +4283,51 @@ describe('the plan page, on a dish cooked for two days and on what a change come
     expect(screen.getByText(messages.mealPlans.macrosOffHint)).toBeVisible();
     expect(screen.getByText(messages.mealPlans.planAverageUnder)).toBeVisible();
     expect(screen.getByText(messages.mealPlans.planAverageMacros)).toBeVisible();
+  });
+
+  it('says what makes a day far from its split: too much of one, too little of another, and each cause', async () => {
+    const plan = aPairOfDays();
+    await opened({
+      ...plan,
+      days: [
+        {
+          ...plan.days[0]!,
+          macrosOff: true,
+          macrosOffWhy: {
+            over: 'fat',
+            under: 'protein',
+            causes: [
+              { kind: 'cookTime', minutes: 15 },
+              { kind: 'byHand', count: 2 },
+              { kind: 'singleDish', slots: ['lunch', 'dinner'] },
+            ],
+          },
+        },
+        plan.days[1]!,
+      ],
+    });
+
+    expect(await screen.findByText('Too much fat, too little protein.')).toBeVisible();
+    expect(
+      screen.getByText(
+        spaced(
+          'A cooking-time limit of 15 min leaves few dishes of this diet. Lengthen it in “Day settings…” or add a meal.',
+        ),
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        spaced(
+          '2 meals of the day were chosen by hand: a swap, a favourite or a dish off the diet.',
+        ),
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'When the plan was made, only one dish fit lunch, dinner: the exclusions and the diet leave few recipes there.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(messages.mealPlans.macrosOffHint)).toBeNull();
   });
 
   it('turns the figure of a day red only where the day is off its target', async () => {

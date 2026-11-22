@@ -7,12 +7,15 @@ import {
   Unit,
   type DietType,
   type Macros,
+  type MacrosOffCause,
+  type MacrosOffWhy,
   type MealType,
 } from '@diet-app/shared';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
 import {
+  aimOnDiet,
   dayMacros,
   distanceOnDiet,
   energyShares,
@@ -544,6 +547,82 @@ export function macrosOff(
   // Without a target, a plan of protein per kilogram is measured against its split as it was made.
   const split = (aim && energyShares(aim)) ?? sharesOfPlanDay(plan, plan.calorieTarget ?? 0);
   return shares !== null && distanceOnDiet(shares, split, plan.dietType) > MACROS_OFF;
+}
+
+/** A meal of a day as the causes of its macros read it (`whyMacrosOff`). */
+export interface MealOfDay {
+  nutrition: Amounts;
+  /** The plan leaves it as it is: eaten, a meal of one's own, a leftover. */
+  fixed: boolean;
+  /** Chosen by hand: swapped, or a dish off the plan's diet. */
+  byHand: boolean;
+}
+
+/** Of what the plan does not change, at least this share of the day's energy says the day was held to it. */
+const FIXED_SHARE = 0.25;
+/** A share of energy past which a macronutrient is too much or too little of what the day aims at. */
+const LEANS = 0.02;
+
+/**
+ * Why a day's macros are off (`MacrosOffWhy`): what it holds too much and too little of against the split as its diet
+ * measures it (`aimOnDiet`), and what makes it so: what the plan does not change, where it holds a quarter of the day
+ * or more and is far from the split itself; the day's settings; meals chosen by hand; times of day a single dish fit
+ * when the plan was made; and, where nothing of these, the diet's dishes themselves.
+ */
+export function whyMacrosOff(day: {
+  /** What the day holds, its diary and other plans' eaten meals included. */
+  held: Amounts;
+  /** The shares of energy the day aims at. */
+  aim: Macros;
+  dietType: string;
+  meals: readonly MealOfDay[];
+  /** What the diary holds of the day and other plans' meals eaten on it. */
+  besides: Amounts | null;
+  overrides: { mealCount?: number; cookTimeBudgetMinutes?: number; useUpBy?: boolean } | null;
+  /** How many meals the plan's days have where a day says nothing of its own. */
+  usualMeals: number;
+  /** The times of day of the day that a single dish fit when the plan was made, the dish still there. */
+  single: readonly MealType[];
+}): MacrosOffWhy {
+  const shares = energyShares(day.held) ?? day.aim;
+  const against = aimOnDiet(shares, day.aim, day.dietType);
+  const leans = (['protein', 'fat', 'carbs'] as const).map(
+    (part) => [part, shares[part] - against[part]] as const,
+  );
+  const most = leans.reduce((a, b) => (b[1] > a[1] ? b : a));
+  const least = leans.reduce((a, b) => (b[1] < a[1] ? b : a));
+  const causes: MacrosOffCause[] = [];
+  const fixed = sumNutrition([
+    ...day.meals.filter((meal) => meal.fixed).map((meal) => meal.nutrition),
+    ...(day.besides ? [day.besides] : []),
+  ]);
+  const energy = (of: Macros) =>
+    of.protein * KCAL_PER_GRAM.protein +
+    of.fat * KCAL_PER_GRAM.fat +
+    of.carbs * KCAL_PER_GRAM.carbs;
+  const share = energy(day.held) > 0 ? energy(fixed) / energy(day.held) : 0;
+  const fixedShares = energyShares(fixed);
+  if (
+    share >= FIXED_SHARE &&
+    fixedShares &&
+    distanceOnDiet(fixedShares, day.aim, day.dietType) > MACROS_OFF
+  )
+    causes.push({ kind: 'fixed', share: Math.min(100, Math.round(share * 100)) });
+  const own = day.overrides;
+  if (own?.cookTimeBudgetMinutes !== undefined)
+    causes.push({ kind: 'cookTime', minutes: own.cookTimeBudgetMinutes });
+  if (own?.mealCount !== undefined && own.mealCount < day.usualMeals)
+    causes.push({ kind: 'fewerMeals', count: own.mealCount });
+  if (own?.useUpBy === true) causes.push({ kind: 'useUp' });
+  const byHand = day.meals.filter((meal) => !meal.fixed && meal.byHand).length;
+  if (byHand > 0) causes.push({ kind: 'byHand', count: byHand });
+  if (day.single.length > 0) causes.push({ kind: 'singleDish', slots: [...day.single] });
+  if (causes.length === 0) causes.push({ kind: 'diet' });
+  return {
+    over: most[1] > LEANS ? most[0] : null,
+    under: least[1] < -LEANS ? least[0] : null,
+    causes,
+  };
 }
 
 /**

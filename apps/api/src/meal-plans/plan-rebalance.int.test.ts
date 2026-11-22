@@ -216,6 +216,7 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
       const plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 2 });
 
       expect(plan.days.map((day) => day.macrosOff)).toEqual([false, false]);
+      expect(plan.days.map((day) => day.macrosOffWhy)).toEqual([null, null]);
       expect(plan.averageOff).toEqual({ calories: null, macros: false });
     });
 
@@ -226,6 +227,22 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
 
       expect(plan.days[0]!.macrosOff).toBe(true);
       expect(plan.averageOff.macros).toBe(true);
+    });
+
+    it('says what makes a day far from it: too much fat, too little carbohydrate, and a limit on its cooking time', async () => {
+      const made = await aPlan(t, user, await aProfile(t, user), { durationDays: 1 });
+      await t.prisma.mealPlanDay.update({
+        where: { id: made.days[0]!.id },
+        data: { overrides: { cookTimeBudgetMinutes: 15 } },
+      });
+
+      const plan = await allFat(made);
+
+      expect(plan.days[0]!.macrosOffWhy).toEqual({
+        over: 'fat',
+        under: 'carbs',
+        causes: [{ kind: 'cookTime', minutes: 15 }],
+      });
     });
 
     it('says nothing of a day the user skips', async () => {

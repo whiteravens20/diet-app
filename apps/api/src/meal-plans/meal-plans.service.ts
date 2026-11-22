@@ -100,6 +100,7 @@ import { LINES_OF_KINDS, readPlanLimits } from './plan-limits.js';
 import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js';
 import { labelNotes, roundLabel, sumLabels } from '../engine/label-totals.js';
+import { energyShares } from '../engine/nutrition.js';
 import {
   averageDay,
   dayAsItStands,
@@ -124,6 +125,7 @@ import {
   plateAsJson,
   sharesOfPlanDay,
   storedPlateOf,
+  whyMacrosOff,
   type StoredPlate,
   type MealRow,
 } from './plan-days.js';
@@ -2079,6 +2081,16 @@ export class MealPlansService {
         });
       }
     }
+    // The times of day a single dish fit when the plan was made, by day, the dish still in its place.
+    const kept = StoredReport.nullable().safeParse(plan.report ?? null);
+    const single = kept.success && kept.data ? kept.data.singleCandidate : [];
+    const usualMeals = options.mealCount ?? plan.profile?.mealCount ?? 3;
+    // The meals the person swapped for another dish.
+    const swapped = new Set(
+      plan.days.flatMap((day) =>
+        day.meals.filter((meal) => meal.swapHistory.length > 0).map((meal) => meal.id),
+      ),
+    );
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
@@ -2188,6 +2200,8 @@ export class MealPlansService {
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
       const standing = standingOf(dayNutrition.calories, day.calorieTarget, skipped);
+      const off =
+        !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan));
       return {
         id: day.id,
         date: isoDate(day.date),
@@ -2219,8 +2233,37 @@ export class MealPlansService {
           isoDate(day.date) >= today &&
           standing.offTarget !== null &&
           this.resizes(orderedMeals, day, entered, plan),
-        macrosOff:
-          !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan)),
+        macrosOff: off,
+        macrosOffWhy: off
+          ? whyMacrosOff({
+              held: dayNutrition,
+              aim: energyShares(aimOfDay(day, plan)) ?? sharesOfPlanDay(plan, plan.calorieTarget),
+              dietType: plan.dietType,
+              meals: meals.map((meal, at) => {
+                const row = orderedMeals[at]!;
+                return {
+                  nutrition: meal.nutrition,
+                  fixed:
+                    row.eatenAt !== null ||
+                    row.source === 'USER_CUSTOM' ||
+                    row.leftoverFromDate !== null,
+                  byHand: swapped.has(row.id) || meal.dietOverride,
+                };
+              }),
+              besides: entered ? entered.nutrition : null,
+              overrides: parseDayOverrides(day.overrides),
+              usualMeals,
+              single: single
+                .filter(
+                  (one) =>
+                    one.date === isoDate(day.date) &&
+                    orderedMeals.some(
+                      (row) => row.mealType === one.slot && row.recipeId === one.recipeId,
+                    ),
+                )
+                .map((one) => one.slot),
+            })
+          : null,
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
@@ -2369,6 +2412,8 @@ interface PlanWithRelations {
       rests: unknown;
       plate: unknown;
       eatenAt: Date | null;
+      /** The dishes the person swapped this meal from: one at least where it was swapped by hand. */
+      swapHistory: string[];
       modelPicked: boolean;
       modelReason: string | null;
       sharedMealId: string | null;

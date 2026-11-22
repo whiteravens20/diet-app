@@ -228,10 +228,15 @@ export const carbFloor = (dietType: string): number | null => CARB_FLOOR[dietTyp
  * moving across either moves no step.
  */
 export function distanceOnDiet(shares: Macros, aim: Macros, dietType: string): number {
+  return splitDistance(shares, aimOnDiet(shares, aim, dietType));
+}
+
+/** The split a day's shares are measured against on its diet (`distanceOnDiet`): `aim`, or within a ceiling's band. */
+export function aimOnDiet(shares: Macros, aim: Macros, dietType: string): Macros {
   const floor = carbFloor(dietType);
-  if (floor === null || shares.carbs >= aim.carbs) return splitDistance(shares, aim);
+  if (floor === null || shares.carbs >= aim.carbs) return aim;
   const carbs = Math.max(shares.carbs, Math.min(floor, aim.carbs));
-  return splitDistance(shares, { protein: aim.protein, fat: 1 - aim.protein - carbs, carbs });
+  return { protein: aim.protein, fat: 1 - aim.protein - carbs, carbs };
 }
 
 /**
