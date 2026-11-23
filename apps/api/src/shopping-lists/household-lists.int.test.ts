@@ -352,6 +352,7 @@ describe('a shopping list for a household', () => {
       expect(await pantry(ewa, 'firm-tofu')).toBe(0);
 
       list = await edit(list, TOFU, { checked: false });
+      expect(rowOf(list, TOFU)).toMatchObject({ checked: false });
       expect(await pantry(adam, 'firm-tofu')).toBe(700);
       expect(await pantry(ewa, 'firm-tofu')).toBe(0);
     });
