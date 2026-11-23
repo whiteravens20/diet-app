@@ -1274,6 +1274,14 @@ model ShoppingListItem {
   // the pantry held less than the row counted on, less was taken. Undoing the
   // row gives back exactly these moves. Written by `engine/pantry.ts` only.
   pantryMoves           Json            @default("[]")
+  // Of a part of a household list: what of `alreadyHaveQuantity` was counted
+  // in the pantries of the household's other profiles, beyond what their own
+  // parts and lists count on, because the row's own pantry left it short. A
+  // list of `{ profileId, planId, quantity, moves }`: whose pantry, the plan
+  // of that profile's part, how much in the row's unit, and that pantry's
+  // ledger of the row, as `pantryMoves` is the own pantry's. Written by
+  // `shopping-lists.service.ts` only.
+  borrowed              Json            @default("[]")
   // Snapshot of the earliest best-before across pantry rows that contributed
   // to `alreadyHaveQuantity`. Surfaced on the "from pantry" chip so the user
   // sees urgency while shopping. Null when there was no pantry contribution or

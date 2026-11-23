@@ -16309,6 +16309,32 @@
             "type": "number",
             "minimum": 0
           },
+          "pantries": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "profileId",
+                "profile",
+                "quantity"
+              ],
+              "additionalProperties": false
+            }
+          },
           "toBuyQuantity": {
             "type": "number",
             "minimum": 0
@@ -16442,6 +16468,7 @@
           "displayUnit",
           "gramsPerPiece",
           "alreadyHaveQuantity",
+          "pantries",
           "toBuyQuantity",
           "purchasedQuantity",
           "frozenKept",
@@ -26138,6 +26165,32 @@
             "type": "number",
             "minimum": 0
           },
+          "pantries": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "profileId",
+                "profile",
+                "quantity"
+              ],
+              "additionalProperties": false
+            }
+          },
           "toBuyQuantity": {
             "type": "number",
             "minimum": 0
@@ -26245,6 +26298,7 @@
           "displayUnit",
           "gramsPerPiece",
           "alreadyHaveQuantity",
+          "pantries",
           "toBuyQuantity",
           "purchasedQuantity",
           "frozenKept",

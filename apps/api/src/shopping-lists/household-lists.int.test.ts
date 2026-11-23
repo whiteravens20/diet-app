@@ -7,6 +7,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { HouseholdListsService } from './household-lists.service.js';
+import { forgetLender } from './shopping-lists.service.js';
 
 /** The fixture recipes the menus below are made of, with what one serving takes. */
 const PORRIDGE = 'milk-porridge'; // 60 g oats, 250 ml milk
@@ -28,7 +29,8 @@ describe('a shopping list for a household', () => {
   let ofEwa: MealPlan;
 
   beforeAll(async () => {
-    t = await createTestApp();
+    // Three profiles in one kitchen, where the quick start allows two.
+    t = await createTestApp({ MAX_PROFILES_PER_ACCOUNT: '3' });
     households = t.app.get(HouseholdListsService);
     await resetDatabase(t.prisma);
     await seedCatalogue(t.prisma);
@@ -300,6 +302,250 @@ describe('a shopping list for a household', () => {
     await t.http().get(`/api/household-lists/${made.id}`).set(as(user)).expect(404);
     expect((await listsOf(ofAdam)).map((list) => list.household)).toEqual([null]);
     expect(await kept()).toBe(0);
+  });
+
+  describe('one kitchen: a part its own pantry leaves short counts on the others', () => {
+    // 540 g of tofu for each plan on the 6th and 7th: one bowl, then two.
+    const TOFU = 'Firm tofu';
+    type PartRow = ShoppingList['groups'][number]['items'][number];
+    const tofuOf = async (plan: MealPlan): Promise<PartRow> => {
+      const [part] = await listsOf(plan);
+      return part!.groups.flatMap((group) => group.items).find((item) => item.name === TOFU)!;
+    };
+
+    it("counts what another profile's pantry holds beyond its own part, and takes it from there at once where it covers the part", async () => {
+      await stock(adam, 'firm-tofu', 1100);
+      const made = (await make().expect(201)).body as HouseholdList;
+
+      expect(rowOf(made, TOFU)).toMatchObject({
+        totalQuantity: 1080,
+        alreadyHaveQuantity: 1080,
+        toBuyQuantity: 0,
+        checked: true,
+        pantries: [{ profileId: adam.id, profile: 'Adam', quantity: 1080 }],
+      });
+      expect(await tofuOf(ofEwa)).toMatchObject({
+        alreadyHaveQuantity: 540,
+        checked: true,
+        pantries: [{ profileId: adam.id, profile: 'Adam', quantity: 540 }],
+      });
+      // Both parts are covered: what they count on left Adam's pantry, and Ewa's has none to give.
+      expect(await pantry(adam, 'firm-tofu')).toBe(20);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(0);
+    });
+
+    it('takes what it counted from the pantry it counted it in on a tick, and returns it there on an untick', async () => {
+      await stock(adam, 'firm-tofu', 700);
+      let list = (await make().expect(201)).body as HouseholdList;
+      // Adam's part is covered by his pantry; Ewa's counts on the 160 g left in it.
+      expect(rowOf(list, TOFU)).toMatchObject({
+        alreadyHaveQuantity: 700,
+        toBuyQuantity: 380,
+        checked: false,
+      });
+      expect(await tofuOf(ofEwa)).toMatchObject({ alreadyHaveQuantity: 160, checked: false });
+      expect(await pantry(adam, 'firm-tofu')).toBe(160);
+
+      list = await edit(list, TOFU, { purchasedQuantity: 1080 });
+      expect(rowOf(list, TOFU)).toMatchObject({ checked: true });
+      expect(await pantry(adam, 'firm-tofu')).toBe(0);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(0);
+
+      list = await edit(list, TOFU, { checked: false });
+      expect(await pantry(adam, 'firm-tofu')).toBe(700);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(0);
+    });
+
+    it('counts on the other pantries in the order of their profiles', async () => {
+      const ola = await aProfile(t, user, {
+        name: 'Ola',
+        sex: 'female',
+        weightKg: 58,
+        heightCm: 160,
+      });
+      const ofOla = await aPlan(t, user, ola, { startDate: '2026-01-06' });
+      await menu(ofOla, '2026-01-06', [PORRIDGE, CHICKEN_RICE, TOFU_BOWL]);
+      await menu(ofOla, '2026-01-07', [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
+      // Ewa has none; beyond their own parts Adam has 160 g and Ola 460 g.
+      await stock(adam, 'firm-tofu', 700);
+      await stock(ola, 'firm-tofu', 1000);
+      await make(undefined, undefined, [ofAdam.id, ofEwa.id, ofOla.id]).expect(201);
+
+      const [first, second] = [
+        { profile: adam, free: 160 },
+        { profile: ola, free: 460 },
+      ].sort((a, b) => (a.profile.id < b.profile.id ? -1 : 1));
+      const fromFirst = Math.min(first!.free, 540);
+      expect((await tofuOf(ofEwa)).pantries).toEqual([
+        { profileId: first!.profile.id, profile: first!.profile.name, quantity: fromFirst },
+        { profileId: second!.profile.id, profile: second!.profile.name, quantity: 540 - fromFirst },
+      ]);
+      // Covered by the two: taken from both at once.
+      expect((await pantry(adam, 'firm-tofu')) + (await pantry(ola, 'firm-tofu'))).toBe(80);
+    });
+
+    it("does not count again on what another profile's part counts on", async () => {
+      await stock(adam, 'firm-tofu', 700);
+      await make().expect(201);
+      // A list of Adam's later day: the 160 g in his pantry are Ewa's part's, not yet taken.
+      await menu(ofAdam, '2026-01-08', [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
+      const later = (
+        await t
+          .http()
+          .post('/api/shopping-lists/generate')
+          .set(as(user))
+          .send({ planId: ofAdam.id, fromDate: '2026-01-08', toDate: '2026-01-08' })
+          .expect(201)
+      ).body as ShoppingList;
+      expect(
+        later.groups.flatMap((group) => group.items).find((item) => item.name === TOFU),
+      ).toMatchObject({ totalQuantity: 360, alreadyHaveQuantity: 0 });
+    });
+
+    it("counts of a part's own pantry only what is at home from it, not what it counts on in another", async () => {
+      await stock(adam, 'firm-tofu', 700);
+      await stock(ewa, 'firm-tofu', 100);
+      await make().expect(201);
+      // Ewa's part: her 100 g and the 160 g Adam's pantry holds beyond his part, short of 540 and so not taken.
+      expect(await tofuOf(ofEwa)).toMatchObject({ alreadyHaveQuantity: 260, checked: false });
+
+      // 300 g more in her pantry since: a list of her later day has them at home, her part keeping its 100 g.
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: ewa.id },
+        data: { quantity: 400 },
+      });
+      await menu(ofEwa, '2026-01-08', [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
+      const later = (
+        await t
+          .http()
+          .post('/api/shopping-lists/generate')
+          .set(as(user))
+          .send({ planId: ofEwa.id, fromDate: '2026-01-08', toDate: '2026-01-08' })
+          .expect(201)
+      ).body as ShoppingList;
+      expect(
+        later.groups.flatMap((group) => group.items).find((item) => item.name === TOFU),
+      ).toMatchObject({ totalQuantity: 360, alreadyHaveQuantity: 300 });
+    });
+
+    it('gives back to each pantry what came from it when it is deleted before its days', async () => {
+      await stock(adam, 'firm-tofu', 700);
+      let list = (await make().expect(201)).body as HouseholdList;
+      list = await edit(list, TOFU, { purchasedQuantity: 1080 });
+
+      await households.remove(user.id, list.id, BEFORE);
+      // Adam's 700 g where they were; the 380 g bought for Ewa's part in her pantry.
+      expect(await pantry(adam, 'firm-tofu')).toBe(700);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(380);
+    });
+
+    it("gives back to another profile's pantry what a part took from it at once when it is deleted before its days", async () => {
+      await stock(adam, 'firm-tofu', 1100);
+      const list = (await make().expect(201)).body as HouseholdList;
+      expect(await pantry(adam, 'firm-tofu')).toBe(20);
+
+      await households.remove(user.id, list.id, BEFORE);
+      expect(await pantry(adam, 'firm-tofu')).toBe(1100);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(0);
+    });
+
+    it("counts on no more than the other's pantry still holds once it holds less", async () => {
+      await stock(adam, 'firm-tofu', 700);
+      await make().expect(201);
+      const [row] = await t.prisma.inventoryItem.findMany({ where: { profileId: adam.id } });
+      await t
+        .http()
+        .patch(`/api/inventory/${row!.id}`)
+        .set(as(user))
+        .send({ quantity: 60 })
+        .expect(200);
+
+      expect(await tofuOf(ofEwa)).toMatchObject({
+        alreadyHaveQuantity: 60,
+        pantries: [{ profileId: adam.id, profile: 'Adam', quantity: 60 }],
+      });
+    });
+
+    it("takes what is said to be at home as the part's own, giving back what it counted elsewhere", async () => {
+      await stock(adam, 'firm-tofu', 700);
+      let list = (await make().expect(201)).body as HouseholdList;
+      list = await edit(list, TOFU, { alreadyHaveQuantity: 300 });
+
+      expect(rowOf(list, TOFU)).toMatchObject({ alreadyHaveQuantity: 300, toBuyQuantity: 780 });
+      expect((await tofuOf(ofEwa)).pantries).toEqual([]);
+      // Adam's part no longer covered: its tick and what it took are undone.
+      expect(await pantry(adam, 'firm-tofu')).toBe(700);
+    });
+
+    it("keeps a part's ticked count on a pantry once the other plan is gone, and drops one not ticked", async () => {
+      await stock(adam, 'firm-tofu', 700);
+      await make().expect(201);
+      await t.http().delete(`/api/meal-plans/${ofAdam.id}`).set(as(user)).expect(204);
+      // Ewa's part is her plan's list alone: what it counted in Adam's pantry is not at home for it any more.
+      expect(await tofuOf(ofEwa)).toMatchObject({ alreadyHaveQuantity: 0, pantries: [] });
+
+      const again = await aPlan(t, user, adam, { startDate: '2026-01-06' });
+      await menu(again, '2026-01-06', [PORRIDGE, CHICKEN_RICE, TOFU_BOWL]);
+      await menu(again, '2026-01-07', [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
+      // What his pantry holds now: enough for both parts.
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: adam.id },
+        data: { quantity: 1080 },
+      });
+      await make(undefined, undefined, [again.id, ofEwa.id]).expect(201);
+      expect(await pantry(adam, 'firm-tofu')).toBe(0);
+      await t.http().delete(`/api/meal-plans/${again.id}`).set(as(user)).expect(204);
+      // Ticked: it keeps what it took, and taking the tick back returns it to Adam's pantry.
+      const kept = await tofuOf(ofEwa);
+      expect(kept).toMatchObject({
+        checked: true,
+        pantries: [{ profileId: adam.id, quantity: 540 }],
+      });
+      const [part] = await listsOf(ofEwa);
+      await t
+        .http()
+        .patch(`/api/shopping-lists/${part!.id}/items/${kept.id}`)
+        .set(as(user))
+        .send({ checked: false })
+        .expect(200);
+      expect(await pantry(adam, 'firm-tofu')).toBe(540);
+    });
+
+    it('forgets what was counted in the pantry of a profile that is deleted', async () => {
+      await stock(adam, 'firm-tofu', 700);
+      await make().expect(201);
+      await t.http().delete(`/api/profiles/${adam.id}`).set(as(user)).expect(204);
+
+      expect(await tofuOf(ofEwa)).toMatchObject({ alreadyHaveQuantity: 0, pantries: [] });
+    });
+
+    it('gives back to the other pantries what the lists of a profile that is deleted took from them for the days ahead', async () => {
+      await stock(adam, 'firm-tofu', 1100);
+      await make().expect(201);
+      expect(await pantry(adam, 'firm-tofu')).toBe(20);
+
+      // Ewa's part took its 540 g from Adam's pantry, every one of its days still ahead.
+      await t.prisma.$transaction((tx) => forgetLender(tx, ewa.id, BEFORE));
+      expect(await pantry(adam, 'firm-tofu')).toBe(560);
+    });
+
+    it('forgets what the parts took from a row of a pantry that is removed, so that none of it comes back', async () => {
+      await stock(adam, 'firm-tofu', 1100);
+      const list = (await make().expect(201)).body as HouseholdList;
+      const [row] = await t.prisma.inventoryItem.findMany({ where: { profileId: adam.id } });
+      await t.http().delete(`/api/inventory/${row!.id}`).set(as(user)).expect(204);
+
+      // What both parts took went with the row: neither has it at home any more, nor is ticked.
+      expect(await tofuOf(ofAdam)).toMatchObject({ alreadyHaveQuantity: 0, checked: false });
+      expect(await tofuOf(ofEwa)).toMatchObject({
+        alreadyHaveQuantity: 0,
+        checked: false,
+        pantries: [],
+      });
+      await households.remove(user.id, list.id, BEFORE);
+      expect(await pantry(adam, 'firm-tofu')).toBe(0);
+      expect(await pantry(ewa, 'firm-tofu')).toBe(0);
+    });
   });
 
   it('is replaced by one made again for the same days, which takes the place of its parts', async () => {

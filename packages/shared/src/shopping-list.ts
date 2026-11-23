@@ -76,6 +76,24 @@ export const ShoppingListItem = z.object({
    * the pantry does not know everything that is in a kitchen.
    */
   alreadyHaveQuantity: z.number().min(0).default(0),
+  /**
+   * Whose pantry holds what is at home for the row, by profile, where more
+   * than one profile's pantry counts for it: of a household list's row, each
+   * pantry that holds some of it; of a part of a household list read as its
+   * plan's list, its own pantry and those of the other profiles of the
+   * household that its part counts on. A part whose own pantry leaves it short
+   * counts on what the others' pantries hold beyond their own parts, and a tick
+   * takes it from there. Empty where the row counts on its own pantry alone.
+   */
+  pantries: z
+    .array(
+      z.object({
+        profileId: z.string().uuid(),
+        profile: z.string(),
+        quantity: z.number().min(0),
+      }),
+    )
+    .default([]),
   /** totalQuantity - alreadyHaveQuantity, floored at 0. */
   toBuyQuantity: z.number().min(0),
   /**
