@@ -10,18 +10,19 @@ import type {
   UpdateShoppingItemRequest,
 } from '@diet-app/shared';
 import {
+  byPantry,
   editRow,
   energyOf,
   groupByAisle,
-  intendedPantryEffect,
   shareAhead,
   shareAtHome,
   sharePurchase,
   withAtHome,
 } from '../engine/index.js';
-import { assertWithinCeiling } from '../inventory/pantry-store.js';
+import { assertWithinCeiling, lockPantry, readBorrowed } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  borrowAcross,
   isoDate,
   isStale,
   freshOf,
@@ -30,14 +31,16 @@ import {
   itemDto,
   loadIngredients,
   makeList,
+  withNames,
   PART_ORDER,
   planLines,
+  profileNames,
   releaseLists,
   settleHouseholds,
   settleRow,
+  stored,
   TRANSACTION,
   type StoredItem,
-  thawedParcels,
 } from './shopping-lists.service.js';
 
 /** A household list as it is read: its parts, each with its rows and the profile its plan is for. */
@@ -60,9 +63,11 @@ const clean = (n: number): number => Math.round(n * 1e6) / 1e6;
  * One shopping list for the plans of several profiles of an account, for the
  * same days. It is made of each plan's own list, its part, which keeps what a
  * list of its plan alone keeps: its pantry and what the profile's other lists
- * claim of it, the days its plan says are on a list, its staleness. The
- * household list sums the parts' rows by ingredient and shares out what is
- * said of a summed row among the parts' rows.
+ * claim of it, the days its plan says are on a list, its staleness. One
+ * kitchen: a part that its own pantry leaves short counts on what the other
+ * profiles' pantries hold beyond their own parts (`borrowAcross`), and a tick
+ * takes it from there. The household list sums the parts' rows by ingredient
+ * and shares out what is said of a summed row among the parts' rows.
  *
  * Several profiles in one transaction take their locks in one order: the rows
  * of lists by id, then the pantries by profile, so two changes of household
@@ -144,10 +149,13 @@ export class HouseholdListsService {
         data: { userId, fromDate: from, toDate: to },
       });
       const left: string[] = [];
+      const made: { listId: string; profileId: string; planId: string }[] = [];
       for (const part of parts) {
-        const made = await makeList(tx, part.plan, part.from, part.to, household.id);
-        left.push(...made.leftHouseholds);
+        const list = await makeList(tx, part.plan, part.from, part.to, household.id);
+        left.push(...list.leftHouseholds);
+        made.push({ listId: list.listId, profileId: part.plan.profileId, planId: part.plan.id });
       }
+      await borrowAcross(tx, made);
       await settleHouseholds(
         tx,
         left.filter((other) => other !== household.id),
@@ -178,9 +186,11 @@ export class HouseholdListsService {
    * Change a row of the household list: the rows of its parts for the same
    * ingredient, each by the rules of a list of its plan alone (`editRow`,
    * `withAtHome`). What is at home is shared as the pantries had it
-   * (`shareAtHome`), what the household holds for the row so that each plan
-   * first has what it lacks and the rest goes by need (`sharePurchase`); a
-   * tick or an untick is each part's.
+   * (`shareAtHome`), each part's share its own from then on: what a part
+   * counted in another's pantry goes back there. What the household holds for
+   * the row is shared so that each plan first has what it lacks and the rest
+   * goes by need (`sharePurchase`); a tick or an untick is each part's, and
+   * takes from or gives back to each pantry its part counts on.
    */
   async updateItem(
     userId: string,
@@ -235,7 +245,15 @@ export class HouseholdListsService {
                 states.map((row) => ({ need: row.totalQuantity, atHome: row.alreadyHaveQuantity })),
               );
 
-      // The pantries by profile: the order of every change of more than one.
+      // The pantries by profile, every part's and every other one a part counts on: the order of every change of
+      // more than one.
+      const holders = new Set(
+        rows.flatMap((row) => [
+          profileOf.get(row.id)!,
+          ...readBorrowed(row.borrowed).map((one) => one.profileId),
+        ]),
+      );
+      for (const holder of [...holders].sort()) await lockPantry(tx, holder, named.ingredientId);
       for (const [k, row] of rows.entries()) {
         const next = {
           ...counted[k],
@@ -246,19 +264,17 @@ export class HouseholdListsService {
           // The date was that of what the pantry held for the row: with nothing at home there is none.
           ...(counted[k]?.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
         };
-        const moves = await settleRow(
+        const borrowed = readBorrowed(row.borrowed);
+        const ledgers = await settleRow(
           tx,
-          profileOf.get(row.id)!,
+          { profileId: profileOf.get(row.id)!, planId: planOf.get(row.id)! },
           row,
-          intendedPantryEffect({ ...row, ...next }),
-          await thawedParcels(tx, planOf.get(row.id)!),
+          { ...row, ...next },
+          atHomes ? { borrowed: [], dropped: borrowed } : { borrowed },
         );
         await tx.shoppingListItem.update({
           where: { id: row.id },
-          data: {
-            ...next,
-            ...(moves ? { pantryMoves: moves as unknown as Prisma.InputJsonValue } : {}),
-          },
+          data: { ...next, ...stored(ledgers) },
         });
       }
     }, TRANSACTION);
@@ -342,9 +358,30 @@ export class HouseholdListsService {
           rows.set(key, [...(rows.get(key) ?? []), { part, item }]);
         }
       }
+      // Whose pantry holds what is at home: the parts' profiles, and one a part counted on that is no longer a part.
+      const names = new Map(
+        household.parts.map((part) => [part.plan.profileId, part.plan.profile.name]),
+      );
+      const strangers = household.parts.flatMap((part) =>
+        part.items.flatMap((item) =>
+          readBorrowed(item.borrowed)
+            .map((one) => one.profileId)
+            .filter((profileId) => !names.has(profileId)),
+        ),
+      );
+      if (strangers.length > 0)
+        for (const [profileId, name] of await profileNames(this.prisma, strangers))
+          names.set(profileId, name);
       const items: HouseholdListItem[] = [...rows.values()].map((shares) => {
         const item = summed(shares.map((share) => share.item));
         const ingredient = ingredients.get(shares[0]!.item.ingredientId);
+        const pantries = byPantry(
+          shares.map(({ part, item: share }) => ({
+            profileId: part.plan.profileId,
+            atHome: share.alreadyHaveQuantity,
+            borrowed: readBorrowed(share.borrowed),
+          })),
+        );
         return {
           ...itemDto(
             item,
@@ -352,6 +389,7 @@ export class HouseholdListsService {
             locale,
             freshOf(item, ingredient, kitchen, household, freezes),
             frozenOf(item.ingredientId),
+            withNames(pantries, names),
           ),
           shares: shares.map(({ part, item: share }) => ({
             profileId: part.plan.profileId,
@@ -402,6 +440,7 @@ function summed(items: readonly StoredItem[]): StoredItem {
       ? null
       : clean(items.reduce((sum, item) => sum + (item.purchasedQuantity ?? 0), 0)),
     pantryMoves: [],
+    borrowed: [],
     pantryBestBefore:
       dates.length === 0 ? null : new Date(Math.min(...dates.map((date) => date.getTime()))),
     estimatedCalories: items.reduce((sum, item) => sum + item.estimatedCalories, 0),

@@ -1500,6 +1500,7 @@
     "csvShares": "For whom",
     "buyLater": "Of these, buy {packs, plural, one {{packs, number, ::group-off}\u00a0pack} other {{packs, number, ::group-off}\u00a0packs}} on {weekday, select, mon {Monday} tue {Tuesday} wed {Wednesday} thu {Thursday} fri {Friday} sat {Saturday} sun {Sunday} other {}} ({date}) at the earliest.",
     "frozenKept": "{amount} more stays in the freezer: the plan does not thaw it.",
+    "fromPantries": "From the pantry: {who}",
     "csvBuyLater": "When to buy",
     "replacesPart": "A list of these days is a part of a household list: {profiles}. A new list takes its place, and the household list loses this plan's part."
   },
@@ -2179,9 +2180,7 @@
     "macrosOffChip": "Macros off target",
     "macrosOffHint": "This day's share of macronutrients is far from its target. Swapping a meal shows what the new recipe would make of it.",
     "macrosOffWhy": {
-      "leanBoth": "Too much {over}, too little {under}.",
-      "leanOver": "Too much {over}.",
-      "leanUnder": "Too little {under}.",
+      "lean": "Too much {over}, too little {under}.",
       "macroOf": { "protein": "protein", "fat": "fat", "carbs": "carbohydrate" },
       "fixed": "Meals the plan does not change (eaten, your own, leftovers, diary entries) hold {share}% of the day's energy and are far from the target themselves.",
       "cookTime": "A cooking-time limit of {minutes}\u00a0min leaves few dishes of this diet. Lengthen it in “Day settings…” or add a meal.",
@@ -2189,6 +2188,9 @@
       "useUp": "The day uses up food that goes off soon, so its recipes are chosen for that, not for the split.",
       "byHand": "{count, plural, one {One meal of the day was} other {{count, number, ::group-off}\u00a0meals of the day were}} chosen by hand: a swap, a favourite or a dish off the diet.",
       "singleDish": "When the plan was made, only one dish fit {slots}: the exclusions and the diet leave few recipes there.",
+      "noWaste": "A “No waste” plan chooses its dishes to use up opened packs, not for the split. A next plan with “Waste less”, or without either, comes closer to the target.",
+      "repeats": "The limit “Max times one recipe can repeat” ({count, number, ::group-off}) leaves few dishes that keep the split. A next plan with a higher limit has more to choose from.",
+      "proteinKinds": "The profile's limits on meals with the same kind of protein leave fewer dishes with protein. If the split matters more, loosen them in the profile.",
       "diet": "The dishes of this diet that fit the profile's settings usually have another split. Swapping a meal shows what the new recipe would make of it."
     },
     "planAverageOver": "On average a day of this plan holds more than a tenth over its target.",
@@ -2889,6 +2891,8 @@
     "dislikedHint": "The planner and the swaps take a recipe with one of these only where nothing else fits the meal. To rule a food out altogether, put it under “Avoid ingredients”.",
     "avoidLabel": "Avoid ingredients",
     "avoidHint": "The planner skips recipes that contain these.",
+    "dislikedKin": "Add as well:",
+    "avoidKin": "Avoid as well:",
     "risk": {
       "minor": "Under 18\u00a0the figures of this application are an approximation, and losing weight is something to do with a doctor.",
       "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
@@ -2943,6 +2947,8 @@
     "noMatches": "No matches.",
     "addTicked": "Add the ticked ({count})",
     "remove": "Remove {name}",
+    "addKin": "+ {name}",
+    "kinNo": "No, thanks",
     "allergensPlaceholder": "Select allergens…",
     "allergensSelected": "{count} selected"
   },

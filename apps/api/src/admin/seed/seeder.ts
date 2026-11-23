@@ -319,6 +319,8 @@ async function applyIngredients(
       perishable: ing.perishable ?? false,
       keepDays: ing.keepDays ?? null,
       storageHint: storage?.en ?? null,
+      // Written once every ingredient has its id, below.
+      kin: [],
       retiredAt: null,
     };
     const id = existingBySlug.get(ing.slug) ?? unslugged.get(ing.enName);
@@ -357,6 +359,14 @@ async function applyIngredients(
     if (done % 100 === 0 || done === catalogue.ingredients.length) {
       onProgress({ stage: 'ingredients', current: done, total: catalogue.ingredients.length });
     }
+  }
+  // Each one's kin by id, now that every ingredient has one.
+  for (const ing of catalogue.ingredients) {
+    if (!ing.kin?.length) continue;
+    await db.ingredient.update({
+      where: { id: ids.get(ing.slug)! },
+      data: { kin: ing.kin.flatMap((slug) => (ids.has(slug) ? [ids.get(slug)!] : [])) },
+    });
   }
   return ids;
 }

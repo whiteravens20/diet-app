@@ -80,6 +80,8 @@ const IngredientSeed = z.object({
   source: z.string().optional(),
   // The slugs under which a food import brings this same food: those rows are left out.
   importedAs: z.array(z.string().min(1)).optional(),
+  // The ingredients of this file that are the same food to most people who avoid this one: red onion for an onion.
+  kin: z.array(z.string().min(1)).optional(),
 });
 type IngredientSeed = z.infer<typeof IngredientSeed>;
 
@@ -355,6 +357,28 @@ export function readCatalogue(dir: string = resolveDataDir()): {
       } else {
         standsFor.set(imported, identity(row));
       }
+    }
+  });
+
+  // Kin are offered together where one is ruled out, so each names the other: an ingredient of this file, never itself.
+  const curatedBySlug = new Map(curated.map((row) => [identity(row), row]));
+  curated.forEach((row, i) => {
+    const self = identity(row);
+    const named = new Set<string>();
+    for (const other of row.kin ?? []) {
+      const kin = curatedBySlug.get(other);
+      const message =
+        other === self
+          ? `"${self}" names itself as its kin`
+          : named.has(other)
+            ? `"${other}" is named twice`
+            : !kin
+              ? `"${other}" is not an ingredient of this file`
+              : !(kin.kin ?? []).includes(self)
+                ? `"${other}" does not name "${self}" as its kin`
+                : null;
+      if (message) problems.push({ file: 'ingredients.json', path: `[${i}].kin`, message });
+      named.add(other);
     }
   });
 

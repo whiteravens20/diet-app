@@ -14,6 +14,7 @@ import {
   intendedPantryEffect,
   packsToBuy,
   pantryEffectOnRemoval,
+  pantryEffects,
   shareAhead,
   toBuyQuantity,
   withAtHome,
@@ -624,6 +625,68 @@ describe('removing a list', () => {
 
   it('returns the share that belongs to the days still ahead', () => {
     expect(pantryEffectOnRemoval(row({ purchasedQuantity: 700, checked: true }), 0.5)).toBe(150);
+  });
+});
+
+describe('a row that counts on the pantries of other profiles of its household', () => {
+  // 700 g needed and 200 g at home: 50 g in the row's own pantry, 150 g in another one's.
+  const borrowed = [150];
+
+  it('takes nothing from any pantry while the row is not ticked', () => {
+    expect(pantryEffects(row({ purchasedQuantity: 650 }), borrowed)).toEqual({
+      own: 0,
+      borrowed: [0],
+    });
+  });
+
+  it('takes from each pantry what was counted in it once ticked, and puts what was bought over into its own', () => {
+    expect(pantryEffects(row({ purchasedQuantity: 700, checked: true }), borrowed)).toEqual({
+      own: -50,
+      borrowed: [-150],
+    });
+    expect(pantryEffects(row({ purchasedQuantity: 800, checked: true }), borrowed)).toEqual({
+      own: 50,
+      borrowed: [-150],
+    });
+  });
+
+  it('gives each pantry back its part of what is still in the kitchen when the list goes', () => {
+    const ticked = row({ purchasedQuantity: 700, checked: true });
+    // All of it: what was counted at home goes back where it was, what was bought into the own pantry.
+    expect(pantryEffects(ticked, borrowed, 1)).toEqual({ own: 500, borrowed: [0] });
+    // Half the days ahead: half of each part.
+    expect(pantryEffects(ticked, borrowed, 0.5)).toEqual({ own: 225, borrowed: [-75] });
+    // The days over: nothing.
+    expect(pantryEffects(ticked, borrowed, 0)).toEqual({ own: -50, borrowed: [-150] });
+    // Not ticked: what was bought, into the own pantry; nothing was taken from the other.
+    expect(pantryEffects(row({ purchasedQuantity: 500 }), borrowed, 1)).toEqual({
+      own: 300,
+      borrowed: [0],
+    });
+  });
+
+  it('shares out what a row closed at less than was at home holds as what was at home came', () => {
+    // 100 g of the 200 g at home are held for the plan: each pantry gets half of its part back.
+    expect(pantryEffects(row({ purchasedQuantity: 100, checked: true }), borrowed, 1)).toEqual({
+      own: -25,
+      borrowed: [-75],
+    });
+  });
+
+  it('adds up to what the row does to the pantry, whatever it holds', () => {
+    for (const state of [
+      row(),
+      row({ purchasedQuantity: 900, checked: true }),
+      row({ purchasedQuantity: 450, checked: true }),
+      row({ alreadyHaveQuantity: 150, purchasedQuantity: 700, checked: true }),
+    ]) {
+      for (const share of [null, 0, 0.3, 1]) {
+        const { own, borrowed: others } = pantryEffects(state, borrowed, share);
+        const whole =
+          share === null ? intendedPantryEffect(state) : pantryEffectOnRemoval(state, share);
+        expect(own + others[0]!).toBeCloseTo(whole, 6);
+      }
+    }
   });
 });
 

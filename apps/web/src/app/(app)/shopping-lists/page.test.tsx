@@ -33,6 +33,7 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   toBuyQuantity: 200,
   purchasedQuantity: null,
   frozenKept: 0,
+  pantries: [],
   pantryBestBefore: null,
   estimatedCalories: 400,
   packs: null,
@@ -458,6 +459,33 @@ describe('a row of fresh meat or fish needed on a later day', () => {
     expect(
       screen.getByText(spaced('220 g more stays in the freezer: the plan does not thaw it.')),
     ).toBeInTheDocument();
+  });
+
+  it("says whose pantry holds what is at home of a part's row that counts on another profile's", async () => {
+    await renderPage(
+      aListOf(
+        [
+          chicken({
+            alreadyHaveQuantity: 150,
+            pantries: [
+              { profileId: '22222222-2222-4222-8222-222222222222', profile: 'Ewa', quantity: 50 },
+              { profileId: '33333333-3333-4333-8333-333333333333', profile: 'Adam', quantity: 100 },
+            ],
+          }),
+        ],
+        [],
+      ),
+    );
+
+    expect(plain(screen.getByText(/^From the pantry/).textContent)).toBe(
+      'From the pantry: Ewa 50 g · Adam 100 g',
+    );
+  });
+
+  it('names no pantry of a row that counts on its own alone', async () => {
+    await renderPage(aListOf([chicken({ alreadyHaveQuantity: 150 })], []));
+
+    expect(screen.queryByText(/From the pantry/)).toBeNull();
   });
 
   it('says nothing of the freezer where it keeps nothing of the food', async () => {
