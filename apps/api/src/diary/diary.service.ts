@@ -33,7 +33,6 @@ import { labelLimitsOf } from '../common/label-limits.js';
 import {
   fromStoredLabel,
   labelNotes,
-  labelOfAmount,
   roundLabel,
   scaleLabel,
   storedTotals,
@@ -48,13 +47,10 @@ import {
   estimatedMacros,
   labelEntryFigures,
   macroSplitOf,
-  nutritionFor,
   ownSplit,
   proteinKcalOf,
   scaledFigures,
   shownTarget,
-  toCanonical,
-  UnitConversionError,
 } from '../engine/index.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { planChangedMeanwhile } from '../meal-plans/plan-write.js';
@@ -80,6 +76,7 @@ import { calorieInputOf } from '../profiles/calorie-input.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
 import { entryDto, entryWith, languages } from './diary-entries.js';
+import { ingredientEaten, productEaten } from './chosen-food.js';
 import { diaryMealOf, eatenMeals, entryOfEaten, type EatenMeal } from './eaten-meals.js';
 import { pieced, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 
@@ -1009,97 +1006,35 @@ export class DiaryService {
     }
 
     if (req.kind === 'ingredient') {
-      const ingredient = await this.prisma.ingredient.findFirst({
-        where: { id: req.ingredientId, retiredAt: null },
-        select: {
-          name: true,
-          canonicalUnit: true,
-          gramsPerPiece: true,
-          density: true,
-          caloriesPer100: true,
-          proteinPer100: true,
-          fatPer100: true,
-          carbsPer100: true,
-          fiberPer100: true,
-          sugarsPer100: true,
-          saltPer100: true,
-          saturatedFatPer100: true,
-          translations: {
-            where: { locale: { in: languages(locale) } },
-            select: { locale: true, name: true },
-          },
-        },
-      });
-      if (!ingredient) {
-        throw new NotFoundException({
-          error: 'INGREDIENT_NOT_FOUND',
-          message: 'Ingredient not found.',
-        });
-      }
-      let canonical: number;
-      try {
-        canonical = toCanonical(req.amount.quantity, req.amount.unit, ingredient);
-      } catch (err) {
-        if (!(err instanceof UnitConversionError)) throw err;
-        throw new BadRequestException({
-          error: 'DIARY_UNIT_NOT_CONVERTIBLE',
-          message: `This ingredient cannot be given in ${req.amount.unit}: use one of the units it is offered in.`,
-        });
-      }
+      const eaten = await ingredientEaten(this.prisma, locale, req.ingredientId, req.amount);
       return {
         kind: 'ingredient',
         ingredientId: req.ingredientId,
-        name: pickIngredient(locale, ingredient.translations, ingredient.name),
+        name: eaten.name,
         quantity: req.amount.quantity,
         unit: req.amount.unit,
         estimated: false,
-        ...nutritionFor(canonical, {
-          calories: ingredient.caloriesPer100,
-          protein: ingredient.proteinPer100,
-          fat: ingredient.fatPer100,
-          carbs: ingredient.carbsPer100,
-        }),
-        ...toStoredLabel(labelOfAmount(ingredient, canonical)),
+        ...eaten.figures,
       };
     }
 
     if (req.kind === 'product') {
-      const base = await this.prisma.product.findUnique({
-        where: { id: req.productId },
-      });
-      // Not the base's: a product of the account's own, which nobody else's request can reach.
-      const own = base
-        ? null
-        : await this.prisma.ownProduct.findFirst({
-            where: { id: req.productId, userId: profile.userId },
-          });
-      const product = base ?? (own && { ...own, energyWorkedOut: false });
-      if (!product) {
-        throw new NotFoundException({
-          error: 'PRODUCT_NOT_FOUND',
-          message: 'No product with this code is known.',
-        });
-      }
-      const figures = labelEntryFigures(
-        product,
+      const eaten = await productEaten(
+        this.prisma,
+        profile.userId,
+        req.productId,
         req.quantity,
         (await this.aimOfDay(profile, req.date)).split,
       );
-      if (!figures) {
-        throw new ConflictException({
-          error: 'PRODUCT_WITHOUT_FIGURES',
-          message: 'The label of this product gives no energy: write it as a meal of your own.',
-        });
-      }
       return {
         kind: 'product',
-        productId: base ? req.productId : null,
-        ownProductId: own ? req.productId : null,
-        productSource: own ? 'own' : base?.origin === 'accepted' ? 'instance' : 'open_food_facts',
-        name: product.brand ? `${product.name}, ${product.brand}` : product.name,
+        productId: eaten.productId,
+        ownProductId: eaten.ownProductId,
+        productSource: eaten.source,
+        name: eaten.name,
         quantity: req.quantity,
-        unit: product.unit,
-        ...figures,
+        unit: eaten.unit,
+        ...eaten.figures,
       };
     }
 
