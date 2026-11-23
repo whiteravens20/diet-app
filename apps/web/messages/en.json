@@ -2179,9 +2179,7 @@
     "macrosOffChip": "Macros off target",
     "macrosOffHint": "This day's share of macronutrients is far from its target. Swapping a meal shows what the new recipe would make of it.",
     "macrosOffWhy": {
-      "leanBoth": "Too much {over}, too little {under}.",
-      "leanOver": "Too much {over}.",
-      "leanUnder": "Too little {under}.",
+      "lean": "Too much {over}, too little {under}.",
       "macroOf": { "protein": "protein", "fat": "fat", "carbs": "carbohydrate" },
       "fixed": "Meals the plan does not change (eaten, your own, leftovers, diary entries) hold {share}% of the day's energy and are far from the target themselves.",
       "cookTime": "A cooking-time limit of {minutes}\u00a0min leaves few dishes of this diet. Lengthen it in “Day settings…” or add a meal.",

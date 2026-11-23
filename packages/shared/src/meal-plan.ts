@@ -662,11 +662,12 @@ export type MacrosOffCause = z.infer<typeof MacrosOffCause>;
 
 /**
  * Why a day's macros are off (`MealPlanDay.macrosOff`): what it holds too much and too little of, against the split
- * as its diet measures it, and what makes it so, the most telling first.
+ * as its diet measures it, and what makes it so, the most telling first. A day off its split holds too much of one
+ * macronutrient and too little of another, always: what one has over, the energy of the others lacks.
  */
 export const MacrosOffWhy = z.object({
-  over: MacroName.nullable(),
-  under: MacroName.nullable(),
+  over: MacroName,
+  under: MacroName,
   causes: z.array(MacrosOffCause).min(1),
 });
 export type MacrosOffWhy = z.infer<typeof MacrosOffWhy>;

@@ -2179,9 +2179,7 @@
     "macrosOffChip": "Makro poza celem",
     "macrosOffHint": "Proporcje makroskładników tego dnia są daleko od celu. Zamiana posiłku pokaże, jak zmieni je nowy przepis.",
     "macrosOffWhy": {
-      "leanBoth": "Za dużo {over}, za mało {under}.",
-      "leanOver": "Za dużo {over}.",
-      "leanUnder": "Za mało {under}.",
+      "lean": "Za dużo {over}, za mało {under}.",
       "macroOf": { "protein": "białka", "fat": "tłuszczu", "carbs": "węglowodanów" },
       "fixed": "Posiłki, których plan nie zmienia (zjedzone, własne, resztki, wpisy w\u00a0dzienniku), to {share}% energii dnia i\u00a0same są daleko od celu.",
       "cookTime": "Limit {minutes}\u00a0min gotowania zostawia mało dań tej diety. Wydłuż go w\u00a0„Ustawienia dnia…” albo dodaj posiłek.",

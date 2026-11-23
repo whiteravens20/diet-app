@@ -560,14 +560,13 @@ export interface MealOfDay {
 
 /** Of what the plan does not change, at least this share of the day's energy says the day was held to it. */
 const FIXED_SHARE = 0.25;
-/** A share of energy past which a macronutrient is too much or too little of what the day aims at. */
-const LEANS = 0.02;
 
 /**
- * Why a day's macros are off (`MacrosOffWhy`): what it holds too much and too little of against the split as its diet
- * measures it (`aimOnDiet`), and what makes it so: what the plan does not change, where it holds a quarter of the day
- * or more and is far from the split itself; the day's settings; meals chosen by hand; times of day a single dish fit
- * when the plan was made; and, where nothing of these, the diet's dishes themselves.
+ * Why the macros of a day off its split (`macrosOff`) are off (`MacrosOffWhy`): what it holds the most too much and
+ * the most too little of against the split as its diet measures it (`aimOnDiet`), and what makes it so: what the
+ * plan does not change, where it holds a quarter of the day or more and is far from the split itself; the day's
+ * settings; meals chosen by hand; times of day a single dish fit when the plan was made; and, where nothing of
+ * these, the diet's dishes themselves.
  */
 export function whyMacrosOff(day: {
   /** What the day holds, its diary and other plans' eaten meals included. */
@@ -618,11 +617,7 @@ export function whyMacrosOff(day: {
   if (byHand > 0) causes.push({ kind: 'byHand', count: byHand });
   if (day.single.length > 0) causes.push({ kind: 'singleDish', slots: [...day.single] });
   if (causes.length === 0) causes.push({ kind: 'diet' });
-  return {
-    over: most[1] > LEANS ? most[0] : null,
-    under: least[1] < -LEANS ? least[0] : null,
-    causes,
-  };
+  return { over: most[0], under: least[0], causes };
 }
 
 /**

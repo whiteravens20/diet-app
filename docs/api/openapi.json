@@ -18396,24 +18396,10 @@
         "type": "object",
         "properties": {
           "over": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MacroName"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/MacroName"
           },
           "under": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MacroName"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/MacroName"
           },
           "causes": {
             "minItems": 1,
