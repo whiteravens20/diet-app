@@ -151,6 +151,17 @@ describe('what a shopping list could do without', () => {
       ]);
     });
 
+    it('proposes no merge of a meal of a day gone, and still names the packs left over', async () => {
+      // The list's day is yesterday for whoever asks: its lunch of chicken stays as it was.
+      const dayAfter = new Date(Date.parse(`${plan.days[0]!.date}T00:00:00Z`) + 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+
+      const answer = await proposals.propose(user.id, 'en', list.id, { weigh: false }, dayAfter);
+
+      expect(answer.proposals.map((proposal) => proposal.kind)).toEqual(['leftover', 'leftover']);
+    });
+
     /** Set every meal of a plan to the recipe `recipeOf` names for its day and meal, as if the user had swapped them so. */
     const setMeals = async (
       of: MealPlan,

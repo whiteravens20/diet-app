@@ -21,6 +21,7 @@ import {
   WeighRequest,
   type Locale,
 } from '@diet-app/shared';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
@@ -86,8 +87,9 @@ export class ShoppingListsController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(WeighRequest)) dto: WeighRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.proposals.propose(user.id, locale, id, dto);
+    return this.proposals.propose(user.id, locale, id, dto, today);
   }
 
   /** Delete a shopping list. What was obtained for days still ahead goes into the pantry. */

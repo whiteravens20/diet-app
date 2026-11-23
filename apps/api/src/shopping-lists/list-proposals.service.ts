@@ -14,6 +14,7 @@ import { WeighService } from '../ai/weigh.service.js';
 import { convertUnit, ACCEPTED_LEFT, packsFor, UnitConversionError } from '../engine/index.js';
 import { IngredientSwapService } from '../meal-plans/ingredient-swap.service.js';
 import { LANGUAGE } from '../meal-plans/swap-shared.js';
+import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ShoppingListsService } from './shopping-lists.service.js';
 
@@ -38,6 +39,7 @@ export class ListProposalsService {
     private readonly lists: ShoppingListsService,
     private readonly swaps: IngredientSwapService,
     private readonly weigher: WeighService,
+    private readonly plans: MealPlansService,
   ) {}
 
   async propose(
@@ -45,7 +47,10 @@ export class ListProposalsService {
     locale: Locale,
     listId: string,
     req: WeighRequest,
+    /** The day it is for whoever asked (`X-Client-Date`): a meal of a day gone stays as it was. */
+    clientToday: string | null = null,
   ): Promise<ListProposals> {
+    const today = clientToday ?? this.plans.today();
     // The list as its owner reads it: this is also what says whose it is.
     const list = await this.lists.get(userId, locale, listId);
     // A row that is ticked is bought: there is nothing left to propose about it.
@@ -80,7 +85,7 @@ export class ListProposalsService {
       }
     };
 
-    const merges = await this.merges(userId, locale, list, rowOf, ingredients, toBuy);
+    const merges = await this.merges(userId, locale, list, rowOf, ingredients, toBuy, today);
     // What one purchase of a row leaves of its last pack: the list is bought at once.
     const leftovers: Leftover[] = [];
     for (const row of rows) {
@@ -146,6 +151,7 @@ export class ListProposalsService {
     rowOf: ReadonlyMap<string, ShoppingListItem>,
     ingredients: ReadonlyMap<string, { packSize: number | null }>,
     toBuy: (row: ShoppingListItem) => number | null,
+    today: string,
   ): Promise<Merge[]> {
     const ids = [...rowOf.keys()];
     const rules = await this.prisma.substitutionRule.findMany({
@@ -181,13 +187,15 @@ export class ListProposalsService {
         },
         orderBy: [{ day: { date: 'asc' } }, { mealType: 'asc' }],
       });
-      // A meal that was eaten is a record, and a leftover is cooked: where one uses the ingredient, the row cannot go.
+      // A meal that was eaten, or of a day gone, is a record, and a leftover is cooked: where one uses the ingredient,
+      // the row cannot go.
       if (
         meals.length === 0 ||
         meals.length > MOST_MEALS_OF_A_MERGE ||
         meals.some(
           (meal) =>
             meal.eatenAt !== null ||
+            meal.day.date.toISOString().slice(0, 10) < today ||
             meal.leftoverFromDate !== null ||
             meal.source === 'USER_CUSTOM' ||
             !meal.recipe,
@@ -203,6 +211,7 @@ export class ListProposalsService {
           meal.id,
           rule.fromIngredientId,
           rule.toIngredientId,
+          today,
         );
         if (more === null) {
           taken = false;
