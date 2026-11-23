@@ -70,6 +70,26 @@ describe('the ingredient catalogue, as a client asks it', () => {
     expect(await units('Broccoli')).toEqual({ recipe: ['g'], pantry: ['g'] });
   });
 
+  it('names the kin of each, by id, both ways, and none of one that has none', async () => {
+    const one = async (search: string) => {
+      const found = (await ask({ search }).expect(200)).body as Ingredient[];
+      expect(found).toHaveLength(1);
+      return found[0]!;
+    };
+    const [milk, drink, tomato] = [
+      await one('Whole milk'),
+      await one('Oat drink'),
+      await one('Tomato'),
+    ];
+
+    expect(milk.kin).toEqual([drink.id]);
+    expect(drink.kin).toEqual([milk.id]);
+    expect(tomato.kin).toEqual([]);
+    // A list of ids answers them the same.
+    const listed = (await ask({ ids: `${milk.id},${tomato.id}` }).expect(200)).body as Ingredient[];
+    expect(listed.find((ingredient) => ingredient.id === milk.id)!.kin).toEqual([drink.id]);
+  });
+
   it('takes the signs of a pattern for what they are: text', async () => {
     expect(await names({ search: '%' })).toEqual([]);
     expect(await names({ search: '_' })).toEqual([]);

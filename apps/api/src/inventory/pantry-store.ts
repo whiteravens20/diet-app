@@ -86,6 +86,33 @@ export function readMoves(stored: unknown): PantryMove[] {
 }
 
 /**
+ * What a row of a household list counted as at home in the pantry of another profile of the household: whose, the
+ * plan of that profile's part (whose packages of the freezer may be taken), how much in the row's unit, and that
+ * pantry's ledger of the row.
+ */
+export interface Borrowed {
+  profileId: string;
+  planId: string;
+  quantity: number;
+  moves: PantryMove[];
+}
+
+const BorrowedList = z.array(
+  z.object({
+    profileId: z.string().uuid(),
+    planId: z.string().uuid(),
+    quantity: z.number().finite().nonnegative(),
+    moves: Moves,
+  }),
+);
+
+/** What a shopping row counted in other pantries, read back. Anything that is not that counts as nothing. */
+export function readBorrowed(stored: unknown): Borrowed[] {
+  const parsed = BorrowedList.safeParse(stored);
+  return parsed.success ? parsed.data : [];
+}
+
+/**
  * Bring the net effect of the owner of `moves` on the pantry of one ingredient
  * to `target` canonical units, write the rows that changed and return the
  * owner's ledger as it is afterwards. The caller holds `lockPantry`. What it

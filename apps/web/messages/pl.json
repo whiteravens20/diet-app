@@ -1500,6 +1500,7 @@
     "csvShares": "Dla kogo",
     "buyLater": "Z\u00a0tego {packs, plural, one {{packs, number, ::group-off}\u00a0opakowanie} few {{packs, number, ::group-off}\u00a0opakowania} many {{packs, number, ::group-off}\u00a0opakowań} other {{packs, number, ::group-off}\u00a0opakowania}} kup najwcześniej {weekday, select, mon {w\u00a0poniedziałek} tue {we\u00a0wtorek} wed {w\u00a0środę} thu {w\u00a0czwartek} fri {w\u00a0piątek} sat {w\u00a0sobotę} sun {w\u00a0niedzielę} other {}} ({date}).",
     "frozenKept": "W\u00a0zamrażarce zostaje jeszcze {amount}: plan tego nie rozmraża.",
+    "fromPantries": "Ze spiżarni: {who}",
     "csvBuyLater": "Kiedy kupić",
     "replacesPart": "Lista z tych dni jest częścią listy dla domu: {profiles}. Nowa lista zajmie jej miejsce, a lista dla domu straci część tego planu."
   },
@@ -2179,9 +2180,7 @@
     "macrosOffChip": "Makro poza celem",
     "macrosOffHint": "Proporcje makroskładników tego dnia są daleko od celu. Zamiana posiłku pokaże, jak zmieni je nowy przepis.",
     "macrosOffWhy": {
-      "leanBoth": "Za dużo {over}, za mało {under}.",
-      "leanOver": "Za dużo {over}.",
-      "leanUnder": "Za mało {under}.",
+      "lean": "Za dużo {over}, za mało {under}.",
       "macroOf": { "protein": "białka", "fat": "tłuszczu", "carbs": "węglowodanów" },
       "fixed": "Posiłki, których plan nie zmienia (zjedzone, własne, resztki, wpisy w\u00a0dzienniku), to {share}% energii dnia i\u00a0same są daleko od celu.",
       "cookTime": "Limit {minutes}\u00a0min gotowania zostawia mało dań tej diety. Wydłuż go w\u00a0„Ustawienia dnia…” albo dodaj posiłek.",
@@ -2189,6 +2188,9 @@
       "useUp": "Dzień zużywa żywność z\u00a0krótką datą, więc jego przepisy są dobrane pod nią, a\u00a0nie pod proporcje.",
       "byHand": "{count, plural, one {Jeden posiłek tego dnia wybrano} few {{count, number, ::group-off}\u00a0posiłki tego dnia wybrano} many {{count, number, ::group-off}\u00a0posiłków tego dnia wybrano} other {{count, number, ::group-off}\u00a0posiłku tego dnia wybrano}} ręcznie: zamiana, ulubione albo danie spoza diety.",
       "singleDish": "Przy układaniu planu na {slots} pasowało tylko jedno danie: wykluczenia i\u00a0dieta zostawiają tu mało przepisów.",
+      "noWaste": "Plan „Bez marnowania” dobiera dania tak, by zużywać otwarte opakowania, a\u00a0nie pod proporcje. Bliżej celu będzie następny plan z\u00a0„Mniej marnowania” albo bez tej opcji.",
+      "repeats": "Limit „Maks. powtórzeń jednego przepisu” ({count, number, ::group-off}) zostawia mało dań, które trzymają proporcje. Następny plan z\u00a0wyższym limitem będzie miał większy wybór.",
+      "proteinKinds": "Limity posiłków z\u00a0tym samym rodzajem białka w\u00a0profilu zostawiają mniej dań z\u00a0białkiem. Jeśli proporcje są ważniejsze, poluzuj je w\u00a0profilu.",
       "diet": "Dania tej diety, które pasują do ustawień profilu, mają zwykle inne proporcje. Zamiana posiłku pokaże, jak zmieni je nowy przepis."
     },
     "planAverageOver": "Średnio dzień tego planu ma o ponad jedną dziesiątą więcej kalorii niż cel.",
@@ -2889,6 +2891,8 @@
     "dislikedHint": "Planer i zamiany sięgają po przepis z którymś z nich tylko wtedy, gdy nic innego nie pasuje do posiłku. Żeby wykluczyć produkt całkowicie, dodaj go do „Unikanych składników”.",
     "avoidLabel": "Unikane składniki",
     "avoidHint": "Planer pomija przepisy zawierające te składniki.",
+    "dislikedKin": "Dopisać też:",
+    "avoidKin": "Wykluczyć też:",
     "risk": {
       "minor": "Poniżej 18\u00a0lat wartości w tej aplikacji są przybliżeniem, a odchudzanie to sprawa do omówienia z lekarzem.",
       "underweight": "Przy takim wzroście i masie wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może zaszkodzić.",
@@ -2943,6 +2947,8 @@
     "noMatches": "Brak wyników.",
     "addTicked": "Dodaj zaznaczone ({count})",
     "remove": "Usuń {name}",
+    "addKin": "+ {name}",
+    "kinNo": "Nie, dziękuję",
     "allergensPlaceholder": "Wybierz alergeny…",
     "allergensSelected": "Wybrano: {count}"
   },

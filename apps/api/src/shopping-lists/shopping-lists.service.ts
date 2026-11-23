@@ -20,16 +20,16 @@ import {
 } from '@diet-app/shared';
 import {
   aggregateShoppingList,
+  byPantry,
   convertUnit,
   editRow,
   energyOf,
   freshPurchases,
   groupByAisle,
-  intendedPantryEffect,
   isCounted,
   keepDaysOf,
   packsToBuy,
-  pantryEffectOnRemoval,
+  pantryEffects,
   pantryStock,
   quantityToClaim,
   shareAhead,
@@ -38,6 +38,7 @@ import {
   UnitConversionError,
   withAtHome,
   type AggregatedItem,
+  type ConvertibleIngredient,
   type PantryMove,
   type PlanIngredientLine,
   type ShoppingIngredient,
@@ -49,8 +50,10 @@ import {
   lockPantries,
   lockPantry,
   mayTakeOf,
+  readBorrowed,
   readMoves,
   settlePantry,
+  type Borrowed,
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
@@ -82,6 +85,8 @@ export interface StoredItem {
   alreadyHaveQuantity: number;
   purchasedQuantity: number | null;
   pantryMoves: Prisma.JsonValue;
+  /** What of `alreadyHaveQuantity` was counted in the pantries of other profiles of a household list (`Borrowed`). */
+  borrowed: Prisma.JsonValue;
   pantryBestBefore: Date | null;
   estimatedCalories: number;
   checked: boolean;
@@ -232,19 +237,18 @@ export class ShoppingListsService {
       };
       if (next.purchasedQuantity !== null) assertWithinCeiling(next.purchasedQuantity, item.unit);
 
-      const moves = await settleRow(
+      // What is said to be at home is the row's own: what it counted in other pantries goes back to them.
+      const borrowed = readBorrowed(item.borrowed);
+      const ledgers = await settleRow(
         tx,
-        profileId,
+        { profileId, planId: list.planId },
         item,
-        intendedPantryEffect({ ...item, ...next }),
-        await thawedParcels(tx, list.planId),
+        { ...item, ...next },
+        atHome ? { borrowed: [], dropped: borrowed } : { borrowed },
       );
       await tx.shoppingListItem.update({
         where: { id: itemId },
-        data: {
-          ...next,
-          ...(moves ? { pantryMoves: moves as unknown as Prisma.InputJsonValue } : {}),
-        },
+        data: { ...next, ...stored(ledgers) },
       });
     }, TRANSACTION);
     return this.get(userId, locale, listId);
@@ -275,6 +279,11 @@ export class ShoppingListsService {
     const households = await householdsOf(this.prisma, lists);
     const freezes = await freezesOf(this.prisma, [lists[0]!.planId]);
     const frozen = await frozenKeptOf(this.prisma, profileId, lists[0]!.planId, ingredients);
+    const pantries = await pantriesOfRows(
+      this.prisma,
+      profileId,
+      lists.flatMap((list) => list.items),
+    );
 
     return lists.map((list) => {
       const items = list.items.map((item) => {
@@ -285,6 +294,7 @@ export class ShoppingListsService {
           locale,
           freshOf(item, ingredient, lines, list, freezes),
           frozen.get(item.ingredientId),
+          pantries.get(item.id),
         );
       });
       return {
@@ -318,6 +328,8 @@ export function itemDto(
   fresh: Fresh | null = null,
   /** What the freezer holds of the food that the row does not count, in the food's canonical unit (`frozenKeptOf`). */
   frozen = 0,
+  /** Whose pantry holds what is at home, where more than the row's own counts (`ShoppingListItem.pantries`). */
+  pantries: ShoppingListItem['pantries'] = [],
 ): ShoppingListItem {
   // A row in pieces is called what its ingredient calls a piece.
   const displayUnit: DisplayUnit =
@@ -336,6 +348,7 @@ export function itemDto(
     gramsPerPiece:
       item.unit === 'piece' && ingredient?.gramsPerPiece ? ingredient.gramsPerPiece : null,
     alreadyHaveQuantity: item.alreadyHaveQuantity,
+    pantries,
     toBuyQuantity: toBuy,
     purchasedQuantity: item.purchasedQuantity,
     frozenKept: ingredient && frozen > 0 ? inRowUnit(frozen, item.unit, ingredient) : 0,
@@ -347,6 +360,52 @@ export function itemDto(
     buyLater: fresh?.later ?? [],
     checked: item.checked,
   };
+}
+
+/**
+ * Of the rows of a list of `profileId` that count on the pantries of other profiles of a household list, whose pantry
+ * holds what is at home (`ShoppingListItem.pantries`), by row: its own first, then those it counted on. A row that
+ * counts on its own pantry alone is not named.
+ */
+async function pantriesOfRows(
+  db: Pick<Tx, 'profile'>,
+  profileId: string,
+  items: readonly StoredItem[],
+): Promise<Map<string, ShoppingListItem['pantries']>> {
+  const lent = items
+    .map((item) => ({ item, borrowed: readBorrowed(item.borrowed) }))
+    .filter(({ borrowed }) => borrowed.length > 0);
+  if (lent.length === 0) return new Map();
+  const names = await profileNames(db, [
+    profileId,
+    ...lent.flatMap(({ borrowed }) => borrowed.map((one) => one.profileId)),
+  ]);
+  return new Map(
+    lent.map(({ item, borrowed }) => [
+      item.id,
+      withNames(byPantry([{ profileId, atHome: item.alreadyHaveQuantity, borrowed }]), names),
+    ]),
+  );
+}
+
+/** The names of profiles, by id. */
+export async function profileNames(
+  db: Pick<Tx, 'profile'>,
+  ids: readonly string[],
+): Promise<Map<string, string>> {
+  const profiles = await db.profile.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, name: true },
+  });
+  return new Map(profiles.map((profile) => [profile.id, profile.name]));
+}
+
+/** Amounts by profile (`byPantry`) as the contract names them. */
+export function withNames(
+  held: readonly { profileId: string; quantity: number }[],
+  names: ReadonlyMap<string, string>,
+): ShoppingListItem['pantries'] {
+  return held.map((one) => ({ ...one, profile: names.get(one.profileId) ?? '' }));
 }
 
 /** Tags of a meat or fish that keeps closed far longer than opened: tinned, or smoked and cured. */
@@ -626,67 +685,132 @@ export function isStale(
 }
 
 /**
- * What the profile's lists count on from the pantry without having taken it
- * yet: the claims of rows that are not ticked, per ingredient, in its
- * canonical unit. A new list sees the stock less these.
+ * What the lists count on from the pantry of `profileId` without having taken
+ * it yet, per ingredient, in its canonical unit: of the profile's own rows not
+ * ticked, the part of what is at home that its pantry holds; of the rows of
+ * other profiles of a household list not ticked, what they counted in it
+ * (`Borrowed`). A new list sees the stock less these.
  */
 async function openClaims(
   tx: Tx,
   profileId: string,
-  ingredients: ReadonlyMap<string, ShoppingIngredient>,
+  ingredients: ReadonlyMap<string, ConvertibleIngredient>,
 ): Promise<Map<string, number>> {
-  const rows = await tx.shoppingListItem.findMany({
-    where: {
-      checked: false,
-      alreadyHaveQuantity: { gt: 0 },
-      ingredientId: { in: [...ingredients.keys()] },
-      list: { plan: { profileId } },
-    },
-    select: { ingredientId: true, unit: true, alreadyHaveQuantity: true },
-  });
+  const ingredientIds = [...ingredients.keys()];
+  if (ingredientIds.length === 0) return new Map();
+  // One statement: the claims are read for every list that is made.
+  const lentBy = JSON.stringify([{ profileId }]);
+  const rows = await tx.$queryRaw<
+    {
+      ingredientId: string;
+      unit: Unit;
+      alreadyHaveQuantity: number;
+      borrowed: unknown;
+      owner: string;
+    }[]
+  >(
+    Prisma.sql`SELECT i."ingredientId", i."unit"::text AS "unit", i."alreadyHaveQuantity", i."borrowed", p."profileId" AS "owner" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE i."checked" = false AND i."ingredientId" IN (${Prisma.join(ingredientIds)}) AND ((p."profileId" = ${profileId} AND i."alreadyHaveQuantity" > 0) OR i."borrowed" @> ${lentBy}::jsonb)`,
+  );
   const claims = new Map<string, number>();
+  const claim = (ingredientId: string, unit: Unit, quantity: number): void => {
+    const ingredient = ingredients.get(ingredientId)!;
+    const amount = inCanonicalUnit(quantity, unit, ingredient);
+    if (amount !== null && amount > 0)
+      claims.set(ingredientId, (claims.get(ingredientId) ?? 0) + amount);
+  };
   for (const row of rows) {
-    const ingredient = ingredients.get(row.ingredientId)!;
-    try {
-      const amount = convertUnit(
-        row.alreadyHaveQuantity,
-        row.unit,
-        ingredient.canonicalUnit,
-        ingredient,
-      );
-      claims.set(row.ingredientId, (claims.get(row.ingredientId) ?? 0) + amount);
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-    }
+    const borrowed = readBorrowed(row.borrowed);
+    if (row.owner === profileId) claim(row.ingredientId, row.unit, ownPart(row, borrowed));
+    else
+      for (const one of borrowed)
+        if (one.profileId === profileId) claim(row.ingredientId, row.unit, one.quantity);
   }
   return claims;
 }
 
+/** What of a row's `alreadyHaveQuantity` its own pantry holds: the rest it counted in others' (`borrowed`). */
+function ownPart(
+  row: Pick<StoredItem, 'alreadyHaveQuantity'>,
+  borrowed: readonly Borrowed[],
+): number {
+  const lent = borrowed.reduce((sum, one) => sum + one.quantity, 0);
+  return Math.max(0, Math.round((row.alreadyHaveQuantity - lent) * 1e6) / 1e6);
+}
+
+/** What a row did to each pantry it counts on: its own, and each other one of its household (`Borrowed`). */
+interface RowLedgers {
+  moves: PantryMove[];
+  borrowed: Borrowed[];
+}
+
+/** A row's ledgers as the row stores them. */
+export const stored = (ledgers: RowLedgers) => ({
+  pantryMoves: ledgers.moves as unknown as Prisma.InputJsonValue,
+  borrowed: ledgers.borrowed as unknown as Prisma.InputJsonValue,
+});
+
 /**
- * Bring a row's effect on the pantry to `effect` (in the row's unit) and
- * return its ledger afterwards. Null when the pantry cannot be reached for
- * the row: its ingredient is gone, or can no longer be converted from the
- * row's unit. The row then keeps the ledger it has.
+ * Bring what a row does to each pantry it counts on to what `state` means for
+ * it (`pantryEffects`) and return its ledgers afterwards: of its own pantry and
+ * of each one in `borrowed`; those in `dropped` are given back what they gave
+ * and are left out. Where the pantries cannot be reached for the row (its
+ * ingredient gone, or no longer convertible from the row's unit) nothing
+ * changes and the row keeps the ledgers it has. The caller holds the row; the
+ * pantries are held here, in the order of their profiles. Packages of a
+ * freezer are taken only as the plan of whoever counted on it takes them out.
  */
 export async function settleRow(
   tx: Tx,
-  profileId: string,
-  item: StoredItem,
-  effect: number,
-  thawed: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
-) {
+  owner: { profileId: string; planId: string },
+  item: Pick<StoredItem, 'ingredientId' | 'unit' | 'pantryMoves'>,
+  state: ShoppingRowState,
+  counts: { borrowed: readonly Borrowed[]; dropped?: readonly Borrowed[] },
+): Promise<RowLedgers> {
+  const { borrowed, dropped = [] } = counts;
+  const moves = readMoves(item.pantryMoves);
+  const kept: RowLedgers = { moves, borrowed: [...borrowed, ...dropped] };
   const ingredient = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
-  const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
-  if (!ingredient || target === null) return null;
-  await lockPantry(tx, profileId, ingredient.id);
-  return settlePantry(
-    tx,
-    profileId,
-    ingredient,
-    readMoves(item.pantryMoves),
-    target,
-    thawed.get(ingredient.id),
+  if (!ingredient) return kept;
+  const effects = pantryEffects(
+    state,
+    borrowed.map((one) => one.quantity),
   );
+  const own = inCanonicalUnit(effects.own, item.unit, ingredient);
+  const others = effects.borrowed.map((effect) => inCanonicalUnit(effect, item.unit, ingredient));
+  if (own === null || others.some((effect) => effect === null)) return kept;
+  const lenders = [...borrowed, ...dropped];
+  for (const profileId of [
+    ...new Set([owner.profileId, ...lenders.map((one) => one.profileId)]),
+  ].sort())
+    await lockPantry(tx, profileId, ingredient.id);
+  const thawed = async (planId: string): Promise<ReadonlySet<number> | undefined> =>
+    (await thawedParcels(tx, planId)).get(ingredient.id);
+  const settled: RowLedgers = {
+    moves: await settlePantry(
+      tx,
+      owner.profileId,
+      ingredient,
+      moves,
+      own,
+      await thawed(owner.planId),
+    ),
+    borrowed: [],
+  };
+  for (const [k, one] of borrowed.entries()) {
+    settled.borrowed.push({
+      ...one,
+      moves: await settlePantry(
+        tx,
+        one.profileId,
+        ingredient,
+        one.moves,
+        others[k]!,
+        await thawed(one.planId),
+      ),
+    });
+  }
+  for (const one of dropped) await settlePantry(tx, one.profileId, ingredient, one.moves, 0);
+  return settled;
 }
 
 /**
@@ -734,7 +858,7 @@ const NONE: ReadonlySet<number> = new Set();
  * The packages of the freezer a plan takes out (`StoredReport.freezer`), by food: the numbers of those of its
  * profile's freezer. A report kept before packages names package 0, the one frozen row of a food then.
  */
-export async function thawedParcels(tx: Tx, planId: string): Promise<Map<string, Set<number>>> {
+async function thawedParcels(tx: Tx, planId: string): Promise<Map<string, Set<number>>> {
   const made = await tx.mealPlan.findUnique({ where: { id: planId }, select: { report: true } });
   return new Map(
     [...(freezerOf(made?.report)?.stock ?? [])].map(([ingredientId, list]) => [
@@ -761,8 +885,10 @@ function inCanonicalUnit(
 /**
  * Settle the rows of lists that are about to be removed: for each, `share`
  * says how much of what its rows hold for the plan is still in the kitchen
- * and goes into the pantry (see `pantryEffectOnRemoval`). The lists
- * themselves are left for the caller to delete, in the same transaction.
+ * and goes into the pantry (see `pantryEffectOnRemoval`), what a row counted in
+ * the pantry of another profile of its household going back there
+ * (`pantryEffects`). The lists themselves are left for the caller to delete,
+ * in the same transaction.
  */
 export async function releaseLists(
   tx: Tx,
@@ -771,7 +897,7 @@ export async function releaseLists(
   share: (list: { fromDate: Date; toDate: Date }) => number,
 ): Promise<void> {
   if (listIds.length === 0) return;
-  // Rows first, then the pantry: the order every writer takes its locks in.
+  // Rows first, then the pantries: the order every writer takes its locks in.
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`,
   );
@@ -779,13 +905,26 @@ export async function releaseLists(
     where: { id: { in: [...listIds] } },
     include: { items: true },
   });
-  // A row that did nothing to the pantry and is to do nothing to it has
+  // A row that did nothing to a pantry and is to do nothing to one has
   // nothing to settle: of a list nobody shopped from, that is every row.
   const rows = lists
     .flatMap((list) =>
-      list.items.map((item) => ({ item, effect: pantryEffectOnRemoval(item, share(list)) })),
+      list.items.map((item) => {
+        const borrowed = readBorrowed(item.borrowed);
+        const effects = pantryEffects(
+          item,
+          borrowed.map((one) => one.quantity),
+          share(list),
+        );
+        return { item, borrowed, effects };
+      }),
     )
-    .filter(({ item, effect }) => effect !== 0 || readMoves(item.pantryMoves).length > 0);
+    .filter(
+      ({ item, borrowed, effects }) =>
+        effects.own !== 0 ||
+        readMoves(item.pantryMoves).length > 0 ||
+        borrowed.some((one, k) => effects.borrowed[k] !== 0 || one.moves.length > 0),
+    );
   if (rows.length === 0) return;
   rows.sort((a, b) =>
     a.item.ingredientId === b.item.ingredientId
@@ -802,19 +941,28 @@ export async function releaseLists(
       })
     ).map((ingredient) => [ingredient.id, ingredient]),
   );
-  // A row whose ingredient is gone, or can no longer be converted from the row's unit, leaves the pantry as it is.
-  const settled = rows.flatMap(({ item, effect }) => {
+  // A row whose ingredient is gone, or can no longer be converted from the row's unit, leaves the pantries as they are.
+  const settled = rows.flatMap(({ item, borrowed, effects }) => {
     const ingredient = ingredients.get(item.ingredientId);
-    const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
-    return ingredient && target !== null ? [{ item, ingredient, target }] : [];
+    if (!ingredient) return [];
+    const own = inCanonicalUnit(effects.own, item.unit, ingredient);
+    const others = effects.borrowed.map((effect) => inCanonicalUnit(effect, item.unit, ingredient));
+    return own === null || others.some((effect) => effect === null)
+      ? []
+      : [{ item, ingredient, own, borrowed, others: others as number[] }];
   });
-  await lockPantries(
-    tx,
-    profileId,
-    settled.map(({ ingredient }) => ingredient.id),
-  );
-  for (const { item, ingredient, target } of settled) {
-    await settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
+  // The pantries by profile, each of its ingredients in order.
+  const pantries = new Map<string, string[]>([[profileId, []]]);
+  for (const { ingredient, borrowed } of settled) {
+    for (const holder of [profileId, ...borrowed.map((one) => one.profileId)])
+      pantries.set(holder, [...(pantries.get(holder) ?? []), ingredient.id]);
+  }
+  for (const holder of [...pantries.keys()].sort())
+    await lockPantries(tx, holder, pantries.get(holder)!);
+  for (const { item, ingredient, own, borrowed, others } of settled) {
+    await settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), own);
+    for (const [k, one] of borrowed.entries())
+      await settlePantry(tx, one.profileId, ingredient, one.moves, others[k]!);
   }
 }
 
@@ -966,22 +1114,263 @@ export async function makeList(
 }
 
 /**
+ * One kitchen: the parts of a household list just made (`makeList`, each
+ * against its own profile's pantry) count on the pantries of the others for
+ * what their own leaves short. A row not covered counts, profile by profile in
+ * the order of their ids, on what another part's profile holds of the food
+ * that its plan may take, less what that profile's lists count on already
+ * (`openClaims`) and what this pass counted in it before, rounded down as a
+ * claim is (`quantityToClaim`). A row then covered in full arrives ticked, as
+ * one its own pantry covers does: what it counts on leaves each pantry now.
+ */
+export async function borrowAcross(
+  tx: Tx,
+  parts: readonly { listId: string; profileId: string; planId: string }[],
+): Promise<void> {
+  if (parts.length < 2) return;
+  const order = [...parts].sort((a, b) => (a.profileId < b.profileId ? -1 : 1));
+  const rank = new Map(order.map((part, k) => [part.listId, k]));
+  // Of one food, the parts in the order of their profiles.
+  const rows = (
+    await tx.shoppingListItem.findMany({
+      where: { listId: { in: order.map((part) => part.listId) }, checked: false },
+    })
+  )
+    .filter((row) => row.alreadyHaveQuantity < row.totalQuantity)
+    .sort((a, b) =>
+      a.ingredientId === b.ingredientId
+        ? rank.get(a.listId)! - rank.get(b.listId)!
+        : a.ingredientId < b.ingredientId
+          ? -1
+          : 1,
+    );
+  if (rows.length === 0) return;
+  const ids = [...new Set(rows.map((row) => row.ingredientId))];
+  const ingredients = new Map(
+    (await tx.ingredient.findMany({ where: { id: { in: ids } } })).map((one) => [one.id, one]),
+  );
+  // Every pantry of the foods, profile by profile: those of the parts' own foods are held already.
+  for (const part of order) await lockPantries(tx, part.profileId, ids);
+
+  /** What each part's profile holds of each food that its plan may take and its lists do not count on yet. */
+  const free = new Map<string, Map<string, { quantity: number; bestBefore: Date | null }>>();
+  for (const part of order) {
+    const thawed = await thawedParcels(tx, part.planId);
+    const claims = await openClaims(tx, part.profileId, ingredients);
+    const held = new Map<string, { unit: Unit; quantity: number; bestBefore: Date | null }[]>();
+    for (const row of await tx.inventoryItem.findMany({
+      where: { profileId: part.profileId, ingredientId: { in: ids } },
+      select: {
+        ingredientId: true,
+        unit: true,
+        quantity: true,
+        bestBefore: true,
+        frozen: true,
+        parcel: true,
+      },
+    })) {
+      const ingredient = ingredients.get(row.ingredientId)!;
+      if (!mayTakeOf(ingredient, thawed.get(row.ingredientId) ?? NONE)(row)) continue;
+      held.set(row.ingredientId, [...(held.get(row.ingredientId) ?? []), row]);
+    }
+    free.set(
+      part.profileId,
+      new Map(
+        [...held].map(([ingredientId, stock]) => {
+          const { quantity, bestBefore } = pantryStock(stock, ingredients.get(ingredientId)!);
+          return [
+            ingredientId,
+            { quantity: quantity - (claims.get(ingredientId) ?? 0), bestBefore },
+          ];
+        }),
+      ),
+    );
+  }
+
+  const partOf = new Map(order.map((part) => [part.listId, part]));
+  for (const row of rows) {
+    const part = partOf.get(row.listId)!;
+    const ingredient = ingredients.get(row.ingredientId);
+    if (!ingredient) continue;
+    let have = row.alreadyHaveQuantity;
+    let bestBefore = row.pantryBestBefore;
+    const borrowed: Borrowed[] = [];
+    for (const lender of order) {
+      if (lender.profileId === part.profileId || have >= row.totalQuantity) continue;
+      const theirs = free.get(lender.profileId)!.get(row.ingredientId);
+      if (!theirs || theirs.quantity <= 0) continue;
+      const available = inRowUnitOrNull(theirs.quantity, row.unit, ingredient);
+      if (available === null) continue;
+      const take = quantityToClaim(
+        available,
+        row.unit,
+        Math.round((row.totalQuantity - have) * 1e6) / 1e6,
+      );
+      if (take <= 0) continue;
+      theirs.quantity -= inCanonicalUnit(take, row.unit, ingredient) ?? 0;
+      have = Math.round((have + take) * 1e6) / 1e6;
+      borrowed.push({
+        profileId: lender.profileId,
+        planId: lender.planId,
+        quantity: take,
+        moves: [],
+      });
+      if (theirs.bestBefore && (!bestBefore || theirs.bestBefore < bestBefore))
+        bestBefore = theirs.bestBefore;
+    }
+    if (borrowed.length === 0) continue;
+    const state = {
+      totalQuantity: row.totalQuantity,
+      alreadyHaveQuantity: have,
+      purchasedQuantity: have,
+      checked: have >= row.totalQuantity,
+    };
+    const ledgers = state.checked
+      ? await settleRow(tx, part, row, state, { borrowed })
+      : { moves: readMoves(row.pantryMoves), borrowed };
+    await tx.shoppingListItem.update({
+      where: { id: row.id },
+      data: {
+        alreadyHaveQuantity: state.alreadyHaveQuantity,
+        purchasedQuantity: state.purchasedQuantity,
+        checked: state.checked,
+        pantryBestBefore: bestBefore,
+        ...stored(ledgers),
+      },
+    });
+  }
+}
+
+/** An amount in an ingredient's canonical unit in `unit`, or null where it cannot be converted. */
+function inRowUnitOrNull(
+  amount: number,
+  unit: Unit,
+  ingredient: Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit },
+): number | null {
+  try {
+    return convertUnit(amount, ingredient.canonicalUnit, unit, ingredient);
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return null;
+  }
+}
+
+/**
  * Household lists left with fewer than two parts go: the part one of them
- * keeps is its plan's list alone from then on.
+ * keeps is its plan's list alone from then on. What a part's rows not ticked
+ * count on in the pantry of a profile no longer of its household (every other
+ * profile, once the household is gone) is not at home for them any more; a
+ * ticked row keeps what it took, so that taking its tick back returns it.
  */
 export async function settleHouseholds(tx: Tx, ids: readonly string[]): Promise<void> {
   const named = [...new Set(ids)];
   if (named.length === 0) return;
-  const counts = await tx.shoppingList.groupBy({
-    by: ['householdId'],
+  const parts = await tx.shoppingList.findMany({
     where: { householdId: { in: named } },
-    _count: { _all: true },
+    select: { id: true, householdId: true, plan: { select: { profileId: true } } },
   });
-  const kept = new Set(
-    counts.filter((count) => count._count._all >= 2).map((count) => count.householdId),
-  );
+  const profilesOf = new Map<string, Set<string>>();
+  for (const part of parts)
+    profilesOf.set(
+      part.householdId!,
+      (profilesOf.get(part.householdId!) ?? new Set()).add(part.plan.profileId),
+    );
+  const kept = new Set(named.filter((id) => (profilesOf.get(id)?.size ?? 0) >= 2));
   const gone = named.filter((id) => !kept.has(id));
   if (gone.length > 0) await tx.householdList.deleteMany({ where: { id: { in: gone } } });
+
+  const rows = await tx.shoppingListItem.findMany({
+    where: {
+      listId: { in: parts.map((part) => part.id) },
+      checked: false,
+      NOT: { borrowed: { equals: [] } },
+    },
+    orderBy: { id: 'asc' },
+  });
+  const partOf = new Map(parts.map((part) => [part.id, part]));
+  for (const row of rows) {
+    const part = partOf.get(row.listId)!;
+    const stays = kept.has(part.householdId!)
+      ? profilesOf.get(part.householdId!)!
+      : new Set([part.plan.profileId]);
+    const borrowed = readBorrowed(row.borrowed);
+    const left = borrowed.filter((one) => !stays.has(one.profileId));
+    if (left.length === 0) continue;
+    const lost = left.reduce((sum, one) => sum + one.quantity, 0);
+    // Nothing was taken for a row not ticked; what a ledger may still name goes back.
+    const ingredient = await tx.ingredient.findUnique({ where: { id: row.ingredientId } });
+    for (const one of left) {
+      if (ingredient && one.moves.length > 0) {
+        await lockPantry(tx, one.profileId, ingredient.id);
+        await settlePantry(tx, one.profileId, ingredient, one.moves, 0);
+      }
+    }
+    await tx.shoppingListItem.update({
+      where: { id: row.id },
+      data: {
+        ...withAtHome(row, row.alreadyHaveQuantity - lost),
+        borrowed: borrowed.filter((one) =>
+          stays.has(one.profileId),
+        ) as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+}
+
+/**
+ * What the rows of other profiles' lists counted on in the pantry of a profile that is about to be deleted is
+ * forgotten: a row not ticked no longer has it at home; a ticked one holds what it took for its plan as if it had
+ * bought it, so that taking its tick back returns nothing to a pantry that is gone. Nothing changes in another
+ * pantry. The profile's own lists go with it; what they counted in others' pantries for the days ahead goes back
+ * there first (`releaseLists`).
+ */
+export async function forgetLender(
+  tx: Tx,
+  profileId: string,
+  today: Date = new Date(),
+): Promise<void> {
+  const own = await tx.shoppingList.findMany({
+    where: { plan: { profileId }, items: { some: { NOT: { borrowed: { equals: [] } } } } },
+    select: { id: true },
+  });
+  await releaseLists(
+    tx,
+    profileId,
+    own.map((list) => list.id),
+    (dates) => shareAhead(dates.fromDate, dates.toDate, today),
+  );
+  const rows = await tx.shoppingListItem.findMany({
+    where: {
+      borrowed: { array_contains: [{ profileId }] },
+      list: { plan: { profileId: { not: profileId } } },
+    },
+    orderBy: { id: 'asc' },
+  });
+  for (const row of rows) {
+    const borrowed = readBorrowed(row.borrowed);
+    const lent = borrowed
+      .filter((one) => one.profileId === profileId)
+      .reduce((sum, one) => sum + one.quantity, 0);
+    const state = row.checked
+      ? {
+          alreadyHaveQuantity: Math.max(
+            0,
+            Math.round((row.alreadyHaveQuantity - lent) * 1e6) / 1e6,
+          ),
+          purchasedQuantity: row.purchasedQuantity ?? row.totalQuantity,
+          checked: true,
+        }
+      : withAtHome(row, row.alreadyHaveQuantity - lent);
+    await tx.shoppingListItem.update({
+      where: { id: row.id },
+      data: {
+        ...state,
+        borrowed: borrowed.filter(
+          (one) => one.profileId !== profileId,
+        ) as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
 }
 
 /** A row of the pantry that is gone, as the moves of a list's row name the row they were made to. */
@@ -992,28 +1381,39 @@ export interface GoneStock {
 }
 
 /**
- * Hold the rows of the profile's lists of a food, before the pantry is (`lockPantry`): rows first, the order every
- * writer takes its locks in. For a change of the pantry that the lists follow (`forgetStock`).
+ * Hold the rows of lists that count on the pantry of `profileId` for a food, the profile's own and those of other
+ * profiles of a household list that counted on it, and then the pantries of the food that those rows count on, in the
+ * order of their profiles: rows first, the order every writer takes its locks in. For a change of the pantry that the
+ * lists follow (`forgetStock`), which may settle each of those pantries; the caller's own `lockPantry` then holds
+ * what it holds already.
  */
 export async function lockStockRows(
   tx: Tx,
   profileId: string,
   ingredientId: string,
 ): Promise<void> {
-  await tx.$queryRaw(
-    Prisma.sql`SELECT i."id" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE p."profileId" = ${profileId} AND i."ingredientId" = ${ingredientId} ORDER BY i."id" FOR UPDATE OF i`,
+  const lentBy = JSON.stringify([{ profileId }]);
+  const rows = await tx.$queryRaw<{ owner: string; borrowed: unknown }[]>(
+    Prisma.sql`SELECT p."profileId" AS "owner", i."borrowed" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE (p."profileId" = ${profileId} OR i."borrowed" @> ${lentBy}::jsonb) AND i."ingredientId" = ${ingredientId} ORDER BY i."id" FOR UPDATE OF i`,
   );
+  const holders = new Set([profileId]);
+  for (const row of rows) {
+    holders.add(row.owner);
+    for (const one of readBorrowed(row.borrowed)) holders.add(one.profileId);
+  }
+  for (const holder of [...holders].sort()) await lockPantry(tx, holder, ingredientId);
 }
 
 /**
  * The lists follow the pantry: what it no longer holds of a food is at home for none of them. Run in the transaction
  * that removed a row of the pantry (`gone`) or lowered one (`gone` null), the lists' rows of the food held first
- * (`lockStockRows`) and then the pantry. A row that took food from the row that is gone loses that part of what is
- * at home, as when its pencil says so (`withAtHome`): it unticks where it no longer meets the need, and the rest of
- * its ledger is settled; what it took from the row that is gone is forgotten, so nothing of it comes back when the
- * list goes, and what it put there of what was bought is not at home either. A row that counts on the pantry without
- * having taken anything (not ticked) then counts on no more than the pantry holds of the food that it may take, the
- * rows of older lists first.
+ * (`lockStockRows`) and then the pantry. The rows that count on it are the profile's own (their own part of what is
+ * at home) and those of other profiles of a household list that counted on it (`Borrowed`). A row that took food from
+ * the row that is gone loses that part of what is at home, as when its pencil says so (`withAtHome`): it unticks
+ * where it no longer meets the need, and the rest of its ledgers is settled; what it took from the row that is gone
+ * is forgotten, so nothing of it comes back when the list goes, and what it put there of what was bought is not at
+ * home either. A row that counts on the pantry without having taken anything (not ticked) then counts on no more than
+ * the pantry holds of the food that it may take, the rows of older lists first.
  */
 export async function forgetStock(
   tx: Tx,
@@ -1031,11 +1431,34 @@ export async function forgetStock(
       return null;
     }
   };
-  const read = () =>
-    tx.shoppingListItem.findMany({
-      where: { ingredientId, list: { plan: { profileId } } },
-      include: { list: { select: { planId: true, createdAt: true, householdId: true } } },
-      orderBy: [{ list: { createdAt: 'asc' } }, { id: 'asc' }],
+  const read = async () =>
+    (
+      await tx.shoppingListItem.findMany({
+        where: {
+          ingredientId,
+          OR: [
+            { list: { plan: { profileId } } },
+            { borrowed: { array_contains: [{ profileId }] } },
+          ],
+        },
+        include: {
+          list: {
+            select: {
+              planId: true,
+              createdAt: true,
+              householdId: true,
+              plan: { select: { profileId: true } },
+            },
+          },
+        },
+        orderBy: [{ list: { createdAt: 'asc' } }, { id: 'asc' }],
+      })
+    ).map((row) => {
+      const borrowed = readBorrowed(row.borrowed);
+      const own = row.list.plan.profileId === profileId;
+      // What the row counts on in this pantry: its own part, or what it counted in it for another profile's part.
+      const entry = own ? null : (borrowed.find((one) => one.profileId === profileId) ?? null);
+      return { row, borrowed, own, entry };
     });
   const thawedOf = new Map<string, ReadonlySet<number>>();
   const thawed = async (planId: string): Promise<ReadonlySet<number>> => {
@@ -1044,34 +1467,27 @@ export async function forgetStock(
     return thawedOf.get(planId)!;
   };
   const households = new Set<string>();
-  /** A row's new state, its ledger settled to what the row now means to do to the pantry. */
+  type Read = Awaited<ReturnType<typeof read>>[number];
+  /** A row's new state, its ledgers settled to what the row now means to do to each pantry. */
   const write = async (
-    row: Awaited<ReturnType<typeof read>>[number],
+    { row }: Read,
     state: Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity' | 'checked'>,
     moves: readonly PantryMove[],
+    borrowed: readonly Borrowed[],
   ): Promise<void> => {
-    const target = inUnit(
-      intendedPantryEffect({ ...row, ...state }),
-      row.unit,
-      ingredient.canonicalUnit,
+    const ledgers = await settleRow(
+      tx,
+      { profileId: row.list.plan.profileId, planId: row.list.planId },
+      { ...row, pantryMoves: moves as unknown as Prisma.JsonValue },
+      { ...row, ...state },
+      { borrowed },
     );
-    const ledger =
-      target === null
-        ? moves
-        : await settlePantry(
-            tx,
-            profileId,
-            ingredient,
-            moves,
-            target,
-            await thawed(row.list.planId),
-          );
     await tx.shoppingListItem.update({
       where: { id: row.id },
       data: {
         ...state,
         ...(state.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
-        pantryMoves: ledger as unknown as Prisma.InputJsonValue,
+        ...stored(ledgers),
       },
     });
     if (row.list.householdId) households.add(row.list.householdId);
@@ -1083,25 +1499,47 @@ export async function forgetStock(
       move.unit === gone.unit &&
       Boolean(move.frozen) === gone.frozen &&
       (move.parcel ?? 0) === (gone.parcel ?? 0);
-    for (const row of await read()) {
+    for (const found of await read()) {
+      const { row, borrowed, own, entry } = found;
       const moves = readMoves(row.pantryMoves);
-      const net = moves.filter(there).reduce((sum, move) => sum + move.quantity, 0);
-      if (!moves.some(there)) continue;
+      const ledger = own ? moves : (entry?.moves ?? []);
+      if (!ledger.some(there)) continue;
+      const net = ledger.filter(there).reduce((sum, move) => sum + move.quantity, 0);
       const lost = inUnit(net, gone.unit, row.unit);
       if (lost === null) continue;
-      const state =
-        lost < 0
-          ? withAtHome(row, row.alreadyHaveQuantity + lost)
-          : {
-              alreadyHaveQuantity: row.alreadyHaveQuantity,
-              purchasedQuantity: Math.max(0, (row.purchasedQuantity ?? row.totalQuantity) - lost),
-              checked: row.checked,
-            };
-      await write(
-        row,
-        state,
-        moves.filter((move) => !there(move)),
-      );
+      if (own) {
+        const state =
+          lost < 0
+            ? withAtHome(row, row.alreadyHaveQuantity + lost)
+            : {
+                alreadyHaveQuantity: row.alreadyHaveQuantity,
+                purchasedQuantity: Math.max(0, (row.purchasedQuantity ?? row.totalQuantity) - lost),
+                checked: row.checked,
+              };
+        await write(
+          found,
+          state,
+          moves.filter((move) => !there(move)),
+          borrowed,
+        );
+      } else {
+        // What it counted in this pantry and took from the row that is gone is not at home for it any more.
+        const taken = Math.max(0, -lost);
+        await write(
+          found,
+          withAtHome(row, row.alreadyHaveQuantity - taken),
+          moves,
+          borrowed.map((one) =>
+            one === entry
+              ? {
+                  ...one,
+                  quantity: Math.max(0, Math.round((one.quantity - taken) * 1e6) / 1e6),
+                  moves: one.moves.filter((move) => !there(move)),
+                }
+              : one,
+          ),
+        );
+      }
     }
   }
 
@@ -1111,11 +1549,14 @@ export async function forgetStock(
     select: { unit: true, quantity: true, frozen: true, parcel: true },
   });
   let counted = 0;
-  for (const row of await read()) {
-    if (row.checked || row.alreadyHaveQuantity <= 0) continue;
-    const claim = inUnit(row.alreadyHaveQuantity, row.unit, ingredient.canonicalUnit);
+  for (const found of await read()) {
+    const { row, borrowed, own, entry } = found;
+    if (row.checked) continue;
+    const part = own ? ownPart(row, borrowed) : (entry?.quantity ?? 0);
+    if (part <= 0) continue;
+    const claim = inUnit(part, row.unit, ingredient.canonicalUnit);
     if (claim === null) continue;
-    const may = mayTakeOf(ingredient, await thawed(row.list.planId));
+    const may = mayTakeOf(ingredient, await thawed(own ? row.list.planId : entry!.planId));
     const held = stock
       .filter(may)
       .reduce(
@@ -1127,7 +1568,12 @@ export async function forgetStock(
     if (kept >= claim - 1e-6) continue;
     const have = inUnit(kept, ingredient.canonicalUnit, row.unit);
     if (have === null) continue;
-    await write(row, withAtHome(row, have), readMoves(row.pantryMoves));
+    await write(
+      found,
+      withAtHome(row, row.alreadyHaveQuantity - (part - have)),
+      readMoves(row.pantryMoves),
+      own ? borrowed : borrowed.map((one) => (one === entry ? { ...one, quantity: have } : one)),
+    );
   }
   await settleHouseholds(tx, [...households]);
 }
