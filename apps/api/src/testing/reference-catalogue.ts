@@ -234,8 +234,9 @@ export function referenceIngredients(dataDir: string): DataIngredient[] {
           : undefined;
       return {
         ...ingredient,
-        // Another food of the kind is not the food an import brings.
+        // Another food of the kind is not the food an import brings, nor kin to the foods it names.
         importedAs: undefined,
+        kin: undefined,
         slug: `${slugOf(ingredient)}-${index + 2}`,
         name: {
           en: `${nameOf(ingredient, 'en')} (${index + 2})`,

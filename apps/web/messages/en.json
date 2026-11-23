@@ -2888,6 +2888,8 @@
     "dislikedHint": "The planner and the swaps take a recipe with one of these only where nothing else fits the meal. To rule a food out altogether, put it under “Avoid ingredients”.",
     "avoidLabel": "Avoid ingredients",
     "avoidHint": "The planner skips recipes that contain these.",
+    "dislikedKin": "Add as well:",
+    "avoidKin": "Avoid as well:",
     "risk": {
       "minor": "Under 18\u00a0the figures of this application are an approximation, and losing weight is something to do with a doctor.",
       "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
@@ -2942,6 +2944,8 @@
     "noMatches": "No matches.",
     "addTicked": "Add the ticked ({count})",
     "remove": "Remove {name}",
+    "addKin": "+ {name}",
+    "kinNo": "No, thanks",
     "allergensPlaceholder": "Select allergens…",
     "allergensSelected": "{count} selected"
   },

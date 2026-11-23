@@ -35,6 +35,13 @@ export const Ingredient = z.object({
    */
   perTeaspoon: z.number().positive().nullable().default(null),
   allergens: z.array(Allergen).default([]),
+  /**
+   * The ingredients of the catalogue that are the same food to most people
+   * who avoid this one (red onion for an onion), by id. A client that adds
+   * this one to a profile's foods never to plan or disliked offers them too,
+   * and adds only those the person takes: the lists stay lists of ids.
+   */
+  kin: z.array(z.string().uuid()).default([]),
   /** Diet types this ingredient is compatible with. */
   dietCompatibility: z.array(DietType).default([]),
   tags: z.array(z.string()).default([]),

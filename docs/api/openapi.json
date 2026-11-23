@@ -16594,6 +16594,14 @@
               "$ref": "#/components/schemas/Allergen"
             }
           },
+          "kin": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           "dietCompatibility": {
             "default": [],
             "type": "array",
@@ -16667,6 +16675,7 @@
           "displayUnit",
           "perTeaspoon",
           "allergens",
+          "kin",
           "dietCompatibility",
           "tags",
           "packSize",

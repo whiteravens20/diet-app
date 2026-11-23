@@ -745,6 +745,10 @@ model Ingredient {
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])
+  // The ingredients that are the same food to most people who avoid this one
+  // (red onion for an onion), by id: offered together when one is added to
+  // the foods never to plan or disliked. Curated in the data, named both ways.
+  kin               String[]        @default([])
   // What one buys of it at a time, in the canonical unit, for an ingredient
   // that comes in a pack one cannot buy part of. Null for what is bought loose.
   packSize          Float?

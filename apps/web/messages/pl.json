@@ -2888,6 +2888,8 @@
     "dislikedHint": "Planer i zamiany sięgają po przepis z którymś z nich tylko wtedy, gdy nic innego nie pasuje do posiłku. Żeby wykluczyć produkt całkowicie, dodaj go do „Unikanych składników”.",
     "avoidLabel": "Unikane składniki",
     "avoidHint": "Planer pomija przepisy zawierające te składniki.",
+    "dislikedKin": "Dopisać też:",
+    "avoidKin": "Wykluczyć też:",
     "risk": {
       "minor": "Poniżej 18\u00a0lat wartości w tej aplikacji są przybliżeniem, a odchudzanie to sprawa do omówienia z lekarzem.",
       "underweight": "Przy takim wzroście i masie wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może zaszkodzić.",
@@ -2942,6 +2944,8 @@
     "noMatches": "Brak wyników.",
     "addTicked": "Dodaj zaznaczone ({count})",
     "remove": "Usuń {name}",
+    "addKin": "+ {name}",
+    "kinNo": "Nie, dziękuję",
     "allergensPlaceholder": "Wybierz alergeny…",
     "allergensSelected": "Wybrano: {count}"
   },
