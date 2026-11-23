@@ -91,7 +91,7 @@ jobs:
           #   security.yml  -> "npm audit", "Trivy filesystem scan", "Trivy Docker image scan"
           REQUIRED_CHECKS=$(echo "$PROT" | jq -r '.required_status_checks.contexts[]? // empty' | sort)
           echo "Configured required checks:"
-          echo "$REQUIRED_CHECKS" | sed 's/^/  - /'
+          while IFS= read -r check; do echo "  - ${check}"; done <<< "$REQUIRED_CHECKS"
 
           for must in "api" "web" "docker" "markers" "Analyze (javascript-typescript)" "npm audit" "Trivy filesystem scan" "Trivy Docker image scan"; do
             if ! echo "$REQUIRED_CHECKS" | grep -Fxq "$must"; then
