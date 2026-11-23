@@ -126,5 +126,9 @@ RUN mkdir -p /web/apps/web/.next/cache && chown node:node /web/apps/web/.next/ca
 
 USER node
 EXPOSE 4000 3000
+# No HEALTHCHECK: it would hold for every role started from this image, and only
+# the API and the web serve anything to check. Compose gives those two services
+# their own health checks; the worker and the one-off init containers have none.
+# checkov:skip=CKV_DOCKER_2:one image runs several roles, Compose checks the api and web services
 # Default: HTTP API. The other roles override the command.
 CMD ["node", "apps/api/dist/main.js"]
