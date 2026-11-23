@@ -307,6 +307,32 @@ export function pantryEffectOnRemoval(row: ShoppingRowState, share: number): num
 }
 
 /**
+ * What a row of a household list means to do to each pantry it counts on, in
+ * the row's unit: its own, and each other one by what of the row's
+ * `alreadyHaveQuantity` was counted there (`borrowed`). Without `share`, while
+ * the row stays (`intendedPantryEffect`): ticked, what was counted in another
+ * pantry leaves it. With `share`, as the row's list is removed
+ * (`pantryEffectOnRemoval`): of what the row holds for the plan, each other
+ * pantry gets back its part of the share still in the kitchen, the part being
+ * smaller where the row was closed at less than was at home. The own pantry
+ * has the rest, so that the effects add up to the row's.
+ */
+export function pantryEffects(
+  row: ShoppingRowState,
+  borrowed: readonly number[],
+  share: number | null = null,
+): { own: number; borrowed: number[] } {
+  const total = share === null ? intendedPantryEffect(row) : pantryEffectOnRemoval(row, share);
+  const kept =
+    row.alreadyHaveQuantity > 0 ? Math.min(1, heldForPlan(row) / row.alreadyHaveQuantity) : 0;
+  const back = share === null ? 0 : Math.min(1, Math.max(0, share));
+  const others = borrowed.map((quantity) =>
+    row.checked ? clean(back * kept * quantity - quantity) : 0,
+  );
+  return { own: clean(total - others.reduce((sum, one) => sum + one, 0)), borrowed: others };
+}
+
+/**
  * The share of a list's days that are still ahead on `today`, today included:
  * 1 for a list that has not started, 0 for one that is over.
  */

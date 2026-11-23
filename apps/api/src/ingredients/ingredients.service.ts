@@ -95,6 +95,7 @@ export function toIngredientDto(
     displayUnit: Ingredient['displayUnit'];
     perTeaspoon: number | null;
     allergens: string[];
+    kin: string[];
     dietCompatibility: string[];
     tags: string[];
     packSize: number | null;
@@ -123,6 +124,7 @@ export function toIngredientDto(
     displayUnit: row.displayUnit,
     perTeaspoon: row.perTeaspoon,
     allergens: row.allergens as Ingredient['allergens'],
+    kin: row.kin,
     dietCompatibility: row.dietCompatibility as Ingredient['dietCompatibility'],
     tags: row.tags,
     packSize: row.packSize,

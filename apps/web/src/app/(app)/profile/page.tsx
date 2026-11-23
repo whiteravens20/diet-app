@@ -730,6 +730,7 @@ export default function ProfilePage() {
                   ids={preferencesOf(p).dislikedIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) => changePrefs(p, { dislikedIngredientIds: ids })}
+                  offerKin={t('dislikedKin')}
                 />
                 <IngredientPicker
                   label={t('avoidLabel')}
@@ -737,6 +738,7 @@ export default function ProfilePage() {
                   ids={preferencesOf(p).excludedIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) => changePrefs(p, { excludedIngredientIds: ids })}
+                  offerKin={t('avoidKin')}
                 />
               </CardContent>
             </Card>

@@ -37,6 +37,8 @@ interface FixtureIngredient {
   keepDays?: number;
   /** The kind of protein it is, for what is one. */
   proteinKind?: string;
+  /** The ingredients that are the same food to most people who avoid this one. */
+  kin?: string[];
 }
 
 // `low_carb` on an ingredient says only that it may appear in such a recipe;
@@ -71,6 +73,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     packSize: 1000,
     perishable: true,
     keepDays: 7,
+    kin: ['oat-drink'],
   },
   {
     slug: 'oat-drink',
@@ -81,6 +84,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     allergens: [],
     diets: VEGAN,
     density: 1.03,
+    kin: ['whole-milk'],
   },
   {
     slug: 'large-egg',
@@ -476,6 +480,7 @@ export function catalogueDirectory(): string {
     ...(i.packSize ? { packSize: i.packSize } : {}),
     ...(i.perishable ? { perishable: true, keepDays: i.keepDays } : {}),
     ...(i.proteinKind ? { proteinKind: i.proteinKind } : {}),
+    ...(i.kin ? { kin: i.kin } : {}),
     allergens: i.allergens,
     dietCompatibility: i.diets,
     tags: [],

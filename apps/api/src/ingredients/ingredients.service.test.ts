@@ -25,6 +25,7 @@ function row(overrides: Partial<Row> = {}): Row {
     displayUnit: null,
     perTeaspoon: null,
     allergens: [],
+    kin: [],
     dietCompatibility: [],
     tags: [],
     packSize: null,

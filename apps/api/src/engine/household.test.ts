@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { shareAtHome, shareOut, sharePurchase } from './household.js';
+import { byPantry, shareAtHome, shareOut, sharePurchase } from './household.js';
 
 const sum = (values: readonly number[]): number =>
   values.reduce((total, value) => total + value, 0);
@@ -101,5 +101,34 @@ describe('what a household holds for a row once it shopped, shared among its pla
     expect(held.every(Number.isInteger)).toBe(true);
     expect(sum(held)).toBe(10);
     expect(held).toEqual([6, 4]);
+  });
+});
+
+describe('what is at home for a food of a household, by whose pantry holds it', () => {
+  it("gives each row's own part to its profile and what it counted in another pantry to that one", () => {
+    expect(
+      byPantry([
+        { profileId: 'ala', atHome: 525, borrowed: [] },
+        { profileId: 'ola', atHome: 615, borrowed: [{ profileId: 'ala', quantity: 615 }] },
+      ]),
+    ).toEqual([{ profileId: 'ala', quantity: 1140 }]);
+    expect(
+      byPantry([
+        { profileId: 'ola', atHome: 300, borrowed: [{ profileId: 'ala', quantity: 200 }] },
+        { profileId: 'ala', atHome: 50, borrowed: [] },
+      ]),
+    ).toEqual([
+      { profileId: 'ola', quantity: 100 },
+      { profileId: 'ala', quantity: 250 },
+    ]);
+  });
+
+  it('names no pantry that holds none of it', () => {
+    expect(byPantry([{ profileId: 'ala', atHome: 0, borrowed: [] }])).toEqual([]);
+    expect(
+      byPantry([
+        { profileId: 'ola', atHome: 615, borrowed: [{ profileId: 'ala', quantity: 615 }] },
+      ]),
+    ).toEqual([{ profileId: 'ala', quantity: 615 }]);
   });
 });

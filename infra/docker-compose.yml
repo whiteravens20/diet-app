@@ -200,7 +200,7 @@ services:
 
   # ── Optional: local self-hosted AI ──────────────────────────────────────────
   ollama:
-    image: ollama/ollama:0.40.15@sha256:0e59999e0e8f9fd4e704bd788a89b7e4cad399367fb1365f8c102ac662288761
+    image: ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
     profiles: ['ollama']
     restart: unless-stopped
     volumes:
@@ -246,7 +246,7 @@ services:
 
   # ── Optional: reverse proxy ─────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
+    image: traefik:v3.7.18@sha256:9c437ac4f09ce6f4980a8544902d3475fdf70a1a7c578729581d2535dfa7d635
     profiles: ['proxy']
     restart: unless-stopped
     command:

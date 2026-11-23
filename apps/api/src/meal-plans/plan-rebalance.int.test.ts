@@ -245,6 +245,27 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
       });
     });
 
+    it("names the plan's waste level, its limit of a recipe's repeats and the profile's limits of a kind of protein", async () => {
+      const profile = await aProfile(t, user);
+      await t.prisma.profilePreference.update({
+        where: { profileId: profile.id },
+        data: { maxMealsPerDaySameKind: 1 },
+      });
+      const made = await aPlan(t, user, profile, { durationDays: 1 });
+      await t.prisma.mealPlan.update({
+        where: { id: made.id },
+        data: { options: { ...(made.options as object), noWaste: true, maxRepeatsPerRecipe: 1 } },
+      });
+
+      const plan = await allFat(made);
+
+      expect(plan.days[0]!.macrosOffWhy!.causes).toEqual([
+        { kind: 'noWaste' },
+        { kind: 'repeats', count: 1 },
+        { kind: 'proteinKinds' },
+      ]);
+    });
+
     it('says nothing of a day the user skips', async () => {
       const made = await aPlan(t, user, await aProfile(t, user), { durationDays: 1 });
       await allFat(made);

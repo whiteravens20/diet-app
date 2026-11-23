@@ -16,7 +16,7 @@
 import type { Prisma, ProductCategory, Unit } from '@prisma/client';
 import type { PantryMove } from '../../engine/pantry.js';
 import { convertUnit, toCanonical, type ConvertibleIngredient } from '../../engine/units.js';
-import { lockPantry } from '../../inventory/pantry-store.js';
+import { lockPantry, readBorrowed } from '../../inventory/pantry-store.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -137,6 +137,7 @@ export async function moveUses(
         alreadyHaveQuantity: true,
         purchasedQuantity: true,
         pantryMoves: true,
+        borrowed: true,
       },
     }),
   ]);
@@ -144,6 +145,7 @@ export async function moveUses(
     .map((draft) => ({ id: draft.id, lines: draft.ingredientsJson as unknown as DraftLine[] }))
     .filter((draft) => draft.lines.some((line) => line.slug === from.slug));
   const movesOf = (row: (typeof rows)[number]) => row.pantryMoves as unknown as PantryMove[];
+  const borrowedOf = (row: (typeof rows)[number]) => readBorrowed(row.borrowed);
 
   // Every unit an amount of `from` is held in, each restated once: nothing is written unless all can be.
   const units = new Set<Unit>([
@@ -152,7 +154,11 @@ export async function moveUses(
       draft.lines.filter((line) => line.slug === from.slug).map((line) => line.unit),
     ),
     ...pantry.map((row) => row.unit),
-    ...rows.flatMap((row) => [row.unit, ...movesOf(row).map((move) => move.unit)]),
+    ...rows.flatMap((row) => [
+      row.unit,
+      ...movesOf(row).map((move) => move.unit),
+      ...borrowedOf(row).flatMap((one) => one.moves.map((move) => move.unit)),
+    ]),
   ]);
   const ways = new Map([...units].map((unit) => [unit, restated(unit, from, to)]));
   const blocked = [...ways].filter(([, way]) => way === null).map(([unit]) => unit);
@@ -258,6 +264,11 @@ export async function moveUses(
     });
   }
 
+  /** A move of a ledger in the unit its amount of `to` is held in. */
+  const restate = (move: PantryMove): PantryMove => {
+    const moved = way(move.unit);
+    return { ...move, unit: moved.unit, quantity: scaled(move.quantity, moved.factor) };
+  };
   // A row of a list is shown by its ingredient's name and filed under its aisle: the new one's.
   for (const row of rows) {
     const { factor, unit } = way(row.unit);
@@ -272,10 +283,13 @@ export async function moveUses(
         alreadyHaveQuantity: scaled(row.alreadyHaveQuantity, factor),
         purchasedQuantity:
           row.purchasedQuantity === null ? null : scaled(row.purchasedQuantity, factor),
-        pantryMoves: movesOf(row).map((move) => {
-          const moved = way(move.unit);
-          return { ...move, unit: moved.unit, quantity: scaled(move.quantity, moved.factor) };
-        }) as unknown as Prisma.InputJsonValue,
+        pantryMoves: movesOf(row).map(restate) as unknown as Prisma.InputJsonValue,
+        // What it counted in another profile's pantry, in the row's new unit, and that pantry's ledger.
+        borrowed: borrowedOf(row).map((one) => ({
+          ...one,
+          quantity: scaled(one.quantity, factor),
+          moves: one.moves.map(restate),
+        })) as unknown as Prisma.InputJsonValue,
       },
     });
   }

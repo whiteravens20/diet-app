@@ -15,7 +15,10 @@ import { ReadsFailed, unread } from '@/components/load-failed';
  * A typeahead-style picker for ingredient ids — a chip list of the saved
  * entries plus a search box that suggests matches from the curated database,
  * each with a box to tick, and the ticked ones added at once.
- * The parent owns the ids; the picker only reads/writes that array.
+ * The parent owns the ids; the picker only reads/writes that array. A list of
+ * foods to avoid (`offerKin`) then offers the kin of what was added, the same
+ * food to most people (red onion for an onion), each to add with a press;
+ * nothing is added that the person does not take.
  */
 export function IngredientPicker({
   label,
@@ -23,12 +26,15 @@ export function IngredientPicker({
   ids,
   onChange,
   disabled,
+  offerKin,
 }: {
   label: string;
   hint?: string;
   ids: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  /** What the offer of kin asks, for a list of foods to avoid: "Wykluczyć też:". None: kin are not offered. */
+  offerKin?: string;
 }) {
   const t = useTranslations('pickers');
   const id = useId();
@@ -52,6 +58,23 @@ export function IngredientPicker({
   // Several are ticked and added at once; what a new search no longer offers is not added.
   const [ticked, setTicked] = useState<string[]>([]);
   const chosen = ticked.filter((id) => available.some((i) => i.id === id));
+
+  // The kin of what was added last that the list does not hold, until each is taken or the offer is declined.
+  const [kinIds, setKinIds] = useState<string[]>([]);
+  const kin = useQuery({
+    queryKey: ['ingredients-by-ids', kinIds.join(',')],
+    queryFn: () => api.get<Ingredient[]>(`/ingredients?ids=${kinIds.join(',')}`),
+    enabled: kinIds.length > 0,
+  });
+  const offered = (kin.data ?? []).filter((i) => kinIds.includes(i.id) && !idSet.has(i.id));
+  const add = (added: string[]) => {
+    const now = [...ids, ...added];
+    onChange(now);
+    if (!offerKin) return;
+    const kept = new Set(now);
+    const ofAdded = (results.data ?? []).filter((i) => added.includes(i.id)).flatMap((i) => i.kin);
+    setKinIds([...new Set(ofAdded)].filter((other) => !kept.has(other)));
+  };
 
   return (
     // A page holds several of these, each with the same search field: the heading names the group and its field.
@@ -89,6 +112,37 @@ export function IngredientPicker({
         </ul>
       ) : (
         <p className="text-xs text-muted-foreground italic">{t('noneYet')}</p>
+      )}
+
+      {offerKin && offered.length > 0 && (
+        <div
+          role="group"
+          aria-label={offerKin}
+          className="flex flex-wrap items-center gap-2 text-xs"
+        >
+          <span className="text-muted-foreground">{offerKin}</span>
+          {offered.map((i) => (
+            <Button
+              key={i.id}
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              onClick={() => onChange([...ids, i.id])}
+            >
+              {t('addKin', { name: i.name })}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onClick={() => setKinIds([])}
+          >
+            {t('kinNo')}
+          </Button>
+        </div>
       )}
 
       <div className="relative">
@@ -129,7 +183,7 @@ export function IngredientPicker({
                 size="sm"
                 disabled={disabled || chosen.length === 0}
                 onClick={() => {
-                  onChange([...ids, ...chosen]);
+                  add(chosen);
                   setTicked([]);
                   setSearch('');
                 }}
