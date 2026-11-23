@@ -2,8 +2,9 @@
 
 /**
  * How one amount of a household list's row is shared out among the lists of
- * its plans, each of which settles with the pantry of its own profile: what
- * the household has at home, and what it holds for the row once it shopped.
+ * its plans, each of which settles with the pantry of its own profile and
+ * with those of the others it counted on: what the household has at home,
+ * and what it holds for the row once it shopped.
  */
 
 /** A row of one plan's list, as a row of the household list shares among them. */
@@ -117,4 +118,33 @@ export function sharePurchase(purchased: number, rows: readonly RowShare[]): num
     rows.map((row) => row.need),
   );
   return rows.map((row, i) => clean(row.atHome + lacks[i]! + over[i]!));
+}
+
+/**
+ * What rows of one food have at home, by whose pantry holds it: of each row
+ * its own part (what is at home less what it counted in others' pantries) to
+ * its profile, and what it counted in another's pantry to that one. One
+ * amount a profile, in the order the profiles are first named; a profile
+ * whose pantry holds none of it is left out.
+ */
+export function byPantry(
+  rows: readonly {
+    profileId: string;
+    atHome: number;
+    borrowed: readonly { profileId: string; quantity: number }[];
+  }[],
+): { profileId: string; quantity: number }[] {
+  const held = new Map<string, number>();
+  const add = (profileId: string, quantity: number) =>
+    held.set(profileId, clean((held.get(profileId) ?? 0) + quantity));
+  for (const row of rows) {
+    add(
+      row.profileId,
+      Math.max(0, clean(row.atHome - sum(row.borrowed.map((one) => one.quantity)))),
+    );
+    for (const one of row.borrowed) add(one.profileId, one.quantity);
+  }
+  return [...held]
+    .filter(([, quantity]) => quantity > 0)
+    .map(([profileId, quantity]) => ({ profileId, quantity }));
 }

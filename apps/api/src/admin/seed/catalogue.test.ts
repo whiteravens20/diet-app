@@ -344,6 +344,46 @@ describe('a food of an import that a curated ingredient is', () => {
   });
 });
 
+describe('the kin of an ingredient in the curated data', () => {
+  const kinOf = (ingredients: Record<string, unknown>[], slug: string, kin: string[]) => {
+    ingredients.find((ingredient) => ingredient.slug === slug)!.kin = kin;
+  };
+
+  it('are read where each names the other', () => {
+    const { catalogue, problems } = ingredientsWith(() => undefined);
+    const kin = (slug: string) =>
+      catalogue!.ingredients.find((ingredient) => ingredient.slug === slug)!.kin;
+
+    expect(problems).toEqual([]);
+    expect(kin('whole-milk')).toEqual(['oat-drink']);
+    expect(kin('oat-drink')).toEqual(['whole-milk']);
+    expect(kin('tomato')).toBeUndefined();
+  });
+
+  it('are refused named one way only, not of the file, the ingredient itself or twice', () => {
+    const cases: [(ingredients: Record<string, unknown>[]) => void, string][] = [
+      [
+        (rows) => kinOf(rows, 'tomato', ['broccoli']),
+        '"broccoli" does not name "tomato" as its kin',
+      ],
+      [
+        (rows) => kinOf(rows, 'tomato', ['cherry-tomatoes']),
+        '"cherry-tomatoes" is not an ingredient of this file',
+      ],
+      [(rows) => kinOf(rows, 'tomato', ['tomato']), '"tomato" names itself as its kin'],
+      [
+        (rows) => kinOf(rows, 'whole-milk', ['oat-drink', 'oat-drink']),
+        '"oat-drink" is named twice',
+      ],
+    ];
+    for (const [change, message] of cases) {
+      const { catalogue, problems } = ingredientsWith(change);
+      expect(catalogue).toBeNull();
+      expect(problems.map((problem) => problem.message)).toEqual([message]);
+    }
+  });
+});
+
 describe('the cuisine of a recipe in the curated data', () => {
   it('is read for a recipe that names one, and is none for a recipe that names none', () => {
     const { catalogue, problems } = catalogueWith(() => undefined);

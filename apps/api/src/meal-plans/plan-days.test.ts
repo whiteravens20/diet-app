@@ -1,9 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
+import { aimOnDiet, energyShares } from '../engine/nutrition.js';
 import {
   macrosOff,
   mealLabel,
+  planSettingsOff,
   mealNutrition,
   restsOf,
   scaleRests,
@@ -133,6 +135,117 @@ describe("what makes a day's macros off", () => {
 
   it("names the diet's dishes where nothing else made the day", () => {
     expect(day().causes).toEqual([{ kind: 'diet' }]);
+  });
+
+  it("names the settings of the plan and its profile that keep its days off the split, the diet's dishes no more", () => {
+    const settings = { noWaste: true, repeats: 1, proteinKinds: true };
+    expect(day({ settings }).causes).toEqual([
+      { kind: 'noWaste' },
+      { kind: 'repeats', count: 1 },
+      { kind: 'proteinKinds' },
+    ]);
+    // After what the day itself holds.
+    expect(day({ settings, overrides: { useUpBy: true } }).causes[0]).toEqual({ kind: 'useUp' });
+    expect(
+      day({ settings: { noWaste: false, repeats: null, proteinKinds: false } }).causes,
+    ).toEqual([{ kind: 'diet' }]);
+  });
+
+  it('takes as such settings the ones measured to keep days off: no waste, a recipe once, every protein held to two a day or ten a week', () => {
+    const none = { maxMealsPerDaySameKind: null, maxMealsPerWeekSameKind: null };
+    expect(planSettingsOff({}, null)).toEqual({
+      noWaste: false,
+      repeats: null,
+      proteinKinds: false,
+    });
+    expect(planSettingsOff({ noWaste: true }, none).noWaste).toBe(true);
+    expect(planSettingsOff({ maxRepeatsPerRecipe: 1 }, none).repeats).toBe(1);
+    expect(planSettingsOff({ maxRepeatsPerRecipe: 2 }, none).repeats).toBeNull();
+    expect(planSettingsOff({}, { ...none, maxMealsPerDaySameKind: 2 }).proteinKinds).toBe(true);
+    expect(planSettingsOff({}, { ...none, maxMealsPerWeekSameKind: 10 }).proteinKinds).toBe(true);
+    // Looser than measured: no cause.
+    expect(
+      planSettingsOff({}, { maxMealsPerDaySameKind: 3, maxMealsPerWeekSameKind: 11 }).proteinKinds,
+    ).toBe(false);
+  });
+
+  describe('what a day holds too much and too little of', () => {
+    const SPLITS = {
+      balanced: { protein: 0.25, fat: 0.3, carbs: 0.45 },
+      low_carb: lowCarb,
+      keto: { protein: 0.25, fat: 0.7, carbs: 0.05 },
+    } as const;
+    /** A day of one meal of these grams, on a diet, as the plan asks why it is off. */
+    const lean = (dietType: keyof typeof SPLITS, protein: number, fat: number, carbs: number) => {
+      const meal = planned(protein * 4 + fat * 9 + carbs * 4, protein, fat, carbs);
+      const plan = { dietType, macroSplit: null };
+      expect(macrosOff(meal.nutrition, plan)).toBe(true);
+      const { over, under } = whyMacrosOff({
+        held: meal.nutrition,
+        aim: SPLITS[dietType],
+        dietType,
+        meals: [meal],
+        besides: null,
+        overrides: null,
+        usualMeals: 1,
+        single: [],
+      });
+      return { over, under };
+    };
+
+    it('names any of the three either way where carbohydrate is an aim', () => {
+      // Pasta: 73 % of the energy from carbohydrate, 9 % from protein.
+      expect(lean('balanced', 50, 40, 400)).toEqual({ over: 'carbs', under: 'protein' });
+      // Meat: 40 % from protein, 14 % from fat.
+      expect(lean('balanced', 200, 30, 230)).toEqual({ over: 'protein', under: 'fat' });
+    });
+
+    it('names carbohydrate on low-carb only over its ceiling or under its floor', () => {
+      // 13 % of carbohydrate, under the ceiling of 20 %: no shortfall of it, the day short of protein.
+      expect(lean('low_carb', 80, 170, 70)).toEqual({ over: 'fat', under: 'protein' });
+      expect(lean('low_carb', 100, 80, 200)).toEqual({ over: 'carbs', under: 'fat' });
+      // None at all, under the floor of a tenth: short of the floor, not of the ceiling.
+      expect(lean('low_carb', 135, 162, 0)).toEqual({ over: 'fat', under: 'carbs' });
+      expect(lean('low_carb', 60, 196, 0)).toEqual({ over: 'fat', under: 'protein' });
+    });
+
+    it('names carbohydrate on keto only over its ceiling', () => {
+      expect(lean('keto', 60, 190, 10)).toEqual({ over: 'fat', under: 'protein' });
+      expect(lean('keto', 100, 120, 100)).toEqual({ over: 'carbs', under: 'fat' });
+    });
+
+    it('names of every day off its split one it holds too much of and one it holds too little of', () => {
+      for (const dietType of Object.keys(SPLITS) as (keyof typeof SPLITS)[]) {
+        for (let protein = 0; protein <= 250; protein += 25) {
+          for (let fat = 0; fat <= 250; fat += 25) {
+            for (let carbs = 0; carbs <= 500; carbs += 50) {
+              const nutrition = {
+                calories: protein * 4 + fat * 9 + carbs * 4,
+                protein,
+                fat,
+                carbs,
+              };
+              if (!macrosOff(nutrition, { dietType, macroSplit: null })) continue;
+              const { over, under } = whyMacrosOff({
+                held: nutrition,
+                aim: SPLITS[dietType],
+                dietType,
+                meals: [{ nutrition, fixed: false, byHand: false }],
+                besides: null,
+                overrides: null,
+                usualMeals: 1,
+                single: [],
+              });
+              // Too much and too little against the split as the diet measures the day.
+              const shares = energyShares(nutrition)!;
+              const against = aimOnDiet(shares, SPLITS[dietType], dietType);
+              expect(shares[over]).toBeGreaterThan(against[over]);
+              expect(shares[under]).toBeLessThan(against[under]);
+            }
+          }
+        }
+      }
+    });
   });
 });
 

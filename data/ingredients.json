@@ -16,6 +16,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["lean", "protein"],
+    "kin": ["chicken-thigh"],
     "packSize": 500,
     "perishable": true,
     "keepDays": 2,
@@ -42,6 +43,7 @@
     "allergens": ["fish"],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3"],
+    "kin": ["smoked-salmon"],
     "packSize": 250,
     "perishable": true,
     "keepDays": 2,
@@ -139,6 +141,7 @@
     "allergens": ["dairy"],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian"],
     "tags": [],
+    "kin": ["gouda-cheese"],
     "packSize": 200,
     "importedAs": ["cheese-cheddar"]
   },
@@ -158,6 +161,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": ["staple"],
+    "kin": ["brown-rice"],
     "packSize": 1000,
     "importedAs": ["rice-white-long-grain-unenriched-raw"]
   },
@@ -216,6 +220,7 @@
     "allergens": ["gluten"],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
+    "kin": ["rye-bread"],
     "packSize": 500,
     "perishable": true,
     "keepDays": 4
@@ -320,6 +325,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
+    "kin": ["cherry-tomatoes", "canned-tomatoes"],
     "importedAs": ["tomato-roma"]
   },
   {
@@ -339,6 +345,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
+    "kin": ["tomato", "canned-tomatoes"],
     "packSize": 250,
     "perishable": true,
     "keepDays": 5,
@@ -362,6 +369,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": ["aromatic"],
+    "kin": ["red-onion"],
     "importedAs": ["onions-yellow-raw"]
   },
   {
@@ -537,6 +545,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean", "high_protein"],
     "tags": ["plant-protein"],
+    "kin": ["kidney-beans"],
     "packSize": 400,
     "perishable": true,
     "keepDays": 3,
@@ -804,6 +813,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean", "high_protein"],
     "tags": ["staple", "whole-grain"],
+    "kin": ["white-rice"],
     "packSize": 1000,
     "importedAs": ["rice-brown-long-grain-unenriched-raw"]
   },
@@ -1107,6 +1117,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean", "high_protein"],
     "tags": ["plant-protein"],
+    "kin": ["black-beans"],
     "packSize": 400,
     "perishable": true,
     "keepDays": 3,
@@ -1150,6 +1161,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan"],
     "tags": ["cooking"],
+    "kin": ["coconut-milk"],
     "packSize": 500,
     "importedAs": ["oil-coconut"]
   },
@@ -1213,7 +1225,8 @@
     "displayUnit": "piece",
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["fruit"]
+    "tags": ["fruit"],
+    "kin": ["lemon-juice"]
   },
   {
     "slug": "lime",
@@ -1232,7 +1245,8 @@
     "displayUnit": "piece",
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["fruit"]
+    "tags": ["fruit"],
+    "kin": ["lime-juice"]
   },
   {
     "slug": "lemon-juice",
@@ -1251,7 +1265,8 @@
     "perTeaspoon": 5,
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["fruit"]
+    "tags": ["fruit"],
+    "kin": ["lemon"]
   },
   {
     "slug": "lime-juice",
@@ -1270,7 +1285,8 @@
     "perTeaspoon": 5,
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["fruit"]
+    "tags": ["fruit"],
+    "kin": ["lime"]
   },
   {
     "slug": "salt",
@@ -1537,6 +1553,7 @@
     "allergens": ["dairy"],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian"],
     "tags": [],
+    "kin": ["heavy-cream"],
     "packSize": 200,
     "perishable": true,
     "keepDays": 3,
@@ -1560,6 +1577,7 @@
     "allergens": ["dairy"],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian"],
     "tags": ["cooking"],
+    "kin": ["sour-cream"],
     "packSize": 200,
     "perishable": true,
     "keepDays": 3,
@@ -1621,6 +1639,7 @@
     "allergens": ["dairy"],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian"],
     "tags": [],
+    "kin": ["cheddar-cheese"],
     "packSize": 250
   },
   {
@@ -1696,6 +1715,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan"],
     "tags": ["cooking"],
+    "kin": ["coconut-oil"],
     "packSize": 400,
     "perishable": true,
     "keepDays": 4
@@ -1718,6 +1738,7 @@
     "allergens": ["gluten"],
     "dietCompatibility": ["balanced", "vegetarian", "vegan", "mediterranean"],
     "tags": [],
+    "kin": ["whole-grain-bread"],
     "packSize": 500,
     "perishable": true,
     "keepDays": 5
@@ -1856,6 +1877,7 @@
     "allergens": ["fish"],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": ["omega3", "cured"],
+    "kin": ["salmon-fillet"],
     "packSize": 100,
     "perishable": true,
     "keepDays": 2
@@ -1877,6 +1899,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto"],
     "tags": ["lean", "protein"],
+    "kin": ["bacon"],
     "packSize": 500,
     "perishable": true,
     "keepDays": 3,
@@ -1899,6 +1922,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "high_protein", "low_carb", "keto", "mediterranean"],
     "tags": [],
+    "kin": ["chicken-breast"],
     "packSize": 500,
     "perishable": true,
     "keepDays": 2,
@@ -1921,6 +1945,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto"],
     "tags": ["cured"],
+    "kin": ["pork-tenderloin"],
     "packSize": 150,
     "perishable": true,
     "keepDays": 5
@@ -1982,6 +2007,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": ["pantry"],
+    "kin": ["tomato", "cherry-tomatoes"],
     "packSize": 400,
     "perishable": true,
     "keepDays": 5,
@@ -2068,6 +2094,7 @@
       "mediterranean"
     ],
     "tags": ["seasoning"],
+    "kin": ["fresh-coriander"],
     "packSize": 20
   },
   {
@@ -2122,6 +2149,7 @@
       "mediterranean"
     ],
     "tags": ["seasoning"],
+    "kin": ["jalapeno"],
     "packSize": 15
   },
   {
@@ -2298,7 +2326,8 @@
     "saturatedFatPer100": 0,
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
-    "tags": ["herb"]
+    "tags": ["herb"],
+    "kin": ["ground-coriander"]
   },
   {
     "slug": "fresh-mint",
@@ -2371,6 +2400,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": ["aromatic"],
+    "kin": ["onion"],
     "importedAs": ["onions-red-raw"]
   },
   {
@@ -2391,6 +2421,7 @@
     "allergens": [],
     "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
     "tags": ["aromatic"],
+    "kin": ["ground-chili"],
     "importedAs": ["peppers-jalapeno-seeded-raw"]
   },
   {

@@ -126,6 +126,7 @@ import {
   plateAsJson,
   sharesOfPlanDay,
   storedPlateOf,
+  planSettingsOff,
   whyMacrosOff,
   type StoredPlate,
   type MealRow,
@@ -2156,6 +2157,8 @@ export class MealPlansService {
     const kept = StoredReport.nullable().safeParse(plan.report ?? null);
     const single = kept.success && kept.data ? kept.data.singleCandidate : [];
     const usualMeals = options.mealCount ?? plan.profile?.mealCount ?? 3;
+    // The settings of the plan and its profile that keep a day off its split, for every day the plan has off it.
+    const settings = planSettingsOff(options, plan.profile?.preferences ?? null);
     // The meals the person swapped for another dish.
     const swapped = new Set(
       plan.days.flatMap((day) =>
@@ -2324,6 +2327,7 @@ export class MealPlansService {
               besides: entered ? entered.nutrition : null,
               overrides: parseDayOverrides(day.overrides),
               usualMeals,
+              settings,
               single: single
                 .filter(
                   (one) =>
@@ -2463,7 +2467,12 @@ interface PlanWithRelations {
         name: string;
         sex: Sex | null;
         mealCount: number;
-        preferences: LabelLimitColumns | null;
+        preferences:
+          | (LabelLimitColumns & {
+              maxMealsPerDaySameKind: number | null;
+              maxMealsPerWeekSameKind: number | null;
+            })
+          | null;
       })
     | null;
   days: {

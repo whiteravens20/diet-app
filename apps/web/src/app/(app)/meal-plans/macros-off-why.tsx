@@ -19,14 +19,7 @@ export function MacrosOffWhy({
 }) {
   const t = useTranslations('mealPlans.macrosOffWhy');
   const macro = (name: MacroName) => t(`macroOf.${name}`);
-  const lean =
-    why.over && why.under
-      ? t('leanBoth', { over: macro(why.over), under: macro(why.under) })
-      : why.over
-        ? t('leanOver', { over: macro(why.over) })
-        : why.under
-          ? t('leanUnder', { under: macro(why.under) })
-          : null;
+  const lean = t('lean', { over: macro(why.over), under: macro(why.under) });
   const said = (cause: MacrosOffCause): string => {
     switch (cause.kind) {
       case 'fixed':
@@ -43,13 +36,19 @@ export function MacrosOffWhy({
         return t('singleDish', {
           slots: cause.slots.map((slot) => mealName(slot).toLocaleLowerCase()).join(', '),
         });
+      case 'noWaste':
+        return t('noWaste');
+      case 'repeats':
+        return t('repeats', { count: cause.count });
+      case 'proteinKinds':
+        return t('proteinKinds');
       case 'diet':
         return t('diet');
     }
   };
   return (
     <div className="space-y-0.5 text-xs">
-      {lean && <p className="text-warning">{lean}</p>}
+      <p className="text-warning">{lean}</p>
       <ul className="list-disc space-y-0.5 pl-5 text-muted-foreground">
         {why.causes.map((cause) => (
           <li key={cause.kind}>{said(cause)}</li>

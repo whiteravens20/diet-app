@@ -41,7 +41,7 @@ import {
   wholePercent,
 } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
+import { forgetLender, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
@@ -289,12 +289,14 @@ export class ProfilesService {
     await this.load(userId, id);
     // The profile takes its plans and their lists with it, and the household
     // lists they were parts of their parts: one left with a single part is
-    // that plan's list alone.
+    // that plan's list alone. What those lists and the profile's pantry were
+    // counted on for in each other's is settled first.
     await this.prisma.$transaction(async (tx) => {
       const parts = await tx.shoppingList.findMany({
         where: { plan: { profileId: id }, householdId: { not: null } },
         select: { householdId: true },
       });
+      await forgetLender(tx, id);
       // A plan made together with one of the profile's leaves the other a plan of its own.
       await tx.jointPlan.deleteMany({ where: { plans: { some: { profileId: id } } } });
       await tx.profile.delete({ where: { id } });

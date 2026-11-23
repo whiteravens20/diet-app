@@ -549,6 +549,51 @@ export function macrosOff(
   return shares !== null && distanceOnDiet(shares, split, plan.dietType) > MACROS_OFF;
 }
 
+/** The settings of a plan and its profile that keep its days off their split (`whyMacrosOff`). */
+export interface PlanSettingsOff {
+  noWaste: boolean;
+  /** The most times the plan takes a recipe, where that few keeps it off; null otherwise. */
+  repeats: number | null;
+  proteinKinds: boolean;
+}
+
+/**
+ * The most times a plan may take a recipe that keeps its days off their split by the dishes it leaves: plans of every
+ * diet with the limit at 1 had 6.0 % of their days off it, without it 1.0 % (840 days each); at 2 and 3 the
+ * Mediterranean, vegetarian and balanced plans came to 0.6 and 0.4 %, without it 0.4 % (504 days each, 2026-11-23).
+ */
+const REPEATS_OFF = 1;
+
+/**
+ * Which settings of a plan and its profile keep its days off their split, as measured on 840 days of each against
+ * the same plans without it (2026-11-23): wasting nothing (13.9 % of the days off, without it 1.0 %), a recipe at most
+ * `REPEATS_OFF` times (6.0 %), and every kind of protein held to `KINDS_PER_DAY_OFF` meals a day or
+ * `KINDS_PER_WEEK_OFF` in seven days (at one and five 5.0 %; at two and ten 11.7 % of the Mediterranean, vegetarian
+ * and balanced plans' days, vegetarian 31.5 %, without them 0.4 %). Wasting less, cooking ahead, the pantry,
+ * favourites, cuisines, foods ruled out and a plan made together came to between 0 and 1.4 %, and are no cause.
+ */
+export function planSettingsOff(
+  options: { noWaste?: boolean; maxRepeatsPerRecipe?: number | null },
+  limits: { maxMealsPerDaySameKind: number | null; maxMealsPerWeekSameKind: number | null } | null,
+): PlanSettingsOff {
+  const perDay = limits?.maxMealsPerDaySameKind ?? null;
+  const perWeek = limits?.maxMealsPerWeekSameKind ?? null;
+  return {
+    noWaste: options.noWaste === true,
+    repeats:
+      options.maxRepeatsPerRecipe != null && options.maxRepeatsPerRecipe <= REPEATS_OFF
+        ? options.maxRepeatsPerRecipe
+        : null,
+    proteinKinds:
+      (perDay !== null && perDay <= KINDS_PER_DAY_OFF) ||
+      (perWeek !== null && perWeek <= KINDS_PER_WEEK_OFF),
+  };
+}
+
+/** Limits on meals with one kind of protein as strict as these keep a plan's days off their split (`planSettingsOff`). */
+const KINDS_PER_DAY_OFF = 2;
+const KINDS_PER_WEEK_OFF = 10;
+
 /** A meal of a day as the causes of its macros read it (`whyMacrosOff`). */
 export interface MealOfDay {
   nutrition: Amounts;
@@ -560,14 +605,13 @@ export interface MealOfDay {
 
 /** Of what the plan does not change, at least this share of the day's energy says the day was held to it. */
 const FIXED_SHARE = 0.25;
-/** A share of energy past which a macronutrient is too much or too little of what the day aims at. */
-const LEANS = 0.02;
 
 /**
- * Why a day's macros are off (`MacrosOffWhy`): what it holds too much and too little of against the split as its diet
- * measures it (`aimOnDiet`), and what makes it so: what the plan does not change, where it holds a quarter of the day
- * or more and is far from the split itself; the day's settings; meals chosen by hand; times of day a single dish fit
- * when the plan was made; and, where nothing of these, the diet's dishes themselves.
+ * Why the macros of a day off its split (`macrosOff`) are off (`MacrosOffWhy`): what it holds the most too much and
+ * the most too little of against the split as its diet measures it (`aimOnDiet`), and what makes it so: what the
+ * plan does not change, where it holds a quarter of the day or more and is far from the split itself; the day's
+ * settings; meals chosen by hand; times of day a single dish fit when the plan was made; and, where nothing of
+ * these, the diet's dishes themselves.
  */
 export function whyMacrosOff(day: {
   /** What the day holds, its diary and other plans' eaten meals included. */
@@ -583,6 +627,11 @@ export function whyMacrosOff(day: {
   usualMeals: number;
   /** The times of day of the day that a single dish fit when the plan was made, the dish still there. */
   single: readonly MealType[];
+  /**
+   * The settings of the plan and of its profile that keep it from the split by the choice of dishes they leave, as
+   * measured (`planSettingsOff`): none where it has none of them.
+   */
+  settings?: PlanSettingsOff;
 }): MacrosOffWhy {
   const shares = energyShares(day.held) ?? day.aim;
   const against = aimOnDiet(shares, day.aim, day.dietType);
@@ -617,12 +666,11 @@ export function whyMacrosOff(day: {
   const byHand = day.meals.filter((meal) => !meal.fixed && meal.byHand).length;
   if (byHand > 0) causes.push({ kind: 'byHand', count: byHand });
   if (day.single.length > 0) causes.push({ kind: 'singleDish', slots: [...day.single] });
+  if (day.settings?.noWaste) causes.push({ kind: 'noWaste' });
+  if (day.settings?.repeats) causes.push({ kind: 'repeats', count: day.settings.repeats });
+  if (day.settings?.proteinKinds) causes.push({ kind: 'proteinKinds' });
   if (causes.length === 0) causes.push({ kind: 'diet' });
-  return {
-    over: most[1] > LEANS ? most[0] : null,
-    under: least[1] < -LEANS ? least[0] : null,
-    causes,
-  };
+  return { over: most[0], under: least[0], causes };
 }
 
 /**

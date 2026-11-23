@@ -57,6 +57,17 @@ export interface ShownList {
   }[];
 }
 
+/** Whose pantry holds what is at home for a row, in one line: "Adam 615 g". Null where only the row's own counts. */
+function pantriesLine(
+  item: ShownItem,
+  formatQty: (qty: number, unit: DisplayUnit) => string,
+): string | null {
+  if (item.pantries.length === 0) return null;
+  return item.pantries
+    .map((one) => held(`${one.profile} ${formatQty(one.quantity, item.displayUnit)}`))
+    .join(DOT);
+}
+
 /** Who needs what of a row of a household list, in one line: "Adam 150 g · Ewa 150 g". Null for a plan's row. */
 function sharesLine(
   item: ShownItem,
@@ -646,6 +657,12 @@ function ItemRow({
             {item.shares && (
               <span className="block text-xs text-muted-foreground">
                 {sharesLine(item, formatQty)}
+              </span>
+            )}
+            {/* And whose pantry holds what is at home, as a part counting on another's does. */}
+            {item.pantries.length > 0 && (
+              <span className="block text-xs text-muted-foreground">
+                {t('fromPantries', { who: pantriesLine(item, formatQty) ?? '' })}
               </span>
             )}
             {/* Fresh meat or fish for a later day: which of its packs to buy later, and from when. */}
