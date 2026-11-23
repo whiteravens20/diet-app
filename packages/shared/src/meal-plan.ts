@@ -655,6 +655,12 @@ export const MacrosOffCause = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('byHand'), count: z.number().int().min(1) }),
   /** When the plan was made, one dish alone fit these times of day. */
   z.object({ kind: z.literal('singleDish'), slots: z.array(MealType).min(1) }),
+  /** The plan wastes nothing (`PlanOptions.noWaste`): it chooses dishes for the opened packs they use up, not for the split. */
+  z.object({ kind: z.literal('noWaste') }),
+  /** The plan takes a recipe at most `count` times (`PlanOptions.maxRepeatsPerRecipe`): few dishes keep the split. */
+  z.object({ kind: z.literal('repeats'), count: z.number().int().min(1) }),
+  /** The profile holds the meals with one kind of protein to few (its limits, and its kinds' own): fewer dishes with protein are left. */
+  z.object({ kind: z.literal('proteinKinds') }),
   /** None of the above: the dishes of the diet that fit the profile lie far from the split by themselves. */
   z.object({ kind: z.literal('diet') }),
 ]);

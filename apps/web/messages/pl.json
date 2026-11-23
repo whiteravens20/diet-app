@@ -2188,6 +2188,9 @@
       "useUp": "Dzień zużywa żywność z\u00a0krótką datą, więc jego przepisy są dobrane pod nią, a\u00a0nie pod proporcje.",
       "byHand": "{count, plural, one {Jeden posiłek tego dnia wybrano} few {{count, number, ::group-off}\u00a0posiłki tego dnia wybrano} many {{count, number, ::group-off}\u00a0posiłków tego dnia wybrano} other {{count, number, ::group-off}\u00a0posiłku tego dnia wybrano}} ręcznie: zamiana, ulubione albo danie spoza diety.",
       "singleDish": "Przy układaniu planu na {slots} pasowało tylko jedno danie: wykluczenia i\u00a0dieta zostawiają tu mało przepisów.",
+      "noWaste": "Plan „Bez marnowania” dobiera dania tak, by zużywać otwarte opakowania, a\u00a0nie pod proporcje. Bliżej celu będzie następny plan z\u00a0„Mniej marnowania” albo bez tej opcji.",
+      "repeats": "Limit „Maks. powtórzeń jednego przepisu” ({count, number, ::group-off}) zostawia mało dań, które trzymają proporcje. Następny plan z\u00a0wyższym limitem będzie miał większy wybór.",
+      "proteinKinds": "Limity posiłków z\u00a0tym samym rodzajem białka w\u00a0profilu zostawiają mniej dań z\u00a0białkiem. Jeśli proporcje są ważniejsze, poluzuj je w\u00a0profilu.",
       "diet": "Dania tej diety, które pasują do ustawień profilu, mają zwykle inne proporcje. Zamiana posiłku pokaże, jak zmieni je nowy przepis."
     },
     "planAverageOver": "Średnio dzień tego planu ma o ponad jedną dziesiątą więcej kalorii niż cel.",

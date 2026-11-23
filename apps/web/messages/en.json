@@ -2188,6 +2188,9 @@
       "useUp": "The day uses up food that goes off soon, so its recipes are chosen for that, not for the split.",
       "byHand": "{count, plural, one {One meal of the day was} other {{count, number, ::group-off}\u00a0meals of the day were}} chosen by hand: a swap, a favourite or a dish off the diet.",
       "singleDish": "When the plan was made, only one dish fit {slots}: the exclusions and the diet leave few recipes there.",
+      "noWaste": "A “No waste” plan chooses its dishes to use up opened packs, not for the split. A next plan with “Waste less”, or without either, comes closer to the target.",
+      "repeats": "The limit “Max times one recipe can repeat” ({count, number, ::group-off}) leaves few dishes that keep the split. A next plan with a higher limit has more to choose from.",
+      "proteinKinds": "The profile's limits on meals with the same kind of protein leave fewer dishes with protein. If the split matters more, loosen them in the profile.",
       "diet": "The dishes of this diet that fit the profile's settings usually have another split. Swapping a meal shows what the new recipe would make of it."
     },
     "planAverageOver": "On average a day of this plan holds more than a tenth over its target.",

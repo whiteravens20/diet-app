@@ -36,6 +36,12 @@ export function MacrosOffWhy({
         return t('singleDish', {
           slots: cause.slots.map((slot) => mealName(slot).toLocaleLowerCase()).join(', '),
         });
+      case 'noWaste':
+        return t('noWaste');
+      case 'repeats':
+        return t('repeats', { count: cause.count });
+      case 'proteinKinds':
+        return t('proteinKinds');
       case 'diet':
         return t('diet');
     }

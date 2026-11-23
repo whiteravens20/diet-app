@@ -5,6 +5,7 @@ import { aimOnDiet, energyShares } from '../engine/nutrition.js';
 import {
   macrosOff,
   mealLabel,
+  planSettingsOff,
   mealNutrition,
   restsOf,
   scaleRests,
@@ -134,6 +135,38 @@ describe("what makes a day's macros off", () => {
 
   it("names the diet's dishes where nothing else made the day", () => {
     expect(day().causes).toEqual([{ kind: 'diet' }]);
+  });
+
+  it("names the settings of the plan and its profile that keep its days off the split, the diet's dishes no more", () => {
+    const settings = { noWaste: true, repeats: 1, proteinKinds: true };
+    expect(day({ settings }).causes).toEqual([
+      { kind: 'noWaste' },
+      { kind: 'repeats', count: 1 },
+      { kind: 'proteinKinds' },
+    ]);
+    // After what the day itself holds.
+    expect(day({ settings, overrides: { useUpBy: true } }).causes[0]).toEqual({ kind: 'useUp' });
+    expect(
+      day({ settings: { noWaste: false, repeats: null, proteinKinds: false } }).causes,
+    ).toEqual([{ kind: 'diet' }]);
+  });
+
+  it('takes as such settings the ones measured to keep days off: no waste, a recipe once, every protein held to two a day or ten a week', () => {
+    const none = { maxMealsPerDaySameKind: null, maxMealsPerWeekSameKind: null };
+    expect(planSettingsOff({}, null)).toEqual({
+      noWaste: false,
+      repeats: null,
+      proteinKinds: false,
+    });
+    expect(planSettingsOff({ noWaste: true }, none).noWaste).toBe(true);
+    expect(planSettingsOff({ maxRepeatsPerRecipe: 1 }, none).repeats).toBe(1);
+    expect(planSettingsOff({ maxRepeatsPerRecipe: 2 }, none).repeats).toBeNull();
+    expect(planSettingsOff({}, { ...none, maxMealsPerDaySameKind: 2 }).proteinKinds).toBe(true);
+    expect(planSettingsOff({}, { ...none, maxMealsPerWeekSameKind: 10 }).proteinKinds).toBe(true);
+    // Looser than measured: no cause.
+    expect(
+      planSettingsOff({}, { maxMealsPerDaySameKind: 3, maxMealsPerWeekSameKind: 11 }).proteinKinds,
+    ).toBe(false);
   });
 
   describe('what a day holds too much and too little of', () => {
