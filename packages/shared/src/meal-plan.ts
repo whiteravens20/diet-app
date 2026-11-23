@@ -8,7 +8,7 @@ import {
   MAX_OTHER_PLAN_MEALS_A_DAY,
   OWN_MEAL_LIMITS,
 } from './constants.js';
-import { DiaryEntry, EatenInOtherPlan } from './diary.js';
+import { CustomMealOf, DiaryEntry, EatenInOtherPlan } from './diary.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import {
@@ -1750,30 +1750,53 @@ export type SwapPreview = z.infer<typeof SwapPreview>;
  * we don't recompute them from an ingredient list, because a custom meal has
  * none. `nutrition` is frozen on the row as entered.
  */
-export const AddCustomMealRequest = z.object({
-  /** Free-text name for the meal (e.g. "Mum's lasagne"). */
-  name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name),
-  mealType: MealType,
-  /**
-   * User-entered figures of one serving: its energy, and of the macronutrients
-   * those that are known. Engine never recomputes what is given; those left out
-   * are estimated from what is left of the energy, in the proportions of the
-   * day's target, and the meal says that they were. 400
-   * `DIARY_MACROS_OVER_ENERGY` where the ones given hold more than the energy.
-   */
-  nutrition: EnteredNutrition.partial({ protein: true, fat: true, carbs: true }),
-  servings: z
-    .number()
-    .min(OWN_MEAL_LIMITS.servings.min)
-    .max(OWN_MEAL_LIMITS.servings.max)
-    .default(1),
-  /**
-   * A meal of the same day that this one is eaten in the place of: it leaves
-   * the day. Left out, this one comes beside the meals the day has. 404
-   * `MEAL_NOT_FOUND` for a meal that is not on that day.
-   */
-  replaces: z.string().uuid().optional(),
-});
+export const AddCustomMealRequest = z
+  .object({
+    /** Free-text name for the meal (e.g. "Mum's lasagne"); required without `of`, which names the meal itself. */
+    name: z.string().trim().min(1).max(OWN_MEAL_LIMITS.name).optional(),
+    mealType: MealType,
+    /**
+     * User-entered figures of one serving: its energy, and of the macronutrients
+     * those that are known; required without `of`. Engine never recomputes what is given; those left out
+     * are estimated from what is left of the energy, in the proportions of the
+     * day's target, and the meal says that they were. 400
+     * `DIARY_MACROS_OVER_ENERGY` where the ones given hold more than the energy.
+     */
+    nutrition: EnteredNutrition.partial({ protein: true, fat: true, carbs: true }).optional(),
+    servings: z
+      .number()
+      .min(OWN_MEAL_LIMITS.servings.min)
+      .max(OWN_MEAL_LIMITS.servings.max)
+      .default(1),
+    /**
+     * A meal of the same day that this one is eaten in the place of: it leaves
+     * the day. Left out, this one comes beside the meals the day has. 404
+     * `MEAL_NOT_FOUND` for a meal that is not on that day.
+     */
+    replaces: z.string().uuid().optional(),
+    /**
+     * What the meal is of, chosen as an entry of the diary is: a product, an
+     * ingredient in an amount, or a recipe in servings. Given, the meal's name
+     * and figures are worked out as the diary works out an entry's, with its
+     * refusals (404 `PRODUCT_NOT_FOUND`, `INGREDIENT_NOT_FOUND`,
+     * `RECIPE_NOT_FOUND`; 409 `PRODUCT_WITHOUT_FIGURES`; 400
+     * `DIARY_UNIT_NOT_CONVERTIBLE`), and `name`, `nutrition` and `servings` are
+     * not read; a recipe goes in as that recipe, its ingredients on the shopping
+     * list, sized with the day as the plan's other meals are.
+     */
+    of: CustomMealOf.optional(),
+  })
+  .superRefine((req, ctx) => {
+    if (req.of) return;
+    if (req.name === undefined)
+      ctx.addIssue({ code: 'custom', path: ['name'], message: 'A meal typed by hand has a name.' });
+    if (req.nutrition === undefined)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['nutrition'],
+        message: 'A meal typed by hand has its figures.',
+      });
+  });
 export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
 
 /**

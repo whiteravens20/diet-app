@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Field, Input } from '@/components/ui/input';
-import { FoundList } from './found-list';
+import { Picked, Search } from './entry-pickers';
 import { firstAmount, PickedProduct, ProductAmount, ProductSearch } from './product-entry';
 
 /** An entry as the window makes it: the page adds whose diary and which day. */
@@ -509,69 +509,5 @@ export function AddEntryDialog({
         </div>
       </form>
     </Dialog>
-  );
-}
-
-/** What was picked, and a way back to the search. */
-function Picked({ name, about, onAgain }: { name: string; about: string; onAgain: () => void }) {
-  const t = useTranslations('diary');
-  const fmt = useFormat();
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-      <div className="min-w-0">
-        <p className="break-words text-sm font-medium">{fmt.text(name)}</p>
-        <p className="text-xs text-muted-foreground">{about}</p>
-      </div>
-      <Button type="button" variant="ghost" size="sm" onClick={onAgain}>
-        {t('changePick')}
-      </Button>
-    </div>
-  );
-}
-
-/** A search of what the window offers, and what it found as buttons to pick. */
-function Search({
-  label,
-  value,
-  onChange,
-  searching,
-  loading,
-  failed,
-  found,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  searching: boolean;
-  loading: boolean;
-  /** The search did not get an answer: that says nothing of what there is. */
-  failed: boolean;
-  found: { id: string; name: string; about: string; pick: () => void }[];
-}) {
-  const t = useTranslations('diary');
-  const id = useId();
-  return (
-    <div className="space-y-2">
-      <Field label={label} hint={t('searchHint')}>
-        <Input
-          type="search"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-controls={`${id}-found`}
-          maxLength={200}
-        />
-      </Field>
-      <div id={`${id}-found`} aria-live="polite">
-        {searching && !loading && failed && (
-          <p role="alert" className="text-sm text-destructive">
-            {t('searchFailed')}
-          </p>
-        )}
-        {searching && !loading && !failed && found.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t('noResults')}</p>
-        )}
-        {found.length > 0 && <FoundList found={found} />}
-      </div>
-    </div>
   );
 }

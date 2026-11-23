@@ -101,6 +101,7 @@ import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf, type LabelLimitColumns } from '../common/label-limits.js';
 import { labelNotes, roundLabel, sumLabels } from '../engine/label-totals.js';
 import { energyShares } from '../engine/nutrition.js';
+import { ingredientEaten, productEaten } from '../diary/chosen-food.js';
 import {
   averageDay,
   dayAsItStands,
@@ -708,27 +709,7 @@ export class MealPlansService {
       request: req,
       write: async (keep) => {
         const day = await this.loadDay(userId, planId, date);
-        const { calories, ...known } = req.nutrition;
-        const given = Object.values(known).filter((value) => value !== undefined);
-        if (![calories, ...given].every((v) => Number.isFinite(v) && v >= 0)) {
-          throw new BadRequestException({
-            error: 'CUSTOM_MEAL_INVALID_MACROS',
-            message: 'Custom meal macros must be non-negative numbers.',
-          });
-        }
-        // What is typed stands as it is; only what is left out is worked out.
-        const estimated = given.length < 3;
-        const macros = estimated
-          ? estimatedMacros(calories, known, sharesOfPlanDay(day.plan, day.calorieTarget))
-          : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
-        if (!macros) {
-          throw new BadRequestException({
-            error: 'DIARY_MACROS_OVER_ENERGY',
-            message:
-              'The protein, fat and carbohydrate given hold more energy than the calories given.',
-          });
-        }
-
+        const meal = await this.ownMealOf(userId, locale, day, req);
         const overrides = parseDayOverrides(day.overrides);
         const summary = await writePlan(
           this.prisma,
@@ -750,15 +731,20 @@ export class MealPlansService {
                 },
               });
             }
+            // The dish a recipe chosen in the place of a meal was chosen over: it was put there by hand.
+            let swappedFrom: string | null = null;
             if (req.replaces) {
-              const replaced = await tx.plannedMeal.deleteMany({
+              const replaced = await tx.plannedMeal.findFirst({
                 where: { id: req.replaces, dayId: day.id },
+                select: { recipeId: true },
               });
-              if (replaced.count !== 1)
+              if (!replaced)
                 throw new NotFoundException({
                   error: 'MEAL_NOT_FOUND',
                   message: 'Planned meal not found.',
                 });
+              await tx.plannedMeal.delete({ where: { id: req.replaces } });
+              swappedFrom = replaced.recipeId;
             }
             // Counted once a meal it replaces has left the day.
             if (
@@ -772,14 +758,10 @@ export class MealPlansService {
             await tx.plannedMeal.create({
               data: {
                 dayId: day.id,
-                recipeId: null,
                 mealType: req.mealType,
-                servings: req.servings,
                 quantityScale: 1,
-                source: 'USER_CUSTOM',
-                customName: req.name,
-                customMacros: { calories, ...macros },
-                estimated,
+                ...meal,
+                ...(meal.recipeId && swappedFrom ? { swapHistory: [swappedFrom] } : {}),
               },
             });
             await keep(tx, planId);
@@ -790,6 +772,95 @@ export class MealPlansService {
       },
       replay: (id) => this.buildRebalanceResult(userId, locale, id, 'day', null),
     });
+  }
+
+  /**
+   * What a meal of one's own added to a day is, as its row holds it: a recipe chosen (`of`) as that recipe, in its
+   * servings; a product or an ingredient chosen as a meal of one's own with the name and figures the diary works out
+   * for an entry of it; or a meal typed by hand, by its figures, the macronutrients left out estimated in the
+   * proportions of the day's target.
+   */
+  private async ownMealOf(
+    userId: string,
+    locale: Locale,
+    day: { calorieTarget: number; plan: { dietType: string; macroSplit: unknown } },
+    req: AddCustomMealRequest,
+  ): Promise<
+    Pick<
+      Prisma.PlannedMealUncheckedCreateInput,
+      'recipeId' | 'servings' | 'source' | 'customName' | 'customMacros' | 'estimated'
+    >
+  > {
+    const of = req.of;
+    if (of?.kind === 'recipe') {
+      // A recipe of the library, or one of the account's own, as the recipe's page finds it.
+      const recipe = await this.prisma.recipe.findFirst({
+        where: {
+          id: of.recipeId,
+          deletedAt: null,
+          OR: [{ createdByUserId: null }, { createdByUserId: userId }],
+        },
+        select: { id: true },
+      });
+      if (!recipe)
+        throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+      return {
+        recipeId: recipe.id,
+        servings: of.servings,
+        source: 'CATALOGUE',
+        customName: null,
+        estimated: false,
+      };
+    }
+    if (of) {
+      const eaten =
+        of.kind === 'ingredient'
+          ? await ingredientEaten(this.prisma, locale, of.ingredientId, of.amount)
+          : await productEaten(
+              this.prisma,
+              userId,
+              of.productId,
+              of.quantity,
+              sharesOfPlanDay(day.plan, day.calorieTarget),
+            );
+      const { calories, protein, fat, carbs } = eaten.figures;
+      return {
+        recipeId: null,
+        servings: 1,
+        source: 'USER_CUSTOM',
+        customName: eaten.name,
+        customMacros: { calories, protein, fat, carbs },
+        estimated: 'estimated' in eaten.figures && eaten.figures.estimated,
+      };
+    }
+    const { calories, ...known } = req.nutrition!;
+    const given = Object.values(known).filter((value) => value !== undefined);
+    if (![calories, ...given].every((v) => Number.isFinite(v) && v >= 0)) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_INVALID_MACROS',
+        message: 'Custom meal macros must be non-negative numbers.',
+      });
+    }
+    // What is typed stands as it is; only what is left out is worked out.
+    const estimated = given.length < 3;
+    const macros = estimated
+      ? estimatedMacros(calories, known, sharesOfPlanDay(day.plan, day.calorieTarget))
+      : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
+    if (!macros) {
+      throw new BadRequestException({
+        error: 'DIARY_MACROS_OVER_ENERGY',
+        message:
+          'The protein, fat and carbohydrate given hold more energy than the calories given.',
+      });
+    }
+    return {
+      recipeId: null,
+      servings: req.servings,
+      source: 'USER_CUSTOM',
+      customName: req.name!,
+      customMacros: { calories, ...macros },
+      estimated,
+    };
   }
 
   /**

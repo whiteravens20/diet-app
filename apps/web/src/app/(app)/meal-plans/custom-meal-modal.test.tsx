@@ -1,14 +1,37 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi } from 'vitest';
+import { useState, type ReactNode } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import messages from '../../../../messages/en.json';
 import { CustomMealModal } from './custom-meal-modal';
+import { aPublicConfig } from '@/testing/public-config';
 import { spaced } from '@/testing/spaces';
 
 const texts = messages.mealPlans;
+
+/** The window as the page gives it: in the user's language, the instance's configuration already read. */
+function Wrapped({ children, products = false }: { children: ReactNode; products?: boolean }) {
+  const [client] = useState(() => {
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const config = aPublicConfig();
+    queries.setQueryData(['config'], {
+      ...config,
+      products: { ...config.products, offered: products },
+    });
+    return queries;
+  });
+  return (
+    <QueryClientProvider client={client}>
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </QueryClientProvider>
+  );
+}
 
 /** The meals of the day the window is opened for. */
 const MEALS = [
@@ -29,9 +52,9 @@ const MEALS = [
 function open() {
   const onSubmit = vi.fn();
   render(
-    <NextIntlClientProvider locale="en" messages={messages}>
+    <Wrapped>
       <CustomMealModal date="2026-01-05" meals={MEALS} onClose={() => {}} onSubmit={onSubmit} />
-    </NextIntlClientProvider>,
+    </Wrapped>,
   );
   return onSubmit;
 }
@@ -39,7 +62,7 @@ function open() {
 describe('the shopping list of the day', () => {
   it('is said to go out of date where one covers the day, and nothing is said where none does', () => {
     const { rerender } = render(
-      <NextIntlClientProvider locale="en" messages={messages}>
+      <Wrapped>
         <CustomMealModal
           date="2026-01-05"
           meals={MEALS}
@@ -47,14 +70,14 @@ describe('the shopping list of the day', () => {
           onClose={() => {}}
           onSubmit={vi.fn()}
         />
-      </NextIntlClientProvider>,
+      </Wrapped>,
     );
     expect(screen.getByText(messages.mealPlans.listOutOfDateDay)).toBeInTheDocument();
 
     rerender(
-      <NextIntlClientProvider locale="en" messages={messages}>
+      <Wrapped>
         <CustomMealModal date="2026-01-05" meals={MEALS} onClose={() => {}} onSubmit={vi.fn()} />
-      </NextIntlClientProvider>,
+      </Wrapped>,
     );
     expect(screen.queryByText(messages.mealPlans.listOutOfDateDay)).not.toBeInTheDocument();
   });
@@ -63,7 +86,7 @@ describe('the shopping list of the day', () => {
 describe('the note on the meal it replaces', () => {
   it('says what follows for the other meal of a cooking when one is chosen', async () => {
     render(
-      <NextIntlClientProvider locale="en" messages={messages}>
+      <Wrapped>
         <CustomMealModal
           date="2026-01-05"
           meals={[
@@ -77,7 +100,7 @@ describe('the note on the meal it replaces', () => {
           onClose={() => {}}
           onSubmit={() => {}}
         />
-      </NextIntlClientProvider>,
+      </Wrapped>,
     );
     expect(screen.queryByText('On Tuesday you cook this dish separately.')).toBeNull();
 
@@ -209,6 +232,151 @@ describe("the window a meal of the user's own is added in", () => {
 
     expect(screen.getByLabelText(texts.customCalories)).toBeInvalid();
     expect(screen.getByText(texts.customTotalPending)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('a meal of the window chosen as the diary chooses an entry', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** The API answers a search of recipes with one: 300 kcal a serving. */
+  const recipeFound = () =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/recipes?search='))
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: '33333333-3333-4333-8333-333333333333',
+                  title: 'Omelette',
+                  nutritionPerServing: { calories: 300, protein: 20, fat: 22, carbs: 4 },
+                },
+              ],
+              page: 1,
+              pageSize: 8,
+              total: 1,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+  it('offers a product only where the instance has products, figures typed first', () => {
+    render(
+      <Wrapped products>
+        <CustomMealModal date="2026-01-05" meals={MEALS} onClose={() => {}} onSubmit={vi.fn()} />
+      </Wrapped>,
+    );
+    expect(
+      screen.getAllByRole('radio').map((radio) => radio.closest('label')!.textContent),
+    ).toEqual([
+      texts.customKindTyped,
+      messages.diary.kindProduct,
+      messages.diary.kindRecipe,
+      messages.diary.kindIngredient,
+    ]);
+    expect(screen.getByRole('radio', { name: texts.customKindTyped })).toBeChecked();
+  });
+
+  it('sends a recipe found and picked, in its servings, in the place of a meal of the day', async () => {
+    recipeFound();
+    const onSubmit = open();
+
+    await userEvent.click(screen.getByRole('radio', { name: messages.diary.kindRecipe }));
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: new RegExp(`^${messages.diary.searchRecipe}`) }),
+      'ome',
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /Omelette/ }));
+    const servings = screen.getByRole('spinbutton', { name: texts.customServings });
+    await userEvent.clear(servings);
+    await userEvent.type(servings, '2');
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: texts.customPlace }),
+      MEALS[0]!.id,
+    );
+    expect(
+      screen.getByText(
+        spaced('The meal adds to the day: 600 kcal · protein 40 g · fat 44 g · carbs 8 g.'),
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: texts.customSubmit }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      mealType: 'lunch',
+      of: { kind: 'recipe', recipeId: '33333333-3333-4333-8333-333333333333', servings: 2 },
+      replaces: MEALS[0]!.id,
+      servings: 1,
+    });
+  });
+
+  it('sums an ingredient given in pieces as the API converts it, and says what the sum waits for until then', async () => {
+    const egg = {
+      id: '44444444-4444-4444-8444-444444444444',
+      name: 'Egg',
+      canonicalUnit: 'g',
+      caloriesPer100: 143,
+      proteinPer100: 12.6,
+      fatPer100: 9.9,
+      carbsPer100: 0.7,
+      gramsPerPiece: 50,
+      density: null,
+      displayUnit: 'piece',
+      recipeUnits: ['g', 'piece'],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/ingredients?search=')
+          ? new Response(JSON.stringify([egg]), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            })
+          : new Response('{}', { status: 404 }),
+      ),
+    );
+    const onSubmit = open();
+
+    await userEvent.click(screen.getByRole('radio', { name: messages.diary.kindIngredient }));
+    expect(screen.getByText(texts.customTotalPendingChosen)).toBeInTheDocument();
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: new RegExp(`^${messages.diary.searchIngredient}`) }),
+      'egg',
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /Egg/ }));
+    expect(screen.getByText(texts.customTotalPendingChosen)).toBeInTheDocument();
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: messages.diary.unit }),
+      'piece',
+    );
+    await userEvent.type(screen.getByRole('spinbutton', { name: messages.diary.quantity }), '2');
+
+    // Two eggs of 50 g: 100 g of what the figures are given per 100 g of.
+    expect(
+      screen.getByText(
+        spaced('The meal adds to the day: 143 kcal · protein 13 g · fat 10 g · carbs 1 g.'),
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: texts.customSubmit }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      mealType: 'lunch',
+      of: { kind: 'ingredient', ingredientId: egg.id, amount: { quantity: 2, unit: 'piece' } },
+      servings: 1,
+    });
+  });
+
+  it('sends nothing before a recipe is picked, and says so', async () => {
+    const onSubmit = open();
+
+    await userEvent.click(screen.getByRole('radio', { name: messages.diary.kindRecipe }));
+
+    expect(screen.getByText(messages.diary.pickRecipeFirst)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: texts.customSubmit })).toBeDisabled();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { MealPlan, RebalanceResult } from '@diet-app/shared';
+import type { MealPlan, RebalanceResult, ShoppingList } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, as, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
 
 const DATE = '2026-01-06';
 
@@ -104,6 +105,152 @@ describe("a meal of the user's own in the place of a planned one, and a meal tak
     ).body as RebalanceResult;
 
     expect(dayOf(after).meals.some((meal) => meal.source === 'USER_CUSTOM')).toBe(false);
+  });
+
+  describe('chosen as an entry of the diary is', () => {
+    const chosen = (
+      of: Record<string, unknown>,
+      status = 201,
+      place: Record<string, unknown> = {},
+    ) =>
+      t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${DATE}/custom-meal`)
+        .set(as(user))
+        .send({ mealType: 'breakfast', of, ...place })
+        .expect(status);
+    /** A product of the base with its label, per 100 g. */
+    const aProduct = (over: Record<string, unknown> = {}) =>
+      t.prisma.product.create({
+        data: {
+          code: `590${Math.floor(Math.random() * 1e10)}`,
+          name: 'Kanapka z jajkiem',
+          brand: 'Sklep',
+          searchText: 'kanapka z jajkiem sklep',
+          unit: 'g',
+          calories: 250,
+          protein: 11,
+          fat: 12,
+          carbs: 24,
+          origin: 'imported',
+          ...over,
+        },
+      });
+
+    it('takes a product in grams as a meal of its own figures, and fits the rest of the day around it', async () => {
+      const product = await aProduct();
+      const breakfast = dayOf(plan).meals.find((meal) => meal.mealType === 'breakfast')!;
+
+      const { plan: after } = (
+        await chosen({ kind: 'product', productId: product.id, quantity: 120 }, 201, {
+          replaces: breakfast.id,
+        })
+      ).body as RebalanceResult;
+
+      const day = dayOf(after);
+      const own = day.meals.find((meal) => meal.source === 'USER_CUSTOM')!;
+      expect(own).toMatchObject({ customName: 'Kanapka z jajkiem, Sklep', estimated: false });
+      expect(own.nutrition).toMatchObject({ calories: 300, protein: 13, fat: 14, carbs: 29 });
+      expect(day.meals.some((meal) => meal.id === breakfast.id)).toBe(false);
+      expect(Math.abs(day.dayNutrition.calories - day.calorieTarget)).toBeLessThanOrEqual(
+        day.calorieTarget * 0.1,
+      );
+    });
+
+    it('says a meal of a product whose label lacks a macronutrient is estimated', async () => {
+      const product = await aProduct({ protein: null });
+
+      const { plan: after } = (
+        await chosen({ kind: 'product', productId: product.id, quantity: 100 })
+      ).body as RebalanceResult;
+
+      expect(dayOf(after).meals.find((meal) => meal.source === 'USER_CUSTOM')).toMatchObject({
+        estimated: true,
+      });
+    });
+
+    it('takes an ingredient of the catalogue in an amount, by its name and figures', async () => {
+      const banana = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'banana' } });
+
+      const { plan: after } = (
+        await chosen({
+          kind: 'ingredient',
+          ingredientId: banana.id,
+          amount: { quantity: 200, unit: 'g' },
+        })
+      ).body as RebalanceResult;
+
+      const own = dayOf(after).meals.find((meal) => meal.source === 'USER_CUSTOM')!;
+      expect(own.customName).toBe('Banana');
+      expect(own.nutrition.calories).toBe(Math.round(banana.caloriesPer100 * 2));
+    });
+
+    it('takes a recipe as that recipe, sized with the day, and its ingredients go on the shopping list', async () => {
+      const recipe = await t.prisma.recipe.findFirstOrThrow({
+        where: { slug: 'salmon-with-rice' },
+      });
+      const breakfast = dayOf(plan).meals.find((meal) => meal.mealType === 'breakfast')!;
+
+      const { plan: after } = (
+        await chosen({ kind: 'recipe', recipeId: recipe.id, servings: 1 }, 201, {
+          replaces: breakfast.id,
+        })
+      ).body as RebalanceResult;
+
+      const placed = dayOf(after).meals.find((meal) => meal.recipe?.id === recipe.id)!;
+      expect(placed).toMatchObject({ mealType: 'breakfast', source: 'CATALOGUE' });
+      const list = (
+        await t
+          .http()
+          .post('/api/shopping-lists/generate')
+          .set(as(user))
+          .send({ planId: plan.id, fromDate: DATE, toDate: DATE })
+          .expect(201)
+      ).body as ShoppingList;
+      const salmon = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'salmon' } });
+      expect(
+        list.groups.flatMap((group) => group.items).some((item) => item.ingredientId === salmon.id),
+      ).toBe(true);
+    });
+
+    it('refuses what the diary refuses: what is not there, a label without energy, a unit a food is not given in', async () => {
+      const unknown = '99999999-9999-4999-8999-999999999999';
+      expect(
+        (await chosen({ kind: 'product', productId: unknown, quantity: 100 }, 404)).body.error,
+      ).toBe('PRODUCT_NOT_FOUND');
+      const blank = await aProduct({ calories: null });
+      expect(
+        (await chosen({ kind: 'product', productId: blank.id, quantity: 100 }, 409)).body.error,
+      ).toBe('PRODUCT_WITHOUT_FIGURES');
+      expect(
+        (await chosen({ kind: 'recipe', recipeId: unknown, servings: 1 }, 404)).body.error,
+      ).toBe('RECIPE_NOT_FOUND');
+      const oil = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'olive-oil' } });
+      expect(
+        (
+          await chosen(
+            { kind: 'ingredient', ingredientId: oil.id, amount: { quantity: 2, unit: 'piece' } },
+            400,
+          )
+        ).body.error,
+      ).toBe('DIARY_UNIT_NOT_CONVERTIBLE');
+      // Nothing of these reached the day.
+      expect(
+        dayOf(await t.app.get(MealPlansService).get(user.id, 'en', plan.id)).meals.filter(
+          (meal) => meal.source === 'USER_CUSTOM',
+        ),
+      ).toEqual([]);
+    });
+
+    it('wants a name and figures of a meal typed by hand', async () => {
+      const answer = await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${DATE}/custom-meal`)
+        .set(as(user))
+        .send({ mealType: 'breakfast' })
+        .expect(400);
+      expect(answer.body.error).toBe('VALIDATION_FAILED');
+    });
   });
 
   describe('by what is known of it', () => {

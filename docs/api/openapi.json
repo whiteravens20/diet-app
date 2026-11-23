@@ -11464,12 +11464,13 @@
           "replaces": {
             "type": "string",
             "format": "uuid"
+          },
+          "of": {
+            "$ref": "#/components/schemas/CustomMealOf"
           }
         },
         "required": [
-          "name",
-          "mealType",
-          "nutrition"
+          "mealType"
         ]
       },
       "AddFavoriteRequest": {
@@ -14030,6 +14031,91 @@
           "mexican",
           "american",
           "indian"
+        ]
+      },
+      "CustomMealOf": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "recipe"
+              },
+              "recipeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "servings": {
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 20
+              }
+            },
+            "required": [
+              "kind",
+              "recipeId",
+              "servings"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ingredient"
+              },
+              "ingredientId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  },
+                  "unit": {
+                    "$ref": "#/components/schemas/Unit"
+                  }
+                },
+                "required": [
+                  "quantity",
+                  "unit"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "ingredientId",
+              "amount"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "product"
+              },
+              "productId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "quantity": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 5000
+              }
+            },
+            "required": [
+              "kind",
+              "productId",
+              "quantity"
+            ]
+          }
         ]
       },
       "DayMealFate": {

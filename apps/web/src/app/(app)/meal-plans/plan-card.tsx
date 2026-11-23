@@ -46,7 +46,6 @@ import {
   type MealPortion,
   type PotPortions,
 } from './cooking';
-import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import type { OffTargetWays } from './day-off-target-dialog';
@@ -110,6 +109,12 @@ const LeftoverDialog = dynamic(
 );
 const LeftoverUndoDialog = dynamic(
   () => import('./leftover-dialog').then((dialog) => dialog.LeftoverUndoDialog),
+  { ssr: false },
+);
+
+/** Fetched when a meal of one's own is added to a day: no first visit of the page waits for the window. */
+const CustomMealModal = dynamic(
+  () => import('./custom-meal-modal').then((modal) => modal.CustomMealModal),
   { ssr: false },
 );
 

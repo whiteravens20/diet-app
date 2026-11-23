@@ -48,6 +48,26 @@ const IngredientAmount = z
   });
 
 /**
+ * What a meal of one's own added to a plan is of, chosen as an entry of the diary is (`CreateDiaryEntryRequest`): a
+ * recipe of the library or of the account's own in servings, an ingredient of the catalogue in an amount, or a
+ * product (the base's or one's own) in grams or millilitres (`AddCustomMealRequest.of`).
+ */
+export const CustomMealOf = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('recipe'), recipeId: z.string().uuid(), servings: Servings }),
+  z.object({
+    kind: z.literal('ingredient'),
+    ingredientId: z.string().uuid(),
+    amount: IngredientAmount,
+  }),
+  z.object({
+    kind: z.literal('product'),
+    productId: z.string().uuid(),
+    quantity: z.number().gt(0).max(DIARY_QUANTITY_LIMITS.g),
+  }),
+]);
+export type CustomMealOf = z.infer<typeof CustomMealOf>;
+
+/**
  * The figures of one serving of a meal of one's own: its energy, and of the
  * macronutrients those that are known. The ones left out are estimated from
  * what is left of the energy, in the proportions of the day's target, and the
