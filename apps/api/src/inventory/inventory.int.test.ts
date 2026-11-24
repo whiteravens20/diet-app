@@ -5,7 +5,7 @@ import { dayAfter, MAX_QUANTITY, type InventoryItem, type Profile } from '@diet-
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 describe('the pantry', () => {
@@ -549,6 +549,75 @@ describe('the pantry', () => {
       expect(
         (await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).quantity,
       ).toBe(300);
+    });
+  });
+
+  describe('the size to freeze a row in', () => {
+    /** The server's day, the one a client may name or one next to it. */
+    const today = new Date().toISOString().slice(0, 10);
+
+    /**
+     * A plan from `start` whose lunch each day is chicken (150 g a serving) in the servings given, or tofu where none
+     * is given, and whose every other meal is tofu.
+     */
+    const lunches = async (start: string, servings: (number | null)[]) => {
+      const plan = await aPlan(t, user, profile, {
+        startDate: start,
+        durationDays: servings.length,
+      });
+      const [chicken, tofu] = await Promise.all(
+        ['chicken-rice-broccoli', 'tofu-rice-bowl'].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      for (const [day, eaten] of servings.entries()) {
+        for (const meal of plan.days[day]!.meals) {
+          const chickenLunch = meal.mealType === 'lunch' && eaten !== null;
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: {
+              recipeId: (chickenLunch ? chicken : tofu)!.id,
+              servings: chickenLunch ? eaten : 1,
+              quantityScale: 1,
+            },
+          });
+        }
+      }
+    };
+    const portionOf = async (id: string, day: string) =>
+      (
+        await t
+          .http()
+          .get(`/api/inventory/${id}/portion`)
+          .set(as(user))
+          .set('X-Client-Date', day)
+          .expect(200)
+      ).body as { portion: number | null; unit: string };
+
+    it("is the most the profile's plans eat of its food on a day and the next, from tomorrow on", async () => {
+      // Yesterday's and today's lunches are tofu, tomorrow's one serving of chicken, the next day's two.
+      await lunches(dayAfter(today, -1), [null, null, 1, 2]);
+      const row = (await add('chicken-breast', 500, 'g')).body as InventoryItem;
+
+      expect(await portionOf(row.id, today)).toEqual({ portion: 450, unit: 'g' });
+      // For a client already in tomorrow its lunch is too late to take a package out for: the next day's 300 g are
+      // the most.
+      expect(await portionOf(row.id, dayAfter(today, 1))).toEqual({ portion: 300, unit: 'g' });
+    });
+
+    it('is none from a plan with no day after today, for a food not bought in packs, and of a row of another account', async () => {
+      await lunches(dayAfter(today, -2), [1, 1, 1]);
+      const chicken = (await add('chicken-breast', 500, 'g')).body as InventoryItem;
+      expect(await portionOf(chicken.id, today)).toEqual({ portion: null, unit: 'g' });
+
+      // Tofu is eaten every day from tomorrow, but not bought in packs.
+      await lunches(dayAfter(today, 1), [1, 1, 1]);
+      const tofu = (await add('firm-tofu', 400, 'g')).body as InventoryItem;
+      expect(await portionOf(tofu.id, today)).toEqual({ portion: null, unit: 'g' });
+      expect(await portionOf(chicken.id, today)).toEqual({ portion: 300, unit: 'g' });
+
+      const someone = await aUser(t);
+      await t.http().get(`/api/inventory/${tofu.id}/portion`).set(as(someone)).expect(404);
     });
   });
 });

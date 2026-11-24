@@ -77,6 +77,18 @@ export const FreezeInventoryItem = z.object({
 });
 export type FreezeInventoryItem = z.infer<typeof FreezeInventoryItem>;
 
+/**
+ * The size to freeze a row of the pantry in, before "Zamroź" (`GET /inventory/:id/portion`): the most the profile's
+ * plans that have a day after today eat of its food on a day and the next, from tomorrow on, a package coming out of
+ * the freezer only whole (`PlanPacks.staysFrozen`), in the food's canonical unit (`unit`). Null where none of them
+ * takes the food from packs.
+ */
+export const InventoryPortion = z.object({
+  portion: z.number().int().min(1).nullable(),
+  unit: Unit,
+});
+export type InventoryPortion = z.infer<typeof InventoryPortion>;
+
 /** The upsert as it is sent: for which profile's pantry. */
 export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({
   profileId: z.string().uuid(),

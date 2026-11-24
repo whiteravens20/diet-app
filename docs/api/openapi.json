@@ -4957,6 +4957,57 @@
         }
       }
     },
+    "/api/inventory/{id}/portion": {
+      "get": {
+        "operationId": "Inventory_portion",
+        "tags": [
+          "inventory"
+        ],
+        "summary": "The size to freeze a row in before \"Zamroź\": the most the profile's plans that have a day after today eat of its food on a day and the next, from tomorrow on, a package coming out of the freezer only whole; null where none of them takes the food from packs.",
+        "description": "The size to freeze a row in before \"Zamroź\": the most the profile's plans that have a day after today eat of its food on a day and the next, from tomorrow on, a package coming out of the freezer only whole; null where none of them takes the food from packs.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPortion"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/meal-plans": {
       "get": {
         "operationId": "MealPlans_list",
@@ -17276,6 +17327,30 @@
           "frozen",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "InventoryPortion": {
+        "type": "object",
+        "properties": {
+          "portion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          }
+        },
+        "required": [
+          "portion",
+          "unit"
         ],
         "additionalProperties": false
       },

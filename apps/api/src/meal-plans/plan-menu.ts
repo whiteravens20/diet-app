@@ -251,7 +251,7 @@ export interface FreezerNow {
 }
 
 /** The most `row` takes on a day and the next, in its own unit. */
-function mostInTwoDaysOf(row: readonly number[]): number {
+export function mostInTwoDaysOf(row: readonly number[]): number {
   return Math.max(0, ...row.map((need, day) => need + (row[day + 1] ?? 0)));
 }
 

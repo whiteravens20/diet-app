@@ -7,6 +7,7 @@ import {
   Unit,
   type FreezeInventoryItem,
   type InventoryItem,
+  type InventoryPortion,
   type Locale,
   type PatchInventoryItem,
   type UpsertInventoryItem,
@@ -20,6 +21,9 @@ import {
   UnitConversionError,
 } from '../engine/index.js';
 import { writeOnce } from '../common/idempotency.js';
+import { isoDate } from '../meal-plans/plan-days.js';
+import { menuNeeds, mostInTwoDaysOf } from '../meal-plans/plan-menu.js';
+import { MEAL_ROW, packedOfDays } from '../meal-plans/plan-packs-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry, newParcels } from './pantry-store.js';
@@ -291,6 +295,44 @@ export class InventoryService {
       await tx.inventoryItem.delete({ where: { id: gone.id } });
       await forgetStock(tx, gone.profileId, gone.ingredientId, gone);
     }, TRANSACTION);
+  }
+
+  /**
+   * The size to freeze a row in (`InventoryPortion`): the most the profile's plans that have a day after `today` eat of
+   * its food on a day and the next, from tomorrow on; none where none of them takes the food from packs.
+   */
+  async portion(userId: string, id: string, today: string): Promise<InventoryPortion> {
+    const row = await this.prisma.inventoryItem.findFirst({
+      where: { id, profile: { userId } },
+      select: {
+        profileId: true,
+        ingredientId: true,
+        ingredient: { select: { canonicalUnit: true } },
+      },
+    });
+    if (!row) throw this.notFound();
+    // A plan is at most four weeks long: one that began earlier has no day after today.
+    const since = new Date(`${dayAfter(today, -28)}T00:00:00Z`);
+    const plans = await this.prisma.mealPlan.findMany({
+      where: { profileId: row.profileId, startDate: { gte: since } },
+      select: {
+        options: true,
+        days: { orderBy: { date: 'asc' }, select: { date: true, meals: { select: MEAL_ROW } } },
+      },
+    });
+    let most = 0;
+    for (const plan of plans) {
+      const dates = plan.days.map((day) => isoDate(day.date));
+      const first = dates.findIndex((date) => date > today);
+      if (first < 0) continue;
+      const made = plan.options as { mealPrepFriendly?: boolean } | null;
+      const packed = await packedOfDays(this.prisma, plan.days, made?.mealPrepFriendly === true);
+      const eaten = menuNeeds(packed, dates.length).needs.get(row.ingredientId);
+      if (!eaten) continue;
+      most = Math.max(most, mostInTwoDaysOf(eaten.map((need, day) => (day < first ? 0 : need))));
+    }
+    const portion = Math.round(most);
+    return { portion: portion >= 1 ? portion : null, unit: row.ingredient.canonicalUnit };
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {

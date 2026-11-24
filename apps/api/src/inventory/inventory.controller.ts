@@ -15,6 +15,7 @@ import {
 import {
   FreezeInventoryItem,
   InventoryItem,
+  InventoryPortion,
   PatchInventoryItem,
   UpsertInventoryItemRequest,
   type Locale,
@@ -69,6 +70,21 @@ export class InventoryController {
     @Body(new ZodValidationPipe(PatchInventoryItem)) dto: PatchInventoryItem,
   ) {
     return this.inventory.patch(user.id, locale, id, dto);
+  }
+
+  /**
+   * The size to freeze a row in before "Zamroź": the most the profile's plans that have a day after today eat of its
+   * food on a day and the next, from tomorrow on, a package coming out of the freezer only whole; null where none of
+   * them takes the food from packs.
+   */
+  @Get(':id/portion')
+  @Answers(InventoryPortion)
+  portion(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.inventory.portion(user.id, id, today ?? new Date().toISOString().slice(0, 10));
   }
 
   /**
