@@ -713,6 +713,8 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         amount: 350,
         thawed: [],
         left: 350,
+        // Frozen in portions of what the plan eats of it on a day and the next: Monday's 150 g.
+        portion: 150,
         inPantry: false,
       },
     ]);

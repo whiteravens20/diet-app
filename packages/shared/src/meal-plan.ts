@@ -1024,6 +1024,11 @@ export const PlanFrozenRest = z.object({
   thawed: z.array(PlanThaw),
   /** What is still in the freezer once the plan is over: what the pantry is given. */
   left: z.number().int().min(0),
+  /**
+   * The most the plan eats of the food on a day and the next: the size to freeze what is left in, a package coming
+   * out of the freezer only whole. Null where no day of the plan takes the food from packs.
+   */
+  portion: z.number().int().min(1).nullable(),
   /** Given to the pantry already ("Dodaj do spiżarni", `KeepFrozenRequest`): it is given once. */
   inPantry: z.boolean(),
 });

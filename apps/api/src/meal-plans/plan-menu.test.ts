@@ -409,6 +409,8 @@ describe('the packs of a plan that wastes nothing', () => {
         amount: 300,
         thawed: [{ date: '2026-01-09', mealId: ids(3), amount: 100 }],
         left: 200,
+        // What to freeze it in: the most the plan eats of it on a day and the next, Monday's 200 g.
+        portion: 200,
         // Whoever reads the plan says whether the pantry was given it.
         inPantry: false,
       },

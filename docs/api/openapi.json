@@ -20484,6 +20484,17 @@
             "type": "integer",
             "minimum": 0
           },
+          "portion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "inPantry": {
             "type": "boolean"
           }
@@ -20497,6 +20508,7 @@
           "amount",
           "thawed",
           "left",
+          "portion",
           "inPantry"
         ],
         "additionalProperties": false

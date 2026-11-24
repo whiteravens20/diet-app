@@ -124,6 +124,8 @@ export function planPacks(
   freezersNow: readonly FreezerNow[] = [],
 ): PlanPacks {
   const { needs, packs, known } = menuNeeds(meals, dates.length, freezes);
+  // What the menu eats of each food, before the freezer takes any: what a rest frozen is portioned by.
+  const eaten = new Map([...needs].map(([ingredientId, row]) => [ingredientId, [...row]]));
   const staysFrozen = keptFrozen(needs, known, freezersNow, locale, dates);
   /** The first meal of a day, in the order they are eaten, that takes the ingredient. */
   const mealOf = (ingredientId: string, day: number): string | null =>
@@ -215,6 +217,7 @@ export function planPacks(
               amount: Math.round(taken.amount),
             })),
           left: Math.max(0, Math.round(frozenLeft(rest))),
+          portion: portionOf(eaten.get(rest.ingredientId)),
           // Read from the plan by whoever reads it (`keptMarked`).
           inPantry: false,
         };
@@ -245,6 +248,17 @@ export interface FreezerNow {
   madeAt: Date;
   /** The day it is for whoever reads the plan: a package comes out for a day after it at the earliest. */
   today: string;
+}
+
+/** The most `row` takes on a day and the next, in its own unit. */
+function mostInTwoDaysOf(row: readonly number[]): number {
+  return Math.max(0, ...row.map((need, day) => need + (row[day + 1] ?? 0)));
+}
+
+/** What to freeze a rest in, by what the menu eats of its food on a day and the next (`PlanFrozenRest.portion`). */
+function portionOf(row: readonly number[] | undefined): number | null {
+  const most = row ? Math.round(mostInTwoDaysOf(row)) : 0;
+  return most >= 1 ? most : null;
 }
 
 /**
@@ -280,9 +294,7 @@ function keptFrozen(
           ...one,
           amount: pantryStock([{ ...one, bestBefore: null }], ingredient).quantity,
         }));
-      const mostInTwoDays = Math.round(
-        Math.max(0, ...row.map((need, day) => need + (row[day + 1] ?? 0))),
-      );
+      const mostInTwoDays = Math.round(mostInTwoDaysOf(row));
       for (const why of ['whole', 'later'] as const) {
         const these = left.filter((one) => one.frozenAt > now.madeAt === (why === 'later'));
         const amount = Math.round(these.reduce((sum, one) => sum + one.amount, 0));
