@@ -8,6 +8,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
 import { restsOf } from './plan-days.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { followRests, RestsFollowOnStart } from './rests-follow.js';
@@ -594,6 +595,31 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       await scale(1.85 / 1.75);
       expect(await follow(plan.id)).toEqual([]);
       expect(await yogurtRest()).toBeCloseTo(50);
+    });
+
+    it('is counted where its day is sized: one recalculation leaves the day as the next would', async () => {
+      const service = t.app.get(MealPlansService);
+      const portions = async () =>
+        Object.fromEntries(
+          (
+            await t.prisma.plannedMeal.findMany({
+              where: { day: { planId: plan.id } },
+              select: { id: true, quantityScale: true },
+            })
+          ).map((meal) => [meal.id, meal.quantityScale]),
+        );
+      const size = () =>
+        service.rebalance(user.id, 'en', plan.id, { scope: 'day', date: '2026-02-02' }, BEFORE);
+      await follow(plan.id);
+
+      await size();
+      const sized = await portions();
+      const rest = await yogurtRest();
+      await size();
+
+      // Nothing changed between the two: the second has nothing to move.
+      expect(await portions()).toEqual(sized);
+      expect(await yogurtRest()).toBeCloseTo(rest);
     });
   });
 });

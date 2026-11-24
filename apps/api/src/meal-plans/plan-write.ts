@@ -3,7 +3,24 @@
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { packagesSaid, repickFreezer } from './freezer-repick.js';
-import { followRests, wasteLevelOf } from './rests-follow.js';
+import { followRests, wasteLevelOf, type FollowedRest } from './rests-follow.js';
+
+/** At most how many times the days whose rests a change moved are sized again: once is nearly always enough. */
+const SETTLE_ROUNDS = 3;
+
+/** Size a day of a plan again, as a change of it does; true where a portion moved. */
+type SizeDay = (tx: Prisma.TransactionClient, dayId: string, today: string) => Promise<boolean>;
+
+/**
+ * How a write sizes again a day whose rests of packs it moved: `MealPlansService` gives its own sizing of a day when it
+ * is made, as this module of plain functions has no service to ask. Without it the rests move and the days stay.
+ */
+let sizeAgain: SizeDay | null = null;
+
+/** The sizing of a day the writes of plans use where the rests of a day move (`sizeAgain`). */
+export function sizeDaysWith(size: SizeDay): void {
+  sizeAgain = size;
+}
 
 /** A refusal of a change of a plan made from a plan another change moved on meanwhile (`writePlan`). */
 export function planChangedMeanwhile(err: ConflictException): boolean {
@@ -75,16 +92,33 @@ export function writePlans<T>(
     // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose
     // rests change and that this change did not claim moves on as well: a client that holds it reads it again.
     const claimed = new Set(plans.map((plan) => plan.planId));
-    const kitchens = new Set<string>();
-    for (const { planId, kitchen } of counting) {
-      if (kitchens.has(kitchen)) continue;
-      kitchens.add(kitchen);
-      const followed = await followRests(tx, planId, today);
+    const moveOn = async (followed: readonly FollowedRest[]): Promise<void> => {
       for (const other of new Set(followed.map((one) => one.planId)))
         if (!claimed.has(other)) {
           await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
           claimed.add(other);
         }
+    };
+    const kitchens = new Set<string>();
+    for (const { planId, kitchen } of counting) {
+      if (kitchens.has(kitchen)) continue;
+      kitchens.add(kitchen);
+      let followed = await followRests(tx, planId, today);
+      await moveOn(followed);
+      // A rest that moved changes what its day holds: the day is sized again with it, and the rests follow the
+      // portions that gives, until they stand. A change leaves each day as the next change of the plan finds it.
+      for (let round = 0; sizeAgain && followed.length > 0 && round < SETTLE_ROUNDS; round += 1) {
+        const meals = await tx.plannedMeal.findMany({
+          where: { id: { in: followed.map((one) => one.mealId) } },
+          select: { dayId: true },
+        });
+        let sized = false;
+        for (const dayId of new Set(meals.map((meal) => meal.dayId)))
+          if (await sizeAgain(tx, dayId, today)) sized = true;
+        if (!sized) break;
+        followed = await followRests(tx, planId, today);
+        await moveOn(followed);
+      }
     }
     // What the plans of each kitchen take out of the freezer is chosen again with the menu as the change left it
     // (`repickFreezer`); a plan of the kitchen whose choice changes moves on as well.

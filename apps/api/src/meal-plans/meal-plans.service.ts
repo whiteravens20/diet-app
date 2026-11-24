@@ -149,7 +149,7 @@ import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/
 import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
 import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
-import { planChangedMeanwhile, writePlan, writePlans } from './plan-write.js';
+import { planChangedMeanwhile, sizeDaysWith, writePlan, writePlans } from './plan-write.js';
 import {
   CANDIDATE,
   dislikedIn,
@@ -185,7 +185,13 @@ export class MealPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
-  ) {}
+  ) {
+    // A write of a plan whose rests of packs move sizes their days again as a change of a day sizes it.
+    sizeDaysWith(
+      async (tx, dayId, today) =>
+        ((await this.rebalanceDayInternal(dayId, tx, today))?.changes.length ?? 0) > 0,
+    );
+  }
 
   /**
    * Delete a plan and everything under it (days, meals, shopping lists cascade). What was eaten from it is
