@@ -16,9 +16,10 @@
  * and line for line, is no new recipe: it brings that recipe its other
  * languages (`sameLibraryRecipe`, `addLanguages`) and nothing else is written.
  *
- * A recipe that fails one of these is not written, and the reason is named
- * as `<rule>: <detail>`: a rule a client can word in the reader's language,
- * and the slug, title or figures it is about.
+ * A recipe that fails one of these is not written, and every rule it fails is
+ * named at once, each as `<rule>: <detail>`: a rule a client can word in the
+ * reader's language, and the slug, title or figures it is about. One edit can
+ * then mend them all.
  */
 import type { Prisma } from '@prisma/client';
 import { recipeFacts, servingColumns, type RecipeFacts } from '../../../engine/recipe-facts.js';
@@ -62,7 +63,7 @@ export interface Claimed {
 
 const nothingClaimed = (): Claimed => ({ slugs: new Set(), titles: new Set(), makings: new Map() });
 
-export type Assessed = { ok: true; recipe: LibraryRecipe } | { ok: false; reason: string };
+export type Assessed = { ok: true; recipe: LibraryRecipe } | { ok: false; reasons: string[] };
 
 /** Largest change of a serving's energy, in kcal, that still counts as the figure people reviewed. */
 const CALORIE_TOLERANCE = 1;
@@ -112,25 +113,28 @@ export async function assessForLibrary(
   });
   const bySlug = new Map(ingredients.map((ingredient) => [ingredient.slug!, ingredient]));
   const missing = slugs.filter((slug) => !bySlug.has(slug));
-  if (missing.length > 0)
-    return { ok: false, reason: `unknown-slug-at-ship: ${missing.join(', ')}` };
-
-  let facts: RecipeFacts;
-  try {
-    facts = recipeFacts(
-      content.ingredients.map((line) => ({
-        quantity: line.quantity,
-        unit: line.unit,
-        ingredient: bySlug.get(line.slug)!,
-      })),
-      content.servings,
-    );
-  } catch (err) {
-    if (!(err instanceof UnitConversionError)) throw err;
-    return { ok: false, reason: `unit-not-convertible: ${err.message}` };
+  // The figures are worked out from the ingredients, and the rules of the figures need them;
+  // the slug, the title and what the recipe is made of are judged on its own text and lines.
+  const reasons: string[] = [];
+  let facts: RecipeFacts | null = null;
+  if (missing.length > 0) reasons.push(`unknown-slug-at-ship: ${missing.join(', ')}`);
+  else {
+    try {
+      facts = recipeFacts(
+        content.ingredients.map((line) => ({
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: bySlug.get(line.slug)!,
+        })),
+        content.servings,
+      );
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      reasons.push(`unit-not-convertible: ${err.message}`);
+    }
   }
 
-  if (options.reviewed) {
+  if (facts && options.reviewed) {
     const { reviewed } = options;
     const changes = [
       Math.abs(facts.perServing.calories - reviewed.caloriesPerServing) > CALORIE_TOLERANCE
@@ -141,8 +145,7 @@ export async function assessForLibrary(
       moved(reviewed.dietTags, facts.dietTags) &&
         `diets ${moved(reviewed.dietTags, facts.dietTags)}`,
     ].filter(Boolean);
-    if (changes.length > 0)
-      return { ok: false, reason: `facts-moved-since-review: ${changes.join('; ')}` };
+    if (changes.length > 0) reasons.push(`facts-moved-since-review: ${changes.join('; ')}`);
   }
 
   const title = content.title.en ?? '';
@@ -159,15 +162,13 @@ export async function assessForLibrary(
     where: { slug: content.slug, ...other },
     select: { id: true },
   });
-  if (holder || claimed?.slugs.has(content.slug))
-    return { ok: false, reason: `slug-taken: ${content.slug}` };
+  if (holder || claimed?.slugs.has(content.slug)) reasons.push(`slug-taken: ${content.slug}`);
 
   const namesake = await db.recipe.findFirst({
     where: { ...SHARED, ...other, title: { equals: title, mode: 'insensitive' } },
     select: { id: true },
   });
-  if (namesake || claimed?.titles.has(title.toLowerCase()))
-    return { ok: false, reason: `title-taken: ${title}` };
+  if (namesake || claimed?.titles.has(title.toLowerCase())) reasons.push(`title-taken: ${title}`);
 
   const twin = await db.recipe.findFirst({
     where: { ...SHARED, ...other, fingerprint },
@@ -175,7 +176,8 @@ export async function assessForLibrary(
     select: { slug: true, title: true },
   });
   const made = twin ? (twin.slug ?? twin.title) : claimed?.makings.get(fingerprint);
-  if (made !== undefined) return { ok: false, reason: `same-making-as: ${made}` };
+  if (made !== undefined) reasons.push(`same-making-as: ${made}`);
+  if (facts === null || reasons.length > 0) return { ok: false, reasons };
 
   claimed?.slugs.add(content.slug);
   claimed?.titles.add(title.toLowerCase());
@@ -355,15 +357,15 @@ export async function sortRecipesForFile<
       skipped.push({
         draftId: draft.id,
         slug: draft.slug,
-        reason: `adds-a-language: ${draft.slug}`,
+        reasons: [`adds-a-language: ${draft.slug}`],
       });
       continue;
     }
-    const assessed = shippable.ok
+    const assessed: Assessed = shippable.ok
       ? await assessForLibrary(db, shippable.content, { reviewed: draft, claimed })
-      : shippable;
+      : { ok: false, reasons: [shippable.reason] };
     if (assessed.ok) shipping.push({ draft, content: assessed.recipe.content });
-    else skipped.push({ draftId: draft.id, slug: draft.slug, reason: assessed.reason });
+    else skipped.push({ draftId: draft.id, slug: draft.slug, reasons: assessed.reasons });
   }
   return { shipping, skipped };
 }

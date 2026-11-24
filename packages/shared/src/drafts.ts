@@ -692,12 +692,12 @@ export type ReviewStatus = z.infer<typeof ReviewStatus>;
 export const ReviewerSessionAnswer = z.object({ session: ReviewerSessionDto.nullable() });
 export type ReviewerSessionAnswer = z.infer<typeof ReviewerSessionAnswer>;
 
-/** A draft that did not ship: which one, and why, as `<rule>` or `<rule>: <detail>`. */
+/** A draft that did not ship: which one, and every reason it was held back for, each as `<rule>` or `<rule>: <detail>`. */
 export const SkippedDraft = z.object({
   draftId: z.string(),
   /** The draft's slug, or the slug of the ingredient it names. */
   slug: z.string(),
-  reason: z.string(),
+  reasons: z.array(z.string()).min(1),
 });
 export type SkippedDraft = z.infer<typeof SkippedDraft>;
 
@@ -841,8 +841,10 @@ export const RestoredFromInstanceData = z.object({
   recipes: z.object({
     added: z.number().int().min(0),
     rewritten: z.number().int().min(0),
-    /** Recipes left out, with the file they are in and the reason. */
-    skipped: z.array(z.object({ file: z.string(), slug: z.string(), reason: z.string() })),
+    /** Recipes left out, with the file they are in and every reason. */
+    skipped: z.array(
+      z.object({ file: z.string(), slug: z.string(), reasons: z.array(z.string()).min(1) }),
+    ),
   }),
   names: z.object({
     applied: z.number().int().min(0),

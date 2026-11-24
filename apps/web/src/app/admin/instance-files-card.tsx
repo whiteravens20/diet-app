@@ -21,7 +21,7 @@ import {
   type InstanceMirror,
   type RestoreResponse,
 } from '@/lib/admin-api';
-import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
+import { useDraftErrorText, useSkipReasonText, useSkipReasonsText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { Explain } from './explain';
@@ -153,6 +153,7 @@ function InstanceData({
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
   const reasonText = useSkipReasonText();
+  const reasonsText = useSkipReasonsText();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RestoreResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -244,7 +245,7 @@ function InstanceData({
                 {result.recipes.skipped.map((entry, index) => (
                   <li key={`${entry.file}:${index}`}>
                     <span className="font-mono">{entry.slug}</span> ({entry.file}) —{' '}
-                    {reasonText(entry.reason)}
+                    {reasonsText(entry.reasons)}
                   </li>
                 ))}
               </ul>

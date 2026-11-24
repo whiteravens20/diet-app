@@ -78,6 +78,36 @@ describe('the bar, one row until more is asked for', () => {
   });
 });
 
+describe('a recipe draft a ship held back', () => {
+  it('is named with every reason it was held back for, one after another', async () => {
+    shown();
+    vi.spyOn(adminApi, 'ship').mockResolvedValue({
+      mode: 'local',
+      kind: 'recipe',
+      shippedDraftIds: [],
+      skipped: [
+        {
+          draftId: 'd1',
+          slug: 'yogurt-with-walnuts',
+          reasons: [
+            'facts-moved-since-review: calories 320 → 331',
+            'title-taken: Greek yogurt with almonds & honey',
+          ],
+        },
+      ],
+      sidecarPaths: [],
+    });
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: new RegExp(text.shipModeLocal) }),
+    );
+
+    expect(await screen.findByRole('listitem')).toHaveTextContent(
+      'yogurt-with-walnuts — its figures changed since it was reviewed (calories 320 → 331); save it again and have it approved; another recipe of the library is already called “Greek yogurt with almonds & honey”',
+    );
+  });
+});
+
 describe("what a ship did with the instance's own files", () => {
   it('say so when a ship went through but the files were not written for that reason', async () => {
     shown();
@@ -121,7 +151,7 @@ describe("what a ship did with the instance's own files", () => {
 
 describe('the names of ingredients the catalogue does not have, which a ship left in the queue', () => {
   /** The bar of names, after a ship into this instance that held `skipped` back. */
-  async function shipped(skipped: { draftId: string; slug: string; reason: string }[]) {
+  async function shipped(skipped: { draftId: string; slug: string; reasons: string[] }[]) {
     vi.spyOn(adminApi, 'shipConfig').mockResolvedValue({
       ...configWith(),
       approvedCounts: { recipe: 0, ingredientName: skipped.length },
@@ -148,7 +178,7 @@ describe('the names of ingredients the catalogue does not have, which a ship lef
   const fuji = {
     draftId: 'd1',
     slug: 'apples-fuji-with-skin-raw',
-    reason: 'unknown-slug: apples-fuji-with-skin-raw',
+    reasons: ['unknown-slug: apples-fuji-with-skin-raw'],
   };
 
   it('go, every draft of them, once it is said how many and that it cannot be undone', async () => {
@@ -217,7 +247,7 @@ describe('the names of ingredients the catalogue does not have, which a ship lef
   });
 
   it('is offered only where a ship held back a name for that reason', async () => {
-    await shipped([{ draftId: 'd2', slug: 'banana', reason: 'not-approved: PENDING' }]);
+    await shipped([{ draftId: 'd2', slug: 'banana', reasons: ['not-approved: PENDING'] }]);
 
     expect(screen.queryByRole('button', { name: text.removeMissing })).toBeNull();
   });

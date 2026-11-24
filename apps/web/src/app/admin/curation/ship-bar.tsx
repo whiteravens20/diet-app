@@ -17,7 +17,7 @@ import {
   type ShipResponse,
   type ShipSkipped,
 } from '@/lib/admin-api';
-import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
+import { useDraftErrorText, useSkipReasonsText } from '@/lib/use-draft-error';
 import { RemoveWithoutIngredient } from './remove-without-ingredient';
 
 export function ShipBar({
@@ -219,7 +219,7 @@ export function ShipBar({
 }
 
 /**
- * The approved drafts a ship left where they were, each by its slug, with the reason in words. Where it held back names
+ * The approved drafts a ship left where they were, each by its slug, with every reason in words. Where it held back names
  * of ingredients the catalogue no longer has, with the way to remove every draft of such a name ([onRemoved]).
  */
 function SkippedDrafts({
@@ -232,9 +232,11 @@ function SkippedDrafts({
   onRemoved?: () => void | Promise<void>;
 }) {
   const t = useTranslations('admin.curation');
-  const reasonText = useSkipReasonText();
+  const reasonsText = useSkipReasonsText();
   if (skipped.length === 0) return null;
-  const missing = skipped.some((entry) => entry.reason.startsWith('unknown-slug:'));
+  const missing = skipped.some((entry) =>
+    entry.reasons.some((reason) => reason.startsWith('unknown-slug:')),
+  );
   return (
     <div className="mt-1 space-y-2 text-warning">
       <div>
@@ -242,7 +244,7 @@ function SkippedDrafts({
         <ul className="list-disc pl-4">
           {skipped.map((entry) => (
             <li key={entry.draftId}>
-              <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
+              <span className="font-mono">{entry.slug}</span> — {reasonsText(entry.reasons)}
             </li>
           ))}
         </ul>

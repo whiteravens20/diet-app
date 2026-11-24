@@ -272,16 +272,20 @@ describe('what a ship answers with', () => {
     };
     expect(ShipResult.parse(local)).toEqual(local);
     expect(ShipResult.safeParse({ ...local, mode: 'bundle' }).success).toBe(false);
+    const bundle = {
+      mode: 'bundle',
+      kind: 'ingredient-name',
+      batchId: 'b',
+      draftIds: [],
+      skipped: [{ draftId: 'd', slug: 's', reasons: ['r'] }],
+      fileName: 'f.json',
+      content: {},
+    };
+    expect(ShipResult.safeParse(bundle).success).toBe(true);
+    // A draft held back is held back for something.
     expect(
-      ShipResult.safeParse({
-        mode: 'bundle',
-        kind: 'ingredient-name',
-        batchId: 'b',
-        draftIds: [],
-        skipped: [{ draftId: 'd', slug: 's', reason: 'r' }],
-        fileName: 'f.json',
-        content: {},
-      }).success,
-    ).toBe(true);
+      ShipResult.safeParse({ ...bundle, skipped: [{ draftId: 'd', slug: 's', reasons: [] }] })
+        .success,
+    ).toBe(false);
   });
 });

@@ -46,7 +46,7 @@ export interface LocalShipResult {
 /** One recipe draft into the library: what shipped, or why it did not. */
 export type RecipeShipOutcome =
   | { ok: true; draft: RecipeDraftRow; content: ShippedRecipe }
-  | { ok: false; reason: string; problems?: RecipeProblem[] };
+  | { ok: false; reasons: string[]; problems?: RecipeProblem[] };
 
 const approved = (request: LocalShipRequest) => ({
   status: 'APPROVED' as const,
@@ -67,16 +67,19 @@ export function shipRecipeDraftLocal(
   return prisma.$transaction(async (tx): Promise<RecipeShipOutcome> => {
     await lockRecipeDraft(tx, id);
     const draft = await tx.recipeDraft.findUnique({ where: { id } });
-    if (!draft) return { ok: false, reason: 'draft-gone' };
-    if (draft.status !== 'APPROVED') return { ok: false, reason: `not-approved: ${draft.status}` };
+    if (!draft) return { ok: false, reasons: ['draft-gone'] };
+    if (draft.status !== 'APPROVED')
+      return { ok: false, reasons: [`not-approved: ${draft.status}`] };
 
     // Held to the rules of every recipe once more: a draft approved before a
     // rule existed does not ship until it is edited.
     const shippable = shippableRecipe(draft);
-    if (!shippable.ok) return shippable;
+    if (!shippable.ok)
+      return { ok: false, reasons: [shippable.reason], problems: shippable.problems };
     // A draft of a recipe the library has is that recipe in more languages: its text is added, and nothing else is written.
     const same = await sameLibraryRecipe(tx, shippable.content);
-    if (same === 'changed') return { ok: false, reason: `library-recipe-changed: ${draft.slug}` };
+    if (same === 'changed')
+      return { ok: false, reasons: [`library-recipe-changed: ${draft.slug}`] };
     let recipeId: string;
     if (same) {
       await addLanguages(tx, same.id, shippable.content);
@@ -117,10 +120,10 @@ export async function shipRecipesLocal(
     try {
       outcome = await shipRecipeDraftLocal(prisma, id);
     } catch (err) {
-      outcome = { ok: false, reason: failure(err) };
+      outcome = { ok: false, reasons: [failure(err)] };
     }
     if (outcome.ok) shipped.push(id);
-    else skipped.push({ draftId: id, slug, reason: outcome.reason });
+    else skipped.push({ draftId: id, slug, reasons: outcome.reasons });
   }
 
   return { kind: 'recipe', shippedDraftIds: shipped, skipped };
@@ -187,7 +190,7 @@ export async function shipIngredientNamesLocal(
       outcome = { ok: false, reason: failure(err) };
     }
     if (outcome.ok) shipped.push(id);
-    else skipped.push({ draftId: id, slug: ingredientSlug, reason: outcome.reason });
+    else skipped.push({ draftId: id, slug: ingredientSlug, reasons: [outcome.reason] });
   }
 
   return { kind: 'ingredient-name', shippedDraftIds: shipped, skipped };

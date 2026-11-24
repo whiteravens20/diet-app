@@ -25457,14 +25457,18 @@
                     "slug": {
                       "type": "string"
                     },
-                    "reason": {
-                      "type": "string"
+                    "reasons": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
                     "file",
                     "slug",
-                    "reason"
+                    "reasons"
                   ],
                   "additionalProperties": false
                 }
@@ -26581,14 +26585,18 @@
           "slug": {
             "type": "string"
           },
-          "reason": {
-            "type": "string"
+          "reasons": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "draftId",
           "slug",
-          "reason"
+          "reasons"
         ],
         "additionalProperties": false
       },

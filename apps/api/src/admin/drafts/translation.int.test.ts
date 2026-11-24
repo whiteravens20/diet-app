@@ -398,7 +398,7 @@ describe('the run that fills a language recipes lack', () => {
           {
             draftId: draft.id,
             slug: recipe.slug,
-            reason: `library-recipe-changed: ${recipe.slug}`,
+            reasons: [`library-recipe-changed: ${recipe.slug}`],
           },
         ],
       });
@@ -421,7 +421,7 @@ describe('the run that fills a language recipes lack', () => {
 
       expect(res.body).toMatchObject({
         error: 'NO_VALID_DRAFTS',
-        details: { skipped: [{ draftId: draft.id, reason: `adds-a-language: ${recipe.slug}` }] },
+        details: { skipped: [{ draftId: draft.id, reasons: [`adds-a-language: ${recipe.slug}`] }] },
       });
     });
 

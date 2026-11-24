@@ -206,7 +206,11 @@ describe('sorting drafts for shipping', () => {
       ['c', 'another-bowl'],
     ]);
     expect(skipped).toEqual([
-      { draftId: 'b', slug: 'oat-bowl', reason: 'invalid-draft: servings: servings-out-of-range' },
+      {
+        draftId: 'b',
+        slug: 'oat-bowl',
+        reasons: ['invalid-draft: servings: servings-out-of-range'],
+      },
     ]);
   });
 });

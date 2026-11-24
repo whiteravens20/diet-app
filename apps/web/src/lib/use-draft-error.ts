@@ -56,6 +56,12 @@ export function useSkipReasonText(): (reason: string) => string {
   );
 }
 
+/** Every reason a draft did not ship, in the reader's language, one after another. */
+export function useSkipReasonsText(): (reasons: readonly string[]) => string {
+  const reasonText = useSkipReasonText();
+  return useCallback((reasons) => reasons.map(reasonText).join('; '), [reasonText]);
+}
+
 /**
  * A failed request about a draft, in the reader's language: every problem the
  * API named when it refused the content, the reason a draft may not ship, else
@@ -68,7 +74,7 @@ export function useDraftErrorText(): (err: unknown, fallback: string) => string 
   const t = useTranslations('draftProblems');
   const tErrors = useTranslations('errors');
   const problemLine = useProblemLine();
-  const skipReason = useSkipReasonText();
+  const skipReasons = useSkipReasonsText();
   const errorText = useErrorText();
   return useCallback(
     (err, fallback) => {
@@ -77,12 +83,13 @@ export function useDraftErrorText(): (err: unknown, fallback: string) => string 
         const problems = draftProblemsOf(refusal.details);
         if (problems.length > 0) return `${t('intro')} ${problems.map(problemLine).join('; ')}`;
       }
-      if (refusal?.code === 'DRAFT_NOT_SHIPPABLE' && typeof refusal.details?.reason === 'string') {
-        return `${tErrors('DRAFT_NOT_SHIPPABLE')} ${skipReason(refusal.details.reason)}`;
+      const reasons = refusal?.code === 'DRAFT_NOT_SHIPPABLE' ? refusal.details?.reasons : null;
+      if (Array.isArray(reasons) && reasons.every((reason) => typeof reason === 'string')) {
+        return `${tErrors('DRAFT_NOT_SHIPPABLE')} ${skipReasons(reasons)}`;
       }
       // An error of the page's own says what it is; a failed request is worded as everywhere.
       return errorText(err, err instanceof Error && !refusal ? err.message : fallback);
     },
-    [t, tErrors, problemLine, skipReason, errorText],
+    [t, tErrors, problemLine, skipReasons, errorText],
   );
 }

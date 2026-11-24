@@ -169,12 +169,27 @@ describe('what the administrator is told about a draft that did not ship', () =>
       undefined,
       undefined,
       {
-        reason: 'same-making-as: milk-porridge',
+        reasons: ['same-making-as: milk-porridge'],
       },
     );
 
     expect(told(error)).toBe(
       'This draft cannot go into the library as it is: has the same ingredients, amounts, meals and servings as milk-porridge',
+    );
+  });
+
+  it('names every rule a refused promotion found, one after another', () => {
+    const error = new ApiClientError(
+      409,
+      'DRAFT_NOT_SHIPPABLE',
+      'The draft cannot go into the library: slug-taken: milk-porridge; title-taken: Milk porridge.',
+      undefined,
+      undefined,
+      { reasons: ['slug-taken: milk-porridge', 'title-taken: Milk porridge'] },
+    );
+
+    expect(told(error)).toBe(
+      'This draft cannot go into the library as it is: another recipe already has the slug milk-porridge; change the slug of the draft; another recipe of the library is already called “Milk porridge”',
     );
   });
 });

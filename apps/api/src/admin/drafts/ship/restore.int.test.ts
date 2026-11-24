@@ -190,22 +190,22 @@ describe('restoring what an instance added to its catalogue', () => {
         {
           file: 'recipes/ship-2026-01-01.json',
           slug: 'marked-rice',
-          reason: 'invalid-draft: titles.en: markup',
+          reasons: ['invalid-draft: titles.en: markup'],
         },
         {
           file: 'recipes/ship-2026-01-01.json',
           slug: 'milk-porridge',
-          reason: 'slug-taken: milk-porridge',
+          reasons: ['slug-taken: milk-porridge'],
         },
         {
           file: 'recipes/ship-2026-01-01.json',
           slug: 'unknown-rice',
-          reason: 'unknown-slug-at-ship: no-such-ingredient',
+          reasons: ['unknown-slug-at-ship: no-such-ingredient'],
         },
         {
           file: 'recipes/ship-2026-01-01.json',
           slug: '[4]',
-          reason: expect.stringMatching(/^invalid-draft: /),
+          reasons: [expect.stringMatching(/^invalid-draft: /)],
         },
       ],
     });

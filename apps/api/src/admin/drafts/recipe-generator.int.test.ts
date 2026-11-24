@@ -737,7 +737,7 @@ describe('generating recipe drafts', () => {
         {
           draftId: draft.id,
           slug: draft.slug,
-          reason: 'facts-moved-since-review: diets -balanced',
+          reasons: ['facts-moved-since-review: diets -balanced'],
         },
       ]);
     });

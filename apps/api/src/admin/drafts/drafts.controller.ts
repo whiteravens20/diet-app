@@ -533,11 +533,11 @@ export class DraftsController {
     if (!outcome.ok) {
       if (outcome.problems) throw invalid(outcome.problems);
       // Reviewed, edited or promoted by someone else a moment ago.
-      if (outcome.reason.startsWith('not-approved')) throw notApproved();
+      if (outcome.reasons.some((reason) => reason.startsWith('not-approved'))) throw notApproved();
       throw new ConflictException({
         error: 'DRAFT_NOT_SHIPPABLE',
-        message: `The draft cannot go into the library: ${outcome.reason}.`,
-        details: { reason: outcome.reason },
+        message: `The draft cannot go into the library: ${outcome.reasons.join('; ')}.`,
+        details: { reasons: outcome.reasons },
       });
     }
     await this.files.write();

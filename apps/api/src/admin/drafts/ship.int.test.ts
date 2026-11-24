@@ -51,7 +51,7 @@ describe('shipping approved drafts', () => {
 
       expect(res.body.shippedDraftIds).toEqual([sound.id]);
       expect(res.body.skipped).toEqual([
-        { draftId: old.id, slug: old.slug, reason: 'invalid-draft: titles.en: markup' },
+        { draftId: old.id, slug: old.slug, reasons: ['invalid-draft: titles.en: markup'] },
       ]);
       expect((await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: old.id } })).status).toBe(
         'APPROVED',
@@ -119,7 +119,7 @@ describe('shipping approved drafts', () => {
         expect(res.body).toMatchObject({
           shippedDraftIds: [],
           skipped: [
-            { draftId: draft.id, slug: 'milk-porridge', reason: 'slug-taken: milk-porridge' },
+            { draftId: draft.id, slug: 'milk-porridge', reasons: ['slug-taken: milk-porridge'] },
           ],
         });
         expect(await milkPorridge()).toEqual(before);
@@ -137,7 +137,7 @@ describe('shipping approved drafts', () => {
         const res = await ship('recipe', 'local').expect(201);
 
         expect(res.body.skipped).toEqual([
-          { draftId: draft.id, slug: draft.slug, reason: 'title-taken: MILK porridge' },
+          { draftId: draft.id, slug: draft.slug, reasons: ['title-taken: MILK porridge'] },
         ]);
         expect(await t.prisma.recipe.count({ where: { origin: 'curated' } })).toBe(0);
       });
@@ -155,7 +155,7 @@ describe('shipping approved drafts', () => {
         const res = await ship('recipe', 'local').expect(201);
 
         expect(res.body.skipped).toEqual([
-          { draftId: draft.id, slug: draft.slug, reason: 'same-making-as: milk-porridge' },
+          { draftId: draft.id, slug: draft.slug, reasons: ['same-making-as: milk-porridge'] },
         ]);
       });
 
@@ -169,7 +169,7 @@ describe('shipping approved drafts', () => {
 
         expect(res.body.shippedDraftIds).toEqual([first.id]);
         expect(res.body.skipped).toEqual([
-          { draftId: second.id, slug: second.slug, reason: 'title-taken: Oat bowl' },
+          { draftId: second.id, slug: second.slug, reasons: ['title-taken: Oat bowl'] },
         ]);
       });
     });
@@ -188,9 +188,56 @@ describe('shipping approved drafts', () => {
         {
           draftId: draft.id,
           slug: draft.slug,
-          reason: expect.stringMatching(
-            /^facts-moved-since-review: calories 100 → \d+; allergens \+gluten -dairy$/,
-          ),
+          reasons: [
+            expect.stringMatching(
+              /^facts-moved-since-review: calories 100 → \d+; allergens \+gluten -dairy$/,
+            ),
+          ],
+        },
+      ]);
+    });
+
+    it('names every rule a draft breaks at once, so that one edit can mend them all', async () => {
+      const draft = await aRecipeDraft(t, {
+        status: 'APPROVED',
+        slug: 'milk-porridge',
+        titles: { en: 'MILK porridge', pl: 'Owsianka na mleku' },
+        caloriesPerServing: 100,
+      });
+
+      const res = await ship('recipe', 'local').expect(201);
+
+      expect(res.body.skipped).toEqual([
+        {
+          draftId: draft.id,
+          slug: 'milk-porridge',
+          reasons: [
+            expect.stringMatching(/^facts-moved-since-review: calories 100 → \d+$/),
+            'slug-taken: milk-porridge',
+            'title-taken: MILK porridge',
+          ],
+        },
+      ]);
+    });
+
+    it('names what its text and lines break even where an ingredient has left the catalogue', async () => {
+      const draft = await aRecipeDraft(t, {
+        status: 'APPROVED',
+        titles: { en: 'MILK porridge', pl: 'Owsianka na mleku' },
+      });
+      await t.prisma.ingredient.update({
+        where: { slug: 'banana' },
+        data: { retiredAt: new Date() },
+      });
+
+      const res = await ship('recipe', 'local').expect(201);
+      await t.prisma.ingredient.update({ where: { slug: 'banana' }, data: { retiredAt: null } });
+
+      expect(res.body.skipped).toEqual([
+        {
+          draftId: draft.id,
+          slug: draft.slug,
+          reasons: ['unknown-slug-at-ship: banana', 'title-taken: MILK porridge'],
         },
       ]);
     });
@@ -206,7 +253,7 @@ describe('shipping approved drafts', () => {
       await t.prisma.ingredient.update({ where: { slug: 'banana' }, data: { retiredAt: null } });
 
       expect(res.body.skipped).toEqual([
-        { draftId: draft.id, slug: draft.slug, reason: 'unknown-slug-at-ship: banana' },
+        { draftId: draft.id, slug: draft.slug, reasons: ['unknown-slug-at-ship: banana'] },
       ]);
     });
 
@@ -225,7 +272,7 @@ describe('shipping approved drafts', () => {
       const answer = await held.shipping;
       expect(answer.body).toMatchObject({
         shippedDraftIds: [],
-        skipped: [{ draftId: draft.id, reason: 'not-approved: PENDING' }],
+        skipped: [{ draftId: draft.id, reasons: ['not-approved: PENDING'] }],
       });
       expect(await t.prisma.recipe.count({ where: { origin: 'curated' } })).toBe(0);
     });
@@ -263,7 +310,7 @@ describe('shipping approved drafts', () => {
 
       expect(res.body.shippedDraftIds).toEqual([draft.id]);
       expect(res.body.skipped).toEqual([
-        { draftId: marked.id, slug: 'salmon', reason: 'invalid-draft: name.pl: markup' },
+        { draftId: marked.id, slug: 'salmon', reasons: ['invalid-draft: name.pl: markup'] },
       ]);
       const written = await t.prisma.ingredientTranslation.findMany({
         where: { source: 'MANUAL' },
@@ -326,7 +373,7 @@ describe('shipping approved drafts', () => {
       expect(res.body.draftIds).toEqual([sound.id]);
       expect(res.body.content).toHaveLength(1);
       expect(res.body.skipped).toEqual([
-        { draftId: old.id, slug: old.slug, reason: 'invalid-draft: titles.en: markup' },
+        { draftId: old.id, slug: old.slug, reasons: ['invalid-draft: titles.en: markup'] },
       ]);
     });
 
@@ -344,8 +391,8 @@ describe('shipping approved drafts', () => {
 
       expect(res.body.draftIds).toEqual([first.id]);
       expect(res.body.skipped).toEqual([
-        { draftId: taking.id, slug: taking.slug, reason: 'title-taken: Milk Porridge' },
-        { draftId: repeat.id, slug: repeat.slug, reason: 'title-taken: Oat bowl' },
+        { draftId: taking.id, slug: taking.slug, reasons: ['title-taken: Milk Porridge'] },
+        { draftId: repeat.id, slug: repeat.slug, reasons: ['title-taken: Oat bowl'] },
       ]);
     });
 
@@ -357,11 +404,11 @@ describe('shipping approved drafts', () => {
 
       expect([res.status, res.body.error]).toEqual([409, 'NO_VALID_DRAFTS']);
       expect(res.body.details.skipped).toEqual([
-        { draftId: old.id, slug: old.slug, reason: 'invalid-draft: titles.en: markup' },
+        { draftId: old.id, slug: old.slug, reasons: ['invalid-draft: titles.en: markup'] },
         {
           draftId: moved.id,
           slug: moved.slug,
-          reason: expect.stringMatching(/^facts-moved-since-review: calories 1 → \d+$/),
+          reasons: [expect.stringMatching(/^facts-moved-since-review: calories 1 → \d+$/)],
         },
       ]);
       expect(
@@ -497,7 +544,9 @@ describe('shipping approved drafts', () => {
       const res = await promote(draft.id);
 
       expect([res.status, res.body.error]).toEqual([409, 'DRAFT_NOT_SHIPPABLE']);
-      expect(res.body.details.reason).toMatch(/^facts-moved-since-review: calories 5 → \d+$/);
+      expect(res.body.details.reasons).toEqual([
+        expect.stringMatching(/^facts-moved-since-review: calories 5 → \d+$/),
+      ]);
       expect(await t.prisma.recipe.count({ where: { origin: 'curated' } })).toBe(0);
     });
 
@@ -509,10 +558,10 @@ describe('shipping approved drafts', () => {
 
       const res = await promote(draft.id);
 
-      expect([res.status, res.body.error, res.body.details?.reason]).toEqual([
+      expect([res.status, res.body.error, res.body.details?.reasons]).toEqual([
         409,
         'DRAFT_NOT_SHIPPABLE',
-        'same-making-as: milk-porridge',
+        ['same-making-as: milk-porridge'],
       ]);
     });
 

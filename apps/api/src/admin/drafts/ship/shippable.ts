@@ -48,7 +48,8 @@ export interface Skipped {
   draftId: string;
   /** The draft's slug, or the slug of the ingredient it names. */
   slug: string;
-  reason: string;
+  /** Every reason it was held back for, each as `<rule>` or `<rule>: <detail>`. */
+  reasons: string[];
 }
 
 /** No approved draft may ship: each of them was held back, and here is why. */
@@ -191,7 +192,7 @@ export function sortForShipping<D extends { id: string }, T>(
   for (const draft of drafts) {
     const result = shippable(draft);
     if (result.ok) shipping.push({ draft, content: result.content });
-    else skipped.push({ draftId: draft.id, slug: slugOf(draft), reason: result.reason });
+    else skipped.push({ draftId: draft.id, slug: slugOf(draft), reasons: [result.reason] });
   }
   return { shipping, skipped };
 }

@@ -51,8 +51,8 @@ export interface RestoreResult {
   recipes: {
     added: number;
     rewritten: number;
-    /** Recipes left out, with the file they are in and the reason as a skipped draft carries one. */
-    skipped: { file: string; slug: string; reason: string }[];
+    /** Recipes left out, with the file they are in and the reasons as a skipped draft carries them. */
+    skipped: { file: string; slug: string; reasons: string[] }[];
   };
   names: {
     applied: number;
@@ -152,7 +152,7 @@ export async function restoreInstanceData(
       const named = isRecord(row) && typeof row.slug === 'string' ? row.slug : `[${index}]`;
       const shippable = recipeOfBatchRow(row);
       if (!shippable.ok) {
-        recipes.skipped.push({ file, slug: named, reason: shippable.reason });
+        recipes.skipped.push({ file, slug: named, reasons: [shippable.reason] });
         continue;
       }
       const content = shippable.content;
@@ -165,12 +165,12 @@ export async function restoreInstanceData(
           select: { id: true },
         });
         const assessed = await assessForLibrary(tx, content, { own: mine?.id });
-        if (!assessed.ok) return assessed.reason;
+        if (!assessed.ok) return assessed.reasons;
         await writeToLibrary(tx, assessed.recipe, mine?.id);
         return mine ? ('rewritten' as const) : ('added' as const);
       });
       if (outcome === 'added' || outcome === 'rewritten') recipes[outcome] += 1;
-      else recipes.skipped.push({ file, slug: content.slug, reason: outcome });
+      else recipes.skipped.push({ file, slug: content.slug, reasons: outcome });
     }
   }
 
