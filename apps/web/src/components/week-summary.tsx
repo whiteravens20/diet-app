@@ -17,7 +17,7 @@ import { localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { useFormat } from '@/lib/use-format';
 import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
-import { bandValues } from '@/lib/carbs-band';
+import { bandValues, carbsStandingOf } from '@/lib/carbs-band';
 import { DOT } from '@/lib/figure-line';
 import { cn } from '@/lib/utils';
 
@@ -112,6 +112,7 @@ export function WeekSummaryCard({
                       carbs: shown.eaten.carbs,
                       carbsTarget: shown.target.carbs,
                       ...bandValues(shown.target),
+                      standing: carbsStandingOf(shown.eaten.carbs, shown.target),
                     })}
                   </p>
                 </>

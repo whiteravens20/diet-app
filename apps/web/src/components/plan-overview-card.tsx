@@ -15,7 +15,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { unread } from '@/components/load-failed';
-import { carbsBandOf } from '@/lib/carbs-band';
+import { carbsBandOf, carbsStandingOf } from '@/lib/carbs-band';
 
 /** Fetched when the chart is first shown: the charting library is the heaviest thing the dashboard has. */
 const PlanDaysChart = dynamic(
@@ -150,7 +150,13 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
                     <span className="text-muted-foreground">
                       {band === 'none'
                         ? t('macroValue', { planned, target })
-                        : t('macroCarbsBand', { band, planned, floor, ceiling: target })}
+                        : t('macroCarbsBand', {
+                            band,
+                            planned,
+                            floor,
+                            ceiling: target,
+                            standing: carbsStandingOf(planned, overview.macros.target),
+                          })}
                     </span>
                   </div>
                   {/* The bar is full at the target, or at the ceiling with the band drawn under it; what the plan

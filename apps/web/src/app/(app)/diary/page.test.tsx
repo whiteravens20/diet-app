@@ -219,26 +219,38 @@ describe('the diary', () => {
     expect(week).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it("says carbohydrate on low-carb against the diet's band, and fat against what is left", async () => {
-    await renderPage(
-      aDay({
-        target: {
-          calories: 2000,
-          protein: 163,
-          fat: 142,
-          carbs: 108,
-          carbsFloor: 54,
-          from: 'plan',
-        },
-      }),
-    );
+  /** A day of low-carb whose band reaches from 54 g to `carbs`, the day's figures as `aDay` has them: 109 g of carbohydrate. */
+  const lowCarb = (carbs: number, floor = 54) =>
+    aDay({
+      target: { calories: 2000, protein: 163, fat: 142, carbs, carbsFloor: floor, from: 'plan' },
+    });
+  /** What the grid says of a macronutrient: its figure, then what it is held against. */
+  const lines = (name: string) => [
+    ...screen.getByText(name, { selector: 'dt' }).parentElement!.querySelectorAll('dd'),
+  ];
+  const figure = (name: string) => lines(name).map((dd) => plain(dd.textContent));
 
-    const figure = (name: string) =>
-      [...screen.getByText(name, { selector: 'dt' }).parentElement!.querySelectorAll('dd')].map(
-        (dd) => plain(dd.textContent),
-      );
-    expect(figure('Carbs')).toEqual(['109 g', 'in range 54–108 g']);
+  it("says carbohydrate over the diet's band so, in the colour of a warning, and fat against what is left", async () => {
+    await renderPage(lowCarb(108));
+
+    // 109 g eaten of a band up to 108 g: the day can no longer come back into it.
+    expect(figure('Carbs')).toEqual(['109 g', 'above the range 54–108 g']);
+    expect(lines('Carbs')[1]).toHaveClass('text-warning');
     expect(figure('Fat')).toEqual(['19 g', 'of 142 g']);
+  });
+
+  it("says carbohydrate in the diet's band so, as a note", async () => {
+    await renderPage(lowCarb(120));
+
+    expect(figure('Carbs')).toEqual(['109 g', 'in range 54–120 g']);
+    expect(lines('Carbs')[1]).not.toHaveClass('text-warning');
+  });
+
+  it('says carbohydrate under the floor of its band so, as a note, the day going on', async () => {
+    await renderPage(lowCarb(250, 130));
+
+    expect(figure('Carbs')).toEqual(['109 g', 'below the range 130–250 g']);
+    expect(lines('Carbs')[1]).not.toHaveClass('text-warning');
   });
 
   it('says of a meal from a shared pot that its energy is a portion of a split, near the plan', async () => {

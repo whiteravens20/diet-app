@@ -21,3 +21,20 @@ export function bandValues(target: { carbsFloor: number | null }): {
 } {
   return { band: carbsBandOf(target), carbsFloor: target.carbsFloor ?? 0 };
 }
+
+/**
+ * Where an amount of carbohydrate stands against the band of its diet, in the whole grams it is shown in:
+ * over its ceiling, under its floor, or in it. Said beside the band, which is no verdict by itself.
+ */
+export type CarbsStanding = 'over' | 'under' | 'in';
+
+export function carbsStandingOf(
+  carbs: number,
+  target: { carbs: number; carbsFloor: number | null },
+): CarbsStanding {
+  const grams = Math.round(carbs);
+  if (target.carbsFloor === null) return 'in';
+  if (grams > Math.round(target.carbs)) return 'over';
+  if (grams < Math.round(target.carbsFloor)) return 'under';
+  return 'in';
+}

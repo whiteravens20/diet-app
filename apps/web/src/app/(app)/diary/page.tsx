@@ -54,7 +54,7 @@ import { RemovedBar, useRemovedLater } from '@/components/removed-later';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
-import { carbsBandOf } from '@/lib/carbs-band';
+import { carbsBandOf, carbsStandingOf } from '@/lib/carbs-band';
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -570,6 +570,9 @@ function DaySummary({
   const fmt = useFormat();
   const id = useId();
   const band = carbsBandOf(day.target);
+  // Over its band the day stays over: said in the colour of a warning, as its kcal over the target are. Under it, the day
+  // goes on.
+  const standing = carbsStandingOf(day.eaten.carbs, day.target);
   const share = day.target.calories > 0 ? Math.min(1, day.eaten.calories / day.target.calories) : 0;
   const plan = day.plan;
   // Where nothing is written, the plan's day stands as its own meals put it.
@@ -599,10 +602,17 @@ function DaySummary({
               <dd className="order-1 text-lg font-semibold tabular-nums">
                 {fmt.unit(day.eaten[macro], 'gram', 0)}
               </dd>
-              <dd className="order-3 text-xs text-muted-foreground">
+              <dd
+                className={`order-3 text-xs ${
+                  macro === 'carbs' && band !== 'none' && standing === 'over'
+                    ? 'text-warning'
+                    : 'text-muted-foreground'
+                }`}
+              >
                 {macro === 'carbs' && band !== 'none'
                   ? t('inBand', {
                       band,
+                      standing,
                       floor: day.target.carbsFloor ?? 0,
                       ceiling: day.target.carbs,
                     })

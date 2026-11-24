@@ -189,15 +189,63 @@ describe('a line of figures joined by dots', () => {
       carbsTarget: 108,
     };
     expect(
-      pieces(say('pl')('mealPlans.dayMacros', { ...day, band: 'range', carbsFloor: 54 })),
+      pieces(
+        say('pl')('mealPlans.dayMacros', {
+          ...day,
+          band: 'range',
+          carbsFloor: 54,
+          standing: 'in',
+        }),
+      ),
     ).toEqual([
       'Białko 156 z 163 g ·',
       'tłuszcz 152 z 142 g ·',
       'węglowodany 59 g, w normie 54–108 g',
     ]);
     expect(
-      pieces(say('en')('mealPlans.dayMacros', { ...day, band: 'ceiling', carbsFloor: 0 })),
+      pieces(
+        say('en')('mealPlans.dayMacros', {
+          ...day,
+          band: 'ceiling',
+          carbsFloor: 0,
+          standing: 'in',
+        }),
+      ),
     ).toEqual(['Protein 156 of 163 g ·', 'fat 152 of 142 g ·', 'carbs 59 g, at most 108 g']);
+    // Over or under the band, it says so, and breaks nowhere inside that either.
+    expect(
+      pieces(
+        say('pl')('mealPlans.dayMacros', {
+          ...day,
+          carbs: 140,
+          band: 'range',
+          carbsFloor: 54,
+          standing: 'over',
+        }),
+      ).at(-1),
+    ).toBe('węglowodany 140 g, ponad normę 54–108 g');
+    expect(
+      pieces(
+        say('pl')('mealPlans.dayMacros', {
+          ...day,
+          carbs: 40,
+          band: 'range',
+          carbsFloor: 54,
+          standing: 'under',
+        }),
+      ).at(-1),
+    ).toBe('węglowodany 40 g, poniżej normy 54–108 g');
+    expect(
+      pieces(
+        say('en')('mealPlans.dayMacros', {
+          ...day,
+          carbs: 120,
+          band: 'ceiling',
+          carbsFloor: 0,
+          standing: 'over',
+        }),
+      ).at(-1),
+    ).toBe('carbs 120 g, above the limit of 108 g');
   });
 
   it('keeps the letters of a diary entry with their grams', () => {
