@@ -5273,4 +5273,34 @@ describe('the plan page, on how a day is changed', () => {
 
     expect(screen.queryByRole('button', { name: help.link })).toBeNull();
   });
+  it('stands under a day that lacks much protein, after the line that says so', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    const day = plan.days[0]!;
+    await open({
+      ...plan,
+      days: [
+        {
+          ...day,
+          proteinShort: true,
+          dayNutrition: { ...day.dayNutrition, protein: 134 },
+          targetMacros: { ...day.targetMacros, protein: 178 },
+        },
+      ],
+    });
+
+    const line = await screen.findByText(
+      'Too little protein: 134 of 178 g, more than a fifth less than the day aims at.',
+    );
+    const link = screen.getByRole('button', { name: help.link });
+    expect(line.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says nothing of protein on a day that does not lack much of it', async () => {
+    onTheDay('2026-01-05');
+    await open(aPlan());
+
+    await screen.findByRole('button', { name: help.link });
+    expect(screen.queryByText(/^Too little protein/)).toBeNull();
+  });
 });

@@ -2186,6 +2186,7 @@
     "errUndoSwap": "The swap could not be undone.",
     "macrosOffChip": "Macros off target",
     "macrosOffHint": "This day's share of macronutrients is far from its target. Swapping a meal shows what the new recipe would make of it.",
+    "proteinShort": "Too little protein: {protein, number, ::group-off}\u00a0of {target, number, ::group-off}\u00a0g, more than a fifth less than the day aims at.",
     "macrosOffWhy": {
       "lean": "Too much {over}, too little {under}.",
       "macroOf": { "protein": "protein", "fat": "fat", "carbs": "carbohydrate" },

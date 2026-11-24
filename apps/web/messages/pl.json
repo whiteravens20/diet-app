@@ -2186,6 +2186,7 @@
     "errUndoSwap": "Nie udało się cofnąć zamiany.",
     "macrosOffChip": "Makro poza celem",
     "macrosOffHint": "Proporcje makroskładników tego dnia są daleko od celu. Zamiana posiłku pokaże, jak zmieni je nowy przepis.",
+    "proteinShort": "Za mało białka: {protein, number, ::group-off}\u00a0z\u00a0{target, number, ::group-off}\u00a0g, ponad jedną piątą mniej, niż zakłada dzień.",
     "macrosOffWhy": {
       "lean": "Za dużo {over}, za mało {under}.",
       "macroOf": { "protein": "białka", "fat": "tłuszczu", "carbs": "węglowodanów" },

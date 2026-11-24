@@ -809,6 +809,15 @@ export function PlanCard({
               ) : (
                 <p className="text-xs text-warning">{t('macrosOffHint')}</p>
               ))}
+            {/* Far less protein than the day aims at, which its split does not show. */}
+            {!day.skipped && day.proteinShort && (
+              <p className="text-xs text-warning">
+                {t('proteinShort', {
+                  protein: day.dayNutrition.protein,
+                  target: day.targetMacros.protein,
+                })}
+              </p>
+            )}
             {/* Under the day's figures, and after what keeps them off where they are: how the day is changed. A day
                 before today is history and has no way to change it. */}
             {!day.skipped && day.date >= today && (
