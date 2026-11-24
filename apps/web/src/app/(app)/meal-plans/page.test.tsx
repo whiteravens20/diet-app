@@ -5085,3 +5085,135 @@ describe('the plans read again', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('the plan page, on how a day is changed', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const help = messages.mealPlans.dayHelp;
+  const helpWindow = async () => within(await screen.findByRole('dialog', { name: help.title }));
+  const open = async (plan: MealPlan) => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+
+  it('opens from under the figures of a day and from its changes, and says what stays, which way when and what it changes', async () => {
+    onTheDay('2026-01-05');
+    await open(aPlan());
+
+    await userEvent.click(await screen.findByRole('button', { name: help.link }));
+    const window = await helpWindow();
+    for (const said of [
+      help.kept,
+      help.wayResize,
+      help.waySwap,
+      help.wayVariants,
+      help.wayReroll,
+      help.when,
+      help.affectsList,
+      help.affectsDiary,
+      help.affectsCooking,
+      help.affectsUndo,
+    ])
+      expect(window.getByText(plain(said))).toBeInTheDocument();
+    // A plan of one person has no other person to make the day again for.
+    expect(window.queryByText(plain(help.affectsJoint))).toBeNull();
+    await userEvent.click(window.getByRole('button', { name: messages.common.close }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: help.title })).toBeNull());
+
+    // Among the ways to change the day as well, once they are unfolded.
+    await unfoldDay();
+    const links = screen.getAllByRole('button', { name: help.link });
+    expect(links).toHaveLength(2);
+    await userEvent.click(links[0]!);
+    expect(await helpWindow()).toBeTruthy();
+  });
+
+  it('says in a joint plan that the day is made again for both or for one', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    await open({
+      ...plan,
+      joint: {
+        planId: '77777777-7777-4777-8777-777777777777',
+        profileId: '88888888-8888-4888-8888-888888888888',
+        profileName: 'Ewa',
+      },
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: help.link }));
+
+    expect((await helpWindow()).getByText(plain(help.affectsJoint))).toBeInTheDocument();
+  });
+
+  it('opens the other ways and the window that changes the day, for the day it was opened on', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    const post = vi.spyOn(api, 'post').mockImplementation(((path: string) =>
+      path.endsWith('/variations')
+        ? Promise.resolve({
+            date: '2026-01-05',
+            calorieTarget: 2000,
+            diary: null,
+            cooking: null,
+            current: {
+              dayNutrition: plan.days[0]!.dayNutrition,
+              packs: { bought: 0, used: 0, wasted: 0 },
+            },
+            variations: [],
+            aiMeta: null,
+          })
+        : path.endsWith('/regenerate/preview')
+          ? Promise.resolve(
+              aPreview({
+                days: 1,
+                replaced: 1,
+                couldGo: { past: false, eaten: false, custom: false },
+              }),
+            )
+          : Promise.reject(new Error('nothing else was expected'))) as never);
+    await open(plan);
+
+    await userEvent.click(await screen.findByRole('button', { name: help.link }));
+    await userEvent.click(
+      (await helpWindow()).getByRole('button', { name: messages.mealPlans.otherWays }),
+    );
+    const ways = within(
+      await screen.findByRole('dialog', { name: 'Other ways to fill Mon, Jan 5' }),
+    );
+    expect(screen.queryByRole('dialog', { name: help.title })).toBeNull();
+    expect(post).toHaveBeenCalledWith(
+      `/meal-plans/${plan.id}/days/${plan.days[0]!.id}/variations`,
+      { weigh: false },
+    );
+    await userEvent.click(ways.getByRole('button', { name: messages.common.close }));
+
+    await userEvent.click(await screen.findByRole('button', { name: help.link }));
+    await userEvent.click(
+      (await helpWindow()).getByRole('button', { name: messages.mealPlans.changeDay }),
+    );
+    const asked = await rerollWindow();
+    expect(asked.getByLabelText(messages.mealPlans.reroll.day)).toBeChecked();
+    expect(asked.getByLabelText(messages.mealPlans.reroll.dayWhich)).toHaveValue('2026-01-05');
+  });
+
+  it('is not offered for a day that has passed', async () => {
+    onTheDay('2026-01-06');
+    const plan = aPlan();
+    await open(plan);
+    await screen.findByText(messages.mealPlans.dayIsOver);
+    expect(screen.queryByRole('button', { name: help.link })).toBeNull();
+  });
+
+  it('is not offered for a day the user skips', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    await open({ ...plan, days: [{ ...plan.days[0]!, skipped: true, meals: [] }] });
+    await screen.findByText(messages.mealPlans.daySkipped);
+    await unfoldDay();
+
+    expect(screen.queryByRole('button', { name: help.link })).toBeNull();
+  });
+});

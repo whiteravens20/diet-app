@@ -102,6 +102,12 @@ const DayOffTargetDialog = dynamic(
   { ssr: false },
 );
 
+/** Fetched when the way to change a day is asked for. */
+const DayChangeHelp = dynamic(
+  () => import('./day-change-help').then((help) => help.DayChangeHelp),
+  { ssr: false },
+);
+
 /** Fetched when what is left of a meal is carried to the next day, or carried back. */
 const LeftoverDialog = dynamic(
   () => import('./leftover-dialog').then((dialog) => dialog.LeftoverDialog),
@@ -290,6 +296,7 @@ export function PlanCard({
   ) => void;
 }) {
   const t = useTranslations('mealPlans');
+  const tHelp = useTranslations('mealPlans.dayHelp');
   const tCommon = useTranslations('common');
   const fmt = useFormat();
   // Which meal's "swap to favorite" picker is open, if any.
@@ -362,6 +369,8 @@ export function PlanCard({
   const [settingsFor, setSettingsFor] = useState<MealPlanDay | null>(null);
   // The day off its target whose question is open, with the ways it has.
   const [offTargetFor, setOffTargetFor] = useState<OffTargetWays | null>(null);
+  // The day whose way to change it is explained in a window, while it is open.
+  const [helpFor, setHelpFor] = useState<{ id: string; date: string } | null>(null);
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
   // The meal whose rest is being carried to the next day, or the leftover being carried back, while its window is open.
@@ -664,6 +673,16 @@ export function PlanCard({
                   >
                     {t('daySettingsButton')}
                   </Button>
+                  {!day.skipped && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setHelpFor({ id: day.id, date: day.date })}
+                    >
+                      {tHelp('link')}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -775,6 +794,19 @@ export function PlanCard({
               ) : (
                 <p className="text-xs text-warning">{t('macrosOffHint')}</p>
               ))}
+            {/* Under the day's figures, and after what keeps them off where they are: how the day is changed. A day
+                before today is history and has no way to change it. */}
+            {!day.skipped && day.date >= today && (
+              <p className="text-xs">
+                <button
+                  type="button"
+                  className="inline-flex min-h-6 items-center text-primary underline-offset-2 hover:underline"
+                  onClick={() => setHelpFor({ id: day.id, date: day.date })}
+                >
+                  {tHelp('link')}
+                </button>
+              </p>
+            )}
             {!day.skipped && (
               <>
                 {/* What the label adds stands behind a tap: the figures above are what a day is planned by. */}
@@ -1840,6 +1872,22 @@ export function PlanCard({
             </div>
           )}
         </CardContent>
+      )}
+      {helpFor && (
+        <DayChangeHelp
+          date={helpFor.date}
+          joint={Boolean(plan?.joint)}
+          busy={busy}
+          onVariants={() => {
+            setWaysFor(helpFor);
+            setHelpFor(null);
+          }}
+          onReroll={() => {
+            setReroll({ scope: 'day', day: helpFor.date });
+            setHelpFor(null);
+          }}
+          onClose={() => setHelpFor(null)}
+        />
       )}
       {waysFor && (
         <DayVariationsDialog
