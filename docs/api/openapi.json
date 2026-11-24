@@ -18967,6 +18967,10 @@
               }
             ]
           },
+          "proteinShort": {
+            "default": false,
+            "type": "boolean"
+          },
           "skipped": {
             "type": "boolean"
           },
@@ -19007,6 +19011,7 @@
           "resizes",
           "macrosOff",
           "macrosOffWhy",
+          "proteinShort",
           "skipped",
           "belowSafetyFloor",
           "overrides",

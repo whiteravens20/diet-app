@@ -8,6 +8,7 @@ import {
   mealLabel,
   planMealCount,
   planSettingsOff,
+  proteinShortOf,
   mealNutrition,
   restsOf,
   scaleRests,
@@ -248,6 +249,23 @@ describe("what makes a day's macros off", () => {
         }
       }
     });
+  });
+});
+
+describe('whether a day lacks much protein', () => {
+  it('is so below four fifths of what it aims at', () => {
+    // 134 of 178 g: a quarter less.
+    expect(proteinShortOf({ protein: 134 }, { protein: 178 }, false)).toBe(true);
+    expect(proteinShortOf({ protein: 142 }, { protein: 178 }, false)).toBe(true);
+    // A fifth less is not yet more than a fifth.
+    expect(proteinShortOf({ protein: 142.4 }, { protein: 178 }, false)).toBe(false);
+    expect(proteinShortOf({ protein: 150 }, { protein: 178 }, false)).toBe(false);
+    expect(proteinShortOf({ protein: 200 }, { protein: 178 }, false)).toBe(false);
+  });
+
+  it('is not said of a day whose split is off, which says more, nor of a day that aims at none', () => {
+    expect(proteinShortOf({ protein: 60 }, { protein: 178 }, true)).toBe(false);
+    expect(proteinShortOf({ protein: 0 }, { protein: 0 }, false)).toBe(false);
   });
 });
 

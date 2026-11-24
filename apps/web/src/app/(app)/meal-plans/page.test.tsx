@@ -158,6 +158,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       resizes: false,
       macrosOff: false,
       macrosOffWhy: null,
+      proteinShort: false,
       skipped: false,
       belowSafetyFloor: false,
       overrides: null,

@@ -113,6 +113,7 @@ import {
   dayMealCount,
   planMealCount,
   macrosOff,
+  proteinShortOf,
   isoDate,
   isSkipped,
   MADE_LAST,
@@ -2289,6 +2290,12 @@ export class MealPlansService {
       const standing = standingOf(dayNutrition.calories, day.calorieTarget, skipped);
       const off =
         !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan));
+      const targetMacros = shownTarget(
+        aimOfDay(day, plan),
+        day.calorieTarget,
+        plan.dietType,
+        dayNutrition.carbs,
+      );
       return {
         id: day.id,
         date: isoDate(day.date),
@@ -2307,12 +2314,7 @@ export class MealPlansService {
           })),
         },
         calorieTarget: day.calorieTarget,
-        targetMacros: shownTarget(
-          aimOfDay(day, plan),
-          day.calorieTarget,
-          plan.dietType,
-          dayNutrition.carbs,
-        ),
+        targetMacros,
         ...standing,
         // Offered where the day stands off its target, from today on.
         resizes:
@@ -2321,6 +2323,9 @@ export class MealPlansService {
           standing.offTarget !== null &&
           this.resizes(orderedMeals, day, entered, plan),
         macrosOff: off,
+        // A shortfall of protein the split does not show: far less than the day aims at, said where nothing else is.
+        proteinShort:
+          !skipped && meals.length > 0 && proteinShortOf(dayNutrition, targetMacros, off),
         macrosOffWhy: off
           ? whyMacrosOff({
               held: dayNutrition,

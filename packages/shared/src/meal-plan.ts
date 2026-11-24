@@ -637,6 +637,9 @@ export const MealPlanDayOverrides = DayOverride.omit({ date: true });
 export type MealPlanDayOverrides = z.infer<typeof MealPlanDayOverrides>;
 
 /** One day of a plan. */
+/** What a day lacks of the protein it aims at before it says so (`MealPlanDay.proteinShort`): a fifth. */
+export const PROTEIN_SHORT = 0.2;
+
 /** A macronutrient, as what a day holds too much or too little of is named (`MacrosOffWhy`). */
 export const MacroName = z.enum(['protein', 'fat', 'carbs']);
 export type MacroName = z.infer<typeof MacroName>;
@@ -739,6 +742,12 @@ export const MealPlanDay = z.object({
   macrosOff: z.boolean(),
   /** What makes a day's macros off, where they are (`macrosOff`); null otherwise. */
   macrosOffWhy: MacrosOffWhy.nullable().default(null),
+  /**
+   * The day holds more than a fifth less protein than it aims at (`targetMacros.protein`, `PROTEIN_SHORT`), though its
+   * split is not off: it says so, with how to change it. False where `macrosOff` says more, for a skipped day, and for
+   * one without meals.
+   */
+  proteinShort: z.boolean().default(false),
   /**
    * The user skips this day: it is no shortfall, and is left out of the
    * plan's averages. What was eaten of it before it was skipped stays on it.

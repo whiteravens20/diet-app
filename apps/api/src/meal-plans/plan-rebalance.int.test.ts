@@ -217,6 +217,7 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
 
       expect(plan.days.map((day) => day.macrosOff)).toEqual([false, false]);
       expect(plan.days.map((day) => day.macrosOffWhy)).toEqual([null, null]);
+      expect(plan.days.map((day) => day.proteinShort)).toEqual([false, false]);
       expect(plan.averageOff).toEqual({ calories: null, macros: false });
     });
 
@@ -227,6 +228,31 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
 
       expect(plan.days[0]!.macrosOff).toBe(true);
       expect(plan.averageOff.macros).toBe(true);
+      // The split being off says more than the protein it lacks.
+      expect(plan.days[0]!.proteinShort).toBe(false);
+    });
+
+    it('says of a day near its split that it lacks much protein, where it does', async () => {
+      const made = await aPlan(t, user, await aProfile(t, user), { durationDays: 1 });
+      // Every meal a small dish of the balanced split: the day is near its split, but far under its protein.
+      const small = await t.prisma.recipe.findFirstOrThrow({
+        where: { mealTypes: { has: 'lunch' }, createdByUserId: null },
+        select: { id: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true },
+      });
+      changedRecipe = small;
+      await t.prisma.recipe.update({
+        where: { id: small.id },
+        data: { proteinPerServing: 10, fatPerServing: 6.7, carbsPerServing: 25 },
+      });
+      await t.prisma.plannedMeal.updateMany({
+        where: { dayId: made.days[0]!.id },
+        data: { recipeId: small.id, servings: 1, quantityScale: 1 },
+      });
+
+      const plan = await read(made.id);
+
+      expect(plan.days[0]!.macrosOff).toBe(false);
+      expect(plan.days[0]!.proteinShort).toBe(true);
     });
 
     it('says what makes a day far from it: too much fat, too little carbohydrate, and a limit on its cooking time', async () => {
@@ -277,6 +303,7 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
       const plan = await read(made.id);
 
       expect(plan.days[0]!.macrosOff).toBe(false);
+      expect(plan.days[0]!.proteinShort).toBe(false);
       expect(plan.averageOff).toEqual({ calories: null, macros: false });
     });
   });
