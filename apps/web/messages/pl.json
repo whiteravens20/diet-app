@@ -1301,6 +1301,8 @@
       "loadFailed": "Nie udało się odczytać stanu produktów.",
       "queueTitle": "Wysłane przez użytkowników, czekają",
       "acceptedTitle": "Przyjęte od użytkowników",
+      "queueCount": "czeka: {count, number, ::group-off}",
+      "acceptedCount": "przyjęte: {count, number, ::group-off}",
       "acceptedLoading": "Czytam, co przyjęto…",
       "acceptedNone": "Nic jeszcze nie przyjęto.",
       "acceptedWhen": "Przyjęto {when}, przyjmujący: {by}.",

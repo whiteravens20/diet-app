@@ -1301,6 +1301,8 @@
       "loadFailed": "The state of the products could not be read.",
       "queueTitle": "Sent by people, waiting",
       "acceptedTitle": "Accepted from people",
+      "queueCount": "waiting: {count, number, ::group-off}",
+      "acceptedCount": "accepted: {count, number, ::group-off}",
       "acceptedLoading": "Reading what was accepted…",
       "acceptedNone": "Nothing accepted yet.",
       "acceptedWhen": "Accepted {when} by {by}.",

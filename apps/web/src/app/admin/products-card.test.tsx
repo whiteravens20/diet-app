@@ -272,8 +272,36 @@ describe('the card of products in the panel', () => {
   });
 
   describe('what people sent to the base', () => {
+    /** The card's list under `title`, unfolded as a click on its title does. */
+    const unfold = (title: string) => userEvent.click(screen.getByText(title));
+
+    it('folds what waits and what was accepted under their titles, how many beside each, and reads neither folded', async () => {
+      const queue = vi.spyOn(adminApi, 'productQueue');
+      const list = vi.spyOn(adminApi, 'acceptedProducts');
+      shown({ ...IMPORTED, held: { ...IMPORTED.held, waiting: 2, accepted: 4 } });
+
+      const waiting = screen.getByText(t.queueTitle).closest('summary')!;
+      expect(waiting).toHaveTextContent(`${t.queueTitle}2, waiting: 2`);
+      expect(screen.getByText(t.acceptedTitle).closest('summary')).toHaveTextContent(
+        `${t.acceptedTitle}4, accepted: 4`,
+      );
+      expect(queue).not.toHaveBeenCalled();
+      expect(list).not.toHaveBeenCalled();
+      expect(screen.queryByText(en.productReview.nothing)).toBeNull();
+
+      await unfold(t.queueTitle);
+      expect(await screen.findByText(en.productReview.nothing)).toBeInTheDocument();
+      expect(list).not.toHaveBeenCalled();
+      // Folded again, it is not read again.
+      await unfold(t.queueTitle);
+      expect(screen.queryByText(en.productReview.nothing)).toBeNull();
+      expect(queue).toHaveBeenCalledTimes(1);
+    });
+
     it('says nothing is waiting or accepted while nothing is', async () => {
       shown(IMPORTED);
+      await unfold(t.queueTitle);
+      await unfold(t.acceptedTitle);
 
       expect(await screen.findByText(en.productReview.nothing)).toBeInTheDocument();
       expect(await screen.findByText(t.acceptedNone)).toBeInTheDocument();
@@ -291,6 +319,7 @@ describe('the card of products in the panel', () => {
       const accept = vi.spyOn(adminApi, 'acceptProduct').mockResolvedValue(undefined);
       const read = vi.spyOn(adminApi, 'products').mockResolvedValue(IMPORTED);
       const { onChanged } = shown(IMPORTED);
+      await unfold(t.queueTitle);
 
       await userEvent.click(await screen.findByRole('button', { name: en.productReview.accept }));
 
@@ -305,6 +334,8 @@ describe('the card of products in the panel', () => {
       vi.spyOn(adminApi, 'products').mockResolvedValue(IMPORTED);
       const list = vi.spyOn(adminApi, 'acceptedProducts');
       shown(IMPORTED);
+      await unfold(t.queueTitle);
+      await unfold(t.acceptedTitle);
 
       const accept = await screen.findByRole('button', { name: en.productReview.accept });
       await screen.findByText(t.acceptedNone);
@@ -319,6 +350,7 @@ describe('the card of products in the panel', () => {
       const reject = vi.spyOn(adminApi, 'rejectProduct').mockResolvedValue(undefined);
       vi.spyOn(adminApi, 'products').mockResolvedValue(IMPORTED);
       shown(IMPORTED);
+      await unfold(t.queueTitle);
 
       await userEvent.click(await screen.findByRole('button', { name: en.productReview.reject }));
       await userEvent.type(
@@ -346,6 +378,7 @@ describe('the card of products in the panel', () => {
         total: 2,
       });
       shown(IMPORTED);
+      await unfold(t.acceptedTitle);
 
       expect(await screen.findByText(/by Anna\.$/)).toBeInTheDocument();
       expect(screen.getByText(new RegExp(t.acceptedNoAuthor))).toBeInTheDocument();
@@ -363,6 +396,7 @@ describe('the card of products in the panel', () => {
       const withdraw = vi.spyOn(adminApi, 'withdrawProduct').mockResolvedValue(undefined);
       vi.spyOn(adminApi, 'products').mockResolvedValue(IMPORTED);
       const { onChanged } = shown(IMPORTED);
+      await unfold(t.acceptedTitle);
 
       await userEvent.click(await screen.findByRole('button', { name: t.withdraw }));
       await userEvent.click(screen.getByRole('button', { name: t.withdrawConfirm }));
@@ -390,6 +424,7 @@ describe('the card of products in the panel', () => {
         new ApiClientError(404, 'PRODUCT_NOT_FOUND', 'Gone.'),
       );
       shown(IMPORTED);
+      await unfold(t.acceptedTitle);
 
       await userEvent.click(await screen.findByRole('button', { name: t.withdraw }));
       await userEvent.type(
@@ -409,6 +444,7 @@ describe('the card of products in the panel', () => {
         total: 2,
       }));
       shown(IMPORTED);
+      await unfold(t.acceptedTitle);
 
       expect(await screen.findByText('Bread of page 1')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: t.prev })).toHaveAttribute('aria-disabled', 'true');

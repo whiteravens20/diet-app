@@ -2,9 +2,9 @@
 
 'use client';
 
-import { Barcode, LoaderCircle } from 'lucide-react';
+import { Barcode, ChevronRight, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { AcceptedProducts } from '@diet-app/shared';
 import { PRODUCT_REASON_LONGEST } from '@diet-app/shared/constants';
 import { ProductQueuePanel, type ProductQueueApi } from '@/components/product-queue-panel';
@@ -206,6 +206,54 @@ function AcceptedProductsList({
 }
 
 /**
+ * A list of the card folded under its title, with how many it holds beside it (a number the eye finds, said in words
+ * to a screen reader): read only once it is unfolded, so that a long one is no wall of text.
+ */
+function FoldedList({
+  title,
+  count,
+  said,
+  urgent,
+  children,
+}: {
+  title: string;
+  count: number;
+  /** The count in words, for a screen reader. */
+  said: string;
+  /** What waits for a word stands out; what is done does not. */
+  urgent: boolean;
+  children: () => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="group border-t border-border pt-3"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 py-1 font-medium [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90"
+          aria-hidden
+        />
+        {title}
+        <span
+          aria-hidden
+          className={
+            urgent && count > 0
+              ? 'rounded-full bg-primary px-2 py-0.5 text-xs tabular-nums text-primary-foreground'
+              : 'rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground'
+          }
+        >
+          {count}
+        </span>
+        <span className="sr-only">{`, ${said}`}</span>
+      </summary>
+      {open && <div className="space-y-2 pt-2">{children()}</div>}
+    </details>
+  );
+}
+
+/**
  * What the instance holds of products with a barcode and how it gets them:
  * the settings, how the last import went, country by country, and a run asked
  * for now instead of at night.
@@ -379,14 +427,22 @@ export function ProductsCard({
                 )}
               </div>
             )}
-            <section className="space-y-2 border-t border-border pt-3">
-              <h3 className="font-medium">{t('queueTitle')}</h3>
-              <ProductQueuePanel source={PRODUCT_QUEUE} onChanged={changed} />
-            </section>
-            <section className="space-y-2 border-t border-border pt-3">
-              <h3 className="font-medium">{t('acceptedTitle')}</h3>
-              <AcceptedProductsList readAgain={changes} onChanged={changed} />
-            </section>
+            <FoldedList
+              title={t('queueTitle')}
+              count={products.held.waiting}
+              said={t('queueCount', { count: products.held.waiting })}
+              urgent
+            >
+              {() => <ProductQueuePanel source={PRODUCT_QUEUE} onChanged={changed} />}
+            </FoldedList>
+            <FoldedList
+              title={t('acceptedTitle')}
+              count={products.held.accepted}
+              said={t('acceptedCount', { count: products.held.accepted })}
+              urgent={false}
+            >
+              {() => <AcceptedProductsList readAgain={changes} onChanged={changed} />}
+            </FoldedList>
           </>
         )}
       </CardContent>
