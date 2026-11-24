@@ -1451,6 +1451,9 @@
     "haveShort": "have",
     "ofTotal": "(of {amount})",
     "bought": "bought",
+    "boughtLoose": "bought by weight",
+    "boughtLooseBox": "Bought by weight",
+    "boughtLooseHint": "The plan counts it from the day you bought it: what you do not eat within 2\u00a0days, it has you freeze that day, in portions for later.",
     "copy": "Copy as text",
     "csv": "Download CSV",
     "copyTitle": "Shopping list, {dates}",
@@ -1900,6 +1903,8 @@
     "freezer": {
       "freeze": "Freeze the rest of the pack at once: {name}, {portion}.",
       "freezePortions": "Freeze the rest of the pack at once in separate portions: {name}, {portions}.",
+      "freezeLoose": "Freeze the rest of what you bought by weight at once: {name}, {portion}.",
+      "freezeLoosePortions": "Freeze the rest of what you bought by weight at once in separate portions: {name}, {portions}.",
       "portionOn": "{amount} ({day})",
       "portionLater": "{amount} for later",
       "keep": "Add to the pantry",

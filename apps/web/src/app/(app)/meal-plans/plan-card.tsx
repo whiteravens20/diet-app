@@ -508,9 +508,13 @@ export function PlanCard({
       <div key={`${rest.ingredientId} ${rest.date}`} className={cn(indented && 'ml-6')}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <span>
+            {/* The rest of a pack, or of what was bought by weight. */}
             {portions.length === 1
-              ? tFreezer('freeze', { name, portion: portions[0]! })
-              : tFreezer('freezePortions', { name, portions: fmt.list(portions) })}
+              ? tFreezer(rest.loose ? 'freezeLoose' : 'freeze', { name, portion: portions[0]! })
+              : tFreezer(rest.loose ? 'freezeLoosePortions' : 'freezePortions', {
+                  name,
+                  portions: fmt.list(portions),
+                })}
           </span>
           {/* Given from the day the rest is frozen: before it, the pantry would hold what was not even bought. */}
           {rest.left > 0 &&

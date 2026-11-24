@@ -519,11 +519,15 @@ export function ListView({
   );
 }
 
-/** What a row sends when it is changed: what is at home, everything the user has for it, whether it is done. */
+/**
+ * What a row sends when it is changed: what is at home, everything the user has for it, whether it is done, and
+ * whether what was bought was bought by weight.
+ */
 export interface RowPatch {
   checked?: boolean;
   purchasedQuantity?: number | null;
   alreadyHaveQuantity?: number;
+  boughtLoose?: boolean;
 }
 
 /** A number somebody typed into a field of a row: nothing for an empty field, never under nothing. */
@@ -582,14 +586,18 @@ function ItemRow({
   const [home, setHome] = useState(() => fieldOf(item.alreadyHaveQuantity));
   const [bought, setBought] = useState(() => fieldOf(boughtBefore));
   const [typing, setTyping] = useState<'home' | 'bought' | null>(null);
+  // Whether what is bought is bought by weight: said with what was bought, or on its own once something is.
+  const [loose, setLoose] = useState(item.boughtLooseOn !== null);
   const [answered, setAnswered] = useState(item);
   if (
     answered.alreadyHaveQuantity !== item.alreadyHaveQuantity ||
-    answered.purchasedQuantity !== item.purchasedQuantity
+    answered.purchasedQuantity !== item.purchasedQuantity ||
+    answered.boughtLooseOn !== item.boughtLooseOn
   ) {
     setAnswered(item);
     if (typing !== 'home') setHome(fieldOf(item.alreadyHaveQuantity));
     if (typing !== 'bought') setBought(fieldOf(boughtBefore));
+    if (answered.boughtLooseOn !== item.boughtLooseOn) setLoose(item.boughtLooseOn !== null);
   }
   // Eggs come whole; half a loaf's slice is as fine as it gets.
   const step = item.unit === 'piece' ? 0.5 : 1;
@@ -608,10 +616,13 @@ function ItemRow({
   function pending(): RowPatch {
     // What is at home is sent alone: the server leaves what was bought beyond it as it was.
     const atHome = homeNow !== item.alreadyHaveQuantity ? { alreadyHaveQuantity: homeNow } : {};
-    if (boughtNow === boughtBefore) return atHome;
+    // Bought by weight or in packs, as the box says, where that is not what the server has.
+    const byWeight =
+      item.byWeight && loose !== (item.boughtLooseOn !== null) ? { boughtLoose: loose } : {};
+    if (boughtNow === boughtBefore) return { ...atHome, ...byWeight };
     // Everything the user has for the row: the part at home, as the server will count it, and what was bought.
     const have = Math.min(homeNow, item.totalQuantity) + boughtNow;
-    return { ...atHome, purchasedQuantity: have > 0 ? have : null };
+    return { ...atHome, ...byWeight, purchasedQuantity: have > 0 ? have : null };
   }
   const send = (): void => {
     const patch = pending();
@@ -619,10 +630,14 @@ function ItemRow({
   };
   const field = 'h-7 w-16 rounded border border-input bg-background px-1 text-right text-sm';
 
-  // What a closed row says it has, as its fields would: "w domu 50 g · kupione 70 g".
+  // What a closed row says it has, as its fields would: "w domu 50 g · kupione 70 g", or "kupione na wagę".
   const has = [
     homeNow > 0 ? held(`${t('atHome')} ${formatQty(homeNow, item.displayUnit)}`) : null,
-    boughtNow > 0 ? held(`${boughtLabel} ${formatQty(boughtNow, item.displayUnit)}`) : null,
+    boughtNow > 0
+      ? held(
+          `${item.boughtLooseOn ? t('boughtLoose') : boughtLabel} ${formatQty(boughtNow, item.displayUnit)}`,
+        )
+      : null,
   ].filter((part) => part !== null);
 
   return (
@@ -770,6 +785,29 @@ function ItemRow({
             />
             {unitName(item.displayUnit)}
           </label>
+          {/* Fresh meat or fish sold in packs, bought by weight this time: the plan says what to freeze of it. */}
+          {item.byWeight && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={loose}
+                disabled={locked}
+                aria-describedby={`${amountsId}-loose`}
+                onChange={(e) => {
+                  setLoose(e.target.checked);
+                  // With something bought it is said at once; otherwise with what is bought, when its field is left.
+                  if (boughtNow > 0) onPatch({ ...pending(), boughtLoose: e.target.checked });
+                }}
+              />
+              {t('boughtLooseBox')}
+            </label>
+          )}
+          {item.byWeight && (
+            <p id={`${amountsId}-loose`} className="basis-full text-xs text-muted-foreground">
+              {t('boughtLooseHint')}
+            </p>
+          )}
         </div>
       )}
     </li>

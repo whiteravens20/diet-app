@@ -737,6 +737,77 @@ describe('a row of a shopping list', () => {
     });
   });
 
+  describe('of fresh meat or fish sold in packs, bought by weight', () => {
+    const loose = () => screen.getByRole('checkbox', { name: texts.boughtLooseBox });
+    const chicken = (over: Partial<Entry> = {}) =>
+      anEntry('Chicken breast', 'meat', {
+        totalQuantity: 450,
+        toBuyQuantity: 450,
+        packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 500 },
+        byWeight: true,
+        ...over,
+      });
+
+    it('is said with what was bought, once its field is left, and says what the plan does with it', async () => {
+      const patch = await aRow(chicken());
+
+      expect(loose()).not.toBeChecked();
+      expect(loose()).toHaveAccessibleDescription(texts.boughtLooseHint);
+      // Ticked before anything is bought: it goes with what is bought.
+      await userEvent.click(loose());
+      expect(patch).not.toHaveBeenCalled();
+      await userEvent.type(bought(), '1000');
+      await userEvent.tab();
+
+      expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-Chicken breast$/), {
+        boughtLoose: true,
+        purchasedQuantity: 1000,
+      });
+    });
+
+    it('is said at once of what was bought already, and taken back the same way', async () => {
+      const bought = chicken({ purchasedQuantity: 1000, checked: true, packs: null });
+      const patch = await aRow(bought, { ...bought, boughtLooseOn: '2026-01-05' });
+
+      await userEvent.click(loose());
+      expect(patch).toHaveBeenLastCalledWith(expect.any(String), { boughtLoose: true });
+      await vi.waitFor(() => expect(loose()).toBeChecked());
+
+      patch.mockResolvedValue(aListOf([bought], []) as never);
+      await userEvent.click(loose());
+      expect(patch).toHaveBeenLastCalledWith(expect.any(String), { boughtLoose: false });
+    });
+
+    it('says, closed, that what was bought was bought by weight', async () => {
+      await renderPage(
+        aListOf(
+          [
+            chicken({
+              purchasedQuantity: 1000,
+              checked: true,
+              packs: null,
+              boughtLooseOn: '2026-01-05',
+            }),
+          ],
+          [],
+        ),
+      );
+
+      expect(
+        plain(
+          screen.getByRole('checkbox', { name: 'Chicken breast' }).closest('label')!.textContent,
+        ),
+      ).toBe('Chicken breastbought by weight 1000 g');
+    });
+
+    it('is offered for no other row', async () => {
+      await aRow(anEntry('Tinned tuna', 'fish', { packs: TWO_PACKS }));
+
+      expect(screen.queryByRole('checkbox', { name: texts.boughtLooseBox })).toBeNull();
+      expect(screen.queryByText(texts.boughtLooseHint)).toBeNull();
+    });
+  });
+
   describe('of something sold in packs', () => {
     const packsOf = (name: string) =>
       screen.queryByRole('button', { name: new RegExp(`^Bought in packs: .* of ${name}$`) });

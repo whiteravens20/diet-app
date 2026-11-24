@@ -4983,6 +4983,17 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
       expect(screen.getByText(messages.freezing[one])).toBeVisible();
   });
 
+  it('says the rest of what was bought by weight as such', async () => {
+    await opened(twoDays({ loose: true }));
+
+    expect(
+      screen.getByText(
+        'Freeze the rest of what you bought by weight at once in separate portions: Chicken breast, 100 g (Tue) and 250 g for later.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Freeze the rest of the pack/)).toBeNull();
+  });
+
   it('gives the pantry nothing of a rest the plan freezes on a later day', async () => {
     // The same two days, still to come.
     const plan = twoDays();

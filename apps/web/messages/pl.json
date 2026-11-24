@@ -1451,6 +1451,9 @@
     "haveShort": "mam",
     "ofTotal": "(z {amount})",
     "bought": "kupione",
+    "boughtLoose": "kupione na wagę",
+    "boughtLooseBox": "Kupione na wagę",
+    "boughtLooseHint": "Plan liczy je od dnia zakupu: czego nie zjesz w\u00a0ciągu 2\u00a0dni, każe tego dnia zamrozić w\u00a0porcjach na później.",
     "copy": "Kopiuj jako tekst",
     "csv": "Pobierz CSV",
     "copyTitle": "Lista zakupów, {dates}",
@@ -1900,6 +1903,8 @@
     "freezer": {
       "freeze": "Zamroź od razu resztę opakowania: {name}, {portion}.",
       "freezePortions": "Zamroź od razu resztę opakowania w osobnych porcjach: {name}, {portions}.",
+      "freezeLoose": "Zamroź od razu resztę kupionego na wagę: {name}, {portion}.",
+      "freezeLoosePortions": "Zamroź od razu resztę kupionego na wagę w\u00a0osobnych porcjach: {name}, {portions}.",
       "portionOn": "{amount} ({day})",
       "portionLater": "{amount} na później",
       "keep": "Dodaj do spiżarni",
