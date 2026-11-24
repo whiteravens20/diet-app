@@ -74,6 +74,13 @@ export function Sidebar() {
     return () => wide.removeEventListener('change', close);
   }, [drawer]);
 
+  /** The mark and the name, which lead to the dashboard wherever they stand. `onGo` as for the links. */
+  const brand = (size: number, className: string, onGo?: () => void) => (
+    <Link href="/dashboard" onClick={onGo} className="rounded-md">
+      <Brand name={tCommon('appName')} size={size} className={className} />
+    </Link>
+  );
+
   /** The links, and the way out. `onGo` is told when one of them is followed. */
   const navigation = (onGo?: () => void) => (
     <>
@@ -117,7 +124,7 @@ export function Sidebar() {
     <>
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card p-4 md:flex">
         <div className="flex items-center justify-between px-2">
-          <Brand name={tCommon('appName')} size={28} className="text-lg" />
+          {brand(28, 'text-lg')}
           <div className="flex items-center gap-1">
             <NotificationsBell />
             <ThemeToggle />
@@ -138,7 +145,7 @@ export function Sidebar() {
           >
             <Menu size={20} aria-hidden />
           </Button>
-          <Brand name={tCommon('appName')} size={24} className="text-base" />
+          {brand(24, 'text-base')}
         </div>
         <div className="flex items-center gap-1">
           <NotificationsBell align="end" />
@@ -153,7 +160,7 @@ export function Sidebar() {
       >
         <div className="flex h-full flex-col p-4">
           <div className="flex items-center justify-between px-2">
-            <Brand name={tCommon('appName')} size={28} className="text-lg" />
+            {brand(28, 'text-lg', () => setDrawer(false))}
             <Button
               variant="ghost"
               size="sm"

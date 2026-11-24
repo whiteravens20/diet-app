@@ -88,10 +88,27 @@ describe('the navigation of a signed-in account', () => {
     }
   });
 
+  it("leads from the application's name to the dashboard wherever it stands, and shuts the drawer on the way", async () => {
+    shown();
+    for (const bar of [screen.getByRole('complementary'), screen.getByRole('banner')]) {
+      expect(within(bar).getByRole('link', { name: messages.common.appName })).toHaveAttribute(
+        'href',
+        '/dashboard',
+      );
+    }
+
+    await userEvent.click(menuButton());
+    const named = within(drawer()!).getByRole('link', { name: messages.common.appName });
+    expect(named).toHaveAttribute('href', '/dashboard');
+    await userEvent.click(named);
+
+    expect(drawer()).toBeNull();
+  });
+
   it('links to every page of the account, and says which one the reader is on', () => {
     shown();
 
-    const beside = within(screen.getByRole('complementary'));
+    const beside = within(within(screen.getByRole('complementary')).getByRole('navigation'));
     const links = beside.getAllByRole('link');
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/dashboard',
@@ -116,7 +133,7 @@ describe('the navigation of a signed-in account', () => {
     productsOffered = true;
     shown();
 
-    const hrefs = within(screen.getByRole('complementary'))
+    const hrefs = within(within(screen.getByRole('complementary')).getByRole('navigation'))
       .getAllByRole('link')
       .map((link) => link.getAttribute('href'));
     expect(hrefs).toHaveLength(11);
@@ -141,7 +158,7 @@ describe('the navigation of a signed-in account', () => {
     await userEvent.click(menuButton());
 
     expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
-    expect(within(drawer()!).getAllByRole('link')).toHaveLength(10);
+    expect(within(within(drawer()!).getByRole('navigation')).getAllByRole('link')).toHaveLength(10);
     expect(within(drawer()!).getByRole('link', { name: messages.nav.mealPlans })).toHaveAttribute(
       'aria-current',
       'page',
