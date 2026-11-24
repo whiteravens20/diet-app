@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { DisplayUnit, InventoryItem, InventoryPortion, Unit } from '@diet-app/shared';
 import { FROZEN_KEEPS_DAYS } from '@diet-app/shared/constants';
-import { MAX_PORTIONS, portionsOf } from '@diet-app/shared/portions';
+import { MAX_PORTIONS, portionsOf, portionsUpTo } from '@diet-app/shared/portions';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -100,24 +100,27 @@ export function FreezeDialog({
   const tCommon = useTranslations('common');
   const fmt = useFormat();
   const shownAmount = useShownAmount();
-  const [typed, setTyped] = useState('1');
+  // What is typed in the field: until something is, the count the plans' portion makes.
+  const [typed, setTyped] = useState<string | null>(null);
   const fieldId = useId();
   const lineId = useId();
-  const portions = portionCount(typed);
-  // A count the freezer does not take, or one that makes portions of less than one of the unit, is said under the
-  // field, and nothing goes.
-  const fits = portions !== null && portionsFit(item.quantity, portions);
   // A hint: while it is asked for, or where it cannot be had, the window goes on without it.
   const planned = useQuery({
     queryKey: ['inventory-portion', item.id],
     queryFn: () => api.get<InventoryPortion>(`/inventory/${item.id}/portion`),
   });
+  const said = planned.data;
+  // A portion in the row's own unit is one the row can be split by.
+  const sameUnit = said?.unit === item.unit;
   // Said where it splits the row: a row no bigger than the portion goes in whole as it is.
   const portion =
-    planned.data?.portion != null &&
-    (planned.data.unit !== item.unit || item.quantity > planned.data.portion)
-      ? planned.data.portion
-      : null;
+    said?.portion != null && (!sameUnit || item.quantity > said.portion) ? said.portion : null;
+  const field =
+    typed ?? String(sameUnit && portion !== null ? portionsUpTo(item.quantity, portion) : 1);
+  const portions = portionCount(field);
+  // A count the freezer does not take, or one that makes portions of less than one of the unit, is said under the
+  // field, and nothing goes.
+  const fits = portions !== null && portionsFit(item.quantity, portions);
   return (
     <Dialog open onClose={onClose} label={t('freeze')} className="max-w-md">
       <div className="flex items-center justify-between border-b border-border p-4">
@@ -142,7 +145,12 @@ export function FreezeDialog({
           <p className="text-sm text-muted-foreground">
             {t('freezeIntro', { days: FROZEN_KEEPS_DAYS })}
           </p>
-          <FreezingTips portion={portion} unit={planned.data?.unit ?? item.unit} of="plans" />
+          <FreezingTips
+            portion={portion}
+            // Pieces by the row's own name for them: slices of bread.
+            unit={sameUnit && item.unit === 'piece' ? item.display.unit : (said?.unit ?? item.unit)}
+            of="plans"
+          />
         </div>
         <div className="space-y-1.5">
           <label htmlFor={fieldId} className="block text-xs font-medium text-muted-foreground">
@@ -152,7 +160,7 @@ export function FreezeDialog({
             id={fieldId}
             type="number"
             inputMode="numeric"
-            value={typed}
+            value={field}
             onChange={(e) => setTyped(e.target.value)}
             aria-invalid={!fits || undefined}
             aria-describedby={lineId}

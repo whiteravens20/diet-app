@@ -587,6 +587,47 @@ describe('a row of the pantry', () => {
       expect(api.get).toHaveBeenCalledWith(`/inventory/${fresh.id}/portion`);
     });
 
+    it("starts its count at the fewest portions none bigger than the plans' portion, which can be changed", async () => {
+      const fresh = grams(500, false, '2026-11-16');
+      const { post } = await open([], [fresh]);
+      sizeIs({ portion: 300, unit: 'g' });
+      post.mockResolvedValueOnce([grams(500, true, '2026-12-16')] as never);
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(chicken.name) }));
+      const window = within(screen.getByRole('dialog', { name: texts.freeze }));
+      const portions = window.getByLabelText(texts.portionsLabel);
+      await vi.waitFor(() => expect(portions).toHaveValue(2));
+      expect(portions).toHaveAccessibleDescription(`2${NBSP}portions of 250${NBSP}g each`);
+      await userEvent.clear(portions);
+      await userEvent.type(portions, '1');
+      await userEvent.click(window.getByRole('button', { name: texts.freeze }));
+
+      expect(post).toHaveBeenCalledWith(`/inventory/${fresh.id}/freeze`, { portions: 1 });
+    });
+
+    it('says the portion of a row kept in pieces by what its pieces are called, and counts by it', async () => {
+      const bread = Ingredient.parse({
+        ...dumplings,
+        id: '2dad81f3-0d9d-44e1-9ef3-000000000005',
+        name: 'Wholegrain bread',
+        category: 'grains',
+        canonicalUnit: 'g',
+        gramsPerPiece: 35,
+        displayUnit: 'slice',
+        recipeUnits: ['g', 'piece'],
+        pantryUnits: ['piece', 'g'],
+      });
+      const slices = aRow(bread, 10, null);
+      await open([], [slices]);
+      sizeIs({ portion: 4, unit: 'piece' });
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(bread.name) }));
+      const window = within(screen.getByRole('dialog', { name: texts.freeze }));
+
+      expect(await window.findByText(sizeLine('4 slices'))).toBeInTheDocument();
+      expect(window.getByLabelText(texts.portionsLabel)).toHaveValue(3);
+    });
+
     it.each([
       ['a row no bigger than the portion', { portion: 500, unit: 'g' } as const],
       ['a food no plan takes from packs', { portion: null, unit: 'g' } as const],
