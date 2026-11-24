@@ -388,6 +388,27 @@ describe('making a plan again, or a part of it', () => {
       }
     });
 
+    it("gives no fourth meal to a day where one of one's own stood beside the plan's three and is replaced", async () => {
+      const plan = await aPlan(t, user, profile, { durationDays: 1 });
+      const withSnack = (
+        await plans.addCustomMeal(user.id, 'en', plan.id, '2026-01-05', {
+          ...soup,
+          name: 'Apple',
+          mealType: 'snack',
+        })
+      ).plan;
+
+      for (const again of [
+        (await regenerate(withSnack, { replaceCustom: true }).expect(201)).body as MealPlan,
+        (await changeDay(withSnack, 0, { replaceCustom: true }).expect(201)).body as MealPlan,
+      ])
+        expect(again.days[0]!.meals.map((meal) => `${meal.mealType}:${meal.source}`)).toEqual([
+          'breakfast:CATALOGUE',
+          'lunch:CATALOGUE',
+          'dinner:CATALOGUE',
+        ]);
+    });
+
     it('is replaced with the rest when the request says so', async () => {
       const plan = await aPlan(t, user, profile, { durationDays: 1 });
       const withSoup = (await plans.addCustomMeal(user.id, 'en', plan.id, '2026-01-05', soup)).plan;

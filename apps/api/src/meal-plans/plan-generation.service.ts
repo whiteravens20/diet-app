@@ -102,6 +102,7 @@ import {
   storedPlateOf,
   isSkipped,
   parseDayOverrides,
+  planMealCount,
   type DayOverridesJson,
   storedRestOf,
 } from './plan-days.js';
@@ -214,7 +215,7 @@ export class PlanGenerationService {
           reuseScore: result.ingredientReuseScore,
           options,
           seed,
-          report: result.report,
+          report: { ...result.report, mealCount: baseMealCount },
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
       });
@@ -283,6 +284,7 @@ export class PlanGenerationService {
           macroSplit: splitFor(dietType, profile, base.target),
           days: days.map((day) => ({ ...day, kept: keptOfDiary(diary.get(day.isoDate)) })),
           options,
+          mealCount: own.mealCount ?? profile.mealCount,
           seed: this.nextSeed(),
         };
       }),
@@ -397,7 +399,7 @@ export class PlanGenerationService {
             reuseScore: result.ingredientReuseScore,
             options: side.options,
             seed: side.seed,
-            report: { ...result.report, apart },
+            report: { ...result.report, apart, mealCount: side.mealCount },
             jointPlanId: joint.id,
             days: { create: buildDays(side.days, result.assignments) },
           },
@@ -518,6 +520,7 @@ export class PlanGenerationService {
       where: { id: planId, profile: { userId } },
       select: {
         options: true,
+        report: true,
         profile: { select: { mealCount: true } },
         days: {
           orderBy: { date: 'asc' },
@@ -544,7 +547,7 @@ export class PlanGenerationService {
     const dates = plan.days.map((day) => isoDate(day.date));
     const span = spanOf(dates, range);
     const today = clientToday ?? this.today();
-    const { mealCount } = PlanOptions.parse(plan.options);
+    const mealCount = planMealCount(plan);
     const profileCount = plan.profile.mealCount;
     const days = plan.days.map((day, index) =>
       rerollDayOf(day, dates[index]!, mealCount, profileCount),
@@ -660,10 +663,11 @@ export class PlanGenerationService {
     const span = spanOf(dates, range);
     const today = clientToday ?? this.today();
     const made = PlanOptions.parse(plan.options);
+    const planCount = planMealCount(plan);
     const profileCount = plan.profile.mealCount;
     const readings = plan.days.map((day, index) =>
       readReroll(
-        rerollDayOf(day, dates[index]!, made.mealCount, profileCount),
+        rerollDayOf(day, dates[index]!, planCount, profileCount),
         { ...span, ...options },
         today,
       ),

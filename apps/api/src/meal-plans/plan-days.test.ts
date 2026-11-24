@@ -3,8 +3,10 @@
 import { describe, expect, it } from 'vitest';
 import { aimOnDiet, energyShares } from '../engine/nutrition.js';
 import {
+  dayMealCount,
   macrosOff,
   mealLabel,
+  planMealCount,
   planSettingsOff,
   mealNutrition,
   restsOf,
@@ -401,5 +403,69 @@ describe('the rests of packs a meal finishes', () => {
     ]);
     // A share too small to keep is no rest.
     expect(scaleRests([rest], 0.001)).toEqual([]);
+  });
+});
+
+describe('how many meals a day of a plan is set for', () => {
+  const day = (meals: [string, string][], overrides: unknown = null) => ({
+    overrides,
+    meals: meals.map(([mealType, source]) => ({ mealType, source })),
+  });
+  const of = (mealType: string): [string, string] => [mealType, 'CATALOGUE'];
+  const own = (mealType: string): [string, string] => [mealType, 'USER_CUSTOM'];
+  const three = day([of('breakfast'), of('lunch'), of('dinner')]);
+  const plan = (
+    days: ReturnType<typeof day>[],
+    over: { mealCount?: number; made?: number } = {},
+  ) => ({
+    options: {
+      dietType: null,
+      mealCount: over.mealCount ?? null,
+      calorieTargetOverride: null,
+      mealPrepFriendly: false,
+      respectExclusions: true,
+      respectFavorites: true,
+      respectInventory: true,
+      maxRepeatsPerRecipe: null,
+      allowRelaxations: [],
+    },
+    report: over.made === undefined ? null : { mealCount: over.made },
+    days,
+  });
+
+  it('is the number asked for the plan, else the one its days were made with', () => {
+    expect(planMealCount(plan([three], { mealCount: 4, made: 3 }))).toBe(4);
+    expect(planMealCount(plan([day([of('lunch'), of('dinner')])], { made: 3 }))).toBe(3);
+  });
+
+  it('is, of a plan kept before, the number of meals of the catalogue most of its days hold', () => {
+    // A breakfast given to a meal of one's own, and a lunch taken off: the days keep the plan's three.
+    const ownBreakfast = day([own('breakfast'), own('breakfast'), of('lunch'), of('dinner')]);
+    const noLunch = day([of('breakfast'), of('dinner')]);
+    expect(planMealCount(plan([ownBreakfast, noLunch, three, three]))).toBe(3);
+    // A snack of one's own beside three meals is no fourth meal of the plan.
+    expect(
+      planMealCount(plan([day([of('breakfast'), of('lunch'), of('dinner'), own('snack')])])),
+    ).toBe(3);
+  });
+
+  it('takes the larger of two numbers as common, and leaves out the days of a number of their own', () => {
+    const four = day([of('breakfast'), of('lunch'), of('dinner'), of('snack')]);
+    const five = day(
+      [of('breakfast'), of('second_breakfast'), of('lunch'), of('snack'), of('dinner')],
+      { mealCount: 5 },
+    );
+    expect(planMealCount(plan([three, four, five, five]))).toBe(4);
+  });
+
+  it('is none for a plan no day of which holds a meal of the catalogue', () => {
+    expect(planMealCount(plan([day([own('lunch')]), day([])]))).toBeNull();
+  });
+
+  it("gives a day its own number, else the plan's, else as many as it has from the catalogue, else the profile's", () => {
+    expect(dayMealCount({ overrides: { mealCount: 4 }, meals: [] }, 3, 5)).toBe(4);
+    expect(dayMealCount(day([of('breakfast'), of('dinner')]), 3, 5)).toBe(3);
+    expect(dayMealCount(three, null, 5)).toBe(3);
+    expect(dayMealCount(day([own('lunch')]), null, 4)).toBe(4);
   });
 });

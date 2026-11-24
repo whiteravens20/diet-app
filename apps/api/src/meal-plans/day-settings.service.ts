@@ -41,6 +41,7 @@ import {
   isSkipped,
   mealNutrition,
   parseDayOverrides,
+  planMealCount,
   type DayOverridesJson,
   plateAsJson,
   wholeAddition,
@@ -658,7 +659,7 @@ export class DaySettingsService {
             date: true,
             calorieTarget: true,
             overrides: true,
-            meals: { select: { eatenAt: true } },
+            meals: { select: { eatenAt: true, source: true } },
           },
         },
       },
@@ -708,9 +709,8 @@ export class DaySettingsService {
    */
   private change(context: Context, settings: DaySettings, evenedTarget?: number): Change {
     const { plan, profile, day } = context;
-    const made = PlanOptions.parse(plan.options);
     const before = parseDayOverrides(day.overrides);
-    const count = dayMealCount(day, made.mealCount, profile.mealCount);
+    const count = dayMealCount(day, planMealCount(plan), profile.mealCount);
     // Another number of meals sets the meals the day has; the same number leaves them as they are.
     const slots: readonly MealType[] | null =
       settings.mealCount === count ? null : MEAL_SLOTS_BY_COUNT[settings.mealCount]!;

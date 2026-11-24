@@ -108,6 +108,7 @@ import {
   customMacros,
   aimOfDay,
   dayMealCount,
+  planMealCount,
   macrosOff,
   isoDate,
   isSkipped,
@@ -2096,6 +2097,8 @@ export class MealPlansService {
     // split its kept grams of protein come to at its target.
     const ownSplit = sharesOfPlanDay(plan, plan.calorieTarget);
     const options = PlanOptions.parse(plan.options);
+    // The number of meals a day without one of its own is set for, read from the whole plan.
+    const planCount = planMealCount(plan);
     // Sort meals into canonical eating order — Prisma's row order is
     // undefined and shifts after updates, which would look like other meals
     // also changed.
@@ -2342,7 +2345,7 @@ export class MealPlansService {
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
-        mealCount: dayMealCount(day, options.mealCount, plan.profile?.mealCount ?? 3),
+        mealCount: dayMealCount(day, planCount, plan.profile?.mealCount ?? 3),
         listed: listed(day.date),
       };
     });

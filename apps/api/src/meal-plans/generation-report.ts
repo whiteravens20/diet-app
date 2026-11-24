@@ -29,6 +29,11 @@ export const StoredReport = z.object({
   /** Of a joint plan, the times of day planned apart (`GenerationReport.apart`); none on a report kept before. */
   apart: z.array(MealType).default([]),
   /**
+   * How many meals the plan's days were made with where a day has none of its own: what a day that lost a meal, or
+   * gave one to a meal of the user's own, is still set for (`planMealCount`). Null on a report kept before.
+   */
+  mealCount: z.number().int().min(2).max(5).nullable().default(null),
+  /**
    * The packages of the profile's freezer the plan takes out, each by its ingredient, in its canonical unit, with its
    * number (`InventoryItem.parcel`) and its best-before day: what the plan's meals from `from` on take first
    * (`planPacks`), the one going off first first. Null where it takes nothing, and on a report kept before. A report
@@ -123,6 +128,7 @@ export function reportOf(
     singleCandidate: result.report.singleCandidate.map(about),
     pantry,
     apart: [],
+    mealCount: null,
     freezer,
   };
 }
@@ -145,6 +151,7 @@ export function withDaysAgain(
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
     pantry: kept.pantry,
     apart: kept.apart,
+    mealCount: kept.mealCount,
     freezer: kept.freezer,
   };
 }

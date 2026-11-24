@@ -4,6 +4,7 @@
 import {
   KCAL_PER_GRAM,
   LabelTotals,
+  PlanOptions,
   Unit,
   type DietType,
   type Macros,
@@ -509,6 +510,41 @@ export function dayMealCount(
   if (planCount !== null) return planCount;
   const fromCatalogue = day.meals.filter((meal) => meal.source === 'CATALOGUE').length;
   return fromCatalogue > 0 ? Math.min(5, Math.max(2, fromCatalogue)) : profileCount;
+}
+
+/** The number of meals a day a plan's report keeps (`StoredReport.mealCount`). */
+const MadeCount = z.number().int().min(2).max(5);
+
+/**
+ * How many meals a day of a plan is set for where it has no number of its own (`dayMealCount`): the plan's, asked
+ * for it; the number its days were made with, as its report keeps it; or, of a plan from before that was kept, the
+ * number of meals of the catalogue most of its days without a number of their own hold, the larger where two numbers
+ * are as common. A day that lost a meal, or gave one to a meal of the user's own, keeps the plan's number. Null for a
+ * plan none of whose days holds a meal of the catalogue.
+ */
+export function planMealCount(plan: {
+  options: unknown;
+  report: unknown;
+  days: readonly { overrides: unknown; meals: readonly { source: string }[] }[];
+}): number | null {
+  const asked = PlanOptions.parse(plan.options).mealCount;
+  if (asked !== null) return asked;
+  const made = MadeCount.safeParse((plan.report as { mealCount?: unknown } | null)?.mealCount);
+  if (made.success) return made.data;
+  const often = new Map<number, number>();
+  for (const day of plan.days) {
+    if (parseDayOverrides(day.overrides)?.mealCount !== undefined) continue;
+    const meals = day.meals.filter((meal) => meal.source === 'CATALOGUE').length;
+    if (meals === 0) continue;
+    const count = Math.min(5, Math.max(2, meals));
+    often.set(count, (often.get(count) ?? 0) + 1);
+  }
+  let found: number | null = null;
+  for (const [count, days] of often) {
+    const most = found === null ? 0 : often.get(found)!;
+    if (days > most || (days === most && count > found!)) found = count;
+  }
+  return found;
 }
 
 /**
