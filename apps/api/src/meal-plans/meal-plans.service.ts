@@ -654,6 +654,7 @@ export class MealPlansService {
       rows: frozen,
       taken: parcelsOf(freezerOf(plan.report)),
       madeAt: plan.createdAt,
+      today,
     };
     const nextDays = new Map([...nextElsewhere, ...ownNext]);
     // The entries themselves are read only for a plan whose days hold any.

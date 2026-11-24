@@ -124,7 +124,7 @@ export function planPacks(
   freezersNow: readonly FreezerNow[] = [],
 ): PlanPacks {
   const { needs, packs, known } = menuNeeds(meals, dates.length, freezes);
-  const staysFrozen = keptFrozen(needs, known, freezersNow, locale);
+  const staysFrozen = keptFrozen(needs, known, freezersNow, locale, dates);
   /** The first meal of a day, in the order they are eaten, that takes the ingredient. */
   const mealOf = (ingredientId: string, day: number): string | null =>
     meals
@@ -243,25 +243,36 @@ export interface FreezerNow {
   taken: ReadonlyMap<string, ReadonlySet<number>>;
   /** When the profile's plan was made: a package frozen later is no part of the freezer it took out of. */
   madeAt: Date;
+  /** The day it is for whoever reads the plan: a package comes out for a day after it at the earliest. */
+  today: string;
 }
 
 /**
  * The packages of the freezers of a menu's foods that its plan leaves frozen (`PlanPacks.staysFrozen`): of every food
  * the menu takes from packs (`needs`, before the freezer takes any), the packages the plan does not take out, as those
- * frozen after it was made and the others, with the most the menu eats of the food on a day and the next.
+ * frozen after it was made and the others, with the most the menu eats of the food on a day and the next: from
+ * tomorrow on (`FreezerNow.today`), a package taken out today being eaten tomorrow at the earliest, where a day from
+ * then takes the food, and of every day of the plan where none does.
  */
 function keptFrozen(
   needs: ReadonlyMap<string, readonly number[]>,
   known: ReadonlyMap<string, PackedLine['ingredient']>,
   freezersNow: readonly FreezerNow[],
   locale: Locale,
+  dates: readonly string[],
 ): PlanPacks['staysFrozen'] {
   const kept: PlanPacks['staysFrozen'] = [];
   for (const now of freezersNow) {
+    // A package taken out today is eaten tomorrow at the earliest.
+    const first = dates.findIndex((date) => date > now.today);
     for (const ingredientId of new Set(now.rows.map((one) => one.ingredientId))) {
-      const row = needs.get(ingredientId);
+      const all = needs.get(ingredientId);
       const ingredient = known.get(ingredientId);
-      if (!row || !ingredient || !row.some((need) => need > SPOONFUL)) continue;
+      if (!all || !ingredient || !all.some((need) => need > SPOONFUL)) continue;
+      // What the days from tomorrow on eat where any of them takes the food, the days a package can still come out
+      // for; else what the plan's days eat.
+      const ahead = first < 0 ? [] : all.map((need, day) => (day < first ? 0 : need));
+      const row = ahead.some((need) => need > SPOONFUL) ? ahead : all;
       const taken = now.taken.get(ingredientId);
       const left = now.rows
         .filter((one) => one.ingredientId === ingredientId && !taken?.has(one.parcel))

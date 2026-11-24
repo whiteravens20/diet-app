@@ -461,6 +461,38 @@ describe('what the pantry held in the freezer when a plan was made', () => {
     ).toEqual([]);
   });
 
+  it('says what a package it leaves frozen would be eaten of from tomorrow on, where a day from then takes the food', () => {
+    const left = (today: string) =>
+      planPacks(
+        [meal(0, ids(1), 2, 413), meal(2, ids(2), 2, 314)],
+        days(7),
+        'en',
+        undefined,
+        null,
+        [
+          {
+            rows: [
+              {
+                ingredientId: 'chicken',
+                quantity: 340,
+                unit: 'g',
+                parcel: 2,
+                frozenAt: new Date('2026-01-01'),
+              },
+            ],
+            taken: new Map(),
+            madeAt: new Date('2026-01-02'),
+            today,
+          },
+        ],
+      ).staysFrozen;
+    // On Monday the 413 g of the day are too late to come out for: the days from Tuesday on eat 314 g at the most.
+    expect(left('2026-01-05')).toMatchObject([{ amount: 340, why: 'whole', mostInTwoDays: 314 }]);
+    // Before the plan, every day counts; after its days that take the food, the plan's days say it.
+    expect(left('2026-01-04')).toMatchObject([{ mostInTwoDays: 413 }]);
+    expect(left('2026-01-08')).toMatchObject([{ mostInTwoDays: 413 }]);
+  });
+
   it('is thawed whole for the first meal that takes it, and eaten while it keeps, before a pack is bought', () => {
     // 286 g frozen: Monday's 150 g; thawed, chicken keeps two days, and Wednesday's 150 g open a pack.
     const packs = planPacks(
