@@ -561,6 +561,24 @@ describe('the curation queue', () => {
       ]);
     });
 
+    it('leaves out a step left empty, and keeps the steps where no step is left', async () => {
+      const draft = await aRecipeDraft(t);
+
+      const edited = await asReviewer
+        .edit(draft.id, { steps: ['Podgrzej.', '', '  ', 'Wymieszaj.'] })
+        .expect(200);
+      expect(edited.body.steps).toEqual(['Podgrzej.', 'Wymieszaj.']);
+
+      const refused = await asReviewer.edit(draft.id, { steps: ['', ' '] });
+      expect(refused.status).toBe(400);
+      expect(
+        refused.body.details.problems.map(
+          (problem: { path: string; rule: string }) => `${problem.path}: ${problem.rule}`,
+        ),
+      ).toEqual(['steps.pl: missing-locale']);
+      expect((await recipeRow(draft.id)).steps).toMatchObject({ pl: ['Podgrzej.', 'Wymieszaj.'] });
+    });
+
     it('is held to the same rules as any other text', async () => {
       const draft = await aRecipeDraft(t);
 
