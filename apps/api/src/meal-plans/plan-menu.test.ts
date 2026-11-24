@@ -438,6 +438,29 @@ describe('what the pantry held in the freezer when a plan was made', () => {
     stock: new Map([['chicken', [package_(grams)]]]),
   });
 
+  it('takes out a package the plan keeps from its own first day, and one past the plan not at all', () => {
+    // Taken after a change on Monday: from Tuesday on, so Monday's 150 g come from a pack and Tuesday's from it.
+    const later = {
+      from: '2026-01-05',
+      stock: new Map([['chicken', [{ ...package_(150, 3), from: '2026-01-06' }]]]),
+    };
+    const packs = planPacks(
+      [meal(0, ids(1), 2, 150), meal(1, ids(2), 2, 150)],
+      days(3),
+      'en',
+      undefined,
+      later,
+    );
+    expect(packs.fromFreezer).toMatchObject([{ date: '2026-01-06', amount: 150, eaten: 150 }]);
+    const past = {
+      from: '2026-01-05',
+      stock: new Map([['chicken', [{ ...package_(150, 3), from: '2026-02-01' }]]]),
+    };
+    expect(
+      planPacks([meal(0, ids(1), 2, 150)], days(3), 'en', undefined, past).fromFreezer,
+    ).toEqual([]);
+  });
+
   it('is thawed whole for the first meal that takes it, and eaten while it keeps, before a pack is bought', () => {
     // 286 g frozen: Monday's 150 g; thawed, chicken keeps two days, and Wednesday's 150 g open a pack.
     const packs = planPacks(

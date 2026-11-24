@@ -12,6 +12,17 @@ vi.mock('./rests-follow.js', async (original) => ({
     return [];
   }),
 }));
+const chosen = vi.hoisted(() => ({ said: [] as string[], again: [] as string[] }));
+vi.mock('./freezer-repick.js', () => ({
+  packagesSaid: vi.fn(async (_tx: unknown, _planId: string, today: string) => {
+    chosen.said.push(today);
+    return new Set<string>();
+  }),
+  repickFreezer: vi.fn(async (_tx: unknown, planId: string, today: string) => {
+    chosen.again.push(today);
+    return { kitchen: [planId], changed: [] };
+  }),
+}));
 
 /** What a plan that wastes less was made with, as it keeps it. */
 const LESS_WASTE = {
@@ -42,9 +53,11 @@ function aDatabase(): PrismaClient {
 describe('a write of a plan that wastes less', () => {
   beforeEach(() => {
     followed.days = [];
+    chosen.said = [];
+    chosen.again = [];
   });
 
-  it("follows the rests of its packs by the day it is for whoever asked, not the server's", async () => {
+  it("follows the rests of its packs and chooses its freezer again by the day it is for whoever asked, not the server's", async () => {
     await writePlan(aDatabase(), 'plan-1', 3, '2026-11-23', async () => null);
     await writePlans(
       aDatabase(),
@@ -54,5 +67,7 @@ describe('a write of a plan that wastes less', () => {
     );
 
     expect(followed.days).toEqual(['2026-11-23', '2026-11-21']);
+    expect(chosen.said).toEqual(['2026-11-23', '2026-11-21']);
+    expect(chosen.again).toEqual(['2026-11-23', '2026-11-21']);
   });
 });

@@ -140,14 +140,17 @@ export function planPacks(
   for (const [ingredientId, packages] of from < 0 ? [] : freezer!.stock) {
     const row = needs.get(ingredientId);
     const ingredient = known.get(ingredientId);
-    const whole = packages.filter((one) => Math.round(one.amount) >= 1);
+    // A package taken out after a change of the plan is eaten from its own first day on; one past the plan, not at all.
+    const firstOf = (one: (typeof packages)[number]): number =>
+      one.from ? dates.findIndex((date) => date >= one.from!) : from;
+    const whole = packages.filter((one) => Math.round(one.amount) >= 1 && firstOf(one) >= 0);
     if (!row || !ingredient || whole.length === 0) continue;
     // Each package thawed whole for its meal, in turn, and eaten within the days it keeps thawed.
     const { thawed, rest } = thawAll(
       row,
       whole.map((one) => ({
         amount: one.amount,
-        from,
+        from: Math.max(from, firstOf(one)),
         due: isDueSoon(one.bestBefore, dates.at(-1)!),
       })),
     );

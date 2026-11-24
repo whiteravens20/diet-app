@@ -48,6 +48,11 @@ export const StoredReport = z.object({
           amount: z.number().positive(),
           parcel: z.number().int().nonnegative().default(0),
           bestBefore: z.string().date().nullable().default(null),
+          /**
+           * The first day the package may be eaten from, where that is later than `from`: one the plan takes out
+           * after a change of it (`repickFreezer`), from the day after the change. Left out for the freezer's day.
+           */
+          from: z.string().date().optional(),
         }),
       ),
     })
@@ -56,11 +61,15 @@ export const StoredReport = z.object({
 });
 export type StoredReport = z.infer<typeof StoredReport>;
 
-/** A package of the freezer a plan takes out: what it holds in its food's canonical unit, its number and its day. */
+/**
+ * A package of the freezer a plan takes out: what it holds in its food's canonical unit, its number, its day, and the
+ * first day it may be eaten from where that is later than the freezer's (`StoredReport.freezer`).
+ */
 export interface FreezerPackage {
   amount: number;
   parcel: number;
   bestBefore: string | null;
+  from?: string;
 }
 
 /** What a plan takes out of the freezer (`StoredReport.freezer`), as `planPacks` takes it: the packages of each food. */
@@ -74,8 +83,11 @@ export function freezerOf(kept: unknown): Freezer | null {
   const freezer = StoredReport.nullable().parse(kept ?? null)?.freezer;
   if (!freezer) return null;
   const stock = new Map<string, FreezerPackage[]>();
-  for (const { ingredientId, amount, parcel, bestBefore } of freezer.stock)
-    stock.set(ingredientId, [...(stock.get(ingredientId) ?? []), { amount, parcel, bestBefore }]);
+  for (const { ingredientId, amount, parcel, bestBefore, from } of freezer.stock)
+    stock.set(ingredientId, [
+      ...(stock.get(ingredientId) ?? []),
+      { amount, parcel, bestBefore, from },
+    ]);
   return { from: freezer.from, stock };
 }
 
@@ -95,7 +107,7 @@ export function oneFreezer(a: Freezer | null, b: Freezer | null): Freezer | null
 
 /** The packages a plan takes out of the freezer, as a report keeps them: from `from` on, or null for none. */
 export function keptFreezer(
-  stock: ReadonlyMap<string, readonly FreezerPackage[]>,
+  stock: ReadonlyMap<string, readonly Pick<FreezerPackage, 'amount' | 'parcel' | 'bestBefore'>[]>,
   from: string,
 ): StoredReport['freezer'] {
   const held = [...stock].flatMap(([ingredientId, list]) =>

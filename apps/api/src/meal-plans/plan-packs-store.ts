@@ -21,7 +21,7 @@ type Db = Pick<Prisma.TransactionClient, 'recipe' | 'ingredient' | 'mealPlan'>;
 type MealRow = Omit<CountedMeal, 'recipe'>;
 
 /** The fields of a planned meal `MealRow` reads: a select of `PlannedMeal`. */
-const MEAL_ROW = {
+export const MEAL_ROW = {
   id: true,
   mealType: true,
   recipeId: true,

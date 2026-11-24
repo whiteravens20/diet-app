@@ -2,6 +2,7 @@
 
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { packagesSaid, repickFreezer } from './freezer-repick.js';
 import { followRests, wasteLevelOf } from './rests-follow.js';
 
 /** A refusal of a change of a plan made from a plan another change moved on meanwhile (`writePlan`). */
@@ -65,6 +66,10 @@ export function writePlans<T>(
       if (wasteLevelOf(claimed[0]!.options))
         counting.push({ planId, kitchen: claimed[0]!.jointPlanId ?? planId });
     }
+    // What the plans of each kitchen say to take out of the freezer by today, read before the change: kept after it.
+    const said = new Set<string>();
+    for (const { planId } of plans)
+      for (const key of await packagesSaid(tx, planId, today)) said.add(key);
     const written = await write(tx);
     for (const { planId } of plans) await unlinkDiverged(tx, planId);
     // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose
@@ -76,6 +81,19 @@ export function writePlans<T>(
       kitchens.add(kitchen);
       const followed = await followRests(tx, planId, today);
       for (const other of new Set(followed.map((one) => one.planId)))
+        if (!claimed.has(other)) {
+          await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
+          claimed.add(other);
+        }
+    }
+    // What the plans of each kitchen take out of the freezer is chosen again with the menu as the change left it
+    // (`repickFreezer`); a plan of the kitchen whose choice changes moves on as well.
+    const repicked = new Set<string>();
+    for (const { planId } of plans) {
+      if (repicked.has(planId)) continue;
+      const { kitchen, changed } = await repickFreezer(tx, planId, today, said);
+      for (const one of kitchen) repicked.add(one);
+      for (const other of changed)
         if (!claimed.has(other)) {
           await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
           claimed.add(other);

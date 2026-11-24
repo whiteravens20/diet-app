@@ -8,7 +8,7 @@ import {
   type Profile,
   type ShoppingList,
 } from '@diet-app/shared';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
@@ -561,6 +561,124 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     } finally {
       generation.today = today;
     }
+  });
+
+  describe('chooses again what it takes out of the freezer after a change', () => {
+    /** A plan of three days with chicken (150 g a serving) at lunch on the days of `chickenOn`, as made taking nothing out. */
+    const aPlanWithChickenOn = async (chickenOn: number[]): Promise<MealPlan> => {
+      const plan = await t.app.get(PlanGenerationService).generate(
+        user.id,
+        'en',
+        GeneratePlanRequest.parse({
+          profileId: adam.id,
+          startDate: '2026-01-05',
+          durationDays: 3,
+        }),
+      );
+      for (const day of [0, 1, 2])
+        await menu(plan, day, [
+          'scrambled-eggs-on-toast',
+          chickenOn.includes(day) ? 'chicken-rice-broccoli' : 'tofu-rice-bowl',
+          'chickpea-tomato-stew',
+        ]);
+      const made = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: { report: { ...(made.report as object), freezer: null } },
+      });
+      return read(plan.id);
+    };
+    const lunchOf = (plan: MealPlan, day: number) =>
+      plan.days[day]!.meals.find((meal) => meal.mealType === 'lunch')!;
+    const freezerKept = async (planId: string) =>
+      (
+        (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: planId } })).report as {
+          freezer: unknown;
+        }
+      ).freezer;
+    let chicken: { id: string };
+    let serverToday: () => string;
+
+    beforeEach(async () => {
+      const generation = t.app.get(PlanGenerationService);
+      serverToday = generation.today;
+      generation.today = () => '2026-01-05';
+      chicken = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'chicken-breast' } });
+      // In the freezer before the plan is made: 300 g, more than one serving of the lunch eats.
+      await t.prisma.inventoryItem.create({
+        data: {
+          profileId: adam.id,
+          ingredientId: chicken.id,
+          quantity: 300,
+          unit: 'g',
+          parcel: 3,
+          bestBefore: new Date('2026-02-20'),
+          frozen: true,
+          createdAt: new Date('2026-01-01T12:00:00Z'),
+        },
+      });
+    });
+
+    afterEach(() => {
+      t.app.get(PlanGenerationService).today = serverToday;
+    });
+
+    it('takes a package a change makes a day eat whole, from tomorrow on', async () => {
+      const plan = await aPlanWithChickenOn([1]);
+      expect((await read(plan.id)).packs.staysFrozen).toMatchObject([
+        { ingredientId: chicken.id, amount: 300, why: 'whole' },
+      ]);
+
+      // Tuesday's lunch grows to two servings, 300 g; any change of the plan chooses again.
+      await t.prisma.plannedMeal.update({
+        where: { id: lunchOf(plan, 1).id },
+        data: { servings: 2 },
+      });
+      await t.app
+        .get(MealPlansService)
+        .setEaten(user.id, 'en', plan.id, plan.days[0]!.meals[0]!.id, true);
+
+      expect(await freezerKept(plan.id)).toEqual({
+        from: '2026-01-06',
+        stock: [{ ingredientId: chicken.id, amount: 300, parcel: 3, bestBefore: '2026-02-20' }],
+      });
+      const after = await read(plan.id);
+      expect(after.packs.fromFreezer).toMatchObject([
+        { ingredientId: chicken.id, date: '2026-01-06', amount: 300, eaten: 300 },
+      ]);
+      expect(after.packs.staysFrozen).toEqual([]);
+    });
+
+    it('keeps a package it said to take out today when the meal it was for goes, and lets one for later go', async () => {
+      // Tuesday eats it whole: it comes out today, Monday.
+      const forTomorrow = await aPlanWithChickenOn([1]);
+      await t.prisma.plannedMeal.update({
+        where: { id: lunchOf(forTomorrow, 1).id },
+        data: { servings: 2 },
+      });
+      const plans = t.app.get(MealPlansService);
+      await plans.setEaten(user.id, 'en', forTomorrow.id, forTomorrow.days[0]!.meals[0]!.id, true);
+      expect(await freezerKept(forTomorrow.id)).not.toBeNull();
+      await plans.removeMeal(user.id, 'en', forTomorrow.id, lunchOf(forTomorrow, 1).id);
+      expect(await freezerKept(forTomorrow.id)).toMatchObject({
+        stock: [{ ingredientId: chicken.id, parcel: 3 }],
+      });
+
+      // Wednesday eats it whole: it comes out tomorrow, and nothing was said of it yet.
+      await t.prisma.mealPlan.delete({ where: { id: forTomorrow.id } });
+      const forLater = await aPlanWithChickenOn([2]);
+      await t.prisma.plannedMeal.update({
+        where: { id: lunchOf(forLater, 2).id },
+        data: { servings: 2 },
+      });
+      await plans.setEaten(user.id, 'en', forLater.id, forLater.days[0]!.meals[0]!.id, true);
+      expect(await freezerKept(forLater.id)).toMatchObject({
+        stock: [{ ingredientId: chicken.id, parcel: 3 }],
+      });
+      await plans.removeMeal(user.id, 'en', forLater.id, lunchOf(forLater, 2).id);
+      expect(await freezerKept(forLater.id)).toBeNull();
+      expect((await read(forLater.id)).packs.fromFreezer).toEqual([]);
+    });
   });
 
   it('gives the pantry what is left of a rest it freezes, once, as frozen and dated a month on', async () => {
