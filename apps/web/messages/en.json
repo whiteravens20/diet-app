@@ -2252,6 +2252,7 @@
     "emptyState": "Add what you already have so the optimiser can use it.",
     "addTitle": "Add to pantry",
     "ingredientLabel": "Ingredient",
+    "heldFresh": "already in the pantry ({amount}): change the amount",
     "searchPlaceholder": "Search the catalogue…",
     "clearPick": "Change",
     "quantityLabel": "Quantity",

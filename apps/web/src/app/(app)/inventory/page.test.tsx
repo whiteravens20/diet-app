@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
 import { failReadsAgain } from '@/testing/read-again';
+import { spaced } from '@/testing/spaces';
 import messages from '../../../../messages/en.json';
 import InventoryPage from './page';
 
@@ -499,15 +500,33 @@ describe('a row of the pantry', () => {
       ).toBeTruthy();
     });
 
-    it('takes a food the pantry holds fresh, once the box says it goes into the freezer', async () => {
+    it('finds a food the pantry holds fresh, says so, and leads to the amount of its row', async () => {
       await open([chicken], [grams(100, false, '2026-11-16')]);
       const search = (await addWindow()).getByLabelText(texts.ingredientLabel);
 
       await userEvent.type(search, 'Chic');
-      expect(screen.queryByRole('button', { name: chicken.name })).toBeNull();
-      await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
+      const held = await screen.findByRole('button', {
+        name: spaced(`${chicken.name} ${texts.heldFresh.replace('{amount}', '100 g')}`),
+      });
+      await userEvent.click(held);
 
-      expect(await screen.findByRole('button', { name: chicken.name })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: texts.addTitle })).toBeNull();
+      await waitFor(() =>
+        expect(
+          screen.getByLabelText(texts.quantityOf.replace('{name}', chicken.name)),
+        ).toHaveFocus(),
+      );
+    });
+
+    it('takes a food the pantry holds fresh, once the box says it goes into the freezer', async () => {
+      await open([chicken], [grams(100, false, '2026-11-16')]);
+      const search = (await addWindow()).getByLabelText(texts.ingredientLabel);
+
+      await userEvent.click(screen.getByRole('checkbox', { name: texts.frozenLabel }));
+      await userEvent.type(search, 'Chic');
+      await userEvent.click(await screen.findByRole('button', { name: chicken.name }));
+
+      expect(screen.getByRole('button', { name: texts.clearPick })).toBeInTheDocument();
     });
 
     const freezeOf = (name: string) => texts.freezeLabel.replace('{name}', name);

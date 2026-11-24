@@ -66,6 +66,9 @@ export default function InventoryPage() {
   const [freezing, setFreezing] = useState<InventoryItem | null>(null);
   // Whether the window things are added to the pantry in is open: it stays open for the next until it is closed.
   const [adding, setAdding] = useState(false);
+  // What ties the window's way to a row's amount to the field of that row.
+  const rowsId = useId();
+  const quantityId = (item: InventoryItem) => `${rowsId}-quantity-${item.id}`;
 
   const profiles = useQuery({
     queryKey: ['profiles'],
@@ -232,6 +235,7 @@ export default function InventoryPage() {
                             untouched must not write the rounded number over the exact one. */}
                           <Input
                             key={`${item.id}-${item.display.quantity}`}
+                            id={quantityId(item)}
                             type="number"
                             step="0.01"
                             min="0"
@@ -332,7 +336,17 @@ export default function InventoryPage() {
           key={activeProfileId}
           profileId={activeProfileId}
           // What is frozen stands apart: fresh of a food can be added beside its packages, and any food frozen.
-          freshIds={new Set(items.filter((i) => !i.frozen).map((i) => i.ingredient.id))}
+          fresh={new Map(items.filter((i) => !i.frozen).map((i) => [i.ingredient.id, i]))}
+          onChangeAmount={(row) => {
+            setAdding(false);
+            // Once the window is gone and has given the focus back: the row's amount, brought into sight by the focus
+            // and to be typed over.
+            requestAnimationFrame(() => {
+              const field = document.getElementById(quantityId(row)) as HTMLInputElement | null;
+              field?.focus();
+              field?.select();
+            });
+          }}
           onAdd={(body) => upsert.mutateAsync(body)}
           errorOf={(e) => errorText(e, t('errAdd'))}
           onClose={() => setAdding(false)}
@@ -371,14 +385,20 @@ type NewRow = {
  */
 function AddInventoryDialog({
   profileId,
-  freshIds,
+  fresh,
+  onChangeAmount,
   onAdd,
   errorOf,
   onClose,
 }: {
   profileId: string;
-  /** The foods the pantry holds fresh: a search offers them again only to go into the freezer, as packages of their own. */
-  freshIds: Set<string>;
+  /**
+   * The fresh row of each food the pantry holds fresh, by its ingredient: found again, such a food is the row's to
+   * change the amount of ([onChangeAmount]), unless it goes into the freezer as packages of its own.
+   */
+  fresh: ReadonlyMap<string, InventoryItem>;
+  /** The window gives way to the amount of a row the pantry has. */
+  onChangeAmount: (row: InventoryItem) => void;
   /** Puts the row in; settles once the server has it, or with why it does not. */
   onAdd: (body: NewRow) => Promise<unknown>;
   /** What went wrong, in the reader's words. */
@@ -427,7 +447,7 @@ function AddInventoryDialog({
     queryFn: () => api.get<Ingredient[]>(`/ingredients?search=${encodeURIComponent(search)}`),
     enabled: search.trim().length >= 2,
   });
-  const available = (results.data ?? []).filter((i) => frozen || !freshIds.has(i.id)).slice(0, 8);
+  const available = (results.data ?? []).slice(0, 8);
 
   /** Into the freezer or not: what goes in is dated as the freezer keeps it, unless a date is typed already. */
   function freezeIt(on: boolean) {
@@ -544,24 +564,40 @@ function AddInventoryDialog({
               )}
               {search.trim().length >= 2 && available.length > 0 && (
                 <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md">
-                  {available.map((i) => (
-                    <li key={i.id}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start rounded-none"
-                        onClick={() => {
-                          setPickedIngredient(i);
-                          setSearch('');
-                          // The unit the API offers first: pieces of what is counted, the rest as it is weighed or measured.
-                          setUnit(i.pantryUnits[0]!);
-                        }}
-                      >
-                        {fmt.text(i.name)}
-                      </Button>
-                    </li>
-                  ))}
+                  {available.map((i) => {
+                    // Held fresh already: one fresh row a food, whose amount is changed where it stands.
+                    const held = frozen ? undefined : fresh.get(i.id);
+                    return (
+                      <li key={i.id}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto min-h-9 w-full flex-wrap justify-start gap-x-2 rounded-none text-left"
+                          onClick={() => {
+                            if (held) {
+                              onChangeAmount(held);
+                              return;
+                            }
+                            setPickedIngredient(i);
+                            setSearch('');
+                            // The unit the API offers first: pieces of what is counted, the rest as it is weighed or measured.
+                            setUnit(i.pantryUnits[0]!);
+                          }}
+                        >
+                          {fmt.text(i.name)}
+                          {held && ' '}
+                          {held && (
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {t('heldFresh', {
+                                amount: amount(held.display.quantity, held.display.unit),
+                              })}
+                            </span>
+                          )}
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </>
