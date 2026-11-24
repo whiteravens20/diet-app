@@ -526,6 +526,26 @@ describe('writing names again in the administrator’s panel', () => {
   });
 });
 
+describe('the text of a recipe draft in the administrator’s editor', () => {
+  it('names the title and the description of each language by their labels', async () => {
+    shown(<RecipeDraftRow draft={aRecipeDraft()} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+    await userEvent.click(screen.getByRole('button', { name: texts.edit }));
+
+    for (const [locale, title, description] of [
+      ['en', 'Greek yogurt with almonds & honey', 'A quick snack.'],
+      ['pl', 'Jogurt grecki z migdałami i miodem', 'Szybka przekąska.'],
+    ]) {
+      expect(
+        screen.getByRole('textbox', { name: spaced(`${texts.titleLabel} · ${locale}`) }),
+      ).toHaveValue(title);
+      expect(
+        screen.getByRole('textbox', { name: spaced(`${texts.descriptionLabel} · ${locale}`) }),
+      ).toHaveValue(description);
+    }
+  });
+});
+
 describe('the steps of a recipe draft in the administrator’s editor', () => {
   it('change in one language alone, and open again as the draft kept them', async () => {
     const kept: RecipeDraft = {

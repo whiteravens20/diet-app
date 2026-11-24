@@ -512,6 +512,7 @@ function RecipeEditor({
   lockStructural?: boolean;
 }) {
   const t = useTranslations('admin.curation');
+  const fieldId = useId();
 
   const updateTitle = (locale: string, v: string) =>
     onChange({ ...edit, titles: { ...edit.titles, [locale]: v } });
@@ -527,21 +528,26 @@ function RecipeEditor({
       <div className="grid gap-3 md:grid-cols-2">
         {locales.map((locale) => (
           <div key={locale} className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              {t('title')}
+            <label htmlFor={`${fieldId}-title-${locale}`} className="text-xs text-muted-foreground">
+              {t('titleLabel')}
               {DOT}
               {locale}
             </label>
             <Input
+              id={`${fieldId}-title-${locale}`}
               value={edit.titles[locale] ?? ''}
               onChange={(e) => updateTitle(locale, e.target.value)}
             />
-            <label className="text-xs text-muted-foreground">
+            <label
+              htmlFor={`${fieldId}-description-${locale}`}
+              className="text-xs text-muted-foreground"
+            >
               {t('descriptionLabel')}
               {DOT}
               {locale}
             </label>
             <Input
+              id={`${fieldId}-description-${locale}`}
               value={edit.descriptions[locale] ?? ''}
               onChange={(e) => updateDescription(locale, e.target.value)}
             />

@@ -950,6 +950,7 @@
       "allergensLabel": "Alergeny: {list}",
       "prepMinutesLabel": "Przygotowanie (min)",
       "cookMinutesLabel": "Gotowanie (min)",
+      "titleLabel": "Tytuł",
       "descriptionLabel": "Opis",
       "stepsLabel": "Kroki",
       "ingredientsLabel": "Składniki",
