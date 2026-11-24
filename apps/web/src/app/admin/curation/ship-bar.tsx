@@ -18,6 +18,7 @@ import {
   type ShipSkipped,
 } from '@/lib/admin-api';
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
+import { RemoveWithoutIngredient } from './remove-without-ingredient';
 
 export function ShipBar({
   kind,
@@ -93,6 +94,12 @@ export function ShipBar({
     } catch (err) {
       setError(errorText(err, String(err)));
     }
+  };
+
+  // Drafts of names went from the queue: what waits to be shipped and the list beside the bar are read again.
+  const afterRemoval = async () => {
+    await refresh();
+    await onShipped();
   };
 
   const downloadCurrent = async () => {
@@ -192,7 +199,11 @@ export function ShipBar({
       )}
       {error && (
         <div className="text-xs">
-          <SkippedDrafts skipped={heldBack} heading="shipSkipped" />
+          <SkippedDrafts
+            skipped={heldBack}
+            heading="shipSkipped"
+            onRemoved={kind === 'ingredient-name' ? afterRemoval : undefined}
+          />
         </div>
       )}
       {success && (
@@ -200,33 +211,43 @@ export function ShipBar({
           result={success}
           onMarkShipped={onMarkShipped}
           onDismiss={() => setSuccess(null)}
+          onRemoved={afterRemoval}
         />
       )}
     </div>
   );
 }
 
-/** The approved drafts a ship left where they were, each by its slug, with the reason in words. */
+/**
+ * The approved drafts a ship left where they were, each by its slug, with the reason in words. Where it held back names
+ * of ingredients the catalogue no longer has, with the way to remove every draft of such a name ([onRemoved]).
+ */
 function SkippedDrafts({
   skipped,
   heading,
+  onRemoved,
 }: {
   skipped: ShipSkipped[];
   heading: 'shipSkipped' | 'shipBundleSkipped';
+  onRemoved?: () => void | Promise<void>;
 }) {
   const t = useTranslations('admin.curation');
   const reasonText = useSkipReasonText();
   if (skipped.length === 0) return null;
+  const missing = skipped.some((entry) => entry.reason.startsWith('unknown-slug:'));
   return (
-    <div className="mt-1 text-warning">
-      <p>{t(heading, { count: skipped.length })}</p>
-      <ul className="list-disc pl-4">
-        {skipped.map((entry) => (
-          <li key={entry.draftId}>
-            <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
-          </li>
-        ))}
-      </ul>
+    <div className="mt-1 space-y-2 text-warning">
+      <div>
+        <p>{t(heading, { count: skipped.length })}</p>
+        <ul className="list-disc pl-4">
+          {skipped.map((entry) => (
+            <li key={entry.draftId}>
+              <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {missing && onRemoved && <RemoveWithoutIngredient count={null} onRemoved={onRemoved} />}
     </div>
   );
 }
@@ -235,10 +256,13 @@ function ShipSuccess({
   result,
   onMarkShipped,
   onDismiss,
+  onRemoved,
 }: {
   result: ShipResponse;
   onMarkShipped: (draftIds: string[]) => void | Promise<void>;
   onDismiss: () => void;
+  /** Drafts of names were removed from the queue: the bar and the list read again. */
+  onRemoved: () => void | Promise<void>;
 }) {
   const t = useTranslations('admin.curation');
   if (result.mode === 'local') {
@@ -264,7 +288,11 @@ function ShipSuccess({
               : t('shipSidecarWarning', { error: result.sidecarError })}
           </p>
         )}
-        <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />
+        <SkippedDrafts
+          skipped={result.skipped}
+          heading="shipSkipped"
+          onRemoved={result.kind === 'ingredient-name' ? onRemoved : undefined}
+        />
       </div>
     );
   }

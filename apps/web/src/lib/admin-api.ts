@@ -12,6 +12,7 @@ import type {
   AdminHealth,
   AdminOperatorAi,
   AdminOverview,
+  RemovedDrafts,
   AdminProducts,
   AdminSessionState,
   AdminStats,
@@ -316,6 +317,8 @@ export const adminApi = {
     ),
   deleteIngredientNameDraft: (id: string) =>
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
+  removeNamesWithoutIngredient: () =>
+    adminFetch<RemovedDrafts>('/drafts/ingredient-names/without-ingredient', { method: 'DELETE' }),
 
   // Drafts: recipes from elsewhere
   importRecipes: (request: RecipeImportRequestInput) =>

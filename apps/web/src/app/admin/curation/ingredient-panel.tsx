@@ -21,6 +21,7 @@ import { FilterStrip, Pagination } from './list-controls';
 import { LocaleReviewMatrix } from './locale-review-matrix';
 import { useReviewSignature } from './review-signature';
 import { PAGE_SIZE, POLL_INTERVAL_MS, type StatusFilter } from './shared';
+import { RemoveWithoutIngredient } from './remove-without-ingredient';
 import { ShipBar } from './ship-bar';
 import { DOT } from '@/lib/figure-line';
 
@@ -272,6 +273,10 @@ export function IngredientPanel({
       )}
 
       <ShipBar kind="ingredient-name" onShipped={loadDrafts} listRead={listRead} />
+      {/* Names of ingredients the catalogue does not have any more: no ship takes them. */}
+      {(queue?.withoutIngredient ?? 0) > 0 && (
+        <RemoveWithoutIngredient count={queue!.withoutIngredient} onRemoved={loadDrafts} />
+      )}
 
       <FilterStrip
         status={statusFilter}

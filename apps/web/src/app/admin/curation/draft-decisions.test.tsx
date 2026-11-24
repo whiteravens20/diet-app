@@ -184,6 +184,21 @@ describe('the decisions of a draft in the administrator’s panel', () => {
 });
 
 describe('the drafts of names in the administrator’s panel', () => {
+  it('offer to remove, with how many, the drafts of names of ingredients the catalogue does not have, while there are any', async () => {
+    panelOver([anIngredientNameDraft()], { ...QUEUE, withoutIngredient: 56 });
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Remove the drafts without an ingredient in the catalogue (56)',
+      }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    panelOver([anIngredientNameDraft()]);
+    await screen.findByText('Almonds');
+    expect(screen.queryByRole('button', { name: /^Remove the drafts without/ })).toBeNull();
+  });
+
   it('are rejected all at once, with one name and one reason, so that the next run writes them again', async () => {
     const shownDrafts = [
       { ...anIngredientNameDraft(), localeReviews: [] },
