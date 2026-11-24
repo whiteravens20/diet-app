@@ -15,6 +15,7 @@ import { aProfile, as, aUser, type TestUser } from '../testing/factories.js';
 import { plansTodayIs } from '../testing/plans-today.js';
 import { restartSeeds } from '../testing/seeds.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { menuNeeds } from './plan-menu.js';
@@ -715,6 +716,7 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         left: 350,
         // Frozen in portions of what the plan eats of it on a day and the next: Monday's 150 g.
         portion: 150,
+        loose: false,
         inPantry: false,
       },
     ]);
@@ -808,6 +810,59 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         expect(left).toMatchObject([{ packSize: 500, left: 350, wasted: true }]);
       }
     }
+  });
+
+  it('counts what one plan of a joint plan bought by weight for the whole kitchen, in both plans and in the reminders', async () => {
+    const adams = await together(false);
+    const ewas = await read(adams.joint!.planId);
+    // Chicken at Monday's lunch in both plans, and at Wednesday's in Adam's alone.
+    for (const plan of [adams, ewas])
+      for (const day of [0, 1, 2])
+        await menu(
+          plan,
+          day,
+          day === 0 || (day === 2 && plan === adams)
+            ? ['scrambled-eggs-on-toast', 'chicken-rice-broccoli', 'chickpea-tomato-stew']
+            : ['scrambled-eggs-on-toast', 'tofu-rice-bowl', 'chickpea-tomato-stew'],
+        );
+    // Ewa buys 1 kg by weight on Monday, from her plan's list.
+    const lists = t.app.get(ShoppingListsService);
+    const list = await lists.generate(user.id, 'en', {
+      planId: ewas.id,
+      fromDate: '2026-01-05',
+      toDate: '2026-01-07',
+    });
+    const row = list.groups
+      .flatMap((group) => group.items)
+      .find((item) => item.name === 'Chicken breast')!;
+    await lists.updateItem(
+      user.id,
+      'en',
+      list.id,
+      row.id,
+      { purchasedQuantity: 1000, boughtLoose: true },
+      '2026-01-05',
+    );
+
+    // Monday's two lunches eat 300 g fresh; Adam's Wednesday takes a portion frozen on Monday; 550 g are for later.
+    const [mine, theirs] = [await read(adams.id), await read(ewas.id)];
+    const rest = (plan: MealPlan) => plan.packs.frozen.map(({ mealId: _, ...one }) => one);
+    expect(rest(mine)).toMatchObject([
+      {
+        name: 'Chicken breast',
+        loose: true,
+        date: '2026-01-05',
+        amount: 700,
+        thawed: [{ date: '2026-01-07', amount: 150 }],
+        left: 550,
+      },
+    ]);
+    expect(rest(theirs)).toEqual(rest(mine));
+    expect(mine.packs.open.find((pack) => pack.name === 'Chicken breast')).toBeUndefined();
+    // The reminders count the kitchen the same way.
+    expect((await packsOfPlan(t.prisma, user.id, adams.id, 'en'))!.frozen).toMatchObject([
+      { loose: true, amount: 700, left: 550 },
+    ]);
   });
 
   it('counts the packs of the two plans of a joint plan together, in both of them', async () => {

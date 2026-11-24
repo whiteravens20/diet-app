@@ -77,9 +77,11 @@ import {
   planPacks,
   type FreezerNow,
   type FrozenRow,
+  type LooseBuy,
   type PackedLine,
   type PackedMeal,
 } from './plan-menu.js';
+import { looseBuys, type LooseRow } from './plan-packs-store.js';
 import {
   dateAfter,
   givesALeftover,
@@ -638,7 +640,7 @@ export class MealPlansService {
         ),
     );
     const mealIds = plan.days.flatMap((day) => day.meals.map((meal) => meal.id));
-    const [restrictions, diary, { lists, frozen }, nextElsewhere, toppingFoods, pieces] =
+    const [restrictions, diary, { lists, frozen, loose }, nextElsewhere, toppingFoods, pieces] =
       await Promise.all([
         restrictionsFor(this.prisma, plan),
         diaryOfDays(this.prisma, plan.profileId, plan.days, plan.id),
@@ -684,10 +686,12 @@ export class MealPlansService {
         packed,
         pieces,
         freezerNow,
+        loose,
       ),
       packed,
       pieces,
       freezerNow,
+      loose,
     };
   }
 
@@ -2090,6 +2094,8 @@ export class MealPlansService {
     pieces: PieceUses,
     /** The profile's freezer as it is now, for what the plan leaves in it. */
     freezerNow: FreezerNow,
+    /** What was bought by weight on the plan's lists (`listsAndFreezerOf`). */
+    loose: readonly LooseBuy[] = [],
   ): MealPlan {
     // Every figure of a meal below counts its pot's whole eggs and tortillas.
     const plan = { ...given, days: piecedDays(given.days, pieces) };
@@ -2402,6 +2408,7 @@ export class MealPlansService {
           levelOf(options)?.freezes,
           freezerOf(plan.report),
           [freezerNow],
+          loose,
         ),
         plan.frozenKept,
         plan.packsKept,
@@ -2528,6 +2535,8 @@ interface Assembled {
   pieces: PieceUses;
   /** The profile's freezer as it is now, and what the plan takes out of it. */
   freezerNow: FreezerNow;
+  /** What was bought by weight on the plan's lists. */
+  loose: readonly LooseBuy[];
 }
 
 /**
@@ -2538,11 +2547,12 @@ async function listsAndFreezerOf(
   db: Pick<PrismaService, '$queryRaw'>,
   planId: string,
   profileId: string,
-): Promise<{ lists: { fromDate: Date; toDate: Date }[]; frozen: FrozenRow[] }> {
+): Promise<{ lists: { fromDate: Date; toDate: Date }[]; frozen: FrozenRow[]; loose: LooseBuy[] }> {
   const [row] = await db.$queryRaw<
     {
       lists: { fromDate: string; toDate: string }[];
       frozen: (Omit<FrozenRow, 'frozenAt'> & { frozenAt: string })[];
+      loose: LooseRow[];
     }[]
   >`
     SELECT
@@ -2555,13 +2565,22 @@ async function listsAndFreezerOf(
           'ingredientId', i."ingredientId", 'quantity', i."quantity", 'unit', i."unit",
           'parcel', i."parcel", 'frozenAt', i."createdAt" AT TIME ZONE 'UTC'))
         FROM "InventoryItem" i WHERE i."profileId" = ${profileId} AND i."frozen"
-      ), '[]'::json) AS "frozen"`;
+      ), '[]'::json) AS "frozen",
+      COALESCE((
+        SELECT json_agg(json_build_object(
+          'ingredientId', r."ingredientId", 'unit', r."unit", 'totalQuantity', r."totalQuantity",
+          'alreadyHaveQuantity', r."alreadyHaveQuantity", 'purchasedQuantity', r."purchasedQuantity",
+          'checked', r."checked", 'boughtLooseOn', r."boughtLooseOn", 'fromDate', l."fromDate", 'toDate', l."toDate"))
+        FROM "ShoppingListItem" r JOIN "ShoppingList" l ON l."id" = r."listId"
+        WHERE l."planId" = ${planId} AND r."boughtLooseOn" IS NOT NULL
+      ), '[]'::json) AS "loose"`;
   return {
     lists: (row?.lists ?? []).map((one) => ({
       fromDate: new Date(`${one.fromDate}T00:00:00Z`),
       toDate: new Date(`${one.toDate}T00:00:00Z`),
     })),
     frozen: (row?.frozen ?? []).map((one) => ({ ...one, frozenAt: new Date(one.frozenAt) })),
+    loose: looseBuys(row?.loose ?? []),
   };
 }
 
@@ -2709,6 +2728,8 @@ function joined(
         ),
         oneFreezer(freezerOf(mine.plan.report), freezerOf(theirs.plan.report)),
         [mine.freezerNow, theirs.freezerNow],
+        // One kitchen: what either bought by weight is eaten by both.
+        [...mine.loose, ...theirs.loose],
       ),
       mine.plan.frozenKept,
       mine.plan.packsKept,

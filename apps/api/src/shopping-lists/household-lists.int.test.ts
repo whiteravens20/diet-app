@@ -210,6 +210,34 @@ describe('a shopping list for a household', () => {
     expect(await pantry(ewa, 'chicken-breast')).toBe(0);
   });
 
+  it('keeps on every part the day what the household bought by weight was bought, and puts none of it into a pantry', async () => {
+    await stock(adam, 'chicken-breast', 100);
+    let list = (await make().expect(201)).body as HouseholdList;
+    // The client's day, as the server takes it where none is named.
+    const today = new Date().toISOString().slice(0, 10);
+
+    list = await edit(list, 'Chicken breast', { purchasedQuantity: 900, boughtLoose: true });
+    expect(rowOf(list, 'Chicken breast')).toMatchObject({
+      purchasedQuantity: 900,
+      boughtLooseOn: today,
+      checked: true,
+      packs: null,
+    });
+    for (const part of [...(await listsOf(ofAdam)), ...(await listsOf(ofEwa))])
+      expect(
+        part.groups.flatMap((group) => group.items).find((item) => item.name === 'Chicken breast'),
+      ).toMatchObject({ boughtLooseOn: today });
+    // What was at home went to the plans, and nothing bought came back fresh.
+    expect(await pantry(adam, 'chicken-breast')).toBe(0);
+    expect(await pantry(ewa, 'chicken-breast')).toBe(0);
+
+    list = await edit(list, 'Chicken breast', { boughtLoose: false });
+    expect(rowOf(list, 'Chicken breast')).toMatchObject({ boughtLooseOn: null });
+    expect((await pantry(adam, 'chicken-breast')) + (await pantry(ewa, 'chicken-breast'))).toBe(
+      600,
+    );
+  });
+
   it('shares what is said to be at home as the pantries had it, then where there is room', async () => {
     await stock(adam, 'chicken-breast', 100);
     let list = (await make().expect(201)).body as HouseholdList;

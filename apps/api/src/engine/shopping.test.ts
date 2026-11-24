@@ -12,6 +12,7 @@ import {
   inAisleOrder,
   heldForPlan,
   intendedPantryEffect,
+  looseDay,
   packsToBuy,
   pantryEffectOnRemoval,
   pantryEffects,
@@ -589,6 +590,13 @@ describe('what a row means for the pantry', () => {
   it('still takes the part at home when the row is closed at less than the need', () => {
     expect(intendedPantryEffect(row({ purchasedQuantity: 450, checked: true }))).toBe(-200);
   });
+
+  it('adds nothing of what was bought by weight beyond the need: the plan freezes it', () => {
+    const loose = { boughtLooseOn: new Date('2026-01-05') };
+    expect(intendedPantryEffect(row({ purchasedQuantity: 1000, checked: true, ...loose }))).toBe(
+      -200,
+    );
+  });
 });
 
 describe('what the user holds for the plan outside the pantry', () => {
@@ -602,6 +610,40 @@ describe('what the user holds for the plan outside the pantry', () => {
     expect(heldForPlan(row({ purchasedQuantity: 700, checked: true }))).toBe(700);
     expect(heldForPlan(row({ purchasedQuantity: 900, checked: true }))).toBe(700);
     expect(heldForPlan(row({ purchasedQuantity: 450, checked: true }))).toBe(450);
+  });
+
+  it('is all of what was bought by weight, for a ticked row, what is beyond the need too', () => {
+    const loose = { boughtLooseOn: new Date('2026-01-05') };
+    expect(heldForPlan(row({ purchasedQuantity: 1000, checked: true, ...loose }))).toBe(1000);
+    expect(heldForPlan(row({ purchasedQuantity: 500, ...loose }))).toBe(300);
+    // Deleted with its days ahead, all of it goes into the pantry: none of it did before.
+    expect(
+      pantryEffectOnRemoval(row({ purchasedQuantity: 1000, checked: true, ...loose }), 1),
+    ).toBe(800);
+  });
+});
+
+describe('the day a row was bought by weight', () => {
+  const MONDAY = new Date('2026-01-05');
+  const TUESDAY = new Date('2026-01-06');
+  const bought = { alreadyHaveQuantity: 200, purchasedQuantity: 900 };
+
+  it('is the day it is first said, and stays that day while something stays bought', () => {
+    expect(looseDay(null, true, bought, true, TUESDAY)).toEqual(TUESDAY);
+    expect(looseDay(MONDAY, true, bought, true, TUESDAY)).toEqual(MONDAY);
+    expect(looseDay(MONDAY, undefined, bought, true, TUESDAY)).toEqual(MONDAY);
+  });
+
+  it('is none once said to be in packs, with nothing bought beyond what was at home, or for food not sold in packs', () => {
+    expect(looseDay(MONDAY, false, bought, true, TUESDAY)).toBeNull();
+    expect(looseDay(null, undefined, bought, true, TUESDAY)).toBeNull();
+    expect(
+      looseDay(MONDAY, true, { alreadyHaveQuantity: 200, purchasedQuantity: 200 }, true, TUESDAY),
+    ).toBeNull();
+    expect(
+      looseDay(null, true, { alreadyHaveQuantity: 0, purchasedQuantity: null }, true, TUESDAY),
+    ).toBeNull();
+    expect(looseDay(null, true, bought, false, TUESDAY)).toBeNull();
   });
 });
 

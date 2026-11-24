@@ -2005,6 +2005,7 @@ describe('the plan page, on how a day stands against its target', () => {
                 thawed: [],
                 left: 120,
                 portion: null,
+                loose: false,
                 inPantry: false,
               },
               {
@@ -2017,6 +2018,7 @@ describe('the plan page, on how a day stands against its target', () => {
                 thawed: [],
                 left: 230,
                 portion: null,
+                loose: false,
                 inPantry: false,
               },
               {
@@ -2029,6 +2031,7 @@ describe('the plan page, on how a day stands against its target', () => {
                 thawed: [],
                 left: 300,
                 portion: null,
+                loose: false,
                 inPantry: false,
               },
             ],
@@ -4905,6 +4908,7 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
             thawed: [{ date: '2026-01-06', mealId: tuesday.meals[0]!.id, amount: 100 }],
             left: 250,
             portion: null,
+            loose: false,
             inPantry: false,
             ...rest,
           },

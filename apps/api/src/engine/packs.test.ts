@@ -9,6 +9,7 @@ import {
   freezerWalk,
   freshPurchases,
   frozenLeft,
+  looseWalk,
   packLastDays,
   packPull,
   packStep,
@@ -570,6 +571,92 @@ describe('a pack that freezes, as meat and fish in a plan that wastes nothing', 
       count: 2,
       later: [{ day: 3, packs: 1 }],
     });
+  });
+});
+
+describe('meat or fish bought by weight', () => {
+  /** Chicken bought by weight keeps two days from its purchase; a spoonful of its 500 g pack is 25 g. */
+  const walk = (byDay: number[], ...purchases: Parameters<typeof looseWalk>[1]) =>
+    looseWalk(byDay, purchases, 2, SPOONFUL * 500);
+  /** What a walk did with a purchase: eaten fresh, thawed in portions, and left in the freezer for later. */
+  const accounted = (walked: ReturnType<typeof looseWalk>) =>
+    walked.eaten + walked.frozen.reduce((sum, rest) => sum + frozenLeft(rest), 0);
+
+  it('is eaten fresh while it keeps from its purchase, and frozen that day for the later days and for later', () => {
+    const walked = walk([150, 0, 150, 300], { day: 0, amount: 1000, from: 0, to: 3 });
+
+    expect(walked.rest).toEqual([0, 0, 0, 0]);
+    expect(walked.frozen).toEqual([
+      {
+        day: 0,
+        amount: 850,
+        thawed: [
+          { day: 2, amount: 150 },
+          { day: 3, amount: 300 },
+        ],
+      },
+    ]);
+    expect(frozenLeft(walked.frozen[0]!)).toBe(400);
+    // Every gram bought is eaten fresh, thawed, or kept in the freezer.
+    expect(walked.bought).toBe(1000);
+    expect(accounted(walked)).toBe(1000);
+  });
+
+  it('counts its days from its purchase: bought on a later day of the list, the days before are left to packs', () => {
+    const walked = walk([150, 150, 150, 150], { day: 2, amount: 300, from: 0, to: 3 });
+
+    expect(walked.rest).toEqual([150, 150, 0, 0]);
+    expect(walked.frozen).toEqual([]);
+  });
+
+  it('bought before the menu, goes into the freezer on its first day, which eats it fresh', () => {
+    const walked = walk([100, 100, 100], { day: -1, amount: 400, from: 0, to: 2 });
+
+    expect(walked.rest).toEqual([0, 0, 0]);
+    expect(walked.frozen).toEqual([
+      {
+        day: 0,
+        amount: 300,
+        thawed: [
+          { day: 1, amount: 100 },
+          { day: 2, amount: 100 },
+        ],
+      },
+    ]);
+  });
+
+  it("takes only its own list's days, and leaves to packs what it does not cover", () => {
+    expect(walk([100, 100, 100, 100], { day: 0, amount: 500, from: 0, to: 1 })).toMatchObject({
+      rest: [0, 0, 100, 100],
+      frozen: [{ day: 0, amount: 300, thawed: [] }],
+    });
+    expect(walk([300, 300], { day: 0, amount: 200, from: 0, to: 1 })).toMatchObject({
+      rest: [100, 300],
+      frozen: [],
+    });
+  });
+
+  it('freezes no spoonful left, which counts as eaten, and takes nothing for a purchase after the menu', () => {
+    const walked = walk([200], { day: 0, amount: 210, from: 0, to: 0 });
+    expect(walked).toMatchObject({ rest: [0], frozen: [], eaten: 210 });
+    expect(walk([200, 200], { day: 2, amount: 500, from: 0, to: 1 })).toEqual({
+      rest: [200, 200],
+      bought: 0,
+      eaten: 0,
+      frozen: [],
+    });
+  });
+
+  it('takes purchases in the order they were bought, a later one for what the first does not cover', () => {
+    const walked = walk(
+      [200, 200, 200, 200],
+      { day: 2, amount: 400, from: 0, to: 3 },
+      { day: 0, amount: 300, from: 0, to: 3 },
+    );
+
+    expect(walked.rest).toEqual([0, 100, 0, 0]);
+    expect(walked.frozen).toEqual([]);
+    expect(accounted(walked)).toBe(700);
   });
 });
 

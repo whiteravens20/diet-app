@@ -411,6 +411,7 @@ describe('the packs of a plan that wastes nothing', () => {
         left: 200,
         // What to freeze it in: the most the plan eats of it on a day and the next, Monday's 200 g.
         portion: 200,
+        loose: false,
         // Whoever reads the plan says whether the pantry was given it.
         inPantry: false,
       },
@@ -422,6 +423,125 @@ describe('the packs of a plan that wastes nothing', () => {
 
     expect(packs.frozen).toEqual([]);
     expect(packs.open).toMatchObject([{ ingredientId: 'chicken', left: 300 }]);
+  });
+});
+
+describe('what was bought by weight for a plan', () => {
+  const meal = (day: number, mealId: string, grams: number) => ({
+    day,
+    mealId,
+    rank: 2,
+    factor: 1,
+    lines: [line('chicken', chicken, grams), line('rice', rice, 80)],
+  });
+  const ids = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  /** 1 kg of chicken bought on Monday by weight, for the list of Monday to Thursday. */
+  const kilo = {
+    ingredientId: 'chicken',
+    quantity: 1000,
+    unit: 'g' as const,
+    boughtOn: '2026-01-05',
+    fromDate: '2026-01-05',
+    toDate: '2026-01-08',
+  };
+
+  it('is eaten fresh for two days from its purchase, then frozen that day in portions and the rest for later, whatever the plan wastes', () => {
+    // Chicken on Monday, Wednesday and Thursday, in a plan made as usual.
+    const packs = planPacks(
+      [meal(0, ids(1), 150), meal(2, ids(2), 150), meal(3, ids(3), 300)],
+      days(7),
+      'en',
+      undefined,
+      null,
+      [],
+      [kilo],
+    );
+
+    expect(packs.open).toEqual([]);
+    expect(packs.frozen).toEqual([
+      {
+        ingredientId: 'chicken',
+        name: 'Chicken breast',
+        unit: 'g',
+        date: '2026-01-05',
+        mealId: ids(1),
+        amount: 850,
+        thawed: [
+          { date: '2026-01-07', mealId: ids(2), amount: 150 },
+          { date: '2026-01-08', mealId: ids(3), amount: 300 },
+        ],
+        left: 400,
+        portion: 450,
+        loose: true,
+        inPantry: false,
+      },
+    ]);
+    // What was bought is bought, and the plan eats 600 g of it: rice comes in packs that keep.
+    expect(packs.bought).toBe(1000);
+    expect(packs.used).toBe(600);
+  });
+
+  it('leaves to packs what it does not cover, and the days out of its list', () => {
+    const packs = planPacks(
+      [meal(0, ids(1), 150), meal(5, ids(2), 150)],
+      days(7),
+      'en',
+      undefined,
+      null,
+      [],
+      [{ ...kilo, quantity: 100 }],
+    );
+
+    // Monday lacks 50 g, Saturday is not of the list: each opens a pack.
+    expect(packs.frozen).toEqual([]);
+    expect(packs.open.map((pack) => [pack.date, pack.left])).toEqual([
+      ['2026-01-05', 450],
+      ['2026-01-10', 350],
+    ]);
+  });
+
+  it('counts the freezer that was there when the plan was made first, before what was bought', () => {
+    const packs = planPacks(
+      [meal(0, ids(1), 150), meal(1, ids(2), 150)],
+      days(7),
+      'en',
+      undefined,
+      {
+        from: '2026-01-05',
+        stock: new Map([['chicken', [{ amount: 300, parcel: 1, bestBefore: null }]]]),
+      },
+      [],
+      [{ ...kilo, quantity: 200 }],
+    );
+
+    // The package eats Monday and Tuesday whole: all 200 g bought are left, for later.
+    expect(packs.fromFreezer).toMatchObject([{ amount: 300, eaten: 300 }]);
+    expect(packs.frozen).toMatchObject([{ loose: true, amount: 200, thawed: [], left: 200 }]);
+  });
+
+  it('adds up what was bought on one day, for the days of every list it was bought on', () => {
+    const packs = planPacks(
+      [meal(0, ids(1), 100), meal(5, ids(2), 300)],
+      days(7),
+      'en',
+      undefined,
+      null,
+      [],
+      [
+        { ...kilo, quantity: 200, toDate: '2026-01-06' },
+        { ...kilo, quantity: 300, fromDate: '2026-01-07', toDate: '2026-01-11' },
+      ],
+    );
+
+    expect(packs.frozen).toMatchObject([
+      {
+        loose: true,
+        date: '2026-01-05',
+        amount: 400,
+        thawed: [{ date: '2026-01-10', amount: 300 }],
+        left: 100,
+      },
+    ]);
   });
 });
 

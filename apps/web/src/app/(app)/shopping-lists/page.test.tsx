@@ -32,6 +32,8 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   alreadyHaveQuantity: 0,
   toBuyQuantity: 200,
   purchasedQuantity: null,
+  boughtLooseOn: null,
+  byWeight: false,
   frozenKept: 0,
   pantries: [],
   pantryBestBefore: null,

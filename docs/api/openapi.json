@@ -4543,8 +4543,8 @@
         "tags": [
           "household-lists"
         ],
-        "summary": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick.",
-        "description": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick.\n\nAsked by an account.",
+        "summary": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, the tick, or whether it was bought by weight.",
+        "description": "Change a row of a household list, and with it the row of each part: what the household holds, what is at home, the tick, or whether it was bought by weight.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -4567,6 +4567,16 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           },
           {
@@ -10108,8 +10118,8 @@
         "tags": [
           "shopping-lists"
         ],
-        "summary": "Change a row of a list: how much of it is there, what was at home, or its tick.",
-        "description": "Change a row of a list: how much of it is there, what was at home, or its tick. The pantry follows.\n\nAsked by an account.",
+        "summary": "Change a row of a list: how much of it is there, what was at home, its tick, or whether it was bought by weight.",
+        "description": "Change a row of a list: how much of it is there, what was at home, its tick, or whether it was bought by weight. The pantry follows.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -10132,6 +10142,16 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           },
           {
@@ -16402,6 +16422,21 @@
               }
             ]
           },
+          "boughtLooseOn": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "byWeight": {
+            "default": false,
+            "type": "boolean"
+          },
           "frozenKept": {
             "default": 0,
             "type": "number",
@@ -16522,6 +16557,8 @@
           "pantries",
           "toBuyQuantity",
           "purchasedQuantity",
+          "boughtLooseOn",
+          "byWeight",
           "frozenKept",
           "pantryBestBefore",
           "estimatedCalories",
@@ -20570,6 +20607,9 @@
               }
             ]
           },
+          "loose": {
+            "type": "boolean"
+          },
           "inPantry": {
             "type": "boolean"
           }
@@ -20584,6 +20624,7 @@
           "thawed",
           "left",
           "portion",
+          "loose",
           "inPantry"
         ],
         "additionalProperties": false
@@ -26347,6 +26388,21 @@
               }
             ]
           },
+          "boughtLooseOn": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "byWeight": {
+            "default": false,
+            "type": "boolean"
+          },
           "frozenKept": {
             "default": 0,
             "type": "number",
@@ -26441,6 +26497,8 @@
           "pantries",
           "toBuyQuantity",
           "purchasedQuantity",
+          "boughtLooseOn",
+          "byWeight",
           "frozenKept",
           "pantryBestBefore",
           "estimatedCalories",
@@ -27059,6 +27117,9 @@
             "type": "number",
             "minimum": 0,
             "maximum": 100000
+          },
+          "boughtLoose": {
+            "type": "boolean"
           }
         }
       },

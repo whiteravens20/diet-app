@@ -1029,6 +1029,11 @@ export const PlanFrozenRest = z.object({
    * out of the freezer only whole. Null where no day of the plan takes the food from packs.
    */
   portion: z.number().int().min(1).nullable(),
+  /**
+   * Of a purchase by weight (`ShoppingListItem.boughtLooseOn`), not of a pack: frozen on the day it was bought, or on
+   * the plan's first day where it was bought before it.
+   */
+  loose: z.boolean(),
   /** Given to the pantry already ("Dodaj do spiżarni", `KeepFrozenRequest`): it is given once. */
   inPantry: z.boolean(),
 });

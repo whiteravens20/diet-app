@@ -266,6 +266,67 @@ export function freezerWalk(
   return { bought: clean(bought), eaten: clean(eaten), frozen, lastDays };
 }
 
+/**
+ * A purchase of a food by weight rather than in packs (`ShoppingListItem.boughtLooseOn`): `amount` in the food's own
+ * unit, bought on day `day` of a menu (before its first day where it is under 0), for the menu's days `from` to `to`, the
+ * days of the shopping list it was bought from.
+ */
+export interface LoosePurchase {
+  day: number;
+  amount: number;
+  from: number;
+  to: number;
+}
+
+/**
+ * What purchases by weight of one food do for its needs, in the order they were bought, before any pack: from the day it
+ * is bought, a need of its days that comes while it keeps (`keepDays`, counted from the purchase) takes it fresh, and so
+ * does one on the day it goes into the freezer; a later need of its days takes a portion of it put in the freezer that
+ * day (`Frozen.thawed`), and what none of them takes goes in with them, for later. It goes in on the day it is bought, or
+ * on the menu's first day where it was bought before it. Nothing is thrown away, as meat and fish freeze; a rest of a
+ * spoonful (`spoon`) or less that no later day takes is no rest to freeze, and counts as eaten. A purchase made after
+ * the menu's last day is none of its own. Returns the needs left to packs, what the purchases came to, what the menu
+ * eats of them, and what each put in the freezer.
+ */
+export function looseWalk(
+  byDay: readonly number[],
+  purchases: readonly LoosePurchase[],
+  keepDays: number,
+  spoon: number,
+): { rest: number[]; bought: number; eaten: number; frozen: Frozen[] } {
+  const rest = [...byDay];
+  const frozen: Frozen[] = [];
+  let bought = 0;
+  let eaten = 0;
+  for (const purchase of [...purchases].sort((a, b) => a.day - b.day)) {
+    if (purchase.day >= rest.length || purchase.amount <= CRUMB) continue;
+    bought += purchase.amount;
+    let left = purchase.amount;
+    const into: Frozen = { day: Math.max(0, purchase.day), amount: 0, thawed: [] };
+    for (
+      let day = Math.max(0, purchase.day, purchase.from);
+      day <= Math.min(purchase.to, rest.length - 1) && left > CRUMB;
+      day += 1
+    ) {
+      const take = Math.min(left, Math.max(0, rest[day]!));
+      if (take <= CRUMB) continue;
+      rest[day] = clean(rest[day]! - take);
+      left -= take;
+      eaten += take;
+      if (day >= purchase.day + keepDays && day > into.day)
+        into.thawed.push({ day, amount: clean(take) });
+    }
+    const taken = into.thawed.reduce((sum, portion) => sum + portion.amount, 0);
+    if (left <= spoon + CRUMB) {
+      eaten += Math.max(0, left);
+      left = 0;
+    }
+    into.amount = clean(taken + left);
+    if (into.amount > CRUMB) frozen.push(into);
+  }
+  return { rest, bought: clean(bought), eaten: clean(eaten), frozen };
+}
+
 /** A portion of an ingredient the kitchen holds in the freezer: taken out whole for the first need from day `from` on. */
 export interface Held {
   amount: number;

@@ -28,6 +28,7 @@ import {
   groupByAisle,
   isCounted,
   keepDaysOf,
+  looseDay,
   packsToBuy,
   pantryEffects,
   pantryStock,
@@ -84,6 +85,8 @@ export interface StoredItem {
   unit: Unit;
   alreadyHaveQuantity: number;
   purchasedQuantity: number | null;
+  /** The day what was bought for the row was bought by weight (`ShoppingListItem.boughtLooseOn`). */
+  boughtLooseOn: Date | null;
   pantryMoves: Prisma.JsonValue;
   /** What of `alreadyHaveQuantity` was counted in the pantries of other profiles of a household list (`Borrowed`). */
   borrowed: Prisma.JsonValue;
@@ -208,9 +211,12 @@ export class ShoppingListsService {
     listId: string,
     itemId: string,
     patch: UpdateShoppingItemRequest,
+    /** The client's day: what is said to be bought by weight is bought that day. */
+    clientToday: string | null = null,
   ): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
     const profileId = list.plan.profile.id;
+    const today = new Date(`${clientToday ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
 
     await this.prisma.$transaction(async (tx) => {
       // Read under a lock, so that a second edit of the row waits for this one
@@ -226,12 +232,20 @@ export class ShoppingListsService {
       }
       const item = await tx.shoppingListItem.findUniqueOrThrow({ where: { id: itemId } });
       // What is at home is said first: the quantity and the tick of the same request are read against it.
-      const { alreadyHaveQuantity, ...edit } = patch;
+      const { alreadyHaveQuantity, boughtLoose, ...edit } = patch;
       const atHome =
         alreadyHaveQuantity === undefined ? null : withAtHome(item, alreadyHaveQuantity);
+      const edited = { ...atHome, ...editRow({ ...item, ...atHome }, edit) };
+      const food = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
       const next = {
-        ...atHome,
-        ...editRow({ ...item, ...atHome }, edit),
+        ...edited,
+        boughtLooseOn: looseDay(
+          item.boughtLooseOn,
+          boughtLoose,
+          { ...item, ...edited },
+          isFreshMeatInPacks(food),
+          today,
+        ),
         // The date was that of what the pantry held for the row: with nothing at home there is none.
         ...(atHome?.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
       };
@@ -351,13 +365,17 @@ export function itemDto(
     pantries,
     toBuyQuantity: toBuy,
     purchasedQuantity: item.purchasedQuantity,
+    boughtLooseOn: item.boughtLooseOn ? isoDate(item.boughtLooseOn) : null,
+    byWeight: isFreshMeatInPacks(ingredient),
     frozenKept: ingredient && frozen > 0 ? inRowUnit(frozen, item.unit, ingredient) : 0,
     pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
     estimatedCalories: item.estimatedCalories,
-    packs: ingredient
-      ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient, fresh?.count)
-      : null,
-    buyLater: fresh?.later ?? [],
+    // What was bought by weight leaves no packs to buy: what the row still lacks is said in its own unit.
+    packs:
+      ingredient && !item.boughtLooseOn
+        ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient, fresh?.count)
+        : null,
+    buyLater: item.boughtLooseOn ? [] : (fresh?.later ?? []),
     checked: item.checked,
   };
 }
@@ -410,6 +428,23 @@ export function withNames(
 
 /** Tags of a meat or fish that keeps closed far longer than opened: tinned, or smoked and cured. */
 const KEEPS_CLOSED = new Set(['pantry', 'cured']);
+
+/**
+ * Fresh meat or fish in packs, which keeps from its purchase about as long as from its opening: what a list buys on
+ * the days its plan needs it (`freshOf`), and what can be bought by weight instead (`ShoppingListItem.boughtLooseOn`).
+ */
+export function isFreshMeatInPacks(
+  ingredient:
+    Pick<IngredientRow, 'perishable' | 'packSize' | 'category' | 'tags'> | null | undefined,
+): boolean {
+  return (
+    !!ingredient?.perishable &&
+    !!ingredient.packSize &&
+    ingredient.packSize > 0 &&
+    (ingredient.category === 'meat' || ingredient.category === 'fish') &&
+    !ingredient.tags.some((tag) => KEEPS_CLOSED.has(tag))
+  );
+}
 const DAY = 86_400_000;
 
 /**
@@ -451,9 +486,7 @@ export function freshOf(
   list: { fromDate: Date; toDate: Date },
   freezes = false,
 ): Fresh | null {
-  if (!ingredient?.perishable || !ingredient.packSize || ingredient.packSize <= 0) return null;
-  if (ingredient.category !== 'meat' && ingredient.category !== 'fish') return null;
-  if (ingredient.tags.some((tag) => KEEPS_CLOSED.has(tag))) return null;
+  if (!ingredient || !isFreshMeatInPacks(ingredient)) return null;
   const days = Math.round((list.toDate.getTime() - list.fromDate.getTime()) / DAY) + 1;
   const byDay = Array.from({ length: Math.max(0, days) }, () => 0);
   try {
@@ -468,7 +501,7 @@ export function freshOf(
     const { count, later } = freshPurchases(
       byDay,
       {
-        size: ingredient.packSize,
+        size: ingredient.packSize!,
         keepDays: keepDaysOf(ingredient),
         ...(freezes ? { freezes: true } : {}),
       },
@@ -883,6 +916,37 @@ function inCanonicalUnit(
 }
 
 /**
+ * What was bought by weight for rows of lists that a new list takes the place of, of the foods the new one has a row for
+ * (`ingredients`): by food, what was bought beyond what was at home, in its canonical unit, and the first day it was
+ * bought on. It goes over to the new list's row with its day, as the purchase it is ("Zaktualizuj listę").
+ */
+async function carriedLoose(
+  tx: Tx,
+  listIds: readonly string[],
+  ingredients: ReadonlyMap<string, Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit }>,
+): Promise<Map<string, { amount: number; day: Date }>> {
+  const carried = new Map<string, { amount: number; day: Date }>();
+  if (listIds.length === 0) return carried;
+  for (const row of await tx.shoppingListItem.findMany({
+    where: { listId: { in: [...listIds] }, boughtLooseOn: { not: null } },
+  })) {
+    const ingredient = ingredients.get(row.ingredientId);
+    const bought = Math.max(
+      0,
+      (row.purchasedQuantity ?? (row.checked ? row.totalQuantity : 0)) - row.alreadyHaveQuantity,
+    );
+    const amount = ingredient ? inCanonicalUnit(bought, row.unit, ingredient) : null;
+    if (!amount || amount <= 0) continue;
+    const before = carried.get(row.ingredientId);
+    carried.set(row.ingredientId, {
+      amount: (before?.amount ?? 0) + amount,
+      day: before && before.day < row.boughtLooseOn! ? before.day : row.boughtLooseOn!,
+    });
+  }
+  return carried;
+}
+
+/**
  * Settle the rows of lists that are about to be removed: for each, `share`
  * says how much of what its rows hold for the plan is still in the kitchen
  * and goes into the pantry (see `pantryEffectOnRemoval`), what a row counted in
@@ -895,6 +959,11 @@ export async function releaseLists(
   profileId: string,
   listIds: readonly string[],
   share: (list: { fromDate: Date; toDate: Date }) => number,
+  /**
+   * The foods whose purchases by weight go over to the list that takes the place of these (`carriedLoose`): their rows
+   * leave the pantries as they found them, and what was bought goes with the purchase.
+   */
+  carried: ReadonlySet<string> = new Set(),
 ): Promise<void> {
   if (listIds.length === 0) return;
   // Rows first, then the pantries: the order every writer takes its locks in.
@@ -911,11 +980,17 @@ export async function releaseLists(
     .flatMap((list) =>
       list.items.map((item) => {
         const borrowed = readBorrowed(item.borrowed);
-        const effects = pantryEffects(
-          item,
-          borrowed.map((one) => one.quantity),
-          share(list),
-        );
+        const effects =
+          item.boughtLooseOn && carried.has(item.ingredientId)
+            ? pantryEffects(
+                { ...item, purchasedQuantity: null, checked: false },
+                borrowed.map((one) => one.quantity),
+              )
+            : pantryEffects(
+                item,
+                borrowed.map((one) => one.quantity),
+                share(list),
+              );
         return { item, borrowed, effects };
       }),
     )
@@ -1017,11 +1092,18 @@ export async function makeList(
     where: { planId: plan.id, fromDate: { lte: to }, toDate: { gte: from } },
     select: { id: true, householdId: true },
   });
+  const needs = await planNeeds(tx, plan.id, from, to);
+  const carried = await carriedLoose(
+    tx,
+    overlapping.map((list) => list.id),
+    needs.ingredients,
+  );
   await releaseLists(
     tx,
     profileId,
     overlapping.map((list) => list.id),
     () => 1,
+    new Set(carried.keys()),
   );
   await tx.shoppingList.deleteMany({
     where: { id: { in: overlapping.map((list) => list.id) } },
@@ -1034,7 +1116,6 @@ export async function makeList(
     });
   }
 
-  const needs = await planNeeds(tx, plan.id, from, to);
   const items = needs.groups.flatMap((group) => group.items);
   const claimed = await openClaims(tx, profileId, needs.ingredients);
 
@@ -1077,9 +1158,13 @@ export async function makeList(
       item.unit,
       item.totalQuantity,
     );
-    // A need the pantry covers in full needs no shopping: the row arrives
-    // ticked, and what it counts on leaves the pantry now.
-    const covered = have > 0 && have >= item.totalQuantity;
+    // What was bought by weight for a list this one takes the place of goes over with its day: all of it is the plan's.
+    const loose = carried.get(item.ingredientId);
+    const bought = loose ? (inRowUnitOrNull(loose.amount, item.unit, ingredient) ?? 0) : 0;
+    const purchased = Math.round((have + bought) * 1e6) / 1e6;
+    // A need the pantry covers in full needs no shopping, nor one what was bought covers: the row arrives ticked, and
+    // what it counts on leaves the pantry now.
+    const covered = purchased > 0 && purchased >= item.totalQuantity;
     const moves = covered
       ? await settlePantry(
           tx,
@@ -1099,7 +1184,8 @@ export async function makeList(
       unit: item.unit,
       alreadyHaveQuantity: have,
       // One number for the user to raise as they shop: it starts at what is at home.
-      purchasedQuantity: have > 0 ? have : null,
+      purchasedQuantity: purchased > 0 ? purchased : null,
+      boughtLooseOn: bought > 0 ? loose!.day : null,
       checked: covered,
       pantryMoves: moves as unknown as Prisma.InputJsonValue,
       pantryBestBefore: have > 0 ? stock.bestBefore : null,
@@ -1219,11 +1305,15 @@ export async function borrowAcross(
         bestBefore = theirs.bestBefore;
     }
     if (borrowed.length === 0) continue;
+    // What was bought for the row already (a purchase by weight that went over from a list replaced) stays bought.
+    const bought = Math.max(0, (row.purchasedQuantity ?? 0) - row.alreadyHaveQuantity);
+    const purchased = Math.round((have + bought) * 1e6) / 1e6;
     const state = {
       totalQuantity: row.totalQuantity,
       alreadyHaveQuantity: have,
-      purchasedQuantity: have,
-      checked: have >= row.totalQuantity,
+      purchasedQuantity: purchased,
+      checked: purchased >= row.totalQuantity,
+      boughtLooseOn: row.boughtLooseOn,
     };
     const ledgers = state.checked
       ? await settleRow(tx, part, row, state, { borrowed })

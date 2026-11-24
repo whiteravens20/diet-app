@@ -165,7 +165,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/household-lists` | an account | Make a household list of plans of several profiles, one a profile, for the same days. Each plan's lists that share a day with its part are replaced, as by a list of its own. | `GenerateHouseholdListRequest` | 201 `HouseholdList` |  |
 | `GET /api/household-lists/:id` | an account | One household list. |  | 200 `HouseholdList` |  |
 | `DELETE /api/household-lists/:id` | an account | Delete a household list and its parts. What was obtained for days still ahead goes into each profile's pantry. |  | 204 |  |
-| `PATCH /api/household-lists/:id/items/:itemId` | an account | Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick. | `UpdateShoppingItemRequest` | 200 `HouseholdList` |  |
+| `PATCH /api/household-lists/:id/items/:itemId` | an account | Change a row of a household list, and with it the row of each part: what the household holds, what is at home, the tick, or whether it was bought by weight. | `UpdateShoppingItemRequest` | 200 `HouseholdList` |  |
 
 ## ingredients
 
@@ -306,7 +306,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/shopping-lists` | an account | The shopping lists of a plan, the newest first. | `?planId=` | 200 a list of `ShoppingList` |  |
 | `GET /api/shopping-lists/:id` | an account | One shopping list. |  | 200 `ShoppingList` |  |
 | `DELETE /api/shopping-lists/:id` | an account | Delete a shopping list. What was obtained for days still ahead goes into the pantry. |  | 204 |  |
-| `PATCH /api/shopping-lists/:id/items/:itemId` | an account | Change a row of a list: how much of it is there, what was at home, or its tick. The pantry follows. | `UpdateShoppingItemRequest` | 200 `ShoppingList` |  |
+| `PATCH /api/shopping-lists/:id/items/:itemId` | an account | Change a row of a list: how much of it is there, what was at home, its tick, or whether it was bought by weight. The pantry follows. | `UpdateShoppingItemRequest` | 200 `ShoppingList` |  |
 | `POST /api/shopping-lists/:id/proposals` | an account | What the list could do without: rows that one ingredient could stand for, and packs that will be left over. The engine works them out, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written. Every meal of the list's days may be looked at for it, so the limit is that of making a plan. | `WeighRequest` | 200 `ListProposals` | 20 in a minute |
 | `POST /api/shopping-lists/generate` | an account | Make the shopping list of a plan, or of some of its days. The lists of the plan that share a day with it are replaced. | `GenerateShoppingListRequest` | 201 `ShoppingList` |  |
 

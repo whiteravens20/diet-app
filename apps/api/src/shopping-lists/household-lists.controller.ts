@@ -18,6 +18,7 @@ import {
   type Locale,
 } from '@diet-app/shared';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -70,7 +71,7 @@ export class HouseholdListsController {
     await this.households.remove(user.id, id);
   }
 
-  /** Change a row of a household list, and with it the row of each part: what the household holds, what is at home, or the tick. */
+  /** Change a row of a household list, and with it the row of each part: what the household holds, what is at home, the tick, or whether it was bought by weight. */
   @Patch(':id/items/:itemId')
   @Answers(HouseholdList)
   updateItem(
@@ -79,7 +80,8 @@ export class HouseholdListsController {
     @Param('id', requiredUuid) id: string,
     @Param('itemId', requiredUuid) itemId: string,
     @Body(new ZodValidationPipe(UpdateShoppingItemRequest)) dto: UpdateShoppingItemRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.households.updateItem(user.id, locale, id, itemId, dto);
+    return this.households.updateItem(user.id, locale, id, itemId, dto, today);
   }
 }

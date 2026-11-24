@@ -131,9 +131,16 @@ describe('shopping lists and the pantry', () => {
   const edit = async (
     list: ShoppingList,
     name: string,
-    patch: { checked?: boolean; purchasedQuantity?: number | null; alreadyHaveQuantity?: number },
+    patch: {
+      checked?: boolean;
+      purchasedQuantity?: number | null;
+      alreadyHaveQuantity?: number;
+      boughtLoose?: boolean;
+    },
+    /** The client's day. */
+    today: string | null = null,
   ): Promise<Row> =>
-    rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, name).id, patch), name);
+    rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, name).id, patch, today), name);
 
   describe('a list', () => {
     beforeEach(() => menu(0, [EGGS_ON_TOAST, TOFU_BOWL, CHICKEN_RICE]));
@@ -1234,6 +1241,134 @@ describe('shopping lists and the pantry', () => {
 
       for (const row of rows(list).filter((item) => item.name !== chicken))
         expect(row.buyLater).toEqual([]);
+    });
+  });
+
+  describe('meat or fish bought by weight', () => {
+    const chicken = 'Chicken breast';
+    /** A week of the plan with the chicken lunch on the days given, and tofu on the others. */
+    async function chickenOn(...days: number[]): Promise<void> {
+      for (let day = 0; day < 7; day += 1)
+        await menu(day, [EGGS_ON_TOAST, days.includes(day) ? CHICKEN_RICE : TOFU_BOWL, PORRIDGE]);
+    }
+    const frozenOfPlan = async () =>
+      (await plans.get(user.id, 'en', plan.id)).packs.frozen.filter(
+        (rest) => rest.name === chicken,
+      );
+
+    it("keeps the day it was bought on, the client's, through later edits, and leaves no packs to buy", async () => {
+      // 150 g on Monday, Wednesday and Thursday.
+      await chickenOn(0, 2, 3);
+      const list = await listFor(0, 6);
+
+      const bought = await edit(
+        list,
+        chicken,
+        { purchasedQuantity: 1000, boughtLoose: true },
+        date(0),
+      );
+      expect(bought).toMatchObject({
+        byWeight: true,
+        totalQuantity: 450,
+        purchasedQuantity: 1000,
+        boughtLooseOn: date(0),
+        checked: true,
+        packs: null,
+        buyLater: [],
+      });
+      // Weighed again the next day, it is still Monday's purchase.
+      expect(await edit(list, chicken, { purchasedQuantity: 900 }, date(1))).toMatchObject({
+        purchasedQuantity: 900,
+        boughtLooseOn: date(0),
+      });
+      // Ticked, nothing of it went into the pantry fresh: what the plan does not eat fresh, it freezes.
+      expect(await pantry('chicken-breast')).toEqual([]);
+    });
+
+    it('has the plan say, from the day it was bought, what to freeze of it that day', async () => {
+      await chickenOn(0, 2, 3);
+      const list = await listFor(0, 6);
+      await edit(list, chicken, { purchasedQuantity: 1000, boughtLoose: true }, date(0));
+
+      // Monday's lunch eats it fresh; Wednesday's and Thursday's take portions frozen on Monday; 550 g are for later.
+      expect(await frozenOfPlan()).toMatchObject([
+        {
+          date: date(0),
+          loose: true,
+          amount: 850,
+          thawed: [
+            { date: date(2), amount: 150 },
+            { date: date(3), amount: 150 },
+          ],
+          left: 550,
+        },
+      ]);
+      // No pack is opened for the days of its list; the plan's second week has chicken of its own.
+      const { packs } = await plans.get(user.id, 'en', plan.id);
+      expect(packs.open.filter((pack) => pack.name === chicken && pack.date <= date(6))).toEqual(
+        [],
+      );
+    });
+
+    it("is no purchase by weight once said to be in packs: its surplus then goes into the pantry, as a pack's does", async () => {
+      await chickenOn(0, 2, 3);
+      const list = await listFor(0, 6);
+      await edit(list, chicken, { purchasedQuantity: 1000, boughtLoose: true }, date(0));
+
+      // Bought in packs, Wednesday's would be a pack of its own, bought from then on.
+      expect(await edit(list, chicken, { boughtLoose: false }, date(1))).toMatchObject({
+        boughtLooseOn: null,
+        packs: { count: 2 },
+        buyLater: [{ packs: 1, from: date(2) }],
+      });
+      expect(await pantry('chicken-breast')).toEqual(['550 g']);
+      expect((await frozenOfPlan()).filter((rest) => rest.loose)).toEqual([]);
+    });
+
+    it('is none with nothing bought beyond what was at home, nor of a food not sold in packs', async () => {
+      await chickenOn(0);
+      const list = await listFor(0, 6);
+
+      expect(await edit(list, chicken, { boughtLoose: true }, date(0))).toMatchObject({
+        boughtLooseOn: null,
+      });
+      await edit(list, chicken, { purchasedQuantity: 150, boughtLoose: true }, date(0));
+      expect(await edit(list, chicken, { purchasedQuantity: null }, date(0))).toMatchObject({
+        boughtLooseOn: null,
+      });
+      // Broccoli is bought by weight anyway.
+      expect(
+        await edit(list, 'Broccoli', { purchasedQuantity: 500, boughtLoose: true }, date(0)),
+      ).toMatchObject({ byWeight: false, boughtLooseOn: null });
+    });
+
+    it('goes over with its day to the list made again for its days, and none of it into the pantry', async () => {
+      await chickenOn(0, 2, 3);
+      await stock('chicken-breast', 100, 'g');
+      const list = await listFor(0, 6);
+      // 100 g at home, 900 g bought.
+      await edit(list, chicken, { purchasedQuantity: 1000, boughtLoose: true }, date(0));
+      expect(await pantry('chicken-breast')).toEqual([]);
+
+      const again = rowOf(await listFor(0, 6), chicken);
+      expect(again).toMatchObject({
+        alreadyHaveQuantity: 100,
+        purchasedQuantity: 1000,
+        boughtLooseOn: date(0),
+        checked: true,
+      });
+      expect(await pantry('chicken-breast')).toEqual([]);
+      expect(await frozenOfPlan()).toMatchObject([{ loose: true, left: 550 }]);
+    });
+
+    it('gives the pantry all that was bought when its list is deleted before its days', async () => {
+      await chickenOn(0, 2, 3);
+      const list = await listFor(0, 6);
+      await edit(list, chicken, { purchasedQuantity: 1000, boughtLoose: true }, date(0));
+
+      await lists.remove(user.id, list.id, new Date(`${date(0)}T00:00:00Z`));
+
+      expect(await pantry('chicken-breast')).toEqual(['1000 g']);
     });
   });
 

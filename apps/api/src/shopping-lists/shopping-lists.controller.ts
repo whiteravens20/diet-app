@@ -99,7 +99,7 @@ export class ShoppingListsController {
     await this.lists.remove(user.id, id);
   }
 
-  /** Change a row of a list: how much of it is there, what was at home, or its tick. The pantry follows. */
+  /** Change a row of a list: how much of it is there, what was at home, its tick, or whether it was bought by weight. The pantry follows. */
   @Patch(':id/items/:itemId')
   @Answers(ShoppingList)
   updateItem(
@@ -108,7 +108,8 @@ export class ShoppingListsController {
     @Param('id', requiredUuid) id: string,
     @Param('itemId', requiredUuid) itemId: string,
     @Body(new ZodValidationPipe(UpdateShoppingItemRequest)) dto: UpdateShoppingItemRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.lists.updateItem(user.id, locale, id, itemId, dto);
+    return this.lists.updateItem(user.id, locale, id, itemId, dto, today);
   }
 }

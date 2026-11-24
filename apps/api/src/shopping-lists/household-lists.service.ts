@@ -14,6 +14,7 @@ import {
   editRow,
   energyOf,
   groupByAisle,
+  looseDay,
   shareAhead,
   shareAtHome,
   sharePurchase,
@@ -28,6 +29,7 @@ import {
   freshOf,
   freezesOf,
   frozenKeptOf,
+  isFreshMeatInPacks,
   itemDto,
   loadIngredients,
   makeList,
@@ -198,8 +200,11 @@ export class HouseholdListsService {
     id: string,
     itemId: string,
     patch: UpdateShoppingItemRequest,
+    /** The client's day: what is said to be bought by weight is bought that day, in every part. */
+    clientToday: string | null = null,
   ): Promise<HouseholdList> {
     const household = await this.loadOwned(userId, id);
+    const today = new Date(`${clientToday ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
     const named = household.parts.flatMap((part) => part.items).find((item) => item.id === itemId);
     if (!named) throw itemNotFound();
     const profileOf = new Map(
@@ -225,7 +230,10 @@ export class HouseholdListsService {
       );
 
       // What is at home is said first: the quantity and the tick of the same request are read against it.
-      const { alreadyHaveQuantity, ...edit } = patch;
+      const { alreadyHaveQuantity, boughtLoose, ...edit } = patch;
+      const inPacks = isFreshMeatInPacks(
+        await tx.ingredient.findUnique({ where: { id: named.ingredientId } }),
+      );
       const atHomes =
         alreadyHaveQuantity === undefined
           ? null
@@ -255,12 +263,23 @@ export class HouseholdListsService {
       );
       for (const holder of [...holders].sort()) await lockPantry(tx, holder, named.ingredientId);
       for (const [k, row] of rows.entries()) {
-        const next = {
+        const edited = {
           ...counted[k],
           ...editRow(states[k]!, {
             ...(held ? { purchasedQuantity: held[k]! } : {}),
             ...(edit.checked === undefined ? {} : { checked: edit.checked }),
           }),
+        };
+        const next = {
+          ...edited,
+          // Each part was bought as the household's purchase was: by weight on the day it is said, where it has any.
+          boughtLooseOn: looseDay(
+            row.boughtLooseOn,
+            boughtLoose,
+            { ...row, ...edited },
+            inPacks,
+            today,
+          ),
           // The date was that of what the pantry held for the row: with nothing at home there is none.
           ...(counted[k]?.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
         };
@@ -427,11 +446,13 @@ export class HouseholdListsService {
 /**
  * The rows of the parts for one ingredient as one row: what they need, have
  * at home and hold, added up; ticked when every one is; the earliest date of
- * what the pantries had. Its id is that of the first part's row.
+ * what the pantries had, and the first day a part was bought by weight. Its id
+ * is that of the first part's row.
  */
 function summed(items: readonly StoredItem[]): StoredItem {
   const first = items[0]!;
   const dates = items.flatMap((item) => (item.pantryBestBefore ? [item.pantryBestBefore] : []));
+  const loose = items.flatMap((item) => (item.boughtLooseOn ? [item.boughtLooseOn] : []));
   return {
     ...first,
     totalQuantity: clean(items.reduce((sum, item) => sum + item.totalQuantity, 0)),
@@ -443,6 +464,8 @@ function summed(items: readonly StoredItem[]): StoredItem {
     borrowed: [],
     pantryBestBefore:
       dates.length === 0 ? null : new Date(Math.min(...dates.map((date) => date.getTime()))),
+    boughtLooseOn:
+      loose.length === 0 ? null : new Date(Math.min(...loose.map((date) => date.getTime()))),
     estimatedCalories: items.reduce((sum, item) => sum + item.estimatedCalories, 0),
     checked: items.every((item) => item.checked),
   };

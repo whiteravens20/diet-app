@@ -103,6 +103,19 @@ export const ShoppingListItem = z.object({
    */
   purchasedQuantity: z.number().min(0).nullable().default(null),
   /**
+   * The day what was bought for the row beyond what was at home was bought by weight rather than in packs ("Kupione na
+   * wagę"), the client's day it was said (`UpdateShoppingItemRequest.boughtLoose`); null where it was bought in packs,
+   * or nothing is bought yet. The row's plan counts it from that day as meat or fish that keeps two days: what they do
+   * not eat of it, it says to freeze that day, in portions for the list's later days and the rest for later
+   * (`PlanFrozenRest.loose`). Ticked, such a row puts nothing of it into the pantry fresh, and it has no `packs` to buy.
+   */
+  boughtLooseOn: CalendarDay.nullable().default(null),
+  /**
+   * Fresh meat or fish sold in packs, which may be bought by weight instead (`boughtLooseOn`): the row offers "Kupione
+   * na wagę". False for every other row, whose food is bought as it is sold.
+   */
+  byWeight: z.boolean().default(false),
+  /**
    * What the freezer holds of the food that the row does not count as at home,
    * in `unit`: packages the plan leaves frozen (`PlanPacks.staysFrozen`), which
    * it would not eat in the days a thawed package keeps, or which went in after
@@ -270,11 +283,16 @@ const MOST = Math.max(...Object.values(MAX_QUANTITY));
  * counts as the need, what was bought beyond what was at home stays what it
  * was, and the row is ticked or unticked by what that comes to. A quantity is
  * in the row's `unit` and may not exceed that unit's ceiling (`MAX_QUANTITY`).
+ * `boughtLoose` says whether what was bought beyond what was at home was bought
+ * by weight, on the client's day (`X-Client-Date`), or in packs: it is kept for
+ * a row of meat or fish sold in packs while something is bought for it
+ * (`ShoppingListItem.boughtLooseOn`), the day it was first said with it.
  */
 export const UpdateShoppingItemRequest = z.object({
   purchasedQuantity: z.number().min(0).max(MOST).nullable().optional(),
   checked: z.boolean().optional(),
   alreadyHaveQuantity: z.number().min(0).max(MOST).optional(),
+  boughtLoose: z.boolean().optional(),
 });
 export type UpdateShoppingItemRequest = z.infer<typeof UpdateShoppingItemRequest>;
 

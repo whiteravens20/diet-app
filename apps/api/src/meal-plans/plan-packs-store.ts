@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Prisma } from '@prisma/client';
-import { PlanOptions, type Locale, type PlanPacks } from '@diet-app/shared';
+import { PlanOptions, type Locale, type PlanPacks, type Unit } from '@diet-app/shared';
+import { heldForPlan } from '../engine/index.js';
 import { kitchenFreezes } from '../engine/waste-levels.js';
 import { freezerOf, oneFreezer } from './generation-report.js';
 import { isoDate } from './plan-days.js';
@@ -11,11 +12,75 @@ import {
   packedLinesIn,
   planPacks,
   type CountedMeal,
+  type LooseBuy,
   type PackedMeal,
 } from './plan-menu.js';
 import { toppingFoodsOf, type ToppingFoods } from './toppings-store.js';
 
-type Db = Pick<Prisma.TransactionClient, 'recipe' | 'ingredient' | 'mealPlan'>;
+type Db = Pick<Prisma.TransactionClient, 'recipe' | 'ingredient' | 'mealPlan' | 'shoppingListItem'>;
+
+/** A row of a plan's shopping list bought by weight, as the plan's packs read it: its days as `YYYY-MM-DD`. */
+export interface LooseRow {
+  ingredientId: string;
+  unit: Unit;
+  totalQuantity: number;
+  alreadyHaveQuantity: number;
+  purchasedQuantity: number | null;
+  checked: boolean;
+  boughtLooseOn: string;
+  fromDate: string;
+  toDate: string;
+}
+
+/**
+ * What the plan holds of each purchase by weight of its lists (`heldForPlan`): all of what was bought, and of a row
+ * ticked what was at home too, which left the pantry for the plan; each bought on its day, for its list's days.
+ */
+export function looseBuys(rows: readonly LooseRow[]): LooseBuy[] {
+  return rows.flatMap((row) => {
+    const quantity = heldForPlan({
+      ...row,
+      boughtLooseOn: new Date(`${row.boughtLooseOn}T00:00:00Z`),
+    });
+    return quantity > 0
+      ? [
+          {
+            ingredientId: row.ingredientId,
+            quantity,
+            unit: row.unit,
+            boughtOn: row.boughtLooseOn,
+            fromDate: row.fromDate,
+            toDate: row.toDate,
+          },
+        ]
+      : [];
+  });
+}
+
+/** What was bought by weight on the shopping lists of the plans `planIds` (`looseBuys`). */
+async function looseOfPlans(db: Db, planIds: readonly string[]): Promise<LooseBuy[]> {
+  const rows = await db.shoppingListItem.findMany({
+    where: { boughtLooseOn: { not: null }, list: { planId: { in: [...planIds] } } },
+    select: {
+      ingredientId: true,
+      unit: true,
+      totalQuantity: true,
+      alreadyHaveQuantity: true,
+      purchasedQuantity: true,
+      checked: true,
+      boughtLooseOn: true,
+      list: { select: { fromDate: true, toDate: true } },
+    },
+  });
+  return looseBuys(
+    rows.map(({ list, ...row }) => ({
+      ...row,
+      boughtLooseOn: isoDate(row.boughtLooseOn!),
+      fromDate: isoDate(list.fromDate),
+      toDate: isoDate(list.toDate),
+    })),
+  );
+}
 
 /** A meal of a plan as it is read for the count of packs, without its recipe's lines. */
 type MealRow = Omit<CountedMeal, 'recipe'>;
@@ -113,8 +178,8 @@ export async function partnerPacked(
 
 /**
  * What a plan's menu comes to in packs, as reading the plan says it (`planPacks`): the other plan of its kitchen
- * counted with it, freezing where either plan does, and what the freezer held when each was made taken first. Null
- * for a plan the user does not have.
+ * counted with it, freezing where either plan does, what the freezer held when each was made taken first, and then what
+ * was bought by weight on the lists of either. Null for a plan the user does not have.
  */
 export async function packsOfPlan(
   db: Db,
@@ -140,10 +205,11 @@ export async function packsOfPlan(
     plan.jointPlanId
       ? db.mealPlan.findFirst({
           where: { jointPlanId: plan.jointPlanId, id: { not: plan.id }, profile: { userId } },
-          select: { report: true, options: true },
+          select: { id: true, report: true, options: true },
         })
       : null,
   ]);
+  const loose = await looseOfPlans(db, [plan.id, ...(other ? [other.id] : [])]);
   return planPacks(
     [...own, ...theirs],
     plan.days.map((day) => isoDate(day.date)),
@@ -151,5 +217,7 @@ export async function packsOfPlan(
     // One kitchen freezes where either plan of it does.
     kitchenFreezes(options, ...(other ? [PlanOptions.parse(other.options)] : [])),
     oneFreezer(freezerOf(plan.report), other ? freezerOf(other.report) : null),
+    [],
+    loose,
   );
 }

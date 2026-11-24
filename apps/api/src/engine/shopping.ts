@@ -214,6 +214,11 @@ export interface ShoppingRowState {
   /** Everything the user has for the row, the part already at home included. Null: not edited. */
   purchasedQuantity: number | null;
   checked: boolean;
+  /**
+   * The day what was bought beyond what was at home was bought by weight (`ShoppingListItem.boughtLooseOn`): all of it
+   * is the plan's, which freezes what its days do not eat, and none of it the pantry's.
+   */
+  boughtLooseOn?: Date | null;
 }
 
 /**
@@ -281,7 +286,10 @@ export function energyOf(rows: readonly { estimatedCalories: number }[]): number
  */
 export function intendedPantryEffect(row: ShoppingRowState): number {
   if (!row.checked) return 0;
-  const surplus = Math.max(0, (row.purchasedQuantity ?? row.totalQuantity) - row.totalQuantity);
+  // What was bought by weight beyond the need is the plan's to freeze: none of it enters the pantry fresh.
+  const surplus = row.boughtLooseOn
+    ? 0
+    : Math.max(0, (row.purchasedQuantity ?? row.totalQuantity) - row.totalQuantity);
   return clean(surplus - row.alreadyHaveQuantity);
 }
 
@@ -293,7 +301,27 @@ export function intendedPantryEffect(row: ShoppingRowState): number {
 export function heldForPlan(row: ShoppingRowState): number {
   const purchased = row.purchasedQuantity ?? 0;
   if (!row.checked) return Math.max(0, clean(purchased - row.alreadyHaveQuantity));
-  return Math.max(0, Math.min(row.purchasedQuantity ?? row.totalQuantity, row.totalQuantity));
+  const all = row.purchasedQuantity ?? row.totalQuantity;
+  // Bought by weight, all of it is the plan's: what its days do not eat, it freezes for later.
+  return Math.max(0, row.boughtLooseOn ? all : Math.min(all, row.totalQuantity));
+}
+
+/**
+ * The day a row's purchase was bought by weight once the row is edited (`ShoppingListItem.boughtLooseOn`): the one it
+ * had, or `today` where the edit says so anew (`loose`); none where the edit says it was bought in packs, where nothing
+ * is bought beyond what was at home, or of a food not sold in packs of meat or fish (`inPacks`), which is bought by
+ * weight anyway.
+ */
+export function looseDay(
+  before: Date | null,
+  loose: boolean | undefined,
+  row: Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity'>,
+  inPacks: boolean,
+  today: Date,
+): Date | null {
+  if (!inPacks || !(loose ?? before !== null)) return null;
+  if (clean((row.purchasedQuantity ?? 0) - row.alreadyHaveQuantity) <= 0) return null;
+  return before ?? today;
 }
 
 /**

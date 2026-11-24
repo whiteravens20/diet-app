@@ -15,12 +15,14 @@ import {
   thawAll,
   isDueSoon,
   keepDaysOf,
+  looseWalk,
   packUse,
   pantryStock,
   SPOONFUL,
   toCanonical,
   UnitConversionError,
   type ConvertibleIngredient,
+  type Frozen,
   type Pack,
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
@@ -105,6 +107,19 @@ export function menuNeeds(
 }
 
 /**
+ * What was bought of a food by weight for a plan of the kitchen, on a shopping list of it (`ShoppingListItem.boughtLooseOn`):
+ * `quantity` of `unit`, bought on `boughtOn` for the list's days.
+ */
+export interface LooseBuy {
+  ingredientId: string;
+  quantity: number;
+  unit: Unit;
+  boughtOn: string;
+  fromDate: string;
+  toDate: string;
+}
+
+/**
  * What a menu comes to in packs that do not keep once they are opened, counted day by day (see `engine/packs.ts`), as
  * a plan says it: on the days of `dates`, in order. The packages of the freezer the plan takes out (`freezer`) are
  * thawed whole one after another, each for the first meal from its day on whose day and the next eat it whole
@@ -112,7 +127,9 @@ export function menuNeeds(
  * eat. A plan that
  * wastes less or nothing puts what it does not eat fresh of meat and fish in the freezer (`freezes`), in portions: each rest
  * is said with the meal that opens its pack, and each later day that takes a portion of it with that day's first meal
- * that takes the ingredient.
+ * that takes the ingredient. What was bought by weight (`loose`) is eaten after the freezer's packages and before any pack,
+ * as `looseWalk` counts it, whatever the plan wastes: what the days it keeps fresh do not eat goes in the freezer on the
+ * day it was bought.
  */
 export function planPacks(
   meals: readonly PackedMeal[],
@@ -122,6 +139,7 @@ export function planPacks(
   freezer?: Freezer | null,
   /** The freezers of the kitchen's profiles as they are now, for what the plan leaves in them; none: nothing is said. */
   freezersNow: readonly FreezerNow[] = [],
+  loose: readonly LooseBuy[] = [],
 ): PlanPacks {
   const { needs, packs, known } = menuNeeds(meals, dates.length, freezes);
   // What the menu eats of each food, before the freezer takes any: what a rest frozen is portioned by.
@@ -170,10 +188,14 @@ export function planPacks(
       });
     });
   }
+  const bought = looseBought(needs, packs, known, dates, loose);
   const use = packUse(needs, packs);
+  const frozen = [...use.frozen.map((rest) => ({ ...rest, loose: false })), ...bought.frozen].sort(
+    (a, b) => a.day - b.day || (a.ingredientId < b.ingredientId ? -1 : 1),
+  );
   return {
-    bought: use.bought,
-    used: use.used,
+    bought: clean(use.bought + bought.bought),
+    used: clean(use.used + bought.eaten),
     // What is left is said to the gram, as it is read; under half a gram is the noise of converting units.
     open: use.open
       .filter((pack) => Math.round(pack.left) >= 1)
@@ -198,7 +220,7 @@ export function planPacks(
           inPantry: false,
         };
       }),
-    frozen: use.frozen
+    frozen: frozen
       .filter((rest) => Math.round(rest.amount) >= 1)
       .map((rest) => {
         const ingredient = known.get(rest.ingredientId)!;
@@ -218,6 +240,7 @@ export function planPacks(
             })),
           left: Math.max(0, Math.round(frozenLeft(rest))),
           portion: portionOf(eaten.get(rest.ingredientId)),
+          loose: rest.loose,
           // Read from the plan by whoever reads it (`keptMarked`).
           inPantry: false,
         };
@@ -253,6 +276,72 @@ export interface FreezerNow {
 /** The most `row` takes on a day and the next, in its own unit. */
 export function mostInTwoDaysOf(row: readonly number[]): number {
   return Math.max(0, ...row.map((need, day) => need + (row[day + 1] ?? 0)));
+}
+
+const clean = (n: number): number => Math.round(n * 1e6) / 1e6;
+
+const DAY_MS = 86_400_000;
+
+/**
+ * What was bought by weight does to a menu's `needs` (`looseWalk`), which it changes: of each food the menu takes from
+ * packs, the purchases of one day added up, each for the days of all the lists it was bought on. Returns what they came
+ * to, what the menu eats of them, and each rest they put in the freezer. A purchase of a food the menu does not take
+ * from packs, or in a unit it does not convert from, is none of the menu's.
+ */
+function looseBought(
+  needs: Map<string, number[]>,
+  packs: ReadonlyMap<string, Pack>,
+  known: ReadonlyMap<string, ConvertibleIngredient>,
+  dates: readonly string[],
+  loose: readonly LooseBuy[],
+): {
+  bought: number;
+  eaten: number;
+  frozen: (Frozen & { ingredientId: string; packSize: number; loose: boolean })[];
+} {
+  const dayOf = (date: string): number =>
+    Math.round((Date.parse(date) - Date.parse(dates[0]!)) / DAY_MS);
+  const byFood = new Map<
+    string,
+    Map<number, { day: number; amount: number; from: number; to: number }>
+  >();
+  for (const buy of loose) {
+    const ingredient = known.get(buy.ingredientId);
+    if (!ingredient || !needs.has(buy.ingredientId)) continue;
+    let amount: number;
+    try {
+      amount = toCanonical(buy.quantity, buy.unit, ingredient);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      continue;
+    }
+    const day = dayOf(buy.boughtOn);
+    const days = byFood.get(buy.ingredientId) ?? new Map();
+    byFood.set(buy.ingredientId, days);
+    const same = days.get(day);
+    days.set(day, {
+      day,
+      amount: (same?.amount ?? 0) + amount,
+      from: Math.min(same?.from ?? Infinity, dayOf(buy.fromDate)),
+      to: Math.max(same?.to ?? -Infinity, dayOf(buy.toDate)),
+    });
+  }
+  const result: ReturnType<typeof looseBought> = { bought: 0, eaten: 0, frozen: [] };
+  for (const [ingredientId, days] of byFood) {
+    const pack = packs.get(ingredientId)!;
+    const walked = looseWalk(
+      needs.get(ingredientId)!,
+      [...days.values()],
+      pack.keepDays,
+      SPOONFUL * pack.size,
+    );
+    needs.set(ingredientId, walked.rest);
+    result.bought += walked.bought;
+    result.eaten += walked.eaten;
+    for (const rest of walked.frozen)
+      result.frozen.push({ ...rest, ingredientId, packSize: pack.size, loose: true });
+  }
+  return result;
 }
 
 /** What to freeze a rest in, by what the menu eats of its food on a day and the next (`PlanFrozenRest.portion`). */
