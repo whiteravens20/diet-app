@@ -74,8 +74,8 @@ export class InventoryController {
 
   /**
    * The size to freeze a row in before "Zamroź": the most the profile's plans that have a day after today eat of its
-   * food on a day and the next, from tomorrow on, a package coming out of the freezer only whole; null where none of
-   * them takes the food from packs.
+   * food on a day and the next, from tomorrow on, with the other plan of a joint plan's kitchen, a package coming out of
+   * the freezer only whole; in the row's unit where it converts, null where none of them takes the food from packs.
    */
   @Get(':id/portion')
   @Answers(InventoryPortion)

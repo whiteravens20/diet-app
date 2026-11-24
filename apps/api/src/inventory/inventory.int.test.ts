@@ -556,33 +556,39 @@ describe('the pantry', () => {
     /** The server's day, the one a client may name or one next to it. */
     const today = new Date().toISOString().slice(0, 10);
 
-    /**
-     * A plan from `start` whose lunch each day is chicken (150 g a serving) in the servings given, or tofu where none
-     * is given, and whose every other meal is tofu.
-     */
+    /** Plan days as the tests give them dishes: their meals, each with its time of day. */
+    type Days = readonly { meals: readonly { id: string; mealType: string }[] }[];
+
+    /** Every meal of `days` the dish `menu` names for its day and time of day, in its servings: tofu where it names none. */
+    const serve = async (
+      days: Days,
+      menu: (day: number, mealType: string) => [slug: string, servings: number] | null,
+    ) => {
+      for (const [day, { meals }] of days.entries())
+        for (const meal of meals) {
+          const [slug, servings] = menu(day, meal.mealType) ?? ['tofu-rice-bowl', 1];
+          const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug } });
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: { recipeId: recipe.id, servings, quantityScale: 1 },
+          });
+        }
+    };
+    /** Chicken (150 g a serving) at lunch in the servings given each day, nothing of it where none is given. */
+    const chickenLunches =
+      (servings: readonly (number | null)[]) =>
+      (day: number, mealType: string): [string, number] | null =>
+        mealType === 'lunch' && servings[day] != null
+          ? ['chicken-rice-broccoli', servings[day]!]
+          : null;
+
+    /** A plan from `start` whose lunch each day is chicken in the servings given, and whose every other meal is tofu. */
     const lunches = async (start: string, servings: (number | null)[]) => {
       const plan = await aPlan(t, user, profile, {
         startDate: start,
         durationDays: servings.length,
       });
-      const [chicken, tofu] = await Promise.all(
-        ['chicken-rice-broccoli', 'tofu-rice-bowl'].map((slug) =>
-          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
-        ),
-      );
-      for (const [day, eaten] of servings.entries()) {
-        for (const meal of plan.days[day]!.meals) {
-          const chickenLunch = meal.mealType === 'lunch' && eaten !== null;
-          await t.prisma.plannedMeal.update({
-            where: { id: meal.id },
-            data: {
-              recipeId: (chickenLunch ? chicken : tofu)!.id,
-              servings: chickenLunch ? eaten : 1,
-              quantityScale: 1,
-            },
-          });
-        }
-      }
+      await serve(plan.days, chickenLunches(servings));
     };
     const portionOf = async (id: string, day: string) =>
       (
@@ -618,6 +624,51 @@ describe('the pantry', () => {
 
       const someone = await aUser(t);
       await t.http().get(`/api/inventory/${tofu.id}/portion`).set(as(someone)).expect(404);
+    });
+
+    it('counts with a joint plan the other plan of its kitchen, which eats from the same freezer', async () => {
+      const partner = await aProfile(t, user);
+      const plan = await aPlan(t, user, profile, {
+        startDate: dayAfter(today, -1),
+        durationDays: 3,
+        withProfileId: partner.id,
+      });
+      const { jointPlanId } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      const theirs = await t.prisma.mealPlan.findFirstOrThrow({
+        where: { jointPlanId, id: { not: plan.id } },
+        select: {
+          days: {
+            orderBy: { date: 'asc' },
+            select: { meals: { select: { id: true, mealType: true } } },
+          },
+        },
+      });
+      // This plan eats a serving of chicken tomorrow, the other plan two.
+      await serve(plan.days, chickenLunches([null, null, 1]));
+      await serve(theirs.days, chickenLunches([null, null, 2]));
+      const row = (await add('chicken-breast', 500, 'g')).body as InventoryItem;
+
+      expect(await portionOf(row.id, today)).toEqual({ portion: 450, unit: 'g' });
+    });
+
+    it('is in whole pieces, rounded down, for a row kept in pieces', async () => {
+      const plan = await aPlan(t, user, profile, {
+        startDate: dayAfter(today, -1),
+        durationDays: 4,
+      });
+      // Bread, 35 g a slice: two toasts of two slices tomorrow, and a slice and a half the day after.
+      await serve(plan.days, (day, mealType) =>
+        mealType !== 'breakfast'
+          ? null
+          : day === 2
+            ? ['peanut-butter-toast', 2]
+            : day === 3
+              ? ['tofu-scramble', 1.5]
+              : null,
+      );
+      const slices = (await add('wholegrain-bread', 10, 'piece')).body as InventoryItem;
+
+      expect(await portionOf(slices.id, today)).toEqual({ portion: 5, unit: 'piece' });
     });
   });
 });

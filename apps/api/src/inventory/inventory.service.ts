@@ -23,7 +23,7 @@ import {
 import { writeOnce } from '../common/idempotency.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { menuNeeds, mostInTwoDaysOf } from '../meal-plans/plan-menu.js';
-import { MEAL_ROW, packedOfDays } from '../meal-plans/plan-packs-store.js';
+import { MEAL_ROW, packedOfDays, partnerPacked } from '../meal-plans/plan-packs-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry, newParcels } from './pantry-store.js';
@@ -299,7 +299,8 @@ export class InventoryService {
 
   /**
    * The size to freeze a row in (`InventoryPortion`): the most the profile's plans that have a day after `today` eat of
-   * its food on a day and the next, from tomorrow on; none where none of them takes the food from packs.
+   * its food on a day and the next, from tomorrow on, each with the other plan of its kitchen where it is a joint plan;
+   * none where none of them takes the food from packs. In the row's unit where it converts, whole pieces rounded down.
    */
   async portion(userId: string, id: string, today: string): Promise<InventoryPortion> {
     const row = await this.prisma.inventoryItem.findFirst({
@@ -307,7 +308,8 @@ export class InventoryService {
       select: {
         profileId: true,
         ingredientId: true,
-        ingredient: { select: { canonicalUnit: true } },
+        unit: true,
+        ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
       },
     });
     if (!row) throw this.notFound();
@@ -316,6 +318,8 @@ export class InventoryService {
     const plans = await this.prisma.mealPlan.findMany({
       where: { profileId: row.profileId, startDate: { gte: since } },
       select: {
+        id: true,
+        jointPlanId: true,
         options: true,
         days: { orderBy: { date: 'asc' }, select: { date: true, meals: { select: MEAL_ROW } } },
       },
@@ -326,13 +330,22 @@ export class InventoryService {
       const first = dates.findIndex((date) => date > today);
       if (first < 0) continue;
       const made = plan.options as { mealPrepFriendly?: boolean } | null;
-      const packed = await packedOfDays(this.prisma, plan.days, made?.mealPrepFriendly === true);
+      // One kitchen: a package taken out for a joint plan's day is eaten by both of its plans.
+      const packed = [
+        ...(await packedOfDays(this.prisma, plan.days, made?.mealPrepFriendly === true)),
+        ...(await partnerPacked(this.prisma, userId, plan)),
+      ];
       const eaten = menuNeeds(packed, dates.length).needs.get(row.ingredientId);
       if (!eaten) continue;
       most = Math.max(most, mostInTwoDaysOf(eaten.map((need, day) => (day < first ? 0 : need))));
     }
-    const portion = Math.round(most);
-    return { portion: portion >= 1 ? portion : null, unit: row.ingredient.canonicalUnit };
+    const food = { ...row.ingredient, canonicalUnit: Unit.parse(row.ingredient.canonicalUnit) };
+    const kept = Unit.parse(row.unit);
+    const unit = convertsTo(kept, food) ? kept : food.canonicalUnit;
+    const shown = convertUnit(most, food.canonicalUnit, unit, food);
+    // No portion bigger than two days eat: pieces are rounded down to whole ones.
+    const portion = unit === 'piece' ? Math.floor(shown + 1e-6) : Math.round(shown);
+    return { portion: portion >= 1 ? portion : null, unit };
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
@@ -419,4 +432,18 @@ function splitIntoPortions(
       message: `There is not enough of it for ${portions} portions of at least one ${unit} each: split it into fewer.`,
     });
   return amounts;
+}
+
+/** Whether an amount of a food converts from its canonical unit into `unit`. */
+function convertsTo(
+  unit: Unit,
+  food: Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit },
+): boolean {
+  try {
+    convertUnit(1, food.canonicalUnit, unit, food);
+    return true;
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return false;
+  }
 }
