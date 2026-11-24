@@ -65,7 +65,8 @@ async function renderQueue(items: RecipeReviewSlice[], locale: 'en' | 'pl' = 'en
       <ReviewQueue locale="pl" kind="recipe" />
     </NextIntlClientProvider>,
   );
-  await screen.findByRole('group');
+  // The draft on show, a group with its steps a group of their own within it.
+  await screen.findAllByRole('group');
 }
 
 /** The draft under that name has the focus. It takes it once it is on the page, which is a moment after it is found there. */
@@ -115,6 +116,34 @@ describe("the reviewer's queue", () => {
     await renderQueue([recipe(FIRST, 'Owsianka')]);
 
     expect(screen.getByRole('textbox', { name: 'Step 2' })).toHaveValue('Podaj.');
+  });
+
+  it('adds, moves and takes out the steps of its language, and shows them as the draft kept them', async () => {
+    const patch = vi
+      .spyOn(reviewApi, 'patchRecipeSlice')
+      .mockResolvedValue(recipe(FIRST, 'Owsianka', { steps: ['Posyp cynamonem.', 'Podaj.'] }));
+    await renderQueue([recipe(FIRST, 'Owsianka')]);
+
+    await userEvent.click(button('Add a step'));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Step 3' }), 'Posyp cynamonem.');
+    await userEvent.click(button('Move step 3 up'));
+    await userEvent.click(button('Remove step 1'));
+    // One added and left empty is no step: the draft keeps the others.
+    await userEvent.click(button('Add a step'));
+    await userEvent.click(button(text.save));
+
+    await vi.waitFor(() => expect(patch).toHaveBeenCalledOnce());
+    expect(patch).toHaveBeenCalledExactlyOnceWith('pl', FIRST, {
+      title: undefined,
+      description: undefined,
+      steps: ['Posyp cynamonem.', 'Podaj.', ''],
+    });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: 'Step 3' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('textbox', { name: 'Step 1' })).toHaveValue('Posyp cynamonem.');
+    expect(screen.getByRole('textbox', { name: 'Step 2' })).toHaveValue('Podaj.');
+    expect(button(text.save)).toBeDisabled();
   });
 
   describe('with the keys off, as they are until the reviewer turns them on', () => {
@@ -341,7 +370,7 @@ describe("the reviewer's queue", () => {
         <ReviewQueue locale="pl" kind="recipe" />
       </NextIntlClientProvider>,
     );
-    await screen.findByRole('group');
+    await screen.findAllByRole('group');
 
     await userEvent.click(button(text.approve));
 

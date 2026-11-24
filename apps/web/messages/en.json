@@ -1359,7 +1359,6 @@
     "fieldTitle": "Title",
     "fieldDescription": "Description",
     "fieldSteps": "Steps",
-    "fieldStep": "Step {number}",
     "fieldName": "Name",
     "fieldStorageHint": "Storage hint",
     "rawDescription": "Raw FDC",

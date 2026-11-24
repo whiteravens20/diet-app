@@ -251,6 +251,27 @@ describe('the curation queue', () => {
       });
     });
 
+    it('drops a step left empty, and names a language left without any', async () => {
+      const draft = await aRecipeDraft(t);
+
+      const edited = await admin
+        .edit(draft.id, { steps: { pl: ['Wymieszaj.', '', '  ', 'Podaj.'] } })
+        .expect(200);
+      expect(edited.body.steps.pl).toEqual(['Wymieszaj.', 'Podaj.']);
+
+      const refused = await admin.edit(draft.id, { steps: { pl: ['', ' '], en: [] } });
+      expect([refused.status, refused.body.error]).toEqual([400, 'DRAFT_INVALID']);
+      expect(
+        refused.body.details.problems.map(
+          (problem: { path: string; rule: string }) => `${problem.path}: ${problem.rule}`,
+        ),
+      ).toEqual(['steps.en: missing-locale', 'steps.pl: missing-locale']);
+      expect((await recipeRow(draft.id)).steps).toEqual({
+        en: ['Warm the drink.', 'Stir in the oats and the banana.'],
+        pl: ['Wymieszaj.', 'Podaj.'],
+      });
+    });
+
     it('that breaks a rule is refused with every problem named, and the draft stays as it was', async () => {
       const draft = await aRecipeDraft(t);
       await admin.review('recipes', draft.id, 'approve', 'en').expect(201);

@@ -8,6 +8,7 @@ import { useId, useState } from 'react';
 import type { Cuisine, DishTraits } from '@diet-app/shared';
 import { CUISINES, RECIPE_FORMS, RECIPE_TASTES, STARCH_BASES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
+import { StepsField } from '@/components/steps-field';
 import { Input, OptionalFrame } from '@/components/ui/input';
 import {
   adminApi,
@@ -21,6 +22,28 @@ import { useFormat } from '@/lib/use-format';
 import { LocaleReviewMatrix } from './locale-review-matrix';
 import { useReviewSignature } from './review-signature';
 import { DOT } from '@/lib/figure-line';
+
+/** What the editor holds of a draft while it is changed. */
+type DraftEdit = {
+  titles: Record<string, string>;
+  descriptions: Record<string, string>;
+  steps: Record<string, string[]>;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  ingredients: RecipeDraftIngredientLine[];
+};
+
+/** The editor's fields as the draft has them. */
+const editOf = (draft: RecipeDraft): DraftEdit => ({
+  titles: draft.titles,
+  descriptions: draft.descriptions,
+  steps: draft.steps,
+  servings: draft.servings,
+  prepMinutes: draft.prepMinutes,
+  cookMinutes: draft.cookMinutes,
+  ingredients: draft.ingredients,
+});
 
 export function RecipeDraftRow({
   draft,
@@ -44,23 +67,7 @@ export function RecipeDraftRow({
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [edit, setEdit] = useState<{
-    titles: Record<string, string>;
-    descriptions: Record<string, string>;
-    steps: Record<string, string[]>;
-    servings: number;
-    prepMinutes: number;
-    cookMinutes: number;
-    ingredients: RecipeDraftIngredientLine[];
-  }>({
-    titles: draft.titles,
-    descriptions: draft.descriptions,
-    steps: draft.steps,
-    servings: draft.servings,
-    prepMinutes: draft.prepMinutes,
-    cookMinutes: draft.cookMinutes,
-    ingredients: draft.ingredients,
-  });
+  const [edit, setEdit] = useState(() => editOf(draft));
   const [preview, setPreview] = useState<{
     caloriesPerServing: number;
     proteinPerServing: number;
@@ -129,8 +136,11 @@ export function RecipeDraftRow({
   };
 
   const onSave = () => {
-    // A refused edit stays in the form: what was typed is not thrown away.
-    void handle(() => adminApi.patchRecipeDraft(draft.id, buildPatch(), false)).then((saved) => {
+    // A refused edit stays in the form: what was typed is not thrown away. A saved one is
+    // opened again as the draft kept it, without a step that was left empty.
+    void handle(async () =>
+      setEdit(editOf(await adminApi.patchRecipeDraft(draft.id, buildPatch(), false))),
+    ).then((saved) => {
       if (!saved) return;
       setEditing(false);
       setPreview(null);
@@ -138,15 +148,7 @@ export function RecipeDraftRow({
   };
 
   const onCancelEdit = () => {
-    setEdit({
-      titles: draft.titles,
-      descriptions: draft.descriptions,
-      steps: draft.steps,
-      servings: draft.servings,
-      prepMinutes: draft.prepMinutes,
-      cookMinutes: draft.cookMinutes,
-      ingredients: draft.ingredients,
-    });
+    setEdit(editOf(draft));
     setPreview(null);
     setEditing(false);
   };
@@ -502,17 +504,9 @@ function RecipeEditor({
   onDryRun,
   lockStructural = false,
 }: {
-  edit: {
-    titles: Record<string, string>;
-    descriptions: Record<string, string>;
-    steps: Record<string, string[]>;
-    servings: number;
-    prepMinutes: number;
-    cookMinutes: number;
-    ingredients: RecipeDraftIngredientLine[];
-  };
+  edit: DraftEdit;
   locales: string[];
-  onChange: (next: typeof edit) => void;
+  onChange: (next: DraftEdit) => void;
   onDryRun: () => void;
   /** AI_USER drafts allow translation edits only; structural fields lock. */
   lockStructural?: boolean;
@@ -523,11 +517,6 @@ function RecipeEditor({
     onChange({ ...edit, titles: { ...edit.titles, [locale]: v } });
   const updateDescription = (locale: string, v: string) =>
     onChange({ ...edit, descriptions: { ...edit.descriptions, [locale]: v } });
-  const updateStep = (locale: string, idx: number, v: string) => {
-    const next = [...(edit.steps[locale] ?? [])];
-    next[idx] = v;
-    onChange({ ...edit, steps: { ...edit.steps, [locale]: next } });
-  };
   const updateIngredient = (idx: number, patch: Partial<RecipeDraftIngredientLine>) => {
     const next = edit.ingredients.map((line, i) => (i === idx ? { ...line, ...patch } : line));
     onChange({ ...edit, ingredients: next });
@@ -556,14 +545,18 @@ function RecipeEditor({
               value={edit.descriptions[locale] ?? ''}
               onChange={(e) => updateDescription(locale, e.target.value)}
             />
-            <label className="text-xs text-muted-foreground">
-              {t('stepsLabel')}
-              {DOT}
-              {locale}
-            </label>
-            {(edit.steps[locale] ?? []).map((step, i) => (
-              <Input key={i} value={step} onChange={(e) => updateStep(locale, i, e.target.value)} />
-            ))}
+            {/* Each language's steps on their own: added, moved and taken out there alone. */}
+            <fieldset className="space-y-1">
+              <legend className="text-xs text-muted-foreground">
+                {t('stepsLabel')}
+                {DOT}
+                {locale}
+              </legend>
+              <StepsField
+                steps={edit.steps[locale] ?? []}
+                onChange={(next) => onChange({ ...edit, steps: { ...edit.steps, [locale]: next } })}
+              />
+            </fieldset>
           </div>
         ))}
       </div>

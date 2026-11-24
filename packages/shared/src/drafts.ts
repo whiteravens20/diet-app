@@ -501,7 +501,8 @@ export const RecipeDraftPatch = z.object({
   slug: z.string().max(200).optional(),
   titles: LocaleStringMap.optional(),
   descriptions: LocaleStringMap.optional(),
-  steps: LocaleStringsMap.optional(),
+  // A step left empty is no step: the rules drop it, and name a language left without any.
+  steps: z.partialRecord(Locale, z.array(z.string().max(5_000)).max(200)).optional(),
   servings: z.number().int().min(1).max(1000).optional(),
   mealTypes: z.array(MealType).max(MealType.options.length).optional(),
   prepMinutes: z.number().int().min(0).max(100_000).optional(),

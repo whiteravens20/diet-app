@@ -14,6 +14,7 @@ import type {
 } from '@diet-app/shared';
 import { ALLERGENS } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
+import { StepsField } from '@/components/steps-field';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';
@@ -412,12 +413,14 @@ function RecipeReviewCard({
     setSaving(true);
     setError(null);
     try {
-      await reviewApi.patchRecipeSlice(locale, slice.id, {
+      const kept = await reviewApi.patchRecipeSlice(locale, slice.id, {
         title: title !== saved.title ? title : undefined,
         description: description !== saved.description ? description : undefined,
         steps: stepsChanged(steps, saved.steps) ? steps : undefined,
       });
-      setSaved({ title, description, steps });
+      // The steps as the draft kept them: one left empty is no step.
+      setSteps(kept.steps);
+      setSaved({ title, description, steps: kept.steps });
       return true;
     } catch (err) {
       setError(errorText(err, t('saveFailed')));
@@ -480,23 +483,13 @@ function RecipeReviewCard({
                 value={description}
                 onChange={setDescription}
               />
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
-                {steps.map((step, i) => (
-                  <textarea
-                    key={i}
-                    aria-label={t('fieldStep', { number: i + 1 })}
-                    value={step}
-                    onChange={(e) => {
-                      const next = [...steps];
-                      next[i] = e.target.value;
-                      setSteps(next);
-                    }}
-                    className="w-full rounded-md border bg-background px-2 py-1 text-sm"
-                    rows={2}
-                  />
-                ))}
-              </div>
+              {/* The steps of this language: added, moved and taken out here alone. */}
+              <fieldset className="space-y-1">
+                <legend className="text-xs font-medium text-muted-foreground">
+                  {t('fieldSteps')}
+                </legend>
+                <StepsField steps={steps} onChange={setSteps} />
+              </fieldset>
             </section>
 
             <section className="space-y-3">

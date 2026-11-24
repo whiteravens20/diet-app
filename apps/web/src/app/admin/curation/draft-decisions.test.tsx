@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -523,6 +523,51 @@ describe('writing names again in the administrator’s panel', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: texts.regenerate })).toBeEnabled(),
     );
+  });
+});
+
+describe('the steps of a recipe draft in the administrator’s editor', () => {
+  it('change in one language alone, and open again as the draft kept them', async () => {
+    const kept: RecipeDraft = {
+      ...aRecipeDraft(),
+      steps: { en: ['Mix.'], pl: ['Posyp migdałami.', 'Podaj.'] },
+    };
+    const patch = vi.spyOn(adminApi, 'patchRecipeDraft').mockResolvedValue(kept);
+    shown(<RecipeDraftRow draft={aRecipeDraft()} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+    await userEvent.click(screen.getByRole('button', { name: texts.edit }));
+    const stepsOf = (locale: string) =>
+      within(screen.getByRole('group', { name: spaced(`${texts.stepsLabel} · ${locale}`) }));
+
+    const polish = stepsOf('pl');
+    await userEvent.click(polish.getByRole('button', { name: 'Add a step' }));
+    await userEvent.type(polish.getByRole('textbox', { name: 'Step 2' }), 'Posyp migdałami.');
+    await userEvent.click(polish.getByRole('button', { name: 'Move step 2 up' }));
+    await userEvent.click(polish.getByRole('button', { name: 'Add a step' }));
+    await userEvent.type(polish.getByRole('textbox', { name: 'Step 3' }), 'Podaj.');
+    await userEvent.click(polish.getByRole('button', { name: 'Remove step 2' }));
+    // One added and left empty is no step: the draft keeps the others.
+    await userEvent.click(polish.getByRole('button', { name: 'Add a step' }));
+    expect(
+      stepsOf('en')
+        .getAllByRole('textbox')
+        .map((field) => (field as HTMLTextAreaElement).value),
+    ).toEqual(['Mix.']);
+    await userEvent.click(screen.getByRole('button', { name: texts.save }));
+
+    expect(patch).toHaveBeenCalledExactlyOnceWith(
+      aRecipeDraft().id,
+      expect.objectContaining({
+        steps: { en: ['Mix.'], pl: ['Posyp migdałami.', 'Podaj.', ''] },
+      }),
+      false,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: texts.edit }));
+    expect(
+      stepsOf('pl')
+        .getAllByRole('textbox')
+        .map((field) => (field as HTMLTextAreaElement).value),
+    ).toEqual(['Posyp migdałami.', 'Podaj.']);
   });
 });
 

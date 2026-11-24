@@ -1359,7 +1359,6 @@
     "fieldTitle": "Tytuł",
     "fieldDescription": "Opis",
     "fieldSteps": "Kroki",
-    "fieldStep": "Krok {number}",
     "fieldName": "Nazwa",
     "fieldStorageHint": "Wskazówka przechowywania",
     "rawDescription": "Opis z FDC",

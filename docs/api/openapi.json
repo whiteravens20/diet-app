@@ -24294,7 +24294,18 @@
             "$ref": "#/components/schemas/LocaleStringMap"
           },
           "steps": {
-            "$ref": "#/components/schemas/LocaleStringsMap"
+            "type": "object",
+            "propertyNames": {
+              "$ref": "#/components/schemas/Locale"
+            },
+            "additionalProperties": {
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 5000
+              }
+            }
           },
           "servings": {
             "type": "integer",
