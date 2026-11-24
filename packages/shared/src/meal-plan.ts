@@ -1036,7 +1036,8 @@ export type PlanFrozenRest = z.infer<typeof PlanFrozenRest>;
 
 /**
  * "Dodaj do spiżarni" of a rest the plan puts in the freezer (`PlanFrozenRest`): what is left of it once the plan is
- * over goes into the pantry as frozen, dated `FROZEN_KEEPS_DAYS` from the day it went in, once, from that day on.
+ * over goes into the pantry as frozen, in packages none bigger than the plan's portion (`PlanFrozenRest.portion`),
+ * dated `FROZEN_KEEPS_DAYS` from the day it went in, once, from that day on.
  * Asked again, the plan is answered as it is; a rest the plan no longer freezes, or eats whole, answers 409
  * `FROZEN_REST_GONE`, one it freezes on a later day 409 `REST_NOT_FROZEN_YET`.
  */

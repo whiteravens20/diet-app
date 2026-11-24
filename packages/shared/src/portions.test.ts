@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { portionsOf } from './portions.js';
+import { MAX_PORTIONS, portionsOf, portionsUpTo } from './portions.js';
 
 describe('an amount split into portions for the freezer', () => {
   it('splits what is weighed or measured into whole grams or millilitres as evenly as they go, the larger parts first', () => {
@@ -40,5 +40,28 @@ describe('an amount split into portions for the freezer', () => {
     expect(portionsOf(3, 4)).toBeNull();
     expect(portionsOf(5, 10)).toBeNull();
     expect(portionsOf(9.5, 10)).toBeNull();
+  });
+});
+
+describe('the portions an amount goes into for a plan that takes them out whole', () => {
+  it('is the fewest with none bigger than what two days eat', () => {
+    expect(portionsUpTo(500, 300)).toBe(2);
+    expect(portionsUpTo(350, 150)).toBe(3);
+    expect(portionsUpTo(600, 300)).toBe(2);
+    expect(portionsOf(350, portionsUpTo(350, 150))).toEqual([117, 117, 116]);
+  });
+
+  it('is one where the amount is no bigger, or nothing says how much two days eat', () => {
+    expect(portionsUpTo(300, 300)).toBe(1);
+    expect(portionsUpTo(120, 300)).toBe(1);
+    expect(portionsUpTo(500, null)).toBe(1);
+    expect(portionsUpTo(500, 0)).toBe(1);
+  });
+
+  it('is never more than the freezer takes at once, nor parts of less than one of the unit', () => {
+    expect(portionsUpTo(5000, 100)).toBe(MAX_PORTIONS);
+    // Three pieces at half a piece a portion: three parts of one, not six of a half.
+    expect(portionsUpTo(3, 0.5)).toBe(3);
+    expect(portionsOf(3, portionsUpTo(3, 0.5))).toEqual([1, 1, 1]);
   });
 });

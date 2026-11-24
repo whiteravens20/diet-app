@@ -52,6 +52,7 @@ import {
   withPlates,
   type RebalanceMeal,
 } from '../engine/index.js';
+import { portionsOf, portionsUpTo } from '@diet-app/shared/portions';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import type { Env } from '../config/env.js';
 import { kitchenFreezes, levelOf } from '../engine/waste-levels.js';
@@ -374,8 +375,9 @@ export class MealPlansService {
 
   /**
    * "Dodaj do spiżarni" of a rest of meat or fish the plan puts in the freezer (`KeepFrozenRequest`): what is left of
-   * it once the plan is over goes into the profile's pantry as a package of its own in the freezer, dated
-   * `FROZEN_KEEPS_DAYS` from the day it went in, and the plan keeps that it gave it. A rest
+   * it once the plan is over goes into the profile's pantry in the freezer, in packages of their own none bigger than
+   * the plan's portion of it (`PlanFrozenRest.portion`: a plan takes a package out only whole), split as evenly as
+   * "Zamroź" splits, each dated `FROZEN_KEEPS_DAYS` from the day it went in, and the plan keeps that it gave it. A rest
    * given already changes nothing; one the plan no longer freezes, or eats whole, answers 409 `FROZEN_REST_GONE`, and
    * one it freezes on a later day 409 `REST_NOT_FROZEN_YET`: until then the pantry would hold what was not even bought,
    * and a shopping list would count it as at home.
@@ -428,20 +430,21 @@ export class MealPlansService {
       const { profileId } = kitchen.find((one) => one.id === planId)!;
       await lockPantry(tx, profileId, rest.ingredientId);
       const bestBefore = new Date(dayAfter(rest.date, FROZEN_KEEPS_DAYS));
-      // A package of its own: nothing frozen adds to another.
+      // Packages of their own: nothing frozen adds to another.
       assertWithinCeiling(rest.left, rest.unit);
-      await assertRoomInPantry(tx, profileId);
-      const [parcel] = await newParcels(tx, profileId, 1);
-      await tx.inventoryItem.create({
-        data: {
+      const parts = portionsOf(rest.left, portionsUpTo(rest.left, rest.portion)) ?? [rest.left];
+      await assertRoomInPantry(tx, profileId, parts.length);
+      const parcels = await newParcels(tx, profileId, parts.length);
+      await tx.inventoryItem.createMany({
+        data: parts.map((quantity, at) => ({
           profileId,
           ingredientId: rest.ingredientId,
           unit: rest.unit,
-          quantity: rest.left,
+          quantity,
           bestBefore,
           frozen: true,
-          parcel: parcel!,
-        },
+          parcel: parcels[at]!,
+        })),
       });
       for (const one of kitchen)
         await tx.mealPlan.update({

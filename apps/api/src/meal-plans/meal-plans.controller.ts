@@ -370,7 +370,7 @@ export class MealPlansController {
 
   /**
    * "Dodaj do spiżarni": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as
-   * frozen, once (`KeepFrozenRequest`).
+   * frozen, in packages none bigger than the plan's portion of it, once (`KeepFrozenRequest`).
    */
   @Post(':id/frozen')
   @HttpCode(200)

@@ -681,7 +681,7 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
     });
   });
 
-  it('gives the pantry what is left of a rest it freezes, once, as frozen and dated a month on', async () => {
+  it("gives the pantry what is left of a rest it freezes, once, as frozen in packages of the plan's portion, dated a month on", async () => {
     const plan = await t.app.get(PlanGenerationService).generate(
       user.id,
       'en',
@@ -730,7 +730,7 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         select: { quantity: true, unit: true, frozen: true, bestBefore: true },
       });
 
-    // A package frozen before it: the rest goes in beside it, a package of its own.
+    // A package frozen before it, numbered as the pantry numbers them: the rest goes in beside it, in packages of its own.
     await t.prisma.inventoryItem.create({
       data: {
         profileId: adam.id,
@@ -742,22 +742,26 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
         bestBefore: new Date('2026-01-25'),
       },
     });
+    await t.prisma.profile.update({ where: { id: adam.id }, data: { lastParcel: 2 } });
 
     // The day before the plan freezes it, nothing goes in: it is not even bought.
     plansTodayIs('2026-01-04');
     const early = await keep('2026-01-05');
     expect(early.status).toBe(409);
     expect(early.body.error).toBe('REST_NOT_FROZEN_YET');
-    expect((await pantry()).filter((row) => row.quantity === 350)).toEqual([]);
+    expect((await pantry()).filter((row) => row.quantity !== 100)).toEqual([]);
     plansTodayIs('2026-01-05');
 
     // Asked twice at the same moment, and once more: given once.
     const answers = await Promise.all([keep('2026-01-05'), keep('2026-01-05')]);
     expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
     expect((await keep('2026-01-05')).body.packs.frozen[0]).toMatchObject({ inPantry: true });
+    // In packages of the plan's portion at most, which a plan takes out whole: 350 g in three.
     expect((await pantry()).sort((a, b) => a.quantity - b.quantity)).toEqual([
       { quantity: 100, unit: 'g', frozen: true, bestBefore: new Date('2026-01-25') },
-      { quantity: 350, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
+      { quantity: 116, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
+      { quantity: 117, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
+      { quantity: 117, unit: 'g', frozen: true, bestBefore: new Date('2026-02-04') },
     ]);
 
     // A day the plan freezes nothing of it.

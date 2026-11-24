@@ -33,3 +33,15 @@ export function portionsOf(quantity: number, portions: number): number[] | null 
     toMillionths(base + (at < more ? 1 : 0) + (at === portions - 1 ? quantity - whole : 0)),
   );
 }
+
+/**
+ * The fewest portions `quantity` goes into with none bigger than `most`, at most `MAX_PORTIONS`: what to split it in
+ * for a plan that takes a package out of the freezer only whole, `most` being what two days of it eat. One where it
+ * is no bigger than `most`, or where there is no `most`.
+ */
+export function portionsUpTo(quantity: number, most: number | null): number {
+  if (most === null || !(most > 0) || quantity <= most + PORTION_EPSILON) return 1;
+  const count = Math.min(MAX_PORTIONS, Math.ceil(quantity / most - PORTION_EPSILON));
+  // Never parts of less than one of the unit: as many as there are whole ones.
+  return Math.max(1, Math.min(count, Math.floor(quantity + PORTION_EPSILON)));
+}

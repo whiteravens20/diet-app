@@ -5786,8 +5786,8 @@
         "tags": [
           "meal-plans"
         ],
-        "summary": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, once (`KeepFrozenRequest`).",
-        "description": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, once (`KeepFrozenRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "summary": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, in packages none bigger than the plan's portion of it, once (`KeepFrozenRequest`).",
+        "description": "\"Dodaj do spiżarni\": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, in packages none bigger than the plan's portion of it, once (`KeepFrozenRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
         "security": [
           {
             "account": []
