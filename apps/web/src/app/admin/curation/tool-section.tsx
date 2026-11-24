@@ -2,10 +2,13 @@
 
 'use client';
 
-import { useId, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 
-/** A tool of the queue and its form, closed until it is wanted or at work: the drafts are what the page is for. */
+/**
+ * A tool of the queue and its form, closed until it is wanted or at work: the drafts are what the page is for. Work
+ * opens it, and it stays open once the work is done, since what the work did is read there; only a click closes it.
+ */
 export function ToolSection({
   title,
   working = false,
@@ -16,9 +19,13 @@ export function ToolSection({
   children: ReactNode;
 }) {
   const titleId = useId();
+  const details = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (working && details.current) details.current.open = true;
+  }, [working]);
   return (
     <section aria-labelledby={titleId} className="rounded-md border border-border">
-      <details className="group" open={working || undefined}>
+      <details ref={details} className="group">
         <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
           <ChevronRight
             aria-hidden

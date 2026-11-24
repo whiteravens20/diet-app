@@ -86,6 +86,30 @@ const shown = async () => {
 };
 
 describe('a run of recipe drafts started from the panel', () => {
+  it('leaves its section open once it is over, where what it did is read', async () => {
+    vi.spyOn(adminApi, 'startRecipeGenerator').mockResolvedValue({
+      ...RUN_IDLE,
+      status: 'running',
+      total: 5,
+    });
+    const { generate } = await shown();
+    const section = screen.getByRole('region', { name: text.runTitle });
+    await userEvent.click(within(section).getByText(text.runTitle));
+    vi.mocked(adminApi.recipeGeneratorStatus).mockResolvedValue({
+      ...RUN_IDLE,
+      status: 'done',
+      note: 'coverage-reached',
+    });
+    await userEvent.click(generate);
+
+    expect(
+      await within(section).findByText(text.runNotes['coverage-reached'], undefined, {
+        timeout: 5000,
+      }),
+    ).toBeInTheDocument();
+    expect(section.querySelector('details')).toHaveAttribute('open');
+  });
+
   it('writes for the diets, meals, cuisine and way of cooking the administrator chose', async () => {
     const start = vi.spyOn(adminApi, 'startRecipeGenerator').mockResolvedValue(RUN_IDLE);
     const { generate, diets, meals } = await shown();
