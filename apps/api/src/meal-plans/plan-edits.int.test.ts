@@ -101,6 +101,37 @@ describe('editing a plan', () => {
     expect(eatenAt(undone.body)).toBeNull();
   });
 
+  it('marks a meal eaten, and not eaten, leaving the portions of a day off its target as they are', async () => {
+    const day = plan.days[0]!;
+    const portions = async () =>
+      Object.fromEntries(
+        (
+          await t.prisma.plannedMeal.findMany({
+            where: { dayId: day.id },
+            select: { id: true, quantityScale: true },
+          })
+        ).map((meal) => [meal.id, meal.quantityScale]),
+      );
+    // A day off its target, as an undo of its sizing leaves one: its first dish a good deal larger.
+    await t.prisma.plannedMeal.update({
+      where: { id: day.meals[0]!.id },
+      data: { quantityScale: 1.4 },
+    });
+    const off = await portions();
+    const path = `/api/meal-plans/${plan.id}/meals/${day.meals[1]!.id}/eaten`;
+
+    const eaten = await t.http().patch(path).set(as(user)).send({ eaten: true }).expect(200);
+    expect(eaten.body.rebalance).toBeNull();
+    expect(await portions()).toEqual(off);
+    const notEaten = await t.http().patch(path).set(as(user)).send({ eaten: false }).expect(200);
+    expect(notEaten.body.rebalance).toBeNull();
+    expect(await portions()).toEqual(off);
+
+    // The day was off its target all along: "Dopasuj porcje dnia" gives it other portions.
+    const sized = await plans.rebalance(user.id, 'en', plan.id, { scope: 'day', date: day.date });
+    expect(sized.rebalance?.changes.length).toBeGreaterThan(0);
+  });
+
   it('ends eaten when two requests to mark a meal eaten overlap', async () => {
     const meal = plan.days[0]!.meals[0]!;
 

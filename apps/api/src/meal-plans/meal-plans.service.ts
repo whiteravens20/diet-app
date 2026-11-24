@@ -921,9 +921,13 @@ export class MealPlansService {
 
   /**
    * Mark a planned meal eaten or not eaten. An eaten meal is pinned out of the
-   * rebalance set (scaling an already-eaten portion is meaningless), so the day
-   * is rebalanced after a change to redistribute among the rest. Asking for the
-   * state the meal is already in changes nothing, so a repeated request is safe.
+   * rebalance set (scaling an already-eaten portion is meaningless) for the
+   * sizings that come after. The mark itself sizes nothing: what the day holds
+   * is the same either way, and a day it finds off its target, as an undo of a
+   * sizing leaves one, stays as it is, with "Dopasuj porcje dnia" for it. Another
+   * plan of the profile, whose day counts what was eaten here, is sized as a
+   * change of its diary sizes it (`followEatenElsewhere`). Asking for the state
+   * the meal is already in changes nothing, so a repeated request is safe.
    */
   async setEaten(
     userId: string,
@@ -949,7 +953,7 @@ export class MealPlansService {
         message: 'A meal of a day still to come cannot be marked as eaten.',
       });
     }
-    const summary = await writePlans(
+    await writePlans(
       this.prisma,
       [
         { planId, revision: meal.day.plan.revision },
@@ -958,16 +962,14 @@ export class MealPlansService {
       today,
       async (tx) => {
         const at = eaten ? new Date() : null;
-        // What a meal is eaten with is kept as the person saw it, before any day around it is sized again.
+        // What a meal is eaten with is kept as the person saw it, for the sizings that come after.
         if (other) {
           await tx.plannedMeal.update({ where: { id: other.id }, data: { eatenAt: at } });
           await keepPieces(tx, [other.id]);
-          await this.rebalanceDayInternal(other.dayId, tx, today);
         }
-        if ((meal.eatenAt !== null) === eaten) return null;
+        if ((meal.eatenAt !== null) === eaten) return;
         await tx.plannedMeal.update({ where: { id: mealId }, data: { eatenAt: at } });
         await keepPieces(tx, [mealId]);
-        return this.rebalanceDayInternal(meal.dayId, tx, today);
       },
     );
     if ((meal.eatenAt !== null) !== eaten)
@@ -986,7 +988,7 @@ export class MealPlansService {
         other.day.planId,
         today,
       );
-    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', null);
   }
 
   /**

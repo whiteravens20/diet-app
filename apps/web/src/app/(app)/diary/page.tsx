@@ -189,7 +189,8 @@ function DiaryContent() {
     (entry) => remove.mutateAsync(entry.id),
     (entry) => entry.id,
   );
-  // Marking a meal of the plan as eaten rebalances its day, as on the plan's page, and says so with the same note.
+  // Marking a meal of the plan as eaten leaves the portions of its day, as on the plan's page: a note comes only with a
+  // sizing the server made with it.
   const eat = useMutation({
     mutationFn: ({ planId, meal }: { planId: string; meal: DiaryPlanMeal }) =>
       api.patch<RebalanceResult>(`/meal-plans/${planId}/meals/${meal.id}/eaten`, {
