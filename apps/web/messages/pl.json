@@ -2268,6 +2268,15 @@
     "errDelete": "Nie udało się usunąć pozycji.",
     "errFreeze": "Nie udało się zamrozić pozycji."
   },
+  "freezing": {
+    "rulesTitle": "Jak mrozić",
+    "ruleLabel": "Opisz paczkę: co w\u00a0niej jest i\u00a0kiedy trafiła do zamrażarki.",
+    "ruleUseBy": "Zamroź najpóźniej w\u00a0dniu z\u00a0„Należy spożyć do” na opakowaniu.",
+    "ruleThaw": "Rozmrażaj w\u00a0lodówce.",
+    "ruleRefreeze": "Rozmrożonego surowego mięsa ani ryby nie zamrażaj ponownie.",
+    "portionPlans": "Dziel na porcje do {amount}: tyle twoje plany jedzą tego najwyżej w\u00a0dwa dni, a\u00a0z\u00a0zamrażarki plan bierze tylko całe paczki.",
+    "portionPlan": "Część na później dziel na porcje do {amount}: tyle ten plan je tego najwyżej w\u00a0dwa dni, a\u00a0z\u00a0zamrażarki plan bierze tylko całe paczki."
+  },
   "settings": {
     "title": "Ustawienia",
     "subhead": "Konto, preferencje i dostawcy AI.",

@@ -2,14 +2,17 @@
 
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { DisplayUnit, InventoryItem, Unit } from '@diet-app/shared';
+import type { DisplayUnit, InventoryItem, InventoryPortion, Unit } from '@diet-app/shared';
 import { FROZEN_KEEPS_DAYS } from '@diet-app/shared/constants';
 import { MAX_PORTIONS, portionsOf } from '@diet-app/shared/portions';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { FreezingTips } from '@/components/freezing-tips';
+import { api } from '@/lib/api';
 import { useAmount, useShownAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
 
@@ -76,7 +79,8 @@ export function PortionsLine({
 
 /**
  * The window a fresh row goes into the freezer from: whole, or split into portions, each a package of its own
- * dated as the freezer keeps it.
+ * dated as the freezer keeps it. Under its intro, the size the profile's plans would take the packages out in, once
+ * the server has said it, and the rules of freezing.
  */
 export function FreezeDialog({
   item,
@@ -103,6 +107,17 @@ export function FreezeDialog({
   // A count the freezer does not take, or one that makes portions of less than one of the unit, is said under the
   // field, and nothing goes.
   const fits = portions !== null && portionsFit(item.quantity, portions);
+  // A hint: while it is asked for, or where it cannot be had, the window goes on without it.
+  const planned = useQuery({
+    queryKey: ['inventory-portion', item.id],
+    queryFn: () => api.get<InventoryPortion>(`/inventory/${item.id}/portion`),
+  });
+  // Said where it splits the row: a row no bigger than the portion goes in whole as it is.
+  const portion =
+    planned.data?.portion != null &&
+    (planned.data.unit !== item.unit || item.quantity > planned.data.portion)
+      ? planned.data.portion
+      : null;
   return (
     <Dialog open onClose={onClose} label={t('freeze')} className="max-w-md">
       <div className="flex items-center justify-between border-b border-border p-4">
@@ -123,9 +138,12 @@ export function FreezeDialog({
           if (portions !== null && fits) onFreeze(portions);
         }}
       >
-        <p className="text-sm text-muted-foreground">
-          {t('freezeIntro', { days: FROZEN_KEEPS_DAYS })}
-        </p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            {t('freezeIntro', { days: FROZEN_KEEPS_DAYS })}
+          </p>
+          <FreezingTips portion={portion} unit={planned.data?.unit ?? item.unit} of="plans" />
+        </div>
         <div className="space-y-1.5">
           <label htmlFor={fieldId} className="block text-xs font-medium text-muted-foreground">
             {t('portionsLabel')}

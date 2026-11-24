@@ -102,6 +102,12 @@ const DayOffTargetDialog = dynamic(
   { ssr: false },
 );
 
+/** Fetched when a day freezes a rest: how big to split it, and the rules of freezing. */
+const FreezingTips = dynamic(
+  () => import('@/components/freezing-tips').then((tips) => tips.FreezingTips),
+  { ssr: false, loading: () => null },
+);
+
 /** Fetched when the way to change a day is asked for. */
 const DayChangeHelp = dynamic(
   () => import('./day-change-help').then((help) => help.DayChangeHelp),
@@ -482,7 +488,8 @@ export function PlanCard({
       .join('; ');
   /**
    * A rest of meat or fish the plan freezes, said where it goes in: in the portions the plan takes later, each with its
-   * day, and the one for later, frozen apart; with "Dodaj do spiżarni" for that one.
+   * day, and the one for later, frozen apart; with "Dodaj do spiżarni" for that one. Under it, the size to split the
+   * one for later into where it is bigger than two days of the plan eat, and the rules of freezing.
    */
   const frozenLine = (rest: PlanFrozenRest, indented: boolean) => {
     const name = fmt.text(rest.name);
@@ -498,34 +505,38 @@ export function PlanCard({
         : []),
     ];
     return (
-      <div
-        key={`${rest.ingredientId} ${rest.date}`}
-        className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-xs', indented && 'ml-6')}
-      >
-        <span>
-          {portions.length === 1
-            ? tFreezer('freeze', { name, portion: portions[0]! })
-            : tFreezer('freezePortions', { name, portions: fmt.list(portions) })}
-        </span>
-        {/* Given from the day the rest is frozen: before it, the pantry would hold what was not even bought. */}
-        {rest.left > 0 &&
-          (rest.inPantry ? (
-            <span className="text-muted-foreground">{tFreezer('inPantry')}</span>
-          ) : (
-            rest.date <= today && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-my-1"
-                disabled={busy}
-                aria-label={tFreezer('keepFor', { name, amount: amount(rest.left, rest.unit) })}
-                onClick={() => onKeepFrozen(rest.ingredientId, rest.date)}
-              >
-                {tFreezer('keep')}
-              </Button>
-            )
-          ))}
+      <div key={`${rest.ingredientId} ${rest.date}`} className={cn(indented && 'ml-6')}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span>
+            {portions.length === 1
+              ? tFreezer('freeze', { name, portion: portions[0]! })
+              : tFreezer('freezePortions', { name, portions: fmt.list(portions) })}
+          </span>
+          {/* Given from the day the rest is frozen: before it, the pantry would hold what was not even bought. */}
+          {rest.left > 0 &&
+            (rest.inPantry ? (
+              <span className="text-muted-foreground">{tFreezer('inPantry')}</span>
+            ) : (
+              rest.date <= today && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-my-1"
+                  disabled={busy}
+                  aria-label={tFreezer('keepFor', { name, amount: amount(rest.left, rest.unit) })}
+                  onClick={() => onKeepFrozen(rest.ingredientId, rest.date)}
+                >
+                  {tFreezer('keep')}
+                </Button>
+              )
+            ))}
+        </div>
+        <FreezingTips
+          portion={rest.portion !== null && rest.left > rest.portion ? rest.portion : null}
+          unit={rest.unit}
+          of="plan"
+        />
       </div>
     );
   };

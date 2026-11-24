@@ -4942,6 +4942,43 @@ describe('the plan page, on what a plan puts in the freezer and takes out of it'
     });
   });
 
+  it('says to split the part for later into portions that two days of the plan eat, where it is bigger', async () => {
+    await opened(twoDays({ portion: 100 }));
+
+    expect(
+      await screen.findByText(
+        `Split the part for later into portions of up to 100 g: that is the most this plan eats of it in two days, and a plan takes only whole packages out of the freezer.`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('says no size for a part for later that two days of the plan eat whole, nor where nothing is left', async () => {
+    await opened(twoDays({ portion: 250 }));
+    // The rules come with the same part of the page: once they are there, so would the size be.
+    expect(await screen.findByText(messages.freezing.rulesTitle)).toBeInTheDocument();
+    expect(screen.queryByText(/^Split the part for later/)).toBeNull();
+  });
+
+  it('folds the rules of freezing under the line that says what to freeze', async () => {
+    await opened(
+      twoDays({
+        amount: 100,
+        left: 0,
+        thawed: [{ date: '2026-01-06', mealId: null, amount: 100 }],
+        portion: 100,
+      }),
+    );
+
+    const rules = await screen.findByText(messages.freezing.rulesTitle);
+    expect(screen.queryByText(/^Split the part for later/)).toBeNull();
+    const rule = screen.getByText(messages.freezing.ruleRefreeze);
+    expect(rule).not.toBeVisible();
+    await userEvent.click(rules);
+    expect(rule).toBeVisible();
+    for (const one of ['ruleLabel', 'ruleUseBy', 'ruleThaw'] as const)
+      expect(screen.getByText(messages.freezing[one])).toBeVisible();
+  });
+
   it('gives the pantry nothing of a rest the plan freezes on a later day', async () => {
     // The same two days, still to come.
     const plan = twoDays();

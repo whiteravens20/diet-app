@@ -2268,6 +2268,15 @@
     "errDelete": "Could not remove the item.",
     "errFreeze": "Could not freeze the item."
   },
+  "freezing": {
+    "rulesTitle": "How to freeze",
+    "ruleLabel": "Label the package with what is in it and the day it went into the freezer.",
+    "ruleUseBy": "Freeze it on its use-by date at the latest.",
+    "ruleThaw": "Thaw it in the fridge.",
+    "ruleRefreeze": "Do not freeze thawed raw meat or fish again.",
+    "portionPlans": "Split it into portions of up to {amount}: that is the most your plans eat of it in two days, and a plan takes only whole packages out of the freezer.",
+    "portionPlan": "Split the part for later into portions of up to {amount}: that is the most this plan eats of it in two days, and a plan takes only whole packages out of the freezer."
+  },
   "settings": {
     "title": "Settings",
     "subhead": "Account, preferences and AI providers.",

@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UNDO_FOR_MS } from '@/components/removed-later';
-import { Ingredient, InventoryItem, type Profile } from '@diet-app/shared';
+import { Ingredient, InventoryItem, type InventoryPortion, type Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import { dayAfter } from '@/lib/plan-dates';
@@ -560,6 +560,67 @@ describe('a row of the pantry', () => {
       );
 
       expect(post).toHaveBeenCalledWith(`/inventory/${fresh.id}/freeze`, { portions: 1 });
+    });
+
+    /** The pantry's API, answering the size a row is frozen in with `answer` from now on. */
+    const sizeIs = (answer: InventoryPortion | Error) => {
+      const before = vi.mocked(api.get).getMockImplementation()!;
+      vi.mocked(api.get).mockImplementation((path: string) =>
+        path.endsWith('/portion')
+          ? answer instanceof Error
+            ? Promise.reject(answer)
+            : Promise.resolve(answer as never)
+          : before(path),
+      );
+    };
+    const sizeLine = (amount: string) => messages.freezing.portionPlans.replace('{amount}', amount);
+
+    it("says, once the server has, the size the profile's plans eat the food in, where the row is bigger", async () => {
+      const fresh = grams(500, false, '2026-11-16');
+      await open([], [fresh]);
+      sizeIs({ portion: 300, unit: 'g' });
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(chicken.name) }));
+      const window = within(screen.getByRole('dialog', { name: texts.freeze }));
+
+      expect(await window.findByText(sizeLine('300 g'))).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledWith(`/inventory/${fresh.id}/portion`);
+    });
+
+    it.each([
+      ['a row no bigger than the portion', { portion: 500, unit: 'g' } as const],
+      ['a food no plan takes from packs', { portion: null, unit: 'g' } as const],
+      ['an answer that did not come', new Error('offline')],
+    ])('says no size for %s, and freezes as before', async (_, answer) => {
+      const fresh = grams(500, false, '2026-11-16');
+      const { post } = await open([], [fresh]);
+      sizeIs(answer);
+      post.mockResolvedValueOnce([grams(500, true, '2026-12-16')] as never);
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(chicken.name) }));
+      const window = within(screen.getByRole('dialog', { name: texts.freeze }));
+      // The size comes with the rules, and the rules come at once: the answer is in by the time it is read.
+      expect(window.getByText(messages.freezing.rulesTitle)).toBeInTheDocument();
+      await vi.waitFor(() =>
+        expect(api.get).toHaveBeenCalledWith(`/inventory/${fresh.id}/portion`),
+      );
+      await act(async () => {});
+      expect(window.queryByText(/^Split it into portions/)).toBeNull();
+      await userEvent.click(window.getByRole('button', { name: texts.freeze }));
+      expect(post).toHaveBeenCalledWith(`/inventory/${fresh.id}/freeze`, { portions: 1 });
+    });
+
+    it('folds the rules of freezing in its window', async () => {
+      await open([], [grams(500, false, '2026-11-16')]);
+
+      await userEvent.click(screen.getByRole('button', { name: freezeOf(chicken.name) }));
+      const window = within(screen.getByRole('dialog', { name: texts.freeze }));
+      const rule = window.getByText(messages.freezing.ruleUseBy);
+      expect(rule).not.toBeVisible();
+      await userEvent.click(window.getByText(messages.freezing.rulesTitle));
+      expect(rule).toBeVisible();
+      for (const one of ['ruleLabel', 'ruleThaw', 'ruleRefreeze'] as const)
+        expect(window.getByText(messages.freezing[one])).toBeVisible();
     });
 
     it('splits what is counted into whole pieces, as evenly as they go', async () => {
