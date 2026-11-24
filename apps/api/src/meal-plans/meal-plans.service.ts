@@ -149,7 +149,7 @@ import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/
 import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
 import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
-import { planChangedMeanwhile, sizeDaysWith, writePlan, writePlans } from './plan-write.js';
+import { noteSizing, planChangedMeanwhile, writePlan, writePlans } from './plan-write.js';
 import {
   CANDIDATE,
   dislikedIn,
@@ -185,13 +185,7 @@ export class MealPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
-  ) {
-    // A write of a plan whose rests of packs move sizes their days again as a change of a day sizes it.
-    sizeDaysWith(
-      async (tx, dayId, today) =>
-        ((await this.rebalanceDayInternal(dayId, tx, today))?.changes.length ?? 0) > 0,
-    );
-  }
+  ) {}
 
   /**
    * Delete a plan and everything under it (days, meals, shopping lists cascade). What was eaten from it is
@@ -1261,7 +1255,8 @@ export class MealPlansService {
    * toast renders, or null when the day has vanished or is skipped, which has
    * no target to keep to, or has passed: what was on it is a record, and no
    * edit of it changes the portions of the rest. Runs inside the transaction
-   * of the edit that changed the day, whichever service made it.
+   * of the edit that changed the day, whichever service made it, which sizes
+   * the day again once the rests of packs have followed it (`noteSizing`).
    */
   async rebalanceDayInternal(
     dayId: string,
@@ -1269,6 +1264,18 @@ export class MealPlansService {
     today: string,
     /** Of a day of a joint plan, the topping a model named for a meal, the one that meal may then be given. */
     named: ReadonlyMap<string, string> = new Map(),
+  ): Promise<RebalanceSummary | null> {
+    const summary = await this.sizeDayOf(dayId, tx, today, named);
+    if (summary) noteSizing(tx, summary, [dayId], () => this.sizeDayOf(dayId, tx, today, named));
+    return summary;
+  }
+
+  /** The sizing of a day `rebalanceDayInternal` makes, made and written. */
+  private async sizeDayOf(
+    dayId: string,
+    tx: Prisma.TransactionClient,
+    today: string,
+    named: ReadonlyMap<string, string>,
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
@@ -1568,7 +1575,8 @@ export class MealPlansService {
 
   /**
    * Share the surplus/deficit across the days from `from` to the end of the
-   * plan (`planRest`), and write it.
+   * plan (`planRest`), and write it. The write it is part of shares it again
+   * once the rests of packs have followed it (`noteSizing`).
    */
   async rebalanceRestInternal(
     planId: string,
@@ -1576,6 +1584,24 @@ export class MealPlansService {
     from: string,
     today: string,
   ): Promise<RebalanceSummary | null> {
+    const sized = await this.sizeRestOf(planId, tx, from, today);
+    if (!sized) return null;
+    noteSizing(
+      tx,
+      sized.summary,
+      sized.days,
+      async () => (await this.sizeRestOf(planId, tx, from, today))?.summary ?? null,
+    );
+    return sized.summary;
+  }
+
+  /** The sizing of the rest of a plan `rebalanceRestInternal` makes, made and written, with the days it sized. */
+  private async sizeRestOf(
+    planId: string,
+    tx: Prisma.TransactionClient,
+    from: string,
+    today: string,
+  ): Promise<{ summary: RebalanceSummary; days: string[] } | null> {
     const planned = await this.planRest(tx, planId, from, today);
     if (!planned) return null;
     const { dayRows, result } = planned;
@@ -1586,11 +1612,14 @@ export class MealPlansService {
     const changes = await this.persistScales(allRows, scales, tx);
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
     return {
-      feasibility,
-      changes,
-      macrosBefore,
-      macrosAfter,
-      unabsorbedKcal: Math.round(unabsorbed),
+      summary: {
+        feasibility,
+        changes,
+        macrosBefore,
+        macrosAfter,
+        unabsorbedKcal: Math.round(unabsorbed),
+      },
+      days: dayRows.filter((d) => !d.past).map((d) => d.id),
     };
   }
 

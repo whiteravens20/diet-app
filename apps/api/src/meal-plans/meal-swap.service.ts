@@ -69,7 +69,7 @@ import {
 } from './plan-days.js';
 import { toppingAskOfDay, toppingFoodsOf } from './toppings-store.js';
 import { LINES_OF_KINDS, readPlanLimits, type LimitedRecipe } from './plan-limits.js';
-import { writePlans } from './plan-write.js';
+import { joinSizings, writePlans } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
 import { exactly, piecesOfOffer } from './whole-pieces-store.js';
 
@@ -445,12 +445,7 @@ export class MealSwapService {
             .filter((dayId) => dayId !== meal.dayId)
             .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, today)),
         );
-        return (
-          summary && {
-            ...summary,
-            changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
-          }
-        );
+        return summary && joinSizings(tx, summary, others);
       },
     );
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);

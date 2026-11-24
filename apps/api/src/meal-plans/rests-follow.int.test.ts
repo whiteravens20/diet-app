@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.js';
 import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -597,6 +597,84 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       expect(await yogurtRest()).toBeCloseTo(50);
     });
 
+    it('leaves the portions an undo puts back as they are, rests and all', async () => {
+      const service = t.app.get(MealPlansService);
+      const portions = async () =>
+        Object.fromEntries(
+          (
+            await t.prisma.plannedMeal.findMany({
+              where: { day: { planId: plan.id } },
+              select: { id: true, quantityScale: true },
+            })
+          ).map((meal) => [meal.id, meal.quantityScale]),
+        );
+      await follow(plan.id);
+      const before = await portions();
+      const sized = await service.rebalance(
+        user.id,
+        'en',
+        plan.id,
+        { scope: 'day', date: '2026-02-02' },
+        BEFORE,
+      );
+      const changes = sized.rebalance?.changes ?? [];
+      expect(changes.length).toBeGreaterThan(0);
+      // It tells of every portion it left, those it gave again once the rests of packs moved included, and of the
+      // day as it stands.
+      expect(await portions()).toEqual({
+        ...before,
+        ...Object.fromEntries(changes.map((change) => [change.mealId, change.after])),
+      });
+      expect(
+        Math.abs(sized.rebalance!.macrosAfter.calories - sized.plan.days[0]!.dayNutrition.calories),
+      ).toBeLessThanOrEqual(1);
+
+      // The undo as the toast sends it: each meal the recalculation moved, back to its portion before.
+      await service.rebalance(
+        user.id,
+        'en',
+        plan.id,
+        {
+          scope: 'day',
+          restore: changes.map((change) => ({ mealId: change.mealId, scale: change.before })),
+        },
+        BEFORE,
+      );
+
+      expect(await portions()).toEqual(before);
+    });
+
+    it('comes back as it was with a swap of the day taken back, and so do the portions', async () => {
+      const meals = async () =>
+        (
+          await t.prisma.plannedMeal.findMany({
+            where: { day: { planId: plan.id } },
+            select: { id: true, recipeId: true, servings: true, quantityScale: true, rests: true },
+            orderBy: { id: 'asc' },
+          })
+        ).map(({ rests, ...meal }) => ({ ...meal, rests: restsOf(rests) }));
+      await follow(plan.id);
+      const before = await meals();
+      const restBefore = await yogurtRest();
+
+      const swapped = await aSwap(t, user, {
+        planId: plan.id,
+        plannedMealId: plan.days[0]!.meals[0]!.id,
+        strategy: 'random',
+      });
+      // The swap moved the rest, and the day was sized again with it.
+      expect(await yogurtRest()).not.toBeCloseTo(restBefore);
+      await t
+        .http()
+        .post('/api/meal-plans/swap-meal/undo')
+        .set(as(user))
+        .send({ planId: plan.id, revision: swapped.plan.revision })
+        .expect(200);
+
+      expect(await meals()).toEqual(before);
+      expect(await yogurtRest()).toBeCloseTo(restBefore);
+    });
+
     it('is counted where its day is sized: one recalculation leaves the day as the next would', async () => {
       const service = t.app.get(MealPlansService);
       const portions = async () =>
@@ -620,6 +698,99 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       // Nothing changed between the two: the second has nothing to move.
       expect(await portions()).toEqual(sized);
       expect(await yogurtRest()).toBeCloseTo(rest);
+    });
+  });
+
+  describe('of a plan whose days take a share of what another holds', () => {
+    it('puts back what a spread over the rest of the plan moved, once undone, rests and all', async () => {
+      const [{ id: stew }, { id: bowl }, { id: yogurt }] = await Promise.all(
+        [STEW, TOFU_BOWL, YOGURT].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      const plan = await aPlan(t, user, profile, {
+        startDate: '2026-02-02',
+        durationDays: 2,
+        lessWaste: true,
+      });
+      // The yogurt at the second meal of the second day, the one meal that takes from a pack that does not keep.
+      for (const [index, day] of plan.days.entries())
+        for (const [at, meal] of day.meals.entries())
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: {
+              recipeId: index === 1 && at === 1 ? yogurt : at % 2 === 0 ? stew : bowl,
+              servings: index === 1 && at === 1 ? 1.75 : 1,
+              quantityScale: 1,
+              source: 'CATALOGUE',
+              eatenAt: null,
+              rests: [],
+            },
+          });
+      const yogurtMeal = plan.days[1]!.meals[1]!.id;
+      // A feast in the diary of the first day, which the spread takes out of its meals.
+      const feast = Math.round(plan.days[0]!.calorieTarget * 0.4);
+      await t
+        .http()
+        .post('/api/diary/entries')
+        .set(as(user))
+        .set('X-Client-Date', new Date().toISOString().slice(0, 10))
+        .send({
+          profileId: profile.id,
+          date: '2026-02-02',
+          mealType: 'snack',
+          kind: 'meal',
+          name: 'Feast',
+          nutrition: { calories: feast, protein: 0, fat: 0, carbs: Math.round(feast / 4) },
+        })
+        .expect(201);
+      await follow(plan.id);
+      const service = t.app.get(MealPlansService);
+      const rest = async () =>
+        (await restsOfPlan(plan.id))
+          .filter((one) => one.meal === yogurtMeal && one.ingredientId === yogurtId)
+          .reduce((sum, one) => sum + one.amount, 0);
+      const portions = async () =>
+        Object.fromEntries(
+          (
+            await t.prisma.plannedMeal.findMany({
+              where: { day: { planId: plan.id } },
+              select: { id: true, quantityScale: true },
+            })
+          ).map((meal) => [meal.id, meal.quantityScale]),
+        );
+      const before = await portions();
+      expect(await rest()).toBeCloseTo(50);
+
+      const spread = await service.rebalance(
+        user.id,
+        'en',
+        plan.id,
+        { scope: 'plan', date: '2026-02-02' },
+        BEFORE,
+      );
+      const changes = spread.rebalance?.changes ?? [];
+      // The yogurt grew past its pack: its rest moved, and the spread was made again with it.
+      expect(await rest()).toBe(0);
+      expect(await portions()).toEqual({
+        ...before,
+        ...Object.fromEntries(changes.map((change) => [change.mealId, change.after])),
+      });
+      const held = spread.plan.days.reduce((sum, day) => sum + day.dayNutrition.calories, 0);
+      expect(Math.abs(spread.rebalance!.macrosAfter.calories - held)).toBeLessThanOrEqual(2);
+
+      await service.rebalance(
+        user.id,
+        'en',
+        plan.id,
+        {
+          scope: 'day',
+          restore: changes.map((change) => ({ mealId: change.mealId, scale: change.before })),
+        },
+        BEFORE,
+      );
+      expect(await portions()).toEqual(before);
+      expect(await rest()).toBeCloseTo(50);
     });
   });
 });

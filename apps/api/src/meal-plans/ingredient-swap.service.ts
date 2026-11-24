@@ -58,7 +58,7 @@ import {
 } from './meal-plans.service.js';
 import { settleNewRecipes, wholeAddition } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
-import { writePlan } from './plan-write.js';
+import { joinSizings, writePlan } from './plan-write.js';
 import {
   rewriteSwapModeA,
   rewriteSwapModeB,
@@ -278,12 +278,7 @@ export class IngredientSwapService {
             .filter((dayId) => dayId !== meal.dayId)
             .map((dayId) => this.plans.rebalanceDayInternal(dayId, tx, s.today)),
         );
-        return (
-          summary && {
-            ...summary,
-            changes: [...summary.changes, ...others.flatMap((other) => other?.changes ?? [])],
-          }
-        );
+        return summary && joinSizings(tx, summary, others);
       },
     );
     return {

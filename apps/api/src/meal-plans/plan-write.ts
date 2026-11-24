@@ -5,21 +5,94 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { packagesSaid, repickFreezer } from './freezer-repick.js';
 import { followRests, wasteLevelOf, type FollowedRest } from './rests-follow.js';
 
-/** At most how many times the days whose rests a change moved are sized again: once is nearly always enough. */
+/** At most how many times the sizings a change made are made again: once is nearly always enough. */
 const SETTLE_ROUNDS = 3;
 
-/** Size a day of a plan again, as a change of it does; true where a portion moved. */
-type SizeDay = (tx: Prisma.TransactionClient, dayId: string, today: string) => Promise<boolean>;
+type MacroQuad = { calories: number; protein: number; fat: number; carbs: number };
+
+/** What a sizing of days tells whoever made the change (`RebalanceSummary`), as far as making it again changes it. */
+interface SizingSummary {
+  feasibility: 'in-window' | 'best-effort';
+  changes: { mealId: string; before: number; after: number }[];
+  macrosAfter: MacroQuad;
+  unabsorbedKcal?: number;
+}
+
+/** A sizing of days a write made (`noteSizing`). */
+interface Sizing {
+  /** The summary that tells of it: its own, or that of the change it went into (`joinSizings`). */
+  summary: SizingSummary;
+  /** The days whose portions stand as it left them: a later sizing of a day in the same write takes the day over. */
+  days: Set<string>;
+  /** Its own figures, as it last came to them, in the summary's: none once the summary is another sizing's. */
+  figures: MacroQuad | null;
+  /** Make it again, as it was made, with nothing noted. */
+  again: () => Promise<SizingSummary | null>;
+}
+
+/** The sizings of each write, by the transaction it writes in. */
+const sizingsOf = new WeakMap<Prisma.TransactionClient, Sizing[]>();
 
 /**
- * How a write sizes again a day whose rests of packs it moved: `MealPlansService` gives its own sizing of a day when it
- * is made, as this module of plain functions has no service to ask. Without it the rests move and the days stay.
+ * Note a sizing of `days` that a write made with `again` (`MealPlansService`). Where the rests of packs that follow
+ * the write move on one of the days, the sizing is made again, and what that changes goes into `summary`: an undo of
+ * the change puts back every portion it moved. A write that sizes nothing, such as an undo, sizes nothing again.
  */
-let sizeAgain: SizeDay | null = null;
+export function noteSizing(
+  tx: Prisma.TransactionClient,
+  summary: SizingSummary,
+  days: readonly string[],
+  again: () => Promise<SizingSummary | null>,
+): void {
+  const sizings = sizingsOf.get(tx) ?? [];
+  for (const earlier of sizings) for (const day of days) earlier.days.delete(day);
+  sizings.push({ summary, days: new Set(days), figures: summary.macrosAfter, again });
+  sizingsOf.set(tx, sizings);
+}
 
-/** The sizing of a day the writes of plans use where the rests of a day move (`sizeAgain`). */
-export function sizeDaysWith(size: SizeDay): void {
-  sizeAgain = size;
+/**
+ * One summary of the sizings of several days a change made: `into`, which keeps its figures, with the meals the
+ * others gave another portion. What making them again changes goes into it as well.
+ */
+export function joinSizings<S extends SizingSummary>(
+  tx: Prisma.TransactionClient,
+  into: S,
+  others: readonly (SizingSummary | null)[],
+): S {
+  for (const other of others) {
+    if (!other || other === into) continue;
+    into.changes.push(...other.changes);
+    for (const sizing of sizingsOf.get(tx) ?? [])
+      if (sizing.summary === other) {
+        sizing.summary = into;
+        sizing.figures = null;
+      }
+  }
+  return into;
+}
+
+/** What making a sizing again changed, in the summary that tells of it: each meal from its portion before the write. */
+function absorb(sizing: Sizing, again: SizingSummary): void {
+  const { summary } = sizing;
+  for (const change of again.changes) {
+    const at = summary.changes.findIndex((one) => one.mealId === change.mealId);
+    if (at < 0) summary.changes.push(change);
+    else if (Math.abs(summary.changes[at]!.before - change.after) < 1e-9)
+      summary.changes.splice(at, 1);
+    else summary.changes[at] = { ...summary.changes[at]!, after: change.after };
+  }
+  const was = sizing.figures;
+  if (!was) return;
+  const now = again.macrosAfter;
+  summary.macrosAfter = {
+    calories: summary.macrosAfter.calories + now.calories - was.calories,
+    protein: summary.macrosAfter.protein + now.protein - was.protein,
+    fat: summary.macrosAfter.fat + now.fat - was.fat,
+    carbs: summary.macrosAfter.carbs + now.carbs - was.carbs,
+  };
+  summary.feasibility = again.feasibility;
+  if (again.unabsorbedKcal !== undefined) summary.unabsorbedKcal = again.unabsorbedKcal;
+  sizing.figures = now;
 }
 
 /** A refusal of a change of a plan made from a plan another change moved on meanwhile (`writePlan`). */
@@ -99,22 +172,30 @@ export function writePlans<T>(
           claimed.add(other);
         }
     };
+    const sizings = sizingsOf.get(tx) ?? [];
     const kitchens = new Set<string>();
     for (const { planId, kitchen } of counting) {
       if (kitchens.has(kitchen)) continue;
       kitchens.add(kitchen);
       let followed = await followRests(tx, planId, today);
       await moveOn(followed);
-      // A rest that moved changes what its day holds: the day is sized again with it, and the rests follow the
-      // portions that gives, until they stand. A change leaves each day as the next change of the plan finds it.
-      for (let round = 0; sizeAgain && followed.length > 0 && round < SETTLE_ROUNDS; round += 1) {
+      // A rest that moved changes what its day holds: a sizing of the day this write made is made again with it, and
+      // the rests follow the portions that gives, until they stand. A change leaves each day it sized as the next
+      // change of the plan finds it.
+      for (let round = 0; followed.length > 0 && round < SETTLE_ROUNDS; round += 1) {
         const meals = await tx.plannedMeal.findMany({
           where: { id: { in: followed.map((one) => one.mealId) } },
           select: { dayId: true },
         });
+        const moved = new Set(meals.map((meal) => meal.dayId));
         let sized = false;
-        for (const dayId of new Set(meals.map((meal) => meal.dayId)))
-          if (await sizeAgain(tx, dayId, today)) sized = true;
+        for (const sizing of [...sizings]) {
+          if (![...sizing.days].some((day) => moved.has(day))) continue;
+          const again = await sizing.again();
+          if (!again) continue;
+          absorb(sizing, again);
+          if (again.changes.length > 0) sized = true;
+        }
         if (!sized) break;
         followed = await followRests(tx, planId, today);
         await moveOn(followed);
