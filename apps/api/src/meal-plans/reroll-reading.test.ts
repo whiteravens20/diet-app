@@ -174,14 +174,65 @@ describe('what a re-roll would do to a plan', () => {
     expect(wednesday({ replaceEaten: true, replaceCustom: true })).toMatchObject({ replaced: 1 });
   });
 
-  it("fills the meals of a day beside a meal of the user's own that stays: it holds no place", () => {
+  it("keeps a time of day that holds only the user's own meals theirs, and fills the others", () => {
+    const own = (mealType: string) => aMeal(mealType, { source: 'USER_CUSTOM', recipeId: null });
     const days = week({
-      [WEDNESDAY]: { meals: [aMeal('lunch', { source: 'USER_CUSTOM', recipeId: null })] },
+      [WEDNESDAY]: { mealCount: 3, meals: [own('breakfast'), own('breakfast'), aMeal('dinner')] },
+    });
+
+    const reading = readReroll(days[2]!, asked({ first: WEDNESDAY, last: WEDNESDAY }), WEDNESDAY);
+    expect(reading.fate === 'again' && reading.slots).toEqual(['lunch', 'dinner']);
+    expect(
+      rerollOutcome(days, asked({ first: WEDNESDAY, last: WEDNESDAY }), WEDNESDAY),
+    ).toMatchObject({ days: 1, replaced: 1, kept: { custom: 2 } });
+  });
+
+  it("fills a time of day where a meal of the plan stands beside one of the user's own", () => {
+    const days = week({
+      [WEDNESDAY]: {
+        mealCount: 3,
+        meals: [
+          aMeal('breakfast'),
+          aMeal('lunch'),
+          aMeal('lunch', { source: 'USER_CUSTOM', recipeId: null }),
+          aMeal('dinner'),
+        ],
+      },
+    });
+
+    const reading = readReroll(days[2]!, asked({ first: WEDNESDAY, last: WEDNESDAY }), WEDNESDAY);
+    expect(reading.fate === 'again' && reading.slots).toEqual(['breakfast', 'lunch', 'dinner']);
+  });
+
+  it("gives the time of the user's own meals to the plan when they are replaced as well", () => {
+    const days = week({
+      [WEDNESDAY]: {
+        mealCount: 3,
+        meals: [aMeal('breakfast', { source: 'USER_CUSTOM', recipeId: null }), aMeal('dinner')],
+      },
+    });
+
+    const reading = readReroll(
+      days[2]!,
+      asked({ first: WEDNESDAY, last: WEDNESDAY, replaceCustom: true }),
+      WEDNESDAY,
+    );
+    expect(reading.fate === 'again' && reading.slots).toEqual(['breakfast', 'lunch', 'dinner']);
+  });
+
+  it("does not count a day whose only free time holds the user's own meals", () => {
+    const days = week({
+      [WEDNESDAY]: {
+        meals: [
+          aMeal('breakfast', { source: 'USER_CUSTOM', recipeId: null }),
+          aMeal('dinner', { eatenAt: EATEN }),
+        ],
+      },
     });
 
     expect(
       rerollOutcome(days, asked({ first: WEDNESDAY, last: WEDNESDAY }), WEDNESDAY),
-    ).toMatchObject({ days: 1, replaced: 0, kept: { custom: 1 } });
+    ).toMatchObject({ days: 0, replaced: 0, kept: { custom: 1, eaten: 1 } });
   });
 
   it('fills the place of a meal that was taken off a day whose other meals stay', () => {

@@ -266,6 +266,35 @@ describe('the settings of a day of a running plan', () => {
       }
     });
 
+    it("draws no recipe for the time of day the user's own meal took when the day gains meals", async () => {
+      const lunch = dayOf(plan).meals.find((meal) => meal.mealType === 'lunch')!;
+      const withOwn = (
+        await t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${DATE}/custom-meal`)
+          .set(as(user))
+          .set('X-Client-Date', day(0))
+          .send({
+            name: 'Soup of my own',
+            mealType: 'lunch',
+            nutrition: { calories: 500, protein: 25, fat: 15, carbs: 60 },
+            replaces: lunch.id,
+          })
+          .expect(201)
+      ).body.plan as MealPlan;
+
+      const said = await preview(withOwn, { mealCount: 4 });
+      expect(said.added).toEqual(['snack']);
+
+      const after = dayOf(await apply(withOwn, { mealCount: 4 }));
+      expect(
+        after.meals.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType),
+      ).toEqual(['breakfast', 'snack', 'dinner']);
+      expect(
+        after.meals.filter((meal) => meal.source === 'USER_CUSTOM').map((meal) => meal.mealType),
+      ).toEqual(['lunch']);
+    });
+
     it('takes away the meal the day loses, and the others take its share', async () => {
       const day = dayOf(plan);
 

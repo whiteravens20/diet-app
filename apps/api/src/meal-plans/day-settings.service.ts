@@ -58,6 +58,7 @@ import {
   type WeekPlanDay,
 } from './plan-weeks.js';
 import { writePlan } from './plan-write.js';
+import { heldTimes } from './reroll-reading.js';
 import { toppingKcal } from './toppings-store.js';
 import type { PieceUse } from '../engine/whole-pieces.js';
 import { pieceUsesOf, piecedDays } from './whole-pieces-store.js';
@@ -783,16 +784,11 @@ export class DaySettingsService {
       return fate(resizes ? 'resized' : 'stays');
     });
 
-    // The meals of the catalogue that the day keeps hold their places; a day that is no longer skipped gets the
-    // meals of its number again.
-    const held = new Set(
-      day.meals
-        .filter(
-          (meal) =>
-            meal.source === 'CATALOGUE' &&
-            fates.find((fate) => fate.mealId === meal.id)!.fate !== 'removed',
-        )
-        .map((meal) => meal.mealType),
+    // The meals the day keeps hold their times of day as a day made again holds them (`heldTimes`); a day that is no
+    // longer skipped gets the meals of its number again.
+    const held = heldTimes(
+      day.meals,
+      day.meals.filter((meal) => fates.find((fate) => fate.mealId === meal.id)!.fate !== 'removed'),
     );
     const wanted = settings.skip
       ? []

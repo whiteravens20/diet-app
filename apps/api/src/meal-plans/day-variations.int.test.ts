@@ -161,6 +161,34 @@ describe('other ways to fill a day of a plan', () => {
       }
     });
 
+    it("place no recipe at the time of day the user's own meal took from a meal of the plan", async () => {
+      const breakfast = day().meals.find((meal) => meal.mealType === 'breakfast')!;
+      plansTodayIs(day().date);
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day().date}/custom-meal`)
+        .set(as(user))
+        .send({
+          name: 'Porridge of my own',
+          mealType: 'breakfast',
+          nutrition: { calories: 450, protein: 15, fat: 12, carbs: 70 },
+          replaces: breakfast.id,
+        })
+        .expect(201);
+
+      const { variations: ways } = await offered();
+
+      expect(ways.length).toBeGreaterThan(0);
+      for (const way of ways) {
+        expect(
+          way.meals
+            .filter((meal) => meal.mealType === 'breakfast')
+            .map((meal) => [meal.title, meal.recipeId, meal.stays]),
+        ).toEqual([['Porridge of my own', null, true]]);
+        expect(way.meals.map((meal) => meal.mealType)).toEqual(['breakfast', 'lunch', 'dinner']);
+      }
+    });
+
     it('name recipes in the language asked for', async () => {
       const { variations: ways } = await offered(false, 'pl');
 

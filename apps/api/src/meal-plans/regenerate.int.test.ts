@@ -216,16 +216,20 @@ describe('regenerating a plan', () => {
         ),
       ).toEqual([5, 0]);
 
-      expect(
-        catalogueMeals(
-          await t.app
-            .get(PlanGenerationService)
-            .regenerateDay(user.id, 'en', plan.id, plan.days[1]!.id),
-        ),
-      ).toEqual([5, 5]);
-      expect(
-        catalogueMeals(await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id)),
-      ).toEqual([5, 5]);
+      // The soup holds its time of day, lunch: the other four of the plan's five are drawn.
+      const times = (of: MealPlan) =>
+        of.days[1]!.meals.map(
+          (meal) => `${meal.mealType}${meal.source === 'USER_CUSTOM' ? ' (own)' : ''}`,
+        );
+      const fiveTimes = ['breakfast', 'second_breakfast', 'lunch (own)', 'snack', 'dinner'].sort();
+      const day = await t.app
+        .get(PlanGenerationService)
+        .regenerateDay(user.id, 'en', plan.id, plan.days[1]!.id);
+      expect(catalogueMeals(day)).toEqual([5, 4]);
+      expect(times(day).sort()).toEqual(fiveTimes);
+      const whole = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
+      expect(catalogueMeals(whole)).toEqual([5, 4]);
+      expect(times(whole).sort()).toEqual(fiveTimes);
     });
 
     it('goes on leaving the skipped ingredients aside, when it is made again and when a meal of it is changed', async () => {

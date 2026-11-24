@@ -520,7 +520,10 @@ const RerollOptions = z.object({
   replaceEaten: z.boolean().default(false),
   /**
    * Replace the user's own meals. Otherwise they stay, and what they hold is
-   * counted in their day. A day the user skips keeps them always.
+   * counted in their day; a time of day that holds only the user's own meals
+   * stays theirs and gets no recipe, and where a meal of the plan stands beside
+   * one of their own, that time is filled again. A day the user skips keeps
+   * them always.
    */
   replaceCustom: z.boolean().default(false),
   /**
@@ -771,8 +774,9 @@ export type MealPlanDay = z.infer<typeof MealPlanDay>;
  * the dishes of the meals that stay, in other portions, draws recipes for the
  * meals the day gains and takes away those it loses; a limit on cooking time
  * draws other recipes for the meals over it, and `useUpBy` for every meal not
- * yet eaten. Eaten meals and the user's own stay as they are; a skipped day
- * keeps only what was eaten. `POST /meal-plans/:id/days/:dayId/settings/preview`
+ * yet eaten. Eaten meals and the user's own stay as they are, and a time of
+ * day that holds only the user's own meals gets no recipe when the day gains
+ * meals; a skipped day keeps only what was eaten. `POST /meal-plans/:id/days/:dayId/settings/preview`
  * says which of this a change does before it is made.
  */
 export const DaySettings = z.object({

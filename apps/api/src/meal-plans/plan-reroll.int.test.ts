@@ -388,6 +388,33 @@ describe('making a plan again, or a part of it', () => {
       }
     });
 
+    it('keeps the time of day it took from a meal of the plan: no recipe is drawn for it', async () => {
+      const plan = await aPlan(t, user, profile, { durationDays: 1 });
+      const breakfast = plan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
+      const withSoup = (
+        await plans.addCustomMeal(user.id, 'en', plan.id, '2026-01-05', {
+          ...soup,
+          mealType: 'breakfast',
+          replaces: breakfast.id,
+        })
+      ).plan;
+      const own = withSoup.days[0]!.meals.find((meal) => meal.source === 'USER_CUSTOM')!;
+
+      for (const again of [
+        (await regenerate(withSoup).expect(201)).body as MealPlan,
+        (await changeDay(withSoup, 0).expect(201)).body as MealPlan,
+      ]) {
+        const day = again.days[0]!;
+        expect(
+          day.meals.filter((meal) => meal.source === 'USER_CUSTOM').map((meal) => meal.id),
+        ).toEqual([own.id]);
+        expect(
+          day.meals.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType),
+        ).toEqual(['lunch', 'dinner']);
+        expect(Math.abs(day.calorieDelta)).toBeLessThanOrEqual(day.calorieTarget * 0.1);
+      }
+    });
+
     it("gives no fourth meal to a day where one of one's own stood beside the plan's three and is replaced", async () => {
       const plan = await aPlan(t, user, profile, { durationDays: 1 });
       const withSnack = (
