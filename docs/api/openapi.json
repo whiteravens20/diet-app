@@ -807,6 +807,36 @@
         }
       }
     },
+    "/api/admin/drafts/ingredient-names/without-ingredient": {
+      "delete": {
+        "operationId": "Drafts_removeNamesWithoutIngredient",
+        "tags": [
+          "admin/drafts"
+        ],
+        "summary": "Remove every draft of a name, of any decision but shipped, for an ingredient this instance's catalogue does not have: no ship takes it.",
+        "description": "Remove every draft of a name, of any decision but shipped, for an ingredient this instance's catalogue does not have: no ship takes it. Answers how many went (`RemovedDrafts`).\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovedDrafts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/admin/drafts/overview": {
       "get": {
         "operationId": "Drafts_overview",
@@ -11923,6 +11953,10 @@
               "approved": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "withoutIngredient": {
+                "type": "integer",
+                "minimum": 0
               }
             },
             "required": [
@@ -11930,7 +11964,8 @@
               "rejected",
               "pending",
               "unapproved",
-              "approved"
+              "approved",
+              "withoutIngredient"
             ],
             "additionalProperties": false
           },
@@ -25213,6 +25248,19 @@
           "date",
           "slot",
           "gaveWay"
+        ],
+        "additionalProperties": false
+      },
+      "RemovedDrafts": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "removed"
         ],
         "additionalProperties": false
       },

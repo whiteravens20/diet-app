@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-228 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+229 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -55,6 +55,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/admin/drafts/ingredient-names/generate/stop` | the administrator | Stop the run of names. What it has written stays. |  | 202 `DraftRunnerState` |  |
 | `POST /api/admin/drafts/ingredient-names/regenerate` | the administrator | Start a run that writes new proposals in place of drafts that wait: those named, or every unapproved one nobody changed by hand. The model is told the old name and the reason. Each old proposal is rejected once its new one is written, so one the model could not name anew still waits, and one a person decided on during the run stays. 409 while a run of names is going. | `IngredientNameRegenerateBody` | 202 `DraftRunnerState` | 5 in a minute |
 | `POST /api/admin/drafts/ingredient-names/reject` | the administrator | Reject up to a hundred drafts of ingredient names with one reason, each in its first language: what the queue is cleared with before the names are written again. Answers which were rejected and which were left out, each with the refusal a single rejection would have got. | `DraftBulkRejectBody` | 200 `RejectedDrafts` |  |
+| `DELETE /api/admin/drafts/ingredient-names/without-ingredient` | the administrator | Remove every draft of a name, of any decision but shipped, for an ingredient this instance's catalogue does not have: no ship takes it. Answers how many went (`RemovedDrafts`). |  | 200 `RemovedDrafts` |  |
 | `GET /api/admin/drafts/overview` | the administrator | What the administrator has waiting: how many names each way of writing them takes on, how many names and recipes wait for a decision or to ship, and how the copy of the instance's files in a git repository stands. |  | 200 `AdminOverview` |  |
 | `GET /api/admin/drafts/recipes` | the administrator | The recipe drafts, a page at a time, narrowed as asked. | query `RecipeDraftListQuery` | 200 `RecipeDraftPage` |  |
 | `GET /api/admin/drafts/recipes/:id` | the administrator | One recipe draft. |  | 200 `RecipeDraft` |  |

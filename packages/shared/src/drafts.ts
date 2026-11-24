@@ -668,6 +668,10 @@ export type RecipeReviewSlicePage = z.infer<typeof RecipeReviewSlicePage>;
 export const IngredientNameReviewSlicePage = pageOf(IngredientNameReviewSlice);
 export type IngredientNameReviewSlicePage = z.infer<typeof IngredientNameReviewSlicePage>;
 
+/** How many drafts a removal took away. */
+export const RemovedDrafts = z.object({ removed: z.number().int().min(0) });
+export type RemovedDrafts = z.infer<typeof RemovedDrafts>;
+
 /** What rejecting several drafts at once did: those rejected, and those left as they were, with why. */
 export const RejectedDrafts = z.object({
   rejected: z.array(z.string()),
@@ -777,6 +781,11 @@ export const AdminOverview = z.object({
     unapproved: z.number().int().min(0),
     /** Approved, and not shipped yet. */
     approved: z.number().int().min(0),
+    /**
+     * Drafts of names, of any decision but shipped, for ingredients this instance's catalogue does not have: no ship
+     * takes them (`DELETE /admin/drafts/ingredient-names/without-ingredient` removes them).
+     */
+    withoutIngredient: z.number().int().min(0),
   }),
   recipes: z.object({
     pending: z.number().int().min(0),

@@ -49,6 +49,7 @@ import {
   RecipeImportResult,
   RecipeRunState,
   RejectedDrafts,
+  RemovedDrafts,
   RestoredFromInstanceData,
   ShipConfig,
   ShipRequest,
@@ -268,6 +269,17 @@ export class DraftsController {
     @Body(new ZodValidationPipe(DraftReviewBody)) body: DraftReviewBody,
   ): Promise<IngredientNameDraft> {
     return this.reviewIngredientName(id, locale, body, 'REJECT');
+  }
+
+  /**
+   * Remove every draft of a name, of any decision but shipped, for an ingredient this instance's catalogue does not
+   * have: no ship takes it. Answers how many went (`RemovedDrafts`).
+   */
+  @Delete('ingredient-names/without-ingredient')
+  @HttpCode(200)
+  @Answers(RemovedDrafts)
+  removeNamesWithoutIngredient(): Promise<RemovedDrafts> {
+    return this.drafts.removeNamesWithoutIngredient();
   }
 
   /** Remove a draft of a name. */

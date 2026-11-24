@@ -104,7 +104,14 @@ const shown = (node: React.ReactNode) =>
   );
 
 /** How many names each way of writing them takes on, for the panel's buttons. */
-const QUEUE = { missing: 12, rejected: 5, pending: 231, unapproved: 230, approved: 2 };
+const QUEUE = {
+  missing: 12,
+  rejected: 5,
+  pending: 231,
+  unapproved: 230,
+  approved: 2,
+  withoutIngredient: 0,
+};
 
 const idleRunner = {
   status: 'idle',
@@ -364,7 +371,14 @@ describe('writing names again in the administrator’s panel', () => {
   });
 
   it('has nothing to press where there is nothing to write', async () => {
-    panelOver([], { missing: 0, rejected: 0, pending: 0, unapproved: 0, approved: 0 });
+    panelOver([], {
+      missing: 0,
+      rejected: 0,
+      pending: 0,
+      unapproved: 0,
+      approved: 0,
+      withoutIngredient: 0,
+    });
 
     expect(
       await screen.findByRole('button', { name: spaced('Generate the missing', { start: true }) }),

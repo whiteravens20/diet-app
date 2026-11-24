@@ -34,7 +34,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { DraftStatus, Prisma } from '@prisma/client';
+import { Prisma, type DraftStatus } from '@prisma/client';
 import type { DishTraits } from '@diet-app/shared';
 import type {
   AdminOverview,
@@ -48,6 +48,7 @@ import type {
   ReviewAction,
   ReviewQueueQuery,
   ReviewerRole,
+  RemovedDrafts,
 } from '@diet-app/shared';
 import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
@@ -136,6 +137,10 @@ async function assertNotReplaced(
 }
 
 /** Refuse what `by` may not touch in a draft of this status. */
+/** A draft of a name, not shipped, whose ingredient's slug the catalogue does not have: one no ship can take. */
+const WITHOUT_INGREDIENT = Prisma.sql`d."status" <> 'SHIPPED'
+  AND NOT EXISTS (SELECT 1 FROM "Ingredient" i WHERE i."slug" = d."ingredientSlug")`;
+
 function assertOpen(
   status: DraftStatus,
   by: Actor,
@@ -482,6 +487,9 @@ export class DraftService {
   /** What the administrator has waiting in the two queues. */
   async queues(): Promise<Omit<AdminOverview, 'mirror'>> {
     const { missing, rejected, unapproved, pending, approved } = await readNameQueue(this.prisma);
+    const [orphans] = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS "count" FROM "IngredientNameDraft" d
+      WHERE ${WITHOUT_INGREDIENT}`;
     // One after another, on one connection, as the panel's other figures are read.
     const recipesPending = await this.prisma.recipeDraft.count({ where: { status: 'PENDING' } });
     const recipesApproved = await this.prisma.recipeDraft.count({ where: { status: 'APPROVED' } });
@@ -492,6 +500,7 @@ export class DraftService {
         unapproved: unapproved.length,
         pending,
         approved,
+        withoutIngredient: Number(orphans?.count ?? 0),
       },
       recipes: { pending: recipesPending, approved: recipesApproved },
     };
@@ -822,6 +831,25 @@ export class DraftService {
       const draft = await this.lockRecipe(tx, id);
       assertOpen(draft.status, by, 'deleted');
       await tx.recipeDraft.delete({ where: { id } });
+    });
+  }
+
+  /**
+   * Remove every draft of a name, of any decision but shipped, for an ingredient this instance's catalogue does not have
+   * (`AdminOverview.names.withoutIngredient`): no ship takes it. A shipped draft is the record of a name that went in,
+   * and stays. Each draft is held while it goes, so that a change of one at the same moment waits for it.
+   */
+  async removeNamesWithoutIngredient(): Promise<RemovedDrafts> {
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        SELECT d."id" FROM "IngredientNameDraft" d
+        WHERE ${WITHOUT_INGREDIENT}
+        ORDER BY d."id" FOR UPDATE`;
+      if (rows.length === 0) return { removed: 0 };
+      const { count } = await tx.ingredientNameDraft.deleteMany({
+        where: { id: { in: rows.map((row) => row.id) }, status: { not: 'SHIPPED' } },
+      });
+      return { removed: count };
     });
   }
 

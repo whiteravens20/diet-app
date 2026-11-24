@@ -793,6 +793,64 @@ describe('the curation queue', () => {
     });
   });
 
+  describe('the drafts of names for ingredients the catalogue does not have', () => {
+    const remove = () =>
+      t.http().delete('/api/admin/drafts/ingredient-names/without-ingredient').set(asAdmin);
+    const overview = async () =>
+      (await t.http().get('/api/admin/drafts/overview').set(asAdmin).expect(200)).body as {
+        names: { withoutIngredient: number };
+      };
+
+    it('go at once, of any decision but shipped, and are counted until then', async () => {
+      const gone = 'apples-fuji-with-skin-raw';
+      const kept = [
+        // An ingredient the catalogue has, and a name of a missing one that went in: its record stays.
+        await anIngredientNameDraft(t, { status: 'APPROVED' }),
+        await anIngredientNameDraft(t, {
+          ingredientSlug: gone,
+          status: 'SHIPPED',
+          shippedAt: new Date('2026-01-01'),
+        }),
+      ];
+      const orphans = [
+        await anIngredientNameDraft(t, { ingredientSlug: gone }),
+        await anIngredientNameDraft(t, { ingredientSlug: gone, status: 'APPROVED' }),
+        await anIngredientNameDraft(t, { ingredientSlug: 'pears-raw', status: 'REJECTED' }),
+      ];
+      // With what reviewers said of it.
+      await t.prisma.ingredientNameDraftLocaleReview.create({
+        data: { draftId: orphans[1]!.id, locale: 'pl', action: 'APPROVE', reviewedByLabel: 'Anna' },
+      });
+      expect((await overview()).names.withoutIngredient).toBe(3);
+
+      expect((await remove().expect(200)).body).toEqual({ removed: 3 });
+
+      const left = await t.prisma.ingredientNameDraft.findMany({ select: { id: true } });
+      expect(left.map((row) => row.id).sort()).toEqual(kept.map((row) => row.id).sort());
+      expect(await t.prisma.ingredientNameDraftLocaleReview.count()).toBe(0);
+      expect((await overview()).names.withoutIngredient).toBe(0);
+      // Asked again, nothing is left to remove.
+      expect((await remove().expect(200)).body).toEqual({ removed: 0 });
+    });
+
+    it("is the administrator's alone", async () => {
+      await anIngredientNameDraft(t, { ingredientSlug: 'apples-fuji-with-skin-raw' });
+
+      expect(
+        (
+          await t
+            .http()
+            .delete('/api/admin/drafts/ingredient-names/without-ingredient')
+            .set(reviewer)
+        ).status,
+      ).toBe(401);
+      expect(
+        (await t.http().delete('/api/admin/drafts/ingredient-names/without-ingredient')).status,
+      ).toBe(401);
+      expect(await t.prisma.ingredientNameDraft.count()).toBe(1);
+    });
+  });
+
   describe('rejecting several drafts of names at once', () => {
     const reject = (body: Record<string, unknown>) =>
       t.http().post('/api/admin/drafts/ingredient-names/reject').set(asAdmin).send(body);
@@ -1114,6 +1172,8 @@ describe('the curation queue', () => {
           // A draft of an ingredient that is no imported one: no run can name it.
           unapproved: 0,
           approved: 0,
+          // Nor can a ship take it: the catalogue has no kale.
+          withoutIngredient: 1,
         });
 
         const rejected = await named('banana', 'Owoc');
@@ -1126,6 +1186,7 @@ describe('the curation queue', () => {
           pending: 2,
           unapproved: 1,
           approved: 0,
+          withoutIngredient: 1,
         });
       });
 

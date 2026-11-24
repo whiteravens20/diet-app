@@ -79,14 +79,21 @@ const STATS = {
 } as unknown as AdminStats;
 
 const NOTHING_WAITS: AdminOverview = {
-  names: { missing: 0, rejected: 0, pending: 0, unapproved: 0, approved: 0 },
+  names: { missing: 0, rejected: 0, pending: 0, unapproved: 0, approved: 0, withoutIngredient: 0 },
   recipes: { pending: 0, approved: 0 },
   mirror: { state: 'off', failure: null, checkedAt: null, pushedAt: null, copy: null },
 };
 
 const WAITING: AdminOverview = {
   ...NOTHING_WAITS,
-  names: { missing: 12, rejected: 1, pending: 231, unapproved: 230, approved: 0 },
+  names: {
+    missing: 12,
+    rejected: 1,
+    pending: 231,
+    unapproved: 230,
+    approved: 0,
+    withoutIngredient: 0,
+  },
   recipes: { pending: 16, approved: 2 },
 };
 
