@@ -58,7 +58,7 @@ export function looseBuys(rows: readonly LooseRow[]): LooseBuy[] {
 }
 
 /** What was bought by weight on the shopping lists of the plans `planIds` (`looseBuys`). */
-async function looseOfPlans(db: Db, planIds: readonly string[]): Promise<LooseBuy[]> {
+export async function looseOfPlans(db: Db, planIds: readonly string[]): Promise<LooseBuy[]> {
   const rows = await db.shoppingListItem.findMany({
     where: { boughtLooseOn: { not: null }, list: { planId: { in: [...planIds] } } },
     select: {

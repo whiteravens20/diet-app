@@ -23,6 +23,7 @@ import {
   UnitConversionError,
   type ConvertibleIngredient,
   type Frozen,
+  type LoosePurchase,
   type Pack,
 } from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
@@ -283,10 +284,47 @@ const clean = (n: number): number => Math.round(n * 1e6) / 1e6;
 const DAY_MS = 86_400_000;
 
 /**
+ * What was bought by weight of each food, as the days of `dates` count it (`LoosePurchase`): the purchases of one day
+ * added up, each for the days of all the lists it was bought on, in the food's own unit. A purchase in a unit its food
+ * does not convert from, or of a food `known` does not hold, is left out. The plan's packs (`looseBought`) and the rests
+ * of its meals (`followRests`) count them alike.
+ */
+export function loosePurchases(
+  loose: readonly LooseBuy[],
+  known: ReadonlyMap<string, ConvertibleIngredient>,
+  dates: readonly string[],
+): Map<string, LoosePurchase[]> {
+  const dayOf = (date: string): number =>
+    Math.round((Date.parse(date) - Date.parse(dates[0]!)) / DAY_MS);
+  const byFood = new Map<string, Map<number, LoosePurchase>>();
+  for (const buy of loose) {
+    const ingredient = known.get(buy.ingredientId);
+    if (!ingredient) continue;
+    let amount: number;
+    try {
+      amount = toCanonical(buy.quantity, buy.unit, ingredient);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      continue;
+    }
+    const day = dayOf(buy.boughtOn);
+    const days = byFood.get(buy.ingredientId) ?? new Map<number, LoosePurchase>();
+    byFood.set(buy.ingredientId, days);
+    const same = days.get(day);
+    days.set(day, {
+      day,
+      amount: (same?.amount ?? 0) + amount,
+      from: Math.min(same?.from ?? Infinity, dayOf(buy.fromDate)),
+      to: Math.max(same?.to ?? -Infinity, dayOf(buy.toDate)),
+    });
+  }
+  return new Map([...byFood].map(([ingredientId, days]) => [ingredientId, [...days.values()]]));
+}
+
+/**
  * What was bought by weight does to a menu's `needs` (`looseWalk`), which it changes: of each food the menu takes from
- * packs, the purchases of one day added up, each for the days of all the lists it was bought on. Returns what they came
- * to, what the menu eats of them, and each rest they put in the freezer. A purchase of a food the menu does not take
- * from packs, or in a unit it does not convert from, is none of the menu's.
+ * packs, its purchases (`loosePurchases`). Returns what they came to, what the menu eats of them, and each rest they
+ * put in the freezer. A purchase of a food the menu does not take from packs is none of the menu's.
  */
 function looseBought(
   needs: Map<string, number[]>,
@@ -299,42 +337,12 @@ function looseBought(
   eaten: number;
   frozen: (Frozen & { ingredientId: string; packSize: number; loose: boolean })[];
 } {
-  const dayOf = (date: string): number =>
-    Math.round((Date.parse(date) - Date.parse(dates[0]!)) / DAY_MS);
-  const byFood = new Map<
-    string,
-    Map<number, { day: number; amount: number; from: number; to: number }>
-  >();
-  for (const buy of loose) {
-    const ingredient = known.get(buy.ingredientId);
-    if (!ingredient || !needs.has(buy.ingredientId)) continue;
-    let amount: number;
-    try {
-      amount = toCanonical(buy.quantity, buy.unit, ingredient);
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-      continue;
-    }
-    const day = dayOf(buy.boughtOn);
-    const days = byFood.get(buy.ingredientId) ?? new Map();
-    byFood.set(buy.ingredientId, days);
-    const same = days.get(day);
-    days.set(day, {
-      day,
-      amount: (same?.amount ?? 0) + amount,
-      from: Math.min(same?.from ?? Infinity, dayOf(buy.fromDate)),
-      to: Math.max(same?.to ?? -Infinity, dayOf(buy.toDate)),
-    });
-  }
   const result: ReturnType<typeof looseBought> = { bought: 0, eaten: 0, frozen: [] };
-  for (const [ingredientId, days] of byFood) {
+  for (const [ingredientId, purchases] of loosePurchases(loose, known, dates)) {
+    const row = needs.get(ingredientId);
+    if (!row) continue;
     const pack = packs.get(ingredientId)!;
-    const walked = looseWalk(
-      needs.get(ingredientId)!,
-      [...days.values()],
-      pack.keepDays,
-      SPOONFUL * pack.size,
-    );
+    const walked = looseWalk(row, purchases, pack.keepDays, SPOONFUL * pack.size);
     needs.set(ingredientId, walked.rest);
     result.bought += walked.bought;
     result.eaten += walked.eaten;

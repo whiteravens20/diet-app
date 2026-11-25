@@ -84,6 +84,17 @@ describe('the rest of a pack, into the meal that finishes it', () => {
     expect(given(rests([twoDays]))).toEqual([]);
   });
 
+  it('is none of a pack that what was bought by weight spares, which is eaten before any pack', () => {
+    // 500 g of chicken bought by weight on the day: the roast's 470 g come from it, and no pack is opened.
+    const bought = new Map([['chicken', [{ day: 0, amount: 500, from: 0, to: 0 }]]]);
+    expect(given(rests([plan()], { loose: bought }))).toEqual([]);
+    // Bought for a day after the roast's, it spares no pack of the roast: the pack's 30 g still go into it.
+    const later = new Map([['chicken', [{ day: 1, amount: 500, from: 1, to: 1 }]]]);
+    expect(given(rests([plan({ days: days(2) })], { loose: later }))).toEqual([
+      [0, [['chicken', 30]]],
+    ]);
+  });
+
   it('goes into the last of the meals that take from the pack, not the one that opened it', () => {
     const lunch = recipe('chicken-bowl', ['lunch'], 1000, { chicken: 200 });
     const stew = recipe('chicken-stew', ['dinner'], 900, { chicken: 270 });

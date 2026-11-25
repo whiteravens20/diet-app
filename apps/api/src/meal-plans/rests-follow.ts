@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import { PlanOptions, type MealType } from '@diet-app/shared';
 import { potsOf } from '../engine/close-packs.js';
 import { packRests, type RestInput, type RestPlan } from '../engine/pack-rests.js';
-import type { Pack } from '../engine/packs.js';
+import type { LoosePurchase, Pack } from '../engine/packs.js';
 import { toCanonical, UnitConversionError } from '../engine/units.js';
 import { levelOf, type WasteLevel } from '../engine/waste-levels.js';
 import { WHOLE_PIECE_SLUGS } from '../engine/whole-pieces.js';
@@ -21,7 +21,8 @@ import {
 } from './plan-days.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { cookedDaysOf } from './plan-menu.js';
+import { cookedDaysOf, loosePurchases } from './plan-menu.js';
+import { looseOfPlans } from './plan-packs-store.js';
 import { toppingFoodsOf } from './toppings-store.js';
 
 type Tx = Prisma.TransactionClient;
@@ -166,7 +167,33 @@ export async function followRests(
   // What the diary of a day holds stays on the day, as the plan was made around it.
   const diaries: ReadonlyMap<string, DiaryOnDay>[] = [];
   for (const plan of plans) diaries.push(await diaryOfDays(tx, plan.profileId, plan.days, plan.id));
-  const worked = restsOfKitchen(plans, level, toppingFoods, today, diaries);
+  // What was bought by weight on the kitchen's lists, counted as its packs count it (`loosePurchases`).
+  const bought = await looseOfPlans(
+    tx,
+    plans.map((plan) => plan.id),
+  );
+  const known = new Map(
+    bought.length === 0
+      ? []
+      : (
+          await tx.ingredient.findMany({
+            where: { id: { in: [...new Set(bought.map((buy) => buy.ingredientId))] } },
+            select: { id: true, canonicalUnit: true, gramsPerPiece: true, density: true },
+          })
+        ).map((ingredient) => [ingredient.id, ingredient]),
+  );
+  const worked = restsOfKitchen(
+    plans,
+    level,
+    toppingFoods,
+    today,
+    diaries,
+    loosePurchases(
+      bought,
+      known,
+      plans[0]!.days.map((day) => isoDate(day.date)),
+    ),
+  );
   const followed: FollowedRest[] = [];
   for (const plan of plans)
     for (const day of plan.days) {
@@ -207,7 +234,8 @@ function sameRests(a: readonly StoredRest[], b: readonly StoredRest[]): boolean 
  * was cooked with the meal it was left of: its dish and its rests are taken of the packs on the day that meal was
  * cooked. A meal eaten, or of a day gone (before `today`), keeps its rests: where the work gives it less of a pack than
  * it took (a meal after it now takes from the pack and finishes it), what it took beyond is gone from the pack, and the
- * rests are worked out again with that.
+ * rests are worked out again with that. What was bought by weight (`loose`) is eaten before any pack is opened, as
+ * the plan's packs count it: a pack it spares leaves no rest.
  */
 function restsOfKitchen(
   plans: readonly KitchenPlan[],
@@ -215,6 +243,7 @@ function restsOfKitchen(
   toppingFoods: ReadonlyMap<string, PackFood>,
   today: string,
   diaries: readonly ReadonlyMap<string, DiaryOnDay>[],
+  loose: ReadonlyMap<string, readonly LoosePurchase[]> = new Map(),
 ): Map<string, StoredRest[]> & { counted: ReadonlySet<string> } {
   const dayOf = new Map(plans[0]!.days.map((day, index) => [isoDate(day.date), index]));
   /** What stays as it is takes of the packs on each day of the first plan's days. */
@@ -377,6 +406,7 @@ function restsOfKitchen(
     packs,
     energyPer100: new Map([...foods].map(([id, food]) => [id, food.caloriesPer100])),
     caps: level.rests,
+    loose,
   };
   let given = packRests(input);
   // What a meal that keeps its rests took of a pack beyond what the work gives it is gone from the pack, on the day

@@ -12,7 +12,9 @@
  * other meals of the day do not change. A dish cooked ahead and a meal both
  * people of a joint plan eat take the rest into the pot, each portion its
  * share by its size. A rest is taken whole or not at all, and one smaller
- * than a spoonful of its pack (`SPOONFUL`) stays in the pack.
+ * than a spoonful of its pack (`SPOONFUL`) stays in the pack. What was bought by
+ * weight (`RestInput.loose`) is eaten before any pack is opened, as the plan's
+ * packs count it (`looseWalk`): a pack it spares leaves no rest.
  */
 import type { MealType } from '@diet-app/shared';
 import {
@@ -23,7 +25,14 @@ import {
   type Pot,
 } from './close-packs.js';
 import type { OptimizerRecipe } from './optimizer.js';
-import { packUse, SPOONFUL, type DailyNeeds, type Pack } from './packs.js';
+import {
+  looseWalk,
+  packUse,
+  SPOONFUL,
+  type DailyNeeds,
+  type LoosePurchase,
+  type Pack,
+} from './packs.js';
 import { REBALANCE_TOLERANCE } from './rebalance.js';
 
 /** How much a rest may be. */
@@ -67,6 +76,8 @@ export interface RestInput {
   /** The energy of 100 of each ingredient's own unit. */
   energyPer100: ReadonlyMap<string, number>;
   caps: RestCaps;
+  /** What was bought by weight of each ingredient, in its own unit, on the days of the kitchen (`looseWalk`). */
+  loose?: ReadonlyMap<string, readonly LoosePurchase[]>;
 }
 
 /** A rest a meal takes: of which ingredient, and how much, in the ingredient's own unit. */
@@ -101,8 +112,16 @@ export function packRests(input: RestInput): Map<number, MealRest[]>[] {
   for (const plan of plans)
     for (const [index, topping] of plan.toppings ?? [])
       take(topping.ingredientId, plan.assignments[index]!.dayIndex, topping.amount);
+  // What was bought by weight is eaten first: the packs are opened for what it leaves.
+  const needs = new Map(kitchenNeeds(plans, fixed, packs));
+  for (const [ingredientId, purchases] of input.loose ?? []) {
+    const row = needs.get(ingredientId);
+    const pack = packs.get(ingredientId);
+    if (!row || !pack) continue;
+    needs.set(ingredientId, looseWalk(row, purchases, pack.keepDays, SPOONFUL * pack.size).rest);
+  }
   // What the packs leave as they are, a rest a freezer would take among it: a rest eaten in its meal is better.
-  const left = packUse(kitchenNeeds(plans, fixed, packs), packs, false).open;
+  const left = packUse(needs, packs, false).open;
   if (left.length === 0) return rests;
 
   /** What a meal takes of an ingredient, at its servings, portion and plate. */
