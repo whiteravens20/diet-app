@@ -31,8 +31,19 @@ const aDay = (over: Partial<MealPlanDay> = {}) =>
     ...over,
   }) as MealPlanDay;
 
+const LIST = '22222222-2222-4222-8222-222222222222';
+const PLAN = '33333333-3333-4333-8333-333333333333';
+const PROFILE = '44444444-4444-4444-8444-444444444444';
+
 function shown(over: Partial<PlanWord> = {}) {
-  const spy = { rest: vi.fn(), undo: vi.fn(), undoSwap: vi.fn(), reword: vi.fn() };
+  const spy = {
+    rest: vi.fn(),
+    undo: vi.fn(),
+    undoSwap: vi.fn(),
+    reword: vi.fn(),
+    showDay: vi.fn(),
+    dismiss: vi.fn(),
+  };
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <RebalanceToast
@@ -42,6 +53,7 @@ function shown(over: Partial<PlanWord> = {}) {
           swap: false,
           day: aDay(),
           rebalance: aRebalance(),
+          effects: null,
           ...over,
         }}
         busy={false}
@@ -49,7 +61,8 @@ function shown(over: Partial<PlanWord> = {}) {
         onUndoSwap={spy.undoSwap}
         onRebalanceRest={spy.rest}
         onReword={spy.reword}
-        onDismiss={() => {}}
+        showDay={spy.showDay}
+        onDismiss={spy.dismiss}
       />
     </NextIntlClientProvider>,
   );
@@ -58,7 +71,60 @@ function shown(over: Partial<PlanWord> = {}) {
 
 describe('the card that says what a change of a plan came to', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it('says which shopping list the change made stop matching its plan, and leads to it', () => {
+    shown({
+      effects: {
+        lists: [
+          {
+            id: LIST,
+            planId: PLAN,
+            profileId: PROFILE,
+            fromDate: '2026-11-24',
+            toDate: '2026-11-30',
+            householdId: null,
+          },
+        ],
+        thaw: [],
+        freeze: [],
+      },
+    });
+
+    expect(
+      screen.getByText(/The shopping list of Nov 24 – 30, 2026 no longer matches the plan\./),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: texts.effectOpenList })).toHaveAttribute(
+      'href',
+      `/shopping-lists?profile=${PROFILE}&plan=${PLAN}&list=${LIST}`,
+    );
+  });
+
+  it('says on which days what to take out of the freezer and what to freeze changed, each a way to its day', async () => {
+    const { showDay } = shown({
+      effects: { lists: [], thaw: ['2026-11-26'], freeze: ['2026-11-25'] },
+    });
+
+    expect(screen.getByText(texts.effectThaw, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(texts.effectFreeze, { exact: false })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Show the day Thu, Nov 26' }));
+    expect(showDay).toHaveBeenCalledWith('2026-11-26');
+  });
+
+  it('stays until it is closed where it speaks of a list or the freezer, and goes by itself otherwise', () => {
+    vi.useFakeTimers();
+    const lasting = shown({ effects: { lists: [], thaw: ['2026-11-26'], freeze: [] } });
+    vi.advanceTimersByTime(60_000);
+    expect(lasting.dismiss).not.toHaveBeenCalled();
+  });
+
+  it('goes by itself after a while where it says nothing of a list or the freezer', () => {
+    vi.useFakeTimers();
+    const passing = shown();
+    vi.advanceTimersByTime(15_000);
+    expect(passing.dismiss).toHaveBeenCalled();
   });
 
   it('offers to spread a day off its target over the rest of the plan, and says what that does before it is pressed', async () => {

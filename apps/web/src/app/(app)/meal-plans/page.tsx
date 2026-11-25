@@ -58,7 +58,7 @@ import { perKgSplit } from '@/lib/own-split';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
-import { RebalanceToast, type PlanWord } from './rebalance-toast';
+import { RebalanceToast, toldEffects, type PlanWord } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { askedOf, repeatsOf, WasteLevelChoice, type WasteLevel } from './less-waste';
@@ -422,7 +422,7 @@ function MealPlansContent() {
     const resized = res.rebalance && res.rebalance.changes.length > 0;
     const about = swapped ?? res.rebalance?.changes[0]?.mealId;
     setRebalanceToast(
-      swapped || resized
+      swapped || resized || toldEffects(res.effects)
         ? {
             planId,
             revision: res.plan.revision,
@@ -432,6 +432,7 @@ function MealPlansContent() {
                 (day) => day.date === date || day.meals.some((meal) => meal.id === about),
               ) ?? null,
             rebalance: res.rebalance,
+            effects: res.effects ?? null,
             reword,
           }
         : null,
@@ -1363,6 +1364,10 @@ function MealPlansContent() {
           onReword={(recipeId) => {
             setRewording({ planId: rebalanceToast.planId, recipeId });
             setRebalanceToast(null);
+          }}
+          showDay={(date) => {
+            setOpenPlan(rebalanceToast.planId);
+            setSought({ planId: rebalanceToast.planId, date });
           }}
           onDismiss={() => setRebalanceToast(null)}
         />

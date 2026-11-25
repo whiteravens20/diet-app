@@ -46,7 +46,7 @@ import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { PageBanner } from '@/components/page-banner';
 import { ProfileChips } from '@/components/profile-chips';
-import { RebalanceToast, type PlanWord } from '../meal-plans/rebalance-toast';
+import { RebalanceToast, toldEffects, type PlanWord } from '../meal-plans/rebalance-toast';
 import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
@@ -123,15 +123,16 @@ function DiaryContent() {
   const [adding, setAdding] = useState<MealType | null>(null);
   const [editing, setEditing] = useState<DiaryEntry | null>(null);
   const [toast, setToast] = useState<PlanWord | null>(null);
-  /** What a change of a plan's meal came to, where it resized the day. */
+  /** What a change of a plan's meal came to, where it resized the day or did something to the lists or the freezer. */
   const wordOf = (planId: string, result: RebalanceResult): PlanWord | null =>
-    result.rebalance && result.rebalance.changes.length > 0
+    (result.rebalance && result.rebalance.changes.length > 0) || toldEffects(result.effects)
       ? {
           planId,
           revision: result.plan.revision,
           swap: false,
           day: result.plan.days.find((day) => day.date === date) ?? null,
           rebalance: result.rebalance,
+          effects: result.effects ?? null,
         }
       : null;
 
@@ -464,6 +465,10 @@ function DiaryContent() {
           onRebalanceRest={() =>
             rebalance.mutate({ planId: toast.planId, body: { scope: 'plan' } })
           }
+          showDay={{
+            href: (shown) =>
+              `/meal-plans?profile=${active?.id ?? ''}&plan=${toast.planId}&day=${shown}`,
+          }}
           onDismiss={() => setToast(null)}
         />
       )}
