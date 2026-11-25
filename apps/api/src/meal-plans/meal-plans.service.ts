@@ -747,6 +747,7 @@ export class MealPlansService {
           planId,
           day.plan.revision,
           clientToday ?? this.today(),
+          'own-meal',
           async (tx) => {
             // Adding a meal to a previously-skipped day un-skips it (it now has content).
             if (overrides?.skip) {
@@ -919,6 +920,7 @@ export class MealPlansService {
         ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
       ],
       today,
+      'meal-removed',
       async (tx) => {
         if (other) {
           await tx.plannedMeal.delete({ where: { id: other.id } });
@@ -980,6 +982,7 @@ export class MealPlansService {
         ...(other ? [{ planId: other.day.planId, revision: other.day.plan.revision }] : []),
       ],
       today,
+      eaten ? 'eaten' : 'not-eaten',
       async (tx) => {
         const at = eaten ? new Date() : null;
         // What a meal is eaten with is kept as the person saw it, before any day around it is sized again.
@@ -1034,7 +1037,7 @@ export class MealPlansService {
       select: { planId: true },
     });
     if (!shown || shown.planId === planId) return;
-    const resize = () => this.resizeDay(userId, shown.planId, date, today, true);
+    const resize = () => this.resizeDay(userId, shown.planId, date, today, 'eaten-elsewhere');
     try {
       await resize().catch((err: unknown) => {
         if (err instanceof ConflictException && planChangedMeanwhile(err)) return resize();
@@ -1150,13 +1153,15 @@ export class MealPlansService {
     planId: string,
     req: RebalanceRequest,
     clientToday: string | null = null,
+    /** What sizing one day is, as its history tells it: "Dopasuj porcje dnia", or a change of the day's diary. */
+    cause: 'resize' | 'diary' = 'resize',
   ): Promise<RebalanceResult> {
     // Authorise the plan up front, and note the revision the request starts from.
     const { revision } = await this.planOf(userId, planId);
 
     const restore = req.restore;
     if (restore && restore.length > 0) {
-      await writePlan(this.prisma, planId, revision, clientToday ?? this.today(), (tx) =>
+      await writePlan(this.prisma, planId, revision, clientToday ?? this.today(), 'undo', (tx) =>
         this.restoreScales(planId, restore, tx),
       );
       return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
@@ -1169,6 +1174,7 @@ export class MealPlansService {
         planId,
         revision,
         clientToday ?? this.today(),
+        'spread',
         (tx) => this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
       );
       return this.buildRebalanceResult(userId, locale, planId, 'plan', summary);
@@ -1181,6 +1187,7 @@ export class MealPlansService {
       planId,
       revision,
       clientToday ?? this.today(),
+      cause,
       (tx) => this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
@@ -1194,15 +1201,18 @@ export class MealPlansService {
     userId: string,
     planId: string,
     date: string,
-    clientToday: string | null = null,
-    /** A change the user did not make of this day (what another plan had eaten): his choice of its portions holds. */
-    automatic = false,
+    clientToday: string | null,
+    /**
+     * A change of the day's diary, or of what another plan of the profile that holds the day had eaten
+     * (`eaten-elsewhere`), which the user did not make of this day: their choice of its portions holds there.
+     */
+    cause: 'diary' | 'eaten-elsewhere',
   ): Promise<RebalanceSummary | null> {
     const { revision } = await this.planOf(userId, planId);
     const day = await this.loadDay(userId, planId, date);
     const today = clientToday ?? this.today();
-    return writePlan(this.prisma, planId, revision, today, (tx) =>
-      automatic
+    return writePlan(this.prisma, planId, revision, today, cause, (tx) =>
+      cause === 'eaten-elsewhere'
         ? this.sizeUnlessKept(day.id, tx, today)
         : this.rebalanceDayInternal(day.id, tx, today),
     );
@@ -2071,6 +2081,7 @@ export class MealPlansService {
         ...(together ? [{ planId: together.plan.id, revision: together.plan.revision }] : []),
       ],
       clientToday ?? this.today(),
+      'swap-undo',
       async (tx) => {
         for (const [planId, taken] of [
           [req.planId, swap],

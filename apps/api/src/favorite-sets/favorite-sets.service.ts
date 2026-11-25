@@ -208,7 +208,7 @@ export class FavoriteSetsService {
     const cookedWith = req.together
       ? await this.mealPlans.cookedWith(this.prisma, plan.id, PlanOptions.parse(plan.options))
       : new Map<string, CookedMeal[]>();
-    await writePlan(this.prisma, plan.id, plan.revision, today, async (tx) => {
+    await writePlan(this.prisma, plan.id, plan.revision, today, 'favorite-set', async (tx) => {
       const moves: { mealId: string; recipeId: string }[] = [];
       const written: string[] = [];
       for (const day of targetDays) {

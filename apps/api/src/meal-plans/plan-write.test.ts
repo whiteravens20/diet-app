@@ -28,6 +28,24 @@ vi.mock('./freezer-repick.js', () => ({
   }),
 }));
 
+const recorded = vi.hoisted(() => ({ changes: [] as string[] }));
+vi.mock('./day-events.js', () => ({
+  markBefore: vi.fn(async () => ({ plans: [] })),
+  ownDays: vi.fn(async () => new Set<string>()),
+  keepEvents: vi.fn(
+    async (
+      _tx: unknown,
+      _marked: unknown,
+      _own: unknown,
+      cause: string,
+      today: string,
+      chosenAgain: ReadonlySet<string>,
+    ) => {
+      recorded.changes.push(`${cause} ${today} ${[...chosenAgain].join(',')}`.trim());
+    },
+  ),
+}));
+
 /** What a plan that wastes less was made with, as it keeps it. */
 const LESS_WASTE = {
   dietType: 'balanced',
@@ -60,20 +78,24 @@ describe('a write of a plan that wastes less', () => {
     chosen.said = [];
     chosen.again = [];
     chosen.changed = [];
+    recorded.changes = [];
   });
 
   it("follows the rests of its packs and chooses its freezer again by the day it is for whoever asked, not the server's", async () => {
-    await writePlan(aDatabase(), 'plan-1', 3, '2026-11-23', async () => null);
+    await writePlan(aDatabase(), 'plan-1', 3, '2026-11-23', 'resize', async () => null);
     await writePlans(
       aDatabase(),
       [{ planId: 'plan-2', revision: 0 }],
       '2026-11-21',
+      'swap',
       async () => null,
     );
 
     expect(followed.days).toEqual(['2026-11-23', '2026-11-21']);
     expect(chosen.said).toEqual(['2026-11-23', '2026-11-21']);
     expect(chosen.again).toEqual(['2026-11-23', '2026-11-21']);
+    // Each day it changes keeps the change in its history, with its cause, by the same day.
+    expect(recorded.changes).toEqual(['resize 2026-11-23', 'swap 2026-11-21']);
   });
 
   it('chooses its freezer again after a purchase by weight moved its rests, and moves on a plan whose choice changed', async () => {
@@ -94,5 +116,7 @@ describe('a write of a plan that wastes less', () => {
       where: { id: 'plan-9' },
       data: { revision: { increment: 1 } },
     });
+    // Told with the change, so that the plan's notes of the freezer are read again.
+    expect(recorded.changes).toEqual(['bought-by-weight 2026-11-24 plan-9']);
   });
 });

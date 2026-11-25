@@ -33,6 +33,7 @@ export * from './summary.js';
 export * from './product.js';
 export * from './diary.js';
 export * from './diary-plan.js';
+export * from './day-history.js';
 export * from './notification.js';
 export * from './policy-report.js';
 

@@ -1050,9 +1050,38 @@ model MealPlanDay {
   // When it was made.
   keptAt        DateTime?
 
-  meals PlannedMeal[]
+  meals  PlannedMeal[]
+  events PlanDayEvent[]
 
   @@unique([planId, date])
+}
+
+// A change of a plan's day, as the day's history tells it ("Historia dnia"): what made it, whether the user changed
+// the day or a change of other days moved it (a rest of a pack), the meals it moved, what it did to the lists and the
+// freezer, and the plan's revision after it. At most 50 a day, the oldest going; gone with the day.
+model PlanDayEvent {
+  id       String      @id @default(uuid())
+  day      MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dayId    String
+  // One change of plans: the events of every day it moved share it.
+  change   String
+  at       DateTime    @default(now())
+  // What made it (`DayEventCause` of the shared contract).
+  cause    String
+  // The user changed this day; false where a change of other days moved it.
+  own      Boolean
+  // What the change was of besides the day: the dates of the days it was of, for a change of other days.
+  detail   Json?
+  // The meals it moved, as they were and became: [{ mealId, mealType, before, after }], and the day's target and
+  // the user's choice of its portions where it moved them.
+  changes  Json
+  // What it did beside the portions: the lists that stopped matching their plans, the freezer's days changed.
+  effects  Json?
+  // The plan's revision once it was written: its undo is offered while the plan stands at it.
+  revision Int
+
+  @@index([dayId, revision])
+  @@index([change])
 }
 
 model PlannedMeal {

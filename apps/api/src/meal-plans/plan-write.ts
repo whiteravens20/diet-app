@@ -2,6 +2,8 @@
 
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import type { DayEventCause } from '@diet-app/shared';
+import { keepEvents, markBefore, ownDays } from './day-events.js';
 import { packagesSaid, repickFreezer } from './freezer-repick.js';
 import { followRests, wasteLevelOf, type FollowedRest } from './rests-follow.js';
 
@@ -175,9 +177,11 @@ export function writePlan<T>(
   readAtRevision: number,
   /** The day it is for whoever asked (`X-Client-Date`, else the server's): what is a day gone is by it. */
   today: string,
+  /** What the change is, as the history of each day it changes tells it (`keepEvents`). */
+  cause: DayEventCause,
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
-  return writePlans(prisma, [{ planId, revision: readAtRevision }], today, write);
+  return writePlans(prisma, [{ planId, revision: readAtRevision }], today, cause, write);
 }
 
 /**
@@ -185,13 +189,15 @@ export function writePlan<T>(
  * stood at the revision given with it, as `writePlan` writes one: the change of
  * a meal both plans of a joint plan share is written in both or in neither.
  * The revisions are claimed in one order, so that two such changes of the same
- * plans wait for each other.
+ * plans wait for each other. Each day of the plans' kitchens the change moves
+ * keeps it in its history, with `cause` (`keepEvents`).
  */
 export function writePlans<T>(
   prisma: PrismaClient,
   plans: readonly { planId: string; revision: number }[],
   /** The day it is for whoever asked, as `writePlan` takes it. */
   today: string,
+  cause: DayEventCause,
   write: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
@@ -213,12 +219,20 @@ export function writePlans<T>(
       if (wasteLevelOf(claimed[0]!.options))
         counting.push({ planId, kitchen: claimed[0]!.jointPlanId ?? planId });
     }
+    // What the days of the plans' kitchens hold before the change, which their history tells it against.
+    const marked = await markBefore(
+      tx,
+      plans.map((plan) => plan.planId),
+      today,
+    );
     // What the plans of each kitchen say to take out of the freezer by today, read before the change: kept after it.
     const said = new Set<string>();
     for (const { planId } of plans)
       for (const key of await packagesSaid(tx, planId, today)) said.add(key);
     const written = await write(tx);
     for (const { planId } of plans) await unlinkDiverged(tx, planId);
+    // The days the change itself moved are the user's; those the rests of packs move after it came of it.
+    const own = await ownDays(tx, marked);
     // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose
     // rests change and that this change did not claim moves on as well: a client that holds it reads it again.
     const claimed = new Set(plans.map((plan) => plan.planId));
@@ -240,16 +254,20 @@ export function writePlans<T>(
     // What the plans of each kitchen take out of the freezer is chosen again with the menu as the change left it
     // (`repickFreezer`); a plan of the kitchen whose choice changes moves on as well.
     const repicked = new Set<string>();
+    const chosenAgain = new Set<string>();
     for (const { planId } of plans) {
       if (repicked.has(planId)) continue;
       const { kitchen, changed } = await repickFreezer(tx, planId, today, said);
       for (const one of kitchen) repicked.add(one);
-      for (const other of changed)
+      for (const other of changed) {
+        chosenAgain.add(other);
         if (!claimed.has(other)) {
           await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
           claimed.add(other);
         }
+      }
     }
+    await keepEvents(tx, marked, own, cause, today, chosenAgain);
     return written;
   });
 }
@@ -314,13 +332,14 @@ async function settleKitchen(
  * Follow a change that is no write of a plan but changes what its packs are, a purchase by weight on one of its
  * shopping lists: the rests of the kitchen of `planId` are worked out again, the days they move sized and what the
  * freezer gives chosen again, as a write of the plan does; each plan whose rests, portions or freezer change moves on a
- * revision, so that a client holding it reads it again.
+ * revision, so that a client holding it reads it again, and each day it moves keeps it in its history.
  */
 export async function followKitchen(
   tx: Prisma.TransactionClient,
   planId: string,
   today: string,
 ): Promise<void> {
+  const marked = await markBefore(tx, [planId], today);
   const said = await packagesSaid(tx, planId, today);
   const moved = new Set<string>();
   const moveOn = async (plans: Iterable<string>): Promise<void> => {
@@ -339,6 +358,7 @@ export async function followKitchen(
   );
   const { changed } = await repickFreezer(tx, planId, today, said);
   await moveOn(changed);
+  await keepEvents(tx, marked, new Set(), 'bought-by-weight', today, new Set(changed));
 }
 
 /**

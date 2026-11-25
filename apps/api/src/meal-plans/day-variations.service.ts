@@ -464,6 +464,7 @@ export class DayVariationsService {
       planId,
       offer.revision,
       clientToday ?? this.plans.today(),
+      'day-variant',
       async (tx) => {
         // The plan is as it was when the offer was made, so the meals that stay are the ones the offer was made around.
         const meals = await tx.plannedMeal.findMany({

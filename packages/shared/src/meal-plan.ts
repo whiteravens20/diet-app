@@ -5,6 +5,7 @@ import { AiGenerationMeta, ModelPickNote } from './ai.js';
 import {
   LAST_DAY,
   MAX_DIARY_ENTRIES_KEPT,
+  MAX_LISTS_PER_PLAN,
   MAX_OTHER_PLAN_MEALS_A_DAY,
   OWN_MEAL_LIMITS,
 } from './constants.js';
@@ -1984,6 +1985,33 @@ export const UndoLeftoverQuery = z.object({
     .optional(),
 });
 export type UndoLeftoverQuery = z.infer<typeof UndoLeftoverQuery>;
+
+/**
+ * What a change of a plan did beside its portions: the shopping lists of the plan, and of the other plan of its
+ * kitchen, that matched their plans before it and no longer do (`ShoppingList.stale`), and the days from today on whose
+ * note of what to take out of the freezer, or of what to put in it, it changed. Empty where it did none of that.
+ */
+export const PlanChangeEffects = z.object({
+  lists: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        planId: z.string().uuid(),
+        /** The profile of the list's plan: the list's page opens on it. */
+        profileId: z.string().uuid(),
+        fromDate: CalendarDay,
+        toDate: CalendarDay,
+        /** A part of a household's list (`ShoppingList.household`): the household's list is where it is read. */
+        householdId: z.string().uuid().nullable(),
+      }),
+    )
+    .max(MAX_LISTS_PER_PLAN * 2),
+  /** The days whose note of what to take out of the freezer changed: the day before the meal that takes it, as a plan says it. */
+  thaw: z.array(CalendarDay).max(MAX_PLAN_DAYS),
+  /** The days whose note of what to put in the freezer changed: the day a pack is opened, or a purchase by weight made. */
+  freeze: z.array(CalendarDay).max(MAX_PLAN_DAYS),
+});
+export type PlanChangeEffects = z.infer<typeof PlanChangeEffects>;
 
 /**
  * Envelope returned by every edit that may rebalance (swap, custom-add,

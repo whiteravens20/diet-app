@@ -435,6 +435,7 @@ export class DaySettingsService {
         planId,
         request.revision,
         clientToday ?? this.plans.today(),
+        'day-settings',
         async (tx) => {
           const own = evened.get(context.day.id);
           if (own !== undefined && own !== context.day.calorieTarget) {
@@ -486,6 +487,7 @@ export class DaySettingsService {
         planId,
         request.revision,
         clientToday ?? this.plans.today(),
+        'day-settings',
         async (tx) => {
           await tx.mealPlanDay.update({
             where: { id: dayId },
@@ -586,7 +588,7 @@ export class DaySettingsService {
       : new Map<string, CookedMeal[]>();
     const before = StoredReport.nullable().parse(prepared.plan.report ?? null);
     const report = before ? withDaysAgain(before, result.report, [context.date]) : null;
-    await writePlan(this.prisma, planId, request.revision, today, async (tx) => {
+    await writePlan(this.prisma, planId, request.revision, today, 'day-settings', async (tx) => {
       // A lock that could not enter the plan has left the overrides of the day in the draw.
       await tx.mealPlanDay.update({
         where: { id: dayId },

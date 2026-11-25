@@ -166,6 +166,12 @@ export const MAX_DIARY_ENTRIES_KEPT = MAX_DIARY_ENTRIES_A_DAY + MAX_MEALS_ON_A_P
 /** The most meals eaten on one day in a profile's plans besides one of them: a full day of each of the others. */
 export const MAX_OTHER_PLAN_MEALS_A_DAY = (MAX_PLANS_PER_PROFILE - 1) * MAX_MEALS_ON_A_PLAN_DAY;
 
+/** The most changes a day of a plan keeps in its history ("Historia dnia"): a later change takes the place of the oldest. */
+export const MAX_DAY_EVENTS = 50;
+
+/** The most shopping lists one plan may have at a time. */
+export const MAX_LISTS_PER_PLAN = 10;
+
 /**
  * How many days back a day of the diary still takes a new entry: a year, of a
  * leap year too. With the most a day holds, this bounds what a profile's diary

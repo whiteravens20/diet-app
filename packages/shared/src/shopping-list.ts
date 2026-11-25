@@ -12,9 +12,6 @@ import {
 } from './enums.js';
 import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 
-/** The most shopping lists one plan may have at a time. */
-export const MAX_LISTS_PER_PLAN = 10;
-
 /** Request to build a shopping list from a plan or a date range within it. */
 export const GenerateShoppingListRequest = z
   .object({

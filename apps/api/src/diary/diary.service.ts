@@ -791,10 +791,17 @@ export class DiaryService {
     if (!planDay) return null;
     const resize = async (): Promise<RebalanceResult | null> => {
       if (locale === null) {
-        await this.plans.resizeDay(userId, planDay.planId, date, today);
+        await this.plans.resizeDay(userId, planDay.planId, date, today, 'diary');
         return null;
       }
-      return this.plans.rebalance(userId, locale, planDay.planId, { scope: 'day', date }, today);
+      return this.plans.rebalance(
+        userId,
+        locale,
+        planDay.planId,
+        { scope: 'day', date },
+        today,
+        'diary',
+      );
     };
     /** Another change of the plan came between its reading and its writing (`writePlan`). */
     const meanwhile = (err: unknown): boolean =>

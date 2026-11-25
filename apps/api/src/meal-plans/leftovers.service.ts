@@ -233,7 +233,7 @@ export class LeftoversService {
       theirs = this.carrying(other.source, other.next, req.mealType);
     }
     const sides = theirs ? [mine, theirs] : [mine];
-    await writePlans(this.prisma, claims(sides), today, async (tx) => {
+    await writePlans(this.prisma, claims(sides), today, 'leftover', async (tx) => {
       const sourceShare = await this.sharedOf(tx, source);
       await this.carry(tx, mine, req.left, theirs === null);
       if (theirs) {
@@ -290,6 +290,7 @@ export class LeftoversService {
       this.prisma,
       [...plans].map(([id, revision]) => ({ planId: id, revision })),
       today,
+      'leftover-undo',
       async (tx) => {
         const restored: StoredMeal[] = [];
         for (const side of sides) {

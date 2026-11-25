@@ -475,7 +475,7 @@ export class PlanGenerationService {
       return target === day.calorieTarget ? [] : [{ id: day.id, target }];
     });
     if (base.target !== plan.calorieTarget || moved.length > 0) {
-      await writePlan(this.prisma, planId, revision, today, async (tx) => {
+      await writePlan(this.prisma, planId, revision, today, 'retarget', async (tx) => {
         await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
         for (const day of moved) {
           await tx.mealPlanDay.update({
@@ -852,7 +852,7 @@ export class PlanGenerationService {
     const outcome = await this.outcomeOf(prepared, result, options);
     // Made again for this plan alone, its new meals share nothing: the links of the meals that gave place go with
     // them (`writePlan`), and a meal both ate that stays on its day stays shared.
-    await writePlan(this.prisma, planId, prepared.plan.revision, today, (tx) =>
+    await writePlan(this.prisma, planId, prepared.plan.revision, today, 'reroll', (tx) =>
       this.writeReroll(tx, prepared, result, seed, outcome, today),
     );
   }
@@ -972,6 +972,7 @@ export class PlanGenerationService {
         { planId: theirs.plan.id, revision: theirs.plan.revision },
       ],
       today,
+      'reroll',
       async (tx) => {
         await this.writeReroll(tx, mine, ofMine, seed, mineOutcome, today);
         await this.writeReroll(tx, theirs, ofTheirs, theirSeed, theirOutcome, today);

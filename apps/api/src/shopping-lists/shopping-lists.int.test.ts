@@ -1298,7 +1298,7 @@ describe('shopping lists and the pantry', () => {
         t.prisma.plannedMeal.findMany({
           where: { day: { planId: plan.id }, recipe: { slug: CHICKEN_RICE } },
           orderBy: { day: { date: 'asc' } },
-          select: { id: true, rests: true },
+          select: { id: true, dayId: true, rests: true },
         });
       const [monday, tuesday] = await lunches();
       await t.prisma.plannedMeal.update({ where: { id: monday!.id }, data: { servings: 1.6 } });
@@ -1320,6 +1320,18 @@ describe('shopping lists and the pantry', () => {
       expect(
         (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).revision,
       ).toBeGreaterThan(revision);
+      // Each day it moved keeps it in its history, as a change the user did not make of that day.
+      const events = await t.prisma.planDayEvent.findMany({
+        where: { day: { planId: plan.id } },
+        select: { dayId: true, cause: true, own: true, detail: true },
+      });
+      expect(events.map((event) => event.dayId)).toContain(tuesday!.dayId);
+      for (const event of events)
+        expect(event).toMatchObject({
+          cause: 'bought-by-weight',
+          own: false,
+          detail: { from: [] },
+        });
     });
 
     it('has the plan say, from the day it was bought, what to freeze of it that day', async () => {

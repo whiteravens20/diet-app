@@ -253,6 +253,7 @@ export class IngredientSwapService {
       req.planId,
       meal.day.plan.revision,
       clientToday ?? this.plans.today(),
+      'ingredient-swap',
       async (tx) => {
         await this.plans.rememberSwap(tx, req.planId, meal.day.plan.revision, [
           meal.dayId,
