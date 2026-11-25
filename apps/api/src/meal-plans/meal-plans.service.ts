@@ -921,13 +921,13 @@ export class MealPlansService {
 
   /**
    * Mark a planned meal eaten or not eaten. An eaten meal is pinned out of the
-   * rebalance set (scaling an already-eaten portion is meaningless) for the
-   * sizings that come after. The mark itself sizes nothing: what the day holds
-   * is the same either way, and a day it finds off its target, as an undo of a
-   * sizing leaves one, stays as it is, with "Dopasuj porcje dnia" for it. Another
-   * plan of the profile, whose day counts what was eaten here, is sized as a
-   * change of its diary sizes it (`followEatenElsewhere`). Asking for the state
-   * the meal is already in changes nothing, so a repeated request is safe.
+   * rebalance set (scaling an already-eaten portion is meaningless), and the
+   * day is sized again, as every change of a plan sizes its day, unless the
+   * user's own choice holds its portions (`MealPlanDay.keptChoice`, an undo or a
+   * spread): the mark is no change of his to the day, and leaves that choice as
+   * it is. Another plan of the profile, whose day counts what was eaten here, is
+   * sized the same way (`followEatenElsewhere`). Asking for the state the meal is
+   * already in changes nothing, so a repeated request is safe.
    */
   async setEaten(
     userId: string,
@@ -953,7 +953,7 @@ export class MealPlansService {
         message: 'A meal of a day still to come cannot be marked as eaten.',
       });
     }
-    await writePlans(
+    const summary = await writePlans(
       this.prisma,
       [
         { planId, revision: meal.day.plan.revision },
@@ -962,14 +962,16 @@ export class MealPlansService {
       today,
       async (tx) => {
         const at = eaten ? new Date() : null;
-        // What a meal is eaten with is kept as the person saw it, for the sizings that come after.
+        // What a meal is eaten with is kept as the person saw it, before any day around it is sized again.
         if (other) {
           await tx.plannedMeal.update({ where: { id: other.id }, data: { eatenAt: at } });
           await keepPieces(tx, [other.id]);
+          await this.sizeUnlessKept(other.dayId, tx, today);
         }
-        if ((meal.eatenAt !== null) === eaten) return;
+        if ((meal.eatenAt !== null) === eaten) return null;
         await tx.plannedMeal.update({ where: { id: mealId }, data: { eatenAt: at } });
         await keepPieces(tx, [mealId]);
+        return this.sizeUnlessKept(meal.dayId, tx, today);
       },
     );
     if ((meal.eatenAt !== null) !== eaten)
@@ -988,7 +990,7 @@ export class MealPlansService {
         other.day.planId,
         today,
       );
-    return this.buildRebalanceResult(userId, locale, planId, 'day', null);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
   /**
@@ -1012,7 +1014,7 @@ export class MealPlansService {
       select: { planId: true },
     });
     if (!shown || shown.planId === planId) return;
-    const resize = () => this.resizeDay(userId, shown.planId, date, today);
+    const resize = () => this.resizeDay(userId, shown.planId, date, today, true);
     try {
       await resize().catch((err: unknown) => {
         if (err instanceof ConflictException && planChangedMeanwhile(err)) return resize();
@@ -1173,11 +1175,16 @@ export class MealPlansService {
     planId: string,
     date: string,
     clientToday: string | null = null,
+    /** A change the user did not make of this day (what another plan had eaten): his choice of its portions holds. */
+    automatic = false,
   ): Promise<RebalanceSummary | null> {
     const { revision } = await this.planOf(userId, planId);
     const day = await this.loadDay(userId, planId, date);
-    return writePlan(this.prisma, planId, revision, clientToday ?? this.today(), (tx) =>
-      this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
+    const today = clientToday ?? this.today();
+    return writePlan(this.prisma, planId, revision, today, (tx) =>
+      automatic
+        ? this.sizeUnlessKept(day.id, tx, today)
+        : this.rebalanceDayInternal(day.id, tx, today),
     );
   }
 
@@ -1268,8 +1275,40 @@ export class MealPlansService {
     named: ReadonlyMap<string, string> = new Map(),
   ): Promise<RebalanceSummary | null> {
     const summary = await this.sizeDayOf(dayId, tx, today, named);
-    if (summary) noteSizing(tx, summary, [dayId], () => this.sizeDayOf(dayId, tx, today, named));
+    if (!summary) return null;
+    const day = await tx.mealPlanDay.findUniqueOrThrow({
+      where: { id: dayId },
+      select: { planId: true, keptChoice: true },
+    });
+    // The user changed the day: a choice of its portions he made before ends with it.
+    if (day.keptChoice !== null)
+      await tx.mealPlanDay.update({
+        where: { id: dayId },
+        data: { keptChoice: null, keptAt: null },
+      });
+    noteSizing(tx, summary, [dayId], () => this.sizeDayOf(dayId, tx, today, named), day.planId);
     return summary;
+  }
+
+  /**
+   * The sizing of a day that a change the user did not make of it asks for (an eaten mark, a rest of a pack moved from
+   * another day): none where his own choice holds its portions (`MealPlanDay.keptChoice`), which it leaves as it is;
+   * otherwise as `rebalanceDayInternal`. `note` says whether the write sizes it again as its own (the settle of
+   * `writePlans` sizes the days it finds itself).
+   */
+  async sizeUnlessKept(
+    dayId: string,
+    tx: Prisma.TransactionClient,
+    today: string,
+    note = true,
+  ): Promise<RebalanceSummary | null> {
+    const day = await tx.mealPlanDay.findUnique({
+      where: { id: dayId },
+      select: { planId: true, keptChoice: true },
+    });
+    if (!day || day.keptChoice !== null) return null;
+    if (!note) return this.sizeDayOf(dayId, tx, today, new Map());
+    return this.rebalanceDayInternal(dayId, tx, today);
   }
 
   /** The sizing of a day `rebalanceDayInternal` makes, made and written. */
@@ -1593,6 +1632,7 @@ export class MealPlansService {
       sized.summary,
       sized.days,
       async () => (await this.sizeRestOf(planId, tx, from, today))?.summary ?? null,
+      planId,
     );
     return sized.summary;
   }
@@ -1612,6 +1652,14 @@ export class MealPlansService {
     const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
     const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
     const changes = await this.persistScales(allRows, scales, tx);
+    // A spread is the user's choice: the days it moves keep their part of it (`keptChoice`) until he changes them.
+    await keepChoice(
+      tx,
+      dayRows
+        .filter((d) => d.rows.some((r) => changes.some((c) => c.mealId === r.id)))
+        .map((d) => d.id),
+      'spread',
+    );
     const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
     return {
       summary: {
@@ -2054,6 +2102,12 @@ export class MealPlansService {
         data: { quantityScale: r.scale, lastRebalanceAt: now },
       });
     }
+    // The portions put back are the user's choice: a change he does not make of their days leaves them as they are.
+    const days = await tx.plannedMeal.findMany({
+      where: { id: { in: restore.map((r) => r.mealId) } },
+      select: { dayId: true },
+    });
+    await keepChoice(tx, [...new Set(days.map((meal) => meal.dayId))], 'undo');
   }
 
   async buildRebalanceResult(
@@ -2879,6 +2933,19 @@ export function cookingChange(
     changes: takers.map(place),
     stays: meals.filter((meal) => !takers.includes(meal)).map(place),
   };
+}
+
+/** Note the user's own choice of the portions of `days` (`MealPlanDay.keptChoice`): an undo, a spread or "Zostaw". */
+async function keepChoice(
+  tx: Prisma.TransactionClient,
+  days: readonly string[],
+  choice: 'undo' | 'spread' | 'kept',
+): Promise<void> {
+  if (days.length === 0) return;
+  await tx.mealPlanDay.updateMany({
+    where: { id: { in: [...days] } },
+    data: { keptChoice: choice, keptAt: new Date() },
+  });
 }
 
 interface RebalanceSummary {

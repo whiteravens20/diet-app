@@ -20,6 +20,8 @@ interface SizingSummary {
 
 /** A sizing of days a write made (`noteSizing`). */
 interface Sizing {
+  /** The plan whose days it sized. */
+  planId: string;
   /** The summary that tells of it: its own, or that of the change it went into (`joinSizings`). */
   summary: SizingSummary;
   /** The days whose portions stand as it left them: a later sizing of a day in the same write takes the day over. */
@@ -43,10 +45,11 @@ export function noteSizing(
   summary: SizingSummary,
   days: readonly string[],
   again: () => Promise<SizingSummary | null>,
+  planId: string,
 ): void {
   const sizings = sizingsOf.get(tx) ?? [];
   for (const earlier of sizings) for (const day of days) earlier.days.delete(day);
-  sizings.push({ summary, days: new Set(days), figures: summary.macrosAfter, again });
+  sizings.push({ planId, summary, days: new Set(days), figures: summary.macrosAfter, again });
   sizingsOf.set(tx, sizings);
 }
 

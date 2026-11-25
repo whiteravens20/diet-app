@@ -101,7 +101,7 @@ describe('editing a plan', () => {
     expect(eatenAt(undone.body)).toBeNull();
   });
 
-  it('marks a meal eaten, and not eaten, leaving the portions of a day off its target as they are', async () => {
+  it("sizes a day off its target at an eaten mark, unless the user's own choice holds its portions, which his change ends", async () => {
     const day = plan.days[0]!;
     const portions = async () =>
       Object.fromEntries(
@@ -112,7 +112,9 @@ describe('editing a plan', () => {
           })
         ).map((meal) => [meal.id, meal.quantityScale]),
       );
-    // A day off its target, as an undo of its sizing leaves one: its first dish a good deal larger.
+    const choice = async () =>
+      (await t.prisma.mealPlanDay.findUniqueOrThrow({ where: { id: day.id } })).keptChoice;
+    // A day off its target: its first dish a good deal larger.
     await t.prisma.plannedMeal.update({
       where: { id: day.meals[0]!.id },
       data: { quantityScale: 1.4 },
@@ -120,16 +122,30 @@ describe('editing a plan', () => {
     const off = await portions();
     const path = `/api/meal-plans/${plan.id}/meals/${day.meals[1]!.id}/eaten`;
 
+    // The mark sizes the day as every change does, and says so, with the meals it moved.
     const eaten = await t.http().patch(path).set(as(user)).send({ eaten: true }).expect(200);
-    expect(eaten.body.rebalance).toBeNull();
+    const changes = eaten.body.rebalance.changes as { mealId: string; before: number }[];
+    expect(changes.length).toBeGreaterThan(0);
+    expect(await portions()).not.toEqual(off);
+
+    // Undone, the portions are the user's choice: taking the mark off leaves them as they are.
+    await t
+      .http()
+      .post(`/api/meal-plans/${plan.id}/rebalance`)
+      .set(as(user))
+      .send({ scope: 'day', restore: changes.map((c) => ({ mealId: c.mealId, scale: c.before })) })
+      .expect(201);
     expect(await portions()).toEqual(off);
+    expect(await choice()).toBe('undo');
     const notEaten = await t.http().patch(path).set(as(user)).send({ eaten: false }).expect(200);
     expect(notEaten.body.rebalance).toBeNull();
     expect(await portions()).toEqual(off);
+    expect(await choice()).toBe('undo');
 
-    // The day was off its target all along: "Dopasuj porcje dnia" gives it other portions.
+    // His own change of the day ends the choice: "Dopasuj porcje dnia" sizes it.
     const sized = await plans.rebalance(user.id, 'en', plan.id, { scope: 'day', date: day.date });
     expect(sized.rebalance?.changes.length).toBeGreaterThan(0);
+    expect(await choice()).toBeNull();
   });
 
   it('ends eaten when two requests to mark a meal eaten overlap', async () => {

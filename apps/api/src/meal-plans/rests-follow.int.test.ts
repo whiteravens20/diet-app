@@ -779,6 +779,20 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       const held = spread.plan.days.reduce((sum, day) => sum + day.dayNutrition.calories, 0);
       expect(Math.abs(spread.rebalance!.macrosAfter.calories - held)).toBeLessThanOrEqual(2);
 
+      // The spread is the user's choice: each day it moved keeps its part, an eaten mark on it included.
+      const choices = await t.prisma.mealPlanDay.findMany({
+        where: { planId: plan.id },
+        orderBy: { date: 'asc' },
+        select: { keptChoice: true },
+      });
+      expect(choices.map((day) => day.keptChoice)).toEqual(['spread', 'spread']);
+      const spreadOut = await portions();
+      const mark = (eaten: boolean) =>
+        service.setEaten(user.id, 'en', plan.id, plan.days[1]!.meals[0]!.id, eaten, '2026-02-03');
+      expect((await mark(true)).rebalance).toBeNull();
+      expect(await portions()).toEqual(spreadOut);
+      await mark(false);
+
       await service.rebalance(
         user.id,
         'en',

@@ -1043,6 +1043,12 @@ model MealPlanDay {
   // Null = no advanced options (basic flow). `regenerate*` re-applies these;
   // the rebalancer reads `dayType`; the DTO surfaces them to the UI.
   overrides     Json?
+  // The user's own choice of the day's portions, which the changes he does not make himself leave as they are:
+  // `undo` (an undo of a sizing put them back), `spread` (a spread over the rest of the plan gave them) or `kept`
+  // ("Zostaw porcje jak są"). Null where every change sizes the day. His own change of the day ends it.
+  keptChoice    String?
+  // When he made it.
+  keptAt        DateTime?
 
   meals PlannedMeal[]
 
