@@ -331,6 +331,7 @@ export class AccountExportService {
                     shared: { select: { apart: true } },
                   },
                 },
+                events: { orderBy: [{ revision: 'asc' }, { at: 'asc' }, { id: 'asc' }] },
               },
             },
             shoppingLists: { orderBy: { createdAt: 'asc' }, include: { items: true } },
@@ -361,6 +362,21 @@ export class AccountExportService {
           date: isoDate(planned.date),
           calorieTarget: planned.calorieTarget,
           overrides: planned.overrides,
+          // The account's own choice of the day's portions, which changes it did not make of the day left as they
+          // were: `undo`, `spread` or `kept`, and when it was made.
+          keptChoice: planned.keptChoice,
+          keptAt: planned.keptAt?.toISOString() ?? null,
+          // The changes of the day, the oldest first ("Historia dnia"): what made each, whether the account changed the
+          // day or a change of other days moved it, the meals it moved as they were and became, and what it did to the
+          // shopping lists and the freezer.
+          history: planned.events.map((event) => ({
+            at: event.at.toISOString(),
+            cause: event.cause,
+            own: event.own,
+            detail: event.detail,
+            changes: event.changes,
+            effects: event.effects,
+          })),
           meals: planned.meals.map((meal) => ({
             mealType: meal.mealType,
             recipeId: meal.recipeId,

@@ -28,7 +28,13 @@ interface Exported {
   plans: {
     id: string;
     profileId: string;
-    days: { date: string; meals: Record<string, unknown>[] }[];
+    days: {
+      date: string;
+      meals: Record<string, unknown>[];
+      keptChoice: string | null;
+      keptAt: string | null;
+      history: { cause: string; own: boolean; changes: { meals: unknown[] } }[];
+    }[];
     shoppingLists: { householdId: string | null; items: unknown[] }[];
   }[];
   householdLists: {
@@ -318,6 +324,16 @@ describe('everything an account holds, as one file', () => {
     });
     expect(exported!.shoppingLists).toHaveLength(1);
     expect(exported!.shoppingLists[0]!.items.length).toBeGreaterThan(0);
+    // The changes of the first day, the oldest first: the meal marked eaten, then the meal of the account's own.
+    expect(exported!.days[0]!.history.map((change) => [change.cause, change.own])).toEqual([
+      ['eaten', true],
+      ['own-meal', true],
+    ]);
+    // The meal of the account's own came with it, as did the portions the day was given for it.
+    expect(exported!.days[0]!.history[1]!.changes.meals).toContainEqual(
+      expect.objectContaining({ mealType: 'snack', before: null }),
+    );
+    expect(exported!.days[0]).toMatchObject({ keptChoice: null, keptAt: null });
   });
 
   it('holds the fibre, sugars, salt and saturated fat of what was logged, and which of them are only a part', async () => {
