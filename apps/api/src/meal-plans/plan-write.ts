@@ -312,29 +312,33 @@ async function settleKitchen(
 
 /**
  * Follow a change that is no write of a plan but changes what its packs are, a purchase by weight on one of its
- * shopping lists: the rests of the kitchen of `planId` are worked out again and the days they move sized, as a write of
- * the plan does; each plan whose rests or portions change moves on a revision, so that a client holding it reads it
- * again.
+ * shopping lists: the rests of the kitchen of `planId` are worked out again, the days they move sized and what the
+ * freezer gives chosen again, as a write of the plan does; each plan whose rests, portions or freezer change moves on a
+ * revision, so that a client holding it reads it again.
  */
 export async function followKitchen(
   tx: Prisma.TransactionClient,
   planId: string,
   today: string,
 ): Promise<void> {
+  const said = await packagesSaid(tx, planId, today);
   const moved = new Set<string>();
+  const moveOn = async (plans: Iterable<string>): Promise<void> => {
+    for (const other of plans)
+      if (!moved.has(other)) {
+        await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
+        moved.add(other);
+      }
+  };
   await settleKitchen(
     tx,
     planId,
     today,
-    async (followed) => {
-      for (const other of new Set(followed.map((one) => one.planId)))
-        if (!moved.has(other)) {
-          await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
-          moved.add(other);
-        }
-    },
+    (followed) => moveOn(new Set(followed.map((one) => one.planId))),
     new Set(),
   );
+  const { changed } = await repickFreezer(tx, planId, today, said);
+  await moveOn(changed);
 }
 
 /**
