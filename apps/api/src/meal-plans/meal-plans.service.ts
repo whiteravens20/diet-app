@@ -149,7 +149,15 @@ import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/
 import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
 import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
-import { noteSizing, planChangedMeanwhile, writePlan, writePlans } from './plan-write.js';
+import {
+  holdDays,
+  keepBeforeSizing,
+  noteSizing,
+  planChangedMeanwhile,
+  sizeOtherDaysWith,
+  writePlan,
+  writePlans,
+} from './plan-write.js';
 import {
   CANDIDATE,
   dislikedIn,
@@ -185,7 +193,19 @@ export class MealPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
-  ) {}
+  ) {
+    // A day whose rests of packs a write moved, which the write did not size, is sized as a change of its own would
+    // size it, unless the user's own choice holds its portions.
+    sizeOtherDaysWith(async (tx, dayId, today) => {
+      const summary = await this.sizeUnlessKept(dayId, tx, today, false);
+      if (!summary) return null;
+      const { planId } = await tx.mealPlanDay.findUniqueOrThrow({
+        where: { id: dayId },
+        select: { planId: true },
+      });
+      return { planId, summary };
+    });
+  }
 
   /**
    * Delete a plan and everything under it (days, meals, shopping lists cascade). What was eaten from it is
@@ -1967,22 +1987,20 @@ export class MealPlansService {
     /** The other plan of a joint plan the swap changed as well, at the revision it read: taken back with this one. */
     also: { planId: string; revision: number } | null = null,
   ): Promise<void> {
-    const meals = await tx.plannedMeal.findMany({
-      where: { dayId: { in: [...dayIds] } },
-      select: {
-        id: true,
-        recipeId: true,
-        servings: true,
-        quantityScale: true,
-        swapHistory: true,
-        modelPicked: true,
-        modelReason: true,
-        toppingKey: true,
-        toppingAmount: true,
-        rests: true,
-        plate: true,
-      },
-    });
+    const select = {
+      id: true,
+      recipeId: true,
+      servings: true,
+      quantityScale: true,
+      swapHistory: true,
+      modelPicked: true,
+      modelReason: true,
+      toppingKey: true,
+      toppingAmount: true,
+      rests: true,
+      plate: true,
+    } as const;
+    const meals = await tx.plannedMeal.findMany({ where: { dayId: { in: [...dayIds] } }, select });
     const lastSwap: StoredSwap = {
       revision: readAtRevision + 1,
       meals,
@@ -1991,6 +2009,18 @@ export class MealPlansService {
     await tx.mealPlan.update({
       where: { id: planId },
       data: { lastSwap: lastSwap as Prisma.InputJsonValue },
+    });
+    // A day of the plan the swap sizes because its rests moved is held too, as the swap finds it, so that taking the
+    // swap back puts its portions back as well.
+    keepBeforeSizing(tx, async (dayId) => {
+      if (dayIds.includes(dayId)) return;
+      const found = await tx.plannedMeal.findMany({ where: { dayId, day: { planId } }, select });
+      if (found.length === 0) return;
+      lastSwap.meals = [...lastSwap.meals, ...found];
+      await tx.mealPlan.update({
+        where: { id: planId },
+        data: { lastSwap: lastSwap as Prisma.InputJsonValue },
+      });
     });
   }
 
@@ -2054,6 +2084,15 @@ export class MealPlansService {
                 ...(rests === undefined ? {} : { rests: restsAsJson(restsOf(rests)) }),
               },
             });
+          // The days put back stand as the swap found them: the rests follow them, and nothing sizes them again.
+          const days = await tx.plannedMeal.findMany({
+            where: { id: { in: taken.meals.map((meal) => meal.id) } },
+            select: { dayId: true },
+          });
+          holdDays(
+            tx,
+            days.map((meal) => meal.dayId),
+          );
           await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap: Prisma.JsonNull } });
         }
       },

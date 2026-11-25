@@ -807,4 +807,133 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       expect(await rest()).toBeCloseTo(50);
     });
   });
+
+  describe('of a pack two days share', () => {
+    let plan: MealPlan;
+    const service = () => t.app.get(MealPlansService);
+    const dayTwo = () => new Set(plan.days[1]!.meals.map((meal) => meal.id));
+    const portions = async () =>
+      Object.fromEntries(
+        (
+          await t.prisma.plannedMeal.findMany({
+            where: { day: { planId: plan.id } },
+            select: { id: true, quantityScale: true },
+          })
+        ).map((meal) => [meal.id, meal.quantityScale]),
+      );
+    const restOfDayTwo = async () =>
+      (await restsOfPlan(plan.id))
+        .filter((rest) => dayTwo().has(rest.meal))
+        .reduce((sum, rest) => sum + rest.amount, 0);
+    const choiceOf = async (index: number) =>
+      (await t.prisma.mealPlanDay.findUniqueOrThrow({ where: { id: plan.days[index]!.id } }))
+        .keptChoice;
+    const sizeDayOne = () =>
+      service().rebalance(user.id, 'en', plan.id, { scope: 'day', date: '2026-02-02' }, BEFORE);
+
+    /** Two days that waste less, the yogurt at the meal after breakfast of each: the second finishes the pack. */
+    beforeEach(async () => {
+      const [{ id: stew }, { id: bowl }, { id: yogurt }] = await Promise.all(
+        [STEW, TOFU_BOWL, YOGURT].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      plan = await aPlan(t, user, profile, {
+        startDate: '2026-02-02',
+        durationDays: 2,
+        lessWaste: true,
+      });
+      for (const [index, day] of plan.days.entries())
+        for (const [at, meal] of day.meals.entries())
+          await t.prisma.plannedMeal.update({
+            where: { id: meal.id },
+            data: {
+              recipeId: at === 1 ? yogurt : at % 2 === 0 ? stew : bowl,
+              servings: at === 1 ? (index === 0 ? 1 : 0.9) : 1,
+              quantityScale: 1,
+              source: 'CATALOGUE',
+              eatenAt: null,
+              rests: [],
+            },
+          });
+      await follow(plan.id);
+    });
+
+    it('sizes in the same change the other day whose rest it moved, tells of it, and an undo puts both back', async () => {
+      const before = await portions();
+      expect(await restOfDayTwo()).toBeCloseTo(20);
+
+      const sized = await sizeDayOne();
+      const changes = sized.rebalance?.changes ?? [];
+      // The rest of the second day moved, and that day was sized with it: its dishes are in the answer.
+      expect(await restOfDayTwo()).not.toBeCloseTo(20);
+      expect(changes.filter((change) => dayTwo().has(change.mealId)).length).toBeGreaterThan(0);
+      expect(await portions()).toEqual({
+        ...before,
+        ...Object.fromEntries(changes.map((change) => [change.mealId, change.after])),
+      });
+
+      await service().rebalance(
+        user.id,
+        'en',
+        plan.id,
+        {
+          scope: 'day',
+          restore: changes.map((change) => ({ mealId: change.mealId, scale: change.before })),
+        },
+        BEFORE,
+      );
+      expect(await portions()).toEqual(before);
+      expect(await restOfDayTwo()).toBeCloseTo(20);
+      expect([await choiceOf(0), await choiceOf(1)]).toEqual(['undo', 'undo']);
+    });
+
+    it('puts back with a swap taken back the other day the swap sized as its rest moved', async () => {
+      const before = await portions();
+
+      const swapped = await aSwap(t, user, {
+        planId: plan.id,
+        plannedMealId: plan.days[0]!.meals[0]!.id,
+        strategy: 'random',
+      });
+      // The swap sized the second day too, its rest of the pack having moved.
+      expect(
+        (swapped.rebalance?.changes ?? []).filter((change) => dayTwo().has(change.mealId)).length,
+      ).toBeGreaterThan(0);
+      await t
+        .http()
+        .post('/api/meal-plans/swap-meal/undo')
+        .set(as(user))
+        .send({ planId: plan.id, revision: swapped.plan.revision })
+        .expect(200);
+
+      expect(await portions()).toEqual(before);
+      expect(await restOfDayTwo()).toBeCloseTo(20);
+    });
+
+    it("leaves the other day as the user's choice holds it, its rest moving", async () => {
+      const sized = await sizeDayOne();
+      const changes = sized.rebalance?.changes ?? [];
+      await service().rebalance(
+        user.id,
+        'en',
+        plan.id,
+        {
+          scope: 'day',
+          restore: changes.map((change) => ({ mealId: change.mealId, scale: change.before })),
+        },
+        BEFORE,
+      );
+      const kept = await portions();
+
+      // The first day sized again: the user's change of it, which ends its choice; the second keeps its own.
+      const again = await sizeDayOne();
+      expect(await choiceOf(0)).toBeNull();
+      expect(await choiceOf(1)).toBe('undo');
+      expect(
+        (again.rebalance?.changes ?? []).filter((change) => dayTwo().has(change.mealId)),
+      ).toEqual([]);
+      for (const id of dayTwo()) expect((await portions())[id]).toBe(kept[id]);
+    });
+  });
 });
