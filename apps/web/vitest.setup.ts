@@ -4,10 +4,22 @@
 // and runs DOM cleanup between tests.
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
+import { IntlError } from 'next-intl';
 import { afterEach } from 'vitest';
+
+// A text the code asks for and the messages cannot give reaches the reader as its key, and
+// next-intl only writes the error to the console: a test that renders one fails.
+const broken: string[] = [];
+const writeError = console.error.bind(console);
+console.error = (...args: unknown[]): void => {
+  if (args[0] instanceof IntlError) broken.push(args[0].message);
+  writeError(...args);
+};
 
 afterEach(() => {
   cleanup();
+  const found = broken.splice(0);
+  if (found.length > 0) throw new Error(`a text the messages cannot give: ${found.join('; ')}`);
 });
 
 // The DOM the tests run in knows the dialog element but cannot open one. What a
