@@ -247,23 +247,25 @@ that a request is answered `503 SERVER_BUSY`.
 What a user can pile up is limited as well, so that no answer of the API grows without
 end. The limits are part of the application, not settings.
 
-| What                                     | The most              |
-| ---------------------------------------- | --------------------- |
-| Profiles of an account                   | 2                     |
-| Recipes a profile has marked             | 500                   |
-| Favorite sets of a profile               | 50                    |
-| Rows in the pantry of a profile          | 1000                  |
-| Products an account wrote                | 500                   |
-| Diary entries of a profile on one day    | 40                    |
-| Weights of a profile on one day, in UTC  | 10                    |
-| Plans of a profile                       | 100                   |
-| Meals of a day of a plan, for one's own  | 20                    |
-| Shopping lists of a plan                 | 10                    |
-| Open sessions of an account              | 50                    |
-| AI provider configurations of an account | One for each provider |
+| What                                        | The most              |
+| ------------------------------------------- | --------------------- |
+| Profiles of an account                      | 2                     |
+| Recipes a profile has marked                | 500                   |
+| Favorite sets of a profile                  | 50                    |
+| Rows in the pantry of a profile             | 1000                  |
+| Products an account wrote                   | 500                   |
+| Diary entries of a profile on one day       | 40                    |
+| Weights of a profile on one day, in UTC     | 10                    |
+| Plans of a profile                          | 100                   |
+| Meals of a day of a plan, for one's own     | 20                    |
+| Shopping lists of a plan                    | 10                    |
+| Changes kept in the history of a plan's day | 50, the newest        |
+| Open sessions of an account                 | 50                    |
+| AI provider configurations of an account    | One for each provider |
 
-A request that would go over one is answered `409` with a code that says which, except a
-sign-in: a new session ends the one of the account used longest ago. The diary takes a new
+A request that would go over one is answered `409` with a code that says which, except two: a
+sign-in, where a new session ends the one of the account used longest ago, and a change of a
+plan's day, whose history keeps its newest 50 changes and lets the oldest go. The diary takes a new
 entry for today or a day at most a year back, so once that year is full it grows by at most 40
 entries a day; a weight is taken at most a year before it is noted, so the weights of a profile
 grow the same way, by at most 10 a day. Longer lists come a page at a time (recipes, plans, the

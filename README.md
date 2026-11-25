@@ -34,7 +34,10 @@ The companion Android app lives in a separate repository:
   the form says in figures for the diet before it is made. A plan made for cooking ahead
   has a dish cooked once for two days. A day of a plan under way can be set apart (a
   training or rest day, skipped, another number of meals, a target of its own), with what
-  that does to its meals said before it is saved.
+  that does to its meals said before it is saved. A change of a day fits its portions to its
+  target again unless the user chose otherwise, and each day keeps the history of its changes:
+  what made each one, the portions it moved and what it did to the shopping lists and the
+  freezer, the last of them to be taken back from there.
 - **A diary of the day** — what was eaten, planned or not: a recipe in servings, an
   ingredient in an amount, a product by its barcode or name, or a meal by its figures, by
   its calories alone if need be, the rest then estimated and marked as an estimate. An entry
