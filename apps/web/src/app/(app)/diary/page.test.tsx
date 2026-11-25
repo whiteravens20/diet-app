@@ -246,6 +246,20 @@ describe('the diary', () => {
     expect(lines('Carbs')[1]).not.toHaveClass('text-warning');
   });
 
+  it("says carbohydrate on keto against the diet's ceiling alone: over it in the colour of a warning, under it as a note", async () => {
+    await renderPage(lowCarb(30, 0));
+
+    expect(figure('Carbs')).toEqual(['109 g', 'above the limit of 30 g']);
+    expect(lines('Carbs')[1]).toHaveClass('text-warning');
+  });
+
+  it('says carbohydrate on keto under its ceiling as the ceiling it keeps to', async () => {
+    await renderPage(lowCarb(120, 0));
+
+    expect(figure('Carbs')).toEqual(['109 g', 'at most 120 g']);
+    expect(lines('Carbs')[1]).not.toHaveClass('text-warning');
+  });
+
   it('says carbohydrate under the floor of its band so, as a note, the day going on', async () => {
     await renderPage(lowCarb(250, 130));
 
