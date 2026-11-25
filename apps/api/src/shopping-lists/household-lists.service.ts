@@ -44,6 +44,7 @@ import {
   TRANSACTION,
   type StoredItem,
 } from './shopping-lists.service.js';
+import { followKitchen } from '../meal-plans/plan-write.js';
 
 /** A household list as it is read: its parts, each with its rows and the profile its plan is for. */
 const WITH_PARTS = {
@@ -262,6 +263,7 @@ export class HouseholdListsService {
         ]),
       );
       for (const holder of [...holders].sort()) await lockPantry(tx, holder, named.ingredientId);
+      const loosePlans = new Set<string>();
       for (const [k, row] of rows.entries()) {
         const edited = {
           ...counted[k],
@@ -295,7 +297,11 @@ export class HouseholdListsService {
           where: { id: row.id },
           data: { ...next, ...stored(ledgers) },
         });
+        if (row.boughtLooseOn !== null || next.boughtLooseOn !== null)
+          loosePlans.add(planOf.get(row.id)!);
       }
+      // What is bought by weight is each plan's to eat before any pack: their rests and the days they move follow.
+      for (const planId of loosePlans) await followKitchen(tx, planId, isoDate(today));
     }, TRANSACTION);
     return this.get(userId, locale, id);
   }

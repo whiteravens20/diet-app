@@ -61,6 +61,7 @@ import { pickIngredient } from '../recipes/recipes.service.js';
 import { plateOfMeal, plateShare, restsOf } from '../meal-plans/plan-days.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 import { freezerOf } from '../meal-plans/generation-report.js';
+import { followKitchen } from '../meal-plans/plan-write.js';
 import { pieceFactorOf, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 
 /** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
@@ -264,6 +265,9 @@ export class ShoppingListsService {
         where: { id: itemId },
         data: { ...next, ...stored(ledgers) },
       });
+      // What is bought by weight is the plan's to eat before any pack: its rests and the days they move follow at once.
+      if (item.boughtLooseOn !== null || next.boughtLooseOn !== null)
+        await followKitchen(tx, list.planId, isoDate(today));
     }, TRANSACTION);
     return this.get(userId, locale, listId);
   }

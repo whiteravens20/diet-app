@@ -229,56 +229,13 @@ export function writePlans<T>(
           claimed.add(other);
         }
     };
-    const sizings = sizingsOf.get(tx) ?? [];
     /** The days sized because their rests moved whose keepers were called (`keepBeforeSizing`). */
     const kept = new Set<string>();
     const kitchens = new Set<string>();
     for (const { planId, kitchen } of counting) {
       if (kitchens.has(kitchen)) continue;
       kitchens.add(kitchen);
-      let followed = await followRests(tx, planId, today);
-      await moveOn(followed);
-      // A rest that moved changes what its day holds: a sizing of the day this write made is made again with it, a day
-      // the write did not size is sized as a change of its own would size it, and the rests follow the portions that
-      // gives, until they stand. A change leaves each day as the next change of the plan finds it, except one whose
-      // portions are the user's own choice (`MealPlanDay.keptChoice`).
-      for (let round = 0; followed.length > 0 && round < SETTLE_ROUNDS; round += 1) {
-        const meals = await tx.plannedMeal.findMany({
-          where: { id: { in: followed.map((one) => one.mealId) } },
-          select: { dayId: true },
-        });
-        const moved = new Set(meals.map((meal) => meal.dayId));
-        let sized = false;
-        for (const sizing of [...sizings]) {
-          if (![...sizing.days].some((day) => moved.has(day))) continue;
-          const again = await sizing.again();
-          if (!again) continue;
-          absorb(sizing, again);
-          if (again.changes.length > 0) sized = true;
-          for (const day of sizing.days) moved.delete(day);
-        }
-        for (const dayId of moved) {
-          if (sizings.some((sizing) => sizing.days.has(dayId))) continue;
-          if (heldOf.get(tx)?.has(dayId)) continue;
-          if (!kept.has(dayId)) {
-            kept.add(dayId);
-            for (const keep of keepersOf.get(tx) ?? []) await keep(dayId);
-          }
-          const other = await sizeOtherDay?.(tx, dayId, today);
-          if (!other || other.summary.changes.length === 0) continue;
-          sized = true;
-          // Told with the change, and undone with it, in each summary of the day's plan the write gives.
-          for (const summary of new Set(
-            sizings
-              .filter((sizing) => sizing.planId === other.planId)
-              .map((sizing) => sizing.summary),
-          ))
-            absorbChanges(summary, other.summary.changes);
-        }
-        if (!sized) break;
-        followed = await followRests(tx, planId, today);
-        await moveOn(followed);
-      }
+      await settleKitchen(tx, planId, today, moveOn, kept);
     }
     // What the plans of each kitchen take out of the freezer is chosen again with the menu as the change left it
     // (`repickFreezer`); a plan of the kitchen whose choice changes moves on as well.
@@ -295,6 +252,89 @@ export function writePlans<T>(
     }
     return written;
   });
+}
+
+/**
+ * The rests of packs of the kitchen of `planId` worked out again (`followRests`), and the days they move sized until
+ * they stand, as a write of plans ends (`writePlans`): `moveOn` hears of each rest that moved, `kept` holds the days
+ * whose keepers were called.
+ */
+async function settleKitchen(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  today: string,
+  moveOn: (followed: readonly FollowedRest[]) => Promise<void>,
+  kept: Set<string>,
+): Promise<void> {
+  const sizings = sizingsOf.get(tx) ?? [];
+  let followed = await followRests(tx, planId, today);
+  await moveOn(followed);
+  // A rest that moved changes what its day holds: a sizing of the day this write made is made again with it, a day
+  // the write did not size is sized as a change of its own would size it, and the rests follow the portions that
+  // gives, until they stand. A change leaves each day as the next change of the plan finds it, except one whose
+  // portions are the user's own choice (`MealPlanDay.keptChoice`).
+  for (let round = 0; followed.length > 0 && round < SETTLE_ROUNDS; round += 1) {
+    const meals = await tx.plannedMeal.findMany({
+      where: { id: { in: followed.map((one) => one.mealId) } },
+      select: { dayId: true },
+    });
+    const moved = new Set(meals.map((meal) => meal.dayId));
+    let sized = false;
+    for (const sizing of [...sizings]) {
+      if (![...sizing.days].some((day) => moved.has(day))) continue;
+      const again = await sizing.again();
+      if (!again) continue;
+      absorb(sizing, again);
+      if (again.changes.length > 0) sized = true;
+      for (const day of sizing.days) moved.delete(day);
+    }
+    for (const dayId of moved) {
+      if (sizings.some((sizing) => sizing.days.has(dayId))) continue;
+      if (heldOf.get(tx)?.has(dayId)) continue;
+      if (!kept.has(dayId)) {
+        kept.add(dayId);
+        for (const keep of keepersOf.get(tx) ?? []) await keep(dayId);
+      }
+      const other = await sizeOtherDay?.(tx, dayId, today);
+      if (!other || other.summary.changes.length === 0) continue;
+      sized = true;
+      // Told with the change, and undone with it, in each summary of the day's plan the write gives.
+      for (const summary of new Set(
+        sizings.filter((sizing) => sizing.planId === other.planId).map((sizing) => sizing.summary),
+      ))
+        absorbChanges(summary, other.summary.changes);
+    }
+    if (!sized) break;
+    followed = await followRests(tx, planId, today);
+    await moveOn(followed);
+  }
+}
+
+/**
+ * Follow a change that is no write of a plan but changes what its packs are, a purchase by weight on one of its
+ * shopping lists: the rests of the kitchen of `planId` are worked out again and the days they move sized, as a write of
+ * the plan does; each plan whose rests or portions change moves on a revision, so that a client holding it reads it
+ * again.
+ */
+export async function followKitchen(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  today: string,
+): Promise<void> {
+  const moved = new Set<string>();
+  await settleKitchen(
+    tx,
+    planId,
+    today,
+    async (followed) => {
+      for (const other of new Set(followed.map((one) => one.planId)))
+        if (!moved.has(other)) {
+          await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
+          moved.add(other);
+        }
+    },
+    new Set(),
+  );
 }
 
 /**

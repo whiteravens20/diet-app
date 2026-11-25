@@ -12,6 +12,8 @@ import { netEffect, pantryStock } from '../engine/pantry.js';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { readMoves } from '../inventory/pantry-store.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { restsOf } from '../meal-plans/plan-days.js';
+import { followRests } from '../meal-plans/rests-follow.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
@@ -1283,6 +1285,41 @@ describe('shopping lists and the pantry', () => {
       });
       // Ticked, nothing of it went into the pantry fresh: what the plan does not eat fresh, it freezes.
       expect(await pantry('chicken-breast')).toEqual([]);
+    });
+
+    it('leaves no meal a rest of a pack it was not bought in, and moves its plan on', async () => {
+      // A plan that wastes less: Monday's and Tuesday's lunches take 469.5 g of a pack of 500 g that keeps two days.
+      await chickenOn(0, 1);
+      await t.prisma.mealPlan.update({
+        where: { id: plan.id },
+        data: { options: { ...plan.options, lessWaste: true } },
+      });
+      const lunches = async () =>
+        t.prisma.plannedMeal.findMany({
+          where: { day: { planId: plan.id }, recipe: { slug: CHICKEN_RICE } },
+          orderBy: { day: { date: 'asc' } },
+          select: { id: true, rests: true },
+        });
+      const [monday, tuesday] = await lunches();
+      await t.prisma.plannedMeal.update({ where: { id: monday!.id }, data: { servings: 1.6 } });
+      await t.prisma.plannedMeal.update({ where: { id: tuesday!.id }, data: { servings: 1.53 } });
+      await t.prisma.$transaction((tx) => followRests(tx, plan.id, date(0)));
+      const chickenRests = async () =>
+        (await lunches()).flatMap((meal) =>
+          restsOf(meal.rests).map((rest) => Math.round(rest.amount)),
+        );
+      // The 30.5 g the pack leaves (240 g and 229.5 g eaten) go into Tuesday's lunch, which finishes it.
+      expect(await chickenRests()).toEqual([31]);
+      const { revision } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+
+      const list = await listFor(0, 6);
+      await edit(list, chicken, { purchasedQuantity: 1000, boughtLoose: true }, date(0));
+
+      // Bought by weight, no pack is opened, and no meal takes a rest of one; the plan moved on.
+      expect(await chickenRests()).toEqual([]);
+      expect(
+        (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).revision,
+      ).toBeGreaterThan(revision);
     });
 
     it('has the plan say, from the day it was bought, what to freeze of it that day', async () => {
