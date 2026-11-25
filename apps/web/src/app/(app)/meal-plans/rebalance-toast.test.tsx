@@ -195,6 +195,22 @@ describe('the card that says what a change of a plan came to', () => {
     expect(screen.getByRole('button', { name: texts.undoSwap })).toBeInTheDocument();
   });
 
+  it('says how many meals a sizing of the day rescaled, one meal or more', () => {
+    shown();
+    shown({
+      rebalance: aRebalance({
+        changes: Array.from({ length: 3 }, (_, i) => ({
+          mealId: `meal-${i}`,
+          before: 1,
+          after: 0.9,
+        })),
+      }),
+    });
+
+    expect(screen.getByText('2400 → 2100 kcal · 1 meal rescaled.')).toBeInTheDocument();
+    expect(screen.getByText('2400 → 2100 kcal · 3 meals rescaled.')).toBeInTheDocument();
+  });
+
   it('gives any other change its portions back', async () => {
     const { undo } = shown();
 

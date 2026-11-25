@@ -1793,7 +1793,7 @@
     "customTotalPendingChosen": "What the meal adds to the day shows here once it is chosen and its amount filled in.",
     "customSubmit": "Add meal",
     "rebalanceTitle": "The portions of the day were sized again",
-    "rebalanceSummary": "{before, number, ::group-off} → {after, number, ::group-off} kcal · {count} meal(s) rescaled.",
+    "rebalanceSummary": "{before, number, ::group-off} → {after, number, ::group-off} kcal · {count, plural, one {{count, number, ::group-off} meal} other {{count, number, ::group-off} meals}} rescaled.",
     "rebalanceBestEffort": "The day is still off its target: sizing its meals could not close the gap.",
     "rebalanceLeftOver": "The rest of the plan is still {kcal, number, ::group-off}\u00a0kcal over: the other days have no more room inside their own targets.",
     "rebalanceLeftUnder": "The rest of the plan is still {kcal, number, ::group-off}\u00a0kcal short: the other days have no more room inside their own targets.",
