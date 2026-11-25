@@ -167,6 +167,17 @@ const ASKS: Ask[] = [
     () => ({ offer: 'a-note' }),
   ],
   [
+    'read the history of a day of a plan',
+    'get',
+    (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/history`,
+  ],
+  [
+    'keep the portions of a day of a plan as they are',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/keep`,
+    () => ({ revision: 0 }),
+  ],
+  [
     'ask what a change of the settings of a day would do',
     'post',
     (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/settings/preview`,

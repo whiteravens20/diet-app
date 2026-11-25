@@ -20,7 +20,9 @@ import {
   TARGET_MOVED_LEAST_KCAL,
   type AddCustomMealRequest,
   type CookingChange,
+  type DayHistory,
   type DiaryEntry,
+  type KeepDayRequest,
   type KeepFrozenRequest,
   type KeepLeftRequest,
   type Locale,
@@ -137,6 +139,7 @@ import {
   type MealRow,
 } from './plan-days.js';
 import { effectsOf } from './day-events.js';
+import { dayHistoryOf } from './day-history.js';
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
@@ -2173,6 +2176,39 @@ export class MealPlansService {
       select: { dayId: true },
     });
     await keepChoice(tx, [...new Set(days.map((meal) => meal.dayId))], 'undo');
+  }
+
+  /** A day of the plan and its changes ("Historia dnia", `dayHistoryOf`); 404 where the plan or the day is not the user's. */
+  async dayHistory(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    dayId: string,
+  ): Promise<DayHistory> {
+    const history = await dayHistoryOf(this.prisma, userId, planId, dayId, locale);
+    if (!history)
+      throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
+    return history;
+  }
+
+  /**
+   * "Zostaw porcje jak są": the day's portions as they are become the user's choice (`keptChoice` `kept`), which the
+   * changes they do not make of the day leave as they are; written from the plan at `revision`, answered as the day's
+   * history.
+   */
+  async keepDay(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    dayId: string,
+    req: KeepDayRequest,
+    clientToday: string | null = null,
+  ): Promise<DayHistory> {
+    await this.dayHistory(userId, locale, planId, dayId);
+    await writePlan(this.prisma, planId, req.revision, clientToday ?? this.today(), 'kept', (tx) =>
+      keepChoice(tx, [dayId], 'kept'),
+    );
+    return this.dayHistory(userId, locale, planId, dayId);
   }
 
   async buildRebalanceResult(

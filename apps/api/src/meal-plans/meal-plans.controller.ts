@@ -22,12 +22,14 @@ import {
   AiSwapMealRequest,
   ApplyDaySettingsRequest,
   ApplyMealSwapRequest,
+  DayHistory,
   DaySettings,
   DaySettingsPreview,
   EvenWeekRequest,
   RetargetPlanRequest,
   DayVariations,
   GeneratePlanRequest,
+  KeepDayRequest,
   KeepFrozenRequest,
   KeepLeftRequest,
   LeftoverOffer,
@@ -274,6 +276,35 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.variations.take(user.id, locale, id, dayId, dto, today);
+  }
+
+  /** A day of the plan and its changes ("Historia dnia"): what holds it, its changes the latest first, the undo of the last. */
+  @Get(':id/days/:dayId/history')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(DayHistory)
+  dayHistory(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+  ) {
+    return this.plans.dayHistory(user.id, locale, id, dayId);
+  }
+
+  /** "Zostaw porcje jak są": the day's portions as they are become the user's choice, which only their own change of the day ends. */
+  @Post(':id/days/:dayId/keep')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(DayHistory)
+  keepDay(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(KeepDayRequest)) dto: KeepDayRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.keepDay(user.id, locale, id, dayId, dto, today);
   }
 
   /**

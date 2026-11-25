@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { MealPlan, Profile } from '@diet-app/shared';
+import { DayHistory, type MealPlan, type Profile } from '@diet-app/shared';
 import { Prisma } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -886,6 +886,31 @@ describe('the rest of a pack a meal finishes, as the plan changes', () => {
       expect(await portions()).toEqual(before);
       expect(await restOfDayTwo()).toBeCloseTo(20);
       expect([await choiceOf(0), await choiceOf(1)]).toEqual(['undo', 'undo']);
+    });
+
+    it("keeps the change in each day's history: the user's own on the day changed, of that day on the other", async () => {
+      const sized = await sizeDayOne();
+      const history = async (index: number) =>
+        DayHistory.parse(
+          (
+            await t
+              .http()
+              .get(`/api/meal-plans/${plan.id}/days/${plan.days[index]!.id}/history`)
+              .set(as(user))
+              .expect(200)
+          ).body,
+        );
+
+      const [first, second] = [await history(0), await history(1)];
+      expect(first.events[0]).toMatchObject({ cause: 'resize', own: true, from: [] });
+      expect(second.events[0]).toMatchObject({ cause: 'resize', own: false, from: ['2026-02-02'] });
+      expect(second.events[0]!.meals.length).toBeGreaterThan(0);
+      // Taken back from either day, the change is taken back whole.
+      expect(second.undo).toMatchObject({ kind: 'restore', alsoDays: ['2026-02-02'] });
+      expect(first.undo).toMatchObject({ kind: 'restore', alsoDays: ['2026-02-03'] });
+      const restored = new Set(second.undo!.restore.map((one) => one.mealId));
+      for (const change of sized.rebalance?.changes ?? [])
+        expect(restored).toContain(change.mealId);
     });
 
     it('puts back with a swap taken back the other day the swap sized as its rest moved', async () => {

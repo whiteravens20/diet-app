@@ -5340,6 +5340,152 @@
         }
       }
     },
+    "/api/meal-plans/{id}/days/{dayId}/history": {
+      "get": {
+        "operationId": "MealPlans_dayHistory",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "A day of the plan and its changes (\"Historia dnia\"): what holds it, its changes the latest first, the undo of the last.",
+        "description": "A day of the plan and its changes (\"Historia dnia\"): what holds it, its changes the latest first, the undo of the last.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayHistory"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/days/{dayId}/keep": {
+      "post": {
+        "operationId": "MealPlans_keepDay",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "\"Zostaw porcje jak są\": the day's portions as they are become the user's choice, which only their own change of the day ends.",
+        "description": "\"Zostaw porcje jak są\": the day's portions as they are become the user's choice, which only their own change of the day ends.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepDayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayHistory"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/days/{dayId}/regenerate": {
       "post": {
         "operationId": "MealPlans_regenerateDay",
@@ -14224,6 +14370,382 @@
           }
         ]
       },
+      "DayEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/DayEventCause"
+          },
+          "own": {
+            "type": "boolean"
+          },
+          "from": {
+            "maxItems": 28,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          },
+          "meals": {
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayEventMeal"
+            }
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "before": {
+                    "type": "integer"
+                  },
+                  "after": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "before": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/KeptChoice"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "after": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/KeptChoice"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effects": {
+            "$ref": "#/components/schemas/PlanChangeEffects"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "cause",
+          "own",
+          "from",
+          "meals",
+          "target",
+          "choice",
+          "effects"
+        ],
+        "additionalProperties": false
+      },
+      "DayEventCause": {
+        "type": "string",
+        "enum": [
+          "swap",
+          "swap-undo",
+          "ingredient-swap",
+          "own-meal",
+          "meal-removed",
+          "eaten",
+          "not-eaten",
+          "diary",
+          "eaten-elsewhere",
+          "resize",
+          "undo",
+          "spread",
+          "day-settings",
+          "day-variant",
+          "leftover",
+          "leftover-undo",
+          "favorite-set",
+          "reroll",
+          "retarget",
+          "bought-by-weight",
+          "kept"
+        ]
+      },
+      "DayEventMeal": {
+        "type": "object",
+        "properties": {
+          "mealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayEventMealState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayEventMealState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mealId",
+          "mealType",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      },
+      "DayEventMealState": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "type": "number",
+            "minimum": 0
+          },
+          "calories": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "eaten": {
+            "type": "boolean"
+          },
+          "leftover": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "servings",
+          "calories",
+          "eaten",
+          "leftover"
+        ],
+        "additionalProperties": false
+      },
+      "DayEventUndo": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "restore",
+              "swap"
+            ]
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "restore": {
+            "maxItems": 140,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mealId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "scale": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "mealId",
+                "scale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "alsoDays": {
+            "maxItems": 28,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "eventId",
+          "restore",
+          "alsoDays"
+        ],
+        "additionalProperties": false
+      },
+      "DayHistory": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dayId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kept": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "choice": {
+                    "$ref": "#/components/schemas/KeptChoice"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "choice",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holds": {
+            "type": "object",
+            "properties": {
+              "ownMeals": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "eatenMeals": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "leftovers": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rests": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "diaryEntries": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "ownMeals",
+              "eatenMeals",
+              "leftovers",
+              "rests",
+              "diaryEntries"
+            ],
+            "additionalProperties": false
+          },
+          "events": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayEvent"
+            }
+          },
+          "undo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayEventUndo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "planId",
+          "dayId",
+          "date",
+          "revision",
+          "kept",
+          "holds",
+          "events",
+          "undo"
+        ],
+        "additionalProperties": false
+      },
       "DayMealFate": {
         "type": "object",
         "properties": {
@@ -17435,6 +17957,19 @@
           "error"
         ]
       },
+      "KeepDayRequest": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "revision"
+        ]
+      },
       "KeepFrozenRequest": {
         "type": "object",
         "properties": {
@@ -17465,6 +18000,14 @@
         "required": [
           "ingredientId",
           "date"
+        ]
+      },
+      "KeptChoice": {
+        "type": "string",
+        "enum": [
+          "undo",
+          "spread",
+          "kept"
         ]
       },
       "KindLimit": {
