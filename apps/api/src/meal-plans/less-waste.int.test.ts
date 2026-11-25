@@ -650,6 +650,21 @@ describe('the packs of a plan that wastes less, closed after the planner', () =>
       expect(after.packs.staysFrozen).toEqual([]);
     });
 
+    it('says in the answer to the change the day its note of what to take out of the freezer changed', async () => {
+      const plan = await aPlanWithChickenOn([1]);
+      await t.prisma.plannedMeal.update({
+        where: { id: lunchOf(plan, 1).id },
+        data: { servings: 2 },
+      });
+
+      const answer = await t.app
+        .get(MealPlansService)
+        .setEaten(user.id, 'en', plan.id, plan.days[0]!.meals[0]!.id, true, '2026-01-05');
+
+      // Tuesday's lunch takes the package whole: it comes out on Monday, the day before.
+      expect(answer.effects).toEqual({ lists: [], thaw: ['2026-01-05'], freeze: [] });
+    });
+
     it('keeps a package it said to take out today when the meal it was for goes, and lets one for later go', async () => {
       // Tuesday eats it whole: it comes out today, Monday.
       const forTomorrow = await aPlanWithChickenOn([1]);

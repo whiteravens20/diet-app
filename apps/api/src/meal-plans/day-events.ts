@@ -13,9 +13,9 @@ import {
   KeptChoice,
   MAX_DAY_EVENTS,
   MealType,
+  PlanChangeEffects,
   PlanOptions,
   type DayEventCause,
-  type PlanChangeEffects,
 } from '@diet-app/shared';
 import { levelOf } from '../engine/waste-levels.js';
 import {
@@ -578,4 +578,23 @@ export async function keepEvents(
     )
     INSERT INTO "PlanDayEvent" ("id", "dayId", "change", "cause", "own", "detail", "changes", "effects", "revision")
     VALUES ${Prisma.join(rows)}`;
+}
+
+/**
+ * What the change that left the plan `planId` at `revision` did to the lists and the freezer (`keepEvents`), as the
+ * answer to it says it; null where it did nothing to them, or moved none of the plan's days.
+ */
+export async function effectsOf(
+  db: Pick<Tx, 'planDayEvent'>,
+  planId: string,
+  revision: number,
+): Promise<PlanChangeEffects | null> {
+  const event = await db.planDayEvent.findFirst({
+    where: { revision, day: { planId } },
+    select: { effects: true },
+  });
+  const effects = PlanChangeEffects.safeParse(event?.effects ?? null);
+  if (!effects.success) return null;
+  const { lists, thaw, freeze } = effects.data;
+  return lists.length + thaw.length + freeze.length > 0 ? effects.data : null;
 }

@@ -248,7 +248,14 @@ export class LeftoversService {
       for (const dayId of new Set(sides.flatMap((side) => [side.source.dayId, side.next.id])))
         await this.plans.rebalanceDayInternal(dayId, tx, today);
     });
-    return this.plans.buildRebalanceResult(userId, locale, planId, 'day', null);
+    return this.plans.buildRebalanceResult(
+      userId,
+      locale,
+      planId,
+      'day',
+      null,
+      claims(sides).find((claim) => claim.planId === planId)?.revision ?? null,
+    );
   }
 
   /**
@@ -321,7 +328,14 @@ export class LeftoversService {
         for (const dayId of days) await this.plans.rebalanceDayInternal(dayId, tx, today);
       },
     );
-    return this.plans.buildRebalanceResult(userId, locale, planId, 'day', null);
+    return this.plans.buildRebalanceResult(
+      userId,
+      locale,
+      planId,
+      'day',
+      null,
+      plans.get(planId) ?? null,
+    );
   }
 
   /** A meal of the user's plan that may give a leftover now; otherwise why it may not. */

@@ -449,7 +449,14 @@ export class MealSwapService {
         return summary && joinSizings(tx, summary, others);
       },
     );
-    return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
+    return this.plans.buildRebalanceResult(
+      userId,
+      locale,
+      req.planId,
+      'day',
+      summary,
+      req.revision,
+    );
   }
 
   /**

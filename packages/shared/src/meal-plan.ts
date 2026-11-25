@@ -2021,6 +2021,8 @@ export type PlanChangeEffects = z.infer<typeof PlanChangeEffects>;
  */
 export const RebalanceResult = z.object({
   plan: MealPlan,
+  /** What the change did to the lists and the freezer (`PlanChangeEffects`); null where it did nothing to them. */
+  effects: PlanChangeEffects.nullable(),
   rebalance: z
     .object({
       scope: z.enum(['day', 'plan']),

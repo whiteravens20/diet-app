@@ -136,6 +136,7 @@ import {
   type StoredPlate,
   type MealRow,
 } from './plan-days.js';
+import { effectsOf } from './day-events.js';
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
 import { planWeeks } from './plan-weeks.js';
@@ -800,9 +801,9 @@ export class MealPlansService {
             return this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today());
           },
         );
-        return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+        return this.buildRebalanceResult(userId, locale, planId, 'day', summary, day.plan.revision);
       },
-      replay: (id) => this.buildRebalanceResult(userId, locale, id, 'day', null),
+      replay: (id) => this.buildRebalanceResult(userId, locale, id, 'day', null, null),
     });
   }
 
@@ -938,7 +939,14 @@ export class MealPlansService {
         planId,
         today,
       );
-    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+    return this.buildRebalanceResult(
+      userId,
+      locale,
+      planId,
+      'day',
+      summary,
+      meal.day.plan.revision,
+    );
   }
 
   /**
@@ -965,7 +973,7 @@ export class MealPlansService {
     const theirs = forAll ? await this.otherOfShared(userId, meal) : null;
     const other = theirs && (theirs.eatenAt !== null) !== eaten ? theirs : null;
     if ((meal.eatenAt !== null) === eaten && !other) {
-      return this.buildRebalanceResult(userId, locale, planId, 'day', null);
+      return this.buildRebalanceResult(userId, locale, planId, 'day', null, null);
     }
     const today = clientToday ?? this.today();
     // A day still to come is not eaten yet, as the diary holds no day ahead. Dates in this form compare as text.
@@ -1013,7 +1021,14 @@ export class MealPlansService {
         other.day.planId,
         today,
       );
-    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+    return this.buildRebalanceResult(
+      userId,
+      locale,
+      planId,
+      'day',
+      summary,
+      meal.day.plan.revision,
+    );
   }
 
   /**
@@ -1164,7 +1179,7 @@ export class MealPlansService {
       await writePlan(this.prisma, planId, revision, clientToday ?? this.today(), 'undo', (tx) =>
         this.restoreScales(planId, restore, tx),
       );
-      return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
+      return this.buildRebalanceResult(userId, locale, planId, req.scope, null, revision);
     }
 
     if (req.scope === 'plan') {
@@ -1177,7 +1192,7 @@ export class MealPlansService {
         'spread',
         (tx) => this.rebalanceRestInternal(planId, tx, req.date ?? today, today),
       );
-      return this.buildRebalanceResult(userId, locale, planId, 'plan', summary);
+      return this.buildRebalanceResult(userId, locale, planId, 'plan', summary, revision);
     }
 
     // The contract refuses a single day without its date before it gets here.
@@ -1190,7 +1205,7 @@ export class MealPlansService {
       cause,
       (tx) => this.rebalanceDayInternal(day.id, tx, clientToday ?? this.today()),
     );
-    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary, revision);
   }
 
   /**
@@ -2108,7 +2123,7 @@ export class MealPlansService {
         }
       },
     );
-    return this.buildRebalanceResult(userId, locale, req.planId, 'day', null);
+    return this.buildRebalanceResult(userId, locale, req.planId, 'day', null, req.revision);
   }
 
   /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
@@ -2166,10 +2181,13 @@ export class MealPlansService {
     planId: string,
     scope: 'day' | 'plan',
     summary: RebalanceSummary | null,
+    /** The revision of the plan the change was written from (`writePlan`); null where nothing was written. */
+    written: number | null,
   ): Promise<RebalanceResult> {
     const plan = await this.get(userId, locale, planId);
     return {
       plan,
+      effects: written === null ? null : await effectsOf(this.prisma, planId, written + 1),
       rebalance: summary
         ? {
             scope,

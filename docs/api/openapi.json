@@ -20504,6 +20504,78 @@
         ],
         "additionalProperties": false
       },
+      "PlanChangeEffects": {
+        "type": "object",
+        "properties": {
+          "lists": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "planId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "profileId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "fromDate": {
+                  "$ref": "#/components/schemas/CalendarDay"
+                },
+                "toDate": {
+                  "$ref": "#/components/schemas/CalendarDay"
+                },
+                "householdId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "planId",
+                "profileId",
+                "fromDate",
+                "toDate",
+                "householdId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "thaw": {
+            "maxItems": 28,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          },
+          "freeze": {
+            "maxItems": 28,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          }
+        },
+        "required": [
+          "lists",
+          "thaw",
+          "freeze"
+        ],
+        "additionalProperties": false
+      },
       "PlanFreezerStock": {
         "type": "object",
         "properties": {
@@ -23774,6 +23846,16 @@
           "plan": {
             "$ref": "#/components/schemas/MealPlan"
           },
+          "effects": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanChangeEffects"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rebalance": {
             "anyOf": [
               {
@@ -23827,6 +23909,7 @@
         },
         "required": [
           "plan",
+          "effects",
           "rebalance"
         ],
         "additionalProperties": false
@@ -26773,6 +26856,16 @@
           "plan": {
             "$ref": "#/components/schemas/MealPlan"
           },
+          "effects": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanChangeEffects"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rebalance": {
             "anyOf": [
               {
@@ -26836,6 +26929,7 @@
         },
         "required": [
           "plan",
+          "effects",
           "rebalance",
           "aiMeta"
         ],

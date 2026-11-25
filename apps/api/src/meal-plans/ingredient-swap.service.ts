@@ -283,7 +283,14 @@ export class IngredientSwapService {
       },
     );
     return {
-      ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
+      ...(await this.plans.buildRebalanceResult(
+        userId,
+        locale,
+        req.planId,
+        'day',
+        summary,
+        meal.day.plan.revision,
+      )),
       aiMeta: variant.aiMeta,
     };
   }
