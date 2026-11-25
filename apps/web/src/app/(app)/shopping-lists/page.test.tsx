@@ -18,6 +18,10 @@ import { plain, spaced } from '@/testing/spaces';
 const texts = messages.shoppingLists;
 const PLAN = '11111111-1111-4111-8111-111111111111';
 
+/** The address the page is opened at: a link may name the list it leads to. */
+const address = vi.hoisted(() => ({ search: '' }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(address.search) }));
+
 type Entry = ShoppingList['groups'][number]['items'][number];
 
 const anEntry = (name: string, category: Entry['category'], over: Partial<Entry> = {}): Entry => ({
@@ -81,7 +85,11 @@ const aList = aListOf(
 /** The client of the page opened last. */
 let shownWith: QueryClient;
 
-async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' = 'none') {
+async function renderPage(
+  list: ShoppingList = aList,
+  aiMode: 'none' | 'admin' = 'none',
+  others: ShoppingList[] = [],
+) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/profiles'
@@ -99,7 +107,7 @@ async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' =
                 totalPages: 1,
               }
             : path.startsWith('/shopping-lists?')
-              ? [list]
+              ? [list, ...others]
               : []) as never,
     ),
   );
@@ -131,7 +139,21 @@ const entries = (): string[] =>
 
 describe('a shopping list, looked through for an entry', () => {
   afterEach(() => {
+    address.search = '';
     vi.restoreAllMocks();
+  });
+
+  it('opens on the list a link names, of the plan and the profile it names', async () => {
+    const later = {
+      ...aListOf([anEntry('Couscous', 'grains')], [anEntry('Carrot', 'vegetables')]),
+      id: '55555555-5555-4555-8555-555555555555',
+      fromDate: '2026-01-06',
+    };
+    address.search = `?profile=66666666-6666-4666-8666-666666666666&plan=${PLAN}&list=${later.id}`;
+
+    await renderPage(aList, 'none', [later]);
+
+    expect(entries()).toEqual(['Couscous', 'Carrot']);
   });
 
   it('shows every entry under its aisle until something is looked for', async () => {

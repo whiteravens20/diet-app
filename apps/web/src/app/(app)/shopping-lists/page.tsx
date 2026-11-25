@@ -4,8 +4,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useId, useRef, useState } from 'react';
+import { Suspense, useId, useRef, useState } from 'react';
 import { ChevronRight, ShoppingBasket } from 'lucide-react';
 import type { MealPlanPage, Profile, SessionUser, ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -67,6 +68,15 @@ const withTick = (
  * back later restores the same checkboxes.
  */
 export default function ShoppingListsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-40" />}>
+      <ShoppingListsContent />
+    </Suspense>
+  );
+}
+
+/** The page itself; a link may name the profile, the plan and the list it opens on (`?profile=&plan=&list=&household=`). */
+function ShoppingListsContent() {
   const t = useTranslations('shoppingLists');
   const tCommon = useTranslations('common');
   const tDiet = useTranslations('enums.dietType');
@@ -75,12 +85,18 @@ export default function ShoppingListsPage() {
   const fmt = useFormat();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [pickedProfile, setPickedProfile] = useState<string | null>(null);
-  const [pickedPlan, setPickedPlan] = useState<string | null>(null);
-  const [pickedList, setPickedList] = useState<string | null>(null);
-  const [openHousehold, setOpenHousehold] = useState<string | null>(null);
+  // A link from elsewhere (the card after a change of a plan) names the list it leads to, of a profile and a plan.
+  const params = useSearchParams();
+  const linked = (name: string): string | null => {
+    const value = params.get(name);
+    return value && /^[0-9a-f-]{36}$/i.test(value) ? value : null;
+  };
+  const [pickedProfile, setPickedProfile] = useState<string | null>(() => linked('profile'));
+  const [pickedPlan, setPickedPlan] = useState<string | null>(() => linked('plan'));
+  const [pickedList, setPickedList] = useState<string | null>(() => linked('list'));
+  const [openHousehold, setOpenHousehold] = useState<string | null>(() => linked('household'));
   // The household lists fold under the plan's list, and open where a part of one leads to them.
-  const [householdOpen, setHouseholdOpen] = useState(false);
+  const [householdOpen, setHouseholdOpen] = useState(() => linked('household') !== null);
   // The form a list is made with folds under the list, open while the plan has none: undefined until the user says.
   const [makingAsked, setMakingAsked] = useState<boolean | null>(null);
   // What went wrong with a list made by the form, said in the form.
