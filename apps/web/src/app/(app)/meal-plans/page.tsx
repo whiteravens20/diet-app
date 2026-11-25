@@ -22,6 +22,7 @@ import {
   type FavoriteSet,
   type GeneratePlanRequest,
   type MealPlan,
+  type MealPlanDay,
   type MealPlanPage,
   type MealPlanSummary,
   type PlanRelaxation,
@@ -59,6 +60,7 @@ import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast, toldEffects, type PlanWord } from './rebalance-toast';
+import type { HistoryOf } from './day-history-dialog';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { askedOf, repeatsOf, WasteLevelChoice, type WasteLevel } from './less-waste';
@@ -77,6 +79,12 @@ const PlanCalendar = dynamic(
 );
 
 /** Fetched when somebody corrects the words of a recipe a swap made, with the form that writes them. */
+/** Fetched when the history of a day is opened: no first visit of the page waits for the window. */
+const DayHistoryDialog = dynamic(
+  () => import('./day-history-dialog').then((dialog) => dialog.DayHistoryDialog),
+  { ssr: false },
+);
+
 const RecipeTextDialog = dynamic(
   () => import('./recipe-text-dialog').then((dialog) => dialog.RecipeTextDialog),
   { ssr: false },
@@ -409,6 +417,16 @@ function MealPlansContent() {
 
   // What the last edit came to, surfaced after a swap and after anything that resized a day. It goes with the next change.
   const [rebalanceToast, setRebalanceToast] = useState<PlanWord | null>(null);
+  // The day whose history is open ("Historia dnia").
+  const [historyFor, setHistoryFor] = useState<HistoryOf | null>(null);
+  const historyOf = (planId: string, day: MealPlanDay): HistoryOf => ({
+    planId,
+    dayId: day.id,
+    date: day.date,
+    profileId: activeId ?? '',
+    resizes: day.resizes,
+    from: 'plan',
+  });
   // The recipe a swap made whose words are being corrected, and the plan that holds it.
   const [rewording, setRewording] = useState<{ planId: string; recipeId: string } | null>(null);
   const showRebalance = (
@@ -1155,6 +1173,7 @@ function MealPlansContent() {
                 setNotice(null);
                 rebalance.mutate({ planId: plan.id, scope: 'day', date });
               }}
+              onHistory={(day) => setHistoryFor(historyOf(plan.id, day))}
               onSwapped={(res, plannedMealId) => showRebalance(plan.id, res, plannedMealId)}
               onChanged={() => {
                 setRebalanceToast(null);
@@ -1365,11 +1384,26 @@ function MealPlansContent() {
             setRewording({ planId: rebalanceToast.planId, recipeId });
             setRebalanceToast(null);
           }}
+          onHistory={() =>
+            rebalanceToast.day &&
+            setHistoryFor(historyOf(rebalanceToast.planId, rebalanceToast.day))
+          }
           showDay={(date) => {
             setOpenPlan(rebalanceToast.planId);
             setSought({ planId: rebalanceToast.planId, date });
           }}
           onDismiss={() => setRebalanceToast(null)}
+        />
+      )}
+      {historyFor && (
+        <DayHistoryDialog
+          of={historyFor}
+          today={localDate()}
+          onChanged={(planId) => {
+            setRebalanceToast(null);
+            void invalidateEdited(planId);
+          }}
+          onClose={() => setHistoryFor(null)}
         />
       )}
       {rewording && (

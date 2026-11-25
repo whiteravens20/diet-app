@@ -41,6 +41,7 @@ function shown(over: Partial<PlanWord> = {}) {
     undo: vi.fn(),
     undoSwap: vi.fn(),
     reword: vi.fn(),
+    history: vi.fn(),
     showDay: vi.fn(),
     dismiss: vi.fn(),
   };
@@ -61,6 +62,7 @@ function shown(over: Partial<PlanWord> = {}) {
         onUndoSwap={spy.undoSwap}
         onRebalanceRest={spy.rest}
         onReword={spy.reword}
+        onHistory={spy.history}
         showDay={spy.showDay}
         onDismiss={spy.dismiss}
       />
@@ -125,6 +127,13 @@ describe('the card that says what a change of a plan came to', () => {
     const passing = shown();
     vi.advanceTimersByTime(15_000);
     expect(passing.dismiss).toHaveBeenCalled();
+  });
+
+  it("opens the day's history", async () => {
+    const { history } = shown();
+
+    await userEvent.click(screen.getByRole('button', { name: texts.toastHistory }));
+    expect(history).toHaveBeenCalled();
   });
 
   it('offers to spread a day off its target over the rest of the plan, and says what that does before it is pressed', async () => {

@@ -228,6 +228,7 @@ export function PlanCard({
   profileName,
   onSpread,
   onResizeDay,
+  onHistory,
   onSwapped,
   onChanged,
   onLeftover,
@@ -290,6 +291,8 @@ export function PlanCard({
   onSpread: (date: string) => void;
   /** Bring the day of `date` back to its target with its own meals, the diary's entries counted as eaten. */
   onResizeDay: (date: string) => void;
+  /** Open the history of a day ("Historia dnia"): what holds it and its changes. */
+  onHistory: (day: MealPlanDay) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
   onSwapped: (result: RebalanceResult, plannedMealId: string) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
@@ -714,32 +717,39 @@ export function PlanCard({
               </p>
             )}
             {frozenHere.ofDay.map((rest) => frozenLine(rest, false))}
-            {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away. */}
-            {(day.diary || day.date <= today) && (
-              <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                {day.diary && (
-                  <span>
-                    {day.diary.otherPlans.length > 0
-                      ? t('otherPlansLine', {
-                          from: day.diary.entries > 0 ? 'both' : 'plans',
-                          kcal: day.diary.nutrition.calories,
-                        })
-                      : t('diaryLine', {
-                          kcal: day.diary.nutrition.calories,
-                          count: day.diary.entries,
-                        })}
-                  </span>
-                )}
-                {day.date <= today && (
-                  <Link
-                    href={`/diary?profile=${plan.profileId}&date=${day.date}`}
-                    className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
-                  >
-                    {t('openDiary')}
-                  </Link>
-                )}
-              </p>
-            )}
+            {/* What the diary adds to the day is counted in its figures above; the diary of a day that has come is a link away,
+                and the day's history beside it, on every day. */}
+            <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+              {day.diary && (
+                <span>
+                  {day.diary.otherPlans.length > 0
+                    ? t('otherPlansLine', {
+                        from: day.diary.entries > 0 ? 'both' : 'plans',
+                        kcal: day.diary.nutrition.calories,
+                      })
+                    : t('diaryLine', {
+                        kcal: day.diary.nutrition.calories,
+                        count: day.diary.entries,
+                      })}
+                </span>
+              )}
+              {day.date <= today && (
+                <Link
+                  href={`/diary?profile=${plan.profileId}&date=${day.date}`}
+                  className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
+                >
+                  {t('openDiary')}
+                </Link>
+              )}
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-foreground"
+                onClick={() => onHistory(day)}
+              >
+                {t('toastHistory')}
+              </button>
+            </p>
             {/* A day off its target says so for as long as it is: a notice that goes away is easy to miss. Where the plan has
                 a way to close the gap, the mark opens the question of what to do, with each way said before it is pressed;
                 where it has none, the mark says why in a line of its own. */}

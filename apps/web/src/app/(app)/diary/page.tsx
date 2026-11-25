@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Copy, NotebookPen, Pencil, Plus, Trash } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense, useId, useState } from 'react';
@@ -55,6 +56,12 @@ import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
 import { carbsBandOf, carbsStandingOf } from '@/lib/carbs-band';
+
+/** Fetched when the history of the plan's day is opened: no first visit of the diary waits for the window. */
+const DayHistoryDialog = dynamic(
+  () => import('../meal-plans/day-history-dialog').then((dialog) => dialog.DayHistoryDialog),
+  { ssr: false },
+);
 
 /** The meals of a day in the order they are eaten. */
 const EATING_ORDER = MEAL_SLOTS_BY_COUNT[5]!;
@@ -135,6 +142,8 @@ function DiaryContent() {
           effects: result.effects ?? null,
         }
       : null;
+  // The history of the plan's day ("Historia dnia"), opened under the day's figures or from the card after a change.
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   /** What a change of the diary or of a plan's day touches: the day, and every view of a plan, which counts the diary. */
   const refresh = () =>
@@ -341,6 +350,7 @@ function DiaryContent() {
               onRebalance={(planId) =>
                 rebalance.mutate({ planId, body: { scope: 'day', date: shown.date } })
               }
+              onHistory={() => setHistoryOpen(true)}
             />
 
             {ahead ? (
@@ -465,11 +475,30 @@ function DiaryContent() {
           onRebalanceRest={() =>
             rebalance.mutate({ planId: toast.planId, body: { scope: 'plan' } })
           }
+          onHistory={day.data?.plan ? () => setHistoryOpen(true) : undefined}
           showDay={{
             href: (shown) =>
               `/meal-plans?profile=${active?.id ?? ''}&plan=${toast.planId}&day=${shown}`,
           }}
           onDismiss={() => setToast(null)}
+        />
+      )}
+      {historyOpen && day.data?.plan && (
+        <DayHistoryDialog
+          of={{
+            planId: day.data.plan.id,
+            dayId: day.data.plan.dayId,
+            date,
+            profileId: day.data.profileId,
+            resizes: day.data.plan.resizes,
+            from: 'diary',
+          }}
+          today={today}
+          onChanged={() => {
+            setToast(null);
+            void refresh();
+          }}
+          onClose={() => setHistoryOpen(false)}
         />
       )}
     </div>
@@ -563,14 +592,18 @@ function DaySummary({
   past,
   busy,
   onRebalance,
+  onHistory,
 }: {
   day: DiaryDay;
   /** The day is before today: its meals are done with, and what it is off by goes to the days after it. */
   past: boolean;
   busy: boolean;
   onRebalance: (planId: string) => void;
+  /** Opens the history of the plan's day ("Historia dnia"). */
+  onHistory: () => void;
 }) {
   const t = useTranslations('diary');
+  const tPlans = useTranslations('mealPlans');
   const tMacro = useTranslations('macrosLine');
   const fmt = useFormat();
   const id = useId();
@@ -679,12 +712,23 @@ function DaySummary({
                 {t(written ? 'planOnTarget' : 'planOnTargetPlain')}
               </p>
             )}
-            <Link
-              href={`/meal-plans?profile=${day.profileId}&plan=${plan.id}&day=${day.date}`}
-              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-            >
-              {t('openPlan')}
-            </Link>
+            <div className="flex flex-wrap gap-1">
+              <Link
+                href={`/meal-plans?profile=${day.profileId}&plan=${plan.id}&day=${day.date}`}
+                className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+              >
+                {t('openPlan')}
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="dialog"
+                onClick={onHistory}
+              >
+                {tPlans('toastHistory')}
+              </Button>
+            </div>
           </div>
         )}
         {/* Where the target comes from, what ≈ and the marks of the label mean: once, under the figures they explain. */}

@@ -693,6 +693,62 @@ test.describe('the plans of a profile, by when they are and by how their days st
   });
 });
 
+test.describe("a plan's day and its history", () => {
+  test("keeps a meal of one's own added to a day, and the day's history tells it in a window that bars nobody", async ({
+    session,
+    messages,
+  }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    const history = messages.dayHistory as unknown as { title: string; cause: Texts };
+    const common = messages.common as Texts;
+    await page.goto('/meal-plans');
+    await settled(page);
+    await theFormForAPlan(page, messages);
+
+    // A plan made for this test and taken away after it: the account's own plan stays what the other tests find.
+    const made = page.waitForResponse(
+      (res) => new URL(res.url()).pathname === '/api/meal-plans/generate',
+    );
+    await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+    const plan = (await (await made).json()) as { id: string };
+    const head = page.getByRole('button', { name: plans.hidePlan! });
+    await expect(head).toBeVisible();
+    const card = head.locator('xpath=../..');
+
+    await card.getByRole('button', { name: plans.addCustomMeal! }).first().click();
+    const dialog = page.getByRole('dialog', { name: plans.customModalTitle! });
+    await dialog.getByLabel(plans.customName!, { exact: true }).fill('A sandwich');
+    await dialog.getByLabel(plans.customCalories!, { exact: true }).fill('400');
+    const added = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'POST' &&
+        new URL(res.url()).pathname.startsWith(`/api/meal-plans/${plan.id}/`),
+    );
+    await dialog.getByRole('button', { name: plans.customSubmit!, exact: true }).click();
+    expect((await added).ok()).toBe(true);
+    await expect(dialog).toBeHidden();
+
+    // The day's history, from its link beside its diary: the meal of one's own is its latest change.
+    await card.getByRole('button', { name: plans.toastHistory!, exact: true }).first().click();
+    const window = page.getByRole('dialog', { name: history.title! });
+    await expect(window.getByText(history.cause['own-meal']!, { exact: true })).toBeVisible();
+    await expect(window.getByText('A sandwich', { exact: false }).first()).toBeVisible();
+    expect(await barriers(page), "a day's history").toEqual([]);
+    await window.getByRole('button', { name: common.close!, exact: true }).click();
+    await expect(window).toBeHidden();
+
+    page.once('dialog', (asked) => void asked.accept());
+    const gone = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'DELETE' &&
+        new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`,
+    );
+    await card.getByRole('button', { name: common.delete!, exact: true }).click();
+    expect((await gone).ok()).toBe(true);
+  });
+});
+
 test.describe('a long plan', () => {
   test('reads a week at a time with its days folded, and stays at what was changed, whichever way it is changed', async ({
     session,

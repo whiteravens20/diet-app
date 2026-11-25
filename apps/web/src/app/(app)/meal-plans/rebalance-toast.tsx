@@ -45,7 +45,8 @@ const listHref = (list: PlanChangeEffects['lists'][number]): string =>
  * what was sized again, what the change did to the shopping lists and the freezer, and what can be done about it. A
  * swap can be taken back with its portions; any other change, its portions alone. Spreading is offered with what it
  * does said beside it where the day is off its target, as the day itself offers it. After a swap of an ingredient
- * whose text no model worded, the recipe's words can be corrected. Goes by itself after some seconds, and with the next change; a card that speaks of a list or the freezer stays until it is closed.
+ * whose text no model worded, the recipe's words can be corrected. The day's history is a link away. Goes by itself
+ * after some seconds, and with the next change; a card that speaks of a list or the freezer stays until it is closed.
  */
 export function RebalanceToast({
   word,
@@ -54,6 +55,7 @@ export function RebalanceToast({
   onUndoSwap,
   onRebalanceRest,
   onReword,
+  onHistory,
   showDay,
   onDismiss,
 }: {
@@ -64,6 +66,8 @@ export function RebalanceToast({
   onUndoSwap?: () => void;
   onRebalanceRest: () => void;
   onReword?: (recipeId: string) => void;
+  /** Opens the history of the day the change was of. */
+  onHistory?: () => void;
   /** Leads to a day of the plan whose notes of the freezer the change moved: on the plan's page itself, or by a link. */
   showDay: ((date: string) => void) | { href: (date: string) => string };
   onDismiss: () => void;
@@ -223,6 +227,11 @@ export function RebalanceToast({
               aria-describedby="rebalance-rest-note"
             >
               {t('rebalanceRest')}
+            </Button>
+          )}
+          {onHistory && day && (
+            <Button type="button" variant="ghost" size="sm" onClick={onHistory}>
+              {t('toastHistory')}
             </Button>
           )}
           <Button type="button" variant="ghost" size="sm" onClick={onDismiss}>
