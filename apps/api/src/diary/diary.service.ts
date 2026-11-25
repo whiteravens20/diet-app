@@ -171,6 +171,7 @@ export class DiaryService {
         where: { date: new Date(date), plan: { profileId } },
         orderBy: [...MADE_LAST],
         select: {
+          id: true,
           planId: true,
           calorieTarget: true,
           overrides: true,
@@ -319,6 +320,7 @@ export class DiaryService {
       plan: planDay
         ? {
             id: planDay.planId,
+            dayId: planDay.id,
             skipped,
             meals,
             ...standing,

@@ -15429,6 +15429,10 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "dayId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
                   "skipped": {
                     "type": "boolean"
                   },
@@ -15461,6 +15465,7 @@
                 },
                 "required": [
                   "id",
+                  "dayId",
                   "skipped",
                   "meals",
                   "calorieDelta",

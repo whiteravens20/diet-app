@@ -711,6 +711,8 @@ describe('the diary of a profile', () => {
         from: 'plan',
       });
       expect(shown.plan!.id).toBe(plan.id);
+      // The plan's day, whose history the diary opens.
+      expect(shown.plan!.dayId).toBe(today.id);
       expect(shown.plan!.meals.map((meal) => [meal.id, meal.mealType, meal.name])).toEqual(
         today.meals.map((meal) => [meal.id, meal.mealType, meal.recipe!.title]),
       );

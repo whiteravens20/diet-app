@@ -26,6 +26,7 @@ vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(a
 const texts = messages.diary;
 const PROFILE = '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f';
 const PLAN = '11111111-1111-4111-8111-111111111111';
+const PLAN_DAY = '0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d';
 const OATS = '33333333-3333-4333-8333-333333333331';
 const SOUP = '33333333-3333-4333-8333-333333333332';
 const RECIPE = '44444444-4444-4444-8444-444444444444';
@@ -62,6 +63,7 @@ const aDay = (over: Partial<DiaryDay> = {}): DiaryDay => ({
   target: { calories: 2000, protein: 125, fat: 67, carbs: 225, carbsFloor: null, from: 'plan' },
   plan: {
     id: PLAN,
+    dayId: PLAN_DAY,
     skipped: false,
     meals: [
       {

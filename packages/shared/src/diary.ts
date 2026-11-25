@@ -272,6 +272,8 @@ export const DiaryDay = z.object({
   plan: z
     .object({
       id: z.string().uuid(),
+      /** The plan's day: its history (`DayHistory`) is read by it. */
+      dayId: z.string().uuid(),
       skipped: z.boolean(),
       meals: z.array(DiaryPlanMeal),
       calorieDelta: z.number(),
