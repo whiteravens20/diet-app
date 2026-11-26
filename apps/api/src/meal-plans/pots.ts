@@ -15,6 +15,7 @@ export interface PotMeal {
   servings: number;
   quantityScale: number;
   cookedServings: number | null;
+  potHeld: boolean;
   leftoverFromDate: Date | null;
   leftoverFromMealType: string | null;
   /** The leftover of the pot's rest it gave, where it gave one: a meal of the day after it. */
@@ -33,6 +34,8 @@ export interface Pot {
   kept: boolean;
   /** Whether it was eaten: it holds what it was eaten with, and the pot still holds for it what was cooked. */
   eaten: boolean;
+  /** Whether its last sizing would have given it more than the pot holds for it (`PlannedMeal.potHeld`). */
+  held: boolean;
 }
 
 /**
@@ -68,6 +71,7 @@ export function potsOf(
           : 0,
         kept: meal.cookedServings !== null,
         eaten: meal.eatenAt !== null,
+        held: meal.potHeld,
       });
     }
   }
@@ -84,6 +88,7 @@ const POT_MEAL = {
   servings: true,
   quantityScale: true,
   cookedServings: true,
+  potHeld: true,
   leftoverFromDate: true,
   leftoverFromMealType: true,
   givenLeftover: { select: { servings: true, quantityScale: true } },
@@ -145,7 +150,7 @@ export async function settlePots(
   if (gone.length > 0)
     await tx.plannedMeal.updateMany({
       where: { id: { in: gone } },
-      data: { cookedServings: null },
+      data: { cookedServings: null, potHeld: false },
     });
 }
 
@@ -161,3 +166,43 @@ export const potRest = (pot: Pot, portion: number): number => {
   const rest = pot.cooked - pot.carried - portion;
   return rest > 1e-6 ? rest : 0;
 };
+
+/**
+ * What a sizing says of each meal of `rows` eaten from a pot cooked already: held (true) where it left the meal at
+ * its cap (`mostScale`) and the same sizing without the caps (`free`) would give it more; not held (false) where it
+ * left the meal under its cap, something left in the pot. A meal at its cap that it would give no more is left out,
+ * as it was: a sizing that leaves a day as it is, after one that the pot held, says nothing new of it.
+ */
+export function heldAtPots(
+  rows: readonly { id: string; quantityScale: number; mostScale?: number }[],
+  scales: ReadonlyMap<string, number>,
+  free: () => ReadonlyMap<string, number>,
+): Map<string, boolean> {
+  const said = new Map<string, boolean>();
+  const atCap: { id: string; quantityScale: number; mostScale: number }[] = [];
+  for (const row of rows) {
+    if (row.mostScale === undefined) continue;
+    if ((scales.get(row.id) ?? row.quantityScale) < row.mostScale - 1e-6) said.set(row.id, false);
+    else atCap.push({ ...row, mostScale: row.mostScale });
+  }
+  if (atCap.length === 0) return said;
+  const freely = free();
+  for (const row of atCap)
+    if ((freely.get(row.id) ?? row.quantityScale) > row.mostScale + 1e-6) said.set(row.id, true);
+  return said;
+}
+
+/** Write on the meals eaten from a pot cooked already what a sizing says of them (`heldAtPots`). */
+export async function keepHeld(
+  tx: Pick<Prisma.TransactionClient, 'plannedMeal'>,
+  said: ReadonlyMap<string, boolean>,
+): Promise<void> {
+  for (const held of [true, false]) {
+    const ids = [...said].filter(([, is]) => is === held).map(([id]) => id);
+    if (ids.length > 0)
+      await tx.plannedMeal.updateMany({
+        where: { id: { in: ids }, potHeld: !held },
+        data: { potHeld: held },
+      });
+  }
+}

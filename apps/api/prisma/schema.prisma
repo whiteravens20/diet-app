@@ -1146,6 +1146,9 @@ model PlannedMeal {
   // the first sizing of its day after the pot was cooked; null for every other meal, and for one no sizing has
   // changed since, whose portion is what was cooked for it.
   cookedServings Float?
+  // Of such a meal: its last sizing would have given it more than the pot holds for it, so it holds what the pot
+  // holds and the day's other meals take the rest. False for every other meal.
+  potHeld        Boolean @default(false)
   // Eaten by both people of a joint plan: the meal of the other plan at the
   // same day and time of day has the same link. Null for a meal of one's own
   // plan alone, and once the link is undone for that day.

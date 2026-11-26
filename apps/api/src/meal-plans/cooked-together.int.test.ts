@@ -2,7 +2,9 @@
 
 import {
   AddCustomMealRequest,
+  GeneratePlanRequest,
   PutLeftoverRequest,
+  RebalanceRequest,
   RegenerateDayRequest,
   type DayVariations,
   type MealPlan,
@@ -561,6 +563,7 @@ describe('a pot cooked already', () => {
       cookedOn: plan.days[0]!.date,
       cooked: cookedFor,
       rest: expect.closeTo(cookedFor - portion(tomorrow), 6),
+      held: false,
       offer: 'ok',
     });
     // The pot says what it was cooked in, and the list what was bought for it: every meal of the second day is of a
@@ -589,7 +592,7 @@ describe('a pot cooked already', () => {
       eatenAt: null,
       quantityScale: tomorrow.quantityScale,
       carriedTo: { date: plan.days[2]!.date, mealType: 'lunch' },
-      pot: { rest: 0, offer: null },
+      pot: { rest: 0, held: false, offer: null },
     });
 
     // Taken back, the day after has its dish again, and the pot its rest.
@@ -630,6 +633,7 @@ describe('a pot cooked already', () => {
         cookedOn: plan.days[0]!.date,
         cooked: portion(tomorrow),
         rest: 0,
+        held: false,
         offer: null,
       });
     } finally {
@@ -664,10 +668,158 @@ describe('a pot cooked already', () => {
 
     const tomorrow = lunchOf(await read(), 1);
     expect(portion(tomorrow)).toBeLessThanOrEqual(cookedFor + 1e-6);
-    expect(tomorrow.pot).toMatchObject({ cooked: cookedFor, rest: 0, offer: null });
+    expect(tomorrow.pot).toMatchObject({ cooked: cookedFor, rest: 0, held: true, offer: null });
     const breakfast = (await read()).days[1]!.meals.find((meal) => meal.mealType === 'breakfast')!;
     const before = plan.days[1]!.meals.find((meal) => meal.mealType === 'breakfast')!;
     expect(portion(breakfast)).toBeGreaterThan(portion(before));
+
+    // Sized again as it stands, the day is left as it is: the pot still holds the meal.
+    await plans().rebalance(
+      user.id,
+      'en',
+      plan.id,
+      RebalanceRequest.parse({ scope: 'day', date: plan.days[1]!.date }),
+    );
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: true });
+  });
+
+  it('says it holds a portion only where a sizing would have given the meal more', async () => {
+    const sizeTomorrow = (scope: 'day' | 'plan') =>
+      plans().rebalance(
+        user.id,
+        'en',
+        plan.id,
+        RebalanceRequest.parse({ scope, date: plan.days[1]!.date }),
+      );
+    // The second day sized as it stands before the pot is cooked: a sizing has nothing to move on it then.
+    await sizeTomorrow('day');
+    await cooked();
+    // Nothing has sized it since the pot was cooked: the meal takes what the pot holds, which does not hold it.
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: false });
+
+    // Sized again, the day alone and the rest of the plan: neither would give the meal more.
+    await sizeTomorrow('day');
+    const lunch = lunchOf(await read(), 1);
+    expect(lunch.pot).toMatchObject({ rest: 0, held: false });
+    expect(
+      (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: lunch.id } })).cookedServings,
+    ).not.toBeNull();
+    await sizeTomorrow('plan');
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: false });
+  });
+
+  it('holds a portion at what is left in the pot once its rest is carried, and says so only while nothing is left', async () => {
+    await allCooked();
+    await snackTomorrow();
+    const tomorrow = lunchOf(await read(), 1);
+    const leftovers = t.app.get(LeftoversService);
+    await leftovers.put(
+      user.id,
+      'en',
+      plan.id,
+      tomorrow.id,
+      PutLeftoverRequest.parse({ mealType: 'lunch', left: 1, fromPot: true }),
+    );
+    const carried = portion(lunchOf(await read(), 2));
+    // The bar goes: the day would give lunch more than the pot has left once its rest went to the day after.
+    const bar = (await read()).days[1]!.meals.find((meal) => meal.source === 'USER_CUSTOM')!;
+    await t.http().delete(`/api/meal-plans/${plan.id}/meals/${bar.id}`).set(as(user)).expect(200);
+
+    const held = lunchOf(await read(), 1);
+    expect(portion(held)).toBeCloseTo(tomorrow.pot!.cooked - carried, 6);
+    expect(held.pot).toMatchObject({ rest: 0, held: true, offer: null });
+
+    // Taken back, the rest is in the pot again, for the meal or to be left.
+    await leftovers.undo(user.id, 'en', plan.id, lunchOf(await read(), 2).id, false);
+    const undone = lunchOf(await read(), 1);
+    expect(undone.carriedTo).toBeNull();
+    expect(portion(undone) + undone.pot!.rest).toBeCloseTo(tomorrow.pot!.cooked, 6);
+  });
+
+  it('holds a portion at its pot where the rest of the plan is sized as well', async () => {
+    const cookedFor = portion(lunchOf(plan, 1));
+    await cooked();
+    // The second day's dinner gone with nothing sized: the day stands below its window.
+    const dinner = plan.days[1]!.meals.find((meal) => meal.mealType === 'dinner')!;
+    await t.prisma.plannedMeal.delete({ where: { id: dinner.id } });
+
+    await plans().rebalance(
+      user.id,
+      'en',
+      plan.id,
+      RebalanceRequest.parse({ scope: 'plan', date: plan.days[1]!.date }),
+    );
+
+    const lunch = lunchOf(await read(), 1);
+    expect(portion(lunch)).toBeCloseTo(cookedFor, 6);
+    expect(lunch.pot).toMatchObject({ rest: 0, held: true });
+  });
+
+  it('forgets that it held a portion once the pot is no longer cooked', async () => {
+    await cooked();
+    const dinner = plan.days[1]!.meals.find((meal) => meal.mealType === 'dinner')!;
+    await t
+      .http()
+      .delete(`/api/meal-plans/${plan.id}/meals/${dinner.id}`)
+      .set(as(user))
+      .expect(200);
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ held: true });
+
+    // Not eaten after all, and eaten again: nothing has sized the day since the pot was cooked again.
+    await plans().setEaten(user.id, 'en', plan.id, lunchOf(plan, 0).id, false, plan.days[0]!.date);
+    await cooked();
+
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: false });
+  });
+
+  it('says a pot holds nothing of a portion that leaves some in it, whatever an earlier sizing held', async () => {
+    await allCooked();
+    await snackTomorrow();
+    const tomorrow = lunchOf(await read(), 1);
+    expect(tomorrow.pot!.rest).toBeGreaterThan(0);
+    await t.prisma.plannedMeal.update({ where: { id: tomorrow.id }, data: { potHeld: true } });
+
+    expect(lunchOf(await read(), 1).pot).toMatchObject({ held: false, offer: 'ok' });
+  });
+
+  it('holds a portion at its pot in a plan made together as well', async () => {
+    const ewa = await aProfile(t, user, {
+      name: 'Ewa',
+      sex: 'female',
+      heightCm: 165,
+      weightKg: 60,
+    });
+    let adams = await t.app.get(PlanGenerationService).generate(
+      user.id,
+      'en',
+      GeneratePlanRequest.parse({
+        profileId: plan.profileId,
+        withProfileId: ewa.id,
+        startDate: plan.days[0]!.date,
+        durationDays: 4,
+        mealPrepFriendly: true,
+      }),
+    );
+    const cookedFor = portion(lunchOf(adams, 1));
+    await plans().setEaten(
+      user.id,
+      'en',
+      adams.id,
+      lunchOf(adams, 0).id,
+      true,
+      adams.days[0]!.date,
+    );
+    // Adam's second dinner goes: what it held is left to the day's other meals.
+    const dinner = adams.days[1]!.meals.find((meal) => meal.mealType === 'dinner')!;
+    await t
+      .http()
+      .delete(`/api/meal-plans/${adams.id}/meals/${dinner.id}`)
+      .set(as(user))
+      .expect(200);
+
+    adams = await plans().get(user.id, 'en', adams.id);
+    expect(portion(lunchOf(adams, 1))).toBeCloseTo(cookedFor, 6);
+    expect(lunchOf(adams, 1).pot).toMatchObject({ cooked: cookedFor, rest: 0, held: true });
   });
 
   it('gives the pantry nothing back of a meal eaten from it when its plan goes', async () => {

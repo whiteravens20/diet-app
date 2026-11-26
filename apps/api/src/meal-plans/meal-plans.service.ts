@@ -141,7 +141,16 @@ import {
   type MealRow,
 } from './plan-days.js';
 import { effectsOf } from './day-events.js';
-import { keepPots, potRest, potScale, potsOf, potsOfPlan, type Pot } from './pots.js';
+import {
+  heldAtPots,
+  keepHeld,
+  keepPots,
+  potRest,
+  potScale,
+  potsOf,
+  potsOfPlan,
+  type Pot,
+} from './pots.js';
 import { dayHistoryOf } from './day-history.js';
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
@@ -1495,12 +1504,15 @@ export class MealPlansService {
           data: { toppingKey: null, toppingAmount: null },
         });
       const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-      const { scales, feasibility } = sizeDay(
-        counted.map(toEngineMeal),
-        day.calorieTarget,
-        aimOfDay(day, day.plan),
-      );
+      const size = (of: RebalanceRow[]) =>
+        sizeDay(of.map(toEngineMeal), day.calorieTarget, aimOfDay(day, day.plan));
+      const { scales, feasibility } = size(counted);
       const changes = await this.persistScales(rows, scales, tx);
+      // A meal its pot holds says so where the day would have given it more.
+      await keepHeld(
+        tx,
+        heldAtPots(rows, scales, () => size(freeOfPots(counted)).scales),
+      );
       const macrosAfter = rowsMacros(counted, (r) => scales.get(r.id) ?? r.quantityScale);
       return { feasibility, changes, macrosBefore, macrosAfter };
     }
@@ -1600,22 +1612,33 @@ export class MealPlansService {
         storedPlateOf(platingOf.get(mealId)!.dish, plate),
       ]),
     );
-    const { scales, toppings } = topAndSizeDay(
-      withPlates(bare, plates, platingOf),
-      day.calorieTarget,
-      aim,
-      places.flatMap((m) => {
-        const dish = ask.traits.get(m.recipeId!);
-        const only = named.get(m.id);
-        return dish
-          ? [{ mealId: m.id, meal: m.mealType as MealType, dish, ...(only ? { only } : {}) }]
-          : [];
-      }),
-      ask.options,
-      ask.eater,
-      ask.used,
-    );
+    const topAndSize = (meals: typeof bare) =>
+      topAndSizeDay(
+        withPlates(meals, plates, platingOf),
+        day.calorieTarget,
+        aim,
+        places.flatMap((m) => {
+          const dish = ask.traits.get(m.recipeId!);
+          const only = named.get(m.id);
+          return dish
+            ? [{ mealId: m.id, meal: m.mealType as MealType, dish, ...(only ? { only } : {}) }]
+            : [];
+        }),
+        ask.options,
+        ask.eater,
+        ask.used,
+      );
+    const { scales, toppings } = topAndSize(bare);
     const changes = await this.persistScales(rows, scales, tx);
+    // A meal its pot holds says so where the day would have given it more.
+    await keepHeld(
+      tx,
+      heldAtPots(
+        rows,
+        scales,
+        () => topAndSize(bare.map((meal) => ({ ...meal, mostScale: undefined }))).scales,
+      ),
+    );
     for (const m of day.meals) {
       if (m.eatenAt !== null) continue;
       const chosen = toppings.find((choice) => choice.mealId === m.id);
@@ -1751,16 +1774,19 @@ export class MealPlansService {
         ],
       };
     });
-    const result = rebalanceDays(
-      dayRows.map((d) => ({
-        target: d.target,
-        aim: d.aim,
-        meals: [...d.rows, ...d.diary].map((row) => ({
-          ...toEngineMeal(row),
-          locked: toEngineMeal(row).locked || d.past,
+    /** The sizing of the days, with `rowsOf` each day's rows of its meals. */
+    const spread = (rowsOf: (day: (typeof dayRows)[number]) => RebalanceRow[]) =>
+      rebalanceDays(
+        dayRows.map((d) => ({
+          target: d.target,
+          aim: d.aim,
+          meals: [...rowsOf(d), ...d.diary].map((row) => ({
+            ...toEngineMeal(row),
+            locked: toEngineMeal(row).locked || d.past,
+          })),
         })),
-      })),
-    );
+      );
+    const result = spread((d) => d.rows);
     /** What a day holds, in kcal, at `scaleOf` of its rows. */
     const kcalOf = (day: (typeof dayRows)[number], scaleOf: (r: RebalanceRow) => number) =>
       rowsMacros([...day.rows, ...day.diary], scaleOf).calories;
@@ -1768,6 +1794,8 @@ export class MealPlansService {
       dayRows,
       result,
       pots,
+      /** The scales the sizing would give the meals with no pot to hold them (`heldAtPots`). */
+      free: () => spread((d) => freeOfPots(d.rows)).scales,
       /** What each day holds after the sizing, and before it, by its id. */
       kcal: new Map(
         dayRows.map((day) => [
@@ -1813,14 +1841,16 @@ export class MealPlansService {
   ): Promise<{ summary: RebalanceSummary; days: string[] } | null> {
     const planned = await this.planRest(tx, planId, from, today);
     if (!planned) return null;
-    const { dayRows, result, pots } = planned;
+    const { dayRows, result, pots, free } = planned;
     const { scales, feasibility, unabsorbed } = result;
     const allRows = dayRows.flatMap((d) => d.rows);
     const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
     const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
-    // What a pot cooked already holds for a meal eaten from it is kept before the meal moves.
+    // What a pot cooked already holds for a meal eaten from it is kept before the meal moves, and a meal it holds
+    // says so where the sizing would have given it more.
     await keepPots(tx, allRows, pots);
     const changes = await this.persistScales(allRows, scales, tx);
+    await keepHeld(tx, heldAtPots(allRows, scales, free));
     // A spread is the user's choice: the days it moves keep their part of it (`keptChoice`) until he changes them.
     await keepChoice(
       tx,
@@ -2983,6 +3013,7 @@ function potOf(
     cookedOn: pot.cookedOn,
     cooked: pot.cooked,
     rest,
+    held: pot.held && rest === 0,
     offer: rest > 0 && givenLeftoverId === null ? (after.get(dateAfter(date)) ?? 'no_day') : null,
   };
 }
@@ -3252,6 +3283,10 @@ const cappedBy = (rows: RebalanceRow[], pots: ReadonlyMap<string, Pot>): Rebalan
     const pot = pots.get(row.id);
     return pot ? { ...row, mostScale: potScale(pot, row.servings) } : row;
   });
+
+/** `rows` as a sizing takes them with no pot to hold them: what it would have given them (`heldAtPots`). */
+const freeOfPots = (rows: readonly RebalanceRow[]): RebalanceRow[] =>
+  rows.map((row) => (row.mostScale === undefined ? row : { ...row, mostScale: undefined }));
 
 /** A meal of a day a swap changed, as the swap found it. */
 const StoredSwapMeal = z.object({

@@ -4879,7 +4879,7 @@ describe('the plan page, on what is left of a meal', () => {
     const plan = withMeal({
       servings: 1,
       quantityScale: 1.15,
-      pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, offer: 'ok' },
+      pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, held: false, offer: 'ok' },
     });
     await open(plan);
 
@@ -4899,7 +4899,11 @@ describe('the plan page, on what is left of a meal', () => {
   });
 
   it('says of a meal that takes all its pot holds that no more was cooked, with nothing to carry', async () => {
-    await open(withMeal({ pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, offer: null } }));
+    await open(
+      withMeal({
+        pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: false, offer: null },
+      }),
+    );
 
     expect(
       screen.getByText('From the pot at most 1.8 servings: no more was cooked.'),
@@ -4911,7 +4915,9 @@ describe('the plan page, on what is left of a meal', () => {
 
   it('says why the next day cannot take what the pot will have left', async () => {
     await open(
-      withMeal({ pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, offer: 'no_day' } }),
+      withMeal({
+        pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, held: false, offer: 'no_day' },
+      }),
     );
 
     expect(action(messages.mealPlans.potAction)).toBeDisabled();

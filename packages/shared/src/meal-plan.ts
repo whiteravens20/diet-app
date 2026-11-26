@@ -501,15 +501,17 @@ export const PlannedMeal = z.object({
   /**
    * Of a meal eaten from a pot cooked already (a cooking whose first meal was eaten, or whose day has passed), not
    * eaten itself: the day the pot was cooked, what was cooked for it, in servings as eaten (which its portion never
-   * grows past), what its portion leaves in the pot, and where that could go: the day after it, as `leftoverOffer`
-   * says of a leftover; null where nothing is left, or it went there already (`carriedTo`). Null for every other
-   * meal.
+   * grows past), what its portion leaves in the pot, whether the pot holds its portion where its day would have
+   * given it more (nothing is left then, and the day's other meals take the rest), and where what is left could go:
+   * the day after it, as `leftoverOffer` says of a leftover; null where nothing is left, or it went there already
+   * (`carriedTo`). Null for every other meal.
    */
   pot: z
     .object({
       cookedOn: z.string().date(),
       cooked: z.number(),
       rest: z.number(),
+      held: z.boolean(),
       offer: z.enum(['ok', 'no_day', 'skipped', 'no_meal']).nullable(),
     })
     .nullable(),

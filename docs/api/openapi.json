@@ -22518,6 +22518,9 @@
                   "rest": {
                     "type": "number"
                   },
+                  "held": {
+                    "type": "boolean"
+                  },
                   "offer": {
                     "anyOf": [
                       {
@@ -22539,6 +22542,7 @@
                   "cookedOn",
                   "cooked",
                   "rest",
+                  "held",
                   "offer"
                 ],
                 "additionalProperties": false
