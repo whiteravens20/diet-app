@@ -13,8 +13,8 @@ import {
   RelaxationNeeded,
   type CalorieCalculation,
   type DayMealFate,
+  type ChangedPlan,
   type DaySettingsPreview,
-  type MealPlan,
   type MealPlanDay,
   type MealType,
   type PlanRelaxation,
@@ -100,8 +100,11 @@ export function DaySettingsDialog({
   mealName: (mealType: string) => string;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   onClose: () => void;
-  /** Told when the plan is no longer what the page shows: the settings were saved, or the plan had changed under them. */
-  onSaved: () => void;
+  /**
+   * Told when the plan is no longer what the page shows: the settings were saved or the week evened out (`changed`,
+   * with which of the two it was), or the plan had changed under them (nothing).
+   */
+  onSaved: (changed?: ChangedPlan, cause?: 'day-settings' | 'week-evened') => void;
 }) {
   const t = useTranslations('mealPlans.daySettings');
   const tPlans = useTranslations('mealPlans');
@@ -163,7 +166,7 @@ export function DaySettingsDialog({
       allowRelaxations?: PlanRelaxation[];
       even: boolean;
     }) =>
-      api.put<MealPlan>(path, {
+      api.put<ChangedPlan>(path, {
         ...(JSON.parse(settled!) as DaySettings),
         revision: preview.data!.revision,
         ...(!only && preview.data!.cooking?.changes.length ? { together: true } : {}),
@@ -171,8 +174,8 @@ export function DaySettingsDialog({
         ...(even ? { evenWeek: true } : {}),
         ...(spread && (preview.data!.short?.spread.days ?? 0) > 0 ? { spreadShort: true } : {}),
       }),
-    onSuccess: () => {
-      onSaved();
+    onSuccess: (changed) => {
+      onSaved(changed, 'day-settings');
       onClose();
     },
     onError: (e: unknown) => {
@@ -197,12 +200,12 @@ export function DaySettingsDialog({
   // The week evened out on its own, with nothing of the day changed.
   const even = useMutation({
     mutationFn: () =>
-      api.post<MealPlan>(`/meal-plans/${planId}/weeks/even`, {
+      api.post<ChangedPlan>(`/meal-plans/${planId}/weeks/even`, {
         date: day.date,
         revision: preview.data!.revision,
       }),
-    onSuccess: () => {
-      onSaved();
+    onSuccess: (changed) => {
+      onSaved(changed, 'week-evened');
       onClose();
     },
     onError: (e: unknown) => {

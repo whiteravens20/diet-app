@@ -43,7 +43,8 @@ describe("a running plan whose profile's target moved", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('says both targets, and takes the profile’s from today at the revision it was shown at', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+    const answer = { id: 'the-plan-as-it-left-it', effects: null };
+    const post = vi.spyOn(api, 'post').mockResolvedValue(answer as never);
     const { onTaken } = shown(aPlan());
 
     expect(plain(screen.getByText(/^The profile's target is now/).textContent)).toBe(
@@ -54,7 +55,7 @@ describe("a running plan whose profile's target moved", () => {
     expect(post).toHaveBeenCalledWith('/meal-plans/11111111-1111-4111-8111-111111111111/retarget', {
       revision: 4,
     });
-    expect(onTaken).toHaveBeenCalled();
+    expect(onTaken).toHaveBeenCalledWith(answer);
   });
 
   it('says what it does to a shopping list only where a day it changes is on one', () => {

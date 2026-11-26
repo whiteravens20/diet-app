@@ -6,7 +6,13 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 import { Scale } from 'lucide-react';
-import type { MealPlanDay, PlanChangeEffects, RebalanceResult } from '@diet-app/shared';
+import type {
+  ChangedPlan,
+  DayEventCause,
+  MealPlanDay,
+  PlanChangeEffects,
+  RebalanceResult,
+} from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { useFormat } from '@/lib/use-format';
 
@@ -25,6 +31,18 @@ export interface PlanWord {
   effects: PlanChangeEffects | null;
   /** The recipe a swap of an ingredient made, where no model worded its text: its words can be corrected. */
   reword?: string | null;
+  /**
+   * A change of another kind than a sizing or a swap, as the day's history names it: its card says what the change
+   * did to the lists and the freezer, and has nothing of its own to take back.
+   */
+  cause?: DayEventCause | null;
+}
+
+/** A change whose answer is the plan as it left it (`ChangedPlan`): what it was, and the day it was of, if one. */
+export interface PlanChange {
+  plan: ChangedPlan;
+  cause: DayEventCause;
+  date: string | null;
 }
 
 /** Whether a change said anything of the lists or the freezer: such a card stays until it is closed. */
@@ -43,7 +61,9 @@ const listHref = (list: PlanChangeEffects['lists'][number]): string =>
 /**
  * A card at the bottom right, the whole width on a phone, that says what a change came to: what the day holds now,
  * what was sized again, what the change did to the shopping lists and the freezer, and what can be done about it. A
- * swap can be taken back with its portions; any other change, its portions alone. Spreading is offered with what it
+ * swap can be taken back with its portions; a sizing, its portions alone; a change of another kind (a day's settings,
+ * days made again, a set put on them) is named as the day's history names it and only says what it did to the lists
+ * and the freezer. Spreading is offered with what it
  * does said beside it where the day is off its target, as the day itself offers it. After a swap of an ingredient
  * whose text no model worded, the recipe's words can be corrected. The day's history is a link away. Goes by itself
  * after some seconds, and with the next change; a card that speaks of a list or the freezer stays until it is closed.
@@ -73,8 +93,9 @@ export function RebalanceToast({
   onDismiss: () => void;
 }) {
   const t = useTranslations('mealPlans');
+  const tHistory = useTranslations('dayHistory');
   const fmt = useFormat();
-  const { rebalance, swap, day, effects } = word;
+  const { rebalance, swap, day, effects, cause } = word;
   const lasting = toldEffects(effects);
   // Keep the auto-dismiss timer stable across parent re-renders: the latest
   // onDismiss lives in a ref (updated in an effect, never during render) so the
@@ -90,7 +111,7 @@ export function RebalanceToast({
   }, [lasting]);
   const sized = (rebalance?.changes.length ?? 0) > 0;
   const ofTheDay = rebalance === null || rebalance.scope === 'day';
-  const spreadable = ofTheDay && day !== null && day.offTarget !== null;
+  const spreadable = !cause && ofTheDay && day !== null && day.offTarget !== null;
   const linkLook =
     // In the colour of the text: the app's colour on its own light shade reads too faintly for a link.
     'inline-flex min-h-6 items-center font-medium text-foreground underline underline-offset-2';
@@ -125,9 +146,15 @@ export function RebalanceToast({
       <div className="bg-primary/10 p-4">
         <p className="flex items-center gap-2 text-base font-semibold">
           <Scale aria-hidden className="size-5 shrink-0 text-primary" />
-          {t(
-            ofTheDay ? (swap && !sized ? 'swapDoneTitle' : 'rebalanceTitle') : 'rebalanceTitlePlan',
-          )}
+          {cause
+            ? tHistory(`cause.${cause}`)
+            : t(
+                ofTheDay
+                  ? swap && !sized
+                    ? 'swapDoneTitle'
+                    : 'rebalanceTitle'
+                  : 'rebalanceTitlePlan',
+              )}
         </p>
         {ofTheDay ? (
           <>
@@ -196,7 +223,7 @@ export function RebalanceToast({
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          {swap ? (
+          {cause ? null : swap ? (
             <Button type="button" variant="outline" size="sm" onClick={onUndoSwap} disabled={busy}>
               {t('undoSwap')}
             </Button>

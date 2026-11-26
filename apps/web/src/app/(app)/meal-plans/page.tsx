@@ -18,6 +18,7 @@ import {
   UnfilledMeal,
   type AddCustomMealRequest,
   type CalorieCalculation,
+  type ChangedPlan,
   type DietType,
   type FavoriteSet,
   type GeneratePlanRequest,
@@ -59,7 +60,7 @@ import { perKgSplit } from '@/lib/own-split';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
-import { RebalanceToast, toldEffects, type PlanWord } from './rebalance-toast';
+import { RebalanceToast, toldEffects, type PlanChange, type PlanWord } from './rebalance-toast';
 import type { HistoryOf } from './day-history-dialog';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
@@ -388,17 +389,20 @@ function MealPlansContent() {
   } | null>(null);
   const reroll = (fallback: string) => ({
     mutationFn: (v: Reroll) =>
-      api.post<MealPlan>(
+      api.post<ChangedPlan>(
         v.dayId
           ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate`
           : `/meal-plans/${v.planId}/regenerate`,
         rerollBody(v),
       ),
-    onSuccess: (_plan: MealPlan, v: Reroll) => {
+    onSuccess: (plan: ChangedPlan, v: Reroll) => {
       setRefused(null);
       setInTheWay(null);
-      setRebalanceToast(null);
-      void invalidateEdited(v.planId);
+      showChange(v.planId, {
+        plan,
+        cause: 'reroll',
+        date: plan.days.find((day) => day.id === v.dayId)?.date ?? null,
+      });
     },
     onError: (e: unknown, v: Reroll) => {
       const allow =
@@ -453,6 +457,23 @@ function MealPlansContent() {
             rebalance: res.rebalance,
             effects: res.effects ?? null,
             reword,
+          }
+        : null,
+    );
+  };
+  /** After a change that answers with the plan: its card where it did something to the lists or the freezer. */
+  const showChange = (planId: string, { plan, cause, date }: PlanChange) => {
+    void invalidateEdited(planId);
+    setRebalanceToast(
+      toldEffects(plan.effects)
+        ? {
+            planId,
+            revision: plan.revision,
+            swap: false,
+            day: plan.days.find((day) => day.date === date) ?? null,
+            rebalance: null,
+            effects: plan.effects,
+            cause,
           }
         : null,
     );
@@ -1177,7 +1198,8 @@ function MealPlansContent() {
               }}
               onHistory={(day) => setHistoryFor(historyOf(plan.id, day))}
               onSwapped={(res, plannedMealId) => showRebalance(plan.id, res, plannedMealId)}
-              onChanged={() => {
+              onChanged={(change) => {
+                if (change) return showChange(plan.id, change);
                 setRebalanceToast(null);
                 void invalidateEdited(plan.id);
               }}

@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { FavoriteSet, MealPlan } from '@diet-app/shared';
+import type { ChangedPlan, FavoriteSet, MealPlan } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { planDates } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
@@ -26,6 +26,7 @@ export function ApplyFavoriteSetButton({
   profileId,
   disabled,
   listedDates,
+  onApplied,
 }: {
   /** The plan as a list shows it: its days are worked out from where it begins and how long it is. */
   plan: Pick<MealPlan, 'id' | 'startDate' | 'durationDays' | 'options'>;
@@ -33,6 +34,8 @@ export function ApplyFavoriteSetButton({
   disabled?: boolean;
   /** The days a shopping list covers, where the plan's days are read. */
   listedDates?: readonly string[];
+  /** Told what putting the set on the days came to: the plan as it left it, and the days it was put on. */
+  onApplied?: (changed: ChangedPlan, dates: string[]) => void;
 }) {
   // A day that is over keeps what was on it: a set is not offered for it.
   const today = localDate();
@@ -55,15 +58,16 @@ export function ApplyFavoriteSetButton({
 
   const apply = useMutation({
     mutationFn: ({ setId, dayDates }: { setId: string; dayDates: string[] }) =>
-      api.post<MealPlan>(`/favorite-sets/${setId}/apply`, {
+      api.post<ChangedPlan>(`/favorite-sets/${setId}/apply`, {
         planId: plan.id,
         dayDates,
         ...(plan.options.mealPrepFriendly && !only ? { together: true } : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (changed, { dayDates }) => {
       qc.invalidateQueries({ queryKey: ['meal-plans', profileId] });
       qc.invalidateQueries({ queryKey: ['meal-plan', plan.id] });
       setOpen(false);
+      onApplied?.(changed, [...dayDates].sort());
     },
     onError: (e) => setError(errorText(e, t('errApply'))),
   });

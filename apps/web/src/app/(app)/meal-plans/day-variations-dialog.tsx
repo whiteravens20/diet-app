@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { DayVariations, MealPlan } from '@diet-app/shared';
+import type { ChangedPlan, DayVariations } from '@diet-app/shared';
 import { ModelSays, WeighButton, WeighedLine } from '@/components/weigh';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -40,8 +40,8 @@ export function DayVariationsDialog({
   aiOffNote?: string;
   mealName: (mealType: string) => string;
   onClose: () => void;
-  /** Told when the plan is no longer what the page shows: a way was taken, or the plan had changed under the offer. */
-  onChanged: () => void;
+  /** Told when the plan is no longer what the page shows: a way was taken (`changed`), or the plan had changed under the offer. */
+  onChanged: (changed?: ChangedPlan) => void;
 }) {
   const t = useTranslations('mealPlans.variations');
   const tCommon = useTranslations('common');
@@ -75,12 +75,12 @@ export function DayVariationsDialog({
   const shown = weighed ?? first.data;
   const take = useMutation({
     mutationFn: (offer: string) =>
-      api.post<MealPlan>(`${path}/take`, {
+      api.post<ChangedPlan>(`${path}/take`, {
         offer,
         ...(!only && shown?.cooking?.changes.length ? { together: true } : {}),
       }),
-    onSuccess: () => {
-      onChanged();
+    onSuccess: (changed) => {
+      onChanged(changed);
       onClose();
     },
     onError: (e: unknown) => {

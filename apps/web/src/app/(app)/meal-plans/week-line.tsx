@@ -5,7 +5,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { MealPlan, PlanWeek } from '@diet-app/shared';
+import type { ChangedPlan, PlanWeek } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -29,8 +29,8 @@ export function WeekLine({
   planId: string;
   revision: number;
   week: PlanWeek | undefined;
-  /** Told when the plan is no longer what the page shows: the week was evened out, or the plan had changed. */
-  onEvened: () => void;
+  /** Told when the plan is no longer what the page shows: the week was evened out (`changed`), or the plan had changed. */
+  onEvened: (changed?: ChangedPlan) => void;
 }) {
   const t = useTranslations('mealPlans');
   const fmt = useFormat();
@@ -38,10 +38,10 @@ export function WeekLine({
   const [error, setError] = useState<string | null>(null);
   const even = useMutation({
     mutationFn: (asked: PlanWeek) =>
-      api.post<MealPlan>(`/meal-plans/${planId}/weeks/even`, { date: asked.from, revision }),
-    onSuccess: () => {
+      api.post<ChangedPlan>(`/meal-plans/${planId}/weeks/even`, { date: asked.from, revision }),
+    onSuccess: (changed) => {
       setError(null);
-      onEvened();
+      onEvened(changed);
     },
     onError: (e: unknown) => {
       if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') onEvened();

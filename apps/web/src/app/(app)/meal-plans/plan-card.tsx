@@ -63,6 +63,7 @@ import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
 import { ListNote } from './list-note';
 import { UseUp } from './use-up';
+import type { PlanChange } from './rebalance-toast';
 import { TargetMovedLine } from './target-moved-line';
 import { WeekLine } from './week-line';
 import { DOT, held } from '@/lib/figure-line';
@@ -295,8 +296,12 @@ export function PlanCard({
   onHistory: (day: MealPlanDay) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
   onSwapped: (result: RebalanceResult, plannedMealId: string) => void;
-  /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
-  onChanged: () => void;
+  /**
+   * Told when the plan is no longer what the card shows: a day was filled another way, its settings or its week
+   * changed, the profile's target was taken, a set was put on days (`change`, what the change answered), or the plan
+   * had changed under an offer (nothing).
+   */
+  onChanged: (change?: PlanChange) => void;
   /** Told what carrying what is left of a meal to the next day, or undoing it, came to, and where it went. */
   onLeftover: (
     result: RebalanceResult,
@@ -1715,6 +1720,9 @@ export function PlanCard({
             profileId={summary.profileId}
             disabled={busy}
             listedDates={plan?.days.filter((day) => day.listed).map((day) => day.date)}
+            onApplied={(changed, dates) =>
+              onChanged({ plan: changed, cause: 'favorite-set', date: dates[0] ?? null })
+            }
           />
           <Button
             type="button"
@@ -1873,7 +1881,12 @@ export function PlanCard({
               {t('conflictsNotice', { count: conflicts })}
             </p>
           )}
-          <TargetMovedLine plan={plan} onTaken={onChanged} />
+          <TargetMovedLine
+            plan={plan}
+            onTaken={(changed) =>
+              onChanged(changed && { plan: changed, cause: 'retarget', date: null })
+            }
+          />
           {plan.days.length > DAYS_A_WEEK ? (
             <Tabs
               label={t('planWeeks')}
@@ -1888,7 +1901,9 @@ export function PlanCard({
                         planId={plan.id}
                         revision={plan.revision}
                         week={plan.weeks[index]}
-                        onEvened={onChanged}
+                        onEvened={(changed) =>
+                          onChanged(changed && { plan: changed, cause: 'week-evened', date: null })
+                        }
                       />
                       {plan.days
                         .slice(index * DAYS_A_WEEK, (index + 1) * DAYS_A_WEEK)
@@ -1906,7 +1921,9 @@ export function PlanCard({
                 planId={plan.id}
                 revision={plan.revision}
                 week={plan.weeks[0]}
-                onEvened={onChanged}
+                onEvened={(changed) =>
+                  onChanged(changed && { plan: changed, cause: 'week-evened', date: null })
+                }
               />
               {plan.days.map((day) => dayCard(plan, day))}
             </div>
@@ -1937,9 +1954,9 @@ export function PlanCard({
           aiOffNote={aiOffNote}
           mealName={mealName}
           onClose={() => setWaysFor(null)}
-          onChanged={() => {
+          onChanged={(changed) => {
             changing.current = dayAnchor(summary.id, waysFor.date);
-            onChanged();
+            onChanged(changed && { plan: changed, cause: 'day-variant', date: waysFor.date });
           }}
         />
       )}
@@ -1993,9 +2010,11 @@ export function PlanCard({
           mealName={mealName}
           limitNames={limitNames}
           onClose={() => setSettingsFor(null)}
-          onSaved={() => {
+          onSaved={(changed, cause) => {
             changing.current = dayAnchor(summary.id, settingsFor.date);
-            onChanged();
+            onChanged(
+              changed && cause ? { plan: changed, cause, date: settingsFor.date } : undefined,
+            );
           }}
         />
       )}

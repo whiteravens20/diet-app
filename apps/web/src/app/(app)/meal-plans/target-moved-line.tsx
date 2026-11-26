@@ -5,7 +5,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { MealPlan } from '@diet-app/shared';
+import type { ChangedPlan, MealPlan } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
@@ -20,16 +20,23 @@ import { ListNote } from './list-note';
  * what it does to a shopping list. Nothing for a plan whose target did not
  * move, or was typed for it.
  */
-export function TargetMovedLine({ plan, onTaken }: { plan: MealPlan; onTaken: () => void }) {
+export function TargetMovedLine({
+  plan,
+  onTaken,
+}: {
+  plan: MealPlan;
+  /** Told when the plan is no longer what the page shows: the target was taken (`changed`), or the plan had changed. */
+  onTaken: (changed?: ChangedPlan) => void;
+}) {
   const t = useTranslations('mealPlans');
   const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   const take = useMutation({
     mutationFn: () =>
-      api.post<MealPlan>(`/meal-plans/${plan.id}/retarget`, { revision: plan.revision }),
-    onSuccess: () => {
+      api.post<ChangedPlan>(`/meal-plans/${plan.id}/retarget`, { revision: plan.revision }),
+    onSuccess: (changed) => {
       setError(null);
-      onTaken();
+      onTaken(changed);
     },
     onError: (e: unknown) => {
       if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') onTaken();

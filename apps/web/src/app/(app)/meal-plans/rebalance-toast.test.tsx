@@ -219,6 +219,37 @@ describe('the card that says what a change of a plan came to', () => {
     expect(undo).toHaveBeenCalled();
   });
 
+  it('names a change of another kind as the day history does, says what it did to the list, and has nothing to take back', async () => {
+    const { history } = shown({
+      cause: 'week-evened',
+      rebalance: null,
+      day: aDay({ offTarget: 'over' }),
+      effects: {
+        lists: [
+          {
+            id: LIST,
+            planId: PLAN,
+            profileId: PROFILE,
+            fromDate: '2026-11-24',
+            toDate: '2026-11-30',
+            householdId: null,
+          },
+        ],
+        thaw: [],
+        freeze: [],
+      },
+    });
+
+    expect(screen.getByText(messages.dayHistory.cause['week-evened'])).toBeInTheDocument();
+    expect(
+      screen.getByText(/The shopping list of Nov 24 – 30, 2026 no longer matches the plan\./),
+    ).toBeInTheDocument();
+    for (const name of [texts.rebalanceUndo, texts.undoSwap, texts.rebalanceRest])
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: texts.toastHistory }));
+    expect(history).toHaveBeenCalled();
+  });
+
   it('speaks of the rest of the plan once it was spread over, and of what it could not take', () => {
     shown({
       rebalance: aRebalance({

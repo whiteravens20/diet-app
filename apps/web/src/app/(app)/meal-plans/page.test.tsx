@@ -20,6 +20,7 @@ import type {
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
+import { dayAfter } from '@/lib/plan-dates';
 import * as files from '@/lib/save-file';
 import { aPublicConfig, aSupply } from '@/testing/public-config';
 import { failReadsAgain } from '@/testing/read-again';
@@ -714,6 +715,31 @@ describe('the plan page, on a plan and how it was made', () => {
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
   };
 
+  it('says, once the week is evened out, the shopping list it made stop matching, under the name of the change', async () => {
+    const plan = aPlan({ weeks: [{ ...aPlan().weeks[0]!, average: 260, uneven: true }] });
+    await open(plan);
+    const list = {
+      id: '77777777-7777-4777-8777-777777777777',
+      planId: plan.id,
+      profileId: plan.profileId,
+      fromDate: '2026-01-05',
+      toDate: '2026-01-05',
+      householdId: null,
+    };
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ ...plan, effects: { lists: [list], thaw: [], freeze: [] } } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.evenWeek }));
+
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/weeks/even`, {
+      date: '2026-01-05',
+      revision: plan.revision,
+    });
+    expect(await screen.findByText(messages.dayHistory.cause['week-evened'])).toBeInTheDocument();
+    expect(screen.getByText(/no longer matches the plan\./)).toBeInTheDocument();
+  });
+
   it('marks a meal that is outside a limit, and one that was the only recipe to choose from', async () => {
     await open(
       aPlan({
@@ -824,6 +850,48 @@ describe('the plan page, on a plan and how it was made', () => {
     await recalculate(asked);
 
     expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, undefined]]);
+  });
+
+  it('says, once the days are made again, the shopping list they made stop matching, and only then', async () => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    await open(plan);
+    const list = {
+      id: '77777777-7777-4777-8777-777777777777',
+      planId: plan.id,
+      profileId: plan.profileId,
+      fromDate: '2026-01-05',
+      toDate: '2026-01-07',
+      householdId: null,
+    };
+    let effects: unknown = { lists: [list], thaw: [], freeze: [] };
+    answering(
+      () => aPreview({ kept: { ...aPreview().kept, past: 0 }, days: 1, replaced: 1 }),
+      () => Promise.resolve({ ...plan, effects }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
+    await recalculate(await rerollWindow());
+
+    expect(await screen.findByText(messages.dayHistory.cause.reroll)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The shopping list of Jan 5 – 7, 2026 no longer matches the plan\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: messages.mealPlans.rebalanceUndo })).toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.mealPlans.rebalanceDismiss }),
+    );
+
+    // Made again with nothing to say of a list, the days bring no card.
+    effects = null;
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
+    await recalculate(await rerollWindow());
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: messages.mealPlans.reroll.title }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(messages.dayHistory.cause.reroll)).toBeNull();
   });
 
   it('says nothing of how a plan was made when the plan is from before that was kept', async () => {
@@ -5301,5 +5369,201 @@ describe('the plan page, on how a day is changed', () => {
 
     await screen.findByRole('button', { name: help.link });
     expect(screen.queryByText(/^Too little protein/)).toBeNull();
+  });
+});
+
+describe('the plan page, after a change that answers with the plan', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    favoriteSets = [];
+  });
+
+  const LIST = {
+    id: '77777777-7777-4777-8777-777777777777',
+    planId: '11111111-1111-4111-8111-111111111111',
+    profileId: profile.id,
+    fromDate: '2026-01-05',
+    toDate: '2026-01-05',
+    householdId: null,
+  };
+  /** The plan as a change left it, with the list it made stop matching. */
+  const changed = (plan: MealPlan) => ({
+    ...plan,
+    effects: { lists: [LIST], thaw: [], freeze: [] },
+  });
+  /** The card says the change as the day's history names it, and the list it made stop matching. */
+  const toldAs = async (cause: keyof typeof messages.dayHistory.cause) => {
+    const title = await screen.findByText(messages.dayHistory.cause[cause], { selector: 'p' });
+    const card = title.closest('div')!;
+    expect(within(card).getByText(/no longer matches the plan\./)).toBeInTheDocument();
+    expect(
+      within(card).getByRole('link', { name: messages.mealPlans.effectOpenList }),
+    ).toHaveAttribute(
+      'href',
+      `/shopping-lists?profile=${profile.id}&plan=${LIST.planId}&list=${LIST.id}`,
+    );
+  };
+  const opened = async (plan: MealPlan, title = '1-day plan · Vegan') => {
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText(title));
+  };
+
+  it('after the profile’s target is taken from today', async () => {
+    const plan = aPlan({ targetMoved: { profileTarget: 2440, planTarget: 2135 } });
+    await opened(plan);
+    vi.spyOn(api, 'post').mockResolvedValue(changed(plan) as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.retarget }));
+
+    await toldAs('retarget');
+  });
+
+  it('after the settings of a day are saved', async () => {
+    const plan = aPlan();
+    await opened(plan);
+    const day = plan.days[0]!;
+    vi.spyOn(api, 'post').mockResolvedValue({
+      revision: plan.revision,
+      date: day.date,
+      calorieTarget: { now: day.calorieTarget, then: day.calorieTarget + 300 },
+      targetMacros: { now: day.targetMacros, then: day.targetMacros },
+      belowSafetyFloor: false,
+      meals: day.meals.map((meal) => ({
+        mealId: meal.id,
+        mealType: meal.mealType,
+        fate: 'resized',
+        because: null,
+        portion: null,
+      })),
+      added: [],
+      dayCalories: day.calorieTarget + 300,
+      fits: true,
+      short: null,
+      listOutOfDate: false,
+      cooking: null,
+      unchanged: false,
+      week: null,
+    } as never);
+    const put = vi.spyOn(api, 'put').mockResolvedValue(changed(plan) as never);
+
+    await unfoldDay();
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.mealPlans.daySettingsButton }),
+    );
+    const dialog = within(
+      await screen.findByRole('dialog', { name: messages.mealPlans.daySettings.title }),
+    );
+    await userEvent.selectOptions(
+      dialog.getByRole('combobox', { name: new RegExp(`^${messages.mealPlans.daySettings.kind}`) }),
+      messages.mealPlans.daySettings.kinds.training,
+    );
+    const save = dialog.getByRole('button', { name: messages.mealPlans.daySettings.save });
+    await vi.waitFor(() => expect(save).toBeEnabled());
+    await userEvent.click(save);
+
+    await vi.waitFor(() => expect(put).toHaveBeenCalled());
+    await toldAs('day-settings');
+  });
+
+  it('after another way of filling a day is taken', async () => {
+    const plan = aPlan();
+    await opened(plan);
+    const day = plan.days[0]!;
+    vi.spyOn(api, 'post').mockImplementation(((path: string) =>
+      Promise.resolve(
+        path.endsWith('/take')
+          ? changed(plan)
+          : {
+              date: day.date,
+              calorieTarget: day.calorieTarget,
+              diary: null,
+              cooking: null,
+              current: { dayNutrition: day.dayNutrition, packs: { bought: 0, used: 0, wasted: 0 } },
+              variations: [
+                {
+                  offer: 'the-offer',
+                  reason: null,
+                  meals: day.meals.map((meal) => ({
+                    mealType: meal.mealType,
+                    recipeId: meal.recipe?.id ?? null,
+                    title: 'Lentil soup',
+                    servings: 1,
+                    stays: false,
+                    nutrition: meal.nutrition,
+                  })),
+                  dayNutrition: day.dayNutrition,
+                  packs: { bought: 0, used: 0, wasted: 0 },
+                },
+              ],
+              aiMeta: null,
+            },
+      )) as never);
+
+    await unfoldDay();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.otherWays }));
+    const dialog = within(
+      await screen.findByRole('dialog', { name: 'Other ways to fill Mon, Jan 5' }),
+    );
+    await userEvent.click(
+      await dialog.findByRole('button', { name: messages.mealPlans.variations.take }),
+    );
+
+    await toldAs('day-variant');
+  });
+
+  it('after a favourite set is put on a day', async () => {
+    favoriteSets = [
+      {
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        profileId: profile.id,
+        label: 'Workday',
+        slots: { breakfast: '44444444-4444-4444-8444-444444444444' },
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+    const plan = aPlan();
+    await opened(plan);
+    vi.spyOn(api, 'post').mockResolvedValue(changed(plan) as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.favoriteSets.apply }));
+    await userEvent.selectOptions(
+      await screen.findByRole('combobox', { name: messages.favoriteSets.applyPickSet }),
+      await screen.findByRole('option', { name: 'Workday' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: messages.favoriteSets.applyConfirm }));
+
+    await toldAs('favorite-set');
+  });
+
+  it('after a week is evened out in a plan of more than a week, from the tab of its week', async () => {
+    const one = aPlan();
+    const days = Array.from({ length: 8 }, (_, at) => ({
+      ...one.days[0]!,
+      id: `2222222${at}-2222-4222-8222-222222222222`,
+      date: dayAfter('2026-01-05', at),
+      meals: one.days[0]!.meals.map((meal) => ({
+        ...meal,
+        id: `3333333${at}-3333-4333-8333-333333333333`,
+      })),
+    }));
+    const plan = aPlan({
+      durationDays: 8,
+      days,
+      weeks: [
+        { ...one.weeks[0]!, from: '2026-01-05', to: '2026-01-11', average: 260, uneven: true },
+        { ...one.weeks[0]!, from: '2026-01-12', to: '2026-01-12' },
+      ],
+    });
+    await opened(plan, '8-day plan · Vegan');
+    vi.spyOn(api, 'post').mockResolvedValue(changed(plan) as never);
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.mealPlans.evenWeek }));
+
+    await toldAs('week-evened');
   });
 });

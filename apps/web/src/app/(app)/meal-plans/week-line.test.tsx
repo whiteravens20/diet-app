@@ -70,8 +70,9 @@ describe('the line of a week of a plan', () => {
     expect(screen.queryByText(texts.listOutOfDateDays)).not.toBeInTheDocument();
   });
 
-  it('evens the week out on the plan as the page read it, and tells the page', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+  it('evens the week out on the plan as the page read it, and tells the page what it came to', async () => {
+    const answer = { id: 'the-plan-as-it-left-it', effects: null };
+    const post = vi.spyOn(api, 'post').mockResolvedValue(answer as never);
     const { onEvened } = shown(UNEVEN);
 
     await userEvent.click(screen.getByRole('button', { name: texts.evenWeek }));
@@ -80,7 +81,7 @@ describe('the line of a week of a plan', () => {
       date: UNEVEN.from,
       revision: 4,
     });
-    await vi.waitFor(() => expect(onEvened).toHaveBeenCalled());
+    await vi.waitFor(() => expect(onEvened).toHaveBeenCalledWith(answer));
   });
 
   it('reads the plan again, and says so, where the plan changed since the page read it', async () => {

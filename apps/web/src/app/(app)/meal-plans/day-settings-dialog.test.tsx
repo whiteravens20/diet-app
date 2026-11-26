@@ -90,6 +90,9 @@ const UNEVEN: NonNullable<DaySettingsPreview['week']> = {
   listOutOfDate: false,
 };
 
+/** What a change of the day answers: the plan as it left it. */
+const CHANGED = { id: 'the-plan-as-it-left-it', effects: null };
+
 /** The window, open on the day of a week as the plan says it stands, with the API answering every preview with `preview`. */
 async function opened(
   preview: (asked: Record<string, unknown>) => DaySettingsPreview,
@@ -97,10 +100,14 @@ async function opened(
 ) {
   const post = vi
     .spyOn(api, 'post')
-    .mockImplementation((_path: string, body?: unknown) =>
-      Promise.resolve(preview(body as Record<string, unknown>) as never),
+    .mockImplementation((path: string, body?: unknown) =>
+      Promise.resolve(
+        (path.endsWith('/weeks/even')
+          ? CHANGED
+          : preview(body as Record<string, unknown>)) as never,
+      ),
     );
-  const put = vi.spyOn(api, 'put').mockResolvedValue({} as never);
+  const put = vi.spyOn(api, 'put').mockResolvedValue(CHANGED as never);
   // An account that weighs in kilograms: the pace of a week is said in them. Its body may type 1200 kcal or more.
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
@@ -464,7 +471,7 @@ describe('the window in which the settings of a day are changed', () => {
     await vi.waitFor(() =>
       expect(put).toHaveBeenCalledWith(PATH, { ...AS_IT_IS, dayType: 'training', revision: 7 }),
     );
-    expect(onSaved).toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledWith(CHANGED, 'day-settings');
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -553,7 +560,7 @@ describe('the window in which the settings of a day are changed', () => {
         revision: 7,
       }),
     );
-    expect(onSaved).toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledWith(CHANGED, 'week-evened');
   });
 
   it('lets the limits that stand in the way give way when the reader says so', async () => {

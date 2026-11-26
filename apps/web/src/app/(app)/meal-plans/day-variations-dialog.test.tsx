@@ -66,6 +66,9 @@ const answered: AiGenerationMeta = {
   reason: null,
 };
 
+/** What taking a way answers: the plan as it left it. */
+const TAKEN = { id: 'the-plan-as-it-left-it', effects: null };
+
 /** The window, open on a day, with the API answering `first` to the first request and `weighed` to the one that asks a model. */
 async function opened(
   first: DayVariations | ApiClientError,
@@ -76,7 +79,7 @@ async function opened(
   }: { weighed?: DayVariations; aiEnabled?: boolean; listed?: boolean } = {},
 ) {
   const post = vi.spyOn(api, 'post').mockImplementation((path: string, body?: unknown) => {
-    if (path === `${PATH}/take`) return Promise.resolve({} as never);
+    if (path === `${PATH}/take`) return Promise.resolve(TAKEN as never);
     if ((body as { weigh?: boolean }).weigh) return Promise.resolve(weighed as never);
     return first instanceof ApiClientError
       ? Promise.reject(first)
@@ -193,7 +196,7 @@ describe('the window that offers other ways to fill a day', () => {
 
     await vi.waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/take`, { offer: 'offer-2' }));
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(onChanged).toHaveBeenCalledOnce();
+    expect(onChanged).toHaveBeenCalledExactlyOnceWith(TAKEN);
   });
 
   it('says so where the catalogue leaves no other way, and offers no model to weigh nothing', async () => {
