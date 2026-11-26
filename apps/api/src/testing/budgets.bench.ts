@@ -480,10 +480,11 @@ describe('the budgets of the server, at the reference catalogue', () => {
       ).ms;
     });
     // A write of a plan keeps each day it changes in its history (`keepEvents`): the days as they were, as the change
-    // itself left them and as they end, the kitchen's plans, and what their pots take whole before and after.
+    // itself left them and as they end, the kitchen's plans, and what their pots take whole before and after. Its
+    // answer says what the change did to the lists and the freezer, read from that history (`ChangedPlan.effects`).
     await measure(
       'POST /meal-plans/:id/days/:dayId/regenerate',
-      { ms: 800, statements: 50 },
+      { ms: 800, statements: 51 },
       async (index) => {
         const plan = plans[index % ACCOUNTS]!;
         return (
