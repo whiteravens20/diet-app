@@ -6,6 +6,8 @@ import {
   PutLeftoverRequest,
   RebalanceRequest,
   RegenerateDayRequest,
+  type DaySettings,
+  type DaySettingsPreview,
   type DayVariations,
   type MealPlan,
   type MealSwapPreview,
@@ -780,6 +782,50 @@ describe('a pot cooked already', () => {
     await t.prisma.plannedMeal.update({ where: { id: tomorrow.id }, data: { potHeld: true } });
 
     expect(lunchOf(await read(), 1).pot).toMatchObject({ held: false, offer: 'ok' });
+  });
+
+  it('sizes a day in the preview of its settings as the change does, a portion held at its pot', async () => {
+    const cookedFor = portion(lunchOf(plan, 1));
+    await cooked();
+    const now = await read();
+    const day = now.days[1]!;
+    const settings: DaySettings = {
+      dayType: day.overrides?.dayType ?? 'normal',
+      skip: false,
+      mealCount: day.mealCount,
+      calorieTarget: Math.round(day.calorieTarget * 1.3),
+      cookTimeBudgetMinutes: null,
+      useUpBy: false,
+    };
+    const preview = (
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/days/${day.id}/settings/preview`)
+        .set(as(user))
+        .send(settings)
+        .expect(200)
+    ).body as DaySettingsPreview;
+    expect(preview.meals.find((meal) => meal.mealId === lunchOf(now, 1).id)).toMatchObject({
+      fate: 'stays',
+      portion: null,
+    });
+
+    await t
+      .http()
+      .put(`/api/meal-plans/${plan.id}/days/${day.id}/settings`)
+      .set(as(user))
+      .send({ ...settings, revision: now.revision })
+      .expect(200);
+
+    const after = await read();
+    expect(portion(lunchOf(after, 1))).toBeCloseTo(cookedFor, 6);
+    expect(lunchOf(after, 1).pot).toMatchObject({ rest: 0, held: true });
+    const resized = preview.meals.filter((meal) => meal.fate === 'resized');
+    expect(resized.length).toBeGreaterThan(0);
+    for (const fate of resized) {
+      const meal = after.days[1]!.meals.find((one) => one.id === fate.mealId)!;
+      expect(Math.round(portion(meal) * 100) / 100).toBe(fate.portion!.servings.then);
+    }
   });
 
   it('holds a portion at its pot in a plan made together as well', async () => {

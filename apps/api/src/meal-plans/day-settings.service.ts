@@ -63,6 +63,7 @@ import { heldTimes } from './reroll-reading.js';
 import { toppingKcal } from './toppings-store.js';
 import type { PieceUse } from '../engine/whole-pieces.js';
 import { pieceUsesOf, piecedDays } from './whole-pieces-store.js';
+import { potsOfPlan } from './pots.js';
 
 /** What a meal's recipe is read for here: what a serving holds, and how long it takes. */
 const RECIPE = {
@@ -128,7 +129,8 @@ export class DaySettingsService {
     const entered =
       (await diaryDays(this.prisma, plan.profileId, day.date, day.date, planId)).get(date) ?? null;
     // What the day comes to is known here only where no recipe is drawn; a skipped day has no target to fit.
-    // The dishes that stay are sized as the change sizes them: no one past twice the portion the plan gave it.
+    // The dishes that stay are sized as the change sizes them: no one past twice the portion the plan gave it, nor
+    // past what a pot cooked already holds for it.
     const resized =
       change.drawn.length === 0 && change.resizes
         ? this.plans.resizedDay(
@@ -136,6 +138,7 @@ export class DaySettingsService {
             { calorieTarget: change.target, overrides: change.overrides },
             entered,
             plan,
+            await potsOfPlan(this.prisma, planId, context.today),
           )
         : null;
     // What the pots take whole once the dishes are sized as the change sizes them, a meal it takes away gone.

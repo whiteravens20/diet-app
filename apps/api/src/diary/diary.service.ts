@@ -79,6 +79,7 @@ import { entryDto, entryWith, languages } from './diary-entries.js';
 import { ingredientEaten, productEaten } from './chosen-food.js';
 import { diaryMealOf, eatenMeals, entryOfEaten, type EatenMeal } from './eaten-meals.js';
 import { pieced, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
+import { potsOfPlan } from '../meal-plans/pots.js';
 
 /** Energy and the three macronutrients, in kcal and grams. */
 type Figures = Macros & { calories: number };
@@ -308,6 +309,20 @@ export class DiaryService {
         : null;
     const aim = this.aimOf(profile, skipped ? null : planDay);
     const standing = standingOf(planned.calories, planDay?.calorieTarget ?? 0, skipped);
+    const asOf = today ?? this.plans.today();
+    // Offered where the day stands off its target, from today on, as the plan's view offers it.
+    const resizes =
+      planDay !== null &&
+      !skipped &&
+      date >= asOf &&
+      standing.offTarget !== null &&
+      this.plans.resizes(
+        planDay.meals,
+        planDay,
+        besides,
+        planDay.plan,
+        await potsOfPlan(this.prisma, planDay.planId, asOf),
+      );
     return {
       profileId,
       date,
@@ -323,12 +338,7 @@ export class DiaryService {
             skipped,
             meals,
             ...standing,
-            // Offered where the day stands off its target, from today on, as the plan's view offers it.
-            resizes:
-              !skipped &&
-              date >= (today ?? this.plans.today()) &&
-              standing.offTarget !== null &&
-              this.plans.resizes(planDay.meals, planDay, besides, planDay.plan),
+            resizes,
           }
         : null,
       entries: rows.map((row) => entryDto(row, locale)),

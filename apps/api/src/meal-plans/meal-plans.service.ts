@@ -1903,8 +1903,13 @@ export class MealPlansService {
     day: { calorieTarget: number; overrides: unknown },
     diary: Pick<DiaryOnDay, 'nutrition'> | null,
     plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
+    pots: ReadonlyMap<string, Pot>,
   ): { kcal: number; scales: Map<string, number> } {
-    const rows = [...meals.map(toRebalanceRow), ...restRebalanceRows(meals), ...diaryRows(diary)];
+    const rows = [
+      ...cappedBy(meals.map(toRebalanceRow), pots),
+      ...restRebalanceRows(meals),
+      ...diaryRows(diary),
+    ];
     const { scales } = sizeDay(rows.map(toEngineMeal), day.calorieTarget, aimOfDay(day, plan));
     return {
       kcal: Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories),
@@ -1927,6 +1932,7 @@ export class MealPlansService {
       calorieTarget: number;
       jointPlanId: string | null;
     },
+    pots: ReadonlyMap<string, Pot>,
   ): boolean {
     const movable = meals.some(
       (meal) =>
@@ -1937,7 +1943,7 @@ export class MealPlansService {
     );
     if (!movable) return false;
     if (plan.jointPlanId !== null) return true;
-    const { scales } = this.resizedDay(meals, day, diary, plan);
+    const { scales } = this.resizedDay(meals, day, diary, plan, pots);
     return meals.some(
       (meal) => Math.abs((scales.get(meal.id) ?? meal.quantityScale) - meal.quantityScale) >= 1e-9,
     );
@@ -2778,7 +2784,7 @@ export class MealPlansService {
           !skipped &&
           isoDate(day.date) >= today &&
           standing.offTarget !== null &&
-          this.resizes(orderedMeals, day, entered, plan),
+          this.resizes(orderedMeals, day, entered, plan, pots),
         macrosOff: off,
         // A shortfall of protein the split does not show: far less than the day aims at, said where nothing else is.
         proteinShort:
