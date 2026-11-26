@@ -2307,7 +2307,8 @@
       "reroll": "New recipes",
       "retarget": "New target of the plan",
       "bought-by-weight": "Bought by weight",
-      "kept": "Portions kept"
+      "kept": "Portions kept",
+      "joint-removed": "Toppings off: the plan made together was removed — the day may be off its split until you make it again"
     }
   },
   "inventory": {

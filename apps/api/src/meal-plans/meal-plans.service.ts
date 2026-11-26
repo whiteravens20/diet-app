@@ -20,6 +20,7 @@ import {
   TARGET_MOVED_LEAST_KCAL,
   type AddCustomMealRequest,
   type CookingChange,
+  type DayEventCause,
   type DayHistory,
   type DiaryEntry,
   type KeepDayRequest,
@@ -238,6 +239,7 @@ export class MealPlansService {
     // days still ahead is in the kitchen and goes into the pantry first, by
     // the rule a list deleted on its own follows; a household list left with
     // one part is that plan's list alone.
+    const partners: string[] = [];
     await this.prisma.$transaction(
       async (tx) => {
         // Counted while the profile is held, as an entry written into the diary is.
@@ -284,6 +286,15 @@ export class MealPlansService {
           profileId,
           clientToday ? new Date(`${clientToday}T00:00:00Z`) : new Date(),
         );
+        if (plan.jointPlanId)
+          partners.push(
+            ...(
+              await tx.mealPlan.findMany({
+                where: { jointPlanId: plan.jointPlanId, id: { not: planId } },
+                select: { id: true },
+              })
+            ).map((other) => other.id),
+          );
         // A plan made together with another leaves it a plan of its own, whose shared meals are its own again.
         if (plan.jointPlanId) await tx.jointPlan.deleteMany({ where: { id: plan.jointPlanId } });
         await tx.mealPlan.deleteMany({ where: { id: planId } });
@@ -291,6 +302,10 @@ export class MealPlansService {
       },
       { timeout: 30_000, maxWait: 10_000 },
     );
+    // The plan it was made together with is a plan of one now: the toppings of its meals not eaten come off from the
+    // client's day, and those days are sized again, which their history says.
+    for (const partner of partners)
+      await this.resizeFrom(partner, clientToday ?? this.today(), 'joint-removed');
   }
 
   /**
@@ -1326,6 +1341,33 @@ export class MealPlansService {
    * of the edit that changed the day, whichever service made it, which sizes
    * the day again once the rests of packs have followed it (`noteSizing`).
    */
+  /**
+   * Size again every day of a plan from `today` on, as one change of the plan whose days keep `cause` in their
+   * history: a day of a plan of one loses the toppings left on its meals not eaten, a day of a plan made together
+   * those its eater may no longer be given. A plan changed meanwhile is read again and tried once more.
+   */
+  async resizeFrom(planId: string, today: string, cause: DayEventCause): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      const plan = await this.prisma.mealPlan.findUnique({
+        where: { id: planId },
+        select: {
+          revision: true,
+          days: { where: { date: { gte: new Date(today) } }, select: { id: true } },
+        },
+      });
+      if (!plan || plan.days.length === 0) return;
+      try {
+        await writePlan(this.prisma, planId, plan.revision, today, cause, async (tx) => {
+          for (const day of plan.days) await this.rebalanceDayInternal(day.id, tx, today);
+        });
+        return;
+      } catch (err) {
+        if (attempt > 0 || !(err instanceof ConflictException) || !planChangedMeanwhile(err))
+          throw err;
+      }
+    }
+  }
+
   async rebalanceDayInternal(
     dayId: string,
     tx: Prisma.TransactionClient,
@@ -1401,6 +1443,14 @@ export class MealPlansService {
       ...diaryRows(diary.get(isoDate(day.date))),
     ];
     if (day.plan.jointPlanId === null) {
+      // A plan of one gives no toppings: one left from a plan made together comes off the meals not eaten, which are
+      // sized without it. An eaten meal keeps its topping.
+      const topped = day.meals.filter((m) => m.eatenAt === null && m.toppingKey !== null);
+      if (topped.length > 0)
+        await tx.plannedMeal.updateMany({
+          where: { id: { in: topped.map((m) => m.id) } },
+          data: { toppingKey: null, toppingAmount: null },
+        });
       const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
       const { scales, feasibility } = sizeDay(
         counted.map(toEngineMeal),

@@ -480,6 +480,30 @@ describe('a topping on one plate of a joint plan', () => {
     });
   });
 
+  it('goes from the meals not eaten of the other plan when one plan of the two is removed, and the days say so', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const topped = toppingsOf(adams);
+    expect(topped.length).toBeGreaterThan(1);
+    // A meal eaten with its topping keeps it.
+    const eaten = topped[0]!.meal;
+    await t.prisma.plannedMeal.update({
+      where: { id: eaten.id },
+      data: { eatenAt: new Date(`${topped[0]!.day.date}T12:00:00Z`) },
+    });
+
+    await t.app.get(MealPlansService).remove(user.id, 'en', ewas.id, '2026-01-05');
+
+    const after = await read(adams.id);
+    expect(after.joint).toBeNull();
+    expect(toppingsOf(after).map(({ meal }) => meal.id)).toEqual([eaten.id]);
+    // Each day that lost one says why in its history.
+    for (const { day } of topped.slice(1)) {
+      const history = await t.app.get(MealPlansService).dayHistory(user.id, 'en', adams.id, day.id);
+      expect(history.events.map((event) => event.cause)).toContain('joint-removed');
+    }
+  });
+
   it('is put on no plate of two people the shared dishes suit', async () => {
     await t.prisma.profile.update({ where: { id: adam.id }, data: { dietType: 'balanced' } });
     const ewas = await together(ewa, adam);

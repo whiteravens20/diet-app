@@ -36,6 +36,8 @@ export const DayEventCause = z.enum([
   'retarget',
   'bought-by-weight',
   'kept',
+  // The toppings of a plan made together came off: the other plan was removed.
+  'joint-removed',
 ]);
 export type DayEventCause = z.infer<typeof DayEventCause>;
 
