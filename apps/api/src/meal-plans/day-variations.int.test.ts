@@ -2,6 +2,7 @@
 
 import type { DayVariations, MealPlan, Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -46,6 +47,21 @@ describe('other ways to fill a day of a plan', () => {
   const recipesOf = (meals: { recipeId: string | null }[]): (string | null)[] =>
     meals.map((meal) => meal.recipeId);
   const read = (): Promise<MealPlan> => plans.get(user.id, 'en', plan.id);
+
+  it('says, once one is taken, the lists it made stop matching', async () => {
+    const list = await t.app.get(ShoppingListsService).generate(user.id, 'en', {
+      planId: plan.id,
+      fromDate: plan.startDate,
+      toDate: plan.days.at(-1)!.date,
+    });
+    const { variations: ways } = await offered();
+
+    const after = await variations.take(user.id, 'en', plan.id, day().id, {
+      offer: ways[0]!.offer,
+    });
+
+    expect(after.effects?.lists.map((one) => one.id)).toEqual([list.id]);
+  });
 
   describe('as the engine makes them', () => {
     it('are up to three, each with the meals of the day in order, and none is the day as it is or another of them', async () => {

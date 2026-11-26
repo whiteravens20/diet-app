@@ -24,6 +24,7 @@ import {
   type Macros,
   KCAL_PER_GRAM,
   type MacroSplit,
+  type ChangedPlan,
   type MealPlan,
   type MealType,
   type PantryUse,
@@ -433,10 +434,10 @@ export class PlanGenerationService {
     planId: string,
     request: RegenerateRequest = RegenerateRequest.parse({}),
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const { from, to, ...options } = request;
-    await this.reroll(userId, planId, { from, to }, options, clientToday);
-    return this.plans.get(userId, locale, planId);
+    const written = await this.reroll(userId, planId, { from, to }, options, clientToday);
+    return this.plans.changedPlan(userId, locale, planId, written);
   }
 
   /**
@@ -455,7 +456,7 @@ export class PlanGenerationService {
     planId: string,
     revision: number,
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true, days: { orderBy: { date: 'asc' } } },
@@ -483,7 +484,8 @@ export class PlanGenerationService {
       const target = dayTarget(base, parseDayOverrides(day.overrides), scales[index]!);
       return target === day.calorieTarget ? [] : [{ id: day.id, target }];
     });
-    if (base.target !== plan.calorieTarget || moved.length > 0) {
+    const changes = base.target !== plan.calorieTarget || moved.length > 0;
+    if (changes) {
       await writePlan(this.prisma, planId, revision, today, 'retarget', async (tx) => {
         await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
         for (const day of moved) {
@@ -495,7 +497,7 @@ export class PlanGenerationService {
         }
       });
     }
-    return this.plans.get(userId, locale, planId, today);
+    return this.plans.changedPlan(userId, locale, planId, changes ? revision : null, today);
   }
 
   /** Give one day of a plan other meals. */
@@ -506,10 +508,16 @@ export class PlanGenerationService {
     dayId: string,
     options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const date = await this.dateOfDay(userId, planId, dayId);
-    await this.reroll(userId, planId, { from: date, to: date }, options, clientToday);
-    return this.plans.get(userId, locale, planId);
+    const written = await this.reroll(
+      userId,
+      planId,
+      { from: date, to: date },
+      options,
+      clientToday,
+    );
+    return this.plans.changedPlan(userId, locale, planId, written);
   }
 
   /**
@@ -829,14 +837,14 @@ export class PlanGenerationService {
     return this.drawFor(userId, prepared, seed);
   }
 
-  /** Fill days of a plan again (see `prepare`), and write what the draw came to. */
+  /** Fill days of a plan again (see `prepare`), and write what the draw came to: the revision it wrote it from. */
   private async reroll(
     userId: string,
     planId: string,
     range: { from?: string; to?: string },
     options: RegenerateDayRequest,
     clientToday: string | null,
-  ): Promise<void> {
+  ): Promise<number> {
     const prepared = await this.prepare(userId, planId, range, options, clientToday);
     if (prepared.filled.every(({ dayIndex }) => isSkipped(prepared.plan.days[dayIndex]!))) {
       throw new ConflictException({
@@ -864,6 +872,7 @@ export class PlanGenerationService {
     await writePlan(this.prisma, planId, prepared.plan.revision, today, 'reroll', (tx) =>
       this.writeReroll(tx, prepared, result, seed, outcome, today),
     );
+    return prepared.plan.revision;
   }
 
   /**
@@ -879,7 +888,7 @@ export class PlanGenerationService {
     range: { from?: string; to?: string },
     options: RegenerateDayRequest,
     clientToday: string | null,
-  ): Promise<void> {
+  ): Promise<number> {
     const theirs = await this.prepare(userId, partnerId, range, options, clientToday);
     const today = clientToday ?? this.today();
     // The times of day both fill again, by the date of the day.
@@ -991,6 +1000,7 @@ export class PlanGenerationService {
         await linkShared(tx, jointPlanId, [mine.plan.id, theirs.plan.id], dates, shared);
       },
     );
+    return mine.plan.revision;
   }
 
   /**

@@ -4177,7 +4177,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -5574,7 +5574,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -5731,7 +5731,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -5971,7 +5971,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -6736,7 +6736,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -6875,7 +6875,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -7092,7 +7092,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/ChangedPlan"
                 }
               }
             }
@@ -13968,6 +13968,195 @@
           "currentPassword",
           "newPassword"
         ]
+      },
+      "ChangedPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "durationDays": {
+            "type": "integer"
+          },
+          "dietType": {
+            "$ref": "#/components/schemas/DietType"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealPlanDay"
+            }
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanWeek"
+            }
+          },
+          "targetMoved": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "profileTarget": {
+                    "type": "integer"
+                  },
+                  "planTarget": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "profileTarget",
+                  "planTarget"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "averageDailyNutrition": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "targetMacros": {
+            "$ref": "#/components/schemas/TargetMacros"
+          },
+          "averageOff": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "over",
+                      "under"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "macros": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "calories",
+              "macros"
+            ],
+            "additionalProperties": false
+          },
+          "ingredientReuseScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "packs": {
+            "$ref": "#/components/schemas/PlanPacks"
+          },
+          "generationMode": {
+            "type": "string",
+            "enum": [
+              "deterministic",
+              "ai_assisted"
+            ]
+          },
+          "options": {
+            "$ref": "#/components/schemas/PlanOptions"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerationReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "joint": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "planId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "profileName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId",
+                  "profileId",
+                  "profileName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effects": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanChangeEffects"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "startDate",
+          "durationDays",
+          "dietType",
+          "days",
+          "weeks",
+          "targetMoved",
+          "averageDailyNutrition",
+          "targetMacros",
+          "averageOff",
+          "ingredientReuseScore",
+          "packs",
+          "generationMode",
+          "options",
+          "report",
+          "revision",
+          "createdAt",
+          "joint",
+          "effects"
+        ],
+        "additionalProperties": false
       },
       "Complexity": {
         "type": "string",

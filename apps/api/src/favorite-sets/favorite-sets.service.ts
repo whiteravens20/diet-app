@@ -10,12 +10,12 @@ import {
 import {
   PlanOptions,
   type ApplyFavoriteSetRequest,
+  type ChangedPlan,
   type CreateFavoriteSetRequest,
   type FavoriteSet,
   type FavoriteSetSlots,
   type Locale,
   MAX_FAVORITE_SETS_PER_PROFILE,
-  type MealPlan,
   type MealType,
   type UpdateFavoriteSetRequest,
 } from '@diet-app/shared';
@@ -101,7 +101,7 @@ export class FavoriteSetsService {
     id: string,
     req: Omit<ApplyFavoriteSetRequest, 'together'> & { together?: boolean },
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const set = await this.load(userId, id);
     const slots = parseSlots(set.slots);
     const slotEntries = Object.entries(slots);
@@ -296,7 +296,7 @@ export class FavoriteSetsService {
       await this.mealPlans.noteOutsideLimits(tx, plan.id, written);
     });
 
-    return this.mealPlans.get(userId, locale, plan.id);
+    return this.mealPlans.changedPlan(userId, locale, plan.id, plan.revision);
   }
 
   private async load(userId: string, id: string) {

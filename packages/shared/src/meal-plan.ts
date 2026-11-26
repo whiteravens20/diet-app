@@ -2023,6 +2023,17 @@ export const PlanChangeEffects = z.object({
 export type PlanChangeEffects = z.infer<typeof PlanChangeEffects>;
 
 /**
+ * A plan as a change of it left it, with what the change did to the lists and the freezer (`PlanChangeEffects`), as
+ * the answer to a swap says it: null where it did nothing to them. The answer of a change of a day's settings, of a
+ * week evened, of the profile's target taken, of days made again or taken from a model's variation, and of a set
+ * put on days.
+ */
+export const ChangedPlan = MealPlan.extend({
+  effects: PlanChangeEffects.nullable(),
+});
+export type ChangedPlan = z.infer<typeof ChangedPlan>;
+
+/**
  * Envelope returned by every edit that may rebalance (swap, custom-add,
  * eaten toggle, explicit rebalance). Carries the updated plan plus the rebalance
  * summary the UI renders as a toast (macro delta + per-meal scale) and uses to

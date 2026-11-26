@@ -7,12 +7,12 @@ import {
   PlanOptions,
   RegenerateDayRequest,
   type ApplyDaySettingsRequest,
+  type ChangedPlan,
   type DayMealFate,
   type DaySettings,
   type DaySettingsPreview,
   type EvenWeekRequest,
   type Locale,
-  type MealPlan,
   type MealType,
 } from '@diet-app/shared';
 import { refuseUnderLeast } from '../common/typed-target.js';
@@ -417,7 +417,7 @@ export class DaySettingsService {
     planId: string,
     request: EvenWeekRequest,
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const dayId = await this.plans.dayIdOf(userId, planId, request.date);
     const context = await this.read(userId, planId, dayId, clientToday, { pastAllowed: true });
     const evened = this.evened(context, context.week);
@@ -447,7 +447,7 @@ export class DaySettingsService {
         },
       );
     }
-    return this.plans.get(userId, locale, planId);
+    return this.plans.changedPlan(userId, locale, planId, changes ? request.revision : null);
   }
 
   /** Change the settings of a day, on the plan as it was at the preview's `revision`. */
@@ -458,7 +458,7 @@ export class DaySettingsService {
     dayId: string,
     request: ApplyDaySettingsRequest,
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     const context = await this.read(userId, planId, dayId, clientToday);
     if (context.plan.revision !== request.revision) {
       throw new ConflictException({
@@ -484,7 +484,8 @@ export class DaySettingsService {
     const othersChange = context.week.some(
       (day) => day.id !== dayId && evened.has(day.id) && evened.get(day.id) !== day.calorieTarget,
     );
-    if (change.unchanged && !othersChange) return this.plans.get(userId, locale, planId);
+    if (change.unchanged && !othersChange)
+      return this.plans.changedPlan(userId, locale, planId, null);
     const gone = change.fates
       .filter((fate) => fate.fate === 'removed' || fate.fate === 'redrawn')
       .map((fate) => fate.mealId);
@@ -516,7 +517,7 @@ export class DaySettingsService {
             );
         },
       );
-      return this.plans.get(userId, locale, planId);
+      return this.plans.changedPlan(userId, locale, planId, request.revision);
     }
 
     // The day as a day made again sees it, with the meals that are pinned to it (eaten, and the user's own) kept.
@@ -645,7 +646,7 @@ export class DaySettingsService {
       if (request.spreadShort)
         await this.plans.rebalanceRestInternal(planId, tx, context.date, today);
     });
-    return this.plans.get(userId, locale, planId);
+    return this.plans.changedPlan(userId, locale, planId, request.revision);
   }
 
   /**

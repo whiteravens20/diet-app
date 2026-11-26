@@ -1,7 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { dayAfter, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
+import {
+  dayAfter,
+  ProfileInput,
+  type ChangedPlan,
+  type MealPlan,
+  type Profile,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -81,6 +88,20 @@ describe("a running plan, once its profile's target moved", () => {
       .expect(200);
   const dishes = (plan: MealPlan) =>
     plan.days.map((day) => day.meals.map((meal) => meal.recipe?.id ?? meal.customName));
+
+  it('says in its answer the lists the target taken made stop matching', async () => {
+    const before = await made(aWeek);
+    const list = await t.app.get(ShoppingListsService).generate(user.id, 'en', {
+      planId: before.id,
+      fromDate: today,
+      toDate: before.days.at(-1)!.date,
+    });
+    await save({ activityLevel: 'light' });
+
+    const after = (await retarget(await read(before))).body as ChangedPlan;
+
+    expect(after.effects?.lists.map((one) => one.id)).toEqual([list.id]);
+  });
 
   it("says that the profile's target moved, and takes the new one from today with the same dishes", async () => {
     const before = await made(aWeek);

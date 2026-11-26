@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type {
+  ChangedPlan,
   DayHistory,
   DaySettings,
   DaySettingsPreview,
@@ -8,6 +9,7 @@ import type {
   MealPlanDay,
 } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, as, aUser, type TestUser } from '../testing/factories.js';
@@ -78,7 +80,7 @@ describe('the settings of a day of a running plan', () => {
         .set('X-Client-Date', day(0))
         .send({ ...settingsOf(dayOf(of)), ...change, revision: of.revision })
         .expect(200)
-    ).body as MealPlan;
+    ).body as ChangedPlan;
   /** The recipe of each meal of the catalogue on a day, by its meal. */
   const dishes = (day: MealPlanDay) =>
     Object.fromEntries(
@@ -179,6 +181,31 @@ describe('the settings of a day of a running plan', () => {
           .expect(200)
       ).body as DayHistory;
       expect(history.events[0]!.cause).toBe('week-evened');
+    });
+
+    it('says in its answer, as a day changes and as its week is evened, the lists the change made stop matching', async () => {
+      const listOf = (of: MealPlan) =>
+        t.app.get(ShoppingListsService).generate(user.id, 'en', {
+          planId: of.id,
+          fromDate: day(0),
+          toDate: of.days.at(-1)!.date,
+        });
+      const first = await listOf(plan);
+
+      const changed = await apply(plan, { dayType: 'training' });
+      expect(changed.effects?.lists.map((list) => list.id)).toEqual([first.id]);
+
+      // A list made since is matched by the plan until the week is evened: the other days move.
+      const second = await listOf(changed);
+      const evened = (await even(changed, DATE).expect(200)).body as ChangedPlan;
+      expect(evened.effects?.lists.map((list) => list.id)).toEqual([second.id]);
+      // A meal more, which a recipe is drawn for, says the same.
+      const third = await listOf(evened);
+      const more = await apply(evened, { mealCount: dayOf(evened).mealCount + 1 });
+      expect(dayOf(more).meals).toHaveLength(dayOf(evened).meals.length + 1);
+      expect(more.effects?.lists.map((list) => list.id)).toEqual([third.id]);
+      // A change that changes nothing says nothing.
+      expect((await apply(more, {})).effects).toBeNull();
     });
 
     it("says how a kind changed alone moves the week's average and its pace, and changes that day alone, at the level of its week", async () => {

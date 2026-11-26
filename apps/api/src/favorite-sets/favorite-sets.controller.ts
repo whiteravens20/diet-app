@@ -14,9 +14,9 @@ import {
 } from '@nestjs/common';
 import {
   ApplyFavoriteSetRequest,
+  ChangedPlan,
   CreateFavoriteSetRequest,
   FavoriteSet,
-  MealPlan,
   UpdateFavoriteSetRequest,
   type Locale,
 } from '@diet-app/shared';
@@ -73,7 +73,7 @@ export class FavoriteSetsController {
 
   /** Put the recipes of a set on a day of a plan. */
   @Post(':id/apply')
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   apply(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

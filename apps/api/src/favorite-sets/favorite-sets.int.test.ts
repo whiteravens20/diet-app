@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { FavoriteSet, MealPlan, Profile } from '@diet-app/shared';
+import type { ChangedPlan, FavoriteSet, MealPlan, Profile } from '@diet-app/shared';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aPrivateRecipe, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -240,6 +241,19 @@ describe('favourite sets', () => {
       );
       expect(recipeOf(after, '2026-01-07', 'dinner')).toBe(recipeOf(plan, '2026-01-07', 'dinner'));
       expect(after.revision).toBe(plan.revision + 1);
+    });
+
+    it('says in its answer the lists it made stop matching', async () => {
+      const list = await t.app.get(ShoppingListsService).generate(user.id, 'en', {
+        planId: plan.id,
+        fromDate: plan.startDate,
+        toDate: plan.days.at(-1)!.date,
+      });
+
+      const after = (await apply({ planId: plan.id, dayDates: ['2026-01-06'] }).expect(201))
+        .body as ChangedPlan;
+
+      expect(after.effects?.lists.map((one) => one.id)).toEqual([list.id]);
     });
 
     it('says of its meals what they are outside of, and still puts them there', async () => {

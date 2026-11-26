@@ -9,11 +9,11 @@ import {
 import {
   PlanOptions,
   RegenerateDayRequest,
+  type ChangedPlan,
   type DayVariation,
   type DayVariationMeal,
   type DayVariations,
   type Locale,
-  type MealPlan,
   type MealType,
   type Nutrition,
   type PackTally,
@@ -431,7 +431,7 @@ export class DayVariationsService {
     dayId: string,
     req: { offer: string; together?: boolean },
     clientToday: string | null = null,
-  ): Promise<MealPlan> {
+  ): Promise<ChangedPlan> {
     await this.dateOf(userId, planId, dayId);
     const offer = this.notes.dayOffered(userId, req.offer, { plan: planId, day: dayId });
     const plan = await this.prisma.mealPlan.findUnique({
@@ -517,7 +517,7 @@ export class DayVariationsService {
         );
       },
     );
-    return this.plans.get(userId, locale, planId);
+    return this.plans.changedPlan(userId, locale, planId, offer.revision);
   }
 
   /** The date of a day of a plan that is this account's. The plan first: whoever asks about a plan that is not theirs learns nothing about its days. */

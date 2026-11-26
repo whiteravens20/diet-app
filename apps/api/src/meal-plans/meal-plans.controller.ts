@@ -22,6 +22,7 @@ import {
   AiSwapMealRequest,
   ApplyDaySettingsRequest,
   ApplyMealSwapRequest,
+  ChangedPlan,
   DayHistory,
   DaySettings,
   DaySettingsPreview,
@@ -179,7 +180,7 @@ export class MealPlansController {
   /** Make a plan again, or the days of it that the request names. */
   @Post(':id/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   regenerate(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -229,7 +230,7 @@ export class MealPlansController {
   /** Re-roll the meals of a single day. */
   @Post(':id/days/:dayId/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   regenerateDay(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -266,7 +267,7 @@ export class MealPlansController {
   @Post(':id/days/:dayId/variations/take')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   takeDayVariation(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -330,7 +331,7 @@ export class MealPlansController {
   /** Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. */
   @Put(':id/days/:dayId/settings')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   applyDaySettings(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -350,7 +351,7 @@ export class MealPlansController {
   @Post(':id/weeks/even')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   evenWeek(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -370,7 +371,7 @@ export class MealPlansController {
   @Post(':id/retarget')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Answers(MealPlan)
+  @Answers(ChangedPlan)
   retarget(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

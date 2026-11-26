@@ -27,6 +27,7 @@ import {
   type KeepFrozenRequest,
   type KeepLeftRequest,
   type Locale,
+  type ChangedPlan,
   type MealPlan,
   type MealPlanDay,
   type MealPlanPage,
@@ -2363,6 +2364,24 @@ export class MealPlansService {
       keepChoice(tx, [dayId], 'kept'),
     );
     return this.dayHistory(userId, locale, planId, dayId);
+  }
+
+  /**
+   * The plan as a change left it, with what the change did to the lists and the freezer: none where nothing was
+   * written (`written`, the revision the change was written from, is null).
+   */
+  async changedPlan(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    written: number | null,
+    clientToday: string | null = null,
+  ): Promise<ChangedPlan> {
+    const plan = await this.get(userId, locale, planId, clientToday);
+    return {
+      ...plan,
+      effects: written === null ? null : await effectsOf(this.prisma, planId, written + 1),
+    };
   }
 
   async buildRebalanceResult(

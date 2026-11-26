@@ -3,15 +3,17 @@
 import {
   AddCustomMealRequest,
   ProfileInput,
+  type ChangedPlan,
   type MealPlan,
   type Profile,
   type RerollPreview,
 } from '@diet-app/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ProfilesService } from '../profiles/profiles.service.js';
+import { ShoppingListsService } from '../shopping-lists/shopping-lists.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.js';
 import { plansTodayIs } from '../testing/plans-today.js';
 import { createTestApp, TEST_TODAY, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -75,6 +77,30 @@ describe('making a plan again, or a part of it', () => {
     beforeEach(async () => {
       plan = await aPlan(t, user, profile, { durationDays: 5 });
       todayIs('2026-01-07');
+    });
+
+    it('says in its answer the lists the days made again made stop matching, of the plan and of a day', async () => {
+      const listOf = (of: MealPlan) =>
+        t.app.get(ShoppingListsService).generate(user.id, 'en', {
+          planId: of.id,
+          fromDate: '2026-01-07',
+          toDate: '2026-01-09',
+        });
+      const first = await listOf(plan);
+
+      const again = (await regenerate(plan).expect(201)).body as ChangedPlan;
+      expect(again.effects?.lists.map((one) => one.id)).toEqual([first.id]);
+
+      // A day made again by itself, after its lunch was swapped: the day drawn is not the day it holds.
+      const lunch = again.days[3]!.meals.find((meal) => meal.mealType === 'lunch')!;
+      const swapped = await aSwap(t, user, {
+        planId: plan.id,
+        plannedMealId: lunch.id,
+        strategy: 'random',
+      });
+      const second = await listOf(swapped.plan);
+      const dayAgain = (await changeDay(swapped.plan, 3).expect(201)).body as ChangedPlan;
+      expect(dayAgain.effects?.lists.map((one) => one.id)).toEqual([second.id]);
     });
 
     it('leaves the days before today as they are, and fills the others again', async () => {
