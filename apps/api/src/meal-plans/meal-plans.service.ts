@@ -218,7 +218,13 @@ export class MealPlansService {
    * that the day reads the same after the removal as before. A day those entries would take over
    * `MAX_DIARY_ENTRIES_KEPT` refuses the removal, 409 `PLAN_DIARY_FULL` with that day.
    */
-  async remove(userId: string, locale: Locale, planId: string): Promise<void> {
+  async remove(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    /** The client's day: what was obtained for its meals not eaten from then on goes back into the pantry. */
+    clientToday: string | null = null,
+  ): Promise<void> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true },
@@ -272,7 +278,12 @@ export class MealPlansService {
             })),
           });
         }
-        const households = await releasePlanLists(tx, planId, profileId);
+        const households = await releasePlanLists(
+          tx,
+          planId,
+          profileId,
+          clientToday ? new Date(`${clientToday}T00:00:00Z`) : new Date(),
+        );
         // A plan made together with another leaves it a plan of its own, whose shared meals are its own again.
         if (plan.jointPlanId) await tx.jointPlan.deleteMany({ where: { id: plan.jointPlanId } });
         await tx.mealPlan.deleteMany({ where: { id: planId } });

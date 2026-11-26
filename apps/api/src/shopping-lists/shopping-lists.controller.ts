@@ -95,8 +95,12 @@ export class ShoppingListsController {
   /** Delete a shopping list. What was obtained for days still ahead goes into the pantry. */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.lists.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    await this.lists.remove(user.id, id, today ? new Date(`${today}T00:00:00Z`) : undefined);
   }
 
   /** Change a row of a list: how much of it is there, what was at home, its tick, or whether it was bought by weight. The pantry follows. */

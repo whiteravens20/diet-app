@@ -1061,6 +1061,25 @@ describe('shopping lists and the pantry', () => {
       expect(await pantry('white-rice')).toEqual(['160 g']);
     });
 
+    it('on a day whose meals were eaten in part gives back what the meals not eaten still take, with its plan too', async () => {
+      await menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      await menu(1, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      const list = await listFor(0, 1);
+      await edit(list, 'White rice', { purchasedQuantity: 320 });
+      expect(await pantry('white-rice')).toEqual([]);
+      // Today's lunch, a tofu bowl with 80 g of rice, is eaten.
+      const lunch = plan.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!;
+      await t.prisma.plannedMeal.update({
+        where: { id: lunch.id },
+        data: { eatenAt: new Date(date(0)) },
+      });
+
+      // The plan goes on its first day: today's dinner and tomorrow's two meals still take 240 g, not the whole 320.
+      await plans.remove(user.id, 'en', plan.id, date(0));
+
+      expect(await pantry('white-rice')).toEqual(['240 g']);
+    });
+
     it('that nobody touched changes nothing', async () => {
       const list = await listFor(0);
 

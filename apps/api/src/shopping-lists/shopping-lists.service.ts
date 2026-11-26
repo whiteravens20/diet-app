@@ -192,9 +192,7 @@ export class ShoppingListsService {
   async remove(userId: string, listId: string, today: Date = new Date()): Promise<void> {
     const list = await this.loadOwned(userId, listId);
     await this.prisma.$transaction(async (tx) => {
-      await releaseLists(tx, list.plan.profile.id, [listId], (dates) =>
-        shareAhead(dates.fromDate, dates.toDate, today),
-      );
+      await releaseLists(tx, list.plan.profile.id, [listId], await stillTaken(tx, [list], today));
       await tx.shoppingList.deleteMany({ where: { id: listId } });
       await settleHouseholds(tx, list.householdId ? [list.householdId] : []);
     }, TRANSACTION);
@@ -580,18 +578,20 @@ export async function loadIngredients(
 /** One ingredient line of a planned meal, with the day it is for. */
 type DatedLine = PlanIngredientLine & { date: Date };
 
-/** Every ingredient line the plan's menu has between two dates, as the menu is now. */
+/** Every ingredient line the plan's menu has between two dates, as the menu is now; of its meals not eaten alone, when asked. */
 export async function planLines(
   db: Reader,
   planId: string,
   from: Date,
   to: Date,
+  uneatenOnly = false,
 ): Promise<DatedLine[]> {
   const days = await db.mealPlanDay.findMany({
     where: { planId, date: { gte: from, lte: to } },
     select: {
       date: true,
       meals: {
+        ...(uneatenOnly ? { where: { eatenAt: null } } : {}),
         select: {
           id: true,
           source: true,
@@ -679,6 +679,58 @@ export async function planLines(
     }
   }
   return lines;
+}
+
+/**
+ * How much of each row of `lists` goes back into the pantry when they go: what their plans' meals not eaten from
+ * `today` on still take of the row's food, and what the row holds that the menu no longer takes at all (a dish
+ * swapped for another after the shopping), since both are still in the kitchen. What the days before today and the
+ * meals eaten today took is taken as eaten: a list that is over gives nothing back, and one that has not begun gives
+ * back all it holds. A plan whose food cannot be counted in its units gives back the share of its days still ahead.
+ */
+export async function stillTaken(
+  db: Reader,
+  lists: readonly { id: string; planId: string; fromDate: Date; toDate: Date }[],
+  today: Date,
+): Promise<
+  (list: { id: string }, item: { ingredientId: string; totalQuantity: number }) => number
+> {
+  const day = new Date(Math.floor(today.getTime() / 86_400_000) * 86_400_000);
+  const shares = new Map<string, number | ((ingredientId: string, total: number) => number)>();
+  for (const list of lists) {
+    const from = day > list.fromDate ? day : list.fromDate;
+    try {
+      const counted = async (start: Date, uneatenOnly: boolean) => {
+        if (start > list.toDate) return new Map<string, number>();
+        const lines = await planLines(db, list.planId, start, list.toDate, uneatenOnly);
+        const ingredients = await loadIngredients(db, [
+          ...new Set(lines.map((line) => line.ingredientId)),
+        ]);
+        return new Map(
+          aggregateShoppingList(lines, ingredients)
+            .flatMap((group) => group.items)
+            .map((item) => [item.ingredientId, item.totalQuantity] as const),
+        );
+      };
+      const ahead = await counted(from, true);
+      const menu = await counted(list.fromDate, false);
+      shares.set(list.id, (ingredientId, total) => {
+        const unneeded = Math.max(0, total - (menu.get(ingredientId) ?? 0));
+        return (ahead.get(ingredientId) ?? 0) + unneeded;
+      });
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      shares.set(list.id, shareAhead(list.fromDate, list.toDate, today));
+    }
+  }
+  return (list, item) => {
+    const share = shares.get(list.id);
+    if (share === undefined) return 0;
+    if (typeof share === 'number') return share;
+    return item.totalQuantity > 0
+      ? Math.min(1, share(item.ingredientId, item.totalQuantity) / item.totalQuantity)
+      : 0;
+  };
 }
 
 /** What the plan's menu needs between two dates, by aisle, with the ingredients it names. */
@@ -962,7 +1014,11 @@ export async function releaseLists(
   tx: Tx,
   profileId: string,
   listIds: readonly string[],
-  share: (list: { fromDate: Date; toDate: Date }) => number,
+  /** The part of a row's food that goes back into the pantry: see `stillTaken`. */
+  share: (
+    list: { id: string; fromDate: Date; toDate: Date },
+    item: { ingredientId: string; totalQuantity: number },
+  ) => number,
   /**
    * The foods whose purchases by weight go over to the list that takes the place of these (`carriedLoose`): their rows
    * leave the pantries as they found them, and what was bought goes with the purchase.
@@ -993,7 +1049,7 @@ export async function releaseLists(
             : pantryEffects(
                 item,
                 borrowed.map((one) => one.quantity),
-                share(list),
+                share(list, item),
               );
         return { item, borrowed, effects };
       }),
@@ -1059,13 +1115,13 @@ export async function releasePlanLists(
 ): Promise<string[]> {
   const lists = await tx.shoppingList.findMany({
     where: { planId },
-    select: { id: true, householdId: true },
+    select: { id: true, householdId: true, planId: true, fromDate: true, toDate: true },
   });
   await releaseLists(
     tx,
     profileId,
     lists.map((list) => list.id),
-    (dates) => shareAhead(dates.fromDate, dates.toDate, today),
+    await stillTaken(tx, lists, today),
   );
   return lists.flatMap((list) => (list.householdId ? [list.householdId] : []));
 }
@@ -1425,13 +1481,13 @@ export async function forgetLender(
 ): Promise<void> {
   const own = await tx.shoppingList.findMany({
     where: { plan: { profileId }, items: { some: { NOT: { borrowed: { equals: [] } } } } },
-    select: { id: true },
+    select: { id: true, planId: true, fromDate: true, toDate: true },
   });
   await releaseLists(
     tx,
     profileId,
     own.map((list) => list.id),
-    (dates) => shareAhead(dates.fromDate, dates.toDate, today),
+    await stillTaken(tx, own, today),
   );
   const rows = await tx.shoppingListItem.findMany({
     where: {

@@ -67,8 +67,12 @@ export class HouseholdListsController {
   /** Delete a household list and its parts. What was obtained for days still ahead goes into each profile's pantry. */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.households.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    await this.households.remove(user.id, id, today ? new Date(`${today}T00:00:00Z`) : undefined);
   }
 
   /** Change a row of a household list, and with it the row of each part: what the household holds, what is at home, the tick, or whether it was bought by weight. */

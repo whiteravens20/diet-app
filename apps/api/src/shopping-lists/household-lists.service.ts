@@ -15,7 +15,6 @@ import {
   energyOf,
   groupByAisle,
   looseDay,
-  shareAhead,
   shareAtHome,
   sharePurchase,
   withAtHome,
@@ -40,6 +39,7 @@ import {
   releaseLists,
   settleHouseholds,
   settleRow,
+  stillTaken,
   stored,
   TRANSACTION,
   type StoredItem,
@@ -322,8 +322,11 @@ export class HouseholdListsService {
         a.plan.profileId < b.plan.profileId ? -1 : 1,
       );
       for (const part of byProfile) {
-        await releaseLists(tx, part.plan.profileId, [part.id], (dates) =>
-          shareAhead(dates.fromDate, dates.toDate, today),
+        await releaseLists(
+          tx,
+          part.plan.profileId,
+          [part.id],
+          await stillTaken(tx, [{ ...part, planId: part.plan.id }], today),
         );
       }
       await tx.shoppingList.deleteMany({ where: { householdId: id } });

@@ -427,8 +427,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
   ) {
-    await this.plans.remove(user.id, locale, id);
+    await this.plans.remove(user.id, locale, id, today);
   }
 
   /** A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. */
