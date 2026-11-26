@@ -663,7 +663,6 @@ export class MealPlansService {
           include: {
             meals: {
               include: {
-                givenLeftover: { select: { servings: true, quantityScale: true } },
                 recipe: {
                   include: {
                     ingredients: {
@@ -1732,10 +1731,7 @@ export class MealPlansService {
           orderBy: { date: 'asc' },
           include: {
             meals: {
-              include: {
-                recipe: { select: REBALANCE_MACRO_SELECT },
-                givenLeftover: { select: { servings: true, quantityScale: true } },
-              },
+              include: { recipe: { select: REBALANCE_MACRO_SELECT } },
             },
           },
         },
@@ -2988,7 +2984,6 @@ interface PlanWithRelations {
       toppingKey: string | null;
       toppingAmount: number | null;
       cookedServings: number | null;
-      givenLeftover: { servings: number; quantityScale: number } | null;
       recipe:
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];

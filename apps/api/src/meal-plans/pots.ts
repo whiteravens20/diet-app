@@ -18,8 +18,8 @@ export interface PotMeal {
   potHeld: boolean;
   leftoverFromDate: Date | null;
   leftoverFromMealType: string | null;
-  /** The leftover of the pot's rest it gave, where it gave one: a meal of the day after it. */
-  givenLeftover: { servings: number; quantityScale: number } | null;
+  /** The leftover it gave, where it gave one: a meal of the day after it, of the same plan. */
+  givenLeftoverId: string | null;
 }
 
 /** What a pot cooked already holds for a meal eaten from it. */
@@ -48,6 +48,12 @@ export function potsOf(
   today: string,
 ): Map<string, Pot> {
   const pots = new Map<string, Pot>();
+  // A leftover is a meal of the plan's next day: what it holds is read from the plan's own meals.
+  const portions = new Map(
+    days.flatMap((day) =>
+      day.meals.map((meal) => [meal.id, meal.servings * meal.quantityScale] as const),
+    ),
+  );
   const { cookings } = cookingsOf(
     days.map((day) => ({
       date: day.date,
@@ -66,9 +72,7 @@ export function potsOf(
       pots.set(meal.id, {
         cookedOn,
         cooked: meal.cookedServings ?? meal.servings * meal.quantityScale,
-        carried: meal.givenLeftover
-          ? meal.givenLeftover.servings * meal.givenLeftover.quantityScale
-          : 0,
+        carried: meal.givenLeftoverId ? (portions.get(meal.givenLeftoverId) ?? 0) : 0,
         kept: meal.cookedServings !== null,
         eaten: meal.eatenAt !== null,
         held: meal.potHeld,
@@ -91,7 +95,7 @@ const POT_MEAL = {
   potHeld: true,
   leftoverFromDate: true,
   leftoverFromMealType: true,
-  givenLeftover: { select: { servings: true, quantityScale: true } },
+  givenLeftoverId: true,
 } as const;
 
 /** The pots of a plan (`potsOf`), read from the database; none for a plan not made for cooking ahead. */

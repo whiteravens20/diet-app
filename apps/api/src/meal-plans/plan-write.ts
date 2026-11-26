@@ -2,7 +2,7 @@
 
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { DayEventCause } from '@diet-app/shared';
+import { PlanOptions, type DayEventCause } from '@diet-app/shared';
 import { keepEvents, markBefore, ownDays } from './day-events.js';
 import { packagesSaid, repickFreezer } from './freezer-repick.js';
 import { settlePots } from './pots.js';
@@ -215,6 +215,8 @@ export function writePlans<T>(
   return prisma.$transaction(async (tx) => {
     /** The plans claimed that count their packs (a plan that wastes less or nothing), with the kitchen each is of. */
     const counting: { planId: string; kitchen: string }[] = [];
+    /** The plans claimed that are made for cooking ahead: only their meals are eaten from pots cooked already. */
+    const cooking = new Set<string>();
     for (const { planId, revision } of [...plans].sort((a, b) =>
       a.planId.localeCompare(b.planId),
     )) {
@@ -230,6 +232,7 @@ export function writePlans<T>(
       }
       if (wasteLevelOf(claimed[0]!.options))
         counting.push({ planId, kitchen: claimed[0]!.jointPlanId ?? planId });
+      if (PlanOptions.safeParse(claimed[0]!.options).data?.mealPrepFriendly) cooking.add(planId);
     }
     // What the days of the plans' kitchens hold before the change, which their history tells it against.
     const marked = await markBefore(
@@ -244,7 +247,7 @@ export function writePlans<T>(
     const written = await write(tx);
     for (const { planId } of plans) await unlinkDiverged(tx, planId);
     // A meal no longer eaten from a pot cooked already forgets what was cooked for it.
-    for (const { planId } of plans) await settlePots(tx, planId, today);
+    for (const { planId } of plans) if (cooking.has(planId)) await settlePots(tx, planId, today);
     // The days the change itself moved are the user's; those the rests of packs move after it came of it.
     const own = await ownDays(tx, marked);
     // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose

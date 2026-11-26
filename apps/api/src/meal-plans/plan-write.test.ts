@@ -53,12 +53,12 @@ vi.mock('./day-events.js', () => ({
   ),
 }));
 
-/** What a plan that wastes less was made with, as it keeps it. */
+/** What a plan that wastes less, made for cooking ahead, was made with, as it keeps it. */
 const LESS_WASTE = {
   dietType: 'balanced',
   mealCount: 4,
   calorieTargetOverride: null,
-  mealPrepFriendly: false,
+  mealPrepFriendly: true,
   respectExclusions: true,
   respectFavorites: true,
   respectInventory: true,
@@ -67,10 +67,10 @@ const LESS_WASTE = {
   lessWaste: true,
 };
 
-/** A database whose plans are claimed at any revision, of a plan that wastes less. */
-function aDatabase(): PrismaClient {
+/** A database whose plans are claimed at any revision, of a plan made with `options`. */
+function aDatabase(options: object = LESS_WASTE): PrismaClient {
   const tx = {
-    $queryRaw: vi.fn(async () => [{ options: LESS_WASTE, jointPlanId: null }]),
+    $queryRaw: vi.fn(async () => [{ options, jointPlanId: null }]),
     $executeRaw: vi.fn(async () => 0),
     mealPlan: { update: vi.fn(async () => ({})) },
   };
@@ -106,6 +106,20 @@ describe('a write of a plan that wastes less', () => {
     expect(settled.days).toEqual(['2026-11-23', '2026-11-21']);
     // Each day it changes keeps the change in its history, with its cause, by the same day.
     expect(recorded.changes).toEqual(['resize 2026-11-23', 'swap 2026-11-21']);
+  });
+
+  it('settles no pots of a plan not made for cooking ahead, whose meals none is eaten from', async () => {
+    await writePlan(
+      aDatabase({ ...LESS_WASTE, mealPrepFriendly: false }),
+      'plan-1',
+      3,
+      '2026-11-23',
+      'resize',
+      async () => null,
+    );
+
+    expect(settled.days).toEqual([]);
+    expect(followed.days).toEqual(['2026-11-23']);
   });
 
   it('chooses its freezer again after a purchase by weight moved its rests, and moves on a plan whose choice changed', async () => {
