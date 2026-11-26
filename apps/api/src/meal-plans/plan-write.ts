@@ -72,6 +72,17 @@ export function holdDays(tx: Prisma.TransactionClient, days: Iterable<string>): 
   heldOf.set(tx, held);
 }
 
+/** What each write is asked to do as it ends (`whenWritten`), by the transaction it writes in. */
+const endsOf = new WeakMap<Prisma.TransactionClient, (() => Promise<void>)[]>();
+
+/**
+ * Have `end` called as the write ends, once all else it does is done (the rests of packs followed, the freezer chosen
+ * again, the days' history kept): a note of what the write left, such as the revision it left another plan at.
+ */
+export function whenWritten(tx: Prisma.TransactionClient, end: () => Promise<void>): void {
+  endsOf.set(tx, [...(endsOf.get(tx) ?? []), end]);
+}
+
 /** What a write is asked to keep of a day it is about to size because its rests moved, before it sizes it. */
 type KeepBefore = (dayId: string) => Promise<void>;
 
@@ -268,6 +279,7 @@ export function writePlans<T>(
       }
     }
     await keepEvents(tx, marked, own, cause, today, chosenAgain);
+    for (const end of endsOf.get(tx) ?? []) await end();
     return written;
   });
 }
@@ -359,6 +371,100 @@ export async function followKitchen(
   const { changed } = await repickFreezer(tx, planId, today, said);
   await moveOn(changed);
   await keepEvents(tx, marked, new Set(), 'bought-by-weight', today, new Set(changed));
+}
+
+/**
+ * Claim inside a write a plan it did not claim as it began, at the revision a change of it was computed from, as
+ * `writePlans` claims its own: whether it still stood there, in which case it moves on and is this write's.
+ */
+export async function claimAt(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  revision: number,
+): Promise<boolean> {
+  const claimed = await tx.$queryRaw<{ id: string }[]>`
+    UPDATE "MealPlan" SET "revision" = "revision" + 1
+    WHERE "id" = ${planId} AND "revision" = ${revision}
+    RETURNING "id"`;
+  return claimed.length === 1;
+}
+
+/** A shared meal of a joint plan as a change noted it, to be linked again by its undo (`linkAgain`). */
+export interface NotedLink {
+  id: string;
+  /** Its day and time of day. */
+  date: string;
+  mealType: string;
+  apart: boolean;
+  /** Its two meals, one of each plan. */
+  meals: [string, string];
+}
+
+/**
+ * Link again, under the link they had, each noted shared meal whose two meals hold one dish again at its day and time
+ * of day: an undo of the change that made them two meals of their own (`unlinkDiverged`). Neither may be linked to
+ * another meanwhile, and no other link may hold their place. `made` holds the links it made, `kept` those that were
+ * never undone and whose two meals still hold one dish: a link whose meals no longer agree goes as the write ends.
+ */
+export async function linkAgain(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  links: readonly NotedLink[],
+): Promise<{ made: Set<string>; kept: Set<string> }> {
+  const made = new Set<string>();
+  if (links.length === 0) return { made, kept: new Set() };
+  const rows = await tx.sharedMeal.findMany({
+    where: { id: { in: links.map((link) => link.id) } },
+    select: { id: true, meals: { select: { recipeId: true } } },
+  });
+  const there = new Set(rows.map((row) => row.id));
+  const kept = new Set(
+    rows
+      .filter(
+        ({ meals }) =>
+          meals.length === 2 &&
+          meals[0]!.recipeId !== null &&
+          meals[0]!.recipeId === meals[1]!.recipeId,
+      )
+      .map((row) => row.id),
+  );
+  const plan = await tx.mealPlan.findUnique({
+    where: { id: planId },
+    select: { jointPlanId: true },
+  });
+  const jointPlanId = plan?.jointPlanId;
+  if (!jointPlanId) return { made, kept };
+  for (const link of links) {
+    if (there.has(link.id)) continue;
+    const date = new Date(link.date);
+    const meals = await tx.plannedMeal.findMany({
+      where: {
+        id: { in: [...link.meals] },
+        sharedMealId: null,
+        recipeId: { not: null },
+        mealType: link.mealType,
+        day: { date, plan: { jointPlanId } },
+      },
+      select: { id: true, recipeId: true },
+    });
+    if (meals.length !== 2 || meals[0]!.recipeId !== meals[1]!.recipeId) continue;
+    const taken = await tx.sharedMeal.count({
+      where: { jointPlanId, date, mealType: link.mealType },
+    });
+    if (taken > 0) continue;
+    await tx.sharedMeal.create({
+      data: {
+        id: link.id,
+        jointPlanId,
+        date,
+        mealType: link.mealType,
+        apart: link.apart,
+        meals: { connect: meals.map((meal) => ({ id: meal.id })) },
+      },
+    });
+    made.add(link.id);
+  }
+  return { made, kept };
 }
 
 /**

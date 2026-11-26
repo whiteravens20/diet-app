@@ -360,9 +360,25 @@ describe('a plan made together with another profile of the account', () => {
       expect(at(mineAlone.body.plan, 0, 'lunch')!.shared).toBeNull();
     });
 
-    it('is taken back in both plans', async () => {
+    it('is taken back in both plans, the portions and plates of both days with it', async () => {
       const adams = await together();
       const lunch = at(adams, 0, 'lunch')!;
+      const days = [adams.days[0]!.id, (await read(adams.joint!.planId)).days[0]!.id];
+      const rows = () =>
+        t.prisma.plannedMeal.findMany({
+          where: { dayId: { in: days } },
+          select: {
+            id: true,
+            recipeId: true,
+            servings: true,
+            quantityScale: true,
+            toppingKey: true,
+            plate: true,
+            sharedMealId: true,
+          },
+          orderBy: { id: 'asc' },
+        });
+      const before = await rows();
       const offered = await offerFor(adams, lunch, { forAll: true });
       const swapped = (
         await take(adams, lunch, offered.recipe.id, offered.revision, { forAll: true }).expect(201)
@@ -380,6 +396,7 @@ describe('a plan made together with another profile of the account', () => {
       expect(mine.recipe!.id).toBe(lunch.recipe!.id);
       expect(hers.recipe!.id).toBe(lunch.recipe!.id);
       expect(mine.shared!.id).toBe(lunch.shared!.id);
+      expect(await rows()).toEqual(before);
     });
   });
 

@@ -3,12 +3,17 @@
 import {
   AiSwapMealRequest,
   GeneratePlanRequest,
+  SwapIngredientRequest,
+  SwapMealRequest,
   type DaySettingsPreview,
   type MealPlan,
+  type MealPlanDay,
+  type PlannedMeal,
   type Profile,
   type RebalanceResult,
   type ShoppingList,
 } from '@diet-app/shared';
+import { Prisma } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TOPPING_BY_KEY, toppingRefusal } from '../engine/toppings.js';
 import type { ModelRequest } from '../testing/fake-model.js';
@@ -17,6 +22,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -240,6 +246,243 @@ describe('a topping on one plate of a joint plan', () => {
     expect(his.shared).toBeNull();
     expect(his.topping).toBeNull();
     expect(after.revision).toBeGreaterThan(adams.revision);
+  });
+
+  /** What the meals of the days hold that a swap and its undo move, as the plan keeps them. */
+  const rowsOf = (dayIds: readonly string[]) =>
+    t.prisma.plannedMeal.findMany({
+      where: { dayId: { in: [...dayIds] } },
+      select: {
+        id: true,
+        recipeId: true,
+        servings: true,
+        quantityScale: true,
+        swapHistory: true,
+        toppingKey: true,
+        toppingAmount: true,
+        plate: true,
+        rests: true,
+        sharedMealId: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+  it('comes back with a dish both ate when a swap made for one alone is taken back, the topping with it', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const [{ day, meal }] = toppingsOf(adams);
+    const herDay = ewas.days.find((one) => one.date === day!.date)!;
+    const before = await rowsOf([day!.id, herDay.id]);
+
+    // Adam takes another recipe for his own meal alone: the dish is no longer one both eat.
+    const swapped = await aSwap(t, user, {
+      planId: adams.id,
+      plannedMealId: meal!.id,
+      strategy: 'random',
+    });
+    const unlinked = await rowsOf([day!.id, herDay.id]);
+    expect(unlinked.find((row) => row.id === meal!.shared!.with.mealId)!.sharedMealId).toBeNull();
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    // The meal is one both eat again, under its own link, and both days hold the portions, plates and toppings
+    // they held before the swap.
+    expect(await rowsOf([day!.id, herDay.id])).toEqual(before);
+    const history = await t.app.get(MealPlansService).dayHistory(user.id, 'en', adams.id, day!.id);
+    expect(history.events[0]!.cause).toBe('swap-undo');
+  });
+
+  it('puts back the other person’s day the swap sized without the dish both ate, and her plan and day say so', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    // A meal both eat whose plate is her own: a topping or a plate of hers, which a swap of his alone takes off.
+    const hers = await t.prisma.plannedMeal.findFirstOrThrow({
+      where: {
+        day: { planId: ewas.id },
+        sharedMealId: { not: null },
+        OR: [{ toppingKey: { not: null } }, { plate: { not: Prisma.DbNull } }],
+      },
+      select: { id: true, dayId: true, sharedMealId: true },
+    });
+    const his = await t.prisma.plannedMeal.findFirstOrThrow({
+      where: { sharedMealId: hers.sharedMealId, day: { planId: adams.id } },
+      select: { id: true, dayId: true },
+    });
+    const before = await rowsOf([his.dayId, hers.dayId]);
+
+    const swapped = await aSwap(t, user, {
+      planId: adams.id,
+      plannedMealId: his.id,
+      strategy: 'random',
+    });
+    const herPlanSwapped = await read(ewas.id);
+    const [sized] = (await rowsOf([hers.dayId])).filter((row) => row.id === hers.id);
+    expect(sized).toMatchObject({ sharedMealId: null, toppingKey: null, plate: null });
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    expect(await rowsOf([his.dayId, hers.dayId])).toEqual(before);
+    // Her plan changed again: a client that holds it reads it again, and her day says why.
+    expect((await read(ewas.id)).revision).toBeGreaterThan(herPlanSwapped.revision);
+    const history = await t.app
+      .get(MealPlansService)
+      .dayHistory(user.id, 'en', ewas.id, hers.dayId);
+    expect(history.events[0]!.cause).toBe('swap-undo');
+  });
+
+  it('links the dish again when the other person changed another day since the swap, and sizes her day with it', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const hers = await t.prisma.plannedMeal.findFirstOrThrow({
+      where: {
+        day: { planId: ewas.id },
+        sharedMealId: { not: null },
+        OR: [{ toppingKey: { not: null } }, { plate: { not: Prisma.DbNull } }],
+      },
+      select: { id: true, dayId: true, sharedMealId: true },
+    });
+    const his = await t.prisma.plannedMeal.findFirstOrThrow({
+      where: { sharedMealId: hers.sharedMealId, day: { planId: adams.id } },
+      select: { id: true },
+    });
+    const swapped = await aSwap(t, user, {
+      planId: adams.id,
+      plannedMealId: his.id,
+      strategy: 'random',
+    });
+    // Ewa then changes a meal of another day: her plan no longer stands as the swap left it.
+    const another = ewas.days.find((day) => day.id !== hers.dayId)!.meals[0]!;
+    await aSwap(t, user, { planId: ewas.id, plannedMealId: another.id, strategy: 'random' });
+    const herPlanMoved = await read(ewas.id);
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    // Both hold the dish again: it is shared again under its link, and her day is sized with it.
+    const [herMeal] = (await rowsOf([hers.dayId])).filter((row) => row.id === hers.id);
+    expect(herMeal!.sharedMealId).toBe(hers.sharedMealId);
+    expect((await read(ewas.id)).revision).toBeGreaterThan(herPlanMoved.revision);
+    const history = await t.app
+      .get(MealPlansService)
+      .dayHistory(user.id, 'en', ewas.id, hers.dayId);
+    expect(history.events[0]!.cause).toBe('swap-undo');
+  });
+
+  it('comes back as a dish of his own when a swap for both is taken back after her plan moved on, its topping off', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const [{ day, meal }] = toppingsOf(adams);
+    const swaps = t.app.get(MealSwapService);
+    const asked = SwapMealRequest.parse({
+      planId: adams.id,
+      plannedMealId: meal!.id,
+      strategy: 'random',
+      forAll: true,
+    });
+    const offer = await swaps.preview(user.id, 'en', asked);
+    const swapped = await swaps.apply(user.id, 'en', {
+      planId: adams.id,
+      plannedMealId: meal!.id,
+      recipeId: offer.recipe.id,
+      revision: offer.revision,
+      strategy: 'random',
+      allowOffDiet: false,
+      forAll: true,
+    });
+    // Her plan no longer stands as the swap left it: the undo takes back his meal alone.
+    await t.prisma.mealPlan.update({
+      where: { id: ewas.id },
+      data: { revision: { increment: 1 } },
+    });
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    // His dish is back and hers is the new one: no plate or topping of a dish both ate stays on his.
+    const [his] = (await rowsOf([day!.id])).filter((row) => row.id === meal!.id);
+    expect(his).toMatchObject({
+      recipeId: meal!.recipe!.id,
+      sharedMealId: null,
+      toppingKey: null,
+      plate: null,
+    });
+  });
+
+  it('comes back with a dish both ate when a swap of one of its ingredients for one alone is taken back', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const swaps = t.app.get(IngredientSwapService);
+    // A meal both eat with an ingredient the catalogue has a substitute for.
+    let found: { day: MealPlanDay; meal: PlannedMeal; from: string; to: string } | null = null;
+    for (const day of adams.days)
+      for (const meal of day.meals) {
+        if (found || !meal.shared) continue;
+        const [suggestion] = await swaps.suggestions(user.id, 'en', adams.id, meal.id);
+        if (suggestion)
+          found = { day, meal, from: suggestion.fromIngredientId, to: suggestion.to.id };
+      }
+    expect(found).not.toBeNull();
+    const herDay = ewas.days.find((one) => one.date === found!.day.date)!;
+    const before = await rowsOf([found!.day.id, herDay.id]);
+
+    const swapped = await swaps.applyIngredientSwap(
+      user.id,
+      'en',
+      SwapIngredientRequest.parse({
+        planId: adams.id,
+        plannedMealId: found!.meal.id,
+        fromIngredientId: found!.from,
+        toIngredientId: found!.to,
+        acceptChange: true,
+      }),
+    );
+    const hers = (await rowsOf([herDay.id])).find(
+      (row) => row.id === found!.meal.shared!.with.mealId,
+    )!;
+    expect(hers.sharedMealId).toBeNull();
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    expect(await rowsOf([found!.day.id, herDay.id])).toEqual(before);
+  });
+
+  it('comes back as a dish of his own when the other person changed theirs after the swap, and his day takes the topping off', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const [{ day, meal }] = toppingsOf(adams);
+    const swapped = await aSwap(t, user, {
+      planId: adams.id,
+      plannedMealId: meal!.id,
+      strategy: 'random',
+    });
+    // Ewa then takes another recipe for her meal of that time of day as well.
+    await aSwap(t, user, {
+      planId: ewas.id,
+      plannedMealId: meal!.shared!.with.mealId,
+      strategy: 'random',
+    });
+
+    await t.app
+      .get(MealPlansService)
+      .undoSwap(user.id, 'en', { planId: adams.id, revision: swapped.plan.revision });
+
+    // His dish is back, his own: no plate and no topping are kept for a dish nobody shares with him.
+    const [his] = (await rowsOf([day!.id])).filter((row) => row.id === meal!.id);
+    expect(his).toMatchObject({
+      recipeId: meal!.recipe!.id,
+      sharedMealId: null,
+      toppingKey: null,
+      toppingAmount: null,
+      plate: null,
+    });
   });
 
   it('is bought with the plan: the shopping list holds as much more of its food as the plates take', async () => {

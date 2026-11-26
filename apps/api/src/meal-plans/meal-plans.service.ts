@@ -155,11 +155,15 @@ import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
 import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
 import {
+  claimAt,
   holdDays,
   keepBeforeSizing,
+  linkAgain,
   noteSizing,
+  type NotedLink,
   planChangedMeanwhile,
   sizeOtherDaysWith,
+  whenWritten,
   writePlan,
   writePlans,
 } from './plan-write.js';
@@ -2076,41 +2080,104 @@ export class MealPlansService {
     /** The other plan of a joint plan the swap changed as well, at the revision it read: taken back with this one. */
     also: { planId: string; revision: number } | null = null,
   ): Promise<void> {
-    const select = {
-      id: true,
-      recipeId: true,
-      servings: true,
-      quantityScale: true,
-      swapHistory: true,
-      modelPicked: true,
-      modelReason: true,
-      toppingKey: true,
-      toppingAmount: true,
-      rests: true,
-      plate: true,
-    } as const;
-    const meals = await tx.plannedMeal.findMany({ where: { dayId: { in: [...dayIds] } }, select });
+    const meals = await tx.plannedMeal.findMany({
+      where: { dayId: { in: [...dayIds] } },
+      select: { ...NOTED_MEAL, sharedMealId: true },
+    });
+    // The links of the meals both people of a joint plan eat, so that taking the swap back links again a meal it
+    // made one person's own.
+    const shared = await tx.sharedMeal.findMany({
+      where: {
+        id: { in: meals.flatMap((meal) => (meal.sharedMealId ? [meal.sharedMealId] : [])) },
+      },
+      select: {
+        id: true,
+        date: true,
+        mealType: true,
+        apart: true,
+        meals: { select: { id: true, dayId: true, day: { select: { planId: true } } } },
+      },
+    });
+    const links: NotedLink[] = shared.flatMap((link) =>
+      link.meals.length === 2
+        ? [
+            {
+              id: link.id,
+              date: isoDate(link.date),
+              mealType: link.mealType,
+              apart: link.apart,
+              meals: [link.meals[0]!.id, link.meals[1]!.id],
+            },
+          ]
+        : [],
+    );
     const lastSwap: StoredSwap = {
       revision: readAtRevision + 1,
-      meals,
+      meals: meals.map(({ sharedMealId: _, ...meal }) => meal),
+      ...(links.length > 0 ? { links } : {}),
       ...(also ? { also: { planId: also.planId, revision: also.revision + 1 } } : {}),
     };
-    await tx.mealPlan.update({
-      where: { id: planId },
-      data: { lastSwap: lastSwap as Prisma.InputJsonValue },
-    });
-    // A day of the plan the swap sizes because its rests moved is held too, as the swap finds it, so that taking the
-    // swap back puts its portions back as well.
-    keepBeforeSizing(tx, async (dayId) => {
-      if (dayIds.includes(dayId)) return;
-      const found = await tx.plannedMeal.findMany({ where: { dayId, day: { planId } }, select });
-      if (found.length === 0) return;
-      lastSwap.meals = [...lastSwap.meals, ...found];
-      await tx.mealPlan.update({
+    const keep = () =>
+      tx.mealPlan.update({
         where: { id: planId },
         data: { lastSwap: lastSwap as Prisma.InputJsonValue },
       });
+    // Made for this plan alone, the swap makes a dish both ate this person's own, and the other person's day is sized
+    // without it: their days are noted as well, to be put back with these while their plan stands as the swap left it.
+    const theirs = also
+      ? []
+      : shared.flatMap((link) => link.meals.filter((meal) => meal.day.planId !== planId));
+    const partner = theirs[0]
+      ? {
+          planId: theirs[0].day.planId,
+          from: (
+            await tx.mealPlan.findUniqueOrThrow({
+              where: { id: theirs[0].day.planId },
+              select: { revision: true },
+            })
+          ).revision,
+          meals: await tx.plannedMeal.findMany({
+            where: { dayId: { in: theirs.map((meal) => meal.dayId) } },
+            select: NOTED_MEAL,
+          }),
+        }
+      : null;
+    await keep();
+    // A day of the plans the swap sizes because its rests moved is held too, as the swap finds it, so that taking the
+    // swap back puts its portions back as well.
+    const noted = new Set([...dayIds, ...theirs.map((meal) => meal.dayId)]);
+    keepBeforeSizing(tx, async (dayId) => {
+      if (noted.has(dayId)) return;
+      const day = await tx.mealPlanDay.findUnique({
+        where: { id: dayId },
+        select: { planId: true },
+      });
+      const into =
+        day?.planId === planId
+          ? lastSwap.meals
+          : partner && day?.planId === partner.planId
+            ? partner.meals
+            : null;
+      if (!into) return;
+      noted.add(dayId);
+      into.push(...(await tx.plannedMeal.findMany({ where: { dayId }, select: NOTED_MEAL })));
+      await keep();
     });
+    // Their plan is noted at the revision the swap leaves it at, once all the swap does is done: where the swap
+    // changed it, by a day sized or a link undone.
+    if (partner)
+      whenWritten(tx, async () => {
+        const at = await tx.mealPlan.findUnique({
+          where: { id: partner.planId },
+          select: { revision: true },
+        });
+        const undone =
+          (await tx.sharedMeal.count({ where: { id: { in: links.map((link) => link.id) } } })) <
+          links.length;
+        if (!at || (at.revision === partner.from && !undone)) return;
+        lastSwap.partner = { planId: partner.planId, revision: at.revision, meals: partner.meals };
+        await keep();
+      });
   }
 
   /** Take back the last swap of a plan, on the plan as that swap left it. */
@@ -2153,38 +2220,64 @@ export class MealPlansService {
     const theirs = also ? StoredSwap.nullable().parse(also.lastSwap ?? null) : null;
     const together =
       also && theirs?.revision === also.revision ? { plan: also, swap: theirs } : null;
+    const today = clientToday ?? this.today();
     await writePlans(
       this.prisma,
       [
         { planId: req.planId, revision: req.revision },
         ...(together ? [{ planId: together.plan.id, revision: together.plan.revision }] : []),
       ],
-      clientToday ?? this.today(),
+      today,
       'swap-undo',
       async (tx) => {
+        /** The days put back as the swap found them. */
+        const put = new Set<string>();
         for (const [planId, taken] of [
           [req.planId, swap],
           ...(together ? [[together.plan.id, together.swap] as const] : []),
         ] as const) {
-          for (const { id, rests, ...before } of taken.meals)
-            await tx.plannedMeal.update({
-              where: { id },
-              data: {
-                ...before,
-                ...(rests === undefined ? {} : { rests: restsAsJson(restsOf(rests)) }),
-              },
-            });
-          // The days put back stand as the swap found them: the rests follow them, and nothing sizes them again.
-          const days = await tx.plannedMeal.findMany({
-            where: { id: { in: taken.meals.map((meal) => meal.id) } },
-            select: { dayId: true },
-          });
-          holdDays(
-            tx,
-            days.map((meal) => meal.dayId),
-          );
+          for (const day of await putBackMeals(tx, taken.meals)) put.add(day);
           await tx.mealPlan.update({ where: { id: planId }, data: { lastSwap: Prisma.JsonNull } });
         }
+        // The other person's days a swap for this plan alone changed go back too, while their plan stands as the
+        // swap left it: claimed here at that revision.
+        const partner = swap.partner;
+        const theirsBack = partner ? await claimAt(tx, partner.planId, partner.revision) : false;
+        if (partner && theirsBack)
+          for (const day of await putBackMeals(tx, partner.meals)) put.add(day);
+        // A dish both ate that the swap made one person's own is shared again where both meals hold it again.
+        const links = swap.links ?? [];
+        const { made, kept } = await linkAgain(tx, req.planId, links);
+        const lost = links.filter((link) => !made.has(link.id) && !kept.has(link.id));
+        const dayOf = new Map(
+          (
+            await tx.plannedMeal.findMany({
+              where: { id: { in: links.flatMap((link) => link.meals) } },
+              select: { id: true, dayId: true },
+            })
+          ).map((meal) => [meal.id, meal.dayId]),
+        );
+        const daysOf = (of: readonly NotedLink[]) =>
+          of.flatMap((link) => link.meals.flatMap((mealId) => dayOf.get(mealId) ?? []));
+        // Sized, not put back: a day put back whose meal is its eater's own now, which keeps no plate or topping of a
+        // dish both ate, and a day of the other person linked again that was not put back, whose plate and topping
+        // are chosen with the link.
+        const sized = new Set([
+          ...daysOf(lost).filter((dayId) => put.has(dayId)),
+          ...daysOf(links.filter((link) => made.has(link.id))).filter((dayId) => !put.has(dayId)),
+        ]);
+        // The days put back stand as the swap found them: the rests follow them, and nothing sizes them again.
+        holdDays(
+          tx,
+          [...put].filter((dayId) => !sized.has(dayId)),
+        );
+        for (const dayId of sized) await this.rebalanceDayInternal(dayId, tx, today);
+        // Their plan changed even where it had moved on since the swap: a client that holds it reads it again.
+        if (partner && !theirsBack && made.size > 0)
+          await tx.mealPlan.update({
+            where: { id: partner.planId },
+            data: { revision: { increment: 1 } },
+          });
       },
     );
     return this.buildRebalanceResult(userId, locale, req.planId, 'day', null, req.revision);
@@ -3043,29 +3136,88 @@ interface RebalanceRow {
   slot?: MealType;
 }
 
+/** A meal of a day a swap changed, as the swap found it. */
+const StoredSwapMeal = z.object({
+  id: z.string(),
+  recipeId: z.string().nullable(),
+  servings: z.number(),
+  quantityScale: z.number(),
+  swapHistory: z.array(z.string()),
+  modelPicked: z.boolean(),
+  modelReason: z.string().nullable(),
+  // Left out by a swap remembered before toppings were.
+  toppingKey: z.string().nullable().optional(),
+  toppingAmount: z.number().nullable().optional(),
+  // Left out by a swap remembered before rests of packs were.
+  rests: z.unknown().optional(),
+  // Left out by a swap remembered before its plates were put back.
+  plate: z.unknown().optional(),
+});
+type StoredSwapMeal = z.infer<typeof StoredSwapMeal>;
+
+/** What a swap notes of a meal (`StoredSwapMeal`). */
+const NOTED_MEAL = {
+  id: true,
+  recipeId: true,
+  servings: true,
+  quantityScale: true,
+  swapHistory: true,
+  modelPicked: true,
+  modelReason: true,
+  toppingKey: true,
+  toppingAmount: true,
+  rests: true,
+  plate: true,
+} as const;
+
 /** What the days a swap changed held before it, for the revision of the plan it left. */
 const StoredSwap = z.object({
   revision: z.number().int(),
-  meals: z.array(
-    z.object({
-      id: z.string(),
-      recipeId: z.string().nullable(),
-      servings: z.number(),
-      quantityScale: z.number(),
-      swapHistory: z.array(z.string()),
-      modelPicked: z.boolean(),
-      modelReason: z.string().nullable(),
-      // Left out by a swap remembered before toppings were.
-      toppingKey: z.string().nullable().optional(),
-      toppingAmount: z.number().nullable().optional(),
-      // Left out by a swap remembered before rests of packs were.
-      rests: z.unknown().optional(),
-    }),
-  ),
+  meals: z.array(StoredSwapMeal),
+  /** The shared meals of those days, as linked before the swap (`NotedLink`). */
+  links: z
+    .array(
+      z.object({
+        id: z.string(),
+        date: z.string(),
+        mealType: z.string(),
+        apart: z.boolean(),
+        meals: z.tuple([z.string(), z.string()]),
+      }),
+    )
+    .optional(),
   /** The other plan of a joint plan the swap was made in as well, at the revision it left that plan at. */
   also: z.object({ planId: z.string(), revision: z.number().int() }).optional(),
+  /**
+   * The other plan of a joint plan a swap made for this plan alone changed, at the revision it left that plan at,
+   * with what its days held before it.
+   */
+  partner: z
+    .object({ planId: z.string(), revision: z.number().int(), meals: z.array(StoredSwapMeal) })
+    .optional(),
 });
 type StoredSwap = z.infer<typeof StoredSwap>;
+
+/** Put the meals a swap noted back as the swap found them, in its undo: the days they are of. */
+async function putBackMeals(
+  tx: Prisma.TransactionClient,
+  meals: readonly StoredSwapMeal[],
+): Promise<string[]> {
+  for (const { id, rests, plate, ...before } of meals)
+    await tx.plannedMeal.update({
+      where: { id },
+      data: {
+        ...before,
+        ...(rests === undefined ? {} : { rests: restsAsJson(restsOf(rests)) }),
+        ...(plate === undefined ? {} : { plate: plateAsJson(plateOfMeal(plate)) }),
+      },
+    });
+  const days = await tx.plannedMeal.findMany({
+    where: { id: { in: meals.map((meal) => meal.id) } },
+    select: { dayId: true },
+  });
+  return [...new Set(days.map((meal) => meal.dayId))];
+}
 
 /** A meal of a cooking, as a change of the dish of another of its meals reads it. */
 export interface CookedMeal {
