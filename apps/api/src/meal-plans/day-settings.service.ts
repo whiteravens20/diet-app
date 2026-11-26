@@ -15,6 +15,7 @@ import {
   type MealPlan,
   type MealType,
 } from '@diet-app/shared';
+import { refuseUnderLeast } from '../common/typed-target.js';
 import { diaryDays } from '../diary/diary-days.js';
 import {
   calculateCalories,
@@ -465,6 +466,13 @@ export class DaySettingsService {
         message: 'The plan changed while this request was running. Reload it and try again.',
       });
     }
+    // A target of the day's own that the request changes is held to the least this body may be given.
+    if (request.calorieTarget !== (parseDayOverrides(context.day.overrides)?.calorieTarget ?? null))
+      refuseUnderLeast(
+        request.calorieTarget,
+        calculateCalories(calorieInputOf(context.profile)).leastTypedTarget,
+        'calorieTarget',
+      );
     let change = this.change(context, request);
     // The week evened out with the change: this day's target is the one an evened week gives it.
     const evened = request.evenWeek

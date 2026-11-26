@@ -23,6 +23,7 @@ const plain: CalorieCalculation = {
   safetyFloorApplied: false,
   maintenanceUnderFloor: false,
   goalHeld: false,
+  leastTypedTarget: 1200,
   customSplitHeld: false,
   warnings: [],
 };

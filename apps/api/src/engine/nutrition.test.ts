@@ -322,6 +322,7 @@ describe('calculateCalories', () => {
       safetyFloorApplied: false,
       maintenanceUnderFloor: false,
       goalHeld: false,
+      leastTypedTarget: 1200,
       warnings: [],
     });
   });
@@ -550,6 +551,33 @@ describe('calculateCalories', () => {
         'minor',
         'underweight',
       ]);
+    });
+  });
+
+  describe('the least a target may be typed at', () => {
+    it('is 1200 kcal, or the maintenance of a body whose maintenance is lower', () => {
+      expect(calculateCalories(person()).leastTypedTarget).toBe(1200);
+      // 85 years, 150 cm, 45 kg, sedentary: BMR 802, maintenance 1123.
+      const small = calculateCalories(
+        person({ age: 85, sex: 'female', heightCm: 150, weightKg: 45, activityLevel: 'sedentary' }),
+      );
+      expect(small).toMatchObject({ maintenance: 1123, leastTypedTarget: 1123 });
+    });
+
+    it('goes by the formula, not by a correction from the real expenditure', () => {
+      expect(calculateCalories(person({ expenditureCorrection: -2000 })).leastTypedTarget).toBe(
+        1200,
+      );
+      const small = {
+        age: 85,
+        sex: 'female',
+        heightCm: 150,
+        weightKg: 45,
+        activityLevel: 'sedentary',
+      } as const;
+      expect(
+        calculateCalories(person({ ...small, expenditureCorrection: -200 })).leastTypedTarget,
+      ).toBe(1123);
     });
   });
 });

@@ -435,6 +435,56 @@ describe('changing a profile', () => {
       expect(given).toEqual({ ...(await stored()), updatedAt: given.updatedAt });
     });
 
+    it('refuses a typed target under the least this body may be given, and takes one at it', async () => {
+      const refused = await change({ manualCalorieTarget: 1199 }).expect(400);
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect(refused.body.issues[0]).toMatchObject({
+        path: 'manualCalorieTarget',
+        code: 'too_small',
+        minimum: 1200,
+      });
+      expect(refused.body.issues[0].message).toContain('1200 kcal');
+
+      expect(
+        (await change({ manualCalorieTarget: 1200 }).expect(200)).body.manualCalorieTarget,
+      ).toBe(1200);
+    });
+
+    it('keeps a typed target from before the least while other parts change, sent back whole or not', async () => {
+      await t.prisma.profile.update({
+        where: { id: profile.id },
+        data: { manualCalorieTarget: 1000 },
+      });
+
+      expect((await change({ weightKg: 79 }).expect(200)).body.manualCalorieTarget).toBe(1000);
+      profile = await stored();
+      expect(
+        (await put({ ...whole(), activityLevel: 'light' }).expect(200)).body.manualCalorieTarget,
+      ).toBe(1000);
+      // Typed again, it is held to the least.
+      expect((await change({ manualCalorieTarget: 1100 }).expect(400)).body.error).toBe(
+        'VALIDATION_FAILED',
+      );
+    });
+
+    it('lets a body whose maintenance is under 1200 kcal type its maintenance', async () => {
+      // 85 years, 150 cm, 45 kg, sedentary: maintenance 1123.
+      await change({
+        age: 85,
+        sex: 'female',
+        heightCm: 150,
+        weightKg: 45,
+        activityLevel: 'sedentary',
+      }).expect(200);
+
+      expect(
+        (await change({ manualCalorieTarget: 1123 }).expect(200)).body.manualCalorieTarget,
+      ).toBe(1123);
+      expect(
+        (await change({ manualCalorieTarget: 1122 }).expect(400)).body.issues[0].message,
+      ).toContain('1123 kcal');
+    });
+
     it("is not for another account's profile", async () => {
       const other = await aUser(t);
 

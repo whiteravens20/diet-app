@@ -313,7 +313,7 @@ describe('a plan with skipped days, and the rebalance of the rest of a plan', ()
     const profile = await aProfile(t, user);
     const typed = await aPlan(t, user, profile, {
       durationDays: 2,
-      calorieTargetOverride: 1000,
+      calorieTargetOverride: 1300,
       dayOverrides: [{ date: '2026-01-06', calorieTarget: 2400 }],
     });
     const calculated = await aPlan(t, user, profile, { durationDays: 2 });

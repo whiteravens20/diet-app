@@ -6,6 +6,7 @@ import {
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
+import { BadRequestException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -91,23 +92,43 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       ).toEqual([1200, 1200, 1380]);
     });
 
-    it('is followed by a rest day when they typed a target for the plan, down to the least a target may be and no further', async () => {
+    it('is followed by a rest day when they typed a target for the plan, under the least a typed target may be', async () => {
       const plan = await aPlan(t, user, await onTheFloor(), {
         ...threeKinds,
-        calorieTargetOverride: 800,
+        calorieTargetOverride: 1200,
       });
 
-      // 800 × 0.85 would be 680.
-      expect(targets(plan)).toEqual([800, 800, 920]);
+      // The week holds 1200 a day: the rest day 1200 × 0.85, the training day 1200 × 1.15.
+      expect(targets(plan)).toEqual([1200, 1020, 1380]);
     });
 
     it('gets the target they set for one day as they set it', async () => {
       const plan = await aPlan(t, user, await onTheFloor(), {
         durationDays: 2,
-        dayOverrides: [{ date: '2026-01-06', dayType: 'rest', calorieTarget: 950 }],
+        dayOverrides: [{ date: '2026-01-06', dayType: 'rest', calorieTarget: 1250 }],
       });
 
-      expect(targets(plan)).toEqual([1200, 950]);
+      expect(targets(plan)).toEqual([1200, 1250]);
+    });
+
+    it('cannot type a target under 1200 kcal, for the plan or for a day', async () => {
+      const profile = await onTheFloor();
+
+      for (const body of [
+        { calorieTargetOverride: 1199 },
+        { dayOverrides: [{ date: '2026-01-06', calorieTarget: 1100 }] },
+      ]) {
+        const refused: unknown = await aPlan(t, user, profile, { durationDays: 2, ...body }).catch(
+          (err: unknown) => err,
+        );
+        expect(refused).toBeInstanceOf(BadRequestException);
+        expect((refused as BadRequestException).getResponse()).toMatchObject({
+          error: 'VALIDATION_FAILED',
+        });
+        expect(JSON.stringify((refused as BadRequestException).getResponse())).toContain(
+          '1200 kcal',
+        );
+      }
     });
   });
 
@@ -145,8 +166,8 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
 
       const plan = await aPlan(t, user, profile, {
         durationDays: 2,
-        calorieTargetOverride: 900,
-        dayOverrides: [{ date: '2026-01-06', calorieTarget: 850 }],
+        calorieTargetOverride: 1300,
+        dayOverrides: [{ date: '2026-01-06', calorieTarget: 1250 }],
       });
 
       expect(targets(plan)).toEqual([toTen(maintenance), toTen(maintenance)]);

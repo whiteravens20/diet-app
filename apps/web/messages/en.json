@@ -2881,7 +2881,7 @@
     "paceHeld": "on hold",
     "paceSlowedNote": "A pace marked “slowed” would take more than a quarter of your maintenance, or go under the lowest a calculated plan goes, so the plan takes less.",
     "manualKcalOverride": "Manual kcal override",
-    "manualKcalHint": "Leave it empty and the pace decides.",
+    "manualKcalHint": "At least {least, number, ::group-off}\u00a0kcal. Leave it empty and the pace decides.",
     "auto": "auto",
     "mealsPerDay": "Meals per day",
     "customSplit": "Your split of a day's energy",

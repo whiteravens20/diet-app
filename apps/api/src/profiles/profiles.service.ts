@@ -31,6 +31,7 @@ import { holdAccount } from '../common/hold.js';
 import { storedKindLimits } from '../common/stored-kind-limits.js';
 import { labelLimitsOf } from '../common/label-limits.js';
 import { storedSplit } from '../common/stored-split.js';
+import { refuseUnderLeast } from '../common/typed-target.js';
 import type { Env } from '../config/env.js';
 import {
   calculateCalories,
@@ -44,6 +45,24 @@ import { forgetLender, settleHouseholds } from '../shopping-lists/shopping-lists
 import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
+
+/**
+ * Refuse a typed target under the least this body may type, where the request
+ * changes it: a request that resends a target kept from before that least, or
+ * changes the body under it, is not refused for it.
+ */
+function refuseTargetUnderLeast(
+  profile: CalorieProfile,
+  before?: { manualCalorieTarget: number | null },
+): void {
+  const typed = profile.manualCalorieTarget;
+  if (typed === null || typed === before?.manualCalorieTarget) return;
+  refuseUnderLeast(
+    typed,
+    calculateCalories(calorieInputOf(profile)).leastTypedTarget,
+    'manualCalorieTarget',
+  );
+}
 
 @Injectable()
 export class ProfilesService {
@@ -67,6 +86,7 @@ export class ProfilesService {
 
   async create(userId: string, input: ProfileInput): Promise<Profile> {
     refuseHeldProtein({ ...input, expenditureCorrectionKcal: null });
+    refuseTargetUnderLeast({ ...input, expenditureCorrectionKcal: null });
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
       // The instance's own number. An account that holds more than a lowered number keeps what it has.
@@ -136,6 +156,7 @@ export class ProfilesService {
   async update(userId: string, id: string, input: ProfileUpdate): Promise<Profile> {
     const before = await this.load(userId, id);
     refuseHeldProtein({ ...before, ...input }, before);
+    refuseTargetUnderLeast({ ...before, ...input }, before);
     const row = await this.prisma.profile.update({
       where: { id },
       data: {
@@ -221,6 +242,10 @@ export class ProfilesService {
     const { customMacroSplit, ...parts } = patch;
     // A client of before may still send its word about the risk of losing weight: it is no part of the profile.
     delete parts.acknowledgeRisk;
+    refuseTargetUnderLeast(
+      { ...before, ...parts, customMacroSplit: after.customMacroSplit, customProteinPerKg },
+      before,
+    );
     const row = await this.prisma.profile.update({
       where: { id },
       data: {

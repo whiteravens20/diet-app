@@ -31,6 +31,8 @@ export interface PlanBase {
    * own. The more of the formula's and the corrected one, as the engine holds the profile's target.
    */
   holdUnder: number | null;
+  /** The least a target typed for the plan or for one of its days may be, for this body. */
+  least: number;
 }
 
 /**
@@ -58,5 +60,6 @@ export function planBaseOf(profile: BaseProfile, typedForThePlan?: number): Plan
     holdUnder: atRisk
       ? Math.max(calories.maintenance, calculateMaintenance(calculateBmr(profile), profile))
       : null,
+    least: calories.leastTypedTarget,
   };
 }

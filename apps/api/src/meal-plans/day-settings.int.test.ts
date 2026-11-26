@@ -126,6 +126,22 @@ describe('the settings of a day of a running plan', () => {
       expect(after).toMatchObject({ calorieTarget: 2100, overrides: { calorieTarget: 2100 } });
       expect(insideItsWindow(after)).toBe(true);
     });
+
+    it("refuses a target of the day's own under the least this body may be given", async () => {
+      const refused = await t
+        .http()
+        .put(`/api/meal-plans/${plan.id}/days/${dayOf(plan).id}/settings`)
+        .set(as(user))
+        .set('X-Client-Date', day(0))
+        .send({ ...settingsOf(dayOf(plan)), calorieTarget: 1150, revision: plan.revision })
+        .expect(400);
+
+      expect(refused.body).toMatchObject({ error: 'VALIDATION_FAILED' });
+      expect(refused.body.issues[0]).toMatchObject({ path: 'calorieTarget' });
+      expect(dayOf(await apply(plan, { calorieTarget: 1200 }))).toMatchObject({
+        calorieTarget: 1200,
+      });
+    });
   });
 
   describe('the week of the day', () => {

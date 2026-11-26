@@ -203,19 +203,24 @@ export function PaceChoice({
   );
 }
 
-/** A calorie target of one's own, in place of the one the pace comes to. */
+/**
+ * A calorie target of one's own, in place of the one the pace comes to: at
+ * least `least`, what the calculation of the body says it may be typed at.
+ */
 export function OwnTargetField({
   initial,
+  least = MIN_CALORIE_TARGET,
   errorOf,
 }: {
   initial: number | null;
+  least?: number;
   errorOf?: ErrorOf;
 }) {
   const t = useTranslations('profile');
   return (
     <Field
       label={t('manualKcalOverride')}
-      hint={t('manualKcalHint')}
+      hint={t('manualKcalHint', { least })}
       error={errorOf?.('manualCalorieTarget')}
       optional
     >
@@ -223,7 +228,7 @@ export function OwnTargetField({
         name="manualCalorieTarget"
         type="number"
         inputMode="numeric"
-        min={MIN_CALORIE_TARGET}
+        min={least}
         max={MAX_CALORIE_TARGET}
         placeholder={t('auto')}
         defaultValue={initial ?? ''}

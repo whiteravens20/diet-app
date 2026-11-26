@@ -127,7 +127,10 @@ export default function CalculatorPage() {
                     unit={unit}
                     className="sm:col-span-2"
                   />
-                  <OwnTargetField initial={from?.manualCalorieTarget ?? null} />
+                  <OwnTargetField
+                    initial={from?.manualCalorieTarget ?? null}
+                    least={shown.preview?.calculation.leastTypedTarget}
+                  />
                   <RiskNote reasons={risk} className="sm:col-span-2" />
                 </form>
               </CardContent>

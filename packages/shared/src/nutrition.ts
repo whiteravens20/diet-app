@@ -202,8 +202,20 @@ export const EnteredNutrition = z.object({
 });
 export type EnteredNutrition = z.infer<typeof EnteredNutrition>;
 
-/** The least and the most a calorie target somebody types may be, for a profile, a plan or a day. */
-export const MIN_CALORIE_TARGET = 800;
+/**
+ * The least a calorie target somebody types may be, for a profile, a plan or a
+ * day: under it a day of ordinary food hardly holds what the body needs, and a
+ * diet that low belongs to a specialist service. A body whose maintenance is
+ * lower still may type its maintenance (`CalorieCalculation.leastTypedTarget`).
+ */
+export const MIN_CALORIE_TARGET = 1200;
+/**
+ * The least any calorie target is held to: what a request may carry, what a
+ * day kept from before the least above may hold, and what a rest day of a
+ * typed target may come to, its week holding the target.
+ */
+export const LOWEST_CALORIE_TARGET = 800;
+/** The most a calorie target somebody types may be. */
 export const MAX_CALORIE_TARGET = 6000;
 
 /**
@@ -272,6 +284,11 @@ export const CalorieCalculation = z.object({
    * body is so.
    */
   goalHeld: z.boolean(),
+  /**
+   * The least a target this body types may be: `MIN_CALORIE_TARGET`, or the
+   * formula's maintenance where that is lower.
+   */
+  leastTypedTarget: z.number(),
   /**
    * The custom diet's protein per kilogram came to a share of the day outside
    * the limits of a split, and the targets hold it at the limit: the profile

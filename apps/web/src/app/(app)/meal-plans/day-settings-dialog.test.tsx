@@ -13,6 +13,7 @@ import { DaySettingsDialog } from './day-settings-dialog';
 
 const texts = messages.mealPlans.daySettings;
 const PLAN = '11111111-1111-4111-8111-111111111111';
+const PROFILE = '22222222-2222-4222-8222-222222222222';
 const PATH = `/meal-plans/${PLAN}/days/22222222-2222-4222-8222-222222222222/settings`;
 const MEAL_IDS = [
   '33333333-3333-4333-8333-333333333331',
@@ -100,9 +101,15 @@ async function opened(
       Promise.resolve(preview(body as Record<string, unknown>) as never),
     );
   const put = vi.spyOn(api, 'put').mockResolvedValue({} as never);
-  // An account that weighs in kilograms: the pace of a week is said in them.
+  // An account that weighs in kilograms: the pace of a week is said in them. Its body may type 1200 kcal or more.
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
-    Promise.resolve((path === '/users/me' ? { weightUnit: 'kg' } : {}) as never),
+    Promise.resolve(
+      (path === '/users/me'
+        ? { weightUnit: 'kg' }
+        : path === `/profiles/${PROFILE}/calories`
+          ? { leastTypedTarget: 1200 }
+          : {}) as never,
+    ),
   );
   const onClose = vi.fn();
   const onSaved = vi.fn();
@@ -113,6 +120,7 @@ async function opened(
       >
         <DaySettingsDialog
           planId={PLAN}
+          profileId={PROFILE}
           day={DAY}
           week={week}
           mealName={(type) => type}
@@ -424,10 +432,13 @@ describe('the window in which the settings of a day are changed', () => {
     // A field is named by its label and the hint under it: it is found by the label in that name.
     const target = dialog.getByLabelText(texts.ownTarget, { exact: false });
 
-    await userEvent.type(target, '100');
+    // Under the body's least, which the schema of a request would take.
+    await userEvent.type(target, '1000');
 
     expect(
-      await dialog.findByText(/^Type a whole number from 800 to 6000, or leave the field empty\.$/),
+      await dialog.findByText(
+        /^Type a whole number from 1200 to 6000, or leave the field empty\.$/,
+      ),
     ).toBeInTheDocument();
     expect(target).toHaveAttribute('aria-invalid', 'true');
     expect(dialog.getByText(texts.fixFields)).toBeInTheDocument();

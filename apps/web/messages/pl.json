@@ -2881,7 +2881,7 @@
     "paceHeld": "wstrzymane",
     "paceSlowedNote": "Tempo oznaczone jako „spowolnione” odebrałoby więcej niż jedną czwartą Twojego zapotrzebowania albo zeszło poniżej najniższego celu, jaki wylicza plan, więc plan odejmuje mniej.",
     "manualKcalOverride": "Cel kcal wpisany ręcznie",
-    "manualKcalHint": "Zostaw puste, a zdecyduje tempo.",
+    "manualKcalHint": "Najmniej {least, number, ::group-off}\u00a0kcal. Zostaw puste, a\u00a0zdecyduje tempo.",
     "auto": "auto",
     "mealsPerDay": "Posiłków dziennie",
     "customSplit": "Twój podział energii dnia",

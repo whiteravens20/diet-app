@@ -491,6 +491,7 @@ export default function ProfilePage() {
                 <div className="sm:col-start-1">
                   <OwnTargetField
                     initial={editing?.manualCalorieTarget ?? null}
+                    least={shown.preview?.calculation.leastTypedTarget}
                     errorOf={errorOf}
                   />
                 </div>

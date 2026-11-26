@@ -19,6 +19,7 @@ function aCalculation(over: Partial<CalorieCalculation> = {}): CalorieCalculatio
     safetyFloorApplied: false,
     maintenanceUnderFloor: false,
     goalHeld: false,
+    leastTypedTarget: 1200,
     customSplitHeld: false,
     warnings: [],
     ...over,

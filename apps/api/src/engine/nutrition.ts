@@ -10,6 +10,7 @@
 import {
   ADULT_AGE,
   KCAL_PER_GRAM,
+  LOWEST_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
   proteinShareBounds,
   riskOfLosingWeight,
@@ -431,12 +432,22 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     safetyFloorApplied,
     maintenanceUnderFloor,
     goalHeld,
+    leastTypedTarget: leastTypedTarget(formula),
     warnings: [
       ...atRisk,
       ...(source === 'manual_override' && dailyTarget < floor ? (['below_floor'] as const) : []),
       ...(dailyTarget < bmr ? (['below_bmr'] as const) : []),
     ],
   };
+}
+
+/**
+ * The least a target this body types may be: `MIN_CALORIE_TARGET`, or the
+ * formula's maintenance where that is lower, so that a small body may type
+ * its own maintenance; never under `LOWEST_CALORIE_TARGET`.
+ */
+function leastTypedTarget(formulaMaintenance: number): number {
+  return Math.max(LOWEST_CALORIE_TARGET, Math.min(MIN_CALORIE_TARGET, round(formulaMaintenance)));
 }
 
 /** Round to whole numbers — calorie/macro outputs are always integers. */
@@ -533,7 +544,7 @@ export function effectiveDayTarget(day: {
   // To a thousandth of a kilocalorie first: a product of factors lands a hair off a half, which rounds up.
   const exact = Math.round(day.base * factor * 1000) / 1000;
   const shaped = Math.round(exact / 10) * 10;
-  const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : MIN_CALORIE_TARGET;
+  const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : LOWEST_CALORIE_TARGET;
   const target = Math.max(shaped, least);
   return { target, belowFloor: !day.baseIsCalculated && target < day.floor };
 }

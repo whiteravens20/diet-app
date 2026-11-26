@@ -17,7 +17,7 @@ import {
   LabelLimits,
   MacroSplit,
   MAX_CALORIE_TARGET,
-  MIN_CALORIE_TARGET,
+  LOWEST_CALORIE_TARGET,
   NO_LABEL_LIMITS,
   PROTEIN_PER_KG,
 } from './nutrition.js';
@@ -190,8 +190,17 @@ const profileFields = {
   waterTargetMl: z.number().int().min(MIN_WATER_TARGET_ML).max(MAX_WATER_TARGET_ML).nullable(),
   /** Whether the profile tracks water: off, the clients show none of its water and no reminder to drink comes; its entries stay. */
   waterTracking: z.boolean(),
-  /** Manual kcal target; when set it overrides the calculated value. */
-  manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
+  /**
+   * Manual kcal target; when set it overrides the calculated value. The body's own least
+   * (`CalorieCalculation.leastTypedTarget`) is held where a request changes it; the bound here is what any
+   * request may carry.
+   */
+  manualCalorieTarget: z
+    .number()
+    .int()
+    .min(LOWEST_CALORIE_TARGET)
+    .max(MAX_CALORIE_TARGET)
+    .nullable(),
   /** Default meal count (2-5) for new plans. */
   mealCount: z.number().int().min(2).max(5),
   /** How often the background worker should nudge to log a weight. */

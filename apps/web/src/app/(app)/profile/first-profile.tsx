@@ -232,7 +232,10 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
                     step="0.1"
                   />
                 </Field>
-                <OwnTargetField initial={null} />
+                <OwnTargetField
+                  initial={null}
+                  least={shown.preview?.calculation.leastTypedTarget}
+                />
               </div>
             </fieldset>
 

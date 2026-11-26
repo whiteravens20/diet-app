@@ -277,12 +277,13 @@ function MealPlansContent() {
   const planDiet = diet || active?.dietType || 'balanced';
   // The custom diet for a profile that has no targets of its own yet: the form asks for them, and keeps them in the profile.
   const asksTargets = diet === 'custom' && active !== null && active.customMacroSplit === null;
-  // A calorie target of the plan's own, where the field holds one the plan may have.
+  // A calorie target of the plan's own, where the field holds one the plan may have: at least what the body may type.
+  const leastTarget = calories.data?.leastTypedTarget ?? MIN_CALORIE_TARGET;
   const typedTarget = Number(calorieTarget);
   const planTarget =
     calorieTarget.trim() !== '' &&
     Number.isInteger(typedTarget) &&
-    typedTarget >= MIN_CALORIE_TARGET &&
+    typedTarget >= leastTarget &&
     typedTarget <= MAX_CALORIE_TARGET
       ? typedTarget
       : null;
@@ -892,7 +893,7 @@ function MealPlansContent() {
                     <Input
                       type="number"
                       inputMode="numeric"
-                      min={MIN_CALORIE_TARGET}
+                      min={leastTarget}
                       max={MAX_CALORIE_TARGET}
                       step={1}
                       value={calorieTarget}

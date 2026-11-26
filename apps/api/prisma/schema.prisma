@@ -296,7 +296,8 @@ model Profile {
   dietType            DietType      @default(balanced)
   // "0.25" | "0.5" | "0.75" | "1.0" — null = maintenance.
   weeklyLossTarget    String?
-  // When set, overrides the calculated daily calorie target.
+  // When set, overrides the calculated daily calorie target. At least 1200, or
+  // the formula's maintenance where that is lower, when it is typed.
   manualCalorieTarget Int?
   // The split of a day's energy between protein, fat and carbohydrate that
   // the profile aims at on the custom diet, in whole per cent (`MacroSplit`

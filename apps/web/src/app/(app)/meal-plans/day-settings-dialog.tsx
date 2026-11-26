@@ -11,6 +11,7 @@ import {
   MAX_COOK_TIME_BUDGET,
   MIN_CALORIE_TARGET,
   RelaxationNeeded,
+  type CalorieCalculation,
   type DayMealFate,
   type DaySettingsPreview,
   type MealPlan,
@@ -82,6 +83,7 @@ const NONE_WORDS = {
  */
 export function DaySettingsDialog({
   planId,
+  profileId,
   day,
   week,
   mealName,
@@ -90,6 +92,8 @@ export function DaySettingsDialog({
   onSaved,
 }: {
   planId: string;
+  /** The profile of the plan: the least a target of the day's own may be is the one its body may type. */
+  profileId: string;
   day: MealPlanDay;
   /** The week of the plan the day is in, as the plan says it stands. */
   week: PlanWeek | undefined;
@@ -116,7 +120,13 @@ export function DaySettingsDialog({
   const [inTheWay, setInTheWay] = useState<RelaxationNeeded | null>(null);
   const [only, setOnly] = useState(false);
 
-  const targetFits = fits(target, MIN_CALORIE_TARGET, MAX_CALORIE_TARGET);
+  // The least the profile's body may type, as the plan's page asks for it: the same answer serves both.
+  const calories = useQuery({
+    queryKey: ['calories', profileId],
+    queryFn: () => api.get<CalorieCalculation>(`/profiles/${profileId}/calories`),
+  });
+  const leastTarget = calories.data?.leastTypedTarget ?? MIN_CALORIE_TARGET;
+  const targetFits = fits(target, leastTarget, MAX_CALORIE_TARGET);
   const cookTimeFits = fits(cookTime, 0, MAX_COOK_TIME_BUDGET);
   // The settings as they are typed: none while a number is no number the API takes, which the field says itself.
   const asked = DaySettings.safeParse({
@@ -127,8 +137,10 @@ export function DaySettingsDialog({
     cookTimeBudgetMinutes: typed(cookTime),
     useUpBy: useUp,
   });
+  // Settings the API would take for this body: a target under its least is none, which the field says itself.
+  const fit = asked.success && targetFits ? asked.data : null;
   // Asked of the API once the typing has paused: every change of a field is a question of its own.
-  const settled = useSettled(asked.success ? JSON.stringify(asked.data) : null, 300);
+  const settled = useSettled(fit ? JSON.stringify(fit) : null, 300);
   const path = `/meal-plans/${planId}/days/${day.id}/settings`;
   const preview = useQuery({
     queryKey: ['day-settings', planId, day.id, settled],
@@ -207,8 +219,8 @@ export function DaySettingsDialog({
   const current =
     shown !== undefined &&
     !preview.isPlaceholderData &&
-    asked.success &&
-    settled === JSON.stringify(asked.data);
+    fit !== null &&
+    settled === JSON.stringify(fit);
   const busy = save.isPending || even.isPending;
   // The change alone leaves the week off the plan's target: the week can be evened out with it.
   const twoWays = current && shown?.unchanged === false && shown.week?.unevenAlone === true;
@@ -277,15 +289,13 @@ export function DaySettingsDialog({
               hint={t('ownTargetHint')}
               optional
               error={
-                targetFits
-                  ? undefined
-                  : t('between', { min: MIN_CALORIE_TARGET, max: MAX_CALORIE_TARGET })
+                targetFits ? undefined : t('between', { min: leastTarget, max: MAX_CALORIE_TARGET })
               }
             >
               <Input
                 type="number"
                 inputMode="numeric"
-                min={MIN_CALORIE_TARGET}
+                min={leastTarget}
                 max={MAX_CALORIE_TARGET}
                 step={1}
                 value={target}
@@ -330,7 +340,7 @@ export function DaySettingsDialog({
           aria-live="polite"
           className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
         >
-          {!asked.success ? (
+          {!fit ? (
             <p>{t('fixFields')}</p>
           ) : shown === undefined ? (
             preview.isError ? (
@@ -359,7 +369,7 @@ export function DaySettingsDialog({
             </div>
           )}
         </div>
-        {asked.success && shown?.short && shown.short.spread.days > 0 && (
+        {fit && shown?.short && shown.short.spread.days > 0 && (
           <div className="space-y-1">
             <label className="flex items-start gap-2 text-sm">
               <input

@@ -75,6 +75,7 @@ import {
   type ToppingOption,
 } from '../engine/index.js';
 import { holdProfile } from '../common/hold.js';
+import { refuseUnderLeast } from '../common/typed-target.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import {
@@ -157,6 +158,9 @@ export class PlanGenerationService {
       allowRelaxations: req.allowRelaxations,
     };
     const base = this.planBase(profile, req.calorieTargetOverride);
+    refuseUnderLeast(req.calorieTargetOverride, base.least, 'calorieTargetOverride');
+    for (const day of req.dayOverrides ?? [])
+      refuseUnderLeast(day.calorieTarget, base.least, 'dayOverrides');
     const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
     const macroSplit = splitFor(dietType, profile, baseCalorieTarget);
@@ -256,6 +260,7 @@ export class PlanGenerationService {
       profiles.map(async (profile, index) => {
         const own = asked[index]!;
         const base = this.planBase(profile, own.target);
+        refuseUnderLeast(own.target, base.least, 'calorieTargetOverride');
         const dietType = own.dietType ?? profile.dietType;
         const days = resolvePlanDays({
           startDate: start,

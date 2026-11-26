@@ -1985,6 +1985,7 @@ export function PlanCard({
       {settingsFor && (
         <DaySettingsDialog
           planId={summary.id}
+          profileId={summary.profileId}
           day={settingsFor}
           week={plan?.weeks.find(
             (week) => week.from <= settingsFor.date && settingsFor.date <= week.to,

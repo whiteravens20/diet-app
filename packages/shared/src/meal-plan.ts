@@ -21,7 +21,7 @@ import {
   Macros,
   TargetMacros,
   MAX_CALORIE_TARGET,
-  MIN_CALORIE_TARGET,
+  LOWEST_CALORIE_TARGET,
   Nutrition,
 } from './nutrition.js';
 import { Recipe } from './recipe.js';
@@ -43,8 +43,11 @@ export const DayOverride = z.object({
   mealCount: z.number().int().min(2).max(5).optional(),
   /** Skip the day entirely — no meals generated, excluded from the shopping list. */
   skip: z.boolean().optional(),
-  /** Override the daily calorie target for this day (refeed / rest periodisation). */
-  calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
+  /**
+   * Override the daily calorie target for this day (refeed / rest periodisation). The body's own least
+   * (`CalorieCalculation.leastTypedTarget`) is held where it is typed; the bound here is what any request may carry.
+   */
+  calorieTarget: z.number().int().min(LOWEST_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
   /**
    * The kind of day: a training day aims about 15 % over a usual day of its
    * week and a rest day about 15 % under, and the days of the week aim at the
@@ -131,11 +134,14 @@ export const GeneratePlanRequest = z
     durationDays: z.number().int().min(1).max(MAX_PLAN_DAYS),
     dietType: DietType.optional(), // defaults to the profile diet type
     mealCount: z.number().int().min(2).max(5).optional(),
-    /** Override the profile's calorie target for this plan only. */
+    /**
+     * Override the profile's calorie target for this plan only: at least the body's own least
+     * (`CalorieCalculation.leastTypedTarget`), held by the API; the bound here is what any request may carry.
+     */
     calorieTargetOverride: z
       .number()
       .int()
-      .min(MIN_CALORIE_TARGET)
+      .min(LOWEST_CALORIE_TARGET)
       .max(MAX_CALORIE_TARGET)
       .optional(),
     /** Bias the optimiser toward batch-cookable, ingredient-reusing plans. */
@@ -793,8 +799,11 @@ export const DaySettings = z.object({
   dayType: z.enum(['normal', 'rest', 'training']),
   skip: z.boolean(),
   mealCount: z.number().int().min(2).max(5),
-  /** A target of the day's own; null for the one its kind gives. */
-  calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
+  /**
+   * A target of the day's own; null for the one its kind gives. A change of it is held to the body's own least
+   * (`CalorieCalculation.leastTypedTarget`); a day kept from before that least may hold less.
+   */
+  calorieTarget: z.number().int().min(LOWEST_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
   /** The most minutes a recipe of the day may take to prepare and cook; null for no limit. */
   cookTimeBudgetMinutes: z.number().int().min(0).max(MAX_COOK_TIME_BUDGET).nullable(),
   /** Put first the recipes that use what the pantry has to use up by this day. */
