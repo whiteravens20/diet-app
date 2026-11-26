@@ -408,6 +408,8 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
   const goalHeld = atRisk.length > 0 && asksForLoss;
   const older = input.age >= OLDER_AGE;
   const paceHeldForAge = older && requestedDeficit > deficitForWeeklyTarget(OLDER_FASTEST_PACE);
+  // From 65 a faster pace counts as the fastest a plan keeps: what a pace asks for is said as it counts.
+  const counted = paceHeldForAge ? deficitForWeeklyTarget(OLDER_FASTEST_PACE) : requestedDeficit;
 
   let dailyTarget: number;
   let deficitCapped = false;
@@ -418,13 +420,12 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
   } else if (manual !== null) {
     dailyTarget = manual;
   } else {
-    const allowed = paceHeldForAge ? deficitForWeeklyTarget(OLDER_FASTEST_PACE) : requestedDeficit;
     const most = Math.min(
       round(maintenance * MAX_DEFICIT_SHARE),
       round(input.weightKg * MAX_DEFICIT_KCAL_PER_KG),
     );
-    deficitCapped = allowed > most;
-    const paced = maintenance - Math.min(allowed, most);
+    deficitCapped = counted > most;
+    const paced = maintenance - Math.min(counted, most);
     maintenanceUnderFloor = maintenance < floor;
     safetyFloorApplied = !maintenanceUnderFloor && paced < floor;
     dailyTarget = maintenanceUnderFloor ? maintenance : Math.max(paced, floor);
@@ -452,7 +453,7 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     bmr,
     maintenance,
     weeklyLossTarget: input.weeklyLossTarget,
-    requestedDeficit,
+    requestedDeficit: counted,
     dailyDeficit: maintenance - dailyTarget,
     weeklyLossKg: Math.max(
       0,

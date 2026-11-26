@@ -284,7 +284,10 @@ export const CalorieCalculation = z.object({
   bmr: z.number(), // Mifflin-St Jeor basal metabolic rate
   maintenance: z.number(), // bmr * activity multiplier (TDEE)
   weeklyLossTarget: z.enum(['0.25', '0.5', '0.75', '1.0']).nullable(),
-  /** kcal a day the chosen pace asks for, before any limit. */
+  /**
+   * kcal a day the chosen pace asks for as it counts, before any other limit:
+   * from 65 a faster pace counts as the fastest a plan keeps (`paceHeldForAge`).
+   */
   requestedDeficit: z.number(),
   /** How far the target really is under maintenance; negative when a typed target is above it. */
   dailyDeficit: z.number(),

@@ -29,6 +29,9 @@ export function TargetNotices({
   // A weight is said as the paces to choose from say it: to the hundredth in kilograms, to the tenth in pounds.
   const amountOf = (kg: number): string =>
     unit === 'lb' ? fmt.unit(shownWeight(kg, unit), 'pound', 1) : fmt.unit(kg, 'kilogram', 2);
+  // The pace chosen, and the pace as it counts: from 65 a faster one counts as the fastest a plan keeps.
+  const chosen = c.weeklyLossTarget === null ? null : Number(c.weeklyLossTarget);
+  const counted = c.paceHeldForAge ? OLDER_FASTEST_PACE_KG : chosen;
   const notices: { key: string; text: string; strong: boolean }[] = [];
   const say = (key: string, strong = false) =>
     notices.push({
@@ -42,7 +45,8 @@ export function TargetNotices({
         maintenance: c.maintenance,
         target: c.dailyTarget,
         pace: amountOf(c.weeklyLossKg),
-        // From 65 the faster paces count as the fastest a plan keeps.
+        chosen: chosen === null ? '' : amountOf(chosen),
+        counted: counted === null ? '' : amountOf(counted),
         amount: amountOf(OLDER_FASTEST_PACE_KG),
       }),
     });

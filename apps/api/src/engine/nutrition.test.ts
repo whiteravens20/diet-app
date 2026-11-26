@@ -583,10 +583,11 @@ describe('calculateCalories', () => {
     const older = (over: Partial<CalorieEngineInput> = {}) =>
       person({ age: 70, sex: 'male', heightCm: 180, weightKg: 85, ...over });
 
-    it('plans a faster pace as 0.5 kg a week, and says so', () => {
+    it('plans a faster pace as 0.5 kg a week, and says so, with what the pace asks for as it counts', () => {
       for (const pace of ['0.75', '1.0'] as const) {
         expect(calculateCalories(older({ weeklyLossTarget: pace }))).toMatchObject({
           paceHeldForAge: true,
+          requestedDeficit: 550,
           dailyDeficit: 550,
           deficitCapped: false,
         });
@@ -598,6 +599,21 @@ describe('calculateCalories', () => {
       expect(calculateCalories(older({ weeklyLossTarget: '1.0', age: 64 })).paceHeldForAge).toBe(
         false,
       );
+    });
+
+    it('caps the pace as it counts, and says that it asked for half a kilogram', () => {
+      // 70 years, 165 cm, 71 kg, a woman, moderate: BMR 1230, maintenance 1968; a quarter allows 492, 1 % 781.
+      expect(
+        calculateCalories(
+          older({ sex: 'female', heightCm: 165, weightKg: 71, weeklyLossTarget: '1.0' }),
+        ),
+      ).toMatchObject({
+        paceHeldForAge: true,
+        requestedDeficit: 550,
+        dailyDeficit: 492,
+        deficitCapped: true,
+        weeklyLossKg: 0.45,
+      });
     });
 
     it('says nothing of the pace for a typed target', () => {

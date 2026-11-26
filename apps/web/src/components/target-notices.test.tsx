@@ -74,24 +74,29 @@ describe('what a user is told about their calorie target', () => {
       deficitCapped: true,
     };
     expect(told(slowed)).toEqual([
-      'The pace you chose asks for 550 kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes 492 kcal: at first about 0.45 kg a week, and less as time goes on.',
+      'A pace of 0.5 kg a week asks for 550 kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes 492 kcal: at first about 0.45 kg a week, and less as time goes on.',
     ]);
     expect(told({ ...slowed, weeklyLossKg: 0.57 }, 'en', 'lb')[0]).toContain(
       'at first about 1.3 lb a week',
     );
   });
-  it('is that a faster pace counts as half a kilogram from 65, and that older people are advised against losing', () => {
+  it('is that a faster pace counts as half a kilogram from 65, each line following from the one before, and that older people are advised against losing', () => {
+    // A kilogram a week chosen before the rule: it counts as half a kilogram, and that is slowed by a quarter of maintenance.
     expect(
       told({
         ...plain,
         weeklyLossTarget: '1.0',
-        requestedDeficit: 1100,
+        requestedDeficit: 550,
+        dailyDeficit: 492,
+        weeklyLossKg: 0.45,
+        deficitCapped: true,
         paceHeldForAge: true,
         warnings: ['older'],
       }),
     ).toEqual([
       'At a body-mass index under 30 the nutrition guidelines for older people advise against losing weight. If you want to lose weight, talk to a doctor about it.',
-      'From 65 a pace faster than 0.5 kg a week counts as 0.5 kg.',
+      'The pace you chose, 1 kg a week, counts as 0.5 kg: from 65 a plan loses no more than that.',
+      'A pace of 0.5 kg a week asks for 550 kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes 492 kcal: at first about 0.45 kg a week, and less as time goes on.',
     ]);
     // Keeping the weight, the advice has nothing to say.
     expect(told({ ...plain, dailyDeficit: 0, warnings: ['older'] })).toEqual([]);
