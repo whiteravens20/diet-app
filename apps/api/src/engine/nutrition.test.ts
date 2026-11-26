@@ -447,10 +447,26 @@ describe('calculateCalories', () => {
     expect(calculateCalories(person({ manualCalorieTarget: 1600 })).warnings).toEqual([
       'below_bmr',
     ]);
-    expect(calculateCalories(person({ manualCalorieTarget: 900 })).warnings).toEqual([
+    expect(calculateCalories(person({ manualCalorieTarget: 1200 })).warnings).toEqual([
       'below_floor',
       'below_bmr',
+      'low_target',
     ]);
+  });
+
+  it('warns of a target under 1550 kcal, typed or calculated, where vitamins and minerals are hard to cover', () => {
+    expect(calculateCalories(person({ manualCalorieTarget: 1549 })).warnings).toContain(
+      'low_target',
+    );
+    expect(calculateCalories(person({ manualCalorieTarget: 1550 })).warnings).not.toContain(
+      'low_target',
+    );
+    // 40 years, 160 cm, 60 kg, female, sedentary, half a kilogram a week: 1735 less a quarter is 1301.
+    const calculated = calculateCalories(
+      person({ age: 40, sex: 'female', heightCm: 160, weightKg: 60, activityLevel: 'sedentary' }),
+    );
+    expect(calculated.dailyTarget).toBeLessThan(1550);
+    expect(calculated.warnings).toEqual(['low_target']);
   });
 
   it('says what the deficit loses at first in a week, to the hundredth of a kilogram', () => {

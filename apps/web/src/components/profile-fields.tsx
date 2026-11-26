@@ -144,11 +144,14 @@ export function PaceChoice({
   initial,
   paces,
   unit,
+  sex = null,
   className,
 }: {
   initial: Profile['weeklyLossTarget'];
   paces: CalorieCalculation[] | undefined;
   unit: WeightUnit;
+  /** The sex the form holds: the line on pregnancy is for anybody who is not a man. */
+  sex?: Profile['sex'];
   className?: string;
 }) {
   const t = useTranslations('profile');
@@ -207,6 +210,9 @@ export function PaceChoice({
       )}
       {paces?.[0]?.warnings.includes('older') && (
         <p className="mt-1.5 text-xs text-muted-foreground">{t('paceOlderNote')}</p>
+      )}
+      {sex !== 'male' && (
+        <p className="mt-1.5 text-xs text-muted-foreground">{t('pacePregnancyNote')}</p>
       )}
     </fieldset>
   );

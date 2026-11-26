@@ -229,15 +229,30 @@ export const MAX_CALORIE_TARGET = 6000;
  *    person's choice;
  *  - `below_floor`: a target somebody typed is under the lowest a calculated
  *    one goes;
- *  - `below_bmr`: the target is under what the body uses at rest.
+ *  - `below_bmr`: the target is under what the body uses at rest;
+ *  - `low_target`: the target is under `LOW_TARGET_KCAL`, where vitamins and
+ *    minerals are hard to cover from food, and the application counts none.
  */
-export const CalorieWarning = z.enum(['minor', 'underweight', 'older', 'below_floor', 'below_bmr']);
+export const CalorieWarning = z.enum([
+  'minor',
+  'underweight',
+  'older',
+  'below_floor',
+  'below_bmr',
+  'low_target',
+]);
 export type CalorieWarning = z.infer<typeof CalorieWarning>;
 
 /** Under this age the equation behind the figures is an approximation, and no loss is planned. */
 export const ADULT_AGE = 18;
 /** A body-mass index under this is underweight. */
 export const UNDERWEIGHT_BMI = 18.5;
+/**
+ * Under this target, in kcal a day, vitamins and minerals are hard to cover
+ * from food: the Nordic recommendations of 2023 give 6.5 MJ (1554 kcal) as the
+ * level under which an insufficient intake becomes a considerable risk.
+ */
+export const LOW_TARGET_KCAL = 1550;
 /** From this age the paces of loss are the two slower ones. */
 export const OLDER_AGE = 65;
 /** From 65, under this body-mass index the guidelines for older people advise against losing weight. */

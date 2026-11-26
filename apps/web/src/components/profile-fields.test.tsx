@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import type { CalorieCalculation, Profile } from '@diet-app/shared';
@@ -20,10 +20,14 @@ function olderPaces(): CalorieCalculation[] {
   }));
 }
 
-function choice(initial: Profile['weeklyLossTarget'], paces: CalorieCalculation[]) {
+function choice(
+  initial: Profile['weeklyLossTarget'],
+  paces: CalorieCalculation[],
+  sex: Profile['sex'] = null,
+) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <PaceChoice initial={initial} paces={paces} unit="kg" />
+      <PaceChoice initial={initial} paces={paces} unit="kg" sex={sex} />
     </NextIntlClientProvider>,
   );
   return screen.getByRole('group', { name: texts.pace });
@@ -31,14 +35,14 @@ function choice(initial: Profile['weeklyLossTarget'], paces: CalorieCalculation[
 
 describe('the choice of a pace of loss', () => {
   it('offers every pace to an adult under 65', () => {
-    const group = choice('0.5', aPreview().paces);
+    const group = choice('0.5', aPreview().paces, 'male');
 
     expect(within(group).getAllByRole('radio')).toHaveLength(5);
     expect(within(group).queryByText(plain(texts.paceOlderNote))).toBeNull();
   });
 
   it('offers from 65 the two slower paces alone, and says why, with the advice for older people', () => {
-    const group = choice('0.5', olderPaces());
+    const group = choice('0.5', olderPaces(), 'male');
 
     expect(within(group).getAllByRole('radio')).toHaveLength(3);
     expect(
@@ -52,12 +56,22 @@ describe('the choice of a pace of loss', () => {
   });
 
   it('keeps a faster pace the profile has from before, said to count as the slower one', () => {
-    const group = choice('1.0', olderPaces());
+    const group = choice('1.0', olderPaces(), 'male');
     const radios = within(group).getAllByRole('radio');
 
     expect(radios).toHaveLength(4);
     expect(radios.at(-1)).toBeChecked();
     expect(within(group).getByText(/counted as 0\.5\s?kg/)).toBeInTheDocument();
+  });
+
+  it('says to plan no loss when pregnant or breastfeeding, and nothing of it to a man', () => {
+    expect(
+      within(choice('0.5', aPreview().paces)).getByText(texts.pacePregnancyNote),
+    ).toBeInTheDocument();
+    cleanup();
+    expect(
+      within(choice('0.5', aPreview().paces, 'male')).queryByText(texts.pacePregnancyNote),
+    ).toBeNull();
   });
 });
 

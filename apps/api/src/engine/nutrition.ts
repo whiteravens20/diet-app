@@ -11,6 +11,7 @@ import {
   ADULT_AGE,
   KCAL_PER_GRAM,
   LOWEST_CALORIE_TARGET,
+  LOW_TARGET_KCAL,
   MIN_CALORIE_TARGET,
   OLDER_AGE,
   OLDER_FASTEST_PACE_KG,
@@ -478,6 +479,7 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
       ...(older && bmi < OLDER_LOSS_BMI ? (['older'] as const) : []),
       ...(source === 'manual_override' && dailyTarget < floor ? (['below_floor'] as const) : []),
       ...(dailyTarget < bmr ? (['below_bmr'] as const) : []),
+      ...(dailyTarget < LOW_TARGET_KCAL ? (['low_target'] as const) : []),
     ],
   };
 }

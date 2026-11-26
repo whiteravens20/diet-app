@@ -2885,6 +2885,7 @@
     "paceSlowedNote": "A pace marked “slowed” would take more than a quarter of your maintenance or 1% of your body weight a week, or go under the lowest a calculated plan goes, so the plan takes less.",
     "paceAgeNote": "From 65\u00a0a plan loses at most {amount} a week, so that muscle is not lost with the fat.",
     "paceOlderNote": "At a body-mass index under 30\u00a0the nutrition guidelines for older people advise against losing weight. If you want to lose weight, talk to a doctor about it.",
+    "pacePregnancyNote": "When pregnant or breastfeeding, do not plan a loss: ask a doctor.",
     "manualKcalOverride": "Manual kcal override",
     "manualKcalHint": "At least {least, number, ::group-off}\u00a0kcal. Leave it empty and the pace decides.",
     "auto": "auto",
@@ -3123,7 +3124,9 @@
       "deficitCapped": "The pace you chose asks for {requested, number, ::group-off}\u00a0kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes {deficit, number, ::group-off}\u00a0kcal: at first about {pace} a week, and less as time goes on.",
       "correctionHeld": "The correction from the real expenditure would lower the target further than the application allows, so the target stops at {target, number, ::group-off}\u00a0kcal. A diary with days written in part gives a figure too low.",
       "below_floor": "The target you typed is under {floor, number, ::group-off}\u00a0kcal, the lowest a calculated plan would go.",
-      "below_bmr": "The target you typed is under what your body uses at rest ({bmr, number, ::group-off}\u00a0kcal)."
+      "below_bmr": "The target you typed is under what your body uses at rest ({bmr, number, ::group-off}\u00a0kcal).",
+      "lowTarget": "At a target this low it is hard to cover every vitamin and mineral you need from food, and the application does not count them.",
+      "help": "If controlling food has become a way to cope with feelings, talk to a doctor."
     }
   },
   "planOverview": {

@@ -13498,6 +13498,10 @@
           "dailyDeficit": {
             "type": "number"
           },
+          "weeklyLossKg": {
+            "type": "number",
+            "minimum": 0
+          },
           "dailyTarget": {
             "type": "number"
           },
@@ -13517,6 +13521,9 @@
           "deficitCapped": {
             "type": "boolean"
           },
+          "paceHeldForAge": {
+            "type": "boolean"
+          },
           "safetyFloorApplied": {
             "type": "boolean"
           },
@@ -13525,6 +13532,12 @@
           },
           "goalHeld": {
             "type": "boolean"
+          },
+          "correctionHeld": {
+            "type": "boolean"
+          },
+          "leastTypedTarget": {
+            "type": "number"
           },
           "customSplitHeld": {
             "type": "boolean"
@@ -13542,14 +13555,18 @@
           "weeklyLossTarget",
           "requestedDeficit",
           "dailyDeficit",
+          "weeklyLossKg",
           "dailyTarget",
           "targetMacros",
           "source",
           "safetyFloor",
           "deficitCapped",
+          "paceHeldForAge",
           "safetyFloorApplied",
           "maintenanceUnderFloor",
           "goalHeld",
+          "correctionHeld",
+          "leastTypedTarget",
           "customSplitHeld",
           "warnings"
         ],
@@ -13659,10 +13676,6 @@
               }
             ]
           },
-          "acknowledgeRisk": {
-            "default": false,
-            "type": "boolean"
-          },
           "expenditureCorrection": {
             "default": 0,
             "type": "integer",
@@ -13681,8 +13694,10 @@
         "enum": [
           "minor",
           "underweight",
+          "older",
           "below_floor",
-          "below_bmr"
+          "below_bmr",
+          "low_target"
         ]
       },
       "CatalogueGapKind": {
@@ -16209,6 +16224,9 @@
               }
             ]
           },
+          "held": {
+            "type": "boolean"
+          },
           "checkedOn": {
             "anyOf": [
               {
@@ -16239,6 +16257,7 @@
           "correction",
           "target",
           "targetCorrected",
+          "held",
           "checkedOn",
           "laterUntil"
         ],
@@ -23026,17 +23045,6 @@
             "type": "string",
             "format": "uuid"
           },
-          "riskAcknowledgedAt": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "expenditureCorrectionKcal": {
             "anyOf": [
               {
@@ -23091,7 +23099,6 @@
           "preferences",
           "id",
           "userId",
-          "riskAcknowledgedAt",
           "expenditureCorrectionKcal",
           "targetWeightReached",
           "targetReachedLaterUntil",
@@ -23195,9 +23202,6 @@
                 "type": "null"
               }
             ]
-          },
-          "acknowledgeRisk": {
-            "type": "boolean"
           },
           "mealCount": {
             "default": 3,
@@ -23851,9 +23855,6 @@
                 "type": "null"
               }
             ]
-          },
-          "acknowledgeRisk": {
-            "type": "boolean"
           },
           "preferences": {
             "type": "object",

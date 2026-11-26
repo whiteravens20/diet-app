@@ -125,6 +125,7 @@ export default function CalculatorPage() {
                     initial={from ? from.weeklyLossTarget : '0.5'}
                     paces={shown.preview?.paces}
                     unit={unit}
+                    sex={typed ? (typed.figures?.sex ?? null) : (from?.sex ?? null)}
                     className="sm:col-span-2"
                   />
                   <OwnTargetField

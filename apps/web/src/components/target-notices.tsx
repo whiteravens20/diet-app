@@ -10,9 +10,10 @@ import { shownWeight, useWeightUnit } from '@/lib/weight-unit';
 
 /**
  * What stands behind a calorie target that is not simply maintenance less the
- * chosen pace: a goal that is held, a pace that was slowed, a floor, and the
- * warnings for somebody under 18 or underweight. A form that gives those
- * warnings itself, with the box that answers them, asks for the rest alone
+ * chosen pace: a goal that is held, a pace that was slowed, a floor, a
+ * correction held at the body's rest, the warnings for somebody under 18,
+ * underweight or from 65, and what a low target means. A form that gives the
+ * warnings of the body itself, beside the pace, asks for the rest alone
  * (`risk` false).
  */
 export function TargetNotices({
@@ -59,6 +60,9 @@ export function TargetNotices({
   if (c.correctionHeld) say('correctionHeld');
   if (c.warnings.includes('below_floor')) say('below_floor', true);
   if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
+  if (c.warnings.includes('low_target')) say('lowTarget');
+  if ((risk && c.warnings.includes('underweight')) || c.warnings.includes('below_floor'))
+    say('help');
   if (notices.length === 0) return null;
   return (
     <ul className="space-y-1.5 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">

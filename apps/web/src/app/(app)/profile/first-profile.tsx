@@ -218,7 +218,12 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
             <fieldset data-step={1} hidden={step !== 1} className="space-y-4">
               <legend className="sr-only">{tWizard('steps.goal')}</legend>
               <p className="text-sm text-muted-foreground">{tWizard('goalLead')}</p>
-              <PaceChoice initial="0.5" paces={shown.preview?.paces} unit={unit} />
+              <PaceChoice
+                initial="0.5"
+                paces={shown.preview?.paces}
+                unit={unit}
+                sex={typed?.figures?.sex ?? null}
+              />
               <RiskNote reasons={risk} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')} optional>

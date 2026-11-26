@@ -427,6 +427,7 @@ export default function ProfilePage() {
                   initial={editing ? editing.weeklyLossTarget : '0.5'}
                   paces={shown.preview?.paces}
                   unit={unit}
+                  sex={typed ? (typed.figures?.sex ?? null) : (editing?.sex ?? null)}
                   className="sm:col-span-2"
                 />
                 <Field

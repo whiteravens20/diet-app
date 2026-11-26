@@ -2885,6 +2885,7 @@
     "paceSlowedNote": "Tempo oznaczone jako „spowolnione” odebrałoby więcej niż jedną czwartą Twojego zapotrzebowania lub 1% masy ciała na tydzień albo zeszłoby poniżej najniższego celu, jaki wylicza plan. Dlatego plan odejmuje mniej.",
     "paceAgeNote": "Od 65\u00a0lat plan chudnie najwyżej {amount} na tydzień, żeby razem z\u00a0tłuszczem nie tracić mięśni.",
     "paceOlderNote": "Przy BMI poniżej 30\u00a0zalecenia żywieniowe dla osób starszych odradzają odchudzanie. Jeśli chcesz schudnąć, porozmawiaj o\u00a0tym z\u00a0lekarzem.",
+    "pacePregnancyNote": "W\u00a0ciąży i\u00a0w\u00a0czasie karmienia piersią nie planuj redukcji: zapytaj lekarza.",
     "manualKcalOverride": "Cel kcal wpisany ręcznie",
     "manualKcalHint": "Najmniej {least, number, ::group-off}\u00a0kcal. Zostaw puste, a\u00a0zdecyduje tempo.",
     "auto": "auto",
@@ -3123,7 +3124,9 @@
       "deficitCapped": "Wybrane tempo wymaga {requested, number, ::group-off}\u00a0kcal dziennie mniej. To więcej, niż pozwala plan: jedna czwarta Twojego zapotrzebowania albo 1% masy ciała na tydzień. Plan odejmuje więc {deficit, number, ::group-off}\u00a0kcal: na początku to około {pace} tygodniowo, a\u00a0z\u00a0czasem tempo słabnie.",
       "correctionHeld": "Poprawka z\u00a0rzeczywistego wydatku obniżyłaby cel bardziej, niż pozwala aplikacja, więc cel zatrzymano na {target, number, ::group-off}\u00a0kcal. Dziennik z\u00a0dniami zapisanymi tylko w\u00a0części daje za niską liczbę.",
       "below_floor": "Wpisany cel jest niższy niż {floor, number, ::group-off}\u00a0kcal, czyli najniższy, jaki wyliczyłby plan.",
-      "below_bmr": "Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku ({bmr, number, ::group-off}\u00a0kcal)."
+      "below_bmr": "Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku ({bmr, number, ::group-off}\u00a0kcal).",
+      "lowTarget": "Przy tak niskim celu trudno pokryć z\u00a0jedzenia wszystkie potrzebne witaminy i\u00a0składniki mineralne, a\u00a0aplikacja ich nie liczy.",
+      "help": "Jeśli kontrola jedzenia stała się sposobem radzenia sobie z\u00a0emocjami, porozmawiaj z\u00a0lekarzem."
     }
   },
   "planOverview": {

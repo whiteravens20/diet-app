@@ -153,8 +153,8 @@ describe('what a user is told about their calorie target', () => {
         {
           ...plain,
           source: 'manual_override',
-          dailyTarget: 900,
-          warnings: ['underweight', 'below_floor', 'below_bmr'],
+          dailyTarget: 1300,
+          warnings: ['underweight', 'below_floor', 'below_bmr', 'low_target'],
         },
         'pl',
       ),
@@ -162,6 +162,8 @@ describe('what a user is told about their calorie target', () => {
       'Twój wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może Ci zaszkodzić.',
       'Wpisany cel jest niższy niż 1500 kcal, czyli najniższy, jaki wyliczyłby plan.',
       'Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku (1780 kcal).',
+      'Przy tak niskim celu trudno pokryć z jedzenia wszystkie potrzebne witaminy i składniki mineralne, a aplikacja ich nie liczy.',
+      'Jeśli kontrola jedzenia stała się sposobem radzenia sobie z emocjami, porozmawiaj z lekarzem.',
     ]);
   });
 
