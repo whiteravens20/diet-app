@@ -4875,6 +4875,49 @@ describe('the plan page, on what is left of a meal', () => {
     vi.restoreAllMocks();
   });
 
+  it('says what the pot cooked already will have left beside a meal, and carries it to the next day', async () => {
+    const plan = withMeal({
+      servings: 1,
+      quantityScale: 1.15,
+      pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, offer: 'ok' },
+    });
+    await open(plan);
+
+    expect(
+      screen.getByText(
+        /^The pot will have 0\.6 servings left, \d+ kcal: it can be eaten the next day\.$/,
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(action(messages.mealPlans.potAction));
+
+    expect(await screen.findByRole('dialog', { name: texts.potTitle })).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}/leftover?fromPot=true`,
+      ),
+    );
+  });
+
+  it('says of a meal that takes all its pot holds that no more was cooked, with nothing to carry', async () => {
+    await open(withMeal({ pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, offer: null } }));
+
+    expect(
+      screen.getByText('From the pot at most 1.8 servings: no more was cooked.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.potAction) }),
+    ).toBeNull();
+  });
+
+  it('says why the next day cannot take what the pot will have left', async () => {
+    await open(
+      withMeal({ pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0.6, offer: 'no_day' } }),
+    );
+
+    expect(action(messages.mealPlans.potAction)).toBeDisabled();
+    expect(action(messages.mealPlans.potAction)).toHaveAccessibleDescription(texts.offNoDay);
+  });
+
   it('offers to carry the rest of a meal of today to the next day, beside the other changes', async () => {
     await open(withMeal({ leftoverOffer: 'ok' }));
     await unfoldMeal();

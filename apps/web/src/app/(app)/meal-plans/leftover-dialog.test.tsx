@@ -317,3 +317,67 @@ describe('the window that carries a leftover back', () => {
     expect(remove).toHaveBeenCalledWith(`${PATH}?forAll=true`);
   });
 });
+
+describe('the window that carries the rest of a pot cooked already to the next day', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-01-06T12:00:00') });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('carries all of the rest, for this person alone, asks nothing of what was eaten, and keeps the meal as it is', async () => {
+    const offer = anOffer({
+      portion: { servings: 0.6, calories: 310 },
+      other: {
+        profileName: 'Ewa',
+        eaten: false,
+        portion: { servings: 1, calories: 500 },
+        places: ['breakfast'],
+      },
+    });
+    const get = vi.spyOn(api, 'get').mockResolvedValue(offer as never);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ plan: PLAN_OF_TWO, rebalance: null });
+    const onDone = vi.fn();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <LeftoverDialog
+            plan={PLAN_OF_TWO}
+            meal={aMeal({ quantityScale: 1.15, leftoverOffer: null })}
+            date="2026-01-06"
+            fromPot
+            onClose={vi.fn()}
+            onDone={onDone}
+          />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    const dialog = within(await screen.findByRole('dialog', { name: texts.potTitle }));
+    await dialog.findByRole('radio', { name: spaced('Lunch: instead of “Bean soup”, 600 kcal') });
+
+    expect(get).toHaveBeenCalledWith(`${PATH}?fromPot=true`);
+    expect(dialog.queryByRole('group', { name: texts.eatenLegend })).toBeNull();
+    expect(dialog.queryByRole('checkbox')).toBeNull();
+    await userEvent.click(place(dialog, 'Breakfast: instead of “Porridge”, 400 kcal'));
+    expect(dialog.getByText(texts.potSummary)).toBeInTheDocument();
+    expect(
+      dialog.getByText(
+        spaced(
+          'The leftover: 0.6 servings, 310 kcal. The other meals of that day not eaten fit its target.',
+        ),
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(submit(dialog));
+
+    expect(post).toHaveBeenCalledWith(PATH, { mealType: 'breakfast', left: 1, fromPot: true });
+    expect(onDone).toHaveBeenCalledWith(
+      { plan: PLAN_OF_TWO, rebalance: null },
+      'The leftover is on Wednesday for breakfast.',
+      { planId: PLAN, date: '2026-01-07' },
+    );
+  });
+});

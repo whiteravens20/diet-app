@@ -70,11 +70,14 @@ const shown = (servings: number): number => Math.round(servings * 10) / 10;
  * portion going; a part, and the meal stays marked eaten with the part eaten,
  * what is left told as a part of the portion or by two weights. Of a shared
  * meal, the other person's portion may go as well, with what is left of it.
+ * For the rest of a pot cooked already a meal is eaten from (`fromPot`), all of
+ * that rest goes, for this person, and the meal stays as it is.
  */
 export function LeftoverDialog({
   plan,
   meal,
   date,
+  fromPot = false,
   onClose,
   onDone,
 }: {
@@ -82,6 +85,8 @@ export function LeftoverDialog({
   meal: PlannedMeal;
   /** The day of the meal. */
   date: string;
+  /** What goes is the rest of the pot cooked already the meal is eaten from (`PlannedMeal.pot`). */
+  fromPot?: boolean;
   onClose: () => void;
   /** Told what the plan came to, where the leftover went as a sentence, and the plan and day it went to. */
   onDone: (result: RebalanceResult, notice: string, to: { planId: string; date: string }) => void;
@@ -94,8 +99,8 @@ export function LeftoverDialog({
   const errorText = useErrorText();
   const path = `/meal-plans/${plan.id}/meals/${meal.id}/leftover`;
   const offer = useQuery({
-    queryKey: ['leftover', plan.id, meal.id],
-    queryFn: () => api.get<LeftoverOffer>(path),
+    queryKey: ['leftover', plan.id, meal.id, fromPot],
+    queryFn: () => api.get<LeftoverOffer>(fromPot ? `${path}?fromPot=true` : path),
     gcTime: 0,
     retry: false,
   });
@@ -107,12 +112,13 @@ export function LeftoverDialog({
   const [mealType, setMealType] = useState<MealType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const said = offer.data;
-  const other = said?.other ?? null;
+  // The rest of a pot is one person's, and goes whole.
+  const other = fromPot ? null : (said?.other ?? null);
   const forAll = other !== null && (forAllSaid ?? !other.eaten);
   const places =
     said?.places.filter((place) => !forAll || other!.places.includes(place.mealType)) ?? [];
   const chosen = places.find((place) => place.mealType === mealType) ?? null;
-  const myLeft = partLeft(mine);
+  const myLeft = fromPot ? 1 : partLeft(mine);
   const theirLeft = forAll ? partLeft(theirs) : 1;
   const name = (mealType: string): string => (tMeal.has(mealType) ? tMeal(mealType) : mealType);
   const today = localDate();
@@ -123,6 +129,7 @@ export function LeftoverDialog({
         mealType: chosen!.mealType,
         left: myLeft!,
         ...(forAll ? { forAll: true, theirLeft: theirLeft! } : {}),
+        ...(fromPot ? { fromPot: true } : {}),
       }),
     onSuccess: (result) => {
       const when = words.on(said!.date, chosen!.mealType);
@@ -137,10 +144,10 @@ export function LeftoverDialog({
   const ready = chosen !== null && myLeft !== null && theirLeft !== null && !put.isPending;
 
   return (
-    <Dialog open onClose={onClose} label={t('title')} className="max-w-lg">
+    <Dialog open onClose={onClose} label={t(fromPot ? 'potTitle' : 'title')} className="max-w-lg">
       <div className="flex items-center justify-between gap-2 border-b border-border p-4">
         <div>
-          <h2 className="font-semibold">{t('title')}</h2>
+          <h2 className="font-semibold">{t(fromPot ? 'potTitle' : 'title')}</h2>
           <p className="text-xs text-muted-foreground">
             {name(meal.mealType)}, {fmt.day(date)}
           </p>
@@ -158,7 +165,9 @@ export function LeftoverDialog({
         }}
       >
         <p className="text-muted-foreground">
-          {t('intro', { title: fmt.text(meal.recipe?.title ?? meal.customName ?? '') })}
+          {t(fromPot ? 'potIntro' : 'intro', {
+            title: fmt.text(meal.recipe?.title ?? meal.customName ?? ''),
+          })}
         </p>
         {offer.isPending ? (
           <div className="space-y-2" role="status" aria-label={t('loading')}>
@@ -171,13 +180,15 @@ export function LeftoverDialog({
           </p>
         ) : (
           <>
-            <PortionLeft
-              legend={t('eatenLegend')}
-              portion={said!.portion}
-              said={mine}
-              onSay={setMine}
-              name={`${meal.id}-mine`}
-            />
+            {!fromPot && (
+              <PortionLeft
+                legend={t('eatenLegend')}
+                portion={said!.portion}
+                said={mine}
+                onSay={setMine}
+                name={`${meal.id}-mine`}
+              />
+            )}
             {other && (
               <label className="flex min-h-6 items-center gap-2">
                 <input
@@ -243,12 +254,14 @@ export function LeftoverDialog({
             {myLeft !== null && (
               <div className="space-y-1 text-muted-foreground">
                 <p>
-                  {myLeft === 1
-                    ? t('summaryGone')
-                    : t('summaryKept', {
-                        servings: shown((1 - myLeft) * said!.portion.servings),
-                        kcal: Math.round((1 - myLeft) * said!.portion.calories),
-                      })}
+                  {fromPot
+                    ? t('potSummary')
+                    : myLeft === 1
+                      ? t('summaryGone')
+                      : t('summaryKept', {
+                          servings: shown((1 - myLeft) * said!.portion.servings),
+                          kcal: Math.round((1 - myLeft) * said!.portion.calories),
+                        })}
                 </p>
                 <p>
                   {t('summaryDay', {

@@ -388,7 +388,12 @@ export function PlanCard({
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
   // The meal whose rest is being carried to the next day, or the leftover being carried back, while its window is open.
-  const [carrying, setCarrying] = useState<{ meal: PlannedMealView; date: string } | null>(null);
+  // The meal whose leftover is being carried: what is left of it, or of the pot cooked already it is eaten from.
+  const [carrying, setCarrying] = useState<{
+    meal: PlannedMealView;
+    date: string;
+    fromPot?: boolean;
+  } | null>(null);
   const [undoing, setUndoing] = useState<PlannedMealView | null>(null);
   // The days folded or unfolded by hand, by date: any other day follows `firstOpen` below.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
@@ -1508,6 +1513,43 @@ export function PlanCard({
                           {cookWords.hint(m, day.date)}
                         </p>
                       )}
+                      {m.pot && (
+                        <div className="ml-6 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                          <span>
+                            {m.pot.rest > 0
+                              ? t('potRest', {
+                                  servings: Math.round(m.pot.rest * 10) / 10,
+                                  kcal: Math.round(
+                                    (m.nutrition.calories / (m.servings * m.quantityScale)) *
+                                      m.pot.rest,
+                                  ),
+                                })
+                              : t('potHeld', { servings: Math.round(m.pot.cooked * 10) / 10 })}
+                          </span>
+                          {m.pot.offer !== null && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={named(t('potAction'))}
+                              aria-describedby={
+                                m.pot.offer !== 'ok' ? `${m.id}-pot-off` : undefined
+                              }
+                              onClick={() =>
+                                setCarrying({ meal: m, date: day.date, fromPot: true })
+                              }
+                              disabled={busy || m.pot.offer !== 'ok'}
+                            >
+                              {t('potAction')}
+                            </Button>
+                          )}
+                          {m.pot.offer !== null && m.pot.offer !== 'ok' && (
+                            <span id={`${m.id}-pot-off`}>
+                              {t(`leftover.${LEFTOVER_OFF[m.pot.offer]}`)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {(m.leftover || m.carriedTo) && (
                         <p className="ml-6 text-xs text-muted-foreground">
                           {cookWords.leftoverHint(m)}
@@ -1966,6 +2008,7 @@ export function PlanCard({
           plan={plan}
           meal={carrying.meal}
           date={carrying.date}
+          fromPot={carrying.fromPot === true}
           onClose={() => setCarrying(null)}
           onDone={(result, notice, to) => onLeftover(result, notice, to)}
         />
