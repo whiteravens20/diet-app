@@ -302,6 +302,13 @@ export const CalorieCalculation = z.object({
    */
   goalHeld: z.boolean(),
   /**
+   * The correction from the real expenditure would take a target nobody typed
+   * under what the body uses at rest, under the floor where the formula's
+   * maintenance reaches it, or, for a body under 18 or underweight, under the
+   * formula's maintenance: the target is held there.
+   */
+  correctionHeld: z.boolean(),
+  /**
    * The least a target this body types may be: `MIN_CALORIE_TARGET`, or the
    * formula's maintenance where that is lower.
    */

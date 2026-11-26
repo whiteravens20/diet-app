@@ -175,6 +175,7 @@ describe("what a profile's diary and weights come to", () => {
         correction: 270,
         days: 15,
         weights: 4,
+        held: false,
       });
       expect(proposed.targetCorrected).toBe(2135 + 270);
       const before = await get<{ dailyTarget: number }>(`/api/profiles/${profile.id}/calories`);
@@ -196,6 +197,24 @@ describe("what a profile's diary and weights come to", () => {
         laterUntil: dayAfter(today, 14),
       });
       expect((await act('accept', 409)).body.error).toBe('EXPENDITURE_NOTHING_PROPOSED');
+    });
+
+    it('proposes no target under what the body uses at rest, and says that it stopped there', async () => {
+      // 1500 a day written at a steady weight: a diary kept in part, which the formula's 2685 cannot be.
+      for (let days = 1; days <= 15; days++) await eat(daysAgo(days), 1500);
+      for (const days of [20, 13, 6, 1]) await weigh(days, 91);
+      await outOfDate();
+
+      const { bmr } = await get<{ bmr: number }>(`/api/profiles/${profile.id}/calories`);
+      const proposed = await expenditure();
+      expect(proposed).toMatchObject({ state: 'proposed', held: true, targetCorrected: bmr });
+      expect(proposed.correction).toBeLessThan(0);
+
+      expect((await act('accept')).body).toMatchObject({ state: 'kept', held: true, target: bmr });
+      expect(await get(`/api/profiles/${profile.id}/calories`)).toMatchObject({
+        dailyTarget: bmr,
+        correctionHeld: true,
+      });
     });
 
     it('puts a proposal off for two weeks', async () => {

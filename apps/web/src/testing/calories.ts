@@ -21,6 +21,7 @@ function aCalculation(over: Partial<CalorieCalculation> = {}): CalorieCalculatio
     maintenanceUnderFloor: false,
     goalHeld: false,
     paceHeldForAge: false,
+    correctionHeld: false,
     leastTypedTarget: 1200,
     customSplitHeld: false,
     warnings: [],

@@ -99,6 +99,12 @@ export const Expenditure = z.object({
   /** The daily target as it stands, and as it would with the correction proposed. */
   target: z.number().int(),
   targetCorrected: z.number().int().nullable(),
+  /**
+   * With the correction proposed or kept the target would go under what the body uses at rest, or under the floor
+   * where the formula's maintenance reaches it, and is held there (`CalorieCalculation.correctionHeld`): a diary with
+   * days written in part gives a figure too low. False in every other state.
+   */
+  held: z.boolean(),
   /** The day it was last worked out, and the day a proposal put off comes back. */
   checkedOn: CalendarDay.nullable(),
   laterUntil: CalendarDay.nullable(),

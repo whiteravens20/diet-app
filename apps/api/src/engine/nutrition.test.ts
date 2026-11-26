@@ -323,6 +323,7 @@ describe('calculateCalories', () => {
       maintenanceUnderFloor: false,
       goalHeld: false,
       paceHeldForAge: false,
+      correctionHeld: false,
       leastTypedTarget: 1200,
       warnings: [],
     });
@@ -653,6 +654,117 @@ describe('calculateCalories', () => {
       expect(
         calculateCalories(person({ ...small, expenditureCorrection: -200 })).leastTypedTarget,
       ).toBe(1123);
+    });
+  });
+
+  describe('a correction from the real expenditure', () => {
+    it('never takes a target nobody typed under what the body uses at rest', () => {
+      // 30 years, 180 cm, 80 kg, moderate: BMR 1780, maintenance 2848, floor 1500.
+      const r = calculateCalories(person({ expenditureCorrection: -1200 }));
+      expect(r).toMatchObject({ bmr: 1780, correctionHeld: true, dailyTarget: 1780 });
+      expect(calculateCalories(person({ expenditureCorrection: -300 }))).toMatchObject({
+        correctionHeld: false,
+        dailyTarget: 1998,
+      });
+    });
+
+    it('nor under the floor, where the maintenance of the formula reaches it', () => {
+      // 85 years, 150 cm, 45 kg, sedentary: BMR 802, maintenance 1123, under the floor of 1200.
+      const small = person({
+        age: 85,
+        sex: 'female',
+        heightCm: 150,
+        weightKg: 45,
+        activityLevel: 'sedentary',
+        expenditureCorrection: -250,
+      });
+      expect(calculateCalories(small)).toMatchObject({ correctionHeld: true, dailyTarget: 1123 });
+      // A body big enough to reach the floor is held at it, not at its rest.
+      // 40 years, 160 cm, 60 kg, female, sedentary: BMR 1239, maintenance 1735, floor 1200.
+      expect(
+        calculateCalories(
+          person({
+            age: 40,
+            sex: 'female',
+            heightCm: 160,
+            weightKg: 60,
+            activityLevel: 'sedentary',
+            expenditureCorrection: -700,
+          }),
+        ),
+      ).toMatchObject({ correctionHeld: true, dailyTarget: 1239 });
+    });
+
+    it('leaves a typed target as it was typed', () => {
+      expect(
+        calculateCalories(person({ manualCalorieTarget: 1300, expenditureCorrection: -1500 })),
+      ).toMatchObject({ correctionHeld: false, dailyTarget: 1300 });
+    });
+  });
+
+  describe('over a grid of bodies', () => {
+    const ages = [13, 15, 17, 18, 25, 40, 64, 65, 70, 85];
+    const heights = [150, 165, 180, 195];
+    const bmis = [16, 18, 18.5, 22, 27, 31, 38];
+    const levels = ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const;
+    const paces = [null, '0.25', '0.5', '0.75', '1.0'] as const;
+    const bodies = ages.flatMap((age) =>
+      heights.flatMap((heightCm) =>
+        bmis.flatMap((bmi) =>
+          (['male', 'female', null] as const).flatMap((sex) =>
+            levels.map((activityLevel) => ({
+              age,
+              heightCm,
+              weightKg: Math.max(30, Math.round(bmi * (heightCm / 100) ** 2 * 10) / 10),
+              sex,
+              activityLevel,
+            })),
+          ),
+        ),
+      ),
+    );
+    const formulaOf = (body: (typeof bodies)[number]) =>
+      calculateMaintenance(calculateBmr(body), body);
+
+    it('plans no loss for a body under 18 or underweight, by a pace, a typed target or a correction', () => {
+      let held = 0;
+      for (const body of bodies) {
+        const atRisk = body.age < 18 || body.weightKg / (body.heightCm / 100) ** 2 < 18.5;
+        if (!atRisk) continue;
+        const formula = formulaOf(body);
+        for (const weeklyLossTarget of paces)
+          for (const expenditureCorrection of [0, -400]) {
+            const r = calculateCalories(
+              person({ ...body, weeklyLossTarget, expenditureCorrection }),
+            );
+            expect(r.dailyTarget).toBeGreaterThanOrEqual(formula);
+            if (r.goalHeld) held += 1;
+          }
+        const typed = calculateCalories(person({ ...body, manualCalorieTarget: 1200 }));
+        expect(typed.dailyTarget).toBeGreaterThanOrEqual(formula);
+      }
+      expect(held).toBeGreaterThan(0);
+    });
+
+    it('loses no adult more than 1 % of the weight a week, and nobody from 65 more than 0.5 kg', () => {
+      for (const body of bodies) {
+        if (body.age < 18) continue;
+        for (const weeklyLossTarget of paces) {
+          const r = calculateCalories(person({ ...body, weeklyLossTarget }));
+          expect(r.dailyDeficit).toBeLessThanOrEqual(Math.round(body.weightKg * 11));
+          if (body.age >= 65) expect(r.dailyDeficit).toBeLessThanOrEqual(550);
+        }
+      }
+    });
+
+    it('never puts a target nobody typed under what the body uses at rest', () => {
+      for (const body of bodies)
+        for (const expenditureCorrection of [0, -600, -1500]) {
+          const r = calculateCalories(
+            person({ ...body, weeklyLossTarget: '1.0', expenditureCorrection }),
+          );
+          expect(r.dailyTarget).toBeGreaterThanOrEqual(r.bmr);
+        }
     });
   });
 });

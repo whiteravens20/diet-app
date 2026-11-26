@@ -39,6 +39,7 @@ export function TargetNotices({
         deficit: c.dailyDeficit,
         bmr: c.bmr,
         maintenance: c.maintenance,
+        target: c.dailyTarget,
         pace: amountOf(c.weeklyLossKg),
         // From 65 the faster paces count as the fastest a plan keeps.
         amount: amountOf(OLDER_FASTEST_PACE_KG),
@@ -55,6 +56,7 @@ export function TargetNotices({
   // Under the floor the pace is not what set the target: the floor did.
   if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor && !c.goalHeld)
     say('deficitCapped');
+  if (c.correctionHeld) say('correctionHeld');
   if (c.warnings.includes('below_floor')) say('below_floor', true);
   if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
   if (notices.length === 0) return null;

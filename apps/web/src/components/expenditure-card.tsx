@@ -66,6 +66,12 @@ export function ExpenditureCard({ profile }: { profile: Profile }) {
             target: shown.target,
           })}
         </p>
+        {shown.held && (
+          <p className="font-medium">
+            {t('held', { corrected: shown.targetCorrected ?? shown.target })}
+          </p>
+        )}
+        {shown.correction < 0 && <p className="text-muted-foreground">{t('caution')}</p>}
         <p className="text-muted-foreground">{t('note')}</p>
         <div className="flex flex-wrap gap-2">
           <Button

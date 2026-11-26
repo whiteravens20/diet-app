@@ -383,6 +383,11 @@ export function filledMacros(calories: number, known: Partial<Macros>, split: Ma
  *
  * Somebody under 18 or underweight is planned no loss: a pace, or a typed
  * target under maintenance, is held at maintenance.
+ *
+ * A correction from the real expenditure never takes a target nobody typed
+ * under what the body uses at rest, nor under the floor where the formula's
+ * maintenance reaches it, nor a body under 18 or underweight under the
+ * formula's maintenance: a diary written in part gives a figure too low.
  */
 export function calculateCalories(input: CalorieEngineInput): CalorieCalculation {
   const bmr = calculateBmr(input);
@@ -423,6 +428,11 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     safetyFloorApplied = !maintenanceUnderFloor && paced < floor;
     dailyTarget = maintenanceUnderFloor ? maintenance : Math.max(paced, floor);
   }
+  // What the body uses at rest, or the floor where the formula's maintenance reaches it, and for a body planned no
+  // loss the formula's maintenance: no correction from the real expenditure takes a target nobody typed under that.
+  const restingBound = Math.max(bmr, atRisk.length > 0 ? formula : Math.min(floor, formula));
+  const correctionHeld = manual === null && dailyTarget < restingBound;
+  if (correctionHeld) dailyTarget = restingBound;
   dailyTarget = round(dailyTarget);
   // The custom diet's split of this target: with protein of its own grams where the profile sets it per kilogram.
   const own =
@@ -461,6 +471,7 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     safetyFloorApplied,
     maintenanceUnderFloor,
     goalHeld,
+    correctionHeld,
     leastTypedTarget: leastTypedTarget(formula),
     warnings: [
       ...atRisk,

@@ -310,7 +310,8 @@ function averageTarget(
 function said(profile: Profile, now: string): Expenditure {
   const input = calorieInputOf(profile);
   const maintenance = calculateMaintenance(calculateBmr(input), input);
-  const target = calculateCalories(input).dailyTarget;
+  const standing = calculateCalories(input);
+  const target = standing.dailyTarget;
   const base = {
     days: profile.expenditureDays ?? 0,
     weights: profile.expenditureWeights ?? 0,
@@ -319,6 +320,7 @@ function said(profile: Profile, now: string): Expenditure {
     target,
     checkedOn: profile.expenditureCheckedOn ? isoDate(profile.expenditureCheckedOn) : null,
     laterUntil: profile.expenditureLaterUntil ? isoDate(profile.expenditureLaterUntil) : null,
+    held: false,
   };
   if (profile.expenditureCorrectionKcal !== null) {
     return {
@@ -326,6 +328,7 @@ function said(profile: Profile, now: string): Expenditure {
       state: 'kept',
       correction: profile.expenditureCorrectionKcal,
       targetCorrected: null,
+      held: standing.correctionHeld,
     };
   }
   if (profile.expenditureEstimateKcal === null) {
@@ -341,9 +344,12 @@ function said(profile: Profile, now: string): Expenditure {
   if (base.laterUntil !== null && base.laterUntil > now) {
     return { ...base, state: 'later', correction, targetCorrected: null };
   }
-  const targetCorrected = calculateCalories({
-    ...input,
-    expenditureCorrection: correction,
-  }).dailyTarget;
-  return { ...base, state: 'proposed', correction, targetCorrected };
+  const corrected = calculateCalories({ ...input, expenditureCorrection: correction });
+  return {
+    ...base,
+    state: 'proposed',
+    correction,
+    targetCorrected: corrected.dailyTarget,
+    held: corrected.correctionHeld,
+  };
 }

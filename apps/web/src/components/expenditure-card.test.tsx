@@ -27,6 +27,7 @@ const anExpenditure = (over: Partial<Expenditure> = {}): Expenditure => ({
   correction: 270,
   target: 2135,
   targetCorrected: 2405,
+  held: false,
   checkedOn: '2026-11-07',
   laterUntil: null,
   ...over,
@@ -60,6 +61,27 @@ describe('a corrected target the real expenditure proposes', () => {
     expect(post).toHaveBeenCalledWith('/diary/expenditure/accept', { profileId: PROFILE.id });
     // Accepted, it is no proposal any more.
     await waitFor(() => expect(screen.queryByRole('button', { name: texts.accept })).toBeNull());
+  });
+
+  it('says where a lower figure stops the target, and why such a figure may be low', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue(
+      anExpenditure({ estimate: 1500, correction: -670, targetCorrected: 1918, held: true }),
+    );
+    within(<ExpenditureCard profile={PROFILE} />);
+
+    expect(
+      await screen.findByText('The application goes no lower: the target stops at 1918 kcal.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(texts.caution)).toBeInTheDocument();
+  });
+
+  it('says nothing of a stop or a low figure for a correction upwards', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue(anExpenditure());
+    within(<ExpenditureCard profile={PROFILE} />);
+
+    await screen.findByText(texts.note);
+    expect(screen.queryByText(texts.caution)).toBeNull();
+    expect(screen.queryByText(/goes no lower/)).toBeNull();
   });
 
   it('puts the proposal off', async () => {

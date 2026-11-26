@@ -2782,6 +2782,8 @@
     "title": "Rzeczywisty wydatek",
     "proposed": "Z dziennika i wag z ostatnich 3\u00a0tygodni wychodzi około {estimate, number, ::group-off}\u00a0kcal dziennie, o {difference, number, ::group-off}\u00a0kcal {more, select, true {więcej} other {mniej}} niż liczy wzór. Cel dzienny byłby {corrected, number, ::group-off}\u00a0kcal zamiast {target, number, ::group-off}.",
     "note": "To tylko propozycja. Plany już ułożone zostają przy swoim celu.",
+    "caution": "Dziennik z\u00a0dniami zapisanymi tylko w\u00a0części daje za niską liczbę. Zanim przyjmiesz, sprawdź, czy zapisujesz wszystko, co jesz.",
+    "held": "Niżej aplikacja nie zejdzie: cel zatrzymuje się na {corrected, number, ::group-off}\u00a0kcal.",
     "accept": "Przyjmij",
     "later": "Nie teraz",
     "kept": "Cel uwzględnia poprawkę z rzeczywistego wydatku: {correction} kcal dziennie.",
@@ -3119,6 +3121,7 @@
       "maintenanceUnderFloor": "Twoje zapotrzebowanie jest niższe niż {floor, number, ::group-off}\u00a0kcal, czyli najniższy cel, jaki wylicza plan, więc redukcja nie jest planowana: celem jest Twoje zapotrzebowanie.",
       "safetyFloorApplied": "Cel podniesiono do {floor, number, ::group-off}\u00a0kcal, czyli najniższego, jaki wylicza plan. Deficyt, który z tego wynika, to {deficit, number, ::group-off}\u00a0kcal dziennie.",
       "deficitCapped": "Wybrane tempo wymaga {requested, number, ::group-off}\u00a0kcal dziennie mniej. To więcej, niż pozwala plan: jedna czwarta Twojego zapotrzebowania albo 1% masy ciała na tydzień. Plan odejmuje więc {deficit, number, ::group-off}\u00a0kcal: na początku to około {pace} tygodniowo, a\u00a0z\u00a0czasem tempo słabnie.",
+      "correctionHeld": "Poprawka z\u00a0rzeczywistego wydatku obniżyłaby cel bardziej, niż pozwala aplikacja, więc cel zatrzymano na {target, number, ::group-off}\u00a0kcal. Dziennik z\u00a0dniami zapisanymi tylko w\u00a0części daje za niską liczbę.",
       "below_floor": "Wpisany cel jest niższy niż {floor, number, ::group-off}\u00a0kcal, czyli najniższy, jaki wyliczyłby plan.",
       "below_bmr": "Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku ({bmr, number, ::group-off}\u00a0kcal)."
     }

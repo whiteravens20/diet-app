@@ -26,6 +26,7 @@ const plain: CalorieCalculation = {
   maintenanceUnderFloor: false,
   goalHeld: false,
   paceHeldForAge: false,
+  correctionHeld: false,
   leastTypedTarget: 1200,
   customSplitHeld: false,
   warnings: [],
@@ -94,6 +95,12 @@ describe('what a user is told about their calorie target', () => {
     ]);
     // Keeping the weight, the advice has nothing to say.
     expect(told({ ...plain, dailyDeficit: 0, warnings: ['older'] })).toEqual([]);
+  });
+
+  it('is that a correction from the real expenditure was held, and why its figure is low', () => {
+    expect(told({ ...plain, dailyTarget: 1780, correctionHeld: true })).toEqual([
+      'The correction from the real expenditure would lower the target further than the application allows, so the target stops at 1780 kcal. A diary with days written in part gives a figure too low.',
+    ]);
   });
 
   it('is the floor and the deficit it leaves, without the note on the pace', () => {
