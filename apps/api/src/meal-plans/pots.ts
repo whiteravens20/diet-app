@@ -18,8 +18,53 @@ export interface PotMeal {
   potHeld: boolean;
   leftoverFromDate: Date | null;
   leftoverFromMealType: string | null;
-  /** The leftover it gave, where it gave one: a meal of the day after it, of the same plan. */
+  /** The leftover it gave, where it gave one: a meal of the day after it (`leftoversGiven`). */
   givenLeftoverId: string | null;
+}
+
+/** A leftover a meal gave: what it holds, in servings as eaten. */
+export interface GivenLeftover {
+  portion: number;
+}
+
+/** A leftover as `leftoversGiven` reads it from its row. */
+const givenOf = (meal: { servings: number; quantityScale: number }): GivenLeftover => ({
+  portion: meal.servings * meal.quantityScale,
+});
+
+/**
+ * The leftovers the meals of `days` gave, by their ids. A leftover is a meal of the day after its meal, in the plan
+ * of the profile made last that holds that day: most often one of `days`, read as they hold it, and otherwise one of
+ * another plan, read where there is any such.
+ */
+export async function leftoversGiven(
+  db: Pick<Prisma.TransactionClient, 'plannedMeal'>,
+  days: readonly {
+    meals: readonly {
+      id: string;
+      servings: number;
+      quantityScale: number;
+      givenLeftoverId: string | null;
+    }[];
+  }[],
+): Promise<Map<string, GivenLeftover>> {
+  const meals = days.flatMap((day) => day.meals);
+  const given = new Map<string, GivenLeftover>();
+  const held = new Map(meals.map((meal) => [meal.id, meal]));
+  const elsewhere: string[] = [];
+  for (const { givenLeftoverId: id } of meals) {
+    if (id === null) continue;
+    const meal = held.get(id);
+    if (meal) given.set(id, givenOf(meal));
+    else elsewhere.push(id);
+  }
+  if (elsewhere.length > 0)
+    for (const meal of await db.plannedMeal.findMany({
+      where: { id: { in: elsewhere } },
+      select: { id: true, servings: true, quantityScale: true },
+    }))
+      given.set(meal.id, givenOf(meal));
+  return given;
 }
 
 /** What a pot cooked already holds for a meal eaten from it. */
@@ -46,14 +91,10 @@ export interface Pot {
 export function potsOf(
   days: readonly { date: Date; meals: readonly PotMeal[] }[],
   today: string,
+  /** The leftovers the meals gave (`leftoversGiven`). */
+  given: ReadonlyMap<string, GivenLeftover>,
 ): Map<string, Pot> {
   const pots = new Map<string, Pot>();
-  // A leftover is a meal of the plan's next day: what it holds is read from the plan's own meals.
-  const portions = new Map(
-    days.flatMap((day) =>
-      day.meals.map((meal) => [meal.id, meal.servings * meal.quantityScale] as const),
-    ),
-  );
   const { cookings } = cookingsOf(
     days.map((day) => ({
       date: day.date,
@@ -72,7 +113,7 @@ export function potsOf(
       pots.set(meal.id, {
         cookedOn,
         cooked: meal.cookedServings ?? meal.servings * meal.quantityScale,
-        carried: meal.givenLeftoverId ? (portions.get(meal.givenLeftoverId) ?? 0) : 0,
+        carried: meal.givenLeftoverId ? (given.get(meal.givenLeftoverId)?.portion ?? 0) : 0,
         kept: meal.cookedServings !== null,
         eaten: meal.eatenAt !== null,
         held: meal.potHeld,
@@ -100,7 +141,7 @@ const POT_MEAL = {
 
 /** The pots of a plan (`potsOf`), read from the database; none for a plan not made for cooking ahead. */
 export async function potsOfPlan(
-  db: Pick<Prisma.TransactionClient, 'mealPlan'>,
+  db: Pick<Prisma.TransactionClient, 'mealPlan' | 'plannedMeal'>,
   planId: string,
   today: string,
 ): Promise<Map<string, Pot>> {
@@ -112,7 +153,7 @@ export async function potsOfPlan(
       days: { orderBy: { date: 'asc' }, select: { date: true, meals: { select: POT_MEAL } } },
     },
   });
-  return plan ? potsOf(plan.days, today) : new Map();
+  return plan ? potsOf(plan.days, today, await leftoversGiven(db, plan.days)) : new Map();
 }
 
 /**

@@ -774,6 +774,59 @@ describe('a pot cooked already', () => {
     expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: false });
   });
 
+  it("counts the rest of a pot that went to the profile's next plan as carried", async () => {
+    const dayAfter = (date: string) =>
+      new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    // The profile's next plan holds the day after this plan's last: the rest of a pot of that last day goes there.
+    const next = await aPlan(t, user, { id: plan.profileId } as Profile, {
+      startDate: dayAfter(plan.days[3]!.date),
+      durationDays: 2,
+    });
+    // A meal of the third day cooked for the fourth as well.
+    const first = plan.days[2]!.meals.find((meal) =>
+      meal.cooking?.with.some((other) => other.date === plan.days[3]!.date),
+    )!;
+    expect(first).toBeDefined();
+    const later = plan.days[3]!.meals.find((meal) => meal.mealType === first.mealType)!;
+    plansTodayIs(plan.days[2]!.date);
+    try {
+      await plans().setEaten(user.id, 'en', plan.id, first.id, true, plan.days[2]!.date);
+      // A bar of one's own on the fourth day: its meals are sized down, and the pot keeps some.
+      await plans().addCustomMeal(
+        user.id,
+        'en',
+        plan.id,
+        plan.days[3]!.date,
+        AddCustomMealRequest.parse({
+          name: 'Bar',
+          mealType: 'snack',
+          nutrition: { calories: 450 },
+        }),
+      );
+      const before = (await read()).days[3]!.meals.find((meal) => meal.id === later.id)!;
+      expect(before.pot!.rest).toBeGreaterThan(0);
+      await t.app
+        .get(LeftoversService)
+        .put(
+          user.id,
+          'en',
+          plan.id,
+          later.id,
+          PutLeftoverRequest.parse({ mealType: first.mealType, left: 1, fromPot: true }),
+        );
+
+      const after = (await read()).days[3]!.meals.find((meal) => meal.id === later.id)!;
+      expect(after.carriedTo).toEqual({ date: next.days[0]!.date, mealType: first.mealType });
+      expect(after.pot).toMatchObject({ rest: 0, offer: null });
+      const theirs = (await plans().get(user.id, 'en', next.id)).days[0]!.meals.find(
+        (meal) => meal.mealType === first.mealType,
+      )!;
+      expect(theirs.leftover).toMatchObject({ date: plan.days[3]!.date });
+    } finally {
+      restartPlansToday();
+    }
+  });
+
   it('says a pot holds nothing of a portion that leaves some in it, whatever an earlier sizing held', async () => {
     await allCooked();
     await snackTomorrow();

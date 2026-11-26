@@ -145,6 +145,7 @@ import {
   heldAtPots,
   keepHeld,
   keepPots,
+  leftoversGiven,
   potRest,
   potScale,
   potsOf,
@@ -705,10 +706,12 @@ export class MealPlansService {
             day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
         ),
     );
+    // The leftovers the plan's meals gave: what each holds.
+    const given = await leftoversGiven(this.prisma, plan.days);
     // The pots cooked already that meals of the plan are eaten from, and the days after those meals: where what a pot
     // leaves could go, as a leftover of the meal would.
     const pots = PlanOptions.parse(plan.options).mealPrepFriendly
-      ? potsOf(plan.days, today)
+      ? potsOf(plan.days, today, given)
       : new Map<string, Pot>();
     const afterPots = [
       ...new Set(
@@ -1740,7 +1743,7 @@ export class MealPlansService {
     if (!plan) return null;
     // A meal eaten from a pot cooked already is held to what the pot holds for it.
     const pots = PlanOptions.parse(plan.options).mealPrepFriendly
-      ? potsOf(plan.days, today)
+      ? potsOf(plan.days, today, await leftoversGiven(db, plan.days))
       : new Map<string, Pot>();
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));

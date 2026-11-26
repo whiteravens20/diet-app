@@ -615,7 +615,7 @@ async function householdsOf(
 
 export const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
-type Reader = Pick<Tx, 'ingredient' | 'mealPlan' | 'mealPlanDay' | '$queryRaw'>;
+type Reader = Pick<Tx, 'ingredient' | 'mealPlan' | 'mealPlanDay' | 'plannedMeal' | '$queryRaw'>;
 
 export async function loadIngredients(
   db: Pick<Tx, 'ingredient'>,
