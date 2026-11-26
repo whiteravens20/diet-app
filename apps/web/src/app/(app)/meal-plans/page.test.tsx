@@ -5062,6 +5062,31 @@ describe('the plan page, on what is left of a meal', () => {
     expect(await screen.findByRole('dialog', { name: texts.undoTitle })).toBeInTheDocument();
   });
 
+  it('keeps the portion of a meal whose pot gave its rest to the next day, and not of one whose own portion was parted', async () => {
+    await open(
+      withMeal({
+        servings: 1,
+        quantityScale: 1.9,
+        carriedTo: { date: '2026-01-06', mealType: 'lunch', fromPot: true },
+      }),
+    );
+
+    expect(screen.getByText('1.9 servings')).toBeInTheDocument();
+  });
+
+  it('marks no portion on a meal whose own portion was parted for the next day', async () => {
+    await open(
+      withMeal({
+        servings: 1,
+        quantityScale: 1.9,
+        carriedTo: { date: '2026-01-06', mealType: 'lunch', fromPot: false },
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Oat porridge' })).toBeInTheDocument();
+    expect(screen.queryByText('1.9 servings')).toBeNull();
+  });
+
   it('says under the meal it was left of where the rest of it is eaten', async () => {
     await open(
       withMeal({

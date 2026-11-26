@@ -1040,10 +1040,10 @@ export function PlanCard({
                                 {t('onlyRecipeChip')}
                               </span>
                             )}
-                            {/* The portion in words once it is a tenth off the plan's: a smaller difference is the sizing of an ordinary day and says nothing to the reader; the factor itself is in the meal's window. A leftover and the meal it was left of are parts of a portion, not resized. */}
+                            {/* The portion in words once it is a tenth off the plan's: a smaller difference is the sizing of an ordinary day and says nothing to the reader; the factor itself is in the meal's window. A leftover and the meal it was left of are parts of a portion, not resized; the rest of a pot is none of the meal's portion, which keeps its mark. */}
                             {Math.abs(m.quantityScale - 1) >= PORTION_CHIP_FROM &&
                               !m.leftover &&
-                              !m.carriedTo && (
+                              (!m.carriedTo || m.carriedTo.fromPot) && (
                                 <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
                                   {t('portionChip', { servings: portionOf(m) })}
                                 </span>
