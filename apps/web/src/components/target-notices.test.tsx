@@ -95,7 +95,7 @@ describe('what a user is told about their calorie target', () => {
       }),
     ).toEqual([
       'At a body-mass index under 30 the nutrition guidelines for older people advise against losing weight. If you want to lose weight, talk to a doctor about it.',
-      'The pace you chose, 1 kg a week, counts as 0.5 kg: from 65 a plan loses no more than that.',
+      'The pace you chose, 1 kg a week, counts as 0.5 kg: from 65 a plan is made for a loss of no more than that.',
       'A pace of 0.5 kg a week asks for 550 kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes 492 kcal: at first about 0.45 kg a week, and less as time goes on.',
     ]);
     // Keeping the weight, the advice has nothing to say.

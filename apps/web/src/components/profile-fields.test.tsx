@@ -48,7 +48,7 @@ describe('the choice of a pace of loss', () => {
     expect(
       within(group).getByText(
         plain(
-          'From 65 a plan loses at most 0.5 kg a week, so that muscle is not lost with the fat.',
+          'From 65 a plan is made for a loss of at most 0.5 kg a week, so that muscle is not lost with the fat.',
         ),
       ),
     ).toBeInTheDocument();
