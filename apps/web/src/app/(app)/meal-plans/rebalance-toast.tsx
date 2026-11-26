@@ -10,6 +10,7 @@ import type {
   ChangedPlan,
   DayEventCause,
   MealPlanDay,
+  MealType,
   PlanChangeEffects,
   RebalanceResult,
 } from '@diet-app/shared';
@@ -36,6 +37,8 @@ export interface PlanWord {
    * did to the lists and the freezer, and has nothing of its own to take back.
    */
   cause?: DayEventCause | null;
+  /** Of days made again: the meals that got the recipe they held, no other fitting (`GenerationReport.sameAgain`). */
+  same?: readonly { date: string; slot: MealType }[];
 }
 
 /** A change whose answer is the plan as it left it (`ChangedPlan`): what it was, and the day it was of, if one. */
@@ -43,6 +46,8 @@ export interface PlanChange {
   plan: ChangedPlan;
   cause: DayEventCause;
   date: string | null;
+  /** Of days made again: the meals that got the recipe they held (`PlanWord.same`). */
+  same?: readonly { date: string; slot: MealType }[];
 }
 
 /** Whether a change said anything of the lists or the freezer: such a card stays until it is closed. */
@@ -94,9 +99,10 @@ export function RebalanceToast({
 }) {
   const t = useTranslations('mealPlans');
   const tHistory = useTranslations('dayHistory');
+  const tMeal = useTranslations('enums.mealType');
   const fmt = useFormat();
-  const { rebalance, swap, day, effects, cause } = word;
-  const lasting = toldEffects(effects);
+  const { rebalance, swap, day, effects, cause, same = [] } = word;
+  const lasting = toldEffects(effects) || same.length > 0;
   // Keep the auto-dismiss timer stable across parent re-renders: the latest
   // onDismiss lives in a ref (updated in an effect, never during render) so the
   // timer is armed exactly once.
@@ -203,6 +209,24 @@ export function RebalanceToast({
         {effects && effects.freeze.length > 0 && (
           <p className="mt-2 text-sm">
             {t('effectFreeze')} {days(effects.freeze)}
+          </p>
+        )}
+        {same.length > 0 && (
+          <p className="mt-2 text-sm">
+            {t('sameAgainLine', {
+              meals: [...new Set(same.map((one) => one.date))]
+                .map((date) => {
+                  const meals = same
+                    .filter((one) => one.date === date)
+                    .map((one) => tMeal(one.slot).toLowerCase())
+                    .join(', ');
+                  // The day is named where the meals are of more than one.
+                  return new Set(same.map((one) => one.date)).size > 1
+                    ? `${fmt.dayShort(date)}: ${meals}`
+                    : meals;
+                })
+                .join('; '),
+            })}
           </p>
         )}
         {spreadable && (

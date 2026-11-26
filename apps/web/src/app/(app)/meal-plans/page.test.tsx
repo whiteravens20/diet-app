@@ -768,6 +768,35 @@ describe('the plan page, on a plan and how it was made', () => {
     expect(screen.getByText(messages.mealPlans.pantryCounted)).toBeInTheDocument();
   });
 
+  it('says why a meal its day made again gave the recipe it held has it still', async () => {
+    const sameAgain = [{ date: '2026-01-05', slot: 'breakfast' as const }];
+    await open(
+      aPlan({
+        report: { relaxations: [], singleCandidate: [], sameAgain, pantry: 'empty', apart: [] },
+      }),
+    );
+
+    expect(screen.getByText(messages.mealPlans.sameAgainHint)).toBeVisible();
+  });
+
+  it('leaves that to the single recipe, where the diet left the meal one alone', async () => {
+    const one = [{ date: '2026-01-05', slot: 'breakfast' as const }];
+    await open(
+      aPlan({
+        report: {
+          relaxations: [],
+          singleCandidate: one,
+          sameAgain: one,
+          pantry: 'empty',
+          apart: [],
+        },
+      }),
+    );
+
+    expect(screen.getByText(messages.mealPlans.onlyRecipeHint)).toBeVisible();
+    expect(screen.queryByText(messages.mealPlans.sameAgainHint)).toBeNull();
+  });
+
   it('says nothing of a meal the report does not speak of, nor of a pantry that is empty, nor of wasting less', async () => {
     await open(aPlan());
 
@@ -1211,6 +1240,40 @@ describe('the plan page, when a plan is made again', () => {
     expect(rerolls(post)).toEqual([
       [`/meal-plans/${plan.id}/days/${plan.days[2]!.id}/regenerate`, undefined],
     ]);
+  });
+
+  it('says, once a day is made again, which of its meals got their recipe again for want of another, though no list changed', async () => {
+    const plan = threeDays();
+    answering(
+      () => aPreview({ days: 1, replaced: 1, kept: { ...aPreview().kept, past: 0, outside: 2 } }),
+      () =>
+        Promise.resolve({
+          ...plan,
+          effects: null,
+          report: {
+            ...plan.report!,
+            sameAgain: [
+              { date: '2026-01-07', slot: 'breakfast' },
+              { date: '2026-01-06', slot: 'breakfast' },
+            ],
+          },
+        }),
+    );
+    await open(plan);
+
+    const third = within(document.getElementById(dayAnchor(plan.id, '2026-01-07'))!);
+    await userEvent.click(third.getByRole('button', { expanded: false }));
+    await unfoldDay(third);
+    await userEvent.click(third.getByRole('button', { name: messages.mealPlans.changeDay }));
+    await recalculate(await rerollWindow());
+
+    // The card names the meals of the day made again alone, not of another day the report speaks of.
+    expect(await screen.findByText(messages.dayHistory.cause.reroll)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The same recipe as before: breakfast. No other fits the profile and the plan's limits.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("asks about the meals that were eaten and the user's own where the API says the days hold them, and replaces them when told to", async () => {

@@ -928,6 +928,8 @@ export function PlanCard({
                       );
                 const outside = said(plan.report?.relaxations);
                 const onlyRecipe = said(plan.report?.singleCandidate);
+                // Made again with its day, it got the recipe it held: said where the diet did not leave it one alone.
+                const sameAgain = !onlyRecipe && said(plan.report?.sameAgain);
                 const byModel = partInMeal(m);
                 // What the meal holds that the profile would rather not eat, by name.
                 const disliked = m.ingredients
@@ -1507,6 +1509,9 @@ export function PlanCard({
                       )}
                       {onlyRecipe && (
                         <p className="ml-6 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
+                      )}
+                      {sameAgain && (
+                        <p className="ml-6 text-xs text-muted-foreground">{t('sameAgainHint')}</p>
                       )}
                       {m.cookAhead && (
                         <p className="ml-6 text-xs text-muted-foreground">

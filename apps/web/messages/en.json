@@ -1743,6 +1743,8 @@
     "outsideLimitHint": "No recipe was left for this meal inside: {limits}.",
     "onlyRecipeChip": "Only recipe",
     "onlyRecipeHint": "For this meal on this diet the profile leaves one recipe to choose from.",
+    "sameAgainHint": "The same recipe as before the day was made again: no other fits the profile and the plan's limits.",
+    "sameAgainLine": "The same recipe as before: {meals}. No other fits the profile and the plan's limits.",
     "planMayGiveWay": "This plan may go outside: {limits}.",
     "holdLimits": "Make it again inside every limit…",
     "pantryCounted": "The pantry counted in the choice of recipes.",

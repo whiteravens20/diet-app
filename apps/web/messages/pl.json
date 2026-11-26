@@ -1743,6 +1743,8 @@
     "outsideLimitHint": "Dla tego posiłku nie było już przepisu mieszczącego się w limicie: {limits}.",
     "onlyRecipeChip": "Jedyny przepis",
     "onlyRecipeHint": "Dla tego posiłku w tej diecie profil zostawia do wyboru jeden przepis.",
+    "sameAgainHint": "Ten sam przepis co przed ułożeniem dnia od nowa: inne nie pasują do profilu i\u00a0limitów planu.",
+    "sameAgainLine": "Ten sam przepis co wcześniej: {meals}. Inne nie pasują do profilu i\u00a0limitów planu.",
     "planMayGiveWay": "Ten plan może wychodzić poza limit: {limits}.",
     "holdLimits": "Ułóż ponownie, trzymając wszystkie limity…",
     "pantryCounted": "Przy wyborze przepisów uwzględniono spiżarnię.",

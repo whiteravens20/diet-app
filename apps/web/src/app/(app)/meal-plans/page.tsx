@@ -398,10 +398,15 @@ function MealPlansContent() {
     onSuccess: (plan: ChangedPlan, v: Reroll) => {
       setRefused(null);
       setInTheWay(null);
+      const date = plan.days.find((day) => day.id === v.dayId)?.date ?? null;
       showChange(v.planId, {
         plan,
         cause: 'reroll',
-        date: plan.days.find((day) => day.id === v.dayId)?.date ?? null,
+        date,
+        // The meals of the days made again that got their recipe again: nothing else fitted them.
+        same: (plan.report?.sameAgain ?? []).filter((one) =>
+          date ? one.date === date : (!v.from || one.date >= v.from) && (!v.to || one.date <= v.to),
+        ),
       });
     },
     onError: (e: unknown, v: Reroll) => {
@@ -462,10 +467,10 @@ function MealPlansContent() {
     );
   };
   /** After a change that answers with the plan: its card where it did something to the lists or the freezer. */
-  const showChange = (planId: string, { plan, cause, date }: PlanChange) => {
+  const showChange = (planId: string, { plan, cause, date, same = [] }: PlanChange) => {
     void invalidateEdited(planId);
     setRebalanceToast(
-      toldEffects(plan.effects)
+      toldEffects(plan.effects) || same.length > 0
         ? {
             planId,
             revision: plan.revision,
@@ -474,6 +479,7 @@ function MealPlansContent() {
             rebalance: null,
             effects: plan.effects,
             cause,
+            same,
           }
         : null,
     );
