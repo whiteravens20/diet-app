@@ -150,6 +150,7 @@ import {
   potScale,
   potsOf,
   potsOfPlan,
+  type GivenLeftover,
   type Pot,
 } from './pots.js';
 import { dayHistoryOf } from './day-history.js';
@@ -706,7 +707,7 @@ export class MealPlansService {
             day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
         ),
     );
-    // The leftovers the plan's meals gave: what each holds.
+    // The leftovers the plan's meals gave: what each holds, and whether it is the rest of a pot cooked already.
     const given = await leftoversGiven(this.prisma, plan.days);
     // The pots cooked already that meals of the plan are eaten from, and the days after those meals: where what a pot
     // leaves could go, as a leftover of the meal would.
@@ -755,6 +756,7 @@ export class MealPlansService {
     const potsOfMeals: PotsOfMeals = {
       pots,
       after: new Map([...potsElsewhere, ...ownAfterPots]),
+      given,
     };
     const freezerNow: FreezerNow = {
       rows: frozen,
@@ -2546,7 +2548,7 @@ export class MealPlansService {
     /** The days after today's and yesterday's, in the plans that hold them, for the leftovers of those days. */
     nextDays: ReadonlyMap<string, NextDay>,
     /** The pots cooked already its meals are eaten from, and the days after those meals. */
-    { pots, after }: PotsOfMeals,
+    { pots, after, given: leftovers }: PotsOfMeals,
     /** The foods of the toppings the plan's meals have. */
     toppingFoods: ToppingFoods,
     /** What the meals take of the packs (`packedMealsOf`). */
@@ -2725,6 +2727,7 @@ export class MealPlansService {
             ? {
                 date: dateAfter(isoDate(day.date)),
                 mealType: m.carriedToMealType as MealType,
+                fromPot: leftovers.get(m.givenLeftoverId)?.fromPot ?? false,
               }
             : null,
           leftoverOffer: leftoverOfferOf(m, isoDate(day.date), today, nextDays),
@@ -2997,6 +3000,8 @@ interface PlanWithRelations {
 interface PotsOfMeals {
   pots: ReadonlyMap<string, Pot>;
   after: ReadonlyMap<string, NextDay>;
+  /** The leftovers the plan's meals gave (`leftoversGiven`). */
+  given: ReadonlyMap<string, GivenLeftover>;
 }
 
 /**

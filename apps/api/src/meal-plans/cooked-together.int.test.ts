@@ -593,7 +593,7 @@ describe('a pot cooked already', () => {
     expect(lunchOf(carried, 1)).toMatchObject({
       eatenAt: null,
       quantityScale: tomorrow.quantityScale,
-      carriedTo: { date: plan.days[2]!.date, mealType: 'lunch' },
+      carriedTo: { date: plan.days[2]!.date, mealType: 'lunch', fromPot: true },
       pot: { rest: 0, held: false, offer: null },
     });
 
@@ -774,7 +774,7 @@ describe('a pot cooked already', () => {
     expect(lunchOf(await read(), 1).pot).toMatchObject({ rest: 0, held: false });
   });
 
-  it("counts the rest of a pot that went to the profile's next plan as carried", async () => {
+  it("counts the rest of a pot that went to the profile's next plan as carried, and says it came from the pot", async () => {
     const dayAfter = (date: string) =>
       new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
     // The profile's next plan holds the day after this plan's last: the rest of a pot of that last day goes there.
@@ -816,7 +816,11 @@ describe('a pot cooked already', () => {
         );
 
       const after = (await read()).days[3]!.meals.find((meal) => meal.id === later.id)!;
-      expect(after.carriedTo).toEqual({ date: next.days[0]!.date, mealType: first.mealType });
+      expect(after.carriedTo).toEqual({
+        date: next.days[0]!.date,
+        mealType: first.mealType,
+        fromPot: true,
+      });
       expect(after.pot).toMatchObject({ rest: 0, offer: null });
       const theirs = (await plans().get(user.id, 'en', next.id)).days[0]!.meals.find(
         (meal) => meal.mealType === first.mealType,

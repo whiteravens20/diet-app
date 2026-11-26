@@ -22495,11 +22495,15 @@
                   },
                   "mealType": {
                     "$ref": "#/components/schemas/MealType"
+                  },
+                  "fromPot": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
                   "date",
-                  "mealType"
+                  "mealType",
+                  "fromPot"
                 ],
                 "additionalProperties": false
               },

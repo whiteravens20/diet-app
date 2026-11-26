@@ -2,6 +2,7 @@
 
 import { PlanOptions } from '@diet-app/shared';
 import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { isoDate } from './plan-days.js';
 import { cookingsOf } from './plan-menu.js';
 
@@ -22,14 +23,23 @@ export interface PotMeal {
   givenLeftoverId: string | null;
 }
 
-/** A leftover a meal gave: what it holds, in servings as eaten. */
+/** A leftover a meal gave: what it holds, in servings as eaten, and whether it is the rest of a pot cooked already. */
 export interface GivenLeftover {
   portion: number;
+  fromPot: boolean;
 }
 
+/** What a leftover's note (`PlannedMeal.leftoverUndo`) says of where it came from: the rest of a pot cooked already. */
+const LeftoverNote = z.object({ source: z.object({ fromPot: z.boolean().optional() }) });
+
 /** A leftover as `leftoversGiven` reads it from its row. */
-const givenOf = (meal: { servings: number; quantityScale: number }): GivenLeftover => ({
+const givenOf = (meal: {
+  servings: number;
+  quantityScale: number;
+  leftoverUndo?: unknown;
+}): GivenLeftover => ({
   portion: meal.servings * meal.quantityScale,
+  fromPot: LeftoverNote.safeParse(meal.leftoverUndo).data?.source.fromPot === true,
 });
 
 /**
@@ -44,6 +54,7 @@ export async function leftoversGiven(
       id: string;
       servings: number;
       quantityScale: number;
+      leftoverUndo?: unknown;
       givenLeftoverId: string | null;
     }[];
   }[],
@@ -61,7 +72,7 @@ export async function leftoversGiven(
   if (elsewhere.length > 0)
     for (const meal of await db.plannedMeal.findMany({
       where: { id: { in: elsewhere } },
-      select: { id: true, servings: true, quantityScale: true },
+      select: { id: true, servings: true, quantityScale: true, leftoverUndo: true },
     }))
       given.set(meal.id, givenOf(meal));
   return given;

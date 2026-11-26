@@ -492,8 +492,14 @@ export const PlannedMeal = z.object({
   leftover: z
     .object({ date: z.string().date(), mealType: MealType, undoable: z.boolean() })
     .nullable(),
-  /** Where what was left of this meal is eaten, a leftover. Null where nothing of it was carried. */
-  carriedTo: z.object({ date: z.string().date(), mealType: MealType }).nullable(),
+  /**
+   * Where what was left of this meal is eaten, a leftover, and whether that is the rest of a pot cooked already
+   * (`fromPot`), beside a portion that stays the meal's own, not a part of its portion. Null where nothing of it was
+   * carried.
+   */
+  carriedTo: z
+    .object({ date: z.string().date(), mealType: MealType, fromPot: z.boolean() })
+    .nullable(),
   /**
    * Whether what is left of this meal can be put in as a meal of the next day:
    * null where it cannot be at all (a meal of one's own, a leftover itself, a

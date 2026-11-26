@@ -185,7 +185,7 @@ describe('a leftover: what is left of a meal, eaten the next day', () => {
     expect(kept.id).toBe(dinner.id);
     expect(kept.eatenAt).not.toBeNull();
     expect(portion(kept)).toBeCloseTo(0.75 * portion(dinner), 9);
-    expect(kept.carriedTo).toEqual({ date: TOMORROW, mealType: 'breakfast' });
+    expect(kept.carriedTo).toEqual({ date: TOMORROW, mealType: 'breakfast', fromPot: false });
     expect(kept.leftoverOffer).toBeNull();
     const leftover = at(after, TOMORROW, 'breakfast')!;
     expect(portion(leftover)).toBeCloseTo(0.25 * portion(dinner), 9);

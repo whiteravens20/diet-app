@@ -167,7 +167,10 @@ describe('what is said in Polish of a meal cooked with another', () => {
       'Nie gotujesz: to resztka kolacji z wtorku.',
     );
     expect(
-      leftoverHint({ leftover: null, carriedTo: { date: WEDNESDAY, mealType: 'lunch' } }),
+      leftoverHint({
+        leftover: null,
+        carriedTo: { date: WEDNESDAY, mealType: 'lunch', fromPot: false },
+      }),
     ).toBe('Reszta tego posiłku jest w środę na obiad.');
     expect(leftoverChip({ leftover: null })).toBeNull();
     expect(leftoverHint({ leftover: null, carriedTo: null })).toBeNull();

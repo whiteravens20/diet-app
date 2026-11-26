@@ -4998,7 +4998,7 @@ describe('the plan page, on what is left of a meal', () => {
   it('says nothing of the pot of a meal whose rest went to the next day, which the leftover line says', async () => {
     await open(
       withMeal({
-        carriedTo: { date: '2026-01-06', mealType: 'lunch' },
+        carriedTo: { date: '2026-01-06', mealType: 'lunch', fromPot: true },
         pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: true, offer: null },
       }),
     );
@@ -5066,7 +5066,7 @@ describe('the plan page, on what is left of a meal', () => {
     await open(
       withMeal({
         eatenAt: '2026-01-05T08:00:00.000Z',
-        carriedTo: { date: '2026-01-06', mealType: 'lunch' },
+        carriedTo: { date: '2026-01-06', mealType: 'lunch', fromPot: false },
       }),
     );
 
