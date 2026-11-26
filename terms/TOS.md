@@ -22,6 +22,8 @@ Every value of calories, macronutrients, fibre, sugars, salt and saturated fat o
 
 A profile's calorie target and pace of weight loss are worked out from an equation for adults, from age, sex, height, weight and activity. They are an approximation for a healthy adult: the application knows nothing of your health, does not diagnose or treat anything and does not replace a doctor or a dietitian.
 
+The application plans no loss of weight for anybody under 18 or with a body-mass index under 18.5: their target is maintenance, whatever pace or target they choose. From 65 years it plans a loss of at most half a kilogram a week. A target typed by hand is at least 1200 kcal a day, or the body's maintenance where that is lower.
+
 The limits from labels are a setting of your profile; the values they start at are general reference values, not advice for you, and the planner does not follow them. A day of a plan or of the diary gets a note only where the figures it knows cross a limit: where some ingredients give no figure, a day may cross a limit without a note.
 
 Before you start losing weight or change your diet, ask a doctor or a dietitian if:
