@@ -966,6 +966,7 @@ function MealPlansContent() {
               value={advanced}
               onChange={setAdvanced}
               withoutDays={withProfileId !== '' && withProfileId !== activeId}
+              leastTarget={leastTarget}
             />
             {active && <SupplyNote diet={planDiet} mealCount={planMeals} />}
             <Button type="submit" disabled={generate.isPending || saveTargets.isPending}>

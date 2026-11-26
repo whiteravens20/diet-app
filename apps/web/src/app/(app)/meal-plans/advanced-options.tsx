@@ -4,6 +4,8 @@
 
 import { useTranslations } from 'next-intl';
 import {
+  MAX_CALORIE_TARGET,
+  MIN_CALORIE_TARGET,
   PLAN_RELAXATIONS,
   type DayOverride,
   type FavoriteSet,
@@ -112,6 +114,7 @@ export function AdvancedOptions({
   value,
   onChange,
   withoutDays = false,
+  leastTarget = MIN_CALORIE_TARGET,
 }: {
   dates: string[];
   defaultMealCount: number;
@@ -124,6 +127,8 @@ export function AdvancedOptions({
   onChange: (next: AdvancedValue) => void;
   /** A joint plan is made without settings of its days: each person changes their own days in their plan after. */
   withoutDays?: boolean;
+  /** The least a day's own target may be typed at, as the plan's own: what this body may type (`leastTypedTarget`). */
+  leastTarget?: number;
 }) {
   const t = useTranslations('mealPlans.advanced');
   const tLimit = useTranslations('mealPlans.limit');
@@ -281,8 +286,8 @@ export function AdvancedOptions({
 
                         <input
                           type="number"
-                          min={800}
-                          max={6000}
+                          min={leastTarget}
+                          max={MAX_CALORIE_TARGET}
                           placeholder={t('calories')}
                           aria-label={t('calories')}
                           className={`${inputCls} w-24`}

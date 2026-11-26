@@ -29,4 +29,28 @@ describe("the plan form's advanced options", () => {
       ).toHaveAccessibleDescription(messages.mealPlans.advanced.limitWhere[kind]);
     }
   });
+
+  it("hold each day's own target to the least this body may type, as the plan's own target is", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <AdvancedOptions
+          dates={['2026-01-05', '2026-01-06']}
+          defaultMealCount={3}
+          favorites={[]}
+          sets={[]}
+          defaultMaxRepeats={null}
+          value={{ days: {} }}
+          onChange={() => {}}
+          leastTarget={1123}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    const fields = screen.getAllByLabelText(messages.mealPlans.advanced.calories);
+    expect(fields).toHaveLength(2);
+    for (const field of fields) {
+      expect(field).toHaveAttribute('min', '1123');
+      expect(field).toHaveAttribute('max', '6000');
+    }
+  });
 });
