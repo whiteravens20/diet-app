@@ -860,3 +860,54 @@ describe('a row of the pantry taken out', () => {
     expect(sent).not.toHaveBeenCalled();
   });
 });
+
+describe('fresh stock past its best-before day in the pantry', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const yesterday = () => dayAfter(localDate(), -1);
+
+  it('is marked, says that no list or plan counts it, and is said to be still good without a new day', async () => {
+    const row = aRow(dumplings, 12, yesterday());
+    const { post } = await open([], [row]);
+
+    expect(screen.getByText(texts.pastDate)).toBeInTheDocument();
+    expect(screen.getByText(texts.pastDateNote)).toBeInTheDocument();
+    expect(screen.queryByText(texts.expiringSoon)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: `Still good: ${dumplings.name}` }));
+    const dialog = within(await screen.findByRole('dialog', { name: texts.stillGoodTitle }));
+    await userEvent.click(dialog.getByRole('button', { name: texts.stillGood }));
+
+    expect(post).toHaveBeenCalledWith(`/inventory/${row.id}/still-good`, { bestBefore: null });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: texts.stillGoodTitle })).toBeNull(),
+    );
+  });
+
+  it('takes a new day of today or later, and none before today', async () => {
+    const row = aRow(dumplings, 12, yesterday());
+    const { post } = await open([], [row]);
+    await userEvent.click(screen.getByRole('button', { name: `Still good: ${dumplings.name}` }));
+    const dialog = within(await screen.findByRole('dialog', { name: texts.stillGoodTitle }));
+    const field = dialog.getByLabelText(texts.stillGoodDate);
+
+    fireEvent.change(field, { target: { value: dayAfter(localDate(), -2) } });
+    expect(dialog.getByRole('button', { name: texts.stillGood })).toBeDisabled();
+    const later = dayAfter(localDate(), 3);
+    fireEvent.change(field, { target: { value: later } });
+    await userEvent.click(dialog.getByRole('button', { name: texts.stillGood }));
+
+    expect(post).toHaveBeenCalledWith(`/inventory/${row.id}/still-good`, { bestBefore: later });
+  });
+
+  it('said to be still good, is marked so, with nothing more to do; a package of the freezer keeps its own rule', async () => {
+    const kept = InventoryItem.parse({ ...aRow(dumplings, 12, yesterday()), keptPastDate: true });
+    const frozen = InventoryItem.parse({
+      ...aRow(bottled, 2, yesterday()),
+      frozen: true,
+    });
+    await open([], [kept, frozen]);
+
+    expect(screen.getByText(texts.keptPastDate)).toBeInTheDocument();
+    expect(screen.queryByText(texts.pastDate)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Still good/ })).toBeNull();
+  });
+});

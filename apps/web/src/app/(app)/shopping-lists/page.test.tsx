@@ -1410,3 +1410,33 @@ describe('the shopping lists, when they cannot be read', () => {
     expect(screen.queryByText(texts.noPlansTitle)).toBeNull();
   });
 });
+
+describe('a shopping list that counts at home what went past its day since', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('says so on the row and above the list, and makes the list again for its days when asked', async () => {
+    const list = aListOf(
+      [
+        anEntry('White rice', 'grains', {
+          alreadyHaveQuantity: 100,
+          toBuyQuantity: 100,
+          pantryBestBefore: '2026-01-04',
+          pastInPantry: true,
+        }),
+      ],
+      [anEntry('Broccoli', 'vegetables')],
+    );
+    await renderPage(list);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(list as never);
+
+    expect(screen.getByText(texts.pastInPantry)).toBeInTheDocument();
+    expect(screen.getByText(texts.pastInPantryBanner)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: texts.staleUpdate }));
+
+    expect(post).toHaveBeenCalledWith('/shopping-lists/generate', {
+      planId: PLAN,
+      fromDate: '2026-01-05',
+      toDate: '2026-01-07',
+    });
+  });
+});

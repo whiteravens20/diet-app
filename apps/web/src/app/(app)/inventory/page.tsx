@@ -28,6 +28,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { FreezeDialog, portionCount, portionsFit, PortionsLine } from './portions';
+import { StillGoodDialog } from './still-good-dialog';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -64,6 +65,10 @@ export default function InventoryPage() {
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
   // The fresh row whose window of freezing is open.
   const [freezing, setFreezing] = useState<InventoryItem | null>(null);
+  // The fresh row past its day whose window of "Nadal dobre" is open.
+  const [stillGood, setStillGood] = useState<InventoryItem | null>(null);
+  // The client's day: fresh stock past its day counts at home for no list and no plan until it is said to be good.
+  const today = localDate();
   // Whether the window things are added to the pantry in is open: it stays open for the next until it is closed.
   const [adding, setAdding] = useState(false);
   // What ties the window's way to a row's amount to the field of that row.
@@ -112,6 +117,15 @@ export default function InventoryPage() {
     (item) => remove.mutateAsync(item.id),
     (item) => item.id,
   );
+
+  const keep = useMutation({
+    mutationFn: (v: { id: string; bestBefore: string | null }) =>
+      api.post<InventoryItem>(`/inventory/${v.id}/still-good`, { bestBefore: v.bestBefore }),
+    onSuccess: () => {
+      setStillGood(null);
+      void qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] });
+    },
+  });
 
   // Answered with the pantry of the row's profile as it is then: the row is gone, its packages in the freezer.
   const freeze = useMutation({
@@ -214,6 +228,9 @@ export default function InventoryPage() {
                             number: String(packages.indexOf(item) + 1),
                           })
                         : t('frozenName', { name: fmt.text(item.ingredient.name) });
+                    // Fresh stock past its day: counted nowhere until it is said to be still good, or kept so.
+                    const past =
+                      !item.frozen && item.bestBefore !== null && item.bestBefore < today;
                     return (
                       <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
                         <span className="flex-1 min-w-[8rem] text-sm font-medium">
@@ -223,9 +240,25 @@ export default function InventoryPage() {
                               {t('frozen')}
                             </span>
                           )}
-                          {item.bestBefore && isExpiringSoon(item.bestBefore) && (
+                          {past && !item.keptPastDate ? (
                             <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                              {t('expiringSoon')}
+                              {t('pastDate')}
+                            </span>
+                          ) : past ? (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                              {t('keptPastDate')}
+                            </span>
+                          ) : (
+                            item.bestBefore &&
+                            isExpiringSoon(item.bestBefore) && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                                {t('expiringSoon')}
+                              </span>
+                            )
+                          )}
+                          {past && !item.keptPastDate && (
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              {t('pastDateNote')}
                             </span>
                           )}
                         </span>
@@ -309,6 +342,20 @@ export default function InventoryPage() {
                               <span className="max-sm:hidden">{t('freeze')}</span>
                             </Button>
                           )}
+                          {past && !item.keptPastDate && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-label={t('stillGoodLabel', { name })}
+                              onClick={() => {
+                                keep.reset();
+                                setStillGood(item);
+                              }}
+                            >
+                              {t('stillGood')}
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
@@ -361,6 +408,15 @@ export default function InventoryPage() {
             freeze.mutate({ profileId: activeProfileId, id: freezing.id, portions })
           }
           onClose={() => setFreezing(null)}
+        />
+      )}
+      {stillGood && (
+        <StillGoodDialog
+          item={stillGood}
+          busy={keep.isPending}
+          error={keep.isError ? errorText(keep.error, t('errStillGood')) : null}
+          onSave={(bestBefore) => keep.mutate({ id: stillGood.id, bestBefore })}
+          onClose={() => setStillGood(null)}
         />
       )}
       {later.waiting && <RemovedBar name={later.waiting.ingredient.name} onUndo={later.undo} />}

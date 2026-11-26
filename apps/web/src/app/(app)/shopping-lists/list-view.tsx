@@ -460,6 +460,22 @@ export function ListView({
           </Button>
         </div>
       )}
+      {/* What the list counts at home that went past its day since: made again, it counts without it. */}
+      {everyItem.some((item) => item.pastInPantry) && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"
+        >
+          <p>
+            {t('pastInPantryBanner')} <span className="text-xs">{t('pastInPantryHint')}</span>
+          </p>
+          {!list.stale && (
+            <Button type="button" size="sm" variant="outline" onClick={onUpdate} disabled={busy}>
+              {staleUpdateLabel}
+            </Button>
+          )}
+        </div>
+      )}
       <CardContent className="space-y-5 pt-4">
         {everyItem.some(packsStand) && (
           <details className="text-xs text-muted-foreground">
@@ -664,6 +680,9 @@ function ItemRow({
                 </span>
               )}
             </span>
+            {item.pastInPantry && (
+              <span className="block text-xs text-warning">{t('pastInPantry')}</span>
+            )}
             {/* What is at home and what was bought, said by a closed row; an open one has them in its fields. */}
             {!open && has.length > 0 && (
               <span className="block text-xs text-muted-foreground">{has.join(DOT)}</span>
