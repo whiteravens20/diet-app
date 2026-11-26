@@ -125,6 +125,12 @@ export const ShoppingListItem = z.object({
    * urgency while shopping. Null when no contribution or no recorded expiry.
    */
   pantryBestBefore: z.string().date().nullable().default(null),
+  /**
+   * Of a row not ticked that counts something at home: some fresh stock of its food in a pantry it counts on is past
+   * its best-before day by the client's day, and not said to be still good (`InventoryItem.keptPastDate`). A list made
+   * again counts without it.
+   */
+  pastInPantry: z.boolean().default(false),
   /** Estimated calories contributed by this line (informational). */
   estimatedCalories: z.number().min(0),
   /**

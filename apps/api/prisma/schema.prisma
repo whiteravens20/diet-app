@@ -1237,6 +1237,10 @@ model InventoryItem {
   quantity     Float
   unit         Unit
   bestBefore   DateTime?  @db.Date
+  // Fresh stock the user said is still good past its best-before day, without a new day ("Nadal dobre"): it counts at
+  // home again until the user changes its day or amount. Fresh stock past its day counts at home otherwise for no list
+  // and no plan.
+  keptPastDate Boolean    @default(false)
   // In the freezer, apart from what is fresh: put in by hand, or a rest of a plan given to the pantry.
   frozen       Boolean    @default(false)
   // A package in the freezer, by its number (`Profile.lastParcel`): every freezing is one of its own, and none adds to

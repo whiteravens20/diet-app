@@ -317,6 +317,58 @@ describe('the pantry', () => {
     });
   });
 
+  describe('fresh stock past its best-before day', () => {
+    const stillGood = (id: string, body: Record<string, unknown>, today = '2026-11-26') =>
+      t
+        .http()
+        .post(`/api/inventory/${id}/still-good`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send(body);
+
+    it('is said to be still good without a new day, and is no longer once its day or amount changes', async () => {
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20' })).body as {
+        id: string;
+      };
+
+      const kept = (await stillGood(row.id, {}).expect(200)).body as InventoryItem;
+      expect(kept).toMatchObject({ bestBefore: '2026-11-20', keptPastDate: true });
+
+      const changed = (
+        await t
+          .http()
+          .patch(`/api/inventory/${row.id}`)
+          .set(as(user))
+          .send({ quantity: 400 })
+          .expect(200)
+      ).body as InventoryItem;
+      expect(changed.keptPastDate).toBe(false);
+      await stillGood(row.id, {}).expect(200);
+      // More of it added by hand is a change of its amount too.
+      expect(((await add('whole-milk', 100, 'ml')).body as InventoryItem).keptPastDate).toBe(false);
+    });
+
+    it("takes a new day of today or later, and refuses one before the client's day and a package of the freezer", async () => {
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20' })).body as {
+        id: string;
+      };
+
+      expect(
+        (await stillGood(row.id, { bestBefore: '2026-11-28' }).expect(200)).body,
+      ).toMatchObject({
+        bestBefore: '2026-11-28',
+        keptPastDate: false,
+      });
+      expect((await stillGood(row.id, { bestBefore: '2026-11-25' }).expect(400)).body.error).toBe(
+        'BEST_BEFORE_PAST',
+      );
+      const frozen = (
+        await add('whole-milk', 300, 'ml', { frozen: true, bestBefore: '2026-11-20' })
+      ).body as { id: string };
+      expect((await stillGood(frozen.id, {}).expect(409)).body.error).toBe('FROZEN_KEEPS_ITS_DAY');
+    });
+  });
+
   describe('a row that is there', () => {
     it('can be set to another quantity, zero included, and to no more than the ceiling', async () => {
       const row = (await add('rolled-oats', 300, 'g')).body as { id: string };

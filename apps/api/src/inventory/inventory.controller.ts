@@ -17,6 +17,7 @@ import {
   InventoryItem,
   InventoryPortion,
   PatchInventoryItem,
+  StillGoodRequest,
   UpsertInventoryItemRequest,
   type Locale,
 } from '@diet-app/shared';
@@ -105,6 +106,24 @@ export class InventoryController {
     @ClientDate() today: string | null,
   ) {
     return this.inventory.freeze(user.id, locale, id, dto, today, key);
+  }
+
+  /**
+   * "Nadal dobre": fresh stock past its best-before day is still good, with a new day or without one; either way it
+   * counts at home again, without one until its day or amount changes. 400 `BEST_BEFORE_PAST` for a new day before the
+   * client's, 409 `FROZEN_KEEPS_ITS_DAY` for a package of the freezer.
+   */
+  @Post(':id/still-good')
+  @HttpCode(200)
+  @Answers(InventoryItem)
+  stillGood(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(StillGoodRequest)) dto: StillGoodRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.inventory.stillGood(user.id, locale, id, dto, today);
   }
 
   /**

@@ -144,6 +144,73 @@ describe('shopping lists and the pantry', () => {
   ): Promise<Row> =>
     rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, name).id, patch, today), name);
 
+  describe('stock past its best-before day', () => {
+    beforeEach(() => menu(0, [EGGS_ON_TOAST, TOFU_BOWL, CHICKEN_RICE]));
+    /** A list of the first day, made on `today`, the client's day. */
+    const listOn = (today: string) =>
+      lists.generate(user.id, 'en', { planId: plan.id, fromDate: date(0), toDate: date(0) }, today);
+    const rice = async () =>
+      t.prisma.inventoryItem.findFirstOrThrow({
+        where: { profileId: profile.id, ingredient: { slug: 'white-rice' } },
+      });
+    const inventory = () => t.app.get(InventoryService);
+
+    it('counts at home on no list until it is said to be still good, with a new day or without one', async () => {
+      await stock('white-rice', 100, 'g', '2026-01-04');
+      expect(rowOf(await listOn(date(0)), 'White rice').alreadyHaveQuantity).toBe(0);
+
+      await inventory().stillGood(user.id, 'en', (await rice()).id, { bestBefore: null }, date(0));
+      expect(rowOf(await listOn(date(0)), 'White rice').alreadyHaveQuantity).toBeGreaterThan(0);
+
+      // Its amount changed by hand: what was said of it is said no more.
+      await inventory().patch(user.id, 'en', (await rice()).id, { quantity: 90 });
+      expect(rowOf(await listOn(date(0)), 'White rice').alreadyHaveQuantity).toBe(0);
+
+      // A new day of its own: it counts as any stock that is not past its day.
+      await inventory().stillGood(
+        user.id,
+        'en',
+        (await rice()).id,
+        { bestBefore: date(3) },
+        date(0),
+      );
+      expect(rowOf(await listOn(date(0)), 'White rice').alreadyHaveQuantity).toBeGreaterThan(0);
+    });
+
+    it('is not what a row covered at home takes out of the pantry: the stock not past its day is', async () => {
+      // Eggs past their day in pieces beside eggs that keep, in grams: the three the toast takes come of the second.
+      await stock('large-egg', 4, 'piece', '2026-01-04');
+      await stock('large-egg', 165, 'g', '2026-02-01');
+
+      const row = rowOf(await listOn(date(0)), 'Large egg');
+
+      expect(row).toMatchObject({ alreadyHaveQuantity: 3, checked: true });
+      expect(await pantry('large-egg')).toContain('4 piece');
+      expect(await pantry('large-egg')).not.toContain('165 g');
+    });
+
+    it('is said by a list made already that counts it at home, and counted no more once the list is made again', async () => {
+      await stock('white-rice', 100, 'g', date(1));
+      const list = await listOn(date(0));
+      expect(rowOf(list, 'White rice')).toMatchObject({ pastInPantry: false });
+      expect(rowOf(list, 'White rice').alreadyHaveQuantity).toBeGreaterThan(0);
+
+      // Two days on, the rice it counted on is past its day.
+      const read = (today: string) => lists.get(user.id, 'en', list.id, today);
+      expect(rowOf(await read(date(2)), 'White rice').pastInPantry).toBe(true);
+      expect(rowOf(await read(date(1)), 'White rice').pastInPantry).toBe(false);
+
+      const again = await listOn(date(2));
+      expect(rowOf(again, 'White rice')).toMatchObject({
+        alreadyHaveQuantity: 0,
+        pastInPantry: false,
+      });
+      // Said to be still good, it counts again.
+      await inventory().stillGood(user.id, 'en', (await rice()).id, { bestBefore: null }, date(2));
+      expect(rowOf(await listOn(date(2)), 'White rice').alreadyHaveQuantity).toBeGreaterThan(0);
+    });
+  });
+
   describe('a list', () => {
     beforeEach(() => menu(0, [EGGS_ON_TOAST, TOFU_BOWL, CHICKEN_RICE]));
 

@@ -84,6 +84,8 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   const { PrismaService: Prisma } = await import('../prisma/prisma.service.js');
   const { MealPlansService } = await import('../meal-plans/meal-plans.service.js');
   const { PlanGenerationService } = await import('../meal-plans/plan-generation.service.js');
+  const { ShoppingListsService } = await import('../shopping-lists/shopping-lists.service.js');
+  const { HouseholdListsService } = await import('../shopping-lists/household-lists.service.js');
 
   const app = await NestFactory.create(AppModule, {
     logger: process.env.TEST_LOG ? ['error', 'warn'] : false,
@@ -98,6 +100,9 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   // service of the plans it is the first of those days (`plans-today.ts`).
   app.get(PlanGenerationService).today = () => TEST_TODAY;
   app.get(MealPlansService).today = plansToday;
+  // The lists count what is at home by the day of the plans as well.
+  app.get(ShoppingListsService).today = plansToday;
+  app.get(HouseholdListsService).today = plansToday;
   // A plan is made with a seed of its own. Here the seeds are 1, 2, 3 and on
   // from the start of every test, so that a test makes the same plans each run.
   app.get(PlanGenerationService).nextSeed = nextSeed;

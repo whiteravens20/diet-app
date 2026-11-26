@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
+import { plansToday, plansTodayIs, restartPlansToday } from '../testing/plans-today.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { HouseholdListsService } from './household-lists.service.js';
 import { forgetLender } from './shopping-lists.service.js';
@@ -194,6 +195,36 @@ describe('a shopping list for a household', () => {
     });
   });
 
+  it('counts no fresh stock past its day in any pantry, and says where a part counted on what went past it since', async () => {
+    // The day of the plans is the 5th: Adam's chicken went off before it, Ewa's goes off on the 6th.
+    await stock(adam, 'chicken-breast', 100);
+    await stock(ewa, 'chicken-breast', 50);
+    await t.prisma.inventoryItem.updateMany({
+      where: { profileId: adam.id },
+      data: { bestBefore: new Date('2026-01-04') },
+    });
+    await t.prisma.inventoryItem.updateMany({
+      where: { profileId: ewa.id },
+      data: { bestBefore: new Date('2026-01-06') },
+    });
+
+    const made = (await make().expect(201)).body as HouseholdList;
+    expect(rowOf(made, 'Chicken breast')).toMatchObject({
+      alreadyHaveQuantity: 50,
+      pastInPantry: false,
+    });
+
+    // Two days on, what Ewa's part counted on is past its day.
+    plansTodayIs('2026-01-07');
+    try {
+      const read = (await t.http().get(`/api/household-lists/${made.id}`).set(as(user)).expect(200))
+        .body as HouseholdList;
+      expect(rowOf(read, 'Chicken breast').pastInPantry).toBe(true);
+    } finally {
+      restartPlansToday();
+    }
+  });
+
   it("puts what a pack holds over the needs into each profile's pantry by need, and takes it back on an untick", async () => {
     await stock(adam, 'chicken-breast', 100);
     let list = (await make().expect(201)).body as HouseholdList;
@@ -213,8 +244,8 @@ describe('a shopping list for a household', () => {
   it('keeps on every part the day what the household bought by weight was bought, and puts none of it into a pantry', async () => {
     await stock(adam, 'chicken-breast', 100);
     let list = (await make().expect(201)).body as HouseholdList;
-    // The client's day, as the server takes it where none is named.
-    const today = new Date().toISOString().slice(0, 10);
+    // The server's day, taken where the client names none: the day of the plans, in a test.
+    const today = plansToday();
 
     list = await edit(list, 'Chicken breast', { purchasedQuantity: 900, boughtLoose: true });
     expect(rowOf(list, 'Chicken breast')).toMatchObject({

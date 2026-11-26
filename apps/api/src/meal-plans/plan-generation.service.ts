@@ -80,6 +80,7 @@ import { refuseUnderLeast } from '../common/typed-target.js';
 import type { Env } from '../config/env.js';
 import { diaryOfDays, type DiaryOnDay } from '../diary/diary-days.js';
 import {
+  countsAtHome,
   frozenPackages,
   goingOffFirst,
   stockByIngredient,
@@ -1471,6 +1472,7 @@ export class PlanGenerationService {
       opts.lessWaste === true,
       optimizerRecipes,
       requirementsByRecipe,
+      opts.today,
       joint?.profileId,
     );
     const inventoryCoverage = pantry.coverage;
@@ -2026,6 +2028,8 @@ export class PlanGenerationService {
     lessWaste: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
+    /** The client's day: fresh stock past its day counts at home for no plan (`countsAtHome`). */
+    today: string,
     /** Another profile whose pantry the plan counts as well: the other of a joint plan. */
     alsoOf?: string,
   ): Promise<{
@@ -2037,9 +2041,13 @@ export class PlanGenerationService {
   }> {
     if (!respectInventory) return { use: 'not_asked' };
 
-    const stock = await stockByIngredient(this.prisma, profileId);
+    const stock = await stockByIngredient(this.prisma, profileId, countsAtHome(today));
     if (alsoOf)
-      for (const [ingredientId, quantity] of await stockByIngredient(this.prisma, alsoOf))
+      for (const [ingredientId, quantity] of await stockByIngredient(
+        this.prisma,
+        alsoOf,
+        countsAtHome(today),
+      ))
         stock.set(ingredientId, (stock.get(ingredientId) ?? 0) + quantity);
     if (stock.size === 0) return { use: 'empty' };
 

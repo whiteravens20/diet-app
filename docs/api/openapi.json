@@ -4449,6 +4449,16 @@
         ],
         "parameters": [
           {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "Accept-Language",
             "in": "header",
             "required": false,
@@ -4506,6 +4516,16 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           },
           {
@@ -5048,6 +5068,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InventoryPortion"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/inventory/{id}/still-good": {
+      "post": {
+        "operationId": "Inventory_stillGood",
+        "tags": [
+          "inventory"
+        ],
+        "summary": "\"Nadal dobre\": fresh stock past its best-before day is still good, with a new day or without one; either way it counts at home again, without one until its day or amount changes.",
+        "description": "\"Nadal dobre\": fresh stock past its best-before day is still good, with a new day or without one; either way it counts at home again, without one until its day or amount changes. 400 `BEST_BEFORE_PAST` for a new day before the client's, 409 `FROZEN_KEEPS_ITS_DAY` for a package of the freezer.\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StillGoodRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryItem"
                 }
               }
             }
@@ -10292,6 +10382,16 @@
             }
           },
           {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "Accept-Language",
             "in": "header",
             "required": false,
@@ -10527,6 +10627,16 @@
           }
         ],
         "parameters": [
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
           {
             "name": "Accept-Language",
             "in": "header",
@@ -17299,6 +17409,10 @@
               }
             ]
           },
+          "pastInPantry": {
+            "default": false,
+            "type": "boolean"
+          },
           "estimatedCalories": {
             "type": "number",
             "minimum": 0
@@ -17406,6 +17520,7 @@
           "byWeight",
           "frozenKept",
           "pantryBestBefore",
+          "pastInPantry",
           "estimatedCalories",
           "packs",
           "buyLater",
@@ -18186,6 +18301,10 @@
               }
             ]
           },
+          "keptPastDate": {
+            "default": false,
+            "type": "boolean"
+          },
           "frozen": {
             "default": false,
             "type": "boolean"
@@ -18206,6 +18325,7 @@
           "unit",
           "display",
           "bestBefore",
+          "keptPastDate",
           "frozen",
           "createdAt",
           "updatedAt"
@@ -27434,6 +27554,10 @@
               }
             ]
           },
+          "pastInPantry": {
+            "default": false,
+            "type": "boolean"
+          },
           "estimatedCalories": {
             "type": "number",
             "minimum": 0
@@ -27515,6 +27639,7 @@
           "byWeight",
           "frozenKept",
           "pantryBestBefore",
+          "pastInPantry",
           "estimatedCalories",
           "packs",
           "buyLater",
@@ -27556,6 +27681,22 @@
           "groats",
           "bread"
         ]
+      },
+      "StillGoodRequest": {
+        "type": "object",
+        "properties": {
+          "bestBefore": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "StoredImportRejection": {
         "type": "object",

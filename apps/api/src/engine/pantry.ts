@@ -172,7 +172,7 @@ export function settle(
   ingredient: PantryIngredient,
   moves: readonly PantryMove[],
   target: number,
-  mayTake: (row: { frozen: boolean; parcel: number }) => boolean = () => true,
+  mayTake: (row: Slot) => boolean = () => true,
 ): Settlement {
   const stock = new Map<string, { quantity: number; bestBefore: Date | null }>();
   for (const row of rows)

@@ -30,6 +30,12 @@ export const InventoryItem = z.object({
   /** ISO date (yyyy-mm-dd). Null = no expiry tracked. */
   bestBefore: z.string().date().nullable().default(null),
   /**
+   * Fresh stock said to be still good past its best-before day without a new one ("Nadal dobre"): it counts at home
+   * until its day or amount changes. Fresh stock past its day (`bestBefore` before the client's day) counts at home
+   * for no shopping list and no plan otherwise; a package of the freezer keeps its own rule.
+   */
+  keptPastDate: z.boolean().default(false),
+  /**
    * In the freezer, apart from what is fresh: a package of its own, put in by hand or a rest of a plan given to the
    * pantry. Every freezing is one, and none adds to another; a food may have many, each with its day.
    */
@@ -109,3 +115,12 @@ export const PatchInventoryItem = z.object({
   bestBefore: CalendarDay.nullable().optional(),
 });
 export type PatchInventoryItem = z.infer<typeof PatchInventoryItem>;
+
+/**
+ * "Nadal dobre": fresh stock past its best-before day is still good, with a new day (the client's or later) or
+ * without one (`InventoryItem.keptPastDate`).
+ */
+export const StillGoodRequest = z.object({
+  bestBefore: CalendarDay.nullable().default(null),
+});
+export type StillGoodRequest = z.infer<typeof StillGoodRequest>;

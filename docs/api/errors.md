@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 214 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 216 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -34,6 +34,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `AI_UNAVAILABLE` | 503 | The AI provider didn't respond — try again in a moment. | Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę. |
 | `AUTH_REQUIRED` | 401 | Sign in to continue. | Zaloguj się, aby kontynuować. |
 | `BAD_REQUEST` | 400 | The request could not be understood. | Nie udało się zrozumieć żądania. |
+| `BEST_BEFORE_PAST` | 400 | A new best-before day is today or later. | Nowa data ważności to dziś albo później. |
 | `BROWSER_CODES_USED_UP` | 429 | The app has signed a browser in too many times in the last hour. Sign in here, or try again later. | Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później. |
 | `BYOK_NO_PROVIDER` | 400 | Add at least one provider key before switching to bring-your-own. | Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz. |
 | `CONFLICT` | 409 | That already exists. | Taki wpis już istnieje. |
@@ -70,6 +71,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `FAVORITE_SET_LIMIT_REACHED` | 409 | This profile already has as many favorite sets as it can hold. Delete one first. | Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich. |
 | `FAVORITE_SET_NOT_ELIGIBLE` | 400 | This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid. | Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania. |
 | `FORBIDDEN` | 403 | You don't have access to that. | Brak dostępu. |
+| `FROZEN_KEEPS_ITS_DAY` | 409 | A package in the freezer keeps its own best-before day. | Paczka w zamrażarce ma własną datę ważności. |
 | `FROZEN_REST_GONE` | 409 | The plan no longer freezes this rest, or eats all of it itself. The plan has been reloaded. | Plan nie zamraża już tej resztki albo zjada ją całą sam. Plan został odświeżony. |
 | `HOUSEHOLD_LIST_NOT_FOUND` | 404 | Household shopping list not found. | Nie znaleziono listy zakupów dla domu. |
 | `HOUSEHOLD_PROFILE_TWICE` | 400 | A household list takes one plan of each profile. | Lista dla domu bierze jeden plan z każdego profilu. |
@@ -155,7 +157,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |
 | `PLAN_TARGET_TYPED` | 409 | This plan keeps the target typed when it was made: the profile's target does not change it. | Ten plan ma cel wpisany przy jego tworzeniu: cel profilu go nie zmienia. |
 | `PORTIONS_TOO_MANY` | 400 | There is not enough of it for that many portions. Split it into fewer. | Tego jest za mało na tyle porcji. Podziel na mniej porcji. |
-| `POT_NOTHING_LEFT` | 409 | Nothing of the pot is left for the next day: this meal takes all of it, or the rest went there already. | W garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła. |
+| `POT_NOTHING_LEFT` | 409 | Nothing of the pot is left for the next day: this meal takes all of it, or the rest went there already. | W garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła. |
 | `PRODUCTS_NOT_OFFERED` | 404 | This instance offers no products. | Ta instancja nie oferuje produktów. |
 | `PRODUCT_CHANGED` | 409 | This product changed after it was opened. Open it again. | Ten produkt zmienił się po otwarciu. Otwórz go ponownie. |
 | `PRODUCT_CODE_HELD` | 409 | A product of yours has this code already. | Masz już własny produkt o tym kodzie. |

@@ -45,8 +45,9 @@ export class ShoppingListsController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(GenerateShoppingListRequest)) dto: GenerateShoppingListRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.lists.generate(user.id, locale, dto);
+    return this.lists.generate(user.id, locale, dto, today);
   }
 
   /** The shopping lists of a plan, the newest first. */
@@ -67,8 +68,9 @@ export class ShoppingListsController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.lists.get(user.id, locale, id);
+    return this.lists.get(user.id, locale, id, today);
   }
 
   /**

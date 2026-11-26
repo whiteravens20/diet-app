@@ -129,12 +129,34 @@ export async function settlePantry(
   moves: readonly PantryMove[],
   target: number,
   thawed: ReadonlySet<number> = new Set(),
+  /** The client's day: fresh stock past its day is not taken (`countsAtHome`). Left out, it is taken as any other. */
+  today?: string,
 ): Promise<PantryMove[]> {
   const before = await tx.inventoryItem.findMany({
     where: { profileId, ingredientId: ingredient.id },
-    select: { id: true, unit: true, quantity: true, bestBefore: true, frozen: true, parcel: true },
+    select: {
+      id: true,
+      unit: true,
+      quantity: true,
+      bestBefore: true,
+      keptPastDate: true,
+      frozen: true,
+      parcel: true,
+    },
   });
-  const result = settle(before, ingredient, moves, target, mayTakeOf(ingredient, thawed));
+  // The engine names a row by its place (unit, freezer, package): what it may take is judged with the row's day too.
+  const may = mayTakeOf(ingredient, thawed, today);
+  const result = settle(before, ingredient, moves, target, (slot) =>
+    may({
+      ...slot,
+      ...before.find(
+        (row) =>
+          row.unit === slot.unit &&
+          row.frozen === slot.frozen &&
+          (!slot.frozen || row.parcel === slot.parcel),
+      ),
+    }),
+  );
 
   const slot = (row: { unit: string; frozen?: boolean; parcel?: number }) =>
     `${row.unit} ${row.frozen === true} ${row.frozen === true ? (row.parcel ?? 0) : 0}`;
@@ -168,15 +190,49 @@ export async function settlePantry(
 
 /**
  * Which rows of an ingredient a list counts on and takes from: what is fresh, every package of a food no plan takes
- * out of a freezer (not perishable in packs), and of any other food the packages its plan takes out (`thawed`).
+ * out of a freezer (not perishable in packs), and of any other food the packages its plan takes out (`thawed`). On
+ * `today`, the client's day, fresh stock past its day is none of them unless it was said to be still good
+ * (`countsAtHome`).
  */
 export function mayTakeOf(
   ingredient: { perishable?: boolean; packSize?: number | null },
   thawed: ReadonlySet<number>,
-): (row: { frozen?: boolean; parcel?: number | null }) => boolean {
+  today?: string,
+): (row: {
+  frozen?: boolean;
+  parcel?: number | null;
+  bestBefore?: Date | null;
+  keptPastDate?: boolean;
+}) => boolean {
   const planThaws = ingredient.perishable === true && Boolean(ingredient.packSize);
-  return (row) => !row.frozen || !planThaws || thawed.has(row.parcel ?? 0);
+  return (row) =>
+    (today === undefined || !pastItsDate(row, today)) &&
+    (!row.frozen || !planThaws || thawed.has(row.parcel ?? 0));
 }
+
+/**
+ * The rows of a pantry that count at home on `today`, the client's day: what is frozen (a package keeps its own
+ * rule), what has no best-before day, what is not past it, and fresh stock said to be still good past it
+ * (`InventoryItem.keptPastDate`). Fresh stock past its day counts for no list and no plan.
+ */
+export const countsAtHome = (today: string): Prisma.InventoryItemWhereInput => ({
+  OR: [
+    { frozen: true },
+    { bestBefore: null },
+    { bestBefore: { gte: new Date(today) } },
+    { keptPastDate: true },
+  ],
+});
+
+/** Whether a row is fresh stock past its best-before day on `today`, not said to be still good (`countsAtHome`). */
+const pastItsDate = (
+  row: { frozen?: boolean; bestBefore?: Date | null; keptPastDate?: boolean },
+  today: string,
+): boolean =>
+  row.frozen !== true &&
+  row.bestBefore != null &&
+  row.bestBefore.toISOString().slice(0, 10) < today &&
+  row.keptPastDate !== true;
 
 /** The numbers of `count` new packages of the freezer of a profile, never used before: its count of packages moved on. */
 export async function newParcels(

@@ -404,6 +404,25 @@ describe('the limits of a plan', () => {
       expect(await streak()).toBe(1);
     });
 
+    it('counts no fresh stock past its best-before day, until it is said to be still good', async () => {
+      // The day before the client's: the generation's own day here.
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: profile.id },
+        data: { bestBefore: new Date('2025-12-31') },
+      });
+      expect(
+        ((await generate({ durationDays: 2 }).expect(201)).body as MealPlan).report!.pantry,
+      ).toBe('empty');
+
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: profile.id },
+        data: { keptPastDate: true },
+      });
+      expect(
+        ((await generate({ durationDays: 2 }).expect(201)).body as MealPlan).report!.pantry,
+      ).toBe('counted');
+    });
+
     it('does not count a plan that was refused', async () => {
       await generate(sixBreakfasts).expect(422);
       expect(await streak()).toBe(0);

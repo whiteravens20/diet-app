@@ -127,6 +127,9 @@ export const PART_ORDER = [{ plan: { profile: { name: 'asc' } } }, { id: 'asc' }
 export class ShoppingListsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** The server's day, where a request names none of its own: what a test sets as the day of its plans. */
+  today: () => string = () => isoDate(new Date());
+
   /**
    * Aggregate every ingredient across the selected plan range into a list.
    *
@@ -138,7 +141,10 @@ export class ShoppingListsService {
     userId: string,
     locale: Locale,
     req: GenerateShoppingListRequest,
+    /** The client's day: fresh stock past its day counts at home for no list (`countsAtHome`). */
+    clientToday: string | null = null,
   ): Promise<ShoppingList> {
+    const today = clientToday ?? this.today();
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
       include: { profile: true, days: { orderBy: { date: 'asc' }, select: { date: true } } },
@@ -159,12 +165,12 @@ export class ShoppingListsService {
     }
 
     const listId = await this.prisma.$transaction(async (tx) => {
-      const made = await makeList(tx, { id: plan.id, profileId }, from, to);
+      const made = await makeList(tx, { id: plan.id, profileId }, from, to, null, today);
       await settleHouseholds(tx, made.leftHouseholds);
       return made.listId;
     }, TRANSACTION);
 
-    return this.get(userId, locale, listId);
+    return this.get(userId, locale, listId, today);
   }
 
   /** Every list belonging to a plan the user owns, newest first. */
@@ -199,9 +205,17 @@ export class ShoppingListsService {
     }, TRANSACTION);
   }
 
-  async get(userId: string, locale: Locale, listId: string): Promise<ShoppingList> {
+  async get(
+    userId: string,
+    locale: Locale,
+    listId: string,
+    /** The client's day: a row says where what it counts at home is past its day by it (`pastInPantry`). */
+    clientToday: string | null = null,
+  ): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
-    return (await this.toDtos([list], locale, list.plan.profileId))[0]!;
+    return (
+      await this.toDtos([list], locale, list.plan.profileId, clientToday ?? this.today())
+    )[0]!;
   }
 
   /** Update an item's purchased quantity or checked state: see `editRow`. */
@@ -216,7 +230,7 @@ export class ShoppingListsService {
   ): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
     const profileId = list.plan.profile.id;
-    const today = new Date(`${clientToday ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const today = new Date(`${clientToday ?? this.today()}T00:00:00Z`);
 
     await this.prisma.$transaction(async (tx) => {
       // Read under a lock, so that a second edit of the row waits for this one
@@ -259,6 +273,7 @@ export class ShoppingListsService {
         item,
         { ...item, ...next },
         atHome ? { borrowed: [], dropped: borrowed } : { borrowed },
+        isoDate(today),
       );
       await tx.shoppingListItem.update({
         where: { id: itemId },
@@ -268,7 +283,7 @@ export class ShoppingListsService {
       if (item.boughtLooseOn !== null || next.boughtLooseOn !== null)
         await followKitchen(tx, list.planId, isoDate(today));
     }, TRANSACTION);
-    return this.get(userId, locale, listId);
+    return this.get(userId, locale, listId, isoDate(today));
   }
 
   private async loadOwned(userId: string, listId: string) {
@@ -286,6 +301,8 @@ export class ShoppingListsService {
     lists: StoredList[],
     locale: Locale,
     profileId: string,
+    /** The client's day, for what the rows count at home that is past its day (`pastInPantry`). */
+    today: string = this.today(),
   ): Promise<ShoppingList[]> {
     if (lists.length === 0) return [];
     const ids = [...new Set(lists.flatMap((list) => list.items.map((item) => item.ingredientId)))];
@@ -301,6 +318,12 @@ export class ShoppingListsService {
       profileId,
       lists.flatMap((list) => list.items),
     );
+    const past = await pastInPantries(
+      this.prisma,
+      lists.flatMap((list) => list.items),
+      profileId,
+      today,
+    );
 
     return lists.map((list) => {
       const items = list.items.map((item) => {
@@ -312,6 +335,7 @@ export class ShoppingListsService {
           freshOf(item, ingredient, lines, list, freezes),
           frozen.get(item.ingredientId),
           pantries.get(item.id),
+          past.has(item.id),
         );
       });
       return {
@@ -347,6 +371,8 @@ export function itemDto(
   frozen = 0,
   /** Whose pantry holds what is at home, where more than the row's own counts (`ShoppingListItem.pantries`). */
   pantries: ShoppingListItem['pantries'] = [],
+  /** Whether some of what it counts at home is past its day in a pantry it counts on (`ShoppingListItem.pastInPantry`). */
+  pastInPantry = false,
 ): ShoppingListItem {
   // A row in pieces is called what its ingredient calls a piece.
   const displayUnit: DisplayUnit =
@@ -372,6 +398,7 @@ export function itemDto(
     byWeight: isFreshMeatInPacks(ingredient),
     frozenKept: ingredient && frozen > 0 ? inRowUnit(frozen, item.unit, ingredient) : 0,
     pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
+    pastInPantry,
     estimatedCalories: item.estimatedCalories,
     // What was bought by weight leaves no packs to buy: what the row still lacks is said in its own unit.
     packs:
@@ -381,6 +408,41 @@ export function itemDto(
     buyLater: item.boughtLooseOn ? [] : (fresh?.later ?? []),
     checked: item.checked,
   };
+}
+
+/**
+ * The rows of lists not ticked that count something at home of a food some fresh stock of which is past its day on
+ * `today`, the client's day, in a pantry they count on (their own profile's, `profileId`, and those they counted in,
+ * `borrowed`), not said to be still good: a list made again counts without it (`countsAtHome`). By the rows' ids.
+ */
+export async function pastInPantries(
+  db: Pick<Tx, 'inventoryItem'>,
+  items: readonly StoredItem[],
+  profileId: string,
+  today: string,
+): Promise<Set<string>> {
+  const counting = items.filter((item) => !item.checked && item.alreadyHaveQuantity > 0);
+  if (counting.length === 0) return new Set();
+  const pantriesOf = (item: StoredItem) => [
+    profileId,
+    ...readBorrowed(item.borrowed).map((one) => one.profileId),
+  ];
+  const past = await db.inventoryItem.findMany({
+    where: {
+      profileId: { in: [...new Set(counting.flatMap(pantriesOf))] },
+      ingredientId: { in: [...new Set(counting.map((item) => item.ingredientId))] },
+      frozen: false,
+      keptPastDate: false,
+      bestBefore: { lt: new Date(today) },
+    },
+    select: { profileId: true, ingredientId: true },
+  });
+  const held = new Set(past.map((row) => `${row.profileId} ${row.ingredientId}`));
+  return new Set(
+    counting
+      .filter((item) => pantriesOf(item).some((one) => held.has(`${one} ${item.ingredientId}`)))
+      .map((item) => item.id),
+  );
 }
 
 /**
@@ -872,6 +934,8 @@ export async function settleRow(
   item: Pick<StoredItem, 'ingredientId' | 'unit' | 'pantryMoves'>,
   state: ShoppingRowState,
   counts: { borrowed: readonly Borrowed[]; dropped?: readonly Borrowed[] },
+  /** The client's day: fresh stock past its day is not taken (`countsAtHome`). */
+  today?: string,
 ): Promise<RowLedgers> {
   const { borrowed, dropped = [] } = counts;
   const moves = readMoves(item.pantryMoves);
@@ -900,6 +964,7 @@ export async function settleRow(
       moves,
       own,
       await thawed(owner.planId),
+      today,
     ),
     borrowed: [],
   };
@@ -913,6 +978,7 @@ export async function settleRow(
         one.moves,
         others[k]!,
         await thawed(one.planId),
+        today,
       ),
     });
   }
@@ -1157,6 +1223,8 @@ export async function makeList(
   from: Date,
   to: Date,
   householdId: string | null = null,
+  /** The client's day: fresh stock past its day counts at home for no list (`countsAtHome`). */
+  today?: string,
 ): Promise<{ listId: string; leftHouseholds: string[] }> {
   const profileId = plan.profileId;
   // One list of a profile at a time: each counts on what the others left.
@@ -1206,8 +1274,8 @@ export async function makeList(
   // here of an ingredient is what its row finds.
   const ingredientIds = items.map((item) => item.ingredientId);
   await lockPantries(tx, profileId, ingredientIds);
-  // What the list counts on, and takes from: what is fresh, every package of a food no plan takes out of a freezer
-  // (not perishable in packs), and of any other food the packages the plan takes out (`mayTakeOf`).
+  // What the list counts on, and takes from: what is fresh and not past its day, every package of a food no plan takes
+  // out of a freezer (not perishable in packs), and of any other food the packages the plan takes out (`mayTakeOf`).
   const thawed = await thawedParcels(tx, plan.id);
   const pantry = new Map<string, { unit: Unit; quantity: number; bestBefore: Date | null }[]>();
   for (const row of await tx.inventoryItem.findMany({
@@ -1217,12 +1285,13 @@ export async function makeList(
       unit: true,
       quantity: true,
       bestBefore: true,
+      keptPastDate: true,
       frozen: true,
       parcel: true,
       ingredient: { select: { perishable: true, packSize: true } },
     },
   })) {
-    if (!mayTakeOf(row.ingredient, thawed.get(row.ingredientId) ?? NONE)(row)) continue;
+    if (!mayTakeOf(row.ingredient, thawed.get(row.ingredientId) ?? NONE, today)(row)) continue;
     pantry.set(row.ingredientId, [...(pantry.get(row.ingredientId) ?? []), row]);
   }
 
@@ -1251,6 +1320,7 @@ export async function makeList(
           [],
           -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient),
           thawed.get(ingredient.id),
+          today,
         )
       : [];
     rows.push({
@@ -1290,6 +1360,8 @@ export async function makeList(
 export async function borrowAcross(
   tx: Tx,
   parts: readonly { listId: string; profileId: string; planId: string }[],
+  /** The client's day: fresh stock past its day is lent by no pantry (`countsAtHome`). */
+  today?: string,
 ): Promise<void> {
   if (parts.length < 2) return;
   const order = [...parts].sort((a, b) => (a.profileId < b.profileId ? -1 : 1));
@@ -1329,12 +1401,13 @@ export async function borrowAcross(
         unit: true,
         quantity: true,
         bestBefore: true,
+        keptPastDate: true,
         frozen: true,
         parcel: true,
       },
     })) {
       const ingredient = ingredients.get(row.ingredientId)!;
-      if (!mayTakeOf(ingredient, thawed.get(row.ingredientId) ?? NONE)(row)) continue;
+      if (!mayTakeOf(ingredient, thawed.get(row.ingredientId) ?? NONE, today)(row)) continue;
       held.set(row.ingredientId, [...(held.get(row.ingredientId) ?? []), row]);
     }
     free.set(
@@ -1394,7 +1467,7 @@ export async function borrowAcross(
       boughtLooseOn: row.boughtLooseOn,
     };
     const ledgers = state.checked
-      ? await settleRow(tx, part, row, state, { borrowed })
+      ? await settleRow(tx, part, row, state, { borrowed }, today)
       : { moves: readMoves(row.pantryMoves), borrowed };
     await tx.shoppingListItem.update({
       where: { id: row.id },

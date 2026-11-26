@@ -43,7 +43,7 @@ import {
 } from '../engine/index.js';
 import type { PieceUse } from '../engine/whole-pieces.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
-import { stockByIngredient } from '../inventory/pantry-store.js';
+import { countsAtHome, stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ingredientsForDiet } from '../recipes/diet-where.js';
 import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
@@ -834,6 +834,7 @@ export class IngredientSwapService {
       meal.day.plan.profileId,
       pool.map((c) => c.id),
       req.respectInventory !== false,
+      clientToday ?? this.plans.today(),
     );
     if (pantryHits) {
       pool = [...pool].sort((a, b) => {
@@ -914,10 +915,13 @@ export class IngredientSwapService {
     profileId: string,
     ingredientIds: string[],
     respectInventory: boolean,
+    /** The client's day: fresh stock past its day counts at home for no swap (`countsAtHome`). */
+    today: string,
   ): Promise<Set<string> | null> {
     if (!respectInventory || ingredientIds.length === 0) return null;
     const stock = await stockByIngredient(this.prisma, profileId, {
       ingredientId: { in: ingredientIds },
+      ...countsAtHome(today),
     });
     return stock.size === 0 ? null : new Set(stock.keys());
   }

@@ -207,6 +207,8 @@ export class AccountExportService {
         quantity: row.quantity,
         unit: row.unit,
         bestBefore: day(row.bestBefore),
+        // Said to be still good past its best-before day ("Nadal dobre").
+        keptPastDate: row.keptPastDate,
         frozen: row.frozen,
         updatedAt: row.updatedAt.toISOString(),
       }),

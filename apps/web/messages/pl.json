@@ -412,6 +412,8 @@
     "LEFTOVER_DAY_SKIPPED": "Następny dzień jest pominięty: nie ma w nim posiłku dla resztki.",
     "LEFTOVER_NO_PLACE": "Następny dzień nie ma o tej porze posiłku, który resztka może zastąpić: jest zjedzony albo sam jest resztką.",
     "POT_NOTHING_LEFT": "W\u00a0garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła.",
+    "BEST_BEFORE_PAST": "Nowa data ważności to dziś albo później.",
+    "FROZEN_KEEPS_ITS_DAY": "Paczka w\u00a0zamrażarce ma własną datę ważności.",
     "NOT_A_LEFTOVER": "Ten posiłek nie jest resztką.",
     "NO_FAVORITE_INGREDIENTS": "Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich.",
     "NO_FAVORITE_INGREDIENT_MATCH": "Żaden przepis nie pasuje do Twoich ulubionych składników.",

@@ -233,6 +233,15 @@
       "pl": "Nie udało się zrozumieć żądania."
     }
   },
+  "BEST_BEFORE_PAST": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "A new best-before day is today or later.",
+      "pl": "Nowa data ważności to dziś albo później."
+    }
+  },
   "BROWSER_CODES_USED_UP": {
     "statuses": [
       429
@@ -556,6 +565,15 @@
     "messages": {
       "en": "You don't have access to that.",
       "pl": "Brak dostępu."
+    }
+  },
+  "FROZEN_KEEPS_ITS_DAY": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A package in the freezer keeps its own best-before day.",
+      "pl": "Paczka w zamrażarce ma własną datę ważności."
     }
   },
   "FROZEN_REST_GONE": {
@@ -1329,7 +1347,7 @@
     ],
     "messages": {
       "en": "Nothing of the pot is left for the next day: this meal takes all of it, or the rest went there already.",
-      "pl": "W garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła."
+      "pl": "W garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła."
     }
   },
   "PRODUCTS_NOT_OFFERED": {

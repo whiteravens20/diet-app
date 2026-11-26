@@ -30,6 +30,7 @@ import {
   frozenKeptOf,
   isFreshMeatInPacks,
   itemDto,
+  pastInPantries,
   loadIngredients,
   makeList,
   withNames,
@@ -80,6 +81,9 @@ const clean = (n: number): number => Math.round(n * 1e6) / 1e6;
 export class HouseholdListsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** The server's day, where a request names none of its own: what a test sets as the day of its plans. */
+  today: () => string = () => isoDate(new Date());
+
   /**
    * Make the household list of `req.planIds` for the days `req.fromDate` to
    * `req.toDate`: of each plan the days it has. Each plan's lists that share
@@ -89,7 +93,10 @@ export class HouseholdListsService {
     userId: string,
     locale: Locale,
     req: GenerateHouseholdListRequest,
+    /** The client's day: fresh stock past its day counts at home in no pantry (`countsAtHome`). */
+    clientToday: string | null = null,
   ): Promise<HouseholdList> {
+    const today = clientToday ?? this.today();
     const plans = await this.prisma.mealPlan.findMany({
       where: { id: { in: req.planIds } },
       include: { profile: true, days: { orderBy: { date: 'asc' }, select: { date: true } } },
@@ -154,18 +161,18 @@ export class HouseholdListsService {
       const left: string[] = [];
       const made: { listId: string; profileId: string; planId: string }[] = [];
       for (const part of parts) {
-        const list = await makeList(tx, part.plan, part.from, part.to, household.id);
+        const list = await makeList(tx, part.plan, part.from, part.to, household.id, today);
         left.push(...list.leftHouseholds);
         made.push({ listId: list.listId, profileId: part.plan.profileId, planId: part.plan.id });
       }
-      await borrowAcross(tx, made);
+      await borrowAcross(tx, made, today);
       await settleHouseholds(
         tx,
         left.filter((other) => other !== household.id),
       );
       return household.id;
     }, TRANSACTION);
-    return this.get(userId, locale, id);
+    return this.get(userId, locale, id, today);
   }
 
   /** The household lists of the account, the newest first. */
@@ -181,8 +188,16 @@ export class HouseholdListsService {
     );
   }
 
-  async get(userId: string, locale: Locale, id: string): Promise<HouseholdList> {
-    return (await this.toDtos([await this.loadOwned(userId, id)], locale))[0]!;
+  async get(
+    userId: string,
+    locale: Locale,
+    id: string,
+    /** The client's day: a row says where what it counts at home is past its day by it (`pastInPantry`). */
+    clientToday: string | null = null,
+  ): Promise<HouseholdList> {
+    return (
+      await this.toDtos([await this.loadOwned(userId, id)], locale, clientToday ?? this.today())
+    )[0]!;
   }
 
   /**
@@ -205,7 +220,7 @@ export class HouseholdListsService {
     clientToday: string | null = null,
   ): Promise<HouseholdList> {
     const household = await this.loadOwned(userId, id);
-    const today = new Date(`${clientToday ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const today = new Date(`${clientToday ?? this.today()}T00:00:00Z`);
     const named = household.parts.flatMap((part) => part.items).find((item) => item.id === itemId);
     if (!named) throw itemNotFound();
     const profileOf = new Map(
@@ -292,6 +307,7 @@ export class HouseholdListsService {
           row,
           { ...row, ...next },
           atHomes ? { borrowed: [], dropped: borrowed } : { borrowed },
+          isoDate(today),
         );
         await tx.shoppingListItem.update({
           where: { id: row.id },
@@ -303,7 +319,7 @@ export class HouseholdListsService {
       // What is bought by weight is each plan's to eat before any pack: their rests and the days they move follow.
       for (const planId of loosePlans) await followKitchen(tx, planId, isoDate(today));
     }, TRANSACTION);
-    return this.get(userId, locale, id);
+    return this.get(userId, locale, id, isoDate(today));
   }
 
   /**
@@ -350,7 +366,12 @@ export class HouseholdListsService {
   }
 
   /** Household lists as the contract shows them: the parts' rows summed by ingredient, each part's need beside. */
-  private async toDtos(households: StoredHousehold[], locale: Locale): Promise<HouseholdList[]> {
+  private async toDtos(
+    households: StoredHousehold[],
+    locale: Locale,
+    /** The client's day, for what the rows count at home that is past its day (`pastInPantry`). */
+    today: string = this.today(),
+  ): Promise<HouseholdList[]> {
     if (households.length === 0) return [];
     const ingredients = await loadIngredients(this.prisma, [
       ...new Set(
@@ -363,13 +384,16 @@ export class HouseholdListsService {
     for (const household of households) {
       const parts = await Promise.all(
         household.parts.map(async (part) => {
-          const [lines, frozen] = await Promise.all([
+          const [lines, frozen, past] = await Promise.all([
             planLines(this.prisma, part.planId, part.fromDate, part.toDate),
             frozenKeptOf(this.prisma, part.plan.profileId, part.planId, ingredients),
+            pastInPantries(this.prisma, part.items, part.plan.profileId, today),
           ]);
-          return { part, lines, frozen, stale: isStale(part, lines, ingredients) };
+          return { part, lines, frozen, past, stale: isStale(part, lines, ingredients) };
         }),
       );
+      // A row counts something past its day at home where a share of it does.
+      const pastRows = new Set(parts.flatMap(({ past }) => [...past]));
       // What each part's freezer keeps of a food that its plan leaves there: the kitchen's, for the summed row.
       const frozenOf = (ingredientId: string): number =>
         parts.reduce((sum, { frozen }) => sum + (frozen.get(ingredientId) ?? 0), 0);
@@ -418,6 +442,7 @@ export class HouseholdListsService {
             freshOf(item, ingredient, kitchen, household, freezes),
             frozenOf(item.ingredientId),
             withNames(pantries, names),
+            shares.some(({ item: share }) => pastRows.has(share.id)),
           ),
           shares: shares.map(({ part, item: share }) => ({
             profileId: part.plan.profileId,

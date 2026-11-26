@@ -42,8 +42,9 @@ export class HouseholdListsController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(GenerateHouseholdListRequest)) dto: GenerateHouseholdListRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.households.generate(user.id, locale, dto);
+    return this.households.generate(user.id, locale, dto, today);
   }
 
   /** The household lists of the account, the newest first. */
@@ -60,8 +61,9 @@ export class HouseholdListsController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
   ) {
-    return this.households.get(user.id, locale, id);
+    return this.households.get(user.id, locale, id, today);
   }
 
   /** Delete a household list and its parts. What was obtained for days still ahead goes into each profile's pantry. */

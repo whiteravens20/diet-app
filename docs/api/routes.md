@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-231 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+232 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -184,6 +184,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `PATCH /api/inventory/:id` | an account | Change a row of the pantry. Lowered, the rows of the profile's lists not ticked count on no more than the pantry holds. | `PatchInventoryItem` | 200 `InventoryItem` |  |
 | `POST /api/inventory/:id/freeze` | an account | "Zamroź": a fresh row goes into the freezer, split into `portions` packages of their own as evenly as its unit allows, each dated 30 days from the client's day; none adds to a package there is. Answered with the profile's pantry as it is then. Sent again with the same `Idempotency-Key` within a week, it is answered with the pantry as it is now. | `FreezeInventoryItem` | 200 a list of `InventoryItem` |  |
 | `GET /api/inventory/:id/portion` | an account | The size to freeze a row in before "Zamroź": the most the profile's plans that have a day after today eat of its food on a day and the next, from tomorrow on, with the other plan of a joint plan's kitchen, a package coming out of the freezer only whole; in the row's unit where it converts, null where none of them takes the food from packs. |  | 200 `InventoryPortion` |  |
+| `POST /api/inventory/:id/still-good` | an account | "Nadal dobre": fresh stock past its best-before day is still good, with a new day or without one; either way it counts at home again, without one until its day or amount changes. 400 `BEST_BEFORE_PAST` for a new day before the client's, 409 `FROZEN_KEEPS_ITS_DAY` for a package of the freezer. | `StillGoodRequest` | 200 `InventoryItem` |  |
 
 ## meal-plans
 

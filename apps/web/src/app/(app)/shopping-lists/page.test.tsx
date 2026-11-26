@@ -41,6 +41,7 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   frozenKept: 0,
   pantries: [],
   pantryBestBefore: null,
+  pastInPantry: false,
   estimatedCalories: 400,
   packs: null,
   buyLater: [],

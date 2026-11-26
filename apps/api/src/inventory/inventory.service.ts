@@ -1,12 +1,18 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   dayAfter,
   FROZEN_KEEPS_DAYS,
   Unit,
   type FreezeInventoryItem,
   type InventoryItem,
+  type StillGoodRequest,
   type InventoryPortion,
   type Locale,
   type PatchInventoryItem,
@@ -185,6 +191,8 @@ export class InventoryService {
               ...(body.bestBefore !== undefined
                 ? { bestBefore: this.parseDate(body.bestBefore) }
                 : {}),
+              // Its amount changed: what was said of it past its day ("Nadal dobre") is said of it no more.
+              keptPastDate: false,
             },
             include: this.withIngredient(locale),
           });
@@ -214,6 +222,10 @@ export class InventoryService {
         data: {
           ...(body.quantity !== undefined ? { quantity: body.quantity } : {}),
           ...(body.bestBefore !== undefined ? { bestBefore: this.parseDate(body.bestBefore) } : {}),
+          // Its day or amount changed: what was said of it past its day ("Nadal dobre") is said of it no more.
+          ...(body.quantity !== undefined || body.bestBefore !== undefined
+            ? { keptPastDate: false }
+            : {}),
         },
       });
       if (changed.count === 0) throw this.notFound();
@@ -224,6 +236,41 @@ export class InventoryService {
         include: this.withIngredient(locale),
       });
     }, TRANSACTION);
+    return this.toDto(updated, locale);
+  }
+
+  /**
+   * "Nadal dobre": fresh stock past its best-before day is still good. With a new day, the client's or later, the row
+   * takes it; without one it counts at home again as it is (`keptPastDate`), until its day or amount changes. A
+   * package of the freezer keeps its own day.
+   */
+  async stillGood(
+    userId: string,
+    locale: Locale,
+    id: string,
+    body: StillGoodRequest,
+    clientToday: string | null = null,
+  ): Promise<InventoryItem> {
+    const row = await this.loadOwned(userId, id);
+    if (row.frozen)
+      throw new ConflictException({
+        error: 'FROZEN_KEEPS_ITS_DAY',
+        message: 'A package of the freezer keeps its own best-before day.',
+      });
+    const today = clientToday ?? new Date().toISOString().slice(0, 10);
+    if (body.bestBefore !== null && body.bestBefore < today)
+      throw new BadRequestException({
+        error: 'BEST_BEFORE_PAST',
+        message: 'A new best-before day is today or later.',
+      });
+    const updated = await this.prisma.inventoryItem.update({
+      where: { id: row.id },
+      data:
+        body.bestBefore !== null
+          ? { bestBefore: new Date(body.bestBefore), keptPastDate: false }
+          : { keptPastDate: true },
+      include: this.withIngredient(locale),
+    });
     return this.toDto(updated, locale);
   }
 
@@ -398,6 +445,7 @@ export class InventoryService {
       quantity: number;
       unit: 'g' | 'ml' | 'piece';
       bestBefore: Date | null;
+      keptPastDate: boolean;
       frozen: boolean;
       createdAt: Date;
       updatedAt: Date;
@@ -412,6 +460,7 @@ export class InventoryService {
       unit: row.unit,
       display: displayStock(row.quantity, row.unit, row.ingredient),
       bestBefore: row.bestBefore ? row.bestBefore.toISOString().slice(0, 10) : null,
+      keptPastDate: row.keptPastDate,
       frozen: row.frozen,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

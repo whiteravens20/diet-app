@@ -40,7 +40,7 @@ import {
   toppingRefusal,
   shownTarget,
 } from '../engine/index.js';
-import { stockByIngredient } from '../inventory/pantry-store.js';
+import { countsAtHome, stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient, toRecipeDto } from '../recipes/recipes.service.js';
 import {
@@ -217,6 +217,7 @@ export class MealSwapService {
       meal.day.plan.profileId,
       pool.map((candidate) => candidate.id),
       req.respectInventory !== false,
+      slot.today,
     );
     if (coverage) {
       pool = [...pool].sort((a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0));
@@ -691,6 +692,7 @@ export class MealSwapService {
           meal.day.plan.profileId,
           candidates.map((c) => c.id),
           req.respectInventory !== false,
+          slot.today,
         );
         if (coverage) {
           candidates = [...candidates].sort(
@@ -794,10 +796,12 @@ export class MealSwapService {
     profileId: string,
     recipeIds: string[],
     respectInventory: boolean,
+    /** The client's day: fresh stock past its day counts at home for no swap (`countsAtHome`). */
+    today: string,
   ): Promise<Map<string, number> | null> {
     if (!respectInventory || recipeIds.length === 0) return null;
 
-    const stock = await stockByIngredient(this.prisma, profileId);
+    const stock = await stockByIngredient(this.prisma, profileId, countsAtHome(today));
     if (stock.size === 0) return null;
 
     const recipes = await this.prisma.recipe.findMany({
