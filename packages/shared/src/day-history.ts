@@ -28,6 +28,8 @@ export const DayEventCause = z.enum([
   'undo',
   'spread',
   'day-settings',
+  // A week evened out from its line ("Wyrównaj tydzień"), with no setting of a day changed.
+  'week-evened',
   'day-variant',
   'leftover',
   'leftover-undo',

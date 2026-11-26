@@ -1,6 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { DaySettings, DaySettingsPreview, MealPlan, MealPlanDay } from '@diet-app/shared';
+import type {
+  DayHistory,
+  DaySettings,
+  DaySettingsPreview,
+  MealPlan,
+  MealPlanDay,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -159,6 +165,21 @@ describe('the settings of a day of a running plan', () => {
         .send({ date, revision });
     /** The days of the plan from today on, but the one whose settings change. */
     const toCome = [day(0), day(2), day(3), day(4)];
+
+    it('names its days, once it is evened out from its line, as evened in their history', async () => {
+      const changed = await apply(plan, { dayType: 'training' });
+      const evened = (await even(changed, DATE).expect(200)).body as MealPlan;
+
+      const moved = evened.days.find((one) => one.date === day(0))!;
+      const history = (
+        await t
+          .http()
+          .get(`/api/meal-plans/${plan.id}/days/${moved.id}/history`)
+          .set(as(user))
+          .expect(200)
+      ).body as DayHistory;
+      expect(history.events[0]!.cause).toBe('week-evened');
+    });
 
     it("says how a kind changed alone moves the week's average and its pace, and changes that day alone, at the level of its week", async () => {
       const target = await planTarget();

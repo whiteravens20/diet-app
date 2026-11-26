@@ -436,7 +436,7 @@ export class DaySettingsService {
         planId,
         request.revision,
         clientToday ?? this.plans.today(),
-        'day-settings',
+        'week-evened',
         async (tx) => {
           const own = evened.get(context.day.id);
           if (own !== undefined && own !== context.day.calorieTarget) {
