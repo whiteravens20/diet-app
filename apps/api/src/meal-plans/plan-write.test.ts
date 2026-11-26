@@ -28,6 +28,13 @@ vi.mock('./freezer-repick.js', () => ({
   }),
 }));
 
+const settled = vi.hoisted(() => ({ days: [] as string[] }));
+vi.mock('./pots.js', () => ({
+  settlePots: vi.fn(async (_tx: unknown, _planId: string, today: string) => {
+    settled.days.push(today);
+  }),
+}));
+
 const recorded = vi.hoisted(() => ({ changes: [] as string[] }));
 vi.mock('./day-events.js', () => ({
   markBefore: vi.fn(async () => ({ plans: [] })),
@@ -78,10 +85,11 @@ describe('a write of a plan that wastes less', () => {
     chosen.said = [];
     chosen.again = [];
     chosen.changed = [];
+    settled.days = [];
     recorded.changes = [];
   });
 
-  it("follows the rests of its packs and chooses its freezer again by the day it is for whoever asked, not the server's", async () => {
+  it("follows the rests of its packs, chooses its freezer again and settles its pots by the day it is for whoever asked, not the server's", async () => {
     await writePlan(aDatabase(), 'plan-1', 3, '2026-11-23', 'resize', async () => null);
     await writePlans(
       aDatabase(),
@@ -94,6 +102,8 @@ describe('a write of a plan that wastes less', () => {
     expect(followed.days).toEqual(['2026-11-23', '2026-11-21']);
     expect(chosen.said).toEqual(['2026-11-23', '2026-11-21']);
     expect(chosen.again).toEqual(['2026-11-23', '2026-11-21']);
+    // A meal no longer eaten from a pot cooked already forgets what was cooked for it, by the same day.
+    expect(settled.days).toEqual(['2026-11-23', '2026-11-21']);
     // Each day it changes keeps the change in its history, with its cause, by the same day.
     expect(recorded.changes).toEqual(['resize 2026-11-23', 'swap 2026-11-21']);
   });

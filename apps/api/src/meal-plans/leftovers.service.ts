@@ -34,6 +34,7 @@ import {
   mealRank,
 } from './plan-days.js';
 import { writePlans } from './plan-write.js';
+import { potRest, potsOfPlan } from './pots.js';
 import { keepPieces, pieced, pieceUsesOf } from './whole-pieces-store.js';
 
 /** A meal as it was before a leftover took its place or was left of it: what undoing the leftover writes back. */
@@ -70,8 +71,11 @@ type StoredMeal = z.infer<typeof StoredMeal>;
 const StoredLeftover = z.object({
   /** The meal the leftover took the place of, on the leftover's own row. */
   replaced: StoredMeal,
-  /** The meal it was left of: `kept` on its day with the part eaten, or taken off it. */
-  source: StoredMeal.extend({ kept: z.boolean() }),
+  /**
+   * The meal it was left of: `kept` on its day with the part eaten, or taken off it; `fromPot`, a meal eaten from a
+   * pot cooked already whose rest it is, which keeps its portion and is not marked eaten.
+   */
+  source: StoredMeal.extend({ kept: z.boolean(), fromPot: z.boolean().optional() }),
 });
 type StoredLeftover = z.infer<typeof StoredLeftover>;
 
@@ -152,9 +156,12 @@ export class LeftoversService {
     planId: string,
     mealId: string,
     clientToday: string | null = null,
+    /** The rest of the pot cooked already the meal is eaten from (`PlannedMeal.pot`), in place of a part of it. */
+    fromPot = false,
   ): Promise<LeftoverOffer> {
     const today = clientToday ?? this.plans.today();
-    const source = await this.giver(userId, planId, mealId, today);
+    const ofThePot = fromPot ? await this.potGiver(userId, planId, mealId, today) : null;
+    const source = ofThePot?.meal ?? (await this.giver(userId, planId, mealId, today));
     const next = await this.nextDay(source);
     const places = next.meals
       .filter(takesALeftover)
@@ -163,7 +170,8 @@ export class LeftoversService {
     const [cooked, sharedWith, other, pieces] = await Promise.all([
       this.plans.cookedWith(this.prisma, next.plan.id, PlanOptions.parse(next.plan.options)),
       this.sharedWith(userId, places),
-      this.otherSide(userId, source),
+      // The rest of a pot is one person's: what the other person's portion leaves in theirs is said on their meal.
+      ofThePot ? null : this.otherSide(userId, source),
       pieceUsesOf(
         this.prisma,
         places.map((meal) => meal.id),
@@ -173,7 +181,7 @@ export class LeftoversService {
     return {
       planId: next.plan.id,
       date,
-      portion: portionOf(source),
+      portion: ofThePot ? partOf(source, ofThePot.rest) : portionOf(source),
       places: places.map((meal) => {
         const cooking = cooked.get(meal.id) ?? [];
         return {
@@ -220,10 +228,11 @@ export class LeftoversService {
     clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     const today = clientToday ?? this.plans.today();
-    const source = await this.giver(userId, planId, mealId, today);
+    const ofThePot = req.fromPot ? await this.potGiver(userId, planId, mealId, today) : null;
+    const source = ofThePot?.meal ?? (await this.giver(userId, planId, mealId, today));
     const mine = this.carrying(source, await this.nextDay(source), req.mealType);
     let theirs: Carrying | null = null;
-    if (req.forAll) {
+    if (req.forAll && !ofThePot) {
       const other = await this.otherSide(userId, source);
       if (!other)
         throw new NotFoundException({
@@ -234,6 +243,12 @@ export class LeftoversService {
     }
     const sides = theirs ? [mine, theirs] : [mine];
     await writePlans(this.prisma, claims(sides), today, 'leftover', async (tx) => {
+      if (ofThePot) {
+        await this.carryFromPot(tx, mine, ofThePot.rest);
+        for (const dayId of new Set([source.dayId, mine.next.id]))
+          await this.plans.rebalanceDayInternal(dayId, tx, today);
+        return;
+      }
       const sourceShare = await this.sharedOf(tx, source);
       await this.carry(tx, mine, req.left, theirs === null);
       if (theirs) {
@@ -374,6 +389,75 @@ export class LeftoversService {
         message: 'Only a meal of today or yesterday gives a leftover.',
       });
     return meal;
+  }
+
+  /**
+   * A meal of the user's plan eaten from a pot cooked already that leaves something in it, and what it leaves, in
+   * servings as eaten; otherwise why its rest cannot go to the day after.
+   */
+  private async potGiver(
+    userId: string,
+    planId: string,
+    mealId: string,
+    today: string,
+  ): Promise<{ meal: Meal; rest: number }> {
+    const meal = await this.prisma.plannedMeal.findFirst({
+      where: { id: mealId, day: { planId, plan: { profile: { userId } } } },
+      include: MEAL,
+    });
+    if (!meal?.day?.plan)
+      throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'Planned meal not found.' });
+    const pot = (await potsOfPlan(this.prisma, planId, today)).get(meal.id);
+    const rest =
+      pot && !pot.eaten && meal.givenLeftoverId === null
+        ? potRest(pot, meal.servings * meal.quantityScale)
+        : 0;
+    if (rest <= 0) throw nothingInThePot();
+    return { meal, rest };
+  }
+
+  /**
+   * Write the rest of a pot cooked already as a meal of the next day, in the place of the dish there: the meal it is
+   * eaten from keeps its portion, and says where the rest went. A leftover is the dish as it was cooked: in the
+   * recipe's proportions, with nothing on its plate and no rest of a pack.
+   */
+  private async carryFromPot(
+    tx: Prisma.TransactionClient,
+    { source, target }: Carrying,
+    rest: number,
+  ): Promise<void> {
+    const undo: StoredLeftover = {
+      replaced: await this.stored(tx, target),
+      source: { ...(await this.stored(tx, source)), kept: true, fromPot: true },
+    };
+    await tx.plannedMeal.update({
+      where: { id: source.id },
+      data: { givenLeftoverId: target.id, carriedToMealType: target.mealType },
+    });
+    await tx.plannedMeal.update({
+      where: { id: target.id },
+      data: {
+        recipeId: source.recipeId,
+        source: 'CATALOGUE',
+        customName: null,
+        customMacros: Prisma.JsonNull,
+        estimated: false,
+        servings: source.servings,
+        quantityScale: rest / source.servings,
+        swapHistory: [],
+        modelPicked: false,
+        modelReason: null,
+        lastRebalanceAt: null,
+        toppingKey: null,
+        toppingAmount: null,
+        rests: Prisma.DbNull,
+        plate: Prisma.DbNull,
+        sharedMealId: null,
+        leftoverFromDate: source.day.date,
+        leftoverFromMealType: source.mealType,
+        leftoverUndo: undo as unknown as Prisma.InputJsonValue,
+      },
+    });
   }
 
   /** The day after a meal's in the plan of its person made last that holds it, unless no plan holds it or it is skipped. */
@@ -602,6 +686,14 @@ export class LeftoversService {
     leftover: { id: string },
     source: StoredLeftover['source'],
   ): Promise<boolean> {
+    if (source.fromPot) {
+      // The meal whose pot it was the rest of keeps its portion: it no longer says the rest went.
+      const restored = await tx.plannedMeal.updateMany({
+        where: { id: source.id, givenLeftoverId: leftover.id },
+        data: { givenLeftoverId: null, carriedToMealType: null },
+      });
+      return restored.count === 1;
+    }
     if (source.kept) {
       // The meal it was left of says so while it is there.
       const restored = await tx.plannedMeal.updateMany({
@@ -684,10 +776,20 @@ const noPlace = () =>
   });
 
 /** The whole portion of a meal: its servings as eaten and its kcal. */
-const portionOf = (meal: Meal) => ({
-  servings: meal.servings * meal.quantityScale,
-  calories: Math.round((meal.recipe?.caloriesPerServing ?? 0) * meal.servings * meal.quantityScale),
+const portionOf = (meal: Meal) => partOf(meal, meal.servings * meal.quantityScale);
+
+/** `servings` of a meal's dish, as eaten, and their kcal. */
+const partOf = (meal: Meal, servings: number) => ({
+  servings,
+  calories: Math.round((meal.recipe?.caloriesPerServing ?? 0) * servings),
 });
+
+const nothingInThePot = () =>
+  new ConflictException({
+    error: 'POT_NOTHING_LEFT',
+    message:
+      'Nothing of the pot this meal is eaten from is left for the day after: its portion takes all of it, or the rest went there already.',
+  });
 
 /** Whether the meal at `mealType` of `date` is the one its cooking is cooked at, the first of them, or eaten from it. */
 const cooksFirst = (

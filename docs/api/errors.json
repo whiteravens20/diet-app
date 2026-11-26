@@ -1323,6 +1323,15 @@
       "pl": "Tego jest za mało na tyle porcji. Podziel na mniej porcji."
     }
   },
+  "POT_NOTHING_LEFT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Nothing of the pot is left for the next day: this meal takes all of it, or the rest went there already.",
+      "pl": "W garnku nie zostaje nic na następny dzień: ten posiłek bierze całość albo reszta już tam poszła."
+    }
+  },
   "PRODUCTS_NOT_OFFERED": {
     "statuses": [
       404

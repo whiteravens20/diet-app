@@ -34,6 +34,7 @@ import {
   KeepFrozenRequest,
   KeepLeftRequest,
   LeftoverOffer,
+  LeftoverOfferQuery,
   MealPlan,
   MealPlanPage,
   MealSwapPreview,
@@ -522,7 +523,10 @@ export class MealPlansController {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today, dto.forAll);
   }
 
-  /** Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace. */
+  /**
+   * Where what is left of a meal of today or yesterday can go, or the rest of the pot cooked already a meal is eaten
+   * from (`fromPot`): the next day, and the meals of it a leftover may replace.
+   */
   @Get(':id/meals/:mealId/leftover')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(LeftoverOffer)
@@ -531,9 +535,10 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Param('mealId', requiredUuid) mealId: string,
+    @Query(new ZodValidationPipe(LeftoverOfferQuery)) query: LeftoverOfferQuery,
     @ClientDate() today: string | null,
   ) {
-    return this.leftovers.offer(user.id, locale, id, mealId, today);
+    return this.leftovers.offer(user.id, locale, id, mealId, today, query.fromPot === true);
   }
 
   /** Put what is left of a meal in as a meal of the next day, in the place of the dish at a time of day (rebalances both days). */

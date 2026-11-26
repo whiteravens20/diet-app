@@ -5,6 +5,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import type { DayEventCause } from '@diet-app/shared';
 import { keepEvents, markBefore, ownDays } from './day-events.js';
 import { packagesSaid, repickFreezer } from './freezer-repick.js';
+import { settlePots } from './pots.js';
 import { followRests, wasteLevelOf, type FollowedRest } from './rests-follow.js';
 
 /** At most how many times the sizings a change made are made again: once is nearly always enough. */
@@ -242,6 +243,8 @@ export function writePlans<T>(
       for (const key of await packagesSaid(tx, planId, today)) said.add(key);
     const written = await write(tx);
     for (const { planId } of plans) await unlinkDiverged(tx, planId);
+    // A meal no longer eaten from a pot cooked already forgets what was cooked for it.
+    for (const { planId } of plans) await settlePots(tx, planId, today);
     // The days the change itself moved are the user's; those the rests of packs move after it came of it.
     const own = await ownDays(tx, marked);
     // The rests of packs follow what the change did to the meals, once for each kitchen. A plan of the kitchen whose

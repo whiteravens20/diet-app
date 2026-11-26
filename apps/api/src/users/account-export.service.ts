@@ -405,6 +405,8 @@ export class AccountExportService {
             // The rests of packs this meal finishes: the ingredient, the amount in its own unit, and what that holds.
             rests: meal.rests,
             plate: meal.plate,
+            // Of a meal eaten from a pot cooked already: its servings as eaten when the pot was cooked.
+            cookedServings: meal.cookedServings,
           })),
         })),
         shoppingLists: plan.shoppingLists.map((shopping) => ({

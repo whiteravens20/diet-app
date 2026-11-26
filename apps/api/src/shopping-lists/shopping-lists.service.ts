@@ -59,6 +59,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 import { plateOfMeal, plateShare, restsOf } from '../meal-plans/plan-days.js';
+import { potsOfPlan } from '../meal-plans/pots.js';
 import { toppingIngredientsOf } from '../meal-plans/toppings-store.js';
 import { freezerOf } from '../meal-plans/generation-report.js';
 import { followKitchen } from '../meal-plans/plan-write.js';
@@ -552,7 +553,7 @@ async function householdsOf(
 
 export const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
-type Reader = Pick<Tx, 'ingredient' | 'mealPlanDay' | '$queryRaw'>;
+type Reader = Pick<Tx, 'ingredient' | 'mealPlan' | 'mealPlanDay' | '$queryRaw'>;
 
 export async function loadIngredients(
   db: Pick<Tx, 'ingredient'>,
@@ -585,18 +586,24 @@ export async function planLines(
   from: Date,
   to: Date,
   uneatenOnly = false,
+  /** Meals left out, as their ids. */
+  without: ReadonlySet<string> = new Set(),
 ): Promise<DatedLine[]> {
   const days = await db.mealPlanDay.findMany({
     where: { planId, date: { gte: from, lte: to } },
     select: {
       date: true,
       meals: {
-        ...(uneatenOnly ? { where: { eatenAt: null } } : {}),
+        where: {
+          ...(uneatenOnly ? { eatenAt: null } : {}),
+          ...(without.size > 0 ? { id: { notIn: [...without] } } : {}),
+        },
         select: {
           id: true,
           source: true,
           servings: true,
           quantityScale: true,
+          cookedServings: true,
           leftoverFromDate: true,
           toppingKey: true,
           toppingAmount: true,
@@ -662,8 +669,9 @@ export async function planLines(
             pieceFactorOf(pieces.get(meal.id) ?? [], line.ingredientId),
           unit: line.unit,
           recipeServings: meal.recipe.servings,
-          // Effective amount folds the rebalancer multiplier into servings.
-          plannedServings: meal.servings * meal.quantityScale,
+          // Effective amount folds the rebalancer multiplier into servings; a meal eaten from a pot cooked already is
+          // bought as the pot was cooked for it.
+          plannedServings: meal.cookedServings ?? meal.servings * meal.quantityScale,
         });
       }
       // The rest of a pack the meal finishes is part of what the pack is bought for.
@@ -686,7 +694,8 @@ export async function planLines(
  * `today` on still take of the row's food, and what the row holds that the menu no longer takes at all (a dish
  * swapped for another after the shopping), since both are still in the kitchen. What the days before today and the
  * meals eaten today took is taken as eaten: a list that is over gives nothing back, and one that has not begun gives
- * back all it holds. A plan whose food cannot be counted in its units gives back the share of its days still ahead.
+ * back all it holds. A meal eaten from a pot cooked already gives nothing back: its food is cooked. A plan whose food
+ * cannot be counted in its units gives back the share of its days still ahead.
  */
 export async function stillTaken(
   db: Reader,
@@ -700,9 +709,18 @@ export async function stillTaken(
   for (const list of lists) {
     const from = day > list.fromDate ? day : list.fromDate;
     try {
+      // A meal eaten from a pot cooked already takes nothing more: its food is in the pot.
+      const pots = await potsOfPlan(db, list.planId, isoDate(day));
       const counted = async (start: Date, uneatenOnly: boolean) => {
         if (start > list.toDate) return new Map<string, number>();
-        const lines = await planLines(db, list.planId, start, list.toDate, uneatenOnly);
+        const lines = await planLines(
+          db,
+          list.planId,
+          start,
+          list.toDate,
+          uneatenOnly,
+          uneatenOnly ? new Set(pots.keys()) : new Set(),
+        );
         const ingredients = await loadIngredients(db, [
           ...new Set(lines.map((line) => line.ingredientId)),
         ]);

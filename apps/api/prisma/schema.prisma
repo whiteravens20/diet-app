@@ -1141,6 +1141,11 @@ model PlannedMeal {
   // A person's own plate of a dish both people of a joint plan eat: its parts against the recipe's, and what that
   // changes of one serving (`StoredPlate`). Null for a meal in the recipe's own proportions.
   plate         Json?
+  // Of a meal eaten from a pot cooked already (a cooking whose first meal was eaten, or whose day has passed): its
+  // servings as eaten when the pot was cooked, which the pot holds for it whatever a later sizing gives it. Kept by
+  // the first sizing of its day after the pot was cooked; null for every other meal, and for one no sizing has
+  // changed since, whose portion is what was cooked for it.
+  cookedServings Float?
   // Eaten by both people of a joint plan: the meal of the other plan at the
   // same day and time of day has the same link. Null for a meal of one's own
   // plan alone, and once the link is undone for that day.

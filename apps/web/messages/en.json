@@ -411,6 +411,7 @@
     "LEFTOVER_NO_DAY": "No plan of this person holds the next day.",
     "LEFTOVER_DAY_SKIPPED": "The next day is skipped: it has no meal for the leftover.",
     "LEFTOVER_NO_PLACE": "The next day has no meal at that time a leftover can take the place of: it is eaten or a leftover itself.",
+    "POT_NOTHING_LEFT": "Nothing of the pot is left for the next day: this meal takes all of it, or the rest went there already.",
     "NOT_A_LEFTOVER": "This meal is not a leftover.",
     "NO_FAVORITE_INGREDIENTS": "Add favourite ingredients on the profile before swapping by them.",
     "NO_FAVORITE_INGREDIENT_MATCH": "No recipe matches your favourite ingredients.",

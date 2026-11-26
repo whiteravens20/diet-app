@@ -35,6 +35,11 @@ export interface RebalanceMeal {
   quantityScale: number;
   /** Pinned out of the rebalance set: custom meal, eaten meal, or a locked day. */
   locked: boolean;
+  /**
+   * The most its scale may come to, where something else than the serving's bounds holds it: what a pot cooked already
+   * holds for a meal eaten from it. Left out where nothing does.
+   */
+  mostScale?: number;
   /** Grams of protein, fat and carbohydrate in a baseline serving. Left out: the meal is not sized for them. */
   macros?: Macros;
   /**
@@ -62,8 +67,9 @@ export const REBALANCE_TOLERANCE = 0.1;
  */
 const GROWTH_MAX = 2;
 
-/** The largest scale a meal may take: the serving's bound, and twice the plan's portion. */
-const highestScale = (m: RebalanceMeal) => Math.min(SERVING_MAX / m.servings, GROWTH_MAX);
+/** The largest scale a meal may take: the serving's bound, twice the plan's portion, and what its pot holds for it. */
+const highestScale = (m: RebalanceMeal) =>
+  Math.min(SERVING_MAX / m.servings, GROWTH_MAX, m.mostScale ?? Infinity);
 
 const effectiveKcal = (m: RebalanceMeal, scale: number) => m.calories * m.servings * scale;
 

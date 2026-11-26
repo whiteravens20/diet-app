@@ -144,6 +144,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           leftover: null,
           carriedTo: null,
           leftoverOffer: null,
+          pot: null,
           topping: null,
         },
       ],

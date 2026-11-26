@@ -141,6 +141,7 @@ import {
   type MealRow,
 } from './plan-days.js';
 import { effectsOf } from './day-events.js';
+import { keepPots, potRest, potScale, potsOf, potsOfPlan, type Pot } from './pots.js';
 import { dayHistoryOf } from './day-history.js';
 import { plateDishesOf } from './plates-store.js';
 import { planBaseOf, type BaseProfile } from './plan-base.js';
@@ -653,6 +654,7 @@ export class MealPlansService {
           include: {
             meals: {
               include: {
+                givenLeftover: { select: { servings: true, quantityScale: true } },
                 recipe: {
                   include: {
                     ingredients: {
@@ -695,22 +697,54 @@ export class MealPlansService {
             day.meals.some((meal) => givesALeftover(meal, isoDate(day.date), today)),
         ),
     );
+    // The pots cooked already that meals of the plan are eaten from, and the days after those meals: where what a pot
+    // leaves could go, as a leftover of the meal would.
+    const pots = PlanOptions.parse(plan.options).mealPrepFriendly
+      ? potsOf(plan.days, today)
+      : new Map<string, Pot>();
+    const afterPots = [
+      ...new Set(
+        plan.days
+          .filter((day) => day.meals.some((meal) => pots.has(meal.id)))
+          .map((day) => dateAfter(isoDate(day.date))),
+      ),
+    ];
+    const ownAfterPots = new Map(
+      plan.days
+        .filter((day) => afterPots.includes(isoDate(day.date)))
+        .map((day) => [isoDate(day.date), nextDayOf(day)] as const),
+    );
+    const beyondPots = afterPots.filter((date) => !ownAfterPots.has(date));
     const mealIds = plan.days.flatMap((day) => day.meals.map((meal) => meal.id));
-    const [restrictions, diary, { lists, frozen, loose }, nextElsewhere, toppingFoods, pieces] =
-      await Promise.all([
-        restrictionsFor(this.prisma, plan),
-        diaryOfDays(this.prisma, plan.profileId, plan.days, plan.id),
-        listsAndFreezerOf(this.prisma, planId, plan.profileId),
-        elsewhere.length > 0
-          ? nextDaysOf(this.prisma, plan.profileId, elsewhere)
-          : new Map<string, NextDay>(),
-        // The foods of the toppings, read only for a plan that has any.
-        plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
-          ? toppingFoodsOf(this.prisma)
-          : (new Map() as ToppingFoods),
-        // A plan with every pot in it is worked out as it was read; one that shares a pot reads the other plan too.
-        selfContained(plan) ? usesOfPlans([plan], mealIds) : pieceUsesOf(this.prisma, mealIds),
-      ]);
+    const [
+      restrictions,
+      diary,
+      { lists, frozen, loose },
+      nextElsewhere,
+      toppingFoods,
+      pieces,
+      potsElsewhere,
+    ] = await Promise.all([
+      restrictionsFor(this.prisma, plan),
+      diaryOfDays(this.prisma, plan.profileId, plan.days, plan.id),
+      listsAndFreezerOf(this.prisma, planId, plan.profileId),
+      elsewhere.length > 0
+        ? nextDaysOf(this.prisma, plan.profileId, elsewhere)
+        : new Map<string, NextDay>(),
+      // The foods of the toppings, read only for a plan that has any.
+      plan.days.some((day) => day.meals.some((meal) => meal.toppingKey !== null))
+        ? toppingFoodsOf(this.prisma)
+        : (new Map() as ToppingFoods),
+      // A plan with every pot in it is worked out as it was read; one that shares a pot reads the other plan too.
+      selfContained(plan) ? usesOfPlans([plan], mealIds) : pieceUsesOf(this.prisma, mealIds),
+      beyondPots.length > 0
+        ? nextDaysOf(this.prisma, plan.profileId, beyondPots)
+        : new Map<string, NextDay>(),
+    ]);
+    const potsOfMeals: PotsOfMeals = {
+      pots,
+      after: new Map([...potsElsewhere, ...ownAfterPots]),
+    };
     const freezerNow: FreezerNow = {
       rows: frozen,
       taken: parcelsOf(freezerOf(plan.report)),
@@ -738,6 +772,7 @@ export class MealPlansService {
         lists,
         today,
         nextDays,
+        potsOfMeals,
         toppingFoods,
         packed,
         pieces,
@@ -1440,7 +1475,10 @@ export class MealPlansService {
       },
     });
     if (!day?.plan || isSkipped(day) || isoDate(day.date) < today) return null;
-    const rows = day.meals.map(toRebalanceRow);
+    // A meal eaten from a pot cooked already is held to what the pot holds for it, which it keeps before it moves.
+    const pots = await potsOfPlan(tx, day.planId, today);
+    await keepPots(tx, day.meals, pots);
+    const rows = cappedBy(day.meals.map(toRebalanceRow), pots);
     const diary = await diaryDays(tx, day.plan.profileId, day.date, day.date, day.planId);
     const counted = [
       ...rows,
@@ -1516,10 +1554,13 @@ export class MealPlansService {
     });
     /** The day's rows, those of the open meals with the plates given (none for any other). */
     const rowsWith = (plates: ReadonlyMap<string, StoredPlate>): RebalanceRow[] => [
-      ...day.meals.map((m) =>
-        open.includes(m)
-          ? toRebalanceRow({ ...m, plate: plates.get(m.id) ?? null })
-          : toRebalanceRow(m),
+      ...cappedBy(
+        day.meals.map((m) =>
+          open.includes(m)
+            ? toRebalanceRow({ ...m, plate: plates.get(m.id) ?? null })
+            : toRebalanceRow(m),
+        ),
+        pots,
       ),
       ...restRebalanceRows(day.meals),
       ...diaryRows(diary.get(isoDate(day.date))),
@@ -1666,11 +1707,22 @@ export class MealPlansService {
       include: {
         days: {
           orderBy: { date: 'asc' },
-          include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
+          include: {
+            meals: {
+              include: {
+                recipe: { select: REBALANCE_MACRO_SELECT },
+                givenLeftover: { select: { servings: true, quantityScale: true } },
+              },
+            },
+          },
         },
       },
     });
     if (!plan) return null;
+    // A meal eaten from a pot cooked already is held to what the pot holds for it.
+    const pots = PlanOptions.parse(plan.options).mealPrepFriendly
+      ? potsOf(plan.days, today)
+      : new Map<string, Pot>();
     // What lies before the day asked for is not changed after the fact.
     const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
     const diary = await diaryOfDays(db, plan.profileId, days, plan.id);
@@ -1685,13 +1737,13 @@ export class MealPlansService {
         target: settings.calorieTarget,
         past: isoDate(d.date) < today,
         aim: aimOfDay(settings, plan),
-        rows: d.meals
-          .filter((meal) => !changed?.gone.has(meal.id))
-          .map(toRebalanceRow)
-          .map((row) => {
-            const scale = changed?.scales.get(row.id);
-            return scale === undefined ? row : { ...row, quantityScale: scale };
-          }),
+        rows: cappedBy(
+          d.meals.filter((meal) => !changed?.gone.has(meal.id)).map(toRebalanceRow),
+          pots,
+        ).map((row) => {
+          const scale = changed?.scales.get(row.id);
+          return scale === undefined ? row : { ...row, quantityScale: scale };
+        }),
         // Each day's own row of what its diary holds: the ids of the meals are the plan's.
         diary: [
           ...restRebalanceRows(d.meals),
@@ -1715,6 +1767,7 @@ export class MealPlansService {
     return {
       dayRows,
       result,
+      pots,
       /** What each day holds after the sizing, and before it, by its id. */
       kcal: new Map(
         dayRows.map((day) => [
@@ -1760,11 +1813,13 @@ export class MealPlansService {
   ): Promise<{ summary: RebalanceSummary; days: string[] } | null> {
     const planned = await this.planRest(tx, planId, from, today);
     if (!planned) return null;
-    const { dayRows, result } = planned;
+    const { dayRows, result, pots } = planned;
     const { scales, feasibility, unabsorbed } = result;
     const allRows = dayRows.flatMap((d) => d.rows);
     const counted = dayRows.flatMap((d) => [...d.rows, ...d.diary]);
     const macrosBefore = rowsMacros(counted, (r) => r.quantityScale);
+    // What a pot cooked already holds for a meal eaten from it is kept before the meal moves.
+    await keepPots(tx, allRows, pots);
     const changes = await this.persistScales(allRows, scales, tx);
     // A spread is the user's choice: the days it moves keep their part of it (`keptChoice`) until he changes them.
     await keepChoice(
@@ -2455,6 +2510,8 @@ export class MealPlansService {
     today: string,
     /** The days after today's and yesterday's, in the plans that hold them, for the leftovers of those days. */
     nextDays: ReadonlyMap<string, NextDay>,
+    /** The pots cooked already its meals are eaten from, and the days after those meals. */
+    { pots, after }: PotsOfMeals,
     /** The foods of the toppings the plan's meals have. */
     toppingFoods: ToppingFoods,
     /** What the meals take of the packs (`packedMealsOf`). */
@@ -2501,14 +2558,14 @@ export class MealPlansService {
       const of = places.map(({ day, meal, stand }) => ({ day: plan.days[day]!, meal, stand }));
       const recipe = of[0]!.meal.recipe!;
       const servings = Math.max(1, recipe.servings);
+      // A pot cooked already holds what was cooked for each meal, whatever a later sizing gave it.
       const ingredients = toPlannedIngredients(
         recipe.ingredients,
         (line) =>
           of.reduce(
             (sum, { meal }) =>
               sum +
-              (meal.servings *
-                meal.quantityScale *
+              ((pots.get(meal.id)?.cooked ?? meal.servings * meal.quantityScale) *
                 plateShare(plateOfMeal(meal.plate), line.ingredient) *
                 pieceFactorOf(meal.pieces, line.ingredientId)) /
                 servings,
@@ -2578,6 +2635,7 @@ export class MealPlansService {
             leftover: null,
             carriedTo: null,
             leftoverOffer: null,
+            pot: null,
             topping: null,
           };
         }
@@ -2635,6 +2693,7 @@ export class MealPlansService {
               }
             : null,
           leftoverOffer: leftoverOfferOf(m, isoDate(day.date), today, nextDays),
+          pot: potOf(pots.get(m.id), factor, m.givenLeftoverId, after, isoDate(day.date)),
           topping: toppingOf(m, toppingFoods, locale),
         };
       });
@@ -2892,10 +2951,40 @@ interface PlanWithRelations {
       carriedToMealType: string | null;
       toppingKey: string | null;
       toppingAmount: number | null;
+      cookedServings: number | null;
+      givenLeftover: { servings: number; quantityScale: number } | null;
       recipe:
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
   }[];
+}
+
+/** The pots cooked already a plan's meals are eaten from (`potsOf`), and what the day after each such meal is for a leftover. */
+interface PotsOfMeals {
+  pots: ReadonlyMap<string, Pot>;
+  after: ReadonlyMap<string, NextDay>;
+}
+
+/**
+ * What `PlannedMeal.pot` says of a meal of `date`: for a meal eaten from a pot cooked already and not eaten itself,
+ * what was cooked for it, what its portion (`factor`) leaves in the pot, and where that could go, the day after it,
+ * while nothing of it went there yet. Null for every other meal.
+ */
+function potOf(
+  pot: Pot | undefined,
+  factor: number,
+  givenLeftoverId: string | null,
+  after: ReadonlyMap<string, NextDay>,
+  date: string,
+): PlannedMeal['pot'] {
+  if (!pot || pot.eaten) return null;
+  const rest = potRest(pot, factor);
+  return {
+    cookedOn: pot.cookedOn,
+    cooked: pot.cooked,
+    rest,
+    offer: rest > 0 && givenLeftoverId === null ? (after.get(dateAfter(date)) ?? 'no_day') : null,
+  };
 }
 
 /** A plan as it is answered of its own, and the rows it was read from. */
@@ -3153,7 +3242,16 @@ interface RebalanceRow {
   locked: boolean;
   /** The time of day of its meal, for a meal and what is eaten with it (`RebalanceMeal.slot`); none for the diary. */
   slot?: MealType;
+  /** Of a meal eaten from a pot cooked already, the most its scale may come to (`potScale`). */
+  mostScale?: number;
 }
+
+/** The rows of `rows` capped by the pots their meals are eaten from (`RebalanceRow.mostScale`). */
+const cappedBy = (rows: RebalanceRow[], pots: ReadonlyMap<string, Pot>): RebalanceRow[] =>
+  rows.map((row) => {
+    const pot = pots.get(row.id);
+    return pot ? { ...row, mostScale: potScale(pot, row.servings) } : row;
+  });
 
 /** A meal of a day a swap changed, as the swap found it. */
 const StoredSwapMeal = z.object({
@@ -3429,6 +3527,7 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   locked: r.locked,
   macros: { protein: r.per.protein, fat: r.per.fat, carbs: r.per.carbs },
   ...(r.slot ? { slot: r.slot } : {}),
+  ...(r.mostScale !== undefined ? { mostScale: r.mostScale } : {}),
 });
 
 /** Sum the effective macros of meals given a per-meal scale lookup. */

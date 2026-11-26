@@ -23,6 +23,7 @@ function meal(
     locked: opts.locked ?? false,
     ...(opts.macros ? { macros: opts.macros } : {}),
     ...(opts.slot ? { slot: opts.slot } : {}),
+    ...(opts.mostScale !== undefined ? { mostScale: opts.mostScale } : {}),
   };
 }
 
@@ -97,6 +98,27 @@ describe('sizing the meals of a day', () => {
     expect(2 * out.scales.get('big')!).toBeCloseTo(3, 5);
     expect(0.5 * out.scales.get('small')!).toBeCloseTo(1, 5);
     expect(out.feasibility).toBe('best-effort');
+  });
+
+  it('grows no meal past what its pot holds for it, and gives the rest of the day to the others', () => {
+    // A breakfast eaten from a pot cooked already: its pot holds a portion and a half of it.
+    const meals = [
+      meal('pot', 400, { servings: 1, quantityScale: 1, mostScale: 1.5, slot: 'breakfast' }),
+      meal('lunch', 700, { slot: 'lunch' }),
+      meal('dinner', 600, { slot: 'dinner' }),
+    ];
+    const { scales, feasibility } = sizeDay(meals, 2600, NO_AIM);
+
+    expect(scales.get('pot')).toBeLessThanOrEqual(1.5 + 1e-9);
+    expect(dayKcal(meals, scales)).toBeCloseTo(2600, 5);
+    expect(feasibility).toBe('in-window');
+    // Without its pot, the same day grows it past that.
+    const free = sizeDay(
+      meals.map(({ mostScale: _, ...one }) => one),
+      2600,
+      NO_AIM,
+    );
+    expect(free.scales.get('pot')).toBeGreaterThan(1.5);
   });
 
   it('grows no meal past twice the portion the plan gave it, and says the day is short', () => {

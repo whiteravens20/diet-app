@@ -250,8 +250,8 @@ export const restsAsJson = (
 /**
  * After meals were given another recipe: each keeps the rests of packs whose
  * ingredient its new recipe holds as well, and loses the others, and loses its
- * plate, which was of the dish before. Run in the write that changed the
- * recipes.
+ * plate and what a pot was cooked with for it, which were of the dish before.
+ * Run in the write that changed the recipes.
  */
 export async function settleNewRecipes(
   tx: Pick<Prisma.TransactionClient, 'plannedMeal'>,
@@ -261,6 +261,10 @@ export async function settleNewRecipes(
   await tx.plannedMeal.updateMany({
     where: { id: { in: [...mealIds] }, plate: { not: Prisma.DbNull } },
     data: { plate: Prisma.DbNull },
+  });
+  await tx.plannedMeal.updateMany({
+    where: { id: { in: [...mealIds] }, cookedServings: { not: null } },
+    data: { cookedServings: null },
   });
   const meals = await tx.plannedMeal.findMany({
     where: { id: { in: [...mealIds] }, rests: { not: Prisma.DbNull } },

@@ -499,6 +499,21 @@ export const PlannedMeal = z.object({
    */
   leftoverOffer: z.enum(['ok', 'no_day', 'skipped', 'no_meal']).nullable(),
   /**
+   * Of a meal eaten from a pot cooked already (a cooking whose first meal was eaten, or whose day has passed), not
+   * eaten itself: the day the pot was cooked, what was cooked for it, in servings as eaten (which its portion never
+   * grows past), what its portion leaves in the pot, and where that could go: the day after it, as `leftoverOffer`
+   * says of a leftover; null where nothing is left, or it went there already (`carriedTo`). Null for every other
+   * meal.
+   */
+  pot: z
+    .object({
+      cookedOn: z.string().date(),
+      cooked: z.number(),
+      rest: z.number(),
+      offer: z.enum(['ok', 'no_day', 'skipped', 'no_meal']).nullable(),
+    })
+    .nullable(),
+  /**
    * What is put on this meal's plate alone beside a dish both people of a joint
    * plan eat, where this person's day would otherwise stay off its split or
    * its calorie target: the food in the amount of this plate, and what it
@@ -1942,7 +1957,7 @@ const LeftoverPlace = z.object({
 export const LeftoverOffer = z.object({
   planId: z.string().uuid(),
   date: z.string().date(),
-  /** The whole portion of the meal it is left of. */
+  /** The whole portion of the meal it is left of; asked for the rest of its pot, that rest. */
   portion: Portion,
   places: z.array(LeftoverPlace),
   /**
@@ -1962,6 +1977,15 @@ export const LeftoverOffer = z.object({
 });
 export type LeftoverOffer = z.infer<typeof LeftoverOffer>;
 
+/** Where the rest of a pot cooked already can go (`PlannedMeal.pot`), asked in place of what is left of a meal. */
+export const LeftoverOfferQuery = z.object({
+  fromPot: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+export type LeftoverOfferQuery = z.infer<typeof LeftoverOfferQuery>;
+
 /**
  * Put what is left of a meal in as a meal of the next day, in the place of the
  * dish at `mealType`. `left` is the part of the portion left: 1 where nothing
@@ -1976,10 +2000,19 @@ export const PutLeftoverRequest = z
     left: z.number().gt(0).max(1),
     forAll: z.boolean().default(false),
     theirLeft: z.number().gt(0).max(1).optional(),
+    /**
+     * The rest of the pot cooked already the meal is eaten from (`PlannedMeal.pot`), all of it, in place of a part of
+     * the meal: `left` is then 1, the meal keeps its portion and is not marked eaten, and it is never for both.
+     */
+    fromPot: z.boolean().default(false),
   })
   .refine((request) => !request.forAll || request.theirLeft !== undefined, {
     message: 'A leftover for both says what the other person has left.',
     path: ['theirLeft'],
+  })
+  .refine((request) => !request.fromPot || (!request.forAll && request.left === 1), {
+    message: 'The rest of a pot goes whole, and for one person.',
+    path: ['fromPot'],
   });
 export type PutLeftoverRequest = z.infer<typeof PutLeftoverRequest>;
 

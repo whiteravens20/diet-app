@@ -6300,8 +6300,8 @@
         "tags": [
           "meal-plans"
         ],
-        "summary": "Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace.",
-        "description": "Where what is left of a meal of today or yesterday can go: the next day, and the meals of it a leftover may replace.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "summary": "Where what is left of a meal of today or yesterday can go, or the rest of the pot cooked already a meal is eaten from (`fromPot`): the next day, and the meals of it a leftover may replace.",
+        "description": "Where what is left of a meal of today or yesterday can go, or the rest of the pot cooked already a meal is eaten from (`fromPot`): the next day, and the meals of it a leftover may replace.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -6324,6 +6324,18 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "fromPot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -22371,6 +22383,51 @@
               }
             ]
           },
+          "pot": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "cookedOn": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "cooked": {
+                    "type": "number"
+                  },
+                  "rest": {
+                    "type": "number"
+                  },
+                  "offer": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "ok",
+                          "no_day",
+                          "skipped",
+                          "no_meal"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "cookedOn",
+                  "cooked",
+                  "rest",
+                  "offer"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "topping": {
             "anyOf": [
               {
@@ -22422,6 +22479,7 @@
           "leftover",
           "carriedTo",
           "leftoverOffer",
+          "pot",
           "topping"
         ],
         "additionalProperties": false
@@ -24522,6 +24580,10 @@
             "type": "number",
             "exclusiveMinimum": 0,
             "maximum": 1
+          },
+          "fromPot": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
