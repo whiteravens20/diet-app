@@ -3,6 +3,7 @@
 import {
   ProfileInput,
   type CalorieCalculation,
+  type GeneratePlanRequest,
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
@@ -114,16 +115,27 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
     it('cannot type a target under 1200 kcal, for the plan or for a day', async () => {
       const profile = await onTheFloor();
 
-      for (const body of [
-        { calorieTargetOverride: 1199 },
-        { dayOverrides: [{ date: '2026-01-06', calorieTarget: 1100 }] },
-      ]) {
+      // Each refused at its own field, as a client places it: the plan's target, and the second day sent.
+      const refusals: [Partial<GeneratePlanRequest>, string][] = [
+        [{ calorieTargetOverride: 1199 }, 'calorieTargetOverride'],
+        [
+          {
+            dayOverrides: [
+              { date: '2026-01-05', dayType: 'rest' },
+              { date: '2026-01-06', calorieTarget: 1100 },
+            ],
+          },
+          'dayOverrides.1.calorieTarget',
+        ],
+      ];
+      for (const [body, path] of refusals) {
         const refused: unknown = await aPlan(t, user, profile, { durationDays: 2, ...body }).catch(
           (err: unknown) => err,
         );
         expect(refused).toBeInstanceOf(BadRequestException);
         expect((refused as BadRequestException).getResponse()).toMatchObject({
           error: 'VALIDATION_FAILED',
+          issues: [{ path, code: 'too_small', minimum: 1200 }],
         });
         expect(JSON.stringify((refused as BadRequestException).getResponse())).toContain(
           '1200 kcal',

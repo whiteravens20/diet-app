@@ -159,8 +159,10 @@ export class PlanGenerationService {
     };
     const base = this.planBase(profile, req.calorieTargetOverride);
     refuseUnderLeast(req.calorieTargetOverride, base.least, 'calorieTargetOverride');
-    for (const day of req.dayOverrides ?? [])
-      refuseUnderLeast(day.calorieTarget, base.least, 'dayOverrides');
+    // A day's own target is refused at that day's field, as the request's validation names a field.
+    req.dayOverrides?.forEach((day, index) =>
+      refuseUnderLeast(day.calorieTarget, base.least, `dayOverrides.${index}.calorieTarget`),
+    );
     const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
     const macroSplit = splitFor(dietType, profile, baseCalorieTarget);
