@@ -36,8 +36,10 @@ export const DayEventCause = z.enum([
   'retarget',
   'bought-by-weight',
   'kept',
-  // The toppings of a plan made together came off: the other plan was removed.
+  // The toppings of a plan made together came off: the other plan was removed (`joint-removed`), or the profile's
+  // allergens, foods or diet no longer let them be given (`preferences`).
   'joint-removed',
+  'preferences',
 ]);
 export type DayEventCause = z.infer<typeof DayEventCause>;
 

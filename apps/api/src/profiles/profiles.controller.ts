@@ -85,8 +85,9 @@ export class ProfilesController {
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(ProfileUpdate)) dto: ProfileUpdate,
+    @ClientDate() today: string | null,
   ) {
-    return this.profiles.update(user.id, id, dto);
+    return this.profiles.update(user.id, id, dto, today);
   }
 
   /** Change some parts of the profile: what is left out stays as it is, its preferences too. */
@@ -96,8 +97,9 @@ export class ProfilesController {
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(ProfilePatch)) dto: ProfilePatch,
+    @ClientDate() today: string | null,
   ) {
-    return this.profiles.patch(user.id, id, dto);
+    return this.profiles.patch(user.id, id, dto, today);
   }
 
   /** Change some of the profile's preferences: what is left out stays as it is. */
@@ -107,8 +109,9 @@ export class ProfilesController {
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(ProfilePreferencesPatch)) dto: ProfilePreferencesPatch,
+    @ClientDate() today: string | null,
   ) {
-    return this.profiles.patchPreferences(user.id, id, dto);
+    return this.profiles.patchPreferences(user.id, id, dto, today);
   }
 
   /** Keep the weight once the target weight is reached: the pace becomes keeping the weight. */

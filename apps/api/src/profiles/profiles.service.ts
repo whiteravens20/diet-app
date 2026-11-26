@@ -40,6 +40,7 @@ import {
   sharesOf,
   wholePercent,
 } from '../engine/index.js';
+import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { forgetLender, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
@@ -69,7 +70,25 @@ export class ProfilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
+    private readonly mealPlans: MealPlansService,
   ) {}
+
+  /**
+   * A change of the allergens, foods or diet of a profile goes through its plans made together: from today, the
+   * toppings its plate may no longer be given come off and the days are sized again, which their history says.
+   */
+  private async refreshJointPlans(profileId: string, clientToday: string | null): Promise<void> {
+    const today = clientToday ?? new Date().toISOString().slice(0, 10);
+    const plans = await this.prisma.mealPlan.findMany({
+      where: {
+        profileId,
+        jointPlanId: { not: null },
+        days: { some: { date: { gte: new Date(today) } } },
+      },
+      select: { id: true },
+    });
+    for (const plan of plans) await this.mealPlans.resizeFrom(plan.id, today, 'preferences');
+  }
 
   async list(userId: string): Promise<Profile[]> {
     const rows = await this.prisma.profile.findMany({
@@ -136,6 +155,8 @@ export class ProfilesService {
     userId: string,
     id: string,
     patch: ProfilePreferencesPatch,
+    /** The client's day: the profile's plans made together change from it on. */
+    clientToday: string | null = null,
   ): Promise<Profile> {
     await this.load(userId, id);
     const row = await this.prisma.profile.update({
@@ -150,10 +171,21 @@ export class ProfilesService {
       },
       include: { preferences: true },
     });
+    if (
+      patch.allergens !== undefined ||
+      patch.excludedIngredientIds !== undefined ||
+      patch.dislikedIngredientIds !== undefined
+    )
+      await this.refreshJointPlans(id, clientToday);
     return this.toDto(row);
   }
 
-  async update(userId: string, id: string, input: ProfileUpdate): Promise<Profile> {
+  async update(
+    userId: string,
+    id: string,
+    input: ProfileUpdate,
+    clientToday: string | null = null,
+  ): Promise<Profile> {
     const before = await this.load(userId, id);
     refuseHeldProtein({ ...before, ...input }, before);
     refuseTargetUnderLeast({ ...before, ...input }, before);
@@ -191,6 +223,7 @@ export class ProfilesService {
       },
       include: { preferences: true },
     });
+    if (input.dietType !== before.dietType) await this.refreshJointPlans(id, clientToday);
     return this.toDto(row);
   }
 
@@ -202,7 +235,12 @@ export class ProfilesService {
    * split. A client of before may still send its word about the risk of
    * losing weight: it is taken and ignored.
    */
-  async patch(userId: string, id: string, patch: ProfilePatch): Promise<Profile> {
+  async patch(
+    userId: string,
+    id: string,
+    patch: ProfilePatch,
+    clientToday: string | null = null,
+  ): Promise<Profile> {
     const before = await this.load(userId, id);
     const after = {
       dietType: patch.dietType ?? before.dietType,
@@ -257,6 +295,7 @@ export class ProfilesService {
       },
       include: { preferences: true },
     });
+    if (after.dietType !== before.dietType) await this.refreshJointPlans(id, clientToday);
     return this.toDto(row);
   }
 

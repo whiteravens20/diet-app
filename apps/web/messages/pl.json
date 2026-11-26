@@ -2308,7 +2308,8 @@
       "retarget": "Nowy cel planu",
       "bought-by-weight": "Zakup na wagę",
       "kept": "Zostawione porcje",
-      "joint-removed": "Dodatki zdjęte: plan wspólny usunięty — dzień może odbiegać od podziału, dopóki nie ułożysz go od nowa"
+      "joint-removed": "Dodatki zdjęte: plan wspólny usunięty — dzień może odbiegać od podziału, dopóki nie ułożysz go od nowa",
+      "preferences": "Dodatki zdjęte: nie pasują do zmienionych preferencji"
     }
   },
   "inventory": {

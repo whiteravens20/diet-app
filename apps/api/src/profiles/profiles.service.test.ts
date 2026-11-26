@@ -44,6 +44,8 @@ function makePrisma(row = makeRow(), count = 0) {
       delete: vi.fn().mockResolvedValue(row),
     },
     $queryRaw: vi.fn().mockResolvedValue([]),
+    // No plan made together: a change of the diet or the foods has none to go through.
+    mealPlan: { findMany: vi.fn().mockResolvedValue([]) },
     // A transaction sees the same tables as the client it was begun on.
     $transaction: vi.fn().mockImplementation((work: (tx: unknown) => unknown) => work(prisma)),
   };
@@ -52,8 +54,13 @@ function makePrisma(row = makeRow(), count = 0) {
 
 /** The service of an instance that allows `most` profiles an account. */
 function makeService(prisma: ReturnType<typeof makePrisma>, most = DEFAULT_PROFILES_PER_ACCOUNT) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
-  return new ProfilesService(prisma as any, { get: () => most } as any);
+  /* eslint-disable @typescript-eslint/no-explicit-any -- partial test doubles */
+  return new ProfilesService(
+    prisma as any,
+    { get: () => most } as any,
+    { resizeFrom: vi.fn() } as any,
+  );
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 describe('ProfilesService.create', () => {

@@ -16,6 +16,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, aSwap, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { ProfilesService } from '../profiles/profiles.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -502,6 +503,27 @@ describe('a topping on one plate of a joint plan', () => {
       const history = await t.app.get(MealPlansService).dayHistory(user.id, 'en', adams.id, day.id);
       expect(history.events.map((event) => event.cause)).toContain('joint-removed');
     }
+  });
+
+  it('goes from a plate whose eater may no longer be given it once the profile leaves its food out, and the days say so', async () => {
+    const ewas = await together(ewa, adam);
+    const adams = await read(ewas.joint!.planId);
+    const topped = toppingsOf(adams);
+    expect(topped.length).toBeGreaterThan(0);
+    const food = topped[0]!.meal.topping!.ingredient.ingredientId;
+
+    await t.app
+      .get(ProfilesService)
+      .patchPreferences(user.id, adam.id, { excludedIngredientIds: [food] }, '2026-01-05');
+
+    const after = await read(adams.id);
+    expect(
+      toppingsOf(after).filter(({ meal }) => meal.topping!.ingredient.ingredientId === food),
+    ).toEqual([]);
+    const history = await t.app
+      .get(MealPlansService)
+      .dayHistory(user.id, 'en', adams.id, topped[0]!.day.id);
+    expect(history.events.map((event) => event.cause)).toContain('preferences');
   });
 
   it('is put on no plate of two people the shared dishes suit', async () => {

@@ -8339,6 +8339,16 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "requestBody": {
@@ -8419,6 +8429,16 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           }
         ],
@@ -8611,6 +8631,16 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           }
         ],
@@ -14546,7 +14576,9 @@
           "reroll",
           "retarget",
           "bought-by-weight",
-          "kept"
+          "kept",
+          "joint-removed",
+          "preferences"
         ]
       },
       "DayEventMeal": {
