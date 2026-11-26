@@ -16,7 +16,6 @@ export type CalorieProfile = Pick<
   | 'customProteinPerKg'
   | 'weeklyLossTarget'
   | 'manualCalorieTarget'
-  | 'riskAcknowledgedAt'
   | 'expenditureCorrectionKcal'
 > & { customMacroSplit: unknown };
 
@@ -33,7 +32,6 @@ export function calorieInputOf(profile: CalorieProfile): CalorieEngineInput {
     customProteinPerKg: profile.customProteinPerKg,
     weeklyLossTarget: profile.weeklyLossTarget as CalorieEngineInput['weeklyLossTarget'],
     manualCalorieTarget: profile.manualCalorieTarget,
-    riskAcknowledged: profile.riskAcknowledgedAt !== null,
     expenditureCorrection: profile.expenditureCorrectionKcal ?? 0,
   };
 }

@@ -17,7 +17,7 @@ import {
   DietFields,
   OwnTargetField,
   PaceChoice,
-  RiskBox,
+  RiskNote,
 } from '@/components/profile-fields';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -128,12 +128,7 @@ export default function CalculatorPage() {
                     className="sm:col-span-2"
                   />
                   <OwnTargetField initial={from?.manualCalorieTarget ?? null} />
-                  <RiskBox
-                    reasons={risk}
-                    acknowledged={from?.riskAcknowledgedAt != null}
-                    kept={false}
-                    className="sm:col-span-2"
-                  />
+                  <RiskNote reasons={risk} className="sm:col-span-2" />
                 </form>
               </CardContent>
             </Card>

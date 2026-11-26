@@ -124,6 +124,27 @@ describe("a running plan, once its profile's target moved", () => {
     expect((await retarget(told, 409)).body.error).toBe('PLAN_TARGET_TYPED');
   });
 
+  it('says that no loss is planned any more for somebody under 18, whatever the difference, a typed target too', async () => {
+    // 18 years, 180 cm, 80 kg, moderately active: maintenance 2944, 2952 at 17; a target typed 52 kcal under that.
+    profile = await aProfile(t, user, {
+      age: 18,
+      heightCm: 180,
+      weightKg: 80,
+      weeklyLossTarget: '0.5',
+    });
+    const plan = await made({ ...aWeek, dayOverrides: [], calorieTargetOverride: 2900 });
+    expect(plan.targetMoved).toBeNull();
+
+    await save({ age: 17 });
+    const told = await read(plan);
+    expect(told.targetMoved).toEqual({ profileTarget: 2952, planTarget: 2900 });
+
+    const after = (await retarget(told)).body as MealPlan;
+    expect(after.targetMoved).toBeNull();
+    for (const day of after.days.filter((one) => one.date >= today))
+      expect(day.calorieTarget, day.date).toBe(2950);
+  });
+
   it('takes nothing from a revision of the plan that is not its own', async () => {
     const plan = await made(aWeek);
     await save({ activityLevel: 'light' });

@@ -165,7 +165,6 @@ describe('the figures a calorie target is worked out from before there is a prof
       customProteinPerKg: made.customProteinPerKg,
       weeklyLossTarget: made.weeklyLossTarget,
       manualCalorieTarget: made.manualCalorieTarget,
-      acknowledgeRisk: false,
       // A new profile keeps no correction of its target from its real expenditure.
       expenditureCorrection: 0,
     });

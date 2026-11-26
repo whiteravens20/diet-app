@@ -48,7 +48,6 @@ describe('a plan for the custom diet', () => {
         ...profile,
         id: undefined,
         userId: undefined,
-        riskAcknowledgedAt: undefined,
         createdAt: undefined,
         updatedAt: undefined,
         customMacroSplit,

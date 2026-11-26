@@ -309,7 +309,7 @@ function averageTarget(
 /** What the last working out says of a profile now: a correction kept, or what it would be. */
 function said(profile: Profile, now: string): Expenditure {
   const input = calorieInputOf(profile);
-  const maintenance = calculateMaintenance(calculateBmr(input), input.activityLevel);
+  const maintenance = calculateMaintenance(calculateBmr(input), input);
   const target = calculateCalories(input).dailyTarget;
   const base = {
     days: profile.expenditureDays ?? 0,

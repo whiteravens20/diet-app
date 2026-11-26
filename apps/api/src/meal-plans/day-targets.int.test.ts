@@ -123,9 +123,8 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
         ...over,
       });
 
-    it('is planned maintenance, with the warning, until they say they understand the risk', async () => {
+    it('is planned maintenance, with the warning', async () => {
       const profile = await aMinor();
-      expect(profile.riskAcknowledgedAt).toBeNull();
 
       const held = await calories(profile);
       expect(held).toMatchObject({
@@ -153,32 +152,32 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       expect(targets(plan)).toEqual([toTen(maintenance), toTen(maintenance)]);
     });
 
-    it('gets the goal once they acknowledge it, within the limits everybody has, and can take the word back', async () => {
+    it('is planned no loss whatever a client of before says about the risk', async () => {
       const profile = await aMinor();
 
-      const acknowledged = await save(profile, { acknowledgeRisk: true });
-      expect(acknowledged.riskAcknowledgedAt).not.toBeNull();
-      const applied = await calories(acknowledged);
-      expect(applied).toMatchObject({ goalHeld: false, deficitCapped: true, warnings: ['minor'] });
+      const patched = (
+        await t
+          .http()
+          .patch(`/api/profiles/${profile.id}`)
+          .set(as(user))
+          .send({ acknowledgeRisk: true })
+          .expect(200)
+      ).body as Profile;
+      expect(patched).not.toHaveProperty('riskAcknowledgedAt');
+      expect(await calories(patched)).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
+
+      const saved = await save(profile, { acknowledgeRisk: true });
+      expect(await calories(saved)).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
+    });
+
+    it('is planned the loss once they are neither, within the limits everybody has', async () => {
+      const grownUp = await save(await aMinor(), { age: 18 });
+
+      const applied = await calories(grownUp);
+      expect(applied).toMatchObject({ goalHeld: false, deficitCapped: true, warnings: [] });
       expect(applied.dailyTarget).toBe(
         applied.maintenance - Math.round(applied.maintenance * 0.25),
       );
-
-      // A save that says nothing about it keeps the word; one that says no takes it back.
-      expect((await save(acknowledged, { name: 'Renamed' })).riskAcknowledgedAt).toBe(
-        acknowledged.riskAcknowledgedAt,
-      );
-      expect((await save(acknowledged, { acknowledgeRisk: false })).riskAcknowledgedAt).toBeNull();
-      expect((await calories(acknowledged)).goalHeld).toBe(true);
-    });
-
-    it('has nothing to acknowledge once they are neither: the word is cleared', async () => {
-      const acknowledged = await save(await aMinor(), { acknowledgeRisk: true });
-
-      const grownUp = await save(acknowledged, { age: 18 });
-
-      expect(grownUp.riskAcknowledgedAt).toBeNull();
-      expect(await calories(grownUp)).toMatchObject({ goalHeld: false, warnings: [] });
     });
 
     it('is warned without being held when no loss is asked for', async () => {
@@ -355,17 +354,6 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       });
 
       expect(targets(plan)).toEqual([toTen(2135)]);
-    });
-  });
-
-  it('stores no acknowledgement for somebody who has nothing to acknowledge', async () => {
-    const profile = await aProfile(t, user, { acknowledgeRisk: true });
-
-    expect(profile.riskAcknowledgedAt).toBeNull();
-    expect(await calories(profile)).toMatchObject({
-      goalHeld: false,
-      warnings: [],
-      deficitCapped: false,
     });
   });
 });

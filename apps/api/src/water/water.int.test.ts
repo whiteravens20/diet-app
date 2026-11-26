@@ -137,8 +137,7 @@ describe('the water a profile drinks', () => {
   it("keeps a profile's own target, or none, and leaves it where a client sends none", async () => {
     // The profile as a client sends it back: every part of it but what only the API writes.
     const body: Record<string, unknown> = { ...profile };
-    for (const key of ['id', 'userId', 'createdAt', 'updatedAt', 'riskAcknowledgedAt', 'calories'])
-      delete body[key];
+    for (const key of ['id', 'userId', 'createdAt', 'updatedAt', 'calories']) delete body[key];
     const put = (changes: Record<string, unknown>) =>
       t
         .http()

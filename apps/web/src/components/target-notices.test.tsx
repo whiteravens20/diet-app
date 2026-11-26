@@ -79,7 +79,7 @@ describe('what a user is told about their calorie target', () => {
     ).toMatch(/^Your maintenance is under 1200 kcal/);
   });
 
-  it('is that the goal is on hold and why, for somebody under 18 who has not acknowledged the risk', () => {
+  it('is that the goal is on hold and why, for somebody under 18', () => {
     const lines = told({
       ...plain,
       goalHeld: true,

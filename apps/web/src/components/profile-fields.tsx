@@ -135,7 +135,7 @@ export function BodyFields({
  * The pace of loss, chosen among all of them, each saying what it comes to
  * in a day for the body the form describes (`paces`, in the order of the
  * choices, once they are known). A pace that a limit slowed, or that is held
- * until a risk is acknowledged, says so on its row.
+ * for a body planned no loss, says so on its row.
  */
 export function PaceChoice({
   initial,
@@ -233,22 +233,11 @@ export function OwnTargetField({
 }
 
 /**
- * Why losing weight is a risk for the body a form describes, and the box by
- * which somebody says they understand it. Until it is ticked the goal is
- * kept, and plans follow maintenance. A form that keeps nothing (`kept`
- * false) says what the box does to the figures it shows, and no more.
+ * Why losing weight is a risk for the body a form describes, when a loss is
+ * asked for: no loss is planned for it, and plans follow maintenance. For an
+ * underweight body it says where to turn.
  */
-export function RiskBox({
-  reasons,
-  acknowledged,
-  kept = true,
-  className,
-}: {
-  reasons: Risk[];
-  acknowledged: boolean;
-  kept?: boolean;
-  className?: string;
-}) {
+export function RiskNote({ reasons, className }: { reasons: Risk[]; className?: string }) {
   const t = useTranslations('profile.risk');
   if (reasons.length === 0) return null;
   return (
@@ -258,16 +247,8 @@ export function RiskBox({
       {reasons.map((reason) => (
         <p key={reason}>{t(reason)}</p>
       ))}
-      <p className="text-muted-foreground">{t(kept ? 'held' : 'heldHere')}</p>
-      <label className="flex items-start gap-2 font-medium">
-        <input
-          type="checkbox"
-          name="acknowledgeRisk"
-          className="mt-1"
-          defaultChecked={acknowledged}
-        />
-        {t(kept ? 'acknowledge' : 'acknowledgeHere')}
-      </label>
+      <p className="text-muted-foreground">{t('held')}</p>
+      {reasons.includes('underweight') && <p className="text-muted-foreground">{t('help')}</p>}
     </div>
   );
 }

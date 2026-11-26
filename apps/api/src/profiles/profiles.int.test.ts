@@ -60,7 +60,7 @@ describe('changing a profile', () => {
     Object.fromEntries(Object.entries(from).filter(([part]) => !parts.includes(part)));
   /** What a client that shows every part of the profile sends back. */
   const whole = (): Record<string, unknown> =>
-    without(profile, 'id', 'userId', 'riskAcknowledgedAt', 'createdAt', 'updatedAt');
+    without(profile, 'id', 'userId', 'createdAt', 'updatedAt');
   const put = (body: Record<string, unknown>) =>
     t.http().put(`/api/profiles/${profile.id}`).set(as(user)).send(body);
   const patch = (body: unknown) =>
@@ -427,19 +427,12 @@ describe('changing a profile', () => {
       expect(await stored()).toEqual(profile);
     });
 
-    it('keeps the word given about losing weight while the figures it was given for stay a risk', async () => {
-      const minor: Profile = (await change({ age: 16 }).expect(200)).body;
+    it('takes a word about losing weight from a client of before, and keeps nothing of it', async () => {
+      await change({ age: 16 }).expect(200);
       const given: Profile = (await change({ acknowledgeRisk: true }).expect(200)).body;
-      const heavier: Profile = (await change({ weightKg: 70 }).expect(200)).body;
-      const adult: Profile = (await change({ age: 30 }).expect(200)).body;
-      const minorAgain: Profile = (await change({ age: 17 }).expect(200)).body;
 
-      expect(minor.riskAcknowledgedAt).toBeNull();
-      expect(given.riskAcknowledgedAt).not.toBeNull();
-      expect(heavier.riskAcknowledgedAt).toBe(given.riskAcknowledgedAt);
-      // Grown up, there is nothing to have said; a minor again has to say it again.
-      expect(adult.riskAcknowledgedAt).toBeNull();
-      expect(minorAgain.riskAcknowledgedAt).toBeNull();
+      expect(given).not.toHaveProperty('riskAcknowledgedAt');
+      expect(given).toEqual({ ...(await stored()), updatedAt: given.updatedAt });
     });
 
     it("is not for another account's profile", async () => {
@@ -610,19 +603,16 @@ describe('the calorie target that figures somebody typed would come to', () => {
     ['under 18', { ...TYPED, age: 16 }, 'minor'],
     ['underweight', { ...TYPED, weightKg: 55 }, 'underweight'],
   ])(
-    'holds the goal of somebody %s at maintenance until they say they understand the risk',
+    'holds the goal of somebody %s at maintenance, whatever a client of before says about the risk',
     async (_who, typed, risk) => {
       const held = (await preview(typed).expect(200)).body.calculation;
-      const acknowledged = (await preview({ ...typed, acknowledgeRisk: true }).expect(200)).body
+      const said = (await preview({ ...typed, acknowledgeRisk: true }).expect(200)).body
         .calculation;
 
       expect(held).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
       expect(held.dailyTarget).toBe(held.maintenance);
       expect(held.warnings).toContain(risk);
-      expect(acknowledged).toMatchObject({ goalHeld: false, maintenance: held.maintenance });
-      expect(acknowledged.dailyTarget).toBeLessThan(held.maintenance);
-      // The risk is said either way.
-      expect(acknowledged.warnings).toContain(risk);
+      expect(said).toEqual(held);
     },
   );
 

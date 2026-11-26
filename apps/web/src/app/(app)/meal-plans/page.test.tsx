@@ -53,7 +53,6 @@ const profile: Profile = {
   dietType: 'vegan',
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
-  riskAcknowledgedAt: null,
   mealCount: 4,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,

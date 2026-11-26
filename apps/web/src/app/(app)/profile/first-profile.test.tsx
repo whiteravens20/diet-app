@@ -195,7 +195,6 @@ describe('the figures beside the steps of a first profile', () => {
       customProteinPerKg: null,
       weeklyLossTarget: '0.5',
       manualCalorieTarget: null,
-      acknowledgeRisk: false,
       expenditureCorrection: 0,
     });
   });
@@ -370,30 +369,28 @@ describe('somebody for whom losing weight is a risk, on the steps of a first pro
     vi.restoreAllMocks();
   });
 
-  it('is told so where the pace is chosen, and the goal is sent as not acknowledged until the box is ticked', async () => {
+  it('is told where the pace is chosen that no loss is planned, and sends the goal with no word about a risk', async () => {
     const { sent } = open();
     await aBody({ age: '16' });
     await next();
 
     expect(screen.getByText(plain(texts.risk.minor))).toBeInTheDocument();
     expect(screen.getByText(texts.risk.held)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /risk/i })).toBeNull();
     await next();
     await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
 
-    expect(sent()).toMatchObject({ age: 16, weeklyLossTarget: '0.5', acknowledgeRisk: false });
+    expect(sent()).toMatchObject({ age: 16, weeklyLossTarget: '0.5' });
+    expect(sent()).not.toHaveProperty('acknowledgeRisk');
   });
 
-  it('sends the goal as acknowledged once the box is ticked, and sees what that comes to before the profile is made', async () => {
-    const { sent, asked } = open();
-    await aBody({ age: '16' });
+  it('is told where to turn when the body is underweight', async () => {
+    open();
+    await aBody({ age: '25', weight: '45' });
     await next();
 
-    await userEvent.click(screen.getByRole('checkbox', { name: texts.risk.acknowledge }));
-    await vi.waitFor(() => expect(asked()).toMatchObject({ age: 16, acknowledgeRisk: true }));
-    await next();
-    await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
-
-    expect(sent()).toMatchObject({ acknowledgeRisk: true });
+    expect(screen.getByText(plain(texts.risk.underweight))).toBeInTheDocument();
+    expect(screen.getByText(texts.risk.help)).toBeInTheDocument();
   });
 
   it('is told nothing, and sends no word about a risk, when the goal is to keep the weight', async () => {

@@ -8,6 +8,7 @@
  * calculation is deterministic.
  */
 import {
+  ADULT_AGE,
   KCAL_PER_GRAM,
   MIN_CALORIE_TARGET,
   proteinShareBounds,
@@ -84,8 +85,6 @@ export interface CalorieEngineInput {
   customProteinPerKg?: number | null;
   weeklyLossTarget: '0.25' | '0.5' | '0.75' | '1.0' | null;
   manualCalorieTarget: number | null;
-  /** Whether a profile that is under 18 or underweight has said it understands the risk of losing weight. */
-  riskAcknowledged: boolean;
   /**
    * The correction of the formula's maintenance a profile accepted from its real expenditure, in kcal a
    * day (`Expenditure`); nothing where it accepted none.
@@ -110,9 +109,20 @@ export function calculateBmr(
   return round(base + sexOffset);
 }
 
-/** Maintenance calories (TDEE) = BMR × activity multiplier. */
-export function calculateMaintenance(bmr: number, activityLevel: ActivityLevel): number {
-  return round(bmr * ACTIVITY_MULTIPLIER[activityLevel]);
+/**
+ * Maintenance calories (TDEE) = BMR × activity multiplier. Under 18 the
+ * multiplier is at least moderate activity's: the Polish norms of 2024 give
+ * the young of 10 to 18 years a physical activity level of 1.6, 1.8 or 2.0,
+ * none lower, since a growing body uses more than a sitting adult.
+ */
+export function calculateMaintenance(
+  bmr: number,
+  body: { activityLevel: ActivityLevel; age: number },
+): number {
+  const multiplier = ACTIVITY_MULTIPLIER[body.activityLevel];
+  return round(
+    bmr * (body.age < ADULT_AGE ? Math.max(multiplier, ACTIVITY_MULTIPLIER.moderate) : multiplier),
+  );
 }
 
 /** Daily kcal deficit implied by a weekly fat-loss target. */
@@ -353,31 +363,32 @@ export function filledMacros(calories: number, known: Partial<Macros>, split: Ma
  * the floor, no loss is planned. A target somebody typed is taken as it is,
  * and flagged when it is under the floor or under the basal rate.
  *
- * Somebody under 18 or underweight who asks to lose weight (by a pace, or by
- * a typed target under maintenance) is planned maintenance until they have
- * said they understand the risk.
+ * Somebody under 18 or underweight is planned no loss: a pace, or a typed
+ * target under maintenance, is held at maintenance.
  */
 export function calculateCalories(input: CalorieEngineInput): CalorieCalculation {
   const bmr = calculateBmr(input);
-  // The formula's maintenance, moved by what the diary and the weights showed the body really uses, where
-  // the profile accepted that.
-  const maintenance =
-    calculateMaintenance(bmr, input.activityLevel) + (input.expenditureCorrection ?? 0);
+  // The formula's maintenance, and that moved by what the diary and the weights showed the body really uses,
+  // where the profile accepted that.
+  const formula = calculateMaintenance(bmr, input);
+  const maintenance = formula + (input.expenditureCorrection ?? 0);
   const requestedDeficit = deficitForWeeklyTarget(input.weeklyLossTarget);
   const floor = safetyFloor(input.sex);
   const manual = input.manualCalorieTarget;
   const source: CalorieCalculation['source'] = manual === null ? 'calculated' : 'manual_override';
 
   const atRisk = riskOfLosingWeight(input);
-  const asksForLoss = manual === null ? requestedDeficit > 0 : manual < maintenance;
-  const goalHeld = atRisk.length > 0 && asksForLoss && !input.riskAcknowledged;
+  // A body planned no loss is held at the more of its two maintenances: a deficit by neither.
+  const kept = Math.max(maintenance, formula);
+  const asksForLoss = manual === null ? requestedDeficit > 0 : manual < kept;
+  const goalHeld = atRisk.length > 0 && asksForLoss;
 
   let dailyTarget: number;
   let deficitCapped = false;
   let safetyFloorApplied = false;
   let maintenanceUnderFloor = false;
   if (goalHeld) {
-    dailyTarget = maintenance;
+    dailyTarget = kept;
   } else if (manual !== null) {
     dailyTarget = manual;
   } else {

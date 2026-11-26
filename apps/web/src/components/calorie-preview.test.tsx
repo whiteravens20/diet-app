@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CaloriePreviewRequest } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { aPreview } from '@/testing/calories';
+import { plain } from '@/testing/spaces';
 import messages from '../../messages/en.json';
 import { CaloriePreviewPanel, useCaloriePreview } from './calorie-preview';
 
@@ -23,7 +24,6 @@ const figures = (over: Partial<CaloriePreviewRequest> = {}): CaloriePreviewReque
   customProteinPerKg: null,
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
-  acknowledgeRisk: false,
   expenditureCorrection: 0,
   ...over,
 });
@@ -214,7 +214,7 @@ describe('what the figures of a form come to', () => {
     show(figures({ age: 16 }));
     await pass(500);
 
-    expect(screen.getByText(texts.held)).toBeInTheDocument();
+    expect(screen.getByText(plain(texts.held))).toBeInTheDocument();
     expect(screen.queryByText(texts.atMaintenance)).toBeNull();
   });
 

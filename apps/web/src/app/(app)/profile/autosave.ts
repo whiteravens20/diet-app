@@ -52,7 +52,6 @@ type Part =
   | 'waterTracking'
   | 'waterTarget'
   | 'manualCalorieTarget'
-  | 'acknowledgeRisk'
   | 'weightReminderCadence'
   | 'cookingReminders'
   | 'waterReminders'
@@ -101,7 +100,6 @@ const OWN_PARTS: ReadonlySet<string> = new Set<Part>([
   'waterTracking',
   'waterTarget',
   'manualCalorieTarget',
-  'acknowledgeRisk',
   'weightReminderCadence',
   'cookingReminders',
   'waterReminders',
@@ -164,8 +162,6 @@ function changeOf(part: Part, fields: FormData, kept: Profile, unit: WeightUnit)
       return own({ cookingReminders: fields.get('cookingReminders') === 'on' });
     case 'waterReminders':
       return own({ waterReminders: fields.get('waterReminders') === 'on' });
-    case 'acknowledgeRisk':
-      return own({ acknowledgeRisk: fields.get('acknowledgeRisk') === 'on' });
     case 'waterTarget':
       return own({ waterTargetMl: numberOrNull(fields.get('waterTarget')) });
     case 'manualCalorieTarget':

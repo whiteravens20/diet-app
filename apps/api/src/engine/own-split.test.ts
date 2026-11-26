@@ -93,7 +93,6 @@ describe('the target of a profile on the custom diet with protein per kilogram',
     customProteinPerKg: 1.6,
     weeklyLossTarget: null,
     manualCalorieTarget: 2000,
-    riskAcknowledged: false,
     ...over,
   });
 

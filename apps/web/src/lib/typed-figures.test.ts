@@ -39,7 +39,6 @@ describe('the figures a profile form holds, as a calorie target is worked out fr
       customProteinPerKg: null,
       weeklyLossTarget: '0.25',
       manualCalorieTarget: null,
-      acknowledgeRisk: false,
       expenditureCorrection: 0,
     });
   });
@@ -110,10 +109,6 @@ describe('the figures a profile form holds, as a calorie target is worked out fr
       figuresIn(aForm({ ...TYPED, dietType: 'custom', ...split }), 'kg')?.customMacroSplit,
     ).toEqual({ protein: 30, fat: 40, carbs: 30 });
     expect(figuresIn(aForm({ ...TYPED, ...split }), 'kg')?.customMacroSplit).toBeNull();
-  });
-
-  it('say whether the risk of losing weight was acknowledged', () => {
-    expect(figuresIn(aForm({ ...TYPED, acknowledgeRisk: 'on' }), 'kg')?.acknowledgeRisk).toBe(true);
   });
 });
 

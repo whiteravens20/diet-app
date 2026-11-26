@@ -37,7 +37,7 @@ import {
   DietFields,
   OwnTargetField,
   PaceChoice,
-  RiskBox,
+  RiskNote,
 } from '@/components/profile-fields';
 import {
   OWN_TARGETS_REFUSED,
@@ -228,8 +228,6 @@ export default function ProfilePage() {
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
         : null,
-      // Sent only by a form that showed the warning: ticked is yes, not ticked takes the word back.
-      ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
       cookingReminders: f.get('cookingReminders') === 'on',
@@ -497,11 +495,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 {editing && <KeptCorrection profile={editing} />}
-                <RiskBox
-                  reasons={risk}
-                  acknowledged={editing?.riskAcknowledgedAt != null}
-                  className="sm:col-span-2"
-                />
+                <RiskNote reasons={risk} className="sm:col-span-2" />
                 <Field
                   label={t('weightReminderCadence')}
                   hint={t('weightReminderCadenceHint')}

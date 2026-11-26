@@ -105,7 +105,6 @@ const PROFILE = {
   customProteinPerKg: true,
   weeklyLossTarget: true,
   manualCalorieTarget: true,
-  riskAcknowledgedAt: true,
   expenditureCorrectionKcal: true,
   preferences: {
     select: {

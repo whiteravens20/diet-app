@@ -1,15 +1,19 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { WeeklyLossTarget } from '@diet-app/shared';
-import { calculateCalories, type CalorieEngineInput } from '../engine/index.js';
+import {
+  calculateBmr,
+  calculateCalories,
+  calculateMaintenance,
+  type CalorieEngineInput,
+} from '../engine/index.js';
 
 /** What a plan's base target is worked out from, of a profile. */
 export type BaseProfile = Omit<
   CalorieEngineInput,
-  'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit' | 'expenditureCorrection'
+  'weeklyLossTarget' | 'customMacroSplit' | 'expenditureCorrection'
 > & {
   weeklyLossTarget: string | null;
-  riskAcknowledgedAt: Date | null;
   expenditureCorrectionKcal: number | null;
 };
 
@@ -22,7 +26,10 @@ export interface PlanBase {
   /** Worked out by the engine, not typed by somebody. */
   calculated: boolean;
   floor: number;
-  /** Maintenance, when the profile's loss goal is held: no day goes under it by a target of its own. */
+  /**
+   * Maintenance, for a profile planned no loss (under 18 or underweight): no day goes under it by a target of its
+   * own. The more of the formula's and the corrected one, as the engine holds the profile's target.
+   */
   holdUnder: number | null;
 }
 
@@ -31,7 +38,6 @@ export interface PlanBase {
  * target typed for the plan stands in for the one typed on the profile.
  */
 export function planBaseOf(profile: BaseProfile, typedForThePlan?: number): PlanBase {
-  const riskAcknowledged = profile.riskAcknowledgedAt !== null;
   const calories = calculateCalories({
     age: profile.age,
     sex: profile.sex,
@@ -41,7 +47,6 @@ export function planBaseOf(profile: BaseProfile, typedForThePlan?: number): Plan
     dietType: profile.dietType,
     weeklyLossTarget: profile.weeklyLossTarget as WeeklyLossTarget | null,
     manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
-    riskAcknowledged,
     expenditureCorrection: profile.expenditureCorrectionKcal ?? 0,
   });
   const atRisk = calories.warnings.includes('minor') || calories.warnings.includes('underweight');
@@ -50,6 +55,8 @@ export function planBaseOf(profile: BaseProfile, typedForThePlan?: number): Plan
     // A goal that is held is planned as maintenance, which the engine worked out.
     calculated: calories.source === 'calculated' || calories.goalHeld,
     floor: calories.safetyFloor,
-    holdUnder: atRisk && !riskAcknowledged ? calories.maintenance : null,
+    holdUnder: atRisk
+      ? Math.max(calories.maintenance, calculateMaintenance(calculateBmr(profile), profile))
+      : null,
   };
 }

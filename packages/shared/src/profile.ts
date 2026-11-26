@@ -235,13 +235,6 @@ const SPLIT_MISSING = {
   message: 'The custom diet needs its split of protein, fat and carbohydrate.',
 };
 
-/**
- * Sent as true by somebody under 18 or underweight who asks to lose weight
- * and has read the warning. Without it the goal is stored but planned as
- * maintenance (`CalorieCalculation.goalHeld`). Nothing for anybody else.
- */
-const acknowledgeRisk = z.boolean().optional();
-
 /** What a new profile holds. What a request leaves out starts at a default. */
 const newProfile = z.object({
   name: profileFields.name,
@@ -256,7 +249,6 @@ const newProfile = z.object({
   dietType: profileFields.dietType.default('balanced'),
   weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
   manualCalorieTarget: profileFields.manualCalorieTarget.default(null),
-  acknowledgeRisk,
   mealCount: profileFields.mealCount.default(3),
   weightReminderCadence: profileFields.weightReminderCadence.default('weekly'),
   cookingReminders: profileFields.cookingReminders.default(true),
@@ -279,7 +271,6 @@ export type ProfileInput = z.infer<typeof ProfileInput>;
 export const ProfileUpdate = z
   .object({
     ...profileFields,
-    acknowledgeRisk,
     // The target of water came after the clients that send every other part: left out, it stays
     // as it is.
     waterTargetMl: profileFields.waterTargetMl.optional(),
@@ -302,11 +293,12 @@ export type ProfileUpdate = z.infer<typeof ProfileUpdate>;
  * keeps each change as it is made sends it: what is sent replaces what was
  * there, and what is left out stays as it is. The profile it makes is held to
  * what a whole one is: on the custom diet it has its split. Its preferences
- * change through `ProfilePreferencesPatch`. `acknowledgeRisk` left out keeps
- * the word the profile gave, while the goal it was given for stays a risk.
+ * change through `ProfilePreferencesPatch`. `acknowledgeRisk` is taken and
+ * ignored: a client of before sends it, and no word lets a loss be planned
+ * for a body under 18 or underweight any more.
  */
 export const ProfilePatch = z
-  .object({ ...profileFields, acknowledgeRisk })
+  .object({ ...profileFields, acknowledgeRisk: z.boolean().optional() })
   .partial()
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, {
@@ -317,9 +309,7 @@ export type ProfilePatch = z.infer<typeof ProfilePatch>;
 /**
  * What the calorie target of somebody is worked out from, for a client that
  * wants the figures before there is a profile, or without changing one: the
- * parts of a profile the engine reads. Nothing is kept. `acknowledgeRisk`
- * says whether somebody under 18 or underweight who asks to lose weight has
- * said they understand the risk; without it their goal is held.
+ * parts of a profile the engine reads. Nothing is kept.
  */
 export const CaloriePreviewRequest = z
   .object({
@@ -333,7 +323,6 @@ export const CaloriePreviewRequest = z
     customProteinPerKg: profileFields.customProteinPerKg.default(null),
     weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
     manualCalorieTarget: profileFields.manualCalorieTarget.default(null),
-    acknowledgeRisk: z.boolean().default(false),
     /** The correction a profile keeps from its real expenditure, for the form of that profile; nothing for a new one. */
     expenditureCorrection: z.number().int().min(-5000).max(5000).default(0),
   })
@@ -357,11 +346,9 @@ export const CaloriePreview = z.object({
 export type CaloriePreview = z.infer<typeof CaloriePreview>;
 
 /** Persisted profile as returned by the API. */
-export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
+export const Profile = newProfile.extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
-  /** When the risk of losing weight was acknowledged, for a profile that needs it. */
-  riskAcknowledgedAt: z.string().datetime().nullable(),
   /** The correction of the formula's maintenance accepted from the real expenditure, in kcal a day; null for none (`Expenditure`). */
   expenditureCorrectionKcal: z.number().int().nullable(),
   /**

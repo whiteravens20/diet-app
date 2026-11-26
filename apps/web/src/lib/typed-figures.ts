@@ -36,7 +36,6 @@ export function figuresOf(kept: Profile): CaloriePreviewRequest {
     customProteinPerKg: kept.customProteinPerKg,
     weeklyLossTarget: kept.weeklyLossTarget,
     manualCalorieTarget: kept.manualCalorieTarget,
-    acknowledgeRisk: kept.riskAcknowledgedAt !== null,
     expenditureCorrection: kept.expenditureCorrectionKcal ?? 0,
   };
 }
@@ -102,7 +101,6 @@ export function figuresIn(
         : null,
     weeklyLossTarget: fields.get('weeklyLossTarget') || null,
     manualCalorieTarget: typed(fields, 'manualCalorieTarget') ?? null,
-    acknowledgeRisk: fields.get('acknowledgeRisk') === 'on',
   });
   return asked.success ? asked.data : null;
 }

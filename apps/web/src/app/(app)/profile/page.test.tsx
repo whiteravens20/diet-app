@@ -35,7 +35,6 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   dietType: 'balanced',
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
-  riskAcknowledgedAt: null,
   mealCount: 3,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,
@@ -879,7 +878,6 @@ describe('the profile form, on what its figures come to', () => {
         heightCm: 180,
         weightKg: 80,
         weeklyLossTarget: '0.25',
-        acknowledgeRisk: false,
       }),
     );
     const paces = within(screen.getByRole('group', { name: texts.pace })).getAllByRole('radio');

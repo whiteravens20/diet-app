@@ -22,7 +22,6 @@ import {
   type LabelLimits,
   type ProfilePreferencesPatch,
   type ProfileUpdate,
-  riskOfLosingWeight,
   TARGET_REACHED_LATER_DAYS,
   WeightReminderCadence,
 } from '@diet-app/shared';
@@ -46,21 +45,6 @@ import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
-/**
- * When the risk of losing weight counts as acknowledged, after this save.
- * Only somebody under 18 or underweight has anything to acknowledge: for
- * anybody else the time is cleared. Sent as true it is set (and an earlier
- * time kept), sent as false it is withdrawn, not sent it stays as it was.
- */
-function acknowledgedAt(
-  input: { age: number; heightCm: number; weightKg: number; acknowledgeRisk?: boolean },
-  before: Date | null,
-): Date | null {
-  if (riskOfLosingWeight(input).length === 0) return null;
-  if (input.acknowledgeRisk === undefined) return before;
-  return input.acknowledgeRisk ? (before ?? new Date()) : null;
-}
-
 @Injectable()
 export class ProfilesService {
   constructor(
@@ -82,7 +66,7 @@ export class ProfilesService {
   }
 
   async create(userId: string, input: ProfileInput): Promise<Profile> {
-    refuseHeldProtein({ ...input, expenditureCorrectionKcal: null, riskAcknowledgedAt: null });
+    refuseHeldProtein({ ...input, expenditureCorrectionKcal: null });
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
       // The instance's own number. An account that holds more than a lowered number keeps what it has.
@@ -109,7 +93,6 @@ export class ProfilesService {
           dietType: input.dietType,
           weeklyLossTarget: input.weeklyLossTarget,
           manualCalorieTarget: input.manualCalorieTarget,
-          riskAcknowledgedAt: acknowledgedAt(input, null),
           customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
           customProteinPerKg: input.customProteinPerKg,
           mealCount: input.mealCount,
@@ -152,10 +135,7 @@ export class ProfilesService {
 
   async update(userId: string, id: string, input: ProfileUpdate): Promise<Profile> {
     const before = await this.load(userId, id);
-    refuseHeldProtein(
-      { ...before, ...input, riskAcknowledgedAt: before.riskAcknowledgedAt },
-      before,
-    );
+    refuseHeldProtein({ ...before, ...input }, before);
     const row = await this.prisma.profile.update({
       where: { id },
       data: {
@@ -172,7 +152,6 @@ export class ProfilesService {
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
-        riskAcknowledgedAt: acknowledgedAt(input, before.riskAcknowledgedAt),
         customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
         customProteinPerKg: input.customProteinPerKg,
         mealCount: input.mealCount,
@@ -199,8 +178,8 @@ export class ProfilesService {
    * Its preferences stay as they are, so a change of the profile sent while
    * another of its preferences was on its way takes nothing back. The profile
    * it makes is held to what a whole one is: on the custom diet it has its
-   * split. The word given about the risk of losing weight goes by the figures
-   * the profile has after the change.
+   * split. A client of before may still send its word about the risk of
+   * losing weight: it is taken and ignored.
    */
   async patch(userId: string, id: string, patch: ProfilePatch): Promise<Profile> {
     const before = await this.load(userId, id);
@@ -239,7 +218,9 @@ export class ProfilesService {
       { ...before, ...patch, customMacroSplit: after.customMacroSplit, customProteinPerKg },
       before,
     );
-    const { acknowledgeRisk, customMacroSplit, ...parts } = patch;
+    const { customMacroSplit, ...parts } = patch;
+    // A client of before may still send its word about the risk of losing weight: it is no part of the profile.
+    delete parts.acknowledgeRisk;
     const row = await this.prisma.profile.update({
       where: { id },
       data: {
@@ -248,10 +229,6 @@ export class ProfilesService {
           ? {}
           : { customMacroSplit: customMacroSplit ?? Prisma.JsonNull }),
         customProteinPerKg,
-        riskAcknowledgedAt: acknowledgedAt(
-          { ...after, acknowledgeRisk },
-          before.riskAcknowledgedAt,
-        ),
       },
       include: { preferences: true },
     });
@@ -326,7 +303,6 @@ export class ProfilesService {
       dietType: typed.dietType,
       customMacroSplit: sharesOf(typed.customMacroSplit),
       customProteinPerKg: typed.customProteinPerKg,
-      riskAcknowledged: typed.acknowledgeRisk,
       expenditureCorrection: typed.expenditureCorrection,
     };
     return {
@@ -369,7 +345,6 @@ export class ProfilesService {
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
     manualCalorieTarget: number | null;
-    riskAcknowledgedAt: Date | null;
     customMacroSplit: unknown;
     customProteinPerKg: number | null;
     mealCount: number;
@@ -421,7 +396,6 @@ export class ProfilesService {
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: row.manualCalorieTarget,
-      riskAcknowledgedAt: row.riskAcknowledgedAt?.toISOString() ?? null,
       mealCount: row.mealCount,
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
       cookingReminders: row.cookingReminders,

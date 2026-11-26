@@ -24,7 +24,7 @@ import {
   DietFields,
   OwnTargetField,
   PaceChoice,
-  RiskBox,
+  RiskNote,
 } from '@/components/profile-fields';
 import {
   OWN_TARGETS_REFUSED,
@@ -140,8 +140,6 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
         : null,
-      // Sent only by a form that showed the warning: ticked is yes, not ticked is no.
-      ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence: 'weekly' satisfies WeightReminderCadence,
       // A new profile is reminded of cooking ahead and not of water; the profile's page changes either.
@@ -221,7 +219,7 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <legend className="sr-only">{tWizard('steps.goal')}</legend>
               <p className="text-sm text-muted-foreground">{tWizard('goalLead')}</p>
               <PaceChoice initial="0.5" paces={shown.preview?.paces} unit={unit} />
-              <RiskBox reasons={risk} acknowledged={false} />
+              <RiskNote reasons={risk} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')} optional>
                   <Input

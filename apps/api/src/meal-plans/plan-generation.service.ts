@@ -438,7 +438,9 @@ export class PlanGenerationService {
    * has now, and each day from today that is not skipped gets the target that
    * comes of it by its kind and its week, or keeps its own, the same dishes
    * in other portions. Days before today stay as they were. A plan whose
-   * target was typed for it has nothing to take.
+   * target was typed for it has nothing to take, unless the profile is planned
+   * no loss (under 18 or underweight): then the typed target is held at its
+   * maintenance as a new plan's would be.
    */
   async retarget(
     userId: string,
@@ -460,14 +462,14 @@ export class PlanGenerationService {
       });
     }
     const made = PlanOptions.parse(plan.options);
-    if (made.calorieTargetOverride !== null) {
+    const base = this.planBase(plan.profile, made.calorieTargetOverride ?? undefined);
+    if (made.calorieTargetOverride !== null && base.holdUnder === null) {
       throw new ConflictException({
         error: 'PLAN_TARGET_TYPED',
         message: 'This plan keeps the target typed for it; the profile has none to give it.',
       });
     }
     const today = clientToday ?? this.today();
-    const base = this.planBase(plan.profile);
     const scales = weekScales(plan.days.map(asWeekDay));
     const moved = plan.days.flatMap((day, index) => {
       if (isoDate(day.date) < today || isSkipped(day)) return [];

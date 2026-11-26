@@ -38,7 +38,6 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   dietType: 'balanced',
   weeklyLossTarget: '0.5',
   manualCalorieTarget: null,
-  riskAcknowledgedAt: null,
   mealCount: 3,
   weightReminderCadence: 'weekly',
   customMacroSplit: null,
@@ -217,17 +216,15 @@ describe('the calculator', () => {
     expect(screen.getByText(messages.caloriePreview.pending)).toBeInTheDocument();
   });
 
-  it('tells somebody for whom losing weight is a risk what the figures show until they say they understand it', async () => {
+  it('tells somebody for whom losing weight is a risk that no loss is planned, with nothing to tick', async () => {
     const { asked } = await open([aProfile('Anna', { age: 16 })]);
 
     expect(screen.getByText(plain(fields.risk.minor))).toBeInTheDocument();
-    expect(screen.getByText(fields.risk.heldHere)).toBeInTheDocument();
+    expect(screen.getByText(fields.risk.held)).toBeInTheDocument();
     await screen.findByText('2209 kcal');
-    expect(asked()).toMatchObject({ acknowledgeRisk: false });
-
-    await userEvent.click(screen.getByRole('checkbox', { name: fields.risk.acknowledgeHere }));
-
-    await vi.waitFor(() => expect(asked()).toMatchObject({ age: 16, acknowledgeRisk: true }));
+    expect(asked()).toMatchObject({ age: 16 });
+    expect(asked()).not.toHaveProperty('acknowledgeRisk');
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });
 

@@ -103,7 +103,6 @@ export class AccountExportService {
           ...profile
         }) => ({
           ...profile,
-          riskAcknowledgedAt: profile.riskAcknowledgedAt?.toISOString() ?? null,
           createdAt: profile.createdAt.toISOString(),
           updatedAt: profile.updatedAt.toISOString(),
           preferences: preferences

@@ -160,9 +160,9 @@ describe('fibre, sugars, salt and saturated fat', () => {
     expect(set.preferences.labelLimits).toEqual(limits);
 
     // A whole profile as a client from before the limits sends it.
-    const { id, userId, riskAcknowledgedAt, createdAt, updatedAt, ...rest } = set;
+    const { id, userId, createdAt, updatedAt, ...rest } = set;
     const { labelLimits, ...preferences } = rest.preferences;
-    expect([id, userId, riskAcknowledgedAt, createdAt, updatedAt, labelLimits]).toBeDefined();
+    expect([id, userId, createdAt, updatedAt, labelLimits]).toBeDefined();
     const saved: Profile = (
       await t
         .http()

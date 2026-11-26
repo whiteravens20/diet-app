@@ -244,8 +244,15 @@ describe('calculateBmr (Mifflin-St Jeor)', () => {
 describe('calculateMaintenance', () => {
   it('applies the activity multiplier', () => {
     // EFSA's levels of physical activity: a sedentary life 1.4, a moderately active one 1.6.
-    expect(calculateMaintenance(1780, 'moderate')).toBe(2848); // 1780 * 1.6
-    expect(calculateMaintenance(1780, 'sedentary')).toBe(2492); // 1780 * 1.4
+    expect(calculateMaintenance(1780, { activityLevel: 'moderate', age: 30 })).toBe(2848); // 1780 * 1.6
+    expect(calculateMaintenance(1780, { activityLevel: 'sedentary', age: 30 })).toBe(2492); // 1780 * 1.4
+  });
+
+  it('counts activity from moderate on under 18, and as it is said above that', () => {
+    expect(calculateMaintenance(1500, { activityLevel: 'sedentary', age: 17 })).toBe(2400); // 1500 * 1.6
+    expect(calculateMaintenance(1500, { activityLevel: 'light', age: 13 })).toBe(2400);
+    expect(calculateMaintenance(1500, { activityLevel: 'active', age: 16 })).toBe(2700); // 1500 * 1.8
+    expect(calculateMaintenance(1500, { activityLevel: 'sedentary', age: 18 })).toBe(2100); // 1500 * 1.4
   });
 });
 
@@ -281,7 +288,6 @@ describe('calculateCalories', () => {
     dietType: 'balanced',
     weeklyLossTarget: '0.5',
     manualCalorieTarget: null,
-    riskAcknowledged: false,
     ...over,
   });
 
@@ -465,7 +471,7 @@ describe('calculateCalories', () => {
         ...over,
       });
 
-    it('warns, and holds a loss goal at maintenance until the risk is acknowledged', () => {
+    it('warns, and holds a loss goal at maintenance: no loss is planned', () => {
       for (const [input, warning] of [
         [minor(), 'minor'],
         [underweight(), 'underweight'],
@@ -476,19 +482,31 @@ describe('calculateCalories', () => {
           goalHeld: true,
           dailyTarget: r.maintenance,
           dailyDeficit: 0,
+          deficitCapped: false,
           warnings: [warning],
         });
         expect(r.requestedDeficit).toBeGreaterThan(0);
       }
     });
 
-    it('applies the goal once it is acknowledged, and still warns', () => {
-      const r = calculateCalories(minor({ riskAcknowledged: true }));
-
-      expect(r.goalHeld).toBe(false);
-      expect(r.dailyTarget).toBeLessThan(r.maintenance);
-      expect(r.dailyTarget).toBeGreaterThanOrEqual(r.safetyFloor);
-      expect(r.warnings).toContain('minor');
+    it('holds a woman of 30 at a body-mass index of 17, and a girl of 13, at their maintenance', () => {
+      // 165 cm, 46.3 kg, sedentary: BMR 1183, maintenance 1183 × 1.4 = 1656.
+      expect(
+        calculateCalories(
+          underweight({ age: 30, heightCm: 165, weightKg: 46.3, activityLevel: 'sedentary' }),
+        ),
+      ).toMatchObject({ goalHeld: true, maintenance: 1656, dailyTarget: 1656 });
+      // 155 cm, 44.5 kg (BMI 18.5), sedentary: BMR 1188, counted at moderate activity: 1188 × 1.6 = 1901.
+      expect(
+        calculateCalories(
+          minor({ age: 13, heightCm: 155, weightKg: 44.5, activityLevel: 'sedentary' }),
+        ),
+      ).toMatchObject({
+        goalHeld: true,
+        maintenance: 1901,
+        dailyTarget: 1901,
+        warnings: ['minor'],
+      });
     });
 
     it('holds a typed target under maintenance the same way, and leaves one at or above it alone', () => {
@@ -503,9 +521,21 @@ describe('calculateCalories', () => {
       expect(
         calculateCalories(underweight({ manualCalorieTarget: maintenance + 200 })),
       ).toMatchObject({ goalHeld: false, dailyTarget: maintenance + 200 });
+    });
+
+    it('holds at the maintenance of the formula where a correction from the real expenditure would take it lower', () => {
+      const formula = calculateCalories(underweight()).maintenance;
+      const corrected = calculateCalories(underweight({ expenditureCorrection: -300 }));
+
+      expect(corrected).toMatchObject({ goalHeld: true, dailyTarget: formula });
+      // A typed target under it is held there too.
       expect(
-        calculateCalories(underweight({ manualCalorieTarget: 1200, riskAcknowledged: true })),
-      ).toMatchObject({ goalHeld: false, dailyTarget: 1200 });
+        calculateCalories(underweight({ manualCalorieTarget: 1200, expenditureCorrection: -300 })),
+      ).toMatchObject({ goalHeld: true, dailyTarget: formula });
+      // A correction upwards is the body's maintenance, and it is held there.
+      expect(calculateCalories(underweight({ expenditureCorrection: 200 })).dailyTarget).toBe(
+        formula + 200,
+      );
     });
 
     it('holds nothing where no loss is asked for', () => {

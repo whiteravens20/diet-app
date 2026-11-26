@@ -3002,12 +3002,10 @@
     "dislikedKin": "Add as well:",
     "avoidKin": "Avoid as well:",
     "risk": {
-      "minor": "Under 18\u00a0the figures of this application are an approximation, and losing weight is something to do with a doctor.",
-      "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
-      "held": "Until the box below is ticked, the goal is saved but plans follow maintenance.",
-      "acknowledge": "I understand the risk and want plans made for this goal.",
-      "heldHere": "Until the box below is ticked, the figures show maintenance: that is what plans would follow.",
-      "acknowledgeHere": "I understand the risk: show what this goal comes to."
+      "minor": "Under 18\u00a0the application plans no loss: the target is keeping the weight, and the activity level counts as “Moderate” at least. The figures come from an equation for adults and are an approximation, and losing weight at this age is something to do with a doctor.",
+      "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you, so the application plans no loss.",
+      "held": "The goal is saved, but plans follow maintenance.",
+      "help": "If controlling food has become a way to cope with feelings, talk to a doctor."
     },
     "labelLimits": "Limits from labels",
     "labelLimitsHint": "A day of a plan or of the diary that crosses one gets a note. The planner does not follow them.",
@@ -3033,7 +3031,7 @@
     "correctedLower": "Maintenance is {kcal, number, ::group-off}\u00a0kcal lower than the formula gives: that is what your diary and weights show.",
     "correctedHigher": "Maintenance is {kcal, number, ::group-off}\u00a0kcal higher than the formula gives: that is what your diary and weights show.",
     "atMaintenance": "The target is your maintenance: no loss is planned.",
-    "held": "The goal to lose weight is on hold until its risk is acknowledged in the form, so the target is your maintenance.",
+    "held": "The goal to lose weight is on hold: under 18\u00a0and when underweight the application plans no loss, so the target is your maintenance.",
     "under": "{kcal, number, ::group-off}\u00a0kcal a day under your maintenance.",
     "over": "{kcal, number, ::group-off}\u00a0kcal a day over your maintenance.",
     "macros": "Protein {protein, number, ::group-off} g · fat {fat, number, ::group-off} g · {band, select, range {carbohydrate {carbsFloor, number, ::group-off}–⁠{carbs, number, ::group-off} g} ceiling {carbohydrate at most {carbs, number, ::group-off} g} other {carbohydrate {carbs, number, ::group-off} g}} a day.",
@@ -3110,8 +3108,8 @@
     "fat": "Fat",
     "carbs": "Carbs",
     "notices": {
-      "goalHeld": "Your goal to lose weight is on hold: plans follow your maintenance until you confirm on your profile that you understand the risk.",
-      "minor": "You are under 18. These figures come from an equation for adults and are an approximation for you; losing weight at your age is something to do with a doctor.",
+      "goalHeld": "Your goal to lose weight is on hold: under 18\u00a0and when underweight the application plans no loss, so plans follow your maintenance.",
+      "minor": "You are under 18. These figures come from an equation for adults and are an approximation for you; the activity level counts as “Moderate” at least, and losing weight at your age is something to do with a doctor.",
       "underweight": "Your body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
       "maintenanceUnderFloor": "Your maintenance is under {floor, number, ::group-off}\u00a0kcal, the lowest a calculated plan goes, so no loss is planned: the target is your maintenance.",
       "safetyFloorApplied": "The target was raised to {floor, number, ::group-off}\u00a0kcal, the lowest a calculated plan goes. The deficit that leaves is {deficit, number, ::group-off}\u00a0kcal a day.",

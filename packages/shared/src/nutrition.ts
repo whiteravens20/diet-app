@@ -210,8 +210,8 @@ export const MAX_CALORIE_TARGET = 6000;
  * What a client should tell the user about a calorie target:
  *
  *  - `minor`: under 18. The equation behind the figures is one for adults,
- *    so they are an approximation, and losing weight is a matter for a doctor;
- *  - `underweight`: a body-mass index under 18.5;
+ *    so they are an approximation, and no loss is planned;
+ *  - `underweight`: a body-mass index under 18.5, for which no loss is planned;
  *  - `below_floor`: a target somebody typed is under the lowest a calculated
  *    one goes;
  *  - `below_bmr`: the target is under what the body uses at rest.
@@ -219,15 +219,15 @@ export const MAX_CALORIE_TARGET = 6000;
 export const CalorieWarning = z.enum(['minor', 'underweight', 'below_floor', 'below_bmr']);
 export type CalorieWarning = z.infer<typeof CalorieWarning>;
 
-/** Under this age the equation behind the figures is an approximation, and a loss goal needs the user's word. */
+/** Under this age the equation behind the figures is an approximation, and no loss is planned. */
 export const ADULT_AGE = 18;
 /** A body-mass index under this is underweight. */
 export const UNDERWEIGHT_BMI = 18.5;
 
 /**
  * Why losing weight is a risk for this body: under 18, underweight, both or
- * neither. Somebody for whom it is has to say they understand before a loss
- * goal is planned.
+ * neither. Where it is, no loss is planned: a pace counts as none and a typed
+ * target under maintenance is held at maintenance.
  */
 export function riskOfLosingWeight(body: {
   age: number;
@@ -266,9 +266,10 @@ export const CalorieCalculation = z.object({
   /** Maintenance itself is under the floor: no loss is planned, the target is maintenance. */
   maintenanceUnderFloor: z.boolean(),
   /**
-   * The profile asks to lose weight, is under 18 or underweight, and has not
-   * said it understands the risk: the target is held at maintenance until it
-   * does (`acknowledgeRisk` on the profile).
+   * The profile asks to lose weight and is under 18 or underweight: no loss is
+   * planned, and the target is held at maintenance (the greater of the
+   * formula's and the one the real expenditure corrected) for as long as the
+   * body is so.
    */
   goalHeld: z.boolean(),
   /**

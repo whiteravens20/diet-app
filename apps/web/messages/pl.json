@@ -3002,12 +3002,10 @@
     "dislikedKin": "Dopisać też:",
     "avoidKin": "Wykluczyć też:",
     "risk": {
-      "minor": "Poniżej 18\u00a0lat wartości w tej aplikacji są przybliżeniem, a odchudzanie to sprawa do omówienia z lekarzem.",
-      "underweight": "Przy takim wzroście i masie wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może zaszkodzić.",
-      "held": "Dopóki pole poniżej nie jest zaznaczone, cel jest zapisany, ale plany trzymają się zapotrzebowania.",
-      "acknowledge": "Rozumiem ryzyko i chcę, aby plany były układane pod ten cel.",
-      "heldHere": "Dopóki pole poniżej nie jest zaznaczone, liczby pokazują zapotrzebowanie: tego trzymałyby się plany.",
-      "acknowledgeHere": "Rozumiem ryzyko: pokaż, co wynika z tego celu."
+      "minor": "Poniżej 18\u00a0lat aplikacja nie planuje redukcji: celem jest utrzymanie wagi, a\u00a0poziom aktywności liczy się co najmniej jako „Umiarkowany”. Wartości pochodzą ze wzoru dla dorosłych i\u00a0są przybliżeniem, a\u00a0odchudzanie w\u00a0tym wieku to sprawa do omówienia z\u00a0lekarzem.",
+      "underweight": "Przy takim wzroście i\u00a0masie wskaźnik masy ciała jest poniżej 18,5, czyli w\u00a0zakresie niedowagi. Dalsza utrata masy może zaszkodzić, więc aplikacja nie planuje redukcji.",
+      "held": "Wybrany cel zostaje zapisany, ale plany trzymają się zapotrzebowania.",
+      "help": "Jeśli kontrola jedzenia stała się sposobem radzenia sobie z\u00a0emocjami, porozmawiaj z\u00a0lekarzem."
     },
     "labelLimits": "Limity z etykiet",
     "labelLimitsHint": "Dzień planu lub dziennika, który przekroczy limit, dostaje notatkę. Planer ich nie bierze pod uwagę.",
@@ -3033,7 +3031,7 @@
     "correctedLower": "Zapotrzebowanie jest o\u00a0{kcal, number, ::group-off}\u00a0kcal niższe, niż podaje wzór: tak wynika z\u00a0Twojego dziennika i\u00a0wag.",
     "correctedHigher": "Zapotrzebowanie jest o\u00a0{kcal, number, ::group-off}\u00a0kcal wyższe, niż podaje wzór: tak wynika z\u00a0Twojego dziennika i\u00a0wag.",
     "atMaintenance": "Celem jest Twoje zapotrzebowanie: redukcja nie jest planowana.",
-    "held": "Cel redukcji jest wstrzymany, dopóki w formularzu nie potwierdzisz, że rozumiesz ryzyko, więc celem jest Twoje zapotrzebowanie.",
+    "held": "Cel redukcji jest wstrzymany: poniżej 18\u00a0lat i\u00a0przy niedowadze aplikacja nie planuje redukcji, więc celem jest Twoje zapotrzebowanie.",
     "under": "{kcal, number, ::group-off}\u00a0kcal dziennie poniżej Twojego zapotrzebowania.",
     "over": "{kcal, number, ::group-off}\u00a0kcal dziennie powyżej Twojego zapotrzebowania.",
     "macros": "Białko {protein, number, ::group-off} g · tłuszcz {fat, number, ::group-off} g · {band, select, range {węglowodany {carbsFloor, number, ::group-off}–⁠{carbs, number, ::group-off} g} ceiling {węglowodany do {carbs, number, ::group-off} g} other {węglowodany {carbs, number, ::group-off} g}} dziennie.",
@@ -3110,8 +3108,8 @@
     "fat": "Tłuszcz",
     "carbs": "Węglowodany",
     "notices": {
-      "goalHeld": "Twój cel redukcji jest wstrzymany: plany trzymają się zapotrzebowania, dopóki w profilu nie potwierdzisz, że rozumiesz ryzyko.",
-      "minor": "Masz mniej niż 18\u00a0lat. Te wartości pochodzą ze wzoru dla dorosłych i są dla Ciebie przybliżeniem; odchudzanie w tym wieku to sprawa do omówienia z lekarzem.",
+      "goalHeld": "Twój cel redukcji jest wstrzymany: poniżej 18\u00a0lat i\u00a0przy niedowadze aplikacja nie planuje redukcji, więc plany trzymają się zapotrzebowania.",
+      "minor": "Masz mniej niż 18\u00a0lat. Te wartości pochodzą ze wzoru dla dorosłych i\u00a0są dla Ciebie przybliżeniem; poziom aktywności liczy się co najmniej jako „Umiarkowany”, a\u00a0odchudzanie w\u00a0tym wieku to sprawa do omówienia z\u00a0lekarzem.",
       "underweight": "Twój wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może Ci zaszkodzić.",
       "maintenanceUnderFloor": "Twoje zapotrzebowanie jest niższe niż {floor, number, ::group-off}\u00a0kcal, czyli najniższy cel, jaki wylicza plan, więc redukcja nie jest planowana: celem jest Twoje zapotrzebowanie.",
       "safetyFloorApplied": "Cel podniesiono do {floor, number, ::group-off}\u00a0kcal, czyli najniższego, jaki wylicza plan. Deficyt, który z tego wynika, to {deficit, number, ::group-off}\u00a0kcal dziennie.",

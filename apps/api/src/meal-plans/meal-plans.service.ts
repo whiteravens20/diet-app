@@ -3219,15 +3219,30 @@ function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number):
  * The profile's target now beside the plan's own, where they part by
  * `TARGET_MOVED_LEAST_KCAL` or more and a day of the plan is still to come:
  * the plan then offers the new one from today. A plan whose target was typed
- * for it keeps it, and says nothing.
+ * for it keeps it, and says nothing. A body planned no loss (under 18 or
+ * underweight) is told whatever the difference, and on a plan with a typed
+ * target too, while the plan or a day of its own to come aims under the
+ * maintenance it is held at.
  */
 function targetMoved(
   plan: Pick<PlanWithRelations, 'calorieTarget' | 'profile' | 'days'>,
   options: { calorieTargetOverride: number | null },
   today: string,
 ): MealPlan['targetMoved'] {
-  if (!plan.profile || options.calorieTargetOverride !== null) return null;
-  if (!plan.days.some((day) => isoDate(day.date) >= today && !isSkipped(day))) return null;
+  if (!plan.profile) return null;
+  const toCome = plan.days.filter((day) => isoDate(day.date) >= today && !isSkipped(day));
+  if (toCome.length === 0) return null;
+  const held = planBaseOf(plan.profile, options.calorieTargetOverride ?? undefined);
+  if (
+    held.holdUnder !== null &&
+    (plan.calorieTarget < held.target ||
+      toCome.some((day) => {
+        const own = parseDayOverrides(day.overrides)?.calorieTarget;
+        return own !== undefined && own < held.holdUnder!;
+      }))
+  )
+    return { profileTarget: held.target, planTarget: plan.calorieTarget };
+  if (options.calorieTargetOverride !== null) return null;
   const profileTarget = planBaseOf(plan.profile).target;
   return Math.abs(profileTarget - plan.calorieTarget) >= TARGET_MOVED_LEAST_KCAL
     ? { profileTarget, planTarget: plan.calorieTarget }
