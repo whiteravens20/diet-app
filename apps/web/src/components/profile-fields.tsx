@@ -8,6 +8,7 @@ import {
   ActivityLevel,
   MAX_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
+  OLDER_FASTEST_PACE_KG,
   PACES_OF_LOSS,
   type CalorieCalculation,
   type DietType,
@@ -135,7 +136,9 @@ export function BodyFields({
  * The pace of loss, chosen among all of them, each saying what it comes to
  * in a day for the body the form describes (`paces`, in the order of the
  * choices, once they are known). A pace that a limit slowed, or that is held
- * for a body planned no loss, says so on its row.
+ * for a body planned no loss, says so on its row. From 65 the two faster paces
+ * are not offered, unless one of them is the profile's already: it says that
+ * it counts as the slower one.
  */
 export function PaceChoice({
   initial,
@@ -152,12 +155,16 @@ export function PaceChoice({
   const fmt = useFormat();
   const slowed = (at: CalorieCalculation): boolean =>
     at.deficitCapped || at.safetyFloorApplied || at.maintenanceUnderFloor;
+  // A quarter of a kilogram is said to the hundredth; in pounds, where no pace is a round number, to the tenth.
+  const amountOf = (kg: number): string =>
+    unit === 'lb' ? fmt.unit(shownWeight(kg, unit), 'pound', 1) : fmt.unit(kg, 'kilogram', 2);
   return (
     <fieldset className={className}>
       <legend className="text-sm font-medium">{t('pace')}</legend>
       <div className="mt-1.5 grid gap-1.5">
         {PACES_OF_LOSS.map((pace, index) => {
           const at = paces?.[index];
+          if (at?.paceHeldForAge && pace !== initial) return null;
           return (
             // On a narrow screen what a pace comes to stands under its name: side by side, each would be broken into a column of words.
             <label
@@ -171,25 +178,19 @@ export function PaceChoice({
                 defaultChecked={pace === initial}
                 className="h-4 w-4"
               />
-              {/* A quarter of a kilogram is said to the hundredth; in pounds, where no pace is a round number, to the tenth. */}
               <span>
-                {pace === null
-                  ? t('paceNone')
-                  : t('paceLose', {
-                      amount:
-                        unit === 'lb'
-                          ? fmt.unit(shownWeight(Number(pace), unit), 'pound', 1)
-                          : fmt.unit(Number(pace), 'kilogram', 2),
-                    })}
+                {pace === null ? t('paceNone') : t('paceLose', { amount: amountOf(Number(pace)) })}
               </span>
               {at && (
                 <span className="col-start-2 text-muted-foreground tabular-nums sm:col-start-3 sm:text-right">
                   {t('paceComesTo', { kcal: at.dailyTarget })}
                   {pace !== null && at.goalHeld
                     ? `${DOT}${t('paceHeld')}`
-                    : pace !== null && slowed(at)
-                      ? `${DOT}${t('paceSlowed')}`
-                      : ''}
+                    : at.paceHeldForAge
+                      ? `${DOT}${t('paceHeldForAge', { amount: amountOf(OLDER_FASTEST_PACE_KG) })}`
+                      : pace !== null && slowed(at)
+                        ? `${DOT}${t('paceSlowed')}`
+                        : ''}
                 </span>
               )}
             </label>
@@ -198,6 +199,14 @@ export function PaceChoice({
       </div>
       {paces?.some((at, index) => PACES_OF_LOSS[index] !== null && !at.goalHeld && slowed(at)) && (
         <p className="mt-1.5 text-xs text-muted-foreground">{t('paceSlowedNote')}</p>
+      )}
+      {paces?.some((at) => at.paceHeldForAge) && (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {t('paceAgeNote', { amount: amountOf(OLDER_FASTEST_PACE_KG) })}
+        </p>
+      )}
+      {paces?.[0]?.warnings.includes('older') && (
+        <p className="mt-1.5 text-xs text-muted-foreground">{t('paceOlderNote')}</p>
       )}
     </fieldset>
   );

@@ -322,6 +322,7 @@ describe('calculateCalories', () => {
       safetyFloorApplied: false,
       maintenanceUnderFloor: false,
       goalHeld: false,
+      paceHeldForAge: false,
       leastTypedTarget: 1200,
       warnings: [],
     });
@@ -451,6 +452,12 @@ describe('calculateCalories', () => {
     ]);
   });
 
+  it('says what the deficit loses at first in a week, to the hundredth of a kilogram', () => {
+    expect(calculateCalories(person()).weeklyLossKg).toBe(0.5);
+    expect(calculateCalories(person({ weeklyLossTarget: null })).weeklyLossKg).toBe(0);
+    expect(calculateCalories(person({ manualCalorieTarget: 3200 })).weeklyLossKg).toBe(0);
+  });
+
   describe('for somebody under 18 or underweight', () => {
     // 16 years, 165 cm, 55 kg: BMI 20.2. 25 years, 170 cm, 50 kg: BMI 17.3.
     const minor = (over: Partial<CalorieEngineInput> = {}) =>
@@ -551,6 +558,74 @@ describe('calculateCalories', () => {
         'minor',
         'underweight',
       ]);
+    });
+  });
+
+  describe('from 65 years', () => {
+    // 70 years, 180 cm, 85 kg (BMI 26.2), moderate: BMR 1630, maintenance 2608; a quarter allows 652, 1 % 935.
+    const older = (over: Partial<CalorieEngineInput> = {}) =>
+      person({ age: 70, sex: 'male', heightCm: 180, weightKg: 85, ...over });
+
+    it('plans a faster pace as 0.5 kg a week, and says so', () => {
+      for (const pace of ['0.75', '1.0'] as const) {
+        expect(calculateCalories(older({ weeklyLossTarget: pace }))).toMatchObject({
+          paceHeldForAge: true,
+          dailyDeficit: 550,
+          deficitCapped: false,
+        });
+      }
+      expect(calculateCalories(older({ weeklyLossTarget: '0.5' }))).toMatchObject({
+        paceHeldForAge: false,
+        dailyDeficit: 550,
+      });
+      expect(calculateCalories(older({ weeklyLossTarget: '1.0', age: 64 })).paceHeldForAge).toBe(
+        false,
+      );
+    });
+
+    it('says nothing of the pace for a typed target', () => {
+      expect(
+        calculateCalories(older({ weeklyLossTarget: '1.0', manualCalorieTarget: 1500 }))
+          .paceHeldForAge,
+      ).toBe(false);
+    });
+
+    it('warns under a body-mass index of 30, where the guidelines advise against losing weight', () => {
+      expect(calculateCalories(older()).warnings).toEqual(['older']);
+      // 180 cm, 98 kg: BMI 30.2.
+      expect(calculateCalories(older({ weightKg: 98 })).warnings).toEqual([]);
+      expect(calculateCalories(older({ age: 64 })).warnings).toEqual([]);
+    });
+  });
+
+  describe('the pace, at most 1 % of the weight a week', () => {
+    it('slows the pace of a light body to 11 kcal a day for each kilogram', () => {
+      // 25 years, 160 cm, 52 kg, very active: BMR 1234, maintenance 2468; a quarter would allow 617, 1 % allows 572.
+      const r = calculateCalories(
+        person({
+          age: 25,
+          sex: 'female',
+          heightCm: 160,
+          weightKg: 52,
+          activityLevel: 'very_active',
+          weeklyLossTarget: '1.0',
+        }),
+      );
+      expect(r).toMatchObject({ maintenance: 2468, deficitCapped: true, dailyDeficit: 572 });
+    });
+
+    it('takes the quarter of maintenance where that is the less', () => {
+      // 190 cm, 113 kg, sedentary, sex not given: maintenance 2926; a quarter allows 732, 1 % allows 1243.
+      const r = calculateCalories(
+        person({
+          sex: null,
+          heightCm: 190,
+          weightKg: 113,
+          activityLevel: 'sedentary',
+          weeklyLossTarget: '1.0',
+        }),
+      );
+      expect(r).toMatchObject({ deficitCapped: true, dailyDeficit: 732 });
     });
   });
 

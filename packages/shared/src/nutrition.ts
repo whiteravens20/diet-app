@@ -224,17 +224,24 @@ export const MAX_CALORIE_TARGET = 6000;
  *  - `minor`: under 18. The equation behind the figures is one for adults,
  *    so they are an approximation, and no loss is planned;
  *  - `underweight`: a body-mass index under 18.5, for which no loss is planned;
+ *  - `older`: 65 or older at a body-mass index under 30, where the guidelines
+ *    for older people advise against losing weight; the pace stays the
+ *    person's choice;
  *  - `below_floor`: a target somebody typed is under the lowest a calculated
  *    one goes;
  *  - `below_bmr`: the target is under what the body uses at rest.
  */
-export const CalorieWarning = z.enum(['minor', 'underweight', 'below_floor', 'below_bmr']);
+export const CalorieWarning = z.enum(['minor', 'underweight', 'older', 'below_floor', 'below_bmr']);
 export type CalorieWarning = z.infer<typeof CalorieWarning>;
 
 /** Under this age the equation behind the figures is an approximation, and no loss is planned. */
 export const ADULT_AGE = 18;
 /** A body-mass index under this is underweight. */
 export const UNDERWEIGHT_BMI = 18.5;
+/** From this age the paces of loss are the two slower ones. */
+export const OLDER_AGE = 65;
+/** From 65, under this body-mass index the guidelines for older people advise against losing weight. */
+export const OLDER_LOSS_BMI = 30;
 
 /**
  * Why losing weight is a risk for this body: under 18, underweight, both or
@@ -266,13 +273,23 @@ export const CalorieCalculation = z.object({
   requestedDeficit: z.number(),
   /** How far the target really is under maintenance; negative when a typed target is above it. */
   dailyDeficit: z.number(),
+  /**
+   * What that deficit loses at first, in kilograms a week, to the hundredth (7700 kcal a kilogram); nothing for a
+   * target at or over maintenance. A body loses less as it goes on: the figure is the start.
+   */
+  weeklyLossKg: z.number().min(0),
   dailyTarget: z.number(), // final calorie target
   targetMacros: TargetMacros,
   source: z.enum(['calculated', 'manual_override']),
   /** The lowest a calculated target goes for this profile. */
   safetyFloor: z.number(),
-  /** The pace asked for more than a quarter of maintenance, and was slowed to that. */
+  /**
+   * The pace asked for more than a quarter of maintenance, or for more than 1 % of the body's weight a week,
+   * and was slowed to the lesser of the two.
+   */
   deficitCapped: z.boolean(),
+  /** From 65 the pace chosen is one of the two faster ones, and counts as 0.5 kg a week. */
+  paceHeldForAge: z.boolean(),
   /** The target was raised to the floor. */
   safetyFloorApplied: z.boolean(),
   /** Maintenance itself is under the floor: no loss is planned, the target is maintenance. */

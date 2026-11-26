@@ -12,6 +12,9 @@ import {
   KCAL_PER_GRAM,
   LOWEST_CALORIE_TARGET,
   MIN_CALORIE_TARGET,
+  OLDER_AGE,
+  OLDER_FASTEST_PACE_KG,
+  OLDER_LOSS_BMI,
   proteinShareBounds,
   riskOfLosingWeight,
   type ActivityLevel,
@@ -95,6 +98,18 @@ export interface CalorieEngineInput {
 
 /** The most of maintenance a pace of loss may take away each day. */
 const MAX_DEFICIT_SHARE = 0.25;
+
+/**
+ * The most a pace of loss may take away each day for each kilogram of the
+ * body: 1 % of its weight a week (0.01 × 7700 kcal ÷ 7 days). For a light
+ * body this is less than a quarter of maintenance; the guides for lean people
+ * losing weight name 0.5 to 1 % of the weight a week as the pace that keeps
+ * muscle.
+ */
+const MAX_DEFICIT_KCAL_PER_KG = 11;
+
+/** From `OLDER_AGE` the fastest pace a profile is planned at (`OLDER_FASTEST_PACE_KG`). */
+const OLDER_FASTEST_PACE = String(OLDER_FASTEST_PACE_KG) as CalorieEngineInput['weeklyLossTarget'];
 
 /**
  * Basal Metabolic Rate via Mifflin-St Jeor.
@@ -359,10 +374,12 @@ export function filledMacros(calories: number, known: Partial<Macros>, split: Ma
  * it.
  *
  * A calculated target is maintenance less the deficit of the chosen pace.
- * The deficit is at most a quarter of maintenance; the target is never under
- * the floor, and never above maintenance: where maintenance itself is under
- * the floor, no loss is planned. A target somebody typed is taken as it is,
- * and flagged when it is under the floor or under the basal rate.
+ * The deficit is at most a quarter of maintenance and at most 1 % of the
+ * body's weight a week; from 65 the pace is at most 0.5 kg a week. The target
+ * is never under the floor, and never above maintenance: where maintenance
+ * itself is under the floor, no loss is planned. A target somebody typed is
+ * taken as it is, and flagged when it is under the floor or under the basal
+ * rate.
  *
  * Somebody under 18 or underweight is planned no loss: a pace, or a typed
  * target under maintenance, is held at maintenance.
@@ -383,6 +400,8 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
   const kept = Math.max(maintenance, formula);
   const asksForLoss = manual === null ? requestedDeficit > 0 : manual < kept;
   const goalHeld = atRisk.length > 0 && asksForLoss;
+  const older = input.age >= OLDER_AGE;
+  const paceHeldForAge = older && requestedDeficit > deficitForWeeklyTarget(OLDER_FASTEST_PACE);
 
   let dailyTarget: number;
   let deficitCapped = false;
@@ -393,9 +412,13 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
   } else if (manual !== null) {
     dailyTarget = manual;
   } else {
-    const most = round(maintenance * MAX_DEFICIT_SHARE);
-    deficitCapped = requestedDeficit > most;
-    const paced = maintenance - Math.min(requestedDeficit, most);
+    const allowed = paceHeldForAge ? deficitForWeeklyTarget(OLDER_FASTEST_PACE) : requestedDeficit;
+    const most = Math.min(
+      round(maintenance * MAX_DEFICIT_SHARE),
+      round(input.weightKg * MAX_DEFICIT_KCAL_PER_KG),
+    );
+    deficitCapped = allowed > most;
+    const paced = maintenance - Math.min(allowed, most);
     maintenanceUnderFloor = maintenance < floor;
     safetyFloorApplied = !maintenanceUnderFloor && paced < floor;
     dailyTarget = maintenanceUnderFloor ? maintenance : Math.max(paced, floor);
@@ -412,6 +435,7 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
           dailyTarget,
         )
       : null;
+  const bmi = input.weightKg / (input.heightCm / 100) ** 2;
 
   return {
     bmr,
@@ -419,6 +443,10 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     weeklyLossTarget: input.weeklyLossTarget,
     requestedDeficit,
     dailyDeficit: maintenance - dailyTarget,
+    weeklyLossKg: Math.max(
+      0,
+      Math.round(((maintenance - dailyTarget) * 7 * 100) / KCAL_PER_KG_FAT) / 100,
+    ),
     dailyTarget,
     targetMacros: shownTarget(
       macrosForCalories(dailyTarget, input.dietType, own?.shares ?? null),
@@ -429,12 +457,14 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     source,
     safetyFloor: floor,
     deficitCapped,
+    paceHeldForAge: paceHeldForAge && !goalHeld && manual === null,
     safetyFloorApplied,
     maintenanceUnderFloor,
     goalHeld,
     leastTypedTarget: leastTypedTarget(formula),
     warnings: [
       ...atRisk,
+      ...(older && bmi < OLDER_LOSS_BMI ? (['older'] as const) : []),
       ...(source === 'manual_override' && dailyTarget < floor ? (['below_floor'] as const) : []),
       ...(dailyTarget < bmr ? (['below_bmr'] as const) : []),
     ],

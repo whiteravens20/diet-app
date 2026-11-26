@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
@@ -15,6 +16,7 @@ const plain: CalorieCalculation = {
   weeklyLossTarget: '0.5',
   requestedDeficit: 550,
   dailyDeficit: 550,
+  weeklyLossKg: 0.5,
   dailyTarget: 2209,
   targetMacros: { protein: 138, fat: 74, carbs: 249, carbsFloor: null },
   source: 'calculated',
@@ -23,17 +25,33 @@ const plain: CalorieCalculation = {
   safetyFloorApplied: false,
   maintenanceUnderFloor: false,
   goalHeld: false,
+  paceHeldForAge: false,
   leastTypedTarget: 1200,
   customSplitHeld: false,
   warnings: [],
 };
 
+/** The account's session, read once: its weight unit is what a pace is said in. */
+function aSession(weightUnit: 'kg' | 'lb' = 'kg'): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  client.setQueryData(['session'], { weightUnit });
+  return client;
+}
+
 /** What somebody reading `locale` is told about a calculation. */
-function told(calories: CalorieCalculation, locale: 'en' | 'pl' = 'en'): string[] {
+function told(
+  calories: CalorieCalculation,
+  locale: 'en' | 'pl' = 'en',
+  weightUnit: 'kg' | 'lb' = 'kg',
+): string[] {
   const { unmount } = render(
-    <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pl}>
-      <TargetNotices calories={calories} />
-    </NextIntlClientProvider>,
+    <QueryClientProvider client={aSession(weightUnit)}>
+      <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pl}>
+        <TargetNotices calories={calories} />
+      </NextIntlClientProvider>
+    </QueryClientProvider>,
   );
   const lines = screen.queryAllByRole('listitem').map((item) => asRead(item.textContent));
   unmount();
@@ -45,12 +63,37 @@ describe('what a user is told about their calorie target', () => {
     expect(told(plain)).toEqual([]);
   });
 
-  it('is that the pace was slowed, with both figures', () => {
-    expect(
-      told({ ...plain, requestedDeficit: 1100, dailyDeficit: 627, deficitCapped: true }),
-    ).toEqual([
-      'The pace you chose asks for 1100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
+  it('is that the pace was slowed, with both figures and what it loses at first, said as the paces are', () => {
+    // Half a kilogram a week asked, a quarter of maintenance taken: what it loses is not the half a kilogram asked for.
+    const slowed = {
+      ...plain,
+      requestedDeficit: 550,
+      dailyDeficit: 492,
+      weeklyLossKg: 0.45,
+      deficitCapped: true,
+    };
+    expect(told(slowed)).toEqual([
+      'The pace you chose asks for 550 kcal a day less. That is more than a plan allows: a quarter of your maintenance or 1% of your body weight a week. So the plan takes 492 kcal: at first about 0.45 kg a week, and less as time goes on.',
     ]);
+    expect(told({ ...slowed, weeklyLossKg: 0.57 }, 'en', 'lb')[0]).toContain(
+      'at first about 1.3 lb a week',
+    );
+  });
+  it('is that a faster pace counts as half a kilogram from 65, and that older people are advised against losing', () => {
+    expect(
+      told({
+        ...plain,
+        weeklyLossTarget: '1.0',
+        requestedDeficit: 1100,
+        paceHeldForAge: true,
+        warnings: ['older'],
+      }),
+    ).toEqual([
+      'At a body-mass index under 30 the nutrition guidelines for older people advise against losing weight. If you want to lose weight, talk to a doctor about it.',
+      'From 65 a pace faster than 0.5 kg a week counts as 0.5 kg.',
+    ]);
+    // Keeping the weight, the advice has nothing to say.
+    expect(told({ ...plain, dailyDeficit: 0, warnings: ['older'] })).toEqual([]);
   });
 
   it('is the floor and the deficit it leaves, without the note on the pace', () => {
@@ -133,9 +176,11 @@ describe('what a user is told about their calorie target', () => {
     };
     const inAForm = (calories: CalorieCalculation): string[] => {
       const { unmount } = render(
-        <NextIntlClientProvider locale="en" messages={en}>
-          <TargetNotices calories={calories} risk={false} />
-        </NextIntlClientProvider>,
+        <QueryClientProvider client={aSession()}>
+          <NextIntlClientProvider locale="en" messages={en}>
+            <TargetNotices calories={calories} risk={false} />
+          </NextIntlClientProvider>
+        </QueryClientProvider>,
       );
       const lines = screen.queryAllByRole('listitem').map((item) => asRead(item.textContent));
       unmount();

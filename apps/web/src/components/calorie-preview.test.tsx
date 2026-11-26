@@ -234,16 +234,21 @@ describe('what the figures come to, for a maintenance corrected by the real expe
       .replace('\u00a0', ' ');
 
   function panel(correction?: number) {
+    // The account's weight unit is read for what a pace comes to.
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    client.setQueryData(['session'], { weightUnit: 'kg' });
     render(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <CaloriePreviewPanel
-          preview={aPreview()}
-          behind={false}
-          waiting={false}
-          failed={false}
-          correction={correction}
-        />
-      </NextIntlClientProvider>,
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <CaloriePreviewPanel
+            preview={aPreview()}
+            behind={false}
+            waiting={false}
+            failed={false}
+            correction={correction}
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
     );
   }
 

@@ -287,3 +287,6 @@ export const WATER_REMINDER_EVERY_HOURS = 3;
 /** When a profile is reminded to weigh itself, by the account's clock: from the first hour to before the last. */
 export const WEIGHT_REMINDER_FROM_HOUR = 7;
 export const WEIGHT_REMINDER_TO_HOUR = 21;
+
+/** From 65 years the fastest pace a profile is planned at, in kilograms a week: a faster one counts as this. */
+export const OLDER_FASTEST_PACE_KG = 0.5;
