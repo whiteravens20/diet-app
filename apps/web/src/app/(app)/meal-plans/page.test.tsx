@@ -4898,11 +4898,9 @@ describe('the plan page, on what is left of a meal', () => {
     );
   });
 
-  it('says of a meal that takes all its pot holds that no more was cooked, with nothing to carry', async () => {
+  it('says of a meal its pot holds where its day would have given it more that no more was cooked, with nothing to carry', async () => {
     await open(
-      withMeal({
-        pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: false, offer: null },
-      }),
+      withMeal({ pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: true, offer: null } }),
     );
 
     expect(
@@ -4911,6 +4909,30 @@ describe('the plan page, on what is left of a meal', () => {
     expect(
       screen.queryByRole('button', { name: ofAMeal(messages.mealPlans.potAction) }),
     ).toBeNull();
+  });
+
+  it('says nothing of the pot of a meal that takes what was cooked for it', async () => {
+    await open(
+      withMeal({
+        pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: false, offer: null },
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Oat porridge' })).toBeInTheDocument();
+    expect(screen.queryByText(/^From the pot/)).toBeNull();
+    expect(screen.queryByText(/^The pot will have/)).toBeNull();
+  });
+
+  it('says nothing of the pot of a meal whose rest went to the next day, which the leftover line says', async () => {
+    await open(
+      withMeal({
+        carriedTo: { date: '2026-01-06', mealType: 'lunch' },
+        pot: { cookedOn: '2026-01-04', cooked: 1.75, rest: 0, held: true, offer: null },
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Oat porridge' })).toBeInTheDocument();
+    expect(screen.queryByText(/^From the pot/)).toBeNull();
   });
 
   it('says why the next day cannot take what the pot will have left', async () => {

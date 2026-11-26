@@ -1513,7 +1513,8 @@ export function PlanCard({
                           {cookWords.hint(m, day.date)}
                         </p>
                       )}
-                      {m.pot && (
+                      {/* What the pot will have left beside the portion, or that the pot holds the portion where its day would have given it more; nothing where the meal takes what was cooked for it, nor once its rest went to the day after, which the leftover's line says. */}
+                      {m.pot && (m.pot.rest > 0 || (m.pot.held && !m.carriedTo)) && (
                         <div className="ml-6 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                           <span>
                             {m.pot.rest > 0
