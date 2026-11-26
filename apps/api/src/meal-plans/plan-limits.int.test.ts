@@ -63,6 +63,7 @@ describe('the limits of a plan', () => {
     expect(made.report).toEqual({
       relaxations: [theSixth],
       singleCandidate: [],
+      sameAgain: [],
       pantry: 'empty',
       apart: [],
     });
@@ -117,6 +118,7 @@ describe('the limits of a plan', () => {
     expect(strict.report).toEqual({
       relaxations: [],
       singleCandidate: [],
+      sameAgain: [],
       pantry: 'empty',
       apart: [],
     });
@@ -208,6 +210,7 @@ describe('the limits of a plan', () => {
     expect(changed.plan.report).toEqual({
       relaxations: [],
       singleCandidate: [],
+      sameAgain: [],
       pantry: 'empty',
       apart: [],
     });
@@ -255,6 +258,7 @@ describe('the limits of a plan', () => {
         { date: '2026-01-05', slot: 'second_breakfast' },
         { date: '2026-01-06', slot: 'second_breakfast' },
       ],
+      sameAgain: [],
       pantry: 'empty',
       apart: [],
     });

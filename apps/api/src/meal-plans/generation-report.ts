@@ -25,6 +25,11 @@ const About = { date: z.string().date(), slot: MealType, recipeId: z.string() };
 export const StoredReport = z.object({
   relaxations: z.array(z.object({ ...About, gaveWay: z.array(PlanRelaxation).min(1) })),
   singleCandidate: z.array(z.object(About)),
+  /**
+   * Meals of days made again by themselves that got the recipe they held: the plan's limits left them no other
+   * (`GenerationReport.sameAgain`). None on a report kept before.
+   */
+  sameAgain: z.array(z.object(About)).default([]),
   pantry: PantryUse,
   /** Of a joint plan, the times of day planned apart (`GenerationReport.apart`); none on a report kept before. */
   apart: z.array(MealType).default([]),
@@ -138,6 +143,7 @@ export function reportOf(
   return {
     relaxations: result.report.relaxations.map((at) => ({ ...about(at), gaveWay: at.gaveWay })),
     singleCandidate: result.report.singleCandidate.map(about),
+    sameAgain: [],
     pantry,
     apart: [],
     mealCount: null,
@@ -161,6 +167,7 @@ export function withDaysAgain(
   return {
     relaxations: [...ofOtherDays(kept.relaxations), ...fresh.relaxations],
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
+    sameAgain: [...ofOtherDays(kept.sameAgain), ...fresh.sameAgain],
     pantry: kept.pantry,
     apart: kept.apart,
     mealCount: kept.mealCount,
@@ -218,6 +225,7 @@ export function shownReport(kept: unknown, days: readonly MealPlanDay[]): Genera
       gaveWay,
     })),
     singleCandidate: standing(report.singleCandidate).map(({ date, slot }) => ({ date, slot })),
+    sameAgain: standing(report.sameAgain).map(({ date, slot }) => ({ date, slot })),
     pantry: report.pantry,
     apart: report.apart,
   };

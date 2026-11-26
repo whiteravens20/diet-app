@@ -313,6 +313,11 @@ export const GenerationReport = z.object({
   relaxations: z.array(RelaxedMeal),
   /** Meals for which the diet and the meal left one recipe to choose from. */
   singleCandidate: z.array(z.object({ date: z.string().date(), slot: MealType })),
+  /**
+   * Meals of days made again by themselves (`RegenerateRequest` with `from` or `to`, a day made again) that got the
+   * recipe they held: the diet, the profile and the plan's limits left them no other.
+   */
+  sameAgain: z.array(z.object({ date: z.string().date(), slot: MealType })),
   pantry: PantryUse,
   /**
    * Of a joint plan, the times of day both have that are planned apart in
@@ -582,8 +587,11 @@ export type RegenerateDayRequest = z.infer<typeof RegenerateDayRequest>;
  * again as it was asked for, with the profile as it is now. With either, the
  * days from `from` (the plan's first when left out) to `to` (its last) get
  * other meals and the plan stays what it is: its diet and the targets of its
- * days. Either way the meals that stay, and the days that are not made again,
- * count for the limits of the plan.
+ * days. Each meal that gives place gets a recipe other than the one it held
+ * where the diet, the profile and the plan's limits leave one; one they leave
+ * none gets its recipe again (`GenerationReport.sameAgain`). Either way the
+ * meals that stay, and the days that are not made again, count for the limits
+ * of the plan.
  *
  * A day the user skips is left as it is. 400 `RANGE_OUTSIDE_PLAN` when a date
  * is no day of the plan or `from` is after `to`; 409 `NOTHING_TO_REGENERATE`

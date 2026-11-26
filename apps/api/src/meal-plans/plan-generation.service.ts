@@ -776,6 +776,21 @@ export class PlanGenerationService {
       }
 
       filled.push({ dayIndex, dayId: day.id, staying: reading.staying.map((meal) => meal.id) });
+      // A day made again by itself gets other dishes: what it holds now comes last, where the limits leave another.
+      // A meal locked to its recipe gets it again, and one that stays is no choice of the run.
+      const stays = new Set(reading.staying.map((meal) => meal.id));
+      const avoid = whole
+        ? undefined
+        : new Set(
+            day.meals
+              .filter(
+                (meal) =>
+                  !stays.has(meal.id) &&
+                  meal.recipeId !== null &&
+                  !reading.locks.some((lock) => lock.mealType === meal.mealType),
+              )
+              .map((meal) => meal.recipeId!),
+          );
       return {
         date: day.date,
         isoDate: iso,
@@ -789,6 +804,7 @@ export class PlanGenerationService {
         skip: o?.skip ?? false,
         overrides: o,
         kept: [...reading.staying.map(kept), ...keptOfDiary(diary.get(iso))],
+        ...(avoid && avoid.size > 0 ? { avoid } : {}),
       };
     });
 
@@ -1076,6 +1092,26 @@ export class PlanGenerationService {
       }),
     );
 
+    // A meal of a day made again by itself that got the recipe it held: nothing else was left inside the limits.
+    const sameAgain = whole
+      ? []
+      : filled.flatMap(({ dayIndex, staying }) => {
+          const locked = new Set(
+            (prepared.days[dayIndex]!.lockedSlots ?? []).map((lock) => lock.slot),
+          );
+          return plan.days[dayIndex]!.meals.flatMap((meal) => {
+            if (staying.includes(meal.id) || meal.recipeId === null) return [];
+            const slot = meal.mealType as MealType;
+            if (locked.has(slot)) return [];
+            const placed = result.assignments.find(
+              (one) => one.dayIndex === dayIndex && one.slot === slot,
+            );
+            return placed?.recipeId === meal.recipeId
+              ? [{ date: dates[dayIndex]!, slot, recipeId: meal.recipeId }]
+              : [];
+          });
+        });
+
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
     // of it is made again; what the pantry had to do with it, and what its freezer held, are said of a whole plan.
@@ -1083,7 +1119,7 @@ export class PlanGenerationService {
     const merged = before
       ? withDaysAgain(
           before,
-          result.report,
+          { ...result.report, sameAgain },
           filled.map(({ dayIndex }) => dates[dayIndex]!),
         )
       : null;

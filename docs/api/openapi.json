@@ -17135,6 +17135,26 @@
               "additionalProperties": false
             }
           },
+          "sameAgain": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "slot": {
+                  "$ref": "#/components/schemas/MealType"
+                }
+              },
+              "required": [
+                "date",
+                "slot"
+              ],
+              "additionalProperties": false
+            }
+          },
           "pantry": {
             "$ref": "#/components/schemas/PantryUse"
           },
@@ -17148,6 +17168,7 @@
         "required": [
           "relaxations",
           "singleCandidate",
+          "sameAgain",
           "pantry",
           "apart"
         ],

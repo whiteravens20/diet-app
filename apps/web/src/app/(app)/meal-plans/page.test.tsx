@@ -197,7 +197,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     maxRepeatsPerRecipe: null,
     allowRelaxations: [],
   },
-  report: { relaxations: [], singleCandidate: [], pantry: 'empty', apart: [] },
+  report: { relaxations: [], singleCandidate: [], sameAgain: [], pantry: 'empty', apart: [] },
   revision: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   joint: null,
@@ -749,6 +749,7 @@ describe('the plan page, on a plan and how it was made', () => {
             { date: '2026-01-05', slot: 'breakfast', gaveWay: ['consecutive_days', 'weekly_cap'] },
           ],
           singleCandidate: [{ date: '2026-01-05', slot: 'breakfast' }],
+          sameAgain: [],
           pantry: 'counted',
           apart: [],
         },
@@ -800,7 +801,9 @@ describe('the plan page, on a plan and how it was made', () => {
     ['left_out', messages.mealPlans.pantryLeftOut],
     ['unused', messages.mealPlans.pantryUnused],
   ] as const)('says why the pantry did not count when the reason is %s', async (pantry, line) => {
-    await open(aPlan({ report: { relaxations: [], singleCandidate: [], pantry, apart: [] } }));
+    await open(
+      aPlan({ report: { relaxations: [], singleCandidate: [], sameAgain: [], pantry, apart: [] } }),
+    );
 
     expect(screen.getByText(line)).toBeInTheDocument();
   });
@@ -4800,7 +4803,13 @@ describe('the plan page, on a plan made together with another profile', () => {
   it('says which times of day were planned apart, and why', async () => {
     await open({
       ...together(),
-      report: { relaxations: [], singleCandidate: [], pantry: 'empty', apart: ['breakfast'] },
+      report: {
+        relaxations: [],
+        singleCandidate: [],
+        sameAgain: [],
+        pantry: 'empty',
+        apart: ['breakfast'],
+      },
     });
 
     expect(

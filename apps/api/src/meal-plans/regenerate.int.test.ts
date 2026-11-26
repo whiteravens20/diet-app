@@ -307,6 +307,55 @@ describe('regenerating a plan', () => {
     });
   });
 
+  it('gives each meal of a day made again by itself another recipe, and says which got its own again for want of another', async () => {
+    const user = await aUser(t);
+    const profile = await aProfile(t, user);
+    const plan = await aPlan(t, user, profile, { durationDays: 7 });
+    const generation = t.app.get(PlanGenerationService);
+    const day = (of: MealPlan) => of.days[2]!;
+    const recipes = (of: MealPlan) =>
+      new Map(day(of).meals.map((meal) => [meal.mealType, meal.recipe!.id]));
+    const again = (of: MealPlan) =>
+      of
+        .report!.sameAgain.filter((entry) => entry.date === day(of).date)
+        .map((entry) => entry.slot);
+
+    // Made again three times, the day gets back no dish it held but those the report names.
+    let now = plan;
+    let changedAll = 0;
+    for (let round = 0; round < 3; round++) {
+      const held = recipes(now);
+      now = await generation.regenerateDay(user.id, 'en', plan.id, day(now).id);
+      for (const [slot, recipe] of recipes(now)) {
+        if (again(now).includes(slot)) expect(recipe).toBe(held.get(slot));
+        else expect(recipe).not.toBe(held.get(slot));
+      }
+      if (again(now).length === 0) changedAll++;
+    }
+    expect(changedAll).toBeGreaterThan(0);
+
+    // With every other breakfast ruled out for the profile, breakfast gets its recipe again, and the report says so.
+    const breakfast = recipes(now).get('breakfast')!;
+    const others = await t.prisma.recipe.findMany({
+      where: { mealTypes: { has: 'breakfast' }, id: { not: breakfast } },
+      select: { id: true },
+    });
+    await t.prisma.favorite.createMany({
+      data: others.map((recipe) => ({
+        profileId: profile.id,
+        recipeId: recipe.id,
+        sentiment: 'avoid',
+      })),
+    });
+    const held = recipes(now);
+    now = await generation.regenerateDay(user.id, 'en', plan.id, day(now).id);
+
+    expect(recipes(now).get('breakfast')).toBe(breakfast);
+    expect(again(now)).toEqual(['breakfast']);
+    for (const [slot, recipe] of recipes(now))
+      if (slot !== 'breakfast') expect(recipe).not.toBe(held.get(slot));
+  });
+
   it('refuses a second day for a date the plan already has', async () => {
     const user = await aUser(t);
     const plan = await aPlan(t, user, await aProfile(t, user));
