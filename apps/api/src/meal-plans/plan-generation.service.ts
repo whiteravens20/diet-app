@@ -90,6 +90,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
 import { settleProfileFreezer } from './freezer-repick.js';
+import { othersTake, type OwnPlans } from '../shopping-lists/shopping-lists.service.js';
 import { keptFreezer, reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
 import { plateDishesOf } from './plates-store.js';
@@ -1076,6 +1077,7 @@ export class PlanGenerationService {
       allowRelaxations: prepared.allowRelaxations,
       dropIneligibleLocks: prepared.dropIneligibleLocks,
       fixed,
+      self: { planIds: [prepared.plan.id], jointPlanId: prepared.plan.jointPlanId ?? null },
       seed,
     };
   }
@@ -1429,6 +1431,8 @@ export class PlanGenerationService {
       dropIneligibleLocks?: boolean;
       /** Planned together with another profile, whose dishes at the shared times this plan chooses (`JointAsk`). */
       joint?: JointAsk;
+      /** Of a plan made again, it and the other of its joint plan: their own take of the pantry counts for them. */
+      self?: OwnPlans;
       /**
        * Of a plan of a joint plan, the toppings its shared meals may be given: at the times of day named, or at
        * the shared times of `joint`, where the day stays off its split or target (`topAssignments`).
@@ -1517,6 +1521,7 @@ export class PlanGenerationService {
       requirementsByRecipe,
       opts.today,
       joint?.profileId,
+      opts.self,
     );
     const inventoryCoverage = pantry.coverage;
 
@@ -2075,6 +2080,8 @@ export class PlanGenerationService {
     today: string,
     /** Another profile whose pantry the plan counts as well: the other of a joint plan. */
     alsoOf?: string,
+    /** The plan made again and the other of its joint plan: what they take of the pantry is no other plan's. */
+    self: OwnPlans = { planIds: [], jointPlanId: null },
   ): Promise<{
     use: PantryUse;
     coverage?: Map<string, number>;
@@ -2093,6 +2100,19 @@ export class PlanGenerationService {
       ))
         stock.set(ingredientId, (stock.get(ingredientId) ?? 0) + quantity);
     if (stock.size === 0) return { use: 'empty' };
+    // One pantry under every plan of a profile: what its other plans still take of it is theirs (`othersTake`).
+    for (const [ingredientId, amount] of await othersTake(
+      this.prisma,
+      [profileId, ...(alsoOf ? [alsoOf] : [])],
+      [...stock.keys()],
+      today,
+      self,
+    )) {
+      const left = (stock.get(ingredientId) ?? 0) - amount;
+      if (left > 1e-6) stock.set(ingredientId, left);
+      else stock.delete(ingredientId);
+    }
+    if (stock.size === 0) return { use: 'unused' };
 
     const coverage = new Map<string, number>();
     for (const r of optimizerRecipes) {

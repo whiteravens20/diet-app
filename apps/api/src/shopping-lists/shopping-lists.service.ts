@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  dayAfter,
   MAX_LISTS_PER_PLAN,
   PlanOptions,
   type DisplayUnit,
@@ -864,6 +865,8 @@ async function openClaims(
   tx: Tx,
   profileId: string,
   ingredients: ReadonlyMap<string, ConvertibleIngredient>,
+  /** Plans whose lists are left out: a plan made again counts on its own old list no more. */
+  exceptPlans: readonly string[] = [],
 ): Promise<Map<string, number>> {
   const ingredientIds = [...ingredients.keys()];
   if (ingredientIds.length === 0) return new Map();
@@ -878,7 +881,7 @@ async function openClaims(
       owner: string;
     }[]
   >(
-    Prisma.sql`SELECT i."ingredientId", i."unit"::text AS "unit", i."alreadyHaveQuantity", i."borrowed", p."profileId" AS "owner" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE i."checked" = false AND i."ingredientId" IN (${Prisma.join(ingredientIds)}) AND ((p."profileId" = ${profileId} AND i."alreadyHaveQuantity" > 0) OR i."borrowed" @> ${lentBy}::jsonb)`,
+    Prisma.sql`SELECT i."ingredientId", i."unit"::text AS "unit", i."alreadyHaveQuantity", i."borrowed", p."profileId" AS "owner" FROM "ShoppingListItem" i JOIN "ShoppingList" l ON l."id" = i."listId" JOIN "MealPlan" p ON p."id" = l."planId" WHERE i."checked" = false AND i."ingredientId" IN (${Prisma.join(ingredientIds)}) ${exceptPlans.length > 0 ? Prisma.sql`AND l."planId" NOT IN (${Prisma.join([...exceptPlans])})` : Prisma.empty} AND ((p."profileId" = ${profileId} AND i."alreadyHaveQuantity" > 0) OR i."borrowed" @> ${lentBy}::jsonb)`,
   );
   const claims = new Map<string, number>();
   const claim = (ingredientId: string, unit: Unit, quantity: number): void => {
@@ -895,6 +898,97 @@ async function openClaims(
         if (one.profileId === profileId) claim(row.ingredientId, row.unit, one.quantity);
   }
   return claims;
+}
+
+/** The plans `self` of `othersTake`: the plan made again and the other of its joint plan; none for a new plan. */
+export interface OwnPlans {
+  planIds: readonly string[];
+  jointPlanId: string | null;
+}
+
+/**
+ * What the plans of `profileIds` other than `self` still take of their pantries, of the foods `foods`, by food in its
+ * canonical unit: what their lists count on and have not taken yet (`openClaims`), and what the plans with a day from
+ * `today` on eat on the days no list of theirs covers, of their meals not eaten and not eaten from a pot cooked
+ * already. What a list took is out of the pantry already. A plan made or made again counts the pantry less it: one
+ * pantry under every plan of a profile.
+ */
+export async function othersTake(
+  db: Tx,
+  profileIds: readonly string[],
+  foods: readonly string[],
+  today: string,
+  self: OwnPlans,
+): Promise<Map<string, number>> {
+  const taken = new Map<string, number>();
+  if (foods.length === 0) return taken;
+  const ingredients = await loadIngredients(db, [...foods]);
+  const add = (ingredientId: string, amount: number | null): void => {
+    if (amount !== null && amount > 0)
+      taken.set(ingredientId, (taken.get(ingredientId) ?? 0) + amount);
+  };
+  const own = self.jointPlanId
+    ? (
+        await db.mealPlan.findMany({
+          where: { jointPlanId: self.jointPlanId },
+          select: { id: true },
+        })
+      ).map((plan) => plan.id)
+    : [];
+  const left = [...new Set([...self.planIds, ...own])];
+  for (const profileId of new Set(profileIds))
+    for (const [ingredientId, amount] of await openClaims(db, profileId, ingredients, left))
+      add(ingredientId, amount);
+  const plans = await db.mealPlan.findMany({
+    where: {
+      profileId: { in: [...new Set(profileIds)] },
+      id: { notIn: left },
+      days: { some: { date: { gte: new Date(today) } } },
+    },
+    select: {
+      id: true,
+      startDate: true,
+      durationDays: true,
+      shoppingLists: { select: { fromDate: true, toDate: true } },
+    },
+  });
+  for (const plan of plans) {
+    const first = isoDate(plan.startDate);
+    const last = dayAfter(first, plan.durationDays - 1);
+    const open: string[] = [];
+    for (let date = today > first ? today : first; date <= last; date = dayAfter(date, 1))
+      if (
+        !plan.shoppingLists.some(
+          (list) => isoDate(list.fromDate) <= date && date <= isoDate(list.toDate),
+        )
+      )
+        open.push(date);
+    if (open.length === 0) continue;
+    // A meal eaten from a pot cooked already takes nothing more: its food is in the pot.
+    const pots = await potsOfPlan(db, plan.id, today);
+    for (const [from, to] of runsOf(open)) {
+      const lines = (
+        await planLines(db, plan.id, new Date(from), new Date(to), true, new Set(pots.keys()))
+      ).filter((line) => ingredients.has(line.ingredientId));
+      for (const item of aggregateShoppingList(lines, ingredients).flatMap((group) => group.items))
+        add(
+          item.ingredientId,
+          inCanonicalUnit(item.totalQuantity, item.unit, ingredients.get(item.ingredientId)!),
+        );
+    }
+  }
+  return taken;
+}
+
+/** Days in order, as runs of days that follow each other: the first and the last of each. */
+function runsOf(days: readonly string[]): [string, string][] {
+  const runs: [string, string][] = [];
+  for (const day of days) {
+    const run = runs.at(-1);
+    if (run && dayAfter(run[1], 1) === day) run[1] = day;
+    else runs.push([day, day]);
+  }
+  return runs;
 }
 
 /** What of a row's `alreadyHaveQuantity` its own pantry holds: the rest it counted in others' (`borrowed`). */
