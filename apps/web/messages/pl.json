@@ -3516,6 +3516,9 @@
     "partChoose": "Wybierz składnik",
     "partUnknown": "Wybierz składnik, który ważysz.",
     "partRisk": "Mięso i\u00a0rybę najdokładniej podzielisz na surowo, przed smażeniem. Ryż, makaron i\u00a0kaszę odważ dla każdego na sucho, ugotuj razem i\u00a0podziel w\u00a0tych samych proporcjach: to podział przybliżony, bo nie każde ziarno wchłania tyle samo wody. Warzywa i\u00a0sos podziel wagą.",
-    "wayHintPartOwn": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny."
+    "wayHintPartOwn": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny.",
+    "eatenLeftOut": "Bez porcji już zjedzonych: {portions}.",
+    "allEaten": "Wszystkie porcje tego dania są już zjedzone.",
+    "restInPot": "Zostaje w garnku"
   }
 }

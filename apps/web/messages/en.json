@@ -3516,6 +3516,9 @@
     "partChoose": "Choose an ingredient",
     "partUnknown": "Choose the ingredient you are weighing.",
     "partRisk": "Meat and fish are split most exactly raw, before frying. Weigh rice, pasta and groats dry for each person, cook them together and split them in the same proportions: an approximate split, as not every grain takes up as much water. Split vegetables and sauce by weight.",
-    "wayHintPartOwn": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and choose it below: each portion gets as much of it as the plan gives it. Then the next."
+    "wayHintPartOwn": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and choose it below: each portion gets as much of it as the plan gives it. Then the next.",
+    "eatenLeftOut": "Leaving out the portions eaten already: {portions}.",
+    "allEaten": "Every portion of this dish has been eaten.",
+    "restInPot": "Left in the pot"
   }
 }

@@ -34,7 +34,6 @@ import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { LabelLegend, LabelLine, LabelNotes } from '@/components/label-figures';
 import { AiMark, partInMeal } from '@/components/ai-mark';
-import type { SplitPortion } from '@/components/split-calculator';
 import {
   CookingNote,
   mealsOfCooking,
@@ -47,6 +46,7 @@ import {
   type PotPortions,
 } from './cooking';
 import { DayVariationsDialog } from './day-variations-dialog';
+import type { CookedMeal } from './split-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import type { OffTargetWays } from './day-off-target-dialog';
 import type { SharedPortion } from '@/components/recipe-modal';
@@ -374,8 +374,8 @@ export function PlanCard({
   const amount = useAmount();
   const tFreezer = useTranslations('mealPlans.freezer');
   const tSplit = useTranslations('split');
-  // The dish cooked ahead being split, as the portions of its meals, while its window is open.
-  const [splitting, setSplitting] = useState<SplitPortion[] | null>(null);
+  // The dish being split, as the meals it is eaten at, while its window is open.
+  const [splitting, setSplitting] = useState<CookedMeal[] | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
@@ -450,7 +450,6 @@ export function PlanCard({
   const aiEnabled = onAiSwapMeal !== undefined;
   const mealName = (type: string): string =>
     tMeal.has(type) ? tMeal(type) : type.replace('_', ' ');
-  const upper = (text: string): string => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
   // The plan taken out of the application: as a table for a spreadsheet, or as a sheet for the printer.
   const tExport = useTranslations('mealPlans.export');
   const locale = useLocale();
@@ -1585,43 +1584,9 @@ export function PlanCard({
                             className="-ml-3"
                             onClick={() =>
                               setSplitting(
-                                (m.cookAhead === 'cook' && m.cooking
+                                m.cookAhead === 'cook' && m.cooking
                                   ? mealsOfCooking(plan, m)
-                                  : [{ meal: m, date: day.date }]
-                                ).flatMap((one) => {
-                                  const when = tSplit('portionOf', {
-                                    day: upper(fmt.weekday(one.date, 'long')),
-                                    meal: mealName(one.meal.mealType).toLocaleLowerCase(locale),
-                                  });
-                                  const together = one.meal.shared && !one.meal.shared.apart;
-                                  // A pot both cook holds the other person's portion of each meal as well.
-                                  return [
-                                    {
-                                      key: one.meal.id,
-                                      label: together
-                                        ? tSplit('portionOfWho', {
-                                            who: fmt.text(profileName),
-                                            when,
-                                          })
-                                        : when,
-                                      kcal: one.meal.nutrition.calories,
-                                      lines: one.meal.ingredients,
-                                    },
-                                    ...(together
-                                      ? [
-                                          {
-                                            key: one.meal.shared!.with.mealId,
-                                            label: tSplit('portionOfWho', {
-                                              who: fmt.text(one.meal.shared!.with.profileName),
-                                              when,
-                                            }),
-                                            kcal: one.meal.shared!.with.calories,
-                                            lines: one.meal.shared!.with.ingredients,
-                                          },
-                                        ]
-                                      : []),
-                                  ];
-                                }),
+                                  : [{ meal: m, date: day.date }],
                               )
                             }
                           >
@@ -2012,7 +1977,26 @@ export function PlanCard({
           }}
         />
       )}
-      {splitting && <SplitDialog portions={splitting} onClose={() => setSplitting(null)} />}
+      {splitting && (
+        <SplitDialog
+          cooked={splitting}
+          ownName={profileName}
+          words={{
+            label: (part) => {
+              const weekday = fmt.weekday(part.date, 'long');
+              const when = tSplit('portionOf', {
+                day: weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1),
+                meal: mealName(part.mealType).toLocaleLowerCase(locale),
+              });
+              return part.who === null
+                ? when
+                : tSplit('portionOfWho', { who: fmt.text(part.who), when });
+            },
+            list: fmt.list,
+          }}
+          onClose={() => setSplitting(null)}
+        />
+      )}
       {carrying && plan && (
         <LeftoverDialog
           plan={plan}
