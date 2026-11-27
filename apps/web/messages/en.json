@@ -2386,6 +2386,7 @@
   "eatenPantry": {
     "takeTitle": "Take what was eaten off the pantry",
     "takeNote": "No shopping list covers this day, so the pantry does not take off what was eaten by itself.",
+    "byPerson": "Each person's portion comes off their own pantry.",
     "line": "eaten\u00a0{eaten}\u00a0· in the pantry\u00a0{held}\u00a0· you take\u00a0{taken}",
     "take": "Take off the pantry",
     "notNow": "Not now",

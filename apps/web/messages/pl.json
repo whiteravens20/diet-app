@@ -2386,6 +2386,7 @@
   "eatenPantry": {
     "takeTitle": "Zdejmij ze spiżarni to, co zjedzono",
     "takeNote": "Na ten dzień nie ma listy zakupów, więc spiżarnia sama nie odejmie tego, co zjedzono.",
+    "byPerson": "Porcja każdej osoby schodzi z\u00a0jej spiżarni.",
     "line": "zjedzone\u00a0{eaten}\u00a0· w\u00a0spiżarni\u00a0{held}\u00a0· zdejmiesz\u00a0{taken}",
     "take": "Zdejmij ze spiżarni",
     "notNow": "Nie teraz",

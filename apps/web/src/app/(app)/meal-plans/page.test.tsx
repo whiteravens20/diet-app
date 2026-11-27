@@ -4662,6 +4662,49 @@ describe('the plan page, on a plan made together with another profile', () => {
     );
   });
 
+  it("offers, once a shared meal is eaten by both, each person's portion from that person's pantry, and takes both on one press", async () => {
+    const plan = together();
+    await open(plan);
+    const mine = `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}`;
+    const hers = `/meal-plans/14141414-1414-4414-8414-141414141414/meals/${HERS}`;
+    const oats = (grams: number) => ({
+      ingredientId: '55555555-5555-4555-8555-555555555555',
+      name: 'Rolled oats',
+      eaten: { quantity: grams, unit: 'g' },
+      held: { quantity: 500, unit: 'g' },
+      taken: { quantity: grams, unit: 'g' },
+    });
+    const read = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((asked: string) =>
+      asked === `${mine}/pantry`
+        ? Promise.resolve({ profileName: 'Me', offer: [oats(60)], taken: [] } as never)
+        : asked === `${hers}/pantry`
+          ? Promise.resolve({ profileName: 'Ewa', offer: [oats(66)], taken: [] } as never)
+          : read(asked),
+    );
+    vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
+
+    await unfoldMeal();
+    await userEvent.click(
+      screen.getByRole('button', { name: ofAMeal(messages.mealPlans.eatenTogether) }),
+    );
+
+    const dialog = within(
+      await screen.findByRole('dialog', { name: messages.eatenPantry.takeTitle }),
+    );
+    expect(dialog.getByText(messages.eatenPantry.byPerson)).toBeInTheDocument();
+    expect(dialog.getByRole('heading', { name: 'Ewa' })).toBeInTheDocument();
+    expect(
+      dialog.getByText(spaced('eaten 66 g · in the pantry 500 g · you take 66 g')),
+    ).toBeInTheDocument();
+    await userEvent.click(dialog.getByRole('button', { name: messages.eatenPantry.take }));
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post).toHaveBeenCalledWith(`${mine}/pantry-take`);
+    expect(post).toHaveBeenCalledWith(`${hers}/pantry-take`);
+  });
+
   it('says how a shared meal is cooked when the box is ticked', async () => {
     const plan = together();
     await open(plan);

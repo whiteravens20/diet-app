@@ -588,7 +588,18 @@ function MealPlansContent() {
     onSuccess: (res, v) => {
       showRebalance(v.planId, res);
       // On a day no list covers, what was eaten may come off the pantry, or what was taken go back: never by itself.
-      eatenPantry.ask(`/meal-plans/${v.planId}/meals/${v.mealId}`, v.eaten ? 'take' : 'give-back');
+      // Eaten by both, the other person's portion too, from that person's pantry.
+      const other = v.forAll
+        ? res.plan.days.flatMap((day) => day.meals).find((meal) => meal.id === v.mealId)?.shared
+            ?.with
+        : undefined;
+      eatenPantry.ask(
+        [
+          `/meal-plans/${v.planId}/meals/${v.mealId}`,
+          ...(other ? [`/meal-plans/${other.planId}/meals/${other.mealId}`] : []),
+        ],
+        v.eaten ? 'take' : 'give-back',
+      );
     },
     onError: fail(t('errEaten')),
   });

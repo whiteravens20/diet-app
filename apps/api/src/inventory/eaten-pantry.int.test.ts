@@ -216,7 +216,11 @@ describe('what eating takes off the pantry', () => {
     await mark(plan, lunch.id, true);
     const before = await held(chickenId);
 
-    expect(await pantry(ofMeal(plan, lunch.id))).toEqual({ offer: [], taken: [] });
+    expect(await pantry(ofMeal(plan, lunch.id))).toEqual({
+      profileName: profile.name,
+      offer: [],
+      taken: [],
+    });
     await pantry(ofMeal(plan, lunch.id), 'take');
     expect(await held(chickenId)).toBe(before);
   });
@@ -347,7 +351,11 @@ describe('what eating takes off the pantry', () => {
       name: 'Kanapka',
       nutrition: { calories: 300, protein: 12, fat: 10, carbs: 40 },
     });
-    expect(await pantry(ofEntry(own.id))).toEqual({ offer: [], taken: [] });
+    expect(await pantry(ofEntry(own.id))).toEqual({
+      profileName: profile.name,
+      offer: [],
+      taken: [],
+    });
 
     // Given back, the ingredient's entry returns its chicken.
     await pantry(ofEntry(ingredient.id), 'return');

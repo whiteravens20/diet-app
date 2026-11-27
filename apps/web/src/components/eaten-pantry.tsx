@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useState, type ReactNode } from 'react';
 import type { EatenPantry } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import type { PantryQuestion } from './eaten-pantry-dialog';
+import type { PantryQuestion, Portion } from './eaten-pantry-dialog';
 
 /** Fetched once there is something to ask: no first visit of a page waits for the window. */
 const EatenPantryDialog = dynamic(
@@ -15,9 +15,8 @@ const EatenPantryDialog = dynamic(
 );
 
 interface Asked {
-  path: string;
   ask: PantryQuestion;
-  pantry: EatenPantry;
+  portions: Portion[];
   remove?: () => void;
 }
 
@@ -30,23 +29,30 @@ interface Asked {
  */
 export function useEatenPantry(): {
   /**
-   * Of the meal or the entry at `path`: after a mark set or an entry written (`take`), after a mark taken back
-   * (`give-back`), or before an entry that took food is removed (`remove`, with what removes it, once what it took is
-   * given back or not; at once where nothing is to be given back).
+   * Of the meal or the entry at `paths` (or each person's meal of a meal eaten by both): after a mark set or an entry
+   * written (`take`), after a mark taken back (`give-back`), or before an entry that took food is removed (`remove`,
+   * with what removes it, once what it took is given back or not; at once where nothing is to be given back).
    */
-  ask: (path: string, question: PantryQuestion, remove?: () => void) => void;
+  ask: (paths: string | readonly string[], question: PantryQuestion, remove?: () => void) => void;
   dialog: ReactNode;
 } {
   const [asked, setAsked] = useState<Asked | null>(null);
-  const ask = (path: string, question: PantryQuestion, remove?: () => void) =>
-    void api.get<EatenPantry>(`${path}/pantry`).then(
-      (pantry) => {
-        if ((question === 'take' ? pantry.offer : pantry.taken).length > 0)
-          setAsked({ path, ask: question, pantry, remove });
-        else remove?.();
-      },
-      () => remove?.(),
-    );
+  const ask = (paths: string | readonly string[], question: PantryQuestion, remove?: () => void) =>
+    void Promise.all(
+      [paths].flat().map((path) =>
+        api.get<EatenPantry>(`${path}/pantry`).then(
+          (pantry) => ({ path, pantry }),
+          () => null,
+        ),
+      ),
+    ).then((read) => {
+      const portions = read.filter(
+        (one): one is Portion =>
+          one !== null && (question === 'take' ? one.pantry.offer : one.pantry.taken).length > 0,
+      );
+      if (portions.length > 0) setAsked({ ask: question, portions, remove });
+      else remove?.();
+    });
   return {
     ask,
     dialog: asked && <EatenPantryDialog {...asked} onClose={() => setAsked(null)} />,

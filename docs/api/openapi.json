@@ -17025,6 +17025,9 @@
       "EatenPantry": {
         "type": "object",
         "properties": {
+          "profileName": {
+            "type": "string"
+          },
           "offer": {
             "type": "array",
             "items": {
@@ -17039,6 +17042,7 @@
           }
         },
         "required": [
+          "profileName",
           "offer",
           "taken"
         ],

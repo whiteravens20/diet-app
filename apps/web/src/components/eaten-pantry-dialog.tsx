@@ -15,25 +15,29 @@ import { useErrorText } from '@/lib/use-error-text';
 /** What the window asks: to take what was eaten, to give back what was taken, or that before an entry is removed. */
 export type PantryQuestion = 'take' | 'give-back' | 'remove';
 
+/** A meal's or an entry's own path (`/meal-plans/:id/meals/:mealId`, `/diary/entries/:id`) and what eating it does to its pantry. */
+export interface Portion {
+  path: string;
+  pantry: EatenPantry;
+}
+
 const TITLES = { take: 'takeTitle', 'give-back': 'giveBackTitle', remove: 'removeTitle' } as const;
 const NOTES = { take: 'takeNote', 'give-back': 'giveBackNote', remove: 'removeNote' } as const;
 
 /**
  * The window that takes what a meal or an entry ate off the pantry ("Zdejmij ze spiżarni to, co zjedzono"), or gives
  * back what it took ("Oddaj do spiżarni"): food by food, in the amounts the API shows, and nothing until it is
- * confirmed. Before an entry that took food is removed, it offers to give that back first.
+ * confirmed. A meal eaten by both people of a joint plan is two portions, each from its own person's pantry, taken on
+ * one press. Before an entry that took food is removed, it offers to give that back first.
  */
 export function EatenPantryDialog({
-  path,
   ask,
-  pantry,
+  portions,
   remove,
   onClose,
 }: {
-  /** The meal's or the entry's own path: `/meal-plans/:id/meals/:mealId`, `/diary/entries/:id`. */
-  path: string;
   ask: PantryQuestion;
-  pantry: EatenPantry;
+  portions: readonly Portion[];
   /** Of a removal: removes the entry, once what it took is given back or not. */
   remove?: () => void;
   onClose: () => void;
@@ -45,51 +49,64 @@ export function EatenPantryDialog({
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const write = useMutation({
-    mutationFn: (to: 'take' | 'return') => api.post<EatenPantry>(`${path}/pantry-${to}`),
+    mutationFn: async (to: 'take' | 'return') => {
+      // One after the other: a portion taken already offers nothing, so a press again takes only what is left.
+      for (const { path } of portions) await api.post<EatenPantry>(`${path}/pantry-${to}`);
+    },
     onMutate: () => setError(null),
-    onSuccess: async () => {
+    onSettled: () =>
       // The pantry, and the diary's entries, which say whether they took food.
-      await Promise.all([
+      Promise.all([
         qc.invalidateQueries({ queryKey: ['inventory'] }),
         qc.invalidateQueries({ queryKey: ['diary'] }),
-      ]);
+      ]),
+    onSuccess: () => {
       if (ask === 'remove') remove?.();
       onClose();
     },
     onError: (e, to) => setError(errorText(e, t(to === 'take' ? 'errTake' : 'errGiveBack'))),
   });
-  const lines = ask === 'take' ? pantry.offer : pantry.taken;
+  const both = portions.length > 1;
   return (
     <Dialog open onClose={onClose} label={t(TITLES[ask])} className="max-w-md">
       <div className="space-y-3 p-4 text-sm">
         <h2 className="font-semibold">{t(TITLES[ask])}</h2>
         <p>{t(NOTES[ask])}</p>
-        <ul
+        {both && <p>{t('byPerson')}</p>}
+        <div
+          role="group"
+          aria-label={t('foods')}
           // Scrolls on its own where the window would not fit the screen: the title and the buttons stay in sight, and
           // the window opens at its top, the list taking the focus before the buttons below it.
-          className="max-h-[60vh] space-y-2 overflow-y-auto"
+          className="max-h-[60vh] space-y-3 overflow-y-auto"
           tabIndex={0}
-          aria-label={t('foods')}
         >
-          {lines.map((line) => (
-            <li key={line.ingredientId}>
-              {ask === 'take' ? (
-                <>
-                  <span className="font-medium">{line.name}</span>
-                  <span className="block text-muted-foreground">
-                    {t('line', {
-                      eaten: shown(line.eaten),
-                      held: shown(line.held),
-                      taken: shown(line.taken),
-                    })}
-                  </span>
-                </>
-              ) : (
-                t('takenLine', { name: line.name, taken: shown(line.taken) })
-              )}
-            </li>
+          {portions.map(({ path, pantry }) => (
+            <div key={path} className="space-y-2">
+              {both && <h3 className="font-semibold">{pantry.profileName}</h3>}
+              <ul className="space-y-2">
+                {(ask === 'take' ? pantry.offer : pantry.taken).map((line) => (
+                  <li key={line.ingredientId}>
+                    {ask === 'take' ? (
+                      <>
+                        <span className="font-medium">{line.name}</span>
+                        <span className="block text-muted-foreground">
+                          {t('line', {
+                            eaten: shown(line.eaten),
+                            held: shown(line.held),
+                            taken: shown(line.taken),
+                          })}
+                        </span>
+                      </>
+                    ) : (
+                      t('takenLine', { name: line.name, taken: shown(line.taken) })
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
         {error && (
           <p role="alert" className="text-destructive">
             {error}

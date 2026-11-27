@@ -1200,7 +1200,13 @@ export class MealPlansService {
           id: true,
           eatenAt: true,
           pantryMoves: true,
-          day: { select: { date: true, planId: true, plan: { select: { profileId: true } } } },
+          day: {
+            select: {
+              date: true,
+              planId: true,
+              plan: { select: { profileId: true, profile: { select: { name: true } } } },
+            },
+          },
         },
       });
     await holdProfile(tx, (await read()).day.plan.profileId);
@@ -1229,7 +1235,7 @@ export class MealPlansService {
       offering || ledger.length > 0
         ? await mealEaten(db, meal.day.planId, meal.id)
         : new Map<string, number>();
-    return { profileId, eaten, ledger, offering };
+    return { profileId, profileName: meal.day.plan.profile.name, eaten, ledger, offering };
   }
 
   /**
@@ -3120,7 +3126,7 @@ interface PantryMeal {
   id: string;
   eatenAt: Date | null;
   pantryMoves: unknown;
-  day: { date: Date; planId: string; plan: { profileId: string } };
+  day: { date: Date; planId: string; plan: { profileId: string; profile: { name: string } } };
 }
 
 /** The pots cooked already a plan's meals are eaten from (`potsOf`), and what the day after each such meal is for a leftover. */

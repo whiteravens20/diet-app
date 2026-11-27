@@ -31,6 +31,8 @@ interface Taken {
 /** What eating a meal or an entry comes to for the pantry of its profile. */
 export interface Eating {
   profileId: string;
+  /** The profile's name, which says whose pantry it is. */
+  profileName: string;
   /** What it ate, by ingredient, in the ingredient's canonical unit. */
   eaten: ReadonlyMap<string, number>;
   /** What it took off the pantry, as it keeps it. */
@@ -114,9 +116,9 @@ export async function eatenPantry(
   today: string,
   locale: Locale,
 ): Promise<EatenPantry> {
-  const { eaten, ledger, offering } = eating;
+  const { eaten, ledger, offering, profileName } = eating;
   const ids = [...new Set([...eaten.keys(), ...ledger.map((one) => one.ingredientId)])];
-  if (ids.length === 0) return { offer: [], taken: [] };
+  if (ids.length === 0) return { profileName, offer: [], taken: [] };
   const [rows, held] = await Promise.all([
     db.ingredient.findMany({
       where: { id: { in: ids } },
@@ -155,7 +157,7 @@ export async function eatenPantry(
     return amount > 0 ? [line(ingredient, eaten.get(one.ingredientId) ?? amount, amount)] : [];
   });
   const byName = (a: EatenFromPantry, b: EatenFromPantry) => a.name.localeCompare(b.name, locale);
-  return { offer: offer.sort(byName), taken: taken.sort(byName) };
+  return { profileName, offer: offer.sort(byName), taken: taken.sort(byName) };
 }
 
 /**

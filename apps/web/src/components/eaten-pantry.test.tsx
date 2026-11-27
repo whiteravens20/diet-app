@@ -18,9 +18,13 @@ const PATH =
   '/meal-plans/11111111-1111-4111-8111-111111111111/meals/33333333-3333-4333-8333-333333333333';
 const CHICKEN = '55555555-5555-4555-8555-555555555551';
 const EGG = '55555555-5555-4555-8555-555555555552';
+/** The other person's meal of a meal eaten by both. */
+const OTHER =
+  '/meal-plans/11111111-1111-4111-8111-111111111112/meals/33333333-3333-4333-8333-333333333334';
 
 /** Of a lunch of chicken and two eggs, what taking it off a pantry of 400 g of chicken and six eggs would take. */
 const OFFER: EatenPantry = {
+  profileName: 'Paweł',
   offer: [
     {
       ingredientId: CHICKEN,
@@ -41,10 +45,11 @@ const OFFER: EatenPantry = {
 };
 /** The same, once it was taken. */
 const TAKEN: EatenPantry = {
+  profileName: 'Paweł',
   offer: [],
   taken: OFFER.offer.map((line) => ({ ...line, held: { ...line.held, quantity: 0 } })),
 };
-const NOTHING: EatenPantry = { offer: [], taken: [] };
+const NOTHING: EatenPantry = { profileName: 'Paweł', offer: [], taken: [] };
 
 /** A page with a meal or an entry at `PATH`, which asks what eating it does to the pantry as the page would. */
 function Page({ remove }: { remove: () => void }) {
@@ -59,6 +64,9 @@ function Page({ remove }: { remove: () => void }) {
       </button>
       <button type="button" onClick={() => pantry.ask(PATH, 'remove', remove)}>
         remove
+      </button>
+      <button type="button" onClick={() => pantry.ask([PATH, OTHER], 'take')}>
+        eaten by both
       </button>
       {pantry.dialog}
     </>
@@ -125,7 +133,9 @@ describe('what eating takes off the pantry, asked once a meal is eaten or an ent
     ).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
     // A long list scrolls on its own, and a keyboard reaches it before the buttons below it.
-    expect(window.getByRole('list', { name: texts.foods })).toHaveAttribute('tabindex', '0');
+    expect(window.getByRole('group', { name: texts.foods })).toHaveAttribute('tabindex', '0');
+    // One portion: no name over it.
+    expect(window.queryByRole('heading', { name: 'Paweł' })).toBeNull();
 
     await userEvent.click(window.getByRole('button', { name: texts.take }));
 
@@ -229,6 +239,46 @@ describe('what eating takes off the pantry, asked once a meal is eaten or an ent
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("asks of a meal eaten by both about each person's portion, from that person's pantry, and takes both on one press", async () => {
+    const { get, post } = opened(OFFER, NOTHING);
+    get.mockImplementation((path: string) =>
+      Promise.resolve(
+        (path === `${OTHER}/pantry`
+          ? { ...OFFER, profileName: 'Ewa', offer: OFFER.offer.slice(0, 1) }
+          : OFFER) as never,
+      ),
+    );
+
+    await press('eaten by both');
+
+    const window = await theWindow(texts.takeTitle);
+    expect(window.getByText(texts.byPerson)).toBeInTheDocument();
+    expect(window.getByRole('heading', { name: 'Paweł' })).toBeInTheDocument();
+    expect(window.getByRole('heading', { name: 'Ewa' })).toBeInTheDocument();
+    expect(window.getAllByText('Chicken breast')).toHaveLength(2);
+    await userEvent.click(window.getByRole('button', { name: texts.take }));
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post).toHaveBeenCalledWith(`${PATH}/pantry-take`);
+    expect(post).toHaveBeenCalledWith(`${OTHER}/pantry-take`);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it("asks about the portion it can read, where the other person's cannot be read", async () => {
+    const { get } = opened(OFFER);
+    get.mockImplementation((path: string) =>
+      path === `${OTHER}/pantry`
+        ? Promise.reject(new Error('down'))
+        : Promise.resolve(OFFER as never),
+    );
+
+    await press('eaten by both');
+
+    const window = await theWindow(texts.takeTitle);
+    expect(window.queryByText(texts.byPerson)).toBeNull();
+    expect(window.getAllByText('Chicken breast')).toHaveLength(1);
   });
 
   it('says why where taking fails, and keeps the window open', async () => {

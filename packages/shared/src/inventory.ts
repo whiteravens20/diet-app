@@ -151,6 +151,8 @@ export type EatenFromPantry = z.infer<typeof EatenFromPantry>;
  * giving it back returns, empty where nothing was. A meal that cooks a pot ahead takes the whole pot's food.
  */
 export const EatenPantry = z.object({
+  /** Whose pantry it is: the name of the profile of the meal or the entry. */
+  profileName: z.string(),
   offer: z.array(EatenFromPantry),
   taken: z.array(EatenFromPantry),
 });

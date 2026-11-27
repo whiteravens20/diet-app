@@ -797,7 +797,7 @@ export class DiaryService {
       !(await listCovers(db, entry.profileId, entry.date));
     const eaten =
       offering || ledger.length > 0 ? await entryEaten(db, entry) : new Map<string, number>();
-    return { profileId: entry.profileId, eaten, ledger, offering };
+    return { profileId: entry.profileId, profileName: entry.profile.name, eaten, ledger, offering };
   }
 
   /**
@@ -1224,6 +1224,7 @@ function perServing(recipe: {
 /** What an entry's pantry reads of it. */
 const PANTRY_ENTRY = {
   profileId: true,
+  profile: { select: { name: true } },
   date: true,
   kind: true,
   ingredientId: true,
