@@ -2849,6 +2849,7 @@
     "portionWhole": "Below are the amounts for the whole cooking: {mine, plural, one {{mine, number, ::group-off}\u00a0serving} other {{mine, number, ::group-off}\u00a0servings}}{same, select, yes {, as in the original recipe.} other {. The original recipe makes {recipe, plural, one {{recipe, number, ::group-off}\u00a0serving} other {{recipe, number, ::group-off}\u00a0servings}}.}}",
     "platesTitle": "The plates",
     "platesIntro": "The plan shares these ingredients out otherwise than the recipe, so that each person's day keeps their split of macronutrients.",
+    "platesApart": "Cooked apart: every ingredient in the amount for each plate.",
     "platesPot": "Split the rest of the pot by the size of each portion.",
     "platesIngredient": "Ingredient",
     "platesYou": "You"

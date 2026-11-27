@@ -95,16 +95,19 @@ export interface PotPortions {
 }
 
 /**
- * The lines of a dish both people eat that a plate of either holds otherwise
- * than the recipe's proportion: what each plate takes of them. None where both
- * plates are the recipe's, and for a meal of one plan alone.
+ * The lines of a dish both people eat, with what each plate takes of them: of a
+ * dish cooked in one pot, those a plate of either holds otherwise than the
+ * recipe's proportion, none where both plates are the recipe's; of one each
+ * person cooks apart, every line, since each cooks a plate of their own. None
+ * for a meal of one plan alone.
  */
 export function platesOf(meal: Pick<PlannedMeal, 'ingredients' | 'shared'>): PlateRow[] {
   const theirs = meal.shared?.with.ingredients ?? [];
+  const every = meal.shared?.apart ?? false;
   return meal.ingredients.flatMap((line, index) => {
     const other = theirs[index];
     if (!other || other.ingredientId !== line.ingredientId) return [];
-    if (line.share === undefined && other.share === undefined) return [];
+    if (!every && line.share === undefined && other.share === undefined) return [];
     return [
       {
         ingredientId: line.ingredientId,

@@ -54,6 +54,8 @@ export interface SharedPortion {
   servings: number;
   kcal: number;
   eaten: boolean;
+  /** Each person cooks a plate of their own: every line of the plates is said, with both amounts. */
+  apart: boolean;
   plates: PlateRow[];
 }
 
@@ -216,7 +218,7 @@ export function RecipeModal({
             </h3>
             {/* The rest of a pot is split by portion; a dish each person cooks apart has no pot to split. */}
             <p className="text-sm text-muted-foreground">
-              {t('platesIntro')}
+              {!pot && shared?.apart ? t('platesApart') : t('platesIntro')}
               {pot && ` ${t('platesPot')}`}
             </p>
             <table className="w-full text-sm">

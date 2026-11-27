@@ -358,6 +358,7 @@ export function PlanCard({
           servings: Math.round(m.shared.with.servings * 10) / 10,
           kcal: Math.round(m.shared.with.calories),
           eaten: m.shared.with.eaten,
+          apart: m.shared.apart,
           plates: platesOf(m),
         }
       : undefined,

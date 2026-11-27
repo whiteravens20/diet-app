@@ -211,6 +211,7 @@ describe('the window of a recipe', () => {
         servings: 1.2,
         kcal: 439,
         eaten: true,
+        apart: true,
         plates: [
           {
             ingredientId: '55555555-5555-4555-8555-555555555555',
@@ -230,13 +231,16 @@ describe('the window of a recipe', () => {
     expect(within(plates).getByRole('row', { name: /Rolled oats/ })).toHaveTextContent(
       /60\s?g.*80\s?g/,
     );
+    // Each cooks a plate of their own: the table holds every line, and says so.
+    expect(dialog.getByText(messages.recipeModal.platesApart)).toBeInTheDocument();
+    expect(dialog.queryByText(messages.recipeModal.platesIntro)).toBeNull();
   });
 
   it('leaves the portions of a pot to the line of the pot', async () => {
     const dialog = renderWindow(() => Promise.resolve(oats), {
       portion: { servings: 2, whole: false },
       pot: { mine: 1, name: 'Ewa', theirs: 1, plates: [] },
-      shared: { name: 'Ewa', servings: 1, kcal: 300, eaten: false, plates: [] },
+      shared: { name: 'Ewa', servings: 1, kcal: 300, eaten: false, apart: false, plates: [] },
     });
 
     expect(await dialog.findByText(/of which you 1, Ewa 1/)).toBeInTheDocument();

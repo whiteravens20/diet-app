@@ -2849,6 +2849,7 @@
     "portionWhole": "Poniżej podane są ilości na całe gotowanie: {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}{same, select, yes {, tak jak w\u00a0oryginalnym przepisie.} other {. Oryginalny przepis jest na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}.}}",
     "platesTitle": "Talerze",
     "platesIntro": "Plan dzieli te składniki inaczej niż przepis, żeby dzień każdej osoby trzymał jej podział makroskładników.",
+    "platesApart": "Gotowane osobno: każdy składnik w ilości na każdy talerz.",
     "platesPot": "Resztę garnka podziel według wielkości porcji.",
     "platesIngredient": "Składnik",
     "platesYou": "Ty"

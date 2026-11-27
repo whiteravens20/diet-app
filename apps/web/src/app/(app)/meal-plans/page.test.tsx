@@ -4797,17 +4797,20 @@ describe('the plan page, on a plan made together with another profile', () => {
     });
     const CHICKEN = '56565656-5656-4565-8565-565656565656';
     const RICE = '57575757-5757-4575-8575-575757575757';
-    /** Chicken and rice: more chicken and less rice on this plate, the other way round on Ewa's. */
+    const OIL = '58585858-5858-4585-8585-585858585858';
+    /** Chicken and rice: more chicken and less rice on this plate, the other way round on Ewa's; the oil as the recipe has it. */
     const onPlates = (): MealPlan => {
       const plan = together();
       const meal = plan.days[0]!.meals[0]!;
       meal.ingredients = [
         line(CHICKEN, 'Chicken breast', 156, 1.3),
         line(RICE, 'Basmati rice', 48, 0.8),
+        line(OIL, 'Olive oil', 10),
       ];
       meal.shared!.with.ingredients = [
         line(CHICKEN, 'Chicken breast', 84, 0.7),
         line(RICE, 'Basmati rice', 72, 1.2),
+        line(OIL, 'Olive oil', 15),
       ];
       return plan;
     };
@@ -4831,9 +4834,15 @@ describe('the plan page, on a plan made together with another profile', () => {
       const table = await window.findByRole('table');
       expect(within(table).getByRole('columnheader', { name: 'Ewa' })).toBeInTheDocument();
       expect(within(table).getByRole('row', { name: /Chicken breast/ })).toBeInTheDocument();
+      // Each cooks a plate of their own: every line with both amounts, the oil the recipe's proportion gives as well.
+      expect(
+        within(within(table).getByRole('row', { name: /Olive oil/ }))
+          .getAllByRole('cell')
+          .map((cell) => plain(cell.textContent)),
+      ).toEqual(['10 g', '15 g']);
       expect(window.getByText(/^Ewa: /)).toBeInTheDocument();
       // Each cooks a portion of their own: there is no pot to split.
-      expect(window.getByText(messages.recipeModal.platesIntro)).toBeInTheDocument();
+      expect(window.getByText(messages.recipeModal.platesApart)).toBeInTheDocument();
       expect(window.queryByText(messages.recipeModal.platesPot, { exact: false })).toBeNull();
       expect(window.queryByText(messages.split.partRisk)).toBeNull();
     });
@@ -4860,6 +4869,8 @@ describe('the plan page, on a plan made together with another profile', () => {
           .getAllByRole('cell')
           .map((cell) => plain(cell.textContent)),
       ).toEqual(['155 g', '85 g']);
+      // In one pot the table holds the lines a plate holds otherwise than the recipe: the oil is split with the pot.
+      expect(within(table).queryByRole('row', { name: /Olive oil/ })).toBeNull();
       expect(
         window.getByText(messages.recipeModal.platesPot, { exact: false }),
       ).toBeInTheDocument();
