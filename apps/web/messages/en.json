@@ -3519,6 +3519,7 @@
     "wayHintPartOwn": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and choose it below: each portion gets as much of it as the plan gives it. Then the next.",
     "eatenLeftOut": "Leaving out the portions eaten already: {portions}.",
     "allEaten": "Every portion of this dish has been eaten.",
-    "restInPot": "Left in the pot"
+    "restInPot": "Left in the pot",
+    "wholePlated": "The plates of this meal hold their parts in different proportions: split it one part at a time."
   }
 }

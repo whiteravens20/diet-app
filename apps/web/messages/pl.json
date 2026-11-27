@@ -3519,6 +3519,7 @@
     "wayHintPartOwn": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny.",
     "eatenLeftOut": "Bez porcji już zjedzonych: {portions}.",
     "allEaten": "Wszystkie porcje tego dania są już zjedzone.",
-    "restInPot": "Zostaje w garnku"
+    "restInPot": "Zostaje w garnku",
+    "wholePlated": "Talerze tego posiłku mają różne proporcje: dziel go składnik po składniku."
   }
 }

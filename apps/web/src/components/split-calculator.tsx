@@ -47,17 +47,24 @@ const typed = (text: string): number | null => {
  * a dish weighed in its pot is the scale's weight less the empty pot's. A part
  * weighed alone of portions that say what they take of each ingredient is
  * split by what each takes of the ingredient chosen: each plate of a dish both
- * people eat holds its parts in proportions of its own. Whole grams and pieces,
- * the last portion taking what is left. Nothing is kept.
+ * people eat holds its parts in proportions of its own, and such a dish
+ * (`plated`) is split one part at a time from the start. Whole grams and
+ * pieces, the last portion taking what is left. Nothing is kept.
  */
-export function SplitCalculator({ portions: planned }: { portions?: SplitPortion[] }) {
+export function SplitCalculator({
+  portions: planned,
+  plated = false,
+}: {
+  portions?: SplitPortion[];
+  plated?: boolean;
+}) {
   const t = useTranslations('split');
   const fmt = useFormat();
   const id = useId();
   const [count, setCount] = useState(2);
   const [byKcal, setByKcal] = useState(false);
   const [kcalTexts, setKcalTexts] = useState<string[]>([]);
-  const [way, setWay] = useState<Way>('whole');
+  const [way, setWay] = useState<Way>(plated ? 'part' : 'whole');
   const [scaleText, setScaleText] = useState('');
   const [inPot, setInPot] = useState(false);
   const [potText, setPotText] = useState('');
@@ -161,7 +168,9 @@ export function SplitCalculator({ portions: planned }: { portions?: SplitPortion
             <p id={`${id}-${option}`} className="ml-6 text-xs text-muted-foreground">
               {option === 'part' && ingredients.length > 0
                 ? t('wayHintPartOwn')
-                : t(`wayHint.${option}`)}
+                : option === 'whole' && plated
+                  ? t('wholePlated')
+                  : t(`wayHint.${option}`)}
             </p>
           </div>
         ))}

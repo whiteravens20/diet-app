@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
@@ -15,10 +15,10 @@ const PLANNED: SplitPortion[] = [
   { key: 'tuesday', label: 'Tuesday, lunch', kcal: 560 },
 ];
 
-function shown(portions?: SplitPortion[], locale: 'en' | 'pl' = 'en') {
+function shown(portions?: SplitPortion[], locale: 'en' | 'pl' = 'en', plated = false) {
   render(
     <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pl}>
-      <SplitCalculator portions={portions} />
+      <SplitCalculator portions={portions} plated={plated} />
     </NextIntlClientProvider>,
   );
 }
@@ -139,6 +139,27 @@ describe('the weighing calculator', () => {
     await userEvent.type(screen.getByLabelText(pl.split.onScale), '1250,4');
 
     expect(amountOf('Monday, lunch')).toBe('667 g');
+  });
+
+  it('opens a dish whose plates differ on one part at a time, and says why the whole dish does not fit it', async () => {
+    const plated: SplitPortion[] = PLANNED.map((portion, at) => ({
+      ...portion,
+      lines: [{ ingredientId: 'chicken', name: 'Chicken breast', quantity: at === 0 ? 150 : 90 }],
+    }));
+    shown(plated, 'en', true);
+
+    expect(screen.getByRole('radio', { name: texts.way.part })).toBeChecked();
+    expect(screen.getByRole('radio', { name: texts.way.whole })).toHaveAccessibleDescription(
+      texts.wholePlated,
+    );
+    cleanup();
+
+    // A dish of the recipe's proportions opens on the whole dish, as it did.
+    shown(PLANNED);
+    expect(screen.getByRole('radio', { name: texts.way.whole })).toBeChecked();
+    expect(screen.getByRole('radio', { name: texts.way.whole })).toHaveAccessibleDescription(
+      texts.wayHint.whole,
+    );
   });
 
   it('always says that a pot is never split exactly, and what to do for exact portions', () => {

@@ -62,6 +62,7 @@ describe('what a dish is split into', () => {
     expect(parts.split.map((part) => part.key)).toEqual(['monday', 'tuesday']);
     expect(parts.eaten).toEqual([]);
     expect(parts.rest).toBeNull();
+    expect(parts.plated).toBe(false);
   });
 
   it('leaves out a portion eaten already, named, and adds what the pot holds beyond the meals of now', () => {
@@ -108,6 +109,7 @@ describe('what a dish is split into', () => {
     const parts = partsOfPot([{ meal: own, date: '2026-01-05' }], 'Me');
     expect(parts.split.map((part) => [part.key, part.who])).toEqual([['mine', 'Me']]);
     expect(parts.eaten.map((part) => [part.key, part.who])).toEqual([['hers', 'Ewa']]);
+    expect(parts.plated).toBe(true);
   });
 });
 
