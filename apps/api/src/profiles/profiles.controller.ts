@@ -74,8 +74,9 @@ export class ProfilesController {
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(ProfileInput)) dto: ProfileInput,
+    @ClientDate() today: string | null,
   ) {
-    return this.profiles.create(user.id, dto);
+    return this.profiles.create(user.id, dto, today);
   }
 
   /** The profile as it is from now on: every part of it. A part that is left out is refused. */
@@ -119,8 +120,12 @@ export class ProfilesController {
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Answers(Profile)
-  keepWeight(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    return this.profiles.keepWeight(user.id, id);
+  keepWeight(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.profiles.keepWeight(user.id, id, today);
   }
 
   /** Put the offer to keep the weight off for two weeks from the client's day ("Nie teraz"). */

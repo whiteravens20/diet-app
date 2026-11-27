@@ -35,6 +35,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { calorieInputOf } from '../profiles/calorie-input.js';
 import { DiaryService, type DayFigures } from './diary.service.js';
 import { weightLine, type WeightPoint } from './weight-line.js';
+import { noteTarget } from '../profiles/profile-targets.js';
 
 const DAY_MS = 86_400_000;
 
@@ -78,9 +79,10 @@ export class DiarySummaryService {
     to: string | undefined,
     today: string | null,
   ): Promise<WeekSummary> {
-    const end = to ?? dayAfter(today ?? isoDate(new Date()), -1);
+    const now = today ?? isoDate(new Date());
+    const end = to ?? dayAfter(now, -1);
     const from = dayAfter(end, -(WEEK_DAYS - 1));
-    const days = await this.diary.figuresOfDays(userId, profileId, from, end);
+    const days = await this.diary.figuresOfDays(userId, profileId, from, end, now);
     const counted = days.filter((day) => day.counted);
     return {
       from,
@@ -161,9 +163,13 @@ export class DiarySummaryService {
         message: 'No correction of the target is proposed for this profile now.',
       });
     }
-    const profile = await this.prisma.profile.update({
-      where: { id: profileId },
-      data: { expenditureCorrectionKcal: shown.correction, expenditureLaterUntil: null },
+    const profile = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.profile.update({
+        where: { id: profileId },
+        data: { expenditureCorrectionKcal: shown.correction, expenditureLaterUntil: null },
+      });
+      await noteTarget(tx, profileId, now);
+      return changed;
     });
     return said(profile, now);
   }
@@ -186,12 +192,16 @@ export class DiarySummaryService {
   async drop(userId: string, profileId: string, today: string | null): Promise<Expenditure> {
     const now = today ?? isoDate(new Date());
     await this.profile(userId, profileId);
-    const profile = await this.prisma.profile.update({
-      where: { id: profileId },
-      data: {
-        expenditureCorrectionKcal: null,
-        expenditureLaterUntil: new Date(dayAfter(now, EXPENDITURE_LATER_DAYS)),
-      },
+    const profile = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.profile.update({
+        where: { id: profileId },
+        data: {
+          expenditureCorrectionKcal: null,
+          expenditureLaterUntil: new Date(dayAfter(now, EXPENDITURE_LATER_DAYS)),
+        },
+      });
+      await noteTarget(tx, profileId, now);
+      return changed;
     });
     return said(profile, now);
   }
@@ -206,7 +216,7 @@ export class DiarySummaryService {
     const end = dayAfter(now, -1);
     const from = dayAfter(end, -(EXPENDITURE_DAYS - 1));
     const [days, weights] = await Promise.all([
-      this.diary.figuresOfDays(userId, profileId, from, end),
+      this.diary.figuresOfDays(userId, profileId, from, end, now),
       this.weights(profileId, from, end),
     ]);
     const counted = days.filter(

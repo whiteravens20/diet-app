@@ -16,6 +16,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
+import type { HeldTarget } from '../profiles/profile-targets.js';
 import {
   aimOnDiet,
   dayMacros,
@@ -26,6 +27,7 @@ import {
   macroSplitOf,
   ownSplit,
   sharesOf,
+  shownTarget,
 } from '../engine/nutrition.js';
 import {
   labelOfAmount,
@@ -492,6 +494,22 @@ export function sharesOfPlanDay(
   return plan.dietType === 'custom' && own && grams !== null
     ? ownSplit(own, grams * KCAL_PER_GRAM.protein, calories).shares
     : macroSplitOf(plan.dietType as DietType, own);
+}
+
+/**
+ * What a day of a plan aims at, as the diary reads it: its calories, its grams of the macros with the least
+ * carbohydrate of a diet whose carbohydrate is a ceiling, the shares an estimate of it goes by, and the plan's diet.
+ */
+export function targetOfPlanDay(
+  day: { calorieTarget: number; overrides: unknown },
+  plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
+): HeldTarget {
+  return {
+    calories: day.calorieTarget,
+    ...shownTarget(aimOfDay(day, plan), day.calorieTarget, plan.dietType),
+    split: sharesOfPlanDay(plan, day.calorieTarget),
+    dietType: plan.dietType,
+  };
 }
 
 /** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */

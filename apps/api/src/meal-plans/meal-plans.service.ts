@@ -139,6 +139,7 @@ import {
   whyMacrosOff,
   type StoredPlate,
   type MealRow,
+  targetOfPlanDay,
 } from './plan-days.js';
 import { effectsOf } from './day-events.js';
 import {
@@ -297,6 +298,8 @@ export class MealPlansService {
             })),
           });
         }
+        // Its days gone that hold something eaten keep what they aimed at once no plan holds them.
+        await keepDayTargets(tx, plan, profileId, clientToday ?? this.today());
         const households = await releasePlanLists(
           tx,
           planId,
@@ -3622,4 +3625,40 @@ function targetMoved(
   return Math.abs(profileTarget - plan.calorieTarget) >= TARGET_MOVED_LEAST_KCAL
     ? { profileTarget, planTarget: plan.calorieTarget }
     : null;
+}
+
+/**
+ * Writes down what the days of [plan] before [today] aimed at, those not skipped that hold something eaten: once the
+ * plan goes and no plan holds them, they keep the target the diary showed for them. What was eaten from the plan is
+ * an entry of its day by then.
+ */
+async function keepDayTargets(
+  tx: Prisma.TransactionClient,
+  plan: { id: string; dietType: string; macroSplit: unknown; calorieTarget: number },
+  profileId: string,
+  today: string,
+): Promise<void> {
+  const gone = (
+    await tx.mealPlanDay.findMany({
+      where: { planId: plan.id, date: { lt: new Date(today) } },
+      select: { date: true, calorieTarget: true, overrides: true },
+    })
+  ).filter((day) => !isSkipped(day));
+  if (gone.length === 0) return;
+  const written = new Set(
+    (
+      await tx.diaryEntry.groupBy({
+        by: ['date'],
+        where: { profileId, date: { in: gone.map((day) => day.date) } },
+      })
+    ).map((row) => isoDate(row.date)),
+  );
+  for (const day of gone.filter((one) => written.has(isoDate(one.date)))) {
+    const target = targetOfPlanDay(day, plan);
+    await tx.dayTarget.upsert({
+      where: { profileId_date: { profileId, date: day.date } },
+      create: { profileId, date: day.date, target },
+      update: { target },
+    });
+  }
 }

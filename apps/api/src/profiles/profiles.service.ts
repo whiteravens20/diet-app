@@ -44,6 +44,7 @@ import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { forgetLender, settleHouseholds } from '../shopping-lists/shopping-lists.service.js';
 import { calorieInputOf, type CalorieProfile } from './calorie-input.js';
+import { noteTarget } from './profile-targets.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -103,7 +104,11 @@ export class ProfilesService {
     return this.toDto(await this.load(userId, id));
   }
 
-  async create(userId: string, input: ProfileInput): Promise<Profile> {
+  async create(
+    userId: string,
+    input: ProfileInput,
+    clientToday: string | null = null,
+  ): Promise<Profile> {
     refuseHeldProtein({ ...input, expenditureCorrectionKcal: null });
     refuseTargetUnderLeast({ ...input, expenditureCorrectionKcal: null });
     const row = await this.prisma.$transaction(async (tx) => {
@@ -117,7 +122,7 @@ export class ProfilesService {
           message: `An account can have at most ${most} profiles on this instance. Delete one to add another.`,
         });
       }
-      return tx.profile.create({
+      const made = await tx.profile.create({
         data: {
           userId,
           name: input.name,
@@ -142,6 +147,9 @@ export class ProfilesService {
         },
         include: { preferences: true },
       });
+      // What it aims at from its first day.
+      await noteTarget(tx, made.id, clientToday);
+      return made;
     });
     return this.toDto(row);
   }
@@ -189,39 +197,43 @@ export class ProfilesService {
     const before = await this.load(userId, id);
     refuseHeldProtein({ ...before, ...input }, before);
     refuseTargetUnderLeast({ ...before, ...input }, before);
-    const row = await this.prisma.profile.update({
-      where: { id },
-      data: {
-        name: input.name,
-        age: input.age,
-        sex: input.sex,
-        heightCm: input.heightCm,
-        weightKg: input.weightKg,
-        targetWeightKg: input.targetWeightKg,
-        // Left out by a client from before the target of water, it stays as it is.
-        ...(input.waterTargetMl === undefined ? {} : { waterTargetMl: input.waterTargetMl }),
-        ...(input.waterTracking === undefined ? {} : { waterTracking: input.waterTracking }),
-        activityLevel: input.activityLevel,
-        dietType: input.dietType,
-        weeklyLossTarget: input.weeklyLossTarget,
-        manualCalorieTarget: input.manualCalorieTarget,
-        customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
-        customProteinPerKg: input.customProteinPerKg,
-        mealCount: input.mealCount,
-        weightReminderCadence: input.weightReminderCadence,
-        // Left out by a client from before the reminders, they stay as they are.
-        ...(input.cookingReminders === undefined
-          ? {}
-          : { cookingReminders: input.cookingReminders }),
-        ...(input.waterReminders === undefined ? {} : { waterReminders: input.waterReminders }),
-        preferences: {
-          upsert: {
-            create: preferenceColumns(input.preferences),
-            update: preferenceColumns(input.preferences),
+    const row = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.profile.update({
+        where: { id },
+        data: {
+          name: input.name,
+          age: input.age,
+          sex: input.sex,
+          heightCm: input.heightCm,
+          weightKg: input.weightKg,
+          targetWeightKg: input.targetWeightKg,
+          // Left out by a client from before the target of water, it stays as it is.
+          ...(input.waterTargetMl === undefined ? {} : { waterTargetMl: input.waterTargetMl }),
+          ...(input.waterTracking === undefined ? {} : { waterTracking: input.waterTracking }),
+          activityLevel: input.activityLevel,
+          dietType: input.dietType,
+          weeklyLossTarget: input.weeklyLossTarget,
+          manualCalorieTarget: input.manualCalorieTarget,
+          customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
+          customProteinPerKg: input.customProteinPerKg,
+          mealCount: input.mealCount,
+          weightReminderCadence: input.weightReminderCadence,
+          // Left out by a client from before the reminders, they stay as they are.
+          ...(input.cookingReminders === undefined
+            ? {}
+            : { cookingReminders: input.cookingReminders }),
+          ...(input.waterReminders === undefined ? {} : { waterReminders: input.waterReminders }),
+          preferences: {
+            upsert: {
+              create: preferenceColumns(input.preferences),
+              update: preferenceColumns(input.preferences),
+            },
           },
         },
-      },
-      include: { preferences: true },
+        include: { preferences: true },
+      });
+      await noteTarget(tx, id, clientToday);
+      return changed;
     });
     if (input.dietType !== before.dietType) await this.refreshJointPlans(id, clientToday);
     return this.toDto(row);
@@ -284,16 +296,20 @@ export class ProfilesService {
       { ...before, ...parts, customMacroSplit: after.customMacroSplit, customProteinPerKg },
       before,
     );
-    const row = await this.prisma.profile.update({
-      where: { id },
-      data: {
-        ...parts,
-        ...(customMacroSplit === undefined
-          ? {}
-          : { customMacroSplit: customMacroSplit ?? Prisma.JsonNull }),
-        customProteinPerKg,
-      },
-      include: { preferences: true },
+    const row = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.profile.update({
+        where: { id },
+        data: {
+          ...parts,
+          ...(customMacroSplit === undefined
+            ? {}
+            : { customMacroSplit: customMacroSplit ?? Prisma.JsonNull }),
+          customProteinPerKg,
+        },
+        include: { preferences: true },
+      });
+      await noteTarget(tx, id, clientToday);
+      return changed;
     });
     if (after.dietType !== before.dietType) await this.refreshJointPlans(id, clientToday);
     return this.toDto(row);
@@ -304,12 +320,16 @@ export class ProfilesService {
    * keeping the weight, and the offer goes. A running plan then says that the
    * profile's target moved, and offers it from today.
    */
-  async keepWeight(userId: string, id: string): Promise<Profile> {
+  async keepWeight(userId: string, id: string, today: string | null = null): Promise<Profile> {
     await this.load(userId, id);
-    const row = await this.prisma.profile.update({
-      where: { id },
-      data: { weeklyLossTarget: null, targetReachedLaterUntil: null },
-      include: { preferences: true },
+    const row = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.profile.update({
+        where: { id },
+        data: { weeklyLossTarget: null, targetReachedLaterUntil: null },
+        include: { preferences: true },
+      });
+      await noteTarget(tx, id, today);
+      return changed;
     });
     return this.toDto(row);
   }

@@ -15,6 +15,8 @@ const IN_THE_FILE: Record<string, string> = {
   Profile: 'profiles',
   ProfilePreference: 'profiles',
   WeightEntry: 'weights',
+  ProfileTarget: 'targets',
+  DayTarget: 'dayTargets',
   WaterEntry: 'water',
   DiaryEntry: 'diary',
   InventoryItem: 'pantry',

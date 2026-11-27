@@ -1,6 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { dayAfter, type Expenditure, type Profile, type WeekSummary } from '@diet-app/shared';
+import {
+  dayAfter,
+  type DiaryDay,
+  type Expenditure,
+  type Profile,
+  type WeekSummary,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -149,6 +155,57 @@ describe("what a profile's diary and weights come to", () => {
       expect(week).toMatchObject({ from: daysAgo(14), to: daysAgo(8), counted: 0, empty: 7 });
       expect(week.eaten).toBeNull();
       expect(week.weight.kgPerWeek).toBeNull();
+    });
+  });
+
+  describe('the days gone, as they aimed', () => {
+    /** As if the profile had been made a month ago: its first row of what it aims at is from then. */
+    const madeAMonthAgo = () =>
+      t.prisma.profileTarget.updateMany({
+        where: { profileId: profile.id },
+        data: { from: new Date(daysAgo(30)) },
+      });
+    const day = (date: string) =>
+      get<DiaryDay>(`/api/diary/day?profileId=${profile.id}&date=${date}`);
+
+    it('keep the target they had when a weight logged today moves it', async () => {
+      await madeAMonthAgo();
+      for (const days of [1, 2, 3]) await eat(daysAgo(days), 2135);
+      const before = await get<WeekSummary>(`/api/diary/week?profileId=${profile.id}`);
+      expect(before).toMatchObject({ counted: 3, withinTarget: 3 });
+
+      // 70 kg from 91: the profile's target falls from today on.
+      await t
+        .http()
+        .post('/api/weights')
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({ profileId: profile.id, kg: 70 })
+        .expect(201);
+
+      const after = await get<WeekSummary>(`/api/diary/week?profileId=${profile.id}`);
+      expect(after).toMatchObject({ counted: 3, withinTarget: 3 });
+      expect(after.target?.calories).toBe(2135);
+      expect((await day(daysAgo(1))).target.calories).toBe(2135);
+      // Today aims at the profile as it stands.
+      expect((await day(today)).target.calories).toBeLessThan(2135 - 100);
+    });
+
+    it('are judged by the diet they had when the diet changes', async () => {
+      await madeAMonthAgo();
+      const yesterday = (await day(daysAgo(1))).target;
+
+      await t
+        .http()
+        .patch(`/api/profiles/${profile.id}`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({ dietType: 'keto' })
+        .expect(200);
+
+      expect((await day(daysAgo(1))).target).toEqual(yesterday);
+      // Keto's carbohydrate is a ceiling of a twentieth of the day: today aims at that.
+      expect((await day(today)).target.carbs).toBeLessThan(yesterday.carbs / 4);
     });
   });
 

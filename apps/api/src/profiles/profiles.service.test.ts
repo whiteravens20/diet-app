@@ -42,7 +42,10 @@ function makePrisma(row = makeRow(), count = 0) {
       create: vi.fn().mockResolvedValue(row),
       update: vi.fn().mockResolvedValue(row),
       delete: vi.fn().mockResolvedValue(row),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(row),
     },
+    // What a profile aims at, written down at each change of it.
+    profileTarget: { upsert: vi.fn().mockResolvedValue({}) },
     $queryRaw: vi.fn().mockResolvedValue([]),
     // No plan made together: a change of the diet or the foods has none to go through.
     mealPlan: { findMany: vi.fn().mockResolvedValue([]) },
@@ -99,6 +102,8 @@ describe('ProfilesService.create', () => {
       weightReminderCadence: 'weekly',
       preferences: { allergens: [] },
     } as never);
+    // What it aims at from its first day is written down with it.
+    expect(prisma.profileTarget.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.profile.create.mock.calls[0][0].data.preferences).toEqual({
       create: { allergens: [] },
     });

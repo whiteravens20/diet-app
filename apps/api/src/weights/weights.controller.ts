@@ -18,6 +18,7 @@ import {
   WeightEntry,
   WeightListQuery,
 } from '@diet-app/shared';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { IdempotencyKey } from '../common/idempotency-key.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
@@ -81,15 +82,20 @@ export class WeightsController {
     @CurrentUser() user: RequestUser,
     @IdempotencyKey() key: string | null,
     @Body(new ZodValidationPipe(CreateWeightEntryRequest)) dto: CreateWeightEntryRequest,
+    @ClientDate() today: string | null,
   ) {
     const { profileId, ...body } = dto;
-    return this.weights.create(user.id, profileId, body, key);
+    return this.weights.create(user.id, profileId, body, key, today);
   }
 
   /** Remove a noted weight. Removing the newest gives the profile the weight noted before it, where there is one. */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.weights.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    await this.weights.remove(user.id, id, today);
   }
 }

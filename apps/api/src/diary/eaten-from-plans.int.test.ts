@@ -110,10 +110,22 @@ describe('what was eaten from a plan', () => {
     // The plan's first two days have passed, eaten whole.
     plansTodayIs(plan.days[2]!.date);
     const eatenDays = plan.days.slice(0, 2);
+    // The first aimed higher than the profile, as a day of training does.
+    await t.prisma.mealPlanDay.update({
+      where: { id: eatenDays[0]!.id },
+      data: { calorieTarget: eatenDays[0]!.calorieTarget + 300 },
+    });
     for (const day of eatenDays) for (const meal of day.meals) await eat(plan.id, meal.id);
     const before = await Promise.all(
       eatenDays.map(async (day) => eatenOf(await diaryOf(day.date))),
     );
+    const aimedBefore = await Promise.all(
+      eatenDays.map(async (day) => (await diaryOf(day.date)).target),
+    );
+    expect(aimedBefore[0]).toMatchObject({
+      calories: eatenDays[0]!.calorieTarget + 300,
+      from: 'plan',
+    });
     const week = await weekTo(plan.days[2]!.date);
     expect(week.counted).toBe(2);
     expect(before.every((day) => day.eaten.calories > 0)).toBe(true);
@@ -130,9 +142,18 @@ describe('what was eaten from a plan', () => {
         day.meals.map((meal) => meal.mealType).sort(),
       );
     }
-    // The week counts the same days with the same figures; what they aimed at is the profile's now, with no plan.
+    // Each day keeps what it aimed at, its plan's day, the plan gone.
+    expect(
+      await Promise.all(eatenDays.map(async (day) => (await diaryOf(day.date)).target)),
+    ).toEqual(aimedBefore);
+    // The week counts the same days with the same figures and the same targets.
     const weekAfter = await weekTo(plan.days[2]!.date);
-    expect([weekAfter.counted, weekAfter.eaten]).toEqual([week.counted, week.eaten]);
+    expect([weekAfter.counted, weekAfter.eaten, weekAfter.target, weekAfter.withinTarget]).toEqual([
+      week.counted,
+      week.eaten,
+      week.target,
+      week.withinTarget,
+    ]);
     const file = await exported();
     expect(file.diary).toHaveLength(eatenDays.flatMap((day) => day.meals).length);
   });

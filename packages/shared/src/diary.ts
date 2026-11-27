@@ -256,7 +256,9 @@ export const DiaryDay = z.object({
   date: z.string().date(),
   /**
    * What the day aims at: the target of the plan's day where a plan holds it
-   * and does not skip it, otherwise the profile's own.
+   * and does not skip it, otherwise the profile's own, on a day gone as it
+   * stood on the day. A day gone of a plan since removed keeps its plan's
+   * day's target (`from` 'plan').
    */
   target: Nutrition.extend({
     from: z.enum(['plan', 'profile']),

@@ -42,21 +42,15 @@ import {
   type StoredLabel,
 } from '../engine/label-totals.js';
 import {
-  calculateCalories,
   displayAmount,
   estimatedMacros,
   labelEntryFigures,
-  macroSplitOf,
-  ownSplit,
-  proteinKcalOf,
   scaledFigures,
   shownTarget,
 } from '../engine/index.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { planChangedMeanwhile } from '../meal-plans/plan-write.js';
 import {
-  aimOfDay as aimOfPlanDay,
-  sharesOfPlanDay,
   isoDate,
   isSkipped,
   MADE_LAST,
@@ -65,6 +59,7 @@ import {
   mealRank,
   standingOf,
   sumNutrition,
+  targetOfPlanDay,
 } from '../meal-plans/plan-days.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -72,7 +67,7 @@ import {
   toppingFoodsOf,
   type ToppingFoods,
 } from '../meal-plans/toppings-store.js';
-import { calorieInputOf } from '../profiles/calorie-input.js';
+import { heldOfDay, heldOfDays, heldOn, targetOf, type Held } from '../profiles/profile-targets.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
 import { entryDto, entryWith, languages } from './diary-entries.js';
@@ -307,9 +302,12 @@ export class DiaryService {
       rows.length > 0 || otherPlans.length > 0
         ? { nutrition: sumNutrition([...elsewhere, ...entered]) }
         : null;
-    const aim = this.aimOf(profile, skipped ? null : planDay);
-    const standing = standingOf(planned.calories, planDay?.calorieTarget ?? 0, skipped);
     const asOf = today ?? this.plans.today();
+    const going = skipped ? null : planDay;
+    // A day gone with no plan to go by aims at what the profile aimed at on it.
+    const held = going === null && date < asOf ? await heldOn(this.prisma, profileId, date) : null;
+    const aim = this.aimOf(profile, going, held);
+    const standing = standingOf(planned.calories, planDay?.calorieTarget ?? 0, skipped);
     // Offered where the day stands off its target, from today on, as the plan's view offers it.
     const resizes =
       planDay !== null &&
@@ -355,7 +353,8 @@ export class DiaryService {
    * what each day aimed at, as the day's own view works them out: the meals
    * marked eaten in any of its plans and the entries, against the day of the
    * plan made last or, where no plan holds it or the plan skips it, the
-   * profile. A day counts once it holds an entry or a meal marked eaten. For
+   * profile: before `today` what it aimed at on the day, from then on as it
+   * stands. A day counts once it holds an entry or a meal marked eaten. For
    * the week in sum and the expenditure worked out from the diary.
    */
   async figuresOfDays(
@@ -363,10 +362,11 @@ export class DiaryService {
     profileId: string,
     from: string,
     to: string,
+    today: string,
   ): Promise<DayFigures[]> {
     const profile = await this.profile(userId, profileId);
     const range = { gte: new Date(from), lte: new Date(to) };
-    const [planDays, sums, eatenInPlans] = await Promise.all([
+    const [planDays, sums, eatenInPlans, held] = await Promise.all([
       this.prisma.mealPlanDay.findMany({
         where: { date: range, plan: { profileId } },
         orderBy: [{ date: 'asc' }, ...MADE_LAST],
@@ -386,6 +386,7 @@ export class DiaryService {
         _count: true,
       }),
       eatenMeals(this.prisma, profileId, range.gte, range.lte),
+      from < today ? heldOfDays(this.prisma, profileId, from, to) : null,
     ]);
     // Of the plans that hold a day, the one made last, as the day's own view picks it.
     const planOf = new Map<string, (typeof planDays)[number]>();
@@ -401,7 +402,12 @@ export class DiaryService {
       const entries = entriesOf.get(date);
       const eatenMealsOfDay = eatenOn.get(date) ?? [];
       const meals = sumNutrition(eatenMealsOfDay.map((meal) => meal.nutrition));
-      const aim = this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+      const going = planDay && !isSkipped(planDay) ? planDay : null;
+      const aim = this.aimOf(
+        profile,
+        going,
+        going === null && date < today && held ? heldOfDay(held, date) : null,
+      );
       const eaten = wholeFigures({
         calories: meals.calories + (entries?._sum.calories ?? 0),
         protein: meals.protein + (entries?._sum.protein ?? 0),
@@ -444,7 +450,7 @@ export class DiaryService {
       request: req,
       write: async (keep) => {
         const profile = await this.profile(userId, req.profileId);
-        const written = await this.written(userId, locale, profile, req);
+        const written = await this.written(userId, locale, profile, req, today);
         const id = await this.prisma.$transaction(async (tx) => {
           await this.makeRoom(tx, req.profileId, req.date, 1);
           const row = await tx.diaryEntry.create({
@@ -482,7 +488,7 @@ export class DiaryService {
     change: UpdateDiaryEntryRequest,
     today: string | null = null,
   ): Promise<WrittenDiaryEntry> {
-    const entry = await this.changed(userId, locale, id, change);
+    const entry = await this.changed(userId, locale, id, change, today);
     return {
       ...entry,
       planChange: await this.followPlan(userId, locale, entry.profileId, entry.date, today),
@@ -495,19 +501,21 @@ export class DiaryService {
     locale: Locale,
     id: string,
     change: UpdateDiaryEntryRequest,
+    today: string | null,
   ): Promise<DiaryEntry> {
     const row = await this.prisma.diaryEntry.findFirst({
       where: { id, profile: { userId } },
     });
     if (!row) throw entryNotFound();
-    if (change.productId !== undefined) return this.toOwnProduct(userId, locale, row, change);
+    if (change.productId !== undefined)
+      return this.toOwnProduct(userId, locale, row, change, today);
     if (change.name !== undefined || change.nutrition !== undefined) {
       if (row.kind !== 'meal')
         throw refused(
           change.nutrition !== undefined ? 'nutrition' : 'name',
           "Only a meal of one's own takes a name and figures of its own.",
         );
-      return this.ownMealAnew(userId, locale, row, change);
+      return this.ownMealAnew(userId, locale, row, change, today);
     }
     const inAmount = row.kind === 'ingredient' || row.kind === 'product';
     if (change.servings !== undefined && inAmount)
@@ -561,6 +569,7 @@ export class DiaryService {
       estimatedMacros: string[];
     },
     change: UpdateDiaryEntryRequest,
+    today: string | null,
   ): Promise<DiaryEntry> {
     const before = row.servings ?? 1;
     const servings = change.servings ?? before;
@@ -580,7 +589,7 @@ export class DiaryService {
       const macros = estimatedMacros(
         calories,
         known,
-        (await this.aimOfDay(profile, isoDate(row.date))).split,
+        (await this.aimOfDay(profile, isoDate(row.date), today)).split,
       );
       if (!macros) {
         throw new BadRequestException({
@@ -623,6 +632,7 @@ export class DiaryService {
       quantity: number | null;
     },
     change: UpdateDiaryEntryRequest,
+    today: string | null,
   ): Promise<DiaryEntry> {
     if (row.kind !== 'product')
       throw refused('productId', 'Only an entry of a product takes another product.');
@@ -644,7 +654,7 @@ export class DiaryService {
     const figures = labelEntryFigures(
       { ...own, energyWorkedOut: false },
       quantity,
-      (await this.aimOfDay(profile, isoDate(row.date))).split,
+      (await this.aimOfDay(profile, isoDate(row.date), today)).split,
     );
     // A product of one's own always has its energy; the base's would have been refused when it was written.
     if (!figures) throw entryNotFound();
@@ -920,50 +930,26 @@ export class DiaryService {
         calorieTarget: number;
       };
     } | null,
+    held: Held | null = null,
   ): { target: DiaryDay['target']; split: Macros; dietType: string } {
     if (planDay) {
-      return {
-        target: {
-          calories: planDay.calorieTarget,
-          ...shownTarget(
-            aimOfPlanDay(planDay, planDay.plan),
-            planDay.calorieTarget,
-            planDay.plan.dietType,
-          ),
-          from: 'plan',
-        },
-        split: sharesOfPlanDay(planDay.plan, planDay.calorieTarget),
-        dietType: planDay.plan.dietType,
-      };
+      const { split, dietType, ...target } = targetOfPlanDay(planDay, planDay.plan);
+      return { target: { ...target, from: 'plan' }, split, dietType };
     }
-    const input = calorieInputOf(profile);
-    const calculation = calculateCalories(input);
-    // The custom diet's split of the profile's target: with the protein of its grams where it is per kilogram.
-    const own =
-      input.dietType === 'custom' && input.customMacroSplit
-        ? ownSplit(
-            input.customMacroSplit,
-            input.customProteinPerKg != null
-              ? proteinKcalOf(input.customProteinPerKg, input.weightKg)
-              : null,
-            calculation.dailyTarget,
-          ).shares
-        : null;
-    return {
-      target: {
-        calories: calculation.dailyTarget,
-        ...calculation.targetMacros,
-        from: 'profile',
-      },
-      split: macroSplitOf(input.dietType, own),
-      dietType: input.dietType,
-    };
+    // A day gone aims at what was written down for it: its removed plan's day's own target, or the profile's as it
+    // stood on it. Today and the days to come aim at the profile as it stands.
+    const { split, dietType, ...target } = held?.target ?? targetOf(profile);
+    return { target: { ...target, from: held?.ofAPlan ? 'plan' : 'profile' }, split, dietType };
   }
 
-  /** What a day aims at and the split an estimate of it goes by, read from the plan that holds it. */
+  /**
+   * What a day aims at and the split an estimate of it goes by, read from the plan that holds it, or, before
+   * [today] (the server's day where the client names none), from what was written down for it.
+   */
   private async aimOfDay(
     profile: DiaryProfile,
     date: string,
+    today: string | null,
   ): Promise<ReturnType<DiaryService['aimOf']>> {
     const planDay = await this.prisma.mealPlanDay.findFirst({
       where: { date: new Date(date), plan: { profileId: profile.id } },
@@ -976,7 +962,12 @@ export class DiaryService {
         },
       },
     });
-    return this.aimOf(profile, planDay && !isSkipped(planDay) ? planDay : null);
+    const going = planDay && !isSkipped(planDay) ? planDay : null;
+    const held =
+      going === null && date < (today ?? this.plans.today())
+        ? await heldOn(this.prisma, profile.id, date)
+        : null;
+    return this.aimOf(profile, going, held);
   }
 
   /** What an entry asked for holds, worked out now from what it is of. */
@@ -985,6 +976,7 @@ export class DiaryService {
     locale: Locale,
     profile: DiaryProfile,
     req: CreateDiaryEntryRequest,
+    today: string | null,
   ): Promise<Written> {
     if (req.kind === 'recipe') {
       // A recipe of the library, or one of the account's own, as the recipe's page finds it.
@@ -1042,7 +1034,7 @@ export class DiaryService {
         profile.userId,
         req.productId,
         req.quantity,
-        (await this.aimOfDay(profile, req.date)).split,
+        (await this.aimOfDay(profile, req.date, today)).split,
       );
       return {
         kind: 'product',
@@ -1057,7 +1049,7 @@ export class DiaryService {
     }
 
     const { calories, ...known } = req.nutrition;
-    const aim = await this.aimOfDay(profile, req.date);
+    const aim = await this.aimOfDay(profile, req.date, today);
     const macros = estimatedMacros(calories, known, aim.split);
     if (!macros) {
       throw new BadRequestException({

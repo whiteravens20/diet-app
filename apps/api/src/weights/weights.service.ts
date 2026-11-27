@@ -12,6 +12,7 @@ import {
 import { holdProfile } from '../common/hold.js';
 import { writeOnce } from '../common/idempotency.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { noteTarget } from '../profiles/profile-targets.js';
 import { dayIn, weightDays } from './weight-days.js';
 
 /**
@@ -88,6 +89,8 @@ export class WeightsService {
     profileId: string,
     input: WeightEntryInput,
     key: string | null = null,
+    /** The client's day: a weight that becomes the profile's moves its target from it on. */
+    today: string | null = null,
   ): Promise<WeightEntry> {
     return writeOnce(this.prisma, {
       userId,
@@ -127,8 +130,10 @@ export class WeightsService {
           const newer = await tx.weightEntry.count({
             where: { profileId, recordedAt: { gt: recordedAt } },
           });
-          if (newer === 0)
+          if (newer === 0) {
             await tx.profile.update({ where: { id: profileId }, data: { weightKg: input.kg } });
+            await noteTarget(tx, profileId, today);
+          }
           await keep(tx, noted.id);
           return noted;
         });
@@ -143,7 +148,7 @@ export class WeightsService {
    * one before it, where there is one; with none left the profile keeps the
    * weight it has.
    */
-  async remove(userId: string, id: string): Promise<void> {
+  async remove(userId: string, id: string, today: string | null = null): Promise<void> {
     const notFound = () =>
       new NotFoundException({
         error: 'WEIGHT_ENTRY_NOT_FOUND',
@@ -164,8 +169,10 @@ export class WeightsService {
         orderBy: { recordedAt: 'desc' },
         select: { kg: true, recordedAt: true },
       });
-      if (newest && newest.recordedAt <= entry.recordedAt)
+      if (newest && newest.recordedAt <= entry.recordedAt) {
         await tx.profile.update({ where: { id: entry.profileId }, data: { weightKg: newest.kg } });
+        await noteTarget(tx, entry.profileId, today);
+      }
     });
   }
 

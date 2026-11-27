@@ -135,6 +135,28 @@ export class AccountExportService {
       }),
     );
 
+    // What a profile aimed at from a day on: the target its days gone with no plan are judged by.
+    yield* list(
+      'targets',
+      (page) => this.prisma.profileTarget.findMany({ where: ofTheAccount, ...page }),
+      (row) => ({
+        profileId: row.profileId,
+        from: isoDate(row.from),
+        target: row.target,
+      }),
+    );
+
+    // What a day of a plan removed since aimed at: the target that day is judged by.
+    yield* list(
+      'dayTargets',
+      (page) => this.prisma.dayTarget.findMany({ where: ofTheAccount, ...page }),
+      (row) => ({
+        profileId: row.profileId,
+        date: isoDate(row.date),
+        target: row.target,
+      }),
+    );
+
     // What a profile drank, entry by entry, on the calendar day it was written for.
     yield* list(
       'water',

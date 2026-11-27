@@ -19,7 +19,22 @@ function makePrisma(profileOwner: string | null = 'user-1') {
         .fn()
         .mockResolvedValue(profileOwner === null ? null : { userId: profileOwner }),
       update: vi.fn().mockResolvedValue({}),
+      // What the profile's target is worked out from, read again once a weight becomes its own.
+      findUniqueOrThrow: vi.fn().mockResolvedValue({
+        age: 30,
+        sex: 'male',
+        heightCm: 180,
+        weightKg: 79.5,
+        activityLevel: 'moderate',
+        dietType: 'balanced',
+        customMacroSplit: null,
+        customProteinPerKg: null,
+        weeklyLossTarget: null,
+        manualCalorieTarget: null,
+        expenditureCorrectionKcal: null,
+      }),
     },
+    profileTarget: { upsert: vi.fn().mockResolvedValue({}) },
     weightEntry: {
       findMany: vi.fn().mockResolvedValue([
         {
@@ -93,6 +108,8 @@ describe('WeightsService happy paths', () => {
     const dto = await makeService(prisma).create('user-1', 'p1', { kg: 79.5 } as never);
     expect(dto.kg).toBe(79.5);
     expect(prisma.weightEntry.create).toHaveBeenCalledTimes(1);
+    // The newest weight is the profile's: what it aims at from today is written down.
+    expect(prisma.profileTarget.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('uses the provided recordedAt when given', async () => {

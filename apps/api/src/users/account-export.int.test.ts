@@ -18,6 +18,8 @@ interface Exported {
   aiProviders: Record<string, unknown>[];
   profiles: (Record<string, unknown> & { id: string; preferences: Record<string, unknown> })[];
   weights: { profileId: string; kg: number }[];
+  targets: { profileId: string; from: string }[];
+  dayTargets: { profileId: string; date: string }[];
   water: { profileId: string; day: string; ml: number }[];
   diary: Record<string, unknown>[];
   pantry: Record<string, unknown>[];
@@ -205,6 +207,8 @@ describe('everything an account holds, as one file', () => {
       'aiProviders',
       'profiles',
       'weights',
+      'targets',
+      'dayTargets',
       'water',
       'diary',
       'pantry',
@@ -244,6 +248,8 @@ describe('everything an account holds, as one file', () => {
       maxTimesPerWeekSameMeal: 3,
     });
     expect(file.weights).toEqual([expect.objectContaining({ profileId: profile.id, kg: 79.5 })]);
+    // What it aimed at from its first day: one row, the changes of that day its last.
+    expect(file.targets).toEqual([expect.objectContaining({ profileId: profile.id })]);
     expect(file.water).toEqual([
       { profileId: profile.id, day: '2026-03-01', ml: 330, createdAt: expect.any(String) },
     ]);
