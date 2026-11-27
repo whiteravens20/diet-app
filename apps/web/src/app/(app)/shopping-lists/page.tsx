@@ -6,9 +6,15 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useId, useRef, useState } from 'react';
+import { Suspense, useId, useMemo, useRef, useState } from 'react';
 import { ChevronRight, ShoppingBasket } from 'lucide-react';
-import type { MealPlanPage, Profile, SessionUser, ShoppingList } from '@diet-app/shared';
+import type {
+  MealPlanPage,
+  MealPlanSummary,
+  Profile,
+  SessionUser,
+  ShoppingList,
+} from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useAmount } from '@/lib/ingredient-format';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -23,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed, ReadsFailed, unread } from '@/components/load-failed';
 import { cn } from '@/lib/utils';
+import type { HouseholdPreset } from './household-lists';
 import { ListView, type RowPatch } from './list-view';
 
 export const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -110,7 +117,7 @@ function ShoppingListsContent() {
     queryKey: ['profiles'],
     queryFn: () => api.get<Profile[]>('/profiles'),
   });
-  const profileList = profiles.data ?? [];
+  const profileList = useMemo(() => profiles.data ?? [], [profiles.data]);
   const activeProfileId = pickedProfile ?? profileList[0]?.id ?? null;
   // Whether the account has a model to ask. Without one, what asks a model stays where it is, disabled, and one line says why.
   const session = useQuery({
@@ -153,6 +160,36 @@ function ShoppingListsContent() {
     : '';
   const formFrom = range.fromDate || activePlan?.startDate || '';
   const formTo = range.toDate || planEnd;
+  // The household list a plan made together proposes: both plans, for the days the form names.
+  const [householdPreset, setHouseholdPreset] = useState<HouseholdPreset | null>(null);
+  const togetherList = (plan: MealPlanSummary): void => {
+    const joint = plan.joint;
+    if (!joint) return;
+    setHouseholdPreset({
+      // A new one mounts the section anew.
+      key: (householdPreset?.key ?? 0) + 1,
+      from: formFrom,
+      to: formTo,
+      chosen: Object.fromEntries(
+        profileList.map((profile) => [
+          profile.id,
+          profile.id === plan.profileId
+            ? plan.id
+            : profile.id === joint.profileId
+              ? joint.planId
+              : null,
+        ]),
+      ),
+    });
+    setOpenHousehold(null);
+    setHouseholdOpen(true);
+  };
+  // Asked for from the plan's own page (`?together=1`): proposed once, as soon as the plan is read.
+  const [togetherAsked, setTogetherAsked] = useState(() => params.get('together') === '1');
+  if (togetherAsked && activePlan?.joint) {
+    setTogetherAsked(false);
+    togetherList(activePlan);
+  }
   // A list of the days the form names that is a part of a household list: a new list takes its place there.
   const replacedPart = listOptions.find(
     (l) => l.household && l.fromDate <= formTo && l.toDate >= formFrom,
@@ -358,6 +395,21 @@ function ShoppingListsContent() {
         )
       )}
 
+      {/* A plan made together buys a shared dish as one pot: its own list takes this person's plate alone. */}
+      {activePlan?.joint && !activeList?.household && profileList.length > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+          <p>{t('jointNote', { name: fmt.text(activePlan.joint.profileName) })}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => togetherList(activePlan)}
+          >
+            {t('jointHousehold')}
+          </Button>
+        </div>
+      )}
+
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {lists.isLoading ? (
@@ -536,6 +588,8 @@ function ShoppingListsContent() {
       {profileList.length > 1 && (
         <div id={HOUSEHOLD_LISTS} className="scroll-mt-4">
           <HouseholdLists
+            key={householdPreset?.key ?? 0}
+            preset={householdPreset}
             profiles={profileList}
             open={householdOpen}
             onFold={setHouseholdOpen}

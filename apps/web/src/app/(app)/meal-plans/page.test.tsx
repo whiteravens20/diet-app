@@ -4659,6 +4659,16 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(screen.queryByText(messages.mealPlans.sharedChip, { exact: true })).toBeNull();
   });
 
+  it('leads to the household list of both plans, which buys the pot of its shared dishes', async () => {
+    const plan = together();
+    await open(plan);
+
+    expect(screen.getByRole('link', { name: messages.mealPlans.jointList })).toHaveAttribute(
+      'href',
+      `/shopping-lists?profile=${plan.profileId}&plan=${plan.id}&together=1`,
+    );
+  });
+
   it('marks no meal of a plan made alone by anyone’s name', async () => {
     await renderPage(aSupply(), [aPlan()]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));

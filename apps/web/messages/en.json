@@ -1512,6 +1512,8 @@
       "errLoad": "Could not look the list over."
     },
     "partOf": "This list is a part of a household list: {profiles}. A tick here changes this plan's part only.",
+    "jointNote": "This plan is shared with {name}. A list of this plan alone buys only your part of the shared dishes; a household list covers the whole pot.",
+    "jointHousehold": "A household list of both plans",
     "openHousehold": "Open the household list",
     "csvShares": "For whom",
     "buyLater": "Of these, buy {packs, plural, one {{packs, number, ::group-off}\u00a0pack} other {{packs, number, ::group-off}\u00a0packs}} on {weekday, select, mon {Monday} tue {Tuesday} wed {Wednesday} thu {Thursday} fri {Friday} sat {Saturday} sun {Sunday} other {}} ({date}) at the earliest.",
@@ -1576,6 +1578,7 @@
     "offerForAll": "For both: you and {name}",
     "offerForMe": "For me only: the meal stops being shared that day",
     "jointWith": "Planned together with: {name}",
+    "jointList": "Household list",
     "jointApart": "Planned apart, as no dish suits both: {meals}.",
     "errCookApart": "Could not change how the meal is cooked.",
     "errKeepFrozen": "Could not add it to the pantry.",

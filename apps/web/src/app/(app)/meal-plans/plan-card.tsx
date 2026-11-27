@@ -25,7 +25,7 @@ import {
   type RebalanceResult,
   type SwapIngredientResponse,
 } from '@diet-app/shared';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReadsFailed, type Read } from '@/components/load-failed';
@@ -1803,6 +1803,15 @@ export function PlanCard({
             >
               {tExport('print')}
             </Button>
+            {/* A plan made together is bought as one: the pot of its shared dishes by a household list of both plans. */}
+            {plan.joint && (
+              <Link
+                href={`/shopping-lists?profile=${plan.profileId}&plan=${plan.id}&together=1`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                {t('jointList')}
+              </Link>
+            )}
           </div>
           {printing && (
             <PlanPrintSheet plan={plan} dietLabel={dietLabel} words={words} onDone={printed} />

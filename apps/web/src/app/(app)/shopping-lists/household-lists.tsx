@@ -58,12 +58,24 @@ const lastDay = (plan: MealPlanPage['items'][number]): string =>
  * with the days and a plan of each profile; shown as one list whose rows say
  * what each profile needs of them.
  */
+/**
+ * What a household list is first made of, where the page asks for one: the days, and the plan chosen of each profile
+ * (null for none). The page mounts the section anew for each (`key`).
+ */
+export interface HouseholdPreset {
+  key: number;
+  from: string;
+  to: string;
+  chosen: Record<string, string | null>;
+}
+
 export function HouseholdLists({
   profiles,
   open,
   onFold,
   opened,
   onOpen,
+  preset = null,
 }: {
   profiles: Profile[];
   /** Whether the section is open: it is folded under the plan's list until it is asked for. */
@@ -72,6 +84,8 @@ export function HouseholdLists({
   /** The household list shown, if any. */
   opened: string | null;
   onOpen: (id: string | null) => void;
+  /** The form opened on these days and plans: a plan made together proposes the household list of both. */
+  preset?: HouseholdPreset | null;
 }) {
   const t = useTranslations('householdLists');
   const tLists = useTranslations('shoppingLists');
@@ -83,11 +97,12 @@ export function HouseholdLists({
   const formatItemQty = useAmount();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [making, setMaking] = useState(false);
-  const [from, setFrom] = useState(localDate);
-  const [to, setTo] = useState(() => dayAfter(localDate(), 6));
+  const [making, setMaking] = useState(preset !== null);
+  const inSight = useRef(false);
+  const [from, setFrom] = useState(() => preset?.from ?? localDate());
+  const [to, setTo] = useState(() => preset?.to ?? dayAfter(localDate(), 6));
   /** The plan chosen of each profile: undefined until the user chooses, null for none. */
-  const [chosen, setChosen] = useState<Record<string, string | null>>({});
+  const [chosen, setChosen] = useState<Record<string, string | null>>(() => preset?.chosen ?? {});
 
   const households = useQuery({
     queryKey: ['household-lists'],
@@ -206,7 +221,16 @@ export function HouseholdLists({
   const whom = (list: HouseholdList): string => fmt.list(list.parts.map((part) => part.profile));
 
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      // Opened on a plan made together, it comes into sight once, as it appears.
+      ref={(section) => {
+        if (section && preset && !inSight.current) {
+          inSight.current = true;
+          section.scrollIntoView({ block: 'start' });
+        }
+      }}
+    >
       <Card>
         <CardHeader className="p-0">
           <CardTitle>

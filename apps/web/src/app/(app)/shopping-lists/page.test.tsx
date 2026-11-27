@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
@@ -1096,6 +1096,7 @@ describe('the shopping page with nothing to show yet', () => {
     plans = [] as unknown[],
     lists = [] as ShoppingList[],
     households = [] as unknown[],
+    plansOf = {} as Record<string, unknown[]>,
   }) {
     vi.spyOn(api, 'get').mockImplementation((path: string) =>
       Promise.resolve(
@@ -1106,7 +1107,16 @@ describe('the shopping page with nothing to show yet', () => {
             : path === '/users/me'
               ? { aiMode: 'none' }
               : path.startsWith('/meal-plans?')
-                ? { items: plans, page: 1, pageSize: 50, total: plans.length, totalPages: 1 }
+                ? (({ items }) => ({
+                    items,
+                    page: 1,
+                    pageSize: 50,
+                    total: items.length,
+                    totalPages: 1,
+                  }))({
+                    items:
+                      plansOf[new URLSearchParams(path.split('?')[1]).get('profileId')!] ?? plans,
+                  })
                 : path.startsWith('/shopping-lists?')
                   ? lists
                   : []) as never,
@@ -1162,6 +1172,95 @@ describe('the shopping page with nothing to show yet', () => {
     expect(screen.queryByText('For: Ewa and Me')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: texts.openHousehold }));
     expect(await screen.findByText('For: Ewa and Me')).toBeInTheDocument();
+  });
+
+  describe('of a plan made together', () => {
+    // A test that opens the page at an address leaves it for none after it.
+    beforeEach(() => {
+      address.search = '';
+    });
+    const together = {
+      profiles: [
+        { id: 'profile', name: 'Me' },
+        { id: 'other', name: 'Ewa' },
+      ],
+      plansOf: {
+        profile: [
+          {
+            id: PLAN,
+            profileId: 'profile',
+            startDate: '2026-01-05',
+            durationDays: 3,
+            dietType: 'balanced',
+            joint: { planId: 'ewas-plan', profileId: 'other', profileName: 'Ewa' },
+          },
+        ],
+        other: [
+          {
+            id: 'ewas-plan',
+            profileId: 'other',
+            startDate: '2026-01-05',
+            durationDays: 3,
+            dietType: 'balanced',
+            joint: { planId: PLAN, profileId: 'profile', profileName: 'Me' },
+          },
+        ],
+      },
+    };
+    /** The household list's form, as a plan made together opens it: on the plan's days, with both plans chosen. */
+    const proposed = async () => {
+      await waitFor(() => expect(document.getElementById('household-lists')).not.toBeNull());
+      const household = within(document.getElementById('household-lists')!);
+      // A plan is chosen where its profile is ticked: an unticked one shows its first plan, greyed out.
+      const mine = await household.findByRole('combobox', { name: "Me's plan" });
+      const hers = await household.findByRole('combobox', { name: "Ewa's plan" });
+      expect(household.getByRole('checkbox', { name: 'Me' })).toBeChecked();
+      expect(household.getByRole('checkbox', { name: 'Ewa' })).toBeChecked();
+      expect(mine).toHaveValue(PLAN);
+      expect(mine).toBeEnabled();
+      expect(hers).toHaveValue('ewas-plan');
+      expect(hers).toBeEnabled();
+      expect(household.getByLabelText(texts.fromDate)).toHaveValue('2026-01-05');
+      expect(household.getByLabelText(texts.toDate)).toHaveValue('2026-01-07');
+      expect(household.getByRole('button', { name: messages.householdLists.make })).toBeVisible();
+    };
+
+    it('says that its own list buys one plate of a shared dish, and proposes the household list of both plans', async () => {
+      renderWith(together);
+
+      expect(await screen.findByText(/^This plan is shared with Ewa\./)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: texts.jointHousehold }));
+      await proposed();
+    });
+
+    it("proposes it at once where its plan's page asks for it", async () => {
+      address.search = `?profile=66666666-6666-4666-8666-666666666666&plan=${PLAN}&together=1`;
+      renderWith({
+        ...together,
+        profiles: [
+          { id: '66666666-6666-4666-8666-666666666666', name: 'Me' },
+          { id: 'other', name: 'Ewa' },
+        ],
+        plansOf: {
+          '66666666-6666-4666-8666-666666666666': [
+            { ...together.plansOf.profile[0]!, profileId: '66666666-6666-4666-8666-666666666666' },
+          ],
+          other: together.plansOf.other,
+        },
+      });
+
+      await proposed();
+    });
+
+    it('says nothing of it where its list is a part of a household list already', async () => {
+      renderWith({
+        ...together,
+        lists: [{ ...aList, household: { id: 'household', profiles: ['Ewa', 'Me'] } }],
+      });
+
+      await screen.findByText(/This list is a part of a household list/);
+      expect(screen.queryByRole('button', { name: texts.jointHousehold })).toBeNull();
+    });
   });
 
   it('says that a new list of the days of a part takes its place in the household list, and not of other days', async () => {
