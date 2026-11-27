@@ -185,13 +185,17 @@ describe('the reminders that keep the hours of an account', () => {
       }
     });
 
-    it('says the evening before what tomorrow takes out of the freezer, in a plan that does not cook ahead', async () => {
+    /**
+     * A package of 286 g of chicken in the freezer, and a plan from Tuesday, made on Monday, that keeps it to take out
+     * for Wednesday's lunch, the only meal with chicken: its plan, that lunch and the package's row.
+     */
+    const chickenOnWednesday = async () => {
       // An account in Polish reads the food's Polish name.
       await t.prisma.user.update({ where: { id: user.id }, data: { locale: 'pl' } });
       const chicken = await t.prisma.ingredient.findFirstOrThrow({
         where: { slug: 'chicken-breast' },
       });
-      await t.prisma.inventoryItem.create({
+      const row = await t.prisma.inventoryItem.create({
         data: {
           profileId: profile.id,
           ingredientId: chicken.id,
@@ -240,7 +244,13 @@ describe('the reminders that keep the hours of an account', () => {
               toppingAmount: null,
             },
           });
+
       const lunch = plan.days[1]!.meals.find((meal) => meal.mealType === 'lunch')!;
+      return { plan, lunch, row };
+    };
+
+    it('says the evening before what tomorrow takes out of the freezer, in a plan that does not cook ahead', async () => {
+      const { plan, lunch } = await chickenOnWednesday();
 
       // Monday evening: Tuesday takes nothing out of the freezer, and cooks nothing ahead.
       expect(await cooking.scan(at('2026-11-09T18:05:00Z'))).toBe(0);
@@ -261,6 +271,14 @@ describe('the reminders that keep the hours of an account', () => {
           },
         ],
       });
+    });
+
+    it('names nothing to take out that the freezer no longer holds: a package removed by hand', async () => {
+      const { row } = await chickenOnWednesday();
+      await t.prisma.inventoryItem.delete({ where: { id: row.id } });
+
+      expect(await cooking.scan(at('2026-11-10T18:05:00Z'))).toBe(0);
+      expect(await reminders('cooking_reminder')).toEqual([]);
     });
 
     it('says the evening before what tomorrow takes of a rest a plan that wastes less froze', async () => {

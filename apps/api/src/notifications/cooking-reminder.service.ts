@@ -14,6 +14,8 @@ import {
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
 import { levelOf } from '../engine/waste-levels.js';
+import { frozenPackages } from '../inventory/pantry-store.js';
+import { listsTookFromFreezer } from '../meal-plans/freezer-repick.js';
 import { freezerOf } from '../meal-plans/generation-report.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { cookingsOf } from '../meal-plans/plan-menu.js';
@@ -134,13 +136,28 @@ export class CookingReminderService {
       );
       // A portion of what the freezer held comes out whole; a rest frozen in the plan comes out a portion at a time.
       const portions = [
-        ...packs.fromFreezer.map((held) => ({ ...held, thawed: [held] })),
-        ...packs.frozen,
+        ...packs.fromFreezer.map((held) => ({ ...held, thawed: [held], ofTheFreezer: true })),
+        ...packs.frozen.map((rest) => ({ ...rest, ofTheFreezer: false })),
       ];
+      // A package of the freezer is named only while the freezer holds as much of its food, with what the plan's
+      // lists took of it there: one removed by hand is not.
+      const due = portions.filter(
+        (one) =>
+          one.ofTheFreezer &&
+          one.unit !== 'piece' &&
+          one.thawed.some((taken) => taken.date === tomorrow),
+      );
+      const inFreezer =
+        due.length > 0 ? await this.inFreezer(profileId, plan) : new Map<string, number>();
       for (const held of portions) {
         if (held.unit === 'piece') continue;
         for (const taken of held.thawed) {
           if (taken.date !== tomorrow) continue;
+          if (held.ofTheFreezer) {
+            const left = inFreezer.get(held.ingredientId) ?? 0;
+            if (left + 0.5 < taken.amount) continue;
+            inFreezer.set(held.ingredientId, left - taken.amount);
+          }
           // A meal of the other plan of the kitchen is not this profile's: what it takes is said without a meal.
           const mealType = taken.mealId ? (mealTypeOf.get(taken.mealId) ?? null) : null;
           thaw.push({
@@ -156,6 +173,41 @@ export class CookingReminderService {
     }
     if (dishes.length === 0 && thaw.length === 0) return 0;
     return (await this.once(profileId, { date: tomorrow, dishes, thaw }, now)) ? 1 : 0;
+  }
+
+  /**
+   * What the freezers of the kitchen of `plan` hold of each food now, in its canonical unit: of its profile's, and of
+   * the other plan's where it was made together, with what the lists of those plans took of it for them, packages
+   * still in the freezer until the plan takes them out.
+   */
+  private async inFreezer(
+    profileId: string,
+    plan: { id: string; jointPlanId: string | null },
+  ): Promise<Map<string, number>> {
+    const partner = plan.jointPlanId
+      ? await this.prisma.mealPlan.findFirst({
+          where: { jointPlanId: plan.jointPlanId, id: { not: plan.id } },
+          select: { id: true, profileId: true },
+        })
+      : null;
+    const [freezers, took] = await Promise.all([
+      Promise.all(
+        [profileId, ...(partner ? [partner.profileId] : [])].map((id) =>
+          frozenPackages(this.prisma, id),
+        ),
+      ),
+      listsTookFromFreezer(this.prisma, [plan.id, ...(partner ? [partner.id] : [])]),
+    ]);
+    const amounts = new Map<string, number>();
+    for (const held of freezers)
+      for (const [ingredientId, list] of held)
+        amounts.set(
+          ingredientId,
+          (amounts.get(ingredientId) ?? 0) + list.reduce((sum, one) => sum + one.amount, 0),
+        );
+    for (const one of took)
+      amounts.set(one.ingredientId, (amounts.get(one.ingredientId) ?? 0) + one.quantity);
+    return amounts;
   }
 
   /** Make the reminder of a day unless one was made for it: two scans at once make it once. */

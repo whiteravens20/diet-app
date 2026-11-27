@@ -69,8 +69,9 @@ export class InventoryController {
     @RequestLocale() locale: Locale,
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(PatchInventoryItem)) dto: PatchInventoryItem,
+    @ClientDate() today: string | null,
   ) {
-    return this.inventory.patch(user.id, locale, id, dto);
+    return this.inventory.patch(user.id, locale, id, dto, today);
   }
 
   /**
@@ -133,7 +134,11 @@ export class InventoryController {
    */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
-    await this.inventory.remove(user.id, id);
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    await this.inventory.remove(user.id, id, today);
   }
 }

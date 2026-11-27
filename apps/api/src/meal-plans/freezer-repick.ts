@@ -10,7 +10,7 @@
 import type { Prisma } from '@prisma/client';
 import { PlanOptions } from '@diet-app/shared';
 import { isDueSoon, packagesTaken, thawAll } from '../engine/packs.js';
-import { frozenPackages, goingOffFirst } from '../inventory/pantry-store.js';
+import { frozenPackages, goingOffFirst, readMoves } from '../inventory/pantry-store.js';
 import { freezerOf, StoredReport, type Freezer } from './generation-report.js';
 import { isoDate } from './plan-days.js';
 import { menuNeeds, onDaysOf } from './plan-menu.js';
@@ -33,6 +33,8 @@ export interface KitchenPackage {
   taken: boolean;
   /** It is still in the profile's freezer: not taken out yet, nor taken by a shopping list. */
   held: boolean;
+  /** Taken out of the freezer by a shopping list of its plan: gone from the freezer, and still the plan's. */
+  byList: boolean;
 }
 
 /** A package as `said` names it: its plan, its food and its number. */
@@ -89,11 +91,16 @@ export function chooseAgain(
   for (const ingredientId of new Set(packages.map((one) => one.ingredientId))) {
     const row = needs.get(ingredientId);
     const ofFood = packages.filter((one) => one.ingredientId === ingredientId);
+    // A package gone from the freezer stays the plan's where its list took it or it was to come out by today; one
+    // gone before then any other way was removed from the freezer by hand, and the plan takes another or buys fresh.
     const kept = ofFood
       .filter(
         (one) =>
           one.taken &&
-          (!one.held || tomorrow < 0 || said.has(packageKey(one)) || due.has(packageKey(one))),
+          ((!one.held && one.byList) ||
+            tomorrow < 0 ||
+            said.has(packageKey(one)) ||
+            due.has(packageKey(one))),
       )
       .sort(goingOffFirst);
     chosen.push(...kept);
@@ -229,6 +236,7 @@ async function kitchenOf(tx: Tx, planId: string, today: string): Promise<Kitchen
           from: from < 0 ? dates.length : from,
           taken: true,
           held: now.get(ingredientId)?.some((held) => held.parcel === one.parcel) ?? false,
+          byList: false,
         });
       }
     }
@@ -247,12 +255,64 @@ async function kitchenOf(tx: Tx, planId: string, today: string): Promise<Kitchen
           from: Math.max(0, tomorrow),
           taken: false,
           held: true,
+          byList: false,
         });
       }
     }
   }
   if (packages.length === 0) return null;
+  // A package taken that the freezer no longer holds: read only then, whether a list of its plan took it.
+  const gone = packages.filter((one) => one.taken && !one.held);
+  if (gone.length > 0) {
+    const took = await packagesListsTook(
+      tx,
+      counting.map((plan) => plan.id),
+    );
+    for (const one of gone)
+      one.byList = took.has(`${one.planId}:${one.ingredientId}:${one.parcel}`);
+  }
   return { own, partner, counting, dates, tomorrow, kept, packages };
+}
+
+/** A package a shopping list took out of the freezer for its plan: gone from the pantry, still in the freezer. */
+export interface ListTook {
+  planId: string;
+  ingredientId: string;
+  parcel: number;
+  /** What it took, in the package's own unit. */
+  quantity: number;
+  unit: string;
+}
+
+/** What the shopping lists of the plans `planIds` took out of the freezer for them, package by package. */
+export async function listsTookFromFreezer(
+  db: Pick<Tx, 'shoppingListItem'>,
+  planIds: readonly string[],
+): Promise<ListTook[]> {
+  const rows = await db.shoppingListItem.findMany({
+    where: { list: { planId: { in: [...planIds] } } },
+    select: { ingredientId: true, pantryMoves: true, list: { select: { planId: true } } },
+  });
+  return rows.flatMap((row) =>
+    readMoves(row.pantryMoves)
+      .filter((move) => move.frozen)
+      .map((move) => ({
+        planId: row.list.planId,
+        ingredientId: row.ingredientId,
+        parcel: move.parcel ?? 0,
+        quantity: move.quantity,
+        unit: move.unit,
+      })),
+  );
+}
+
+/** The packages the shopping lists of the plans `planIds` took out of the freezer, as `planId:ingredientId:parcel`. */
+async function packagesListsTook(tx: Tx, planIds: readonly string[]): Promise<Set<string>> {
+  return new Set(
+    (await listsTookFromFreezer(tx, planIds)).map(
+      (one) => `${one.planId}:${one.ingredientId}:${one.parcel}`,
+    ),
+  );
 }
 
 /** What the kitchen's menu takes of each food in packs, day by day: the other plan's meals on the first plan's days. */
@@ -341,4 +401,24 @@ function sameStock(
     list.map((one) => key({ ...one, ingredientId })),
   );
   return had.sort().join('|') === stock.map(key).sort().join('|');
+}
+
+/**
+ * Choose again what every plan of the profile `profileId` with a day after `today` takes out of the freezer, after a
+ * write of a frozen row of its pantry by hand (`repickFreezer`): a package that left the freezer before it was to
+ * come out, and that no list of its plan took, leaves the plan, which takes another or buys fresh. Answers the plans
+ * whose choice changed.
+ */
+export async function repickProfile(tx: Tx, profileId: string, today: string): Promise<string[]> {
+  const plans = await tx.mealPlan.findMany({
+    where: { profileId, days: { some: { date: { gt: new Date(today) } } } },
+    orderBy: { startDate: 'asc' },
+    select: { id: true },
+  });
+  const changed: string[] = [];
+  for (const plan of plans) {
+    const said = await packagesSaid(tx, plan.id, today);
+    changed.push(...(await repickFreezer(tx, plan.id, today, said)).changed);
+  }
+  return changed;
 }

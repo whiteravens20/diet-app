@@ -27,6 +27,7 @@ import {
   UnitConversionError,
 } from '../engine/index.js';
 import { writeOnce } from '../common/idempotency.js';
+import { repickProfile } from '../meal-plans/freezer-repick.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { menuNeeds, mostInTwoDaysOf } from '../meal-plans/plan-menu.js';
 import { MEAL_ROW, packedOfDays, partnerPacked } from '../meal-plans/plan-packs-store.js';
@@ -210,6 +211,8 @@ export class InventoryService {
     locale: Locale,
     id: string,
     body: PatchInventoryItem,
+    /** The client's day: a package of the freezer changed is chosen again by the plans from tomorrow on. */
+    today: string | null = null,
   ): Promise<InventoryItem> {
     const row = await this.loadOwned(userId, id);
     if (body.quantity !== undefined) assertWithinCeiling(body.quantity, row.unit);
@@ -231,6 +234,8 @@ export class InventoryService {
       if (changed.count === 0) throw this.notFound();
       // Less of it at home: the lists count on no more than there is.
       if (body.quantity !== undefined) await forgetStock(tx, row.profileId, row.ingredientId, null);
+      // A package of the freezer changed by hand: the plans choose their packages again.
+      if (row.frozen) await repickProfile(tx, row.profileId, today ?? isoDate(new Date()));
       return tx.inventoryItem.findUniqueOrThrow({
         where: { id: row.id },
         include: this.withIngredient(locale),
@@ -332,7 +337,7 @@ export class InventoryService {
    * A row removed is food that is not at home: what the profile's lists took of it, or count on, goes with it
    * (`forgetStock`), and nothing of it comes back when a list is removed.
    */
-  async remove(userId: string, id: string): Promise<void> {
+  async remove(userId: string, id: string, today: string | null = null): Promise<void> {
     const row = await this.loadOwned(userId, id);
     await this.prisma.$transaction(async (tx) => {
       await lockStockRows(tx, row.profileId, row.ingredientId);
@@ -341,6 +346,8 @@ export class InventoryService {
       if (!gone) return;
       await tx.inventoryItem.delete({ where: { id: gone.id } });
       await forgetStock(tx, gone.profileId, gone.ingredientId, gone);
+      // A package gone from the freezer by hand: the plans that named it choose again.
+      if (gone.frozen) await repickProfile(tx, gone.profileId, today ?? isoDate(new Date()));
     }, TRANSACTION);
   }
 

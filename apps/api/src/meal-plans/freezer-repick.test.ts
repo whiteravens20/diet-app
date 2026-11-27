@@ -17,6 +17,7 @@ const aPackage = (over: Partial<KitchenPackage> = {}): KitchenPackage => ({
   from: 1,
   taken: false,
   held: true,
+  byList: false,
   ...over,
 });
 const needs = (row: number[]) => new Map([[CHICKEN, row]]);
@@ -61,11 +62,23 @@ describe('the packages a plan takes out of the freezer, chosen again after a cha
     expect(chooseAgain(needs([0, 0, 0, 100, 0]), [taken], 1, LAST_DAY, new Set())).toEqual([]);
   });
 
-  it('keeps a package taken that is no longer in the freezer: it was taken out, or a list took it', () => {
-    const gone = aPackage({ taken: true, held: false, from: 0 });
+  it('keeps a package a list of the plan took out of the freezer: it is still the plan’s', () => {
+    const gone = aPackage({ taken: true, held: false, byList: true, from: 0 });
     expect(parcels(chooseAgain(needs([0, 0, 0, 0]), [gone], 1, LAST_DAY, new Set()))).toEqual([
       [2, 0],
     ]);
+  });
+
+  it('keeps a package gone from the freezer that was to come out by today: the plan took it out', () => {
+    const gone = aPackage({ taken: true, held: false, from: 0 });
+    expect(parcels(chooseAgain(needs([0, 340, 0, 0]), [gone], 1, LAST_DAY, new Set()))).toEqual([
+      [2, 0],
+    ]);
+  });
+
+  it('lets go a package that left the freezer before it was to come out and that no list took: it was removed by hand', () => {
+    const gone = aPackage({ taken: true, held: false, from: 0 });
+    expect(chooseAgain(needs([0, 0, 0, 340]), [gone], 1, LAST_DAY, new Set())).toEqual([]);
   });
 
   it('takes nothing anew on a plan with no day after today, and keeps what it took', () => {
