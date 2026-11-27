@@ -1059,9 +1059,12 @@ export function PlanCard({
                                 {cookWords.leftoverChip(m)}
                               </span>
                             )}
-                            {m.shared && (
+                            {/* In a plan made together, whether both eat the dish, and how it is cooked; or that it is one person's alone. */}
+                            {(m.shared || plan.joint) && (
                               <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
-                                {t('sharedChip')}
+                                {m.shared
+                                  ? t(m.shared.apart ? 'sharedApartChip' : 'sharedChip')
+                                  : t('onlyChip', { name: fmt.text(profileName) })}
                               </span>
                             )}
                           </span>

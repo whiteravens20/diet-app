@@ -1563,6 +1563,8 @@
   },
   "mealPlans": {
     "sharedChip": "Wspólne",
+    "sharedApartChip": "Wspólne · osobno",
+    "onlyChip": "Tylko {name}",
     "toppingLine": "Dodatek na Twój talerz: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
     "offerTopping": "Model wybrał też dodatek na Twój talerz: {name}. Ilość dobierze plan, tak by dzień trzymał cel.",
     "cookApart": "Gotuj osobno",

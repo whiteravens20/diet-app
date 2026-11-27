@@ -4639,6 +4639,34 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(screen.queryByRole('combobox', { name: messages.mealPlans.jointPlanWith })).toBeNull();
   });
 
+  it('marks a meal only this person eats by their name, and one each cooks apart as shared and apart', async () => {
+    const plan = together({ apart: true });
+    const shared = plan.days[0]!.meals[0]!;
+    // A time of day the other person does not have: this person's alone.
+    const alone = {
+      ...shared,
+      id: '15151515-1515-4515-8515-151515151515',
+      mealType: 'dinner' as const,
+      shared: null,
+    };
+    plan.days[0]!.meals = [shared, alone];
+    await open(plan);
+
+    expect(
+      screen.getByText(spaced(messages.mealPlans.sharedApartChip.replaceAll('\u00a0', ' '))),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Only Me')).toBeInTheDocument();
+    expect(screen.queryByText(messages.mealPlans.sharedChip, { exact: true })).toBeNull();
+  });
+
+  it('marks no meal of a plan made alone by anyone’s name', async () => {
+    await renderPage(aSupply(), [aPlan()]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+
+    expect(screen.queryByText(/^Only /)).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.sharedChip)).toBeNull();
+  });
+
   it('says whose plan it was made with, marks a shared meal as one, and marks it eaten for both from its changes', async () => {
     const plan = together();
     await open(plan);

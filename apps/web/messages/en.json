@@ -1563,6 +1563,8 @@
   },
   "mealPlans": {
     "sharedChip": "Shared",
+    "sharedApartChip": "Shared · apart",
+    "onlyChip": "Only {name}",
     "toppingLine": "A topping on your plate: {name}, {amount}, {kcal, number, ::group-off}\u00a0kcal",
     "offerTopping": "The model also picked a topping for your plate: {name}. The plan sets its amount, so that the day keeps its target.",
     "cookApart": "Cook apart",
