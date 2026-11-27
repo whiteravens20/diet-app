@@ -66,6 +66,8 @@ export function WaterCard({ profile, day = localDate() }: { profile: Profile; da
     onSuccess: (answer) => {
       settled(answer);
       setTyped('');
+      // The API read the day's water reminder still unread: the bell says so at once.
+      void qc.invalidateQueries({ queryKey: ['notifications-unread'] });
     },
     onError: (err) => setError(errorText(err, t('errAdd'))),
   });

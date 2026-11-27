@@ -51,16 +51,16 @@ function shown(day: WaterDay) {
   vi.spyOn(api, 'get').mockResolvedValue(day);
   const post = vi.spyOn(api, 'post');
   const remove = vi.spyOn(api, 'delete');
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidated = vi.spyOn(client, 'invalidateQueries');
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={client}>
       <NextIntlClientProvider locale="en" messages={messages}>
         <WaterCard profile={PROFILE} day={DAY} />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
-  return { post, remove };
+  return { post, remove, invalidated };
 }
 
 describe("the water of a profile's day", () => {
@@ -105,6 +105,23 @@ describe("the water of a profile's day", () => {
       expect(post).toHaveBeenLastCalledWith('/water', { profileId: PROFILE.id, day: DAY, ml });
     }
     expect(plain((await screen.findByText(/^0\.83 L/)).textContent)).toBe('0.83 L of 2 L');
+  });
+
+  it("reads the bell again once water is added, the day's reminder read by the API, and not once water is removed", async () => {
+    const { post, remove, invalidated } = shown(aDay());
+    post.mockResolvedValue(aDay({ ml: 830, entries: 3 }));
+    remove.mockResolvedValue(aDay({ ml: 170, entries: 1 }));
+    const bell = () =>
+      invalidated.mock.calls.filter(
+        ([filters]) => filters?.queryKey?.[0] === 'notifications-unread',
+      );
+
+    await userEvent.click(await screen.findByRole('button', { name: spaced('+250 ml') }));
+    await waitFor(() => expect(bell()).toHaveLength(1));
+
+    await userEvent.click(await screen.findByRole('button', { name: /^Remove the last entry/ }));
+    await waitFor(() => expect(remove).toHaveBeenCalled());
+    expect(bell()).toHaveLength(1);
   });
 
   it('comes to its card once the day is shown, where a page was opened at the card', async () => {
