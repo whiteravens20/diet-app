@@ -454,6 +454,9 @@ model DiaryEntry {
   // Which of those four are only a part of what the entry holds (`LabelNutrient`s of the shared
   // contract): a recipe of which an ingredient has no figure for it.
   labelAtLeast String[]       @default([])
+  // What was taken off the pantry for an entry of an ingredient or a recipe, on a day no list covered, as the user
+  // confirmed: by ingredient, the moves made (`PantryMove`). Giving it back undoes them.
+  pantryMoves  Json           @default("[]")
   // A figure was estimated: of a meal of its own written without them, or of
   // a product whose label lacks it.
   estimated    Boolean        @default(false)
@@ -1141,6 +1144,10 @@ model PlannedMeal {
   estimated   Boolean     @default(false)
   // Mark-eaten: a checked meal is pinned (excluded from the rebalance set).
   eatenAt     DateTime?
+  // What was taken off the pantry for it once it was eaten, on a day no list covered, as the user confirmed
+  // ("Zdejmij ze spiżarni to, co zjedzono"): by ingredient, the moves made (`PantryMove`). Giving it back undoes them;
+  // while they stand, eating it takes nothing again.
+  pantryMoves Json        @default("[]")
   // Rebalancer multiplier on top of `servings`. Effective amount = servings *
   // quantityScale. Default 1.0 = untouched. Nutrition and
   // shopping-list quantities read the product of the two.
@@ -1253,8 +1260,10 @@ model FavoriteSet {
 // Per-profile stock of ingredients the user actually has, kept by hand. The
 // one thing that changes it for the user is a shopping list: ticking a row off
 // takes what the list counted as already at home and adds what was bought
-// beyond the need (see `ShoppingListItem.pantryMoves`). Marking a meal eaten
-// changes nothing here. Plan generation, day re-roll and meal swap lean toward
+// beyond the need (see `ShoppingListItem.pantryMoves`). On a day no list
+// covers, a meal marked eaten or an entry of the diary takes what was eaten off
+// it once the user confirms it (`PlannedMeal.pantryMoves`,
+// `DiaryEntry.pantryMoves`). Plan generation, day re-roll and meal swap lean toward
 // recipes the pantry can cover; see `engine/optimizer.ts`.
 //
 // A quantity is stored in the `unit` it was entered in (g / ml / piece), one

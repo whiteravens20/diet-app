@@ -8,6 +8,7 @@ import {
   type Locale,
   type MealType,
 } from '@diet-app/shared';
+import { readLedger } from '../inventory/eaten-pantry.js';
 import { isoDate } from '../meal-plans/plan-days.js';
 import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
@@ -96,6 +97,7 @@ export function entryDto(row: EntryRow, locale: Locale): DiaryEntry {
     estimatedMacros: row.estimatedMacros.filter(
       (macro): macro is EstimatedMacro => EstimatedMacro.safeParse(macro).success,
     ),
+    takenFromPantry: readLedger(row.pantryMoves).length > 0,
     createdAt: row.createdAt.toISOString(),
   };
 }

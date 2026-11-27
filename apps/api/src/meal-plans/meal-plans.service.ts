@@ -21,6 +21,7 @@ import {
   type AddCustomMealRequest,
   type CookingChange,
   type DayEventCause,
+  type EatenPantry,
   type DayHistory,
   type DiaryEntry,
   type KeepDayRequest,
@@ -166,6 +167,16 @@ import {
 } from '../shopping-lists/shopping-lists.service.js';
 import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/diary-days.js';
 import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
+import {
+  eatenPantry,
+  giveBackEaten,
+  listCovers,
+  readLedger,
+  storedLedger,
+  takeEaten,
+  type Eating,
+} from '../inventory/eaten-pantry.js';
+import { mealEaten } from './meal-eaten.js';
 import { holdProfile } from '../common/hold.js';
 import { entriesOfDays } from '../diary/diary-entries.js';
 import {
@@ -295,6 +306,8 @@ export class MealPlansService {
               profileId,
               date: new Date(meal.date),
               createdAt: new Date(now + index),
+              // What eating it took off the pantry goes with it: given back from the entry, as from the meal.
+              pantryMoves: storedLedger(readLedger(meal.pantryMoves)),
             })),
           });
         }
@@ -1114,6 +1127,109 @@ export class MealPlansService {
       summary,
       meal.day.plan.revision,
     );
+  }
+
+  /**
+   * What eating the meal takes off the pantry ("Zdejmij ze spiżarni to, co zjedzono"), on a day no list covers:
+   * offered once it is marked eaten and nothing was taken yet, and what was taken, which giving back returns
+   * (`EatenPantry`). Nothing changes by itself.
+   */
+  async mealPantry(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    const meal = await this.loadPlannedMeal(userId, planId, mealId);
+    return this.pantryOfMeal(this.prisma, meal, clientToday ?? this.today(), locale);
+  }
+
+  /** Take what eating the meal ate off the pantry, as offered; nothing where it took already or nothing is offered. */
+  async takeMealPantry(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    await this.loadPlannedMeal(userId, planId, mealId);
+    const today = clientToday ?? this.today();
+    return this.prisma.$transaction(async (tx) => {
+      const meal = await this.heldMeal(tx, mealId);
+      const ledger = await takeEaten(tx, await this.eatingOfMeal(tx, meal), today);
+      if (ledger.length > 0)
+        await tx.plannedMeal.update({
+          where: { id: mealId },
+          data: { pantryMoves: storedLedger(ledger) },
+        });
+      return this.pantryOfMeal(tx, await this.heldMeal(tx, mealId), today, locale);
+    });
+  }
+
+  /** Give back to the pantry what eating the meal took off it: every move undone. */
+  async returnMealPantry(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    await this.loadPlannedMeal(userId, planId, mealId);
+    const today = clientToday ?? this.today();
+    return this.prisma.$transaction(async (tx) => {
+      const meal = await this.heldMeal(tx, mealId);
+      const ledger = readLedger(meal.pantryMoves);
+      if (ledger.length > 0) {
+        await giveBackEaten(tx, meal.day.plan.profileId, ledger);
+        await tx.plannedMeal.update({ where: { id: mealId }, data: { pantryMoves: [] } });
+      }
+      return this.pantryOfMeal(tx, await this.heldMeal(tx, mealId), today, locale);
+    });
+  }
+
+  /**
+   * A meal read inside a write, its profile held, so that two takes of it wait for each other: read again once held,
+   * since a take of it at the same moment has written what it took.
+   */
+  private async heldMeal(tx: Prisma.TransactionClient, mealId: string) {
+    const read = () =>
+      tx.plannedMeal.findUniqueOrThrow({
+        where: { id: mealId },
+        select: {
+          id: true,
+          eatenAt: true,
+          pantryMoves: true,
+          day: { select: { date: true, planId: true, plan: { select: { profileId: true } } } },
+        },
+      });
+    await holdProfile(tx, (await read()).day.plan.profileId);
+    return read();
+  }
+
+  /** What eating `meal` takes off the pantry and took (`eatenPantry`). */
+  private async pantryOfMeal(
+    db: Prisma.TransactionClient,
+    meal: PantryMeal,
+    today: string,
+    locale: Locale,
+  ): Promise<EatenPantry> {
+    return eatenPantry(db, await this.eatingOfMeal(db, meal), today, locale);
+  }
+
+  /** What eating `meal` comes to for the pantry: offered once it is eaten, on a day no list covers, until it took. */
+  private async eatingOfMeal(db: Prisma.TransactionClient, meal: PantryMeal): Promise<Eating> {
+    const ledger = readLedger(meal.pantryMoves);
+    const profileId = meal.day.plan.profileId;
+    const offering =
+      meal.eatenAt !== null &&
+      ledger.length === 0 &&
+      !(await listCovers(db, profileId, meal.day.date));
+    const eaten =
+      offering || ledger.length > 0
+        ? await mealEaten(db, meal.day.planId, meal.id)
+        : new Map<string, number>();
+    return { profileId, eaten, ledger, offering };
   }
 
   /**
@@ -2997,6 +3113,14 @@ interface PlanWithRelations {
         (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
   }[];
+}
+
+/** A meal as what eating it does to the pantry reads it. */
+interface PantryMeal {
+  id: string;
+  eatenAt: Date | null;
+  pantryMoves: unknown;
+  day: { date: Date; planId: string; plan: { profileId: string } };
 }
 
 /** The pots cooked already a plan's meals are eaten from (`potsOf`), and what the day after each such meal is for a leftover. */

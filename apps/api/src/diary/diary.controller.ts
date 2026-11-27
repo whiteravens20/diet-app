@@ -18,6 +18,7 @@ import {
   CreateDiaryEntryRequest,
   DiaryDay,
   DiaryDayQuery,
+  EatenPantry,
   UpdateDiaryEntryRequest,
   type Locale,
   WrittenDiaryCopy,
@@ -107,6 +108,50 @@ export class DiaryController {
     @ClientDate() today: string | null,
   ) {
     await this.diary.remove(user.id, id, today);
+  }
+
+  /**
+   * What an entry of an ingredient or a recipe takes off the pantry on a day no shopping list covers, offered while
+   * nothing was taken, and what it took ("Zdejmij ze spiżarni to, co zjedzono"). Nothing changes by itself.
+   */
+  @Get('entries/:id/pantry')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  entryPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.diary.entryPantry(user.id, locale, id, today);
+  }
+
+  /** Take what the entry ate off the pantry, as offered: once, until it is given back. */
+  @Post('entries/:id/pantry-take')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  takeEntryPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.diary.takeEntryPantry(user.id, locale, id, today);
+  }
+
+  /** Give back to the pantry what the entry took off it ("Oddaj do spiżarni"). */
+  @Post('entries/:id/pantry-return')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  returnEntryPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.diary.returnEntryPantry(user.id, locale, id, today);
   }
 
   /**

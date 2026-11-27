@@ -33,6 +33,7 @@ import {
   KeepDayRequest,
   KeepFrozenRequest,
   KeepLeftRequest,
+  EatenPantry,
   LeftoverOffer,
   LeftoverOfferQuery,
   MealPlan,
@@ -521,6 +522,53 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten, today, dto.forAll);
+  }
+
+  /**
+   * What eating the meal takes off the pantry on a day no shopping list covers, offered once it is marked eaten, and
+   * what was taken ("Zdejmij ze spiżarni to, co zjedzono"). Nothing changes by itself.
+   */
+  @Get(':id/meals/:mealId/pantry')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  mealPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.mealPantry(user.id, locale, id, mealId, today);
+  }
+
+  /** Take what eating the meal ate off the pantry, as offered: once, until it is given back. */
+  @Post(':id/meals/:mealId/pantry-take')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  takeMealPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.takeMealPantry(user.id, locale, id, mealId, today);
+  }
+
+  /** Give back to the pantry what eating the meal took off it ("Oddaj do spiżarni"). */
+  @Post(':id/meals/:mealId/pantry-return')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(EatenPantry)
+  returnMealPantry(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.returnMealPantry(user.id, locale, id, mealId, today);
   }
 
   /**

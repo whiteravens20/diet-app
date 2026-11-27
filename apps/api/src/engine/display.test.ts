@@ -3,8 +3,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   displayAmount,
+  displayPantry,
   displayStock,
   isCounted,
+  pantryTake,
   quantityToBuy,
   quantityToClaim,
   shoppingUnit,
@@ -212,6 +214,27 @@ describe('what a pantry row holds', () => {
     });
     expect(displayStock(0.1, 'piece', EGG)).toEqual({ quantity: 0.5, unit: 'piece', grams: 6 });
     expect(displayStock(0, 'g', CHICKEN)).toEqual({ quantity: 0, unit: 'g' });
+  });
+});
+
+describe('an amount of the pantry in the canonical unit', () => {
+  it('is shown as the pantry keeps the food: what is counted in its pieces, the rest by weight or volume', () => {
+    expect(displayPantry(110, EGG)).toEqual({ quantity: 2, unit: 'piece', grams: 110 });
+    expect(displayPantry(80, BREAD)).toEqual({ quantity: 2, unit: 'slice', grams: 80 });
+    expect(displayPantry(213.4, CHICKEN)).toEqual({ quantity: 213, unit: 'g' });
+    expect(displayPantry(250, MILK)).toEqual({ quantity: 250, unit: 'ml' });
+    expect(displayPantry(240, TOMATO)).toEqual({ quantity: 240, unit: 'g' });
+  });
+
+  it('is taken as it is shown: to the gram, the millilitre or half a piece, given back in the canonical unit', () => {
+    expect(pantryTake(110, EGG)).toBe(110);
+    expect(pantryTake(100, EGG)).toBe(110);
+    expect(pantryTake(70, BREAD)).toBe(80);
+    expect(pantryTake(147.6, CHICKEN)).toBe(148);
+    expect(pantryTake(249.4, MILK)).toBe(249);
+    expect(pantryTake(0.4, CHICKEN)).toBe(0);
+    expect(pantryTake(10, EGG)).toBe(0);
+    expect(pantryTake(0, EGG)).toBe(0);
   });
 });
 

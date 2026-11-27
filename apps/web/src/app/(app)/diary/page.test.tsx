@@ -52,6 +52,7 @@ const anEntry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   labelAtLeast: [],
   estimated: true,
   estimatedMacros: ['protein', 'fat', 'carbs'],
+  takenFromPantry: false,
   createdAt: `${TODAY}T12:00:00.000Z`,
   ...over,
 });

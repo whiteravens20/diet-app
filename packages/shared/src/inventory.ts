@@ -17,8 +17,10 @@ export const MAX_PANTRY_ROWS = 1000;
  * plan generation) adds the rows of an ingredient up in its canonical unit,
  * so the unit must be one the ingredient can be converted from.
  *
- * The pantry is kept by hand. The one thing that changes it for the user is a
- * shopping list: see `ShoppingListItem`. Marking a meal eaten does not.
+ * The pantry is kept by hand. What changes it for the user is a shopping list
+ * (see `ShoppingListItem`) and, on a day no list covers, a meal marked eaten or
+ * an entry of the diary once the user confirms taking what it ate off the
+ * pantry (`EatenPantry`).
  */
 export const InventoryItem = z.object({
   id: z.string().uuid(),
@@ -124,3 +126,32 @@ export const StillGoodRequest = z.object({
   bestBefore: CalendarDay.nullable().default(null),
 });
 export type StillGoodRequest = z.infer<typeof StillGoodRequest>;
+
+/**
+ * A food of what eating took, or would take, off the pantry, each amount as a row of the pantry shows it: what is
+ * counted in its pieces, the rest to the gram or millilitre. What is shown as taken is what is taken.
+ */
+export const EatenFromPantry = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** What the meal or the entry ate of it, rounded as it is taken: where the pantry holds enough, the same as `taken`. */
+  eaten: DisplayAmount,
+  /** What the pantry holds of it fresh now. */
+  held: DisplayAmount,
+  /** What is taken off the pantry: of an offer the lesser of the two, of what was taken what it took. */
+  taken: DisplayAmount,
+});
+export type EatenFromPantry = z.infer<typeof EatenFromPantry>;
+
+/**
+ * What eating a meal of a plan, or an entry of the diary of an ingredient or a recipe, does to the pantry on a day no
+ * shopping list covers ("Zdejmij ze spiżarni to, co zjedzono"): nothing by itself. `offer` is what taking it would
+ * take now, empty where nothing is to be taken (a list covers the day, it is not eaten, it was taken already, the
+ * pantry holds none of it, or it is eaten from a pot cooked already or a leftover); `taken` is what was taken, which
+ * giving it back returns, empty where nothing was. A meal that cooks a pot ahead takes the whole pot's food.
+ */
+export const EatenPantry = z.object({
+  offer: z.array(EatenFromPantry),
+  taken: z.array(EatenFromPantry),
+});
+export type EatenPantry = z.infer<typeof EatenPantry>;

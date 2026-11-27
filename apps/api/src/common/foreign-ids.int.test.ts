@@ -236,6 +236,21 @@ const ASKS: Ask[] = [
     (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/eaten`,
     () => ({ eaten: true }),
   ],
+  [
+    'see what eating a meal takes off the pantry',
+    'get',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry`,
+  ],
+  [
+    'take what a meal ate off the pantry',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry-take`,
+  ],
+  [
+    'give back to the pantry what a meal took',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry-return`,
+  ],
   ['take a meal off its day', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}`],
   [
     'see where what is left of a meal can go',
@@ -485,6 +500,21 @@ const ASKS: Ask[] = [
     () => ({ servings: 2 }),
   ],
   ['delete an entry of a diary', 'delete', (ids) => `/api/diary/entries/${ids.diaryEntry}`],
+  [
+    'see what an entry of a diary takes off the pantry',
+    'get',
+    (ids) => `/api/diary/entries/${ids.diaryEntry}/pantry`,
+  ],
+  [
+    'take what an entry of a diary ate off the pantry',
+    'post',
+    (ids) => `/api/diary/entries/${ids.diaryEntry}/pantry-take`,
+  ],
+  [
+    'give back to the pantry what an entry of a diary took',
+    'post',
+    (ids) => `/api/diary/entries/${ids.diaryEntry}/pantry-return`,
+  ],
   [
     'copy a day of the diary of a profile',
     'post',

@@ -2391,6 +2391,7 @@ describe('the plan page, on how a day stands against its target', () => {
       labelAtLeast: [],
       estimated: false,
       estimatedMacros: [],
+      takenFromPantry: false,
       createdAt: `${today}T09:00:00.000Z`,
       ...over,
     });

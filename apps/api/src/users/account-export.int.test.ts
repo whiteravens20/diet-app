@@ -272,6 +272,7 @@ describe('everything an account holds, as one file', () => {
         labelAtLeast: [],
         estimated: false,
         estimatedMacros: [],
+        takenFromPantry: [],
         createdAt: expect.any(String),
       },
     ]);

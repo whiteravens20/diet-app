@@ -131,6 +131,8 @@ export async function settlePantry(
   thawed: ReadonlySet<number> = new Set(),
   /** The client's day: fresh stock past its day is not taken (`countsAtHome`). Left out, it is taken as any other. */
   today?: string,
+  /** Only fresh stock is taken, the freezer left as it is: what eating takes (`takeEaten`). */
+  freshOnly = false,
 ): Promise<PantryMove[]> {
   const before = await tx.inventoryItem.findMany({
     where: { profileId, ingredientId: ingredient.id },
@@ -146,16 +148,22 @@ export async function settlePantry(
   });
   // The engine names a row by its place (unit, freezer, package): what it may take is judged with the row's day too.
   const may = mayTakeOf(ingredient, thawed, today);
-  const result = settle(before, ingredient, moves, target, (slot) =>
-    may({
-      ...slot,
-      ...before.find(
-        (row) =>
-          row.unit === slot.unit &&
-          row.frozen === slot.frozen &&
-          (!slot.frozen || row.parcel === slot.parcel),
-      ),
-    }),
+  const result = settle(
+    before,
+    ingredient,
+    moves,
+    target,
+    (slot) =>
+      (!freshOnly || !slot.frozen) &&
+      may({
+        ...slot,
+        ...before.find(
+          (row) =>
+            row.unit === slot.unit &&
+            row.frozen === slot.frozen &&
+            (!slot.frozen || row.parcel === slot.parcel),
+        ),
+      }),
   );
 
   const slot = (row: { unit: string; frozen?: boolean; parcel?: number }) =>

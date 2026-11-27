@@ -19,6 +19,7 @@ import {
   type DiaryDay,
   type DiaryEntry,
   type DiaryPlanMeal,
+  type EatenPantry,
   type Locale,
   type Macros,
   type MealType,
@@ -28,6 +29,15 @@ import {
   type WrittenDiaryEntry,
 } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
+import {
+  eatenPantry,
+  giveBackEaten,
+  listCovers,
+  readLedger,
+  storedLedger,
+  takeEaten,
+  type Eating,
+} from '../inventory/eaten-pantry.js';
 import { writeOnce } from '../common/idempotency.js';
 import { labelLimitsOf } from '../common/label-limits.js';
 import {
@@ -72,6 +82,7 @@ import { pickIngredient, pickTitle } from '../recipes/recipes.service.js';
 import { wholeFigures } from './diary-days.js';
 import { entryDto, entryWith, languages } from './diary-entries.js';
 import { ingredientEaten, productEaten } from './chosen-food.js';
+import { entryEaten } from './entry-eaten.js';
 import { diaryMealOf, eatenMeals, entryOfEaten, type EatenMeal } from './eaten-meals.js';
 import { pieced, pieceUsesOf } from '../meal-plans/whole-pieces-store.js';
 import { potsOfPlan } from '../meal-plans/pots.js';
@@ -694,6 +705,102 @@ export class DiaryService {
   }
 
   /**
+   * What an entry of an ingredient or a recipe takes off the pantry on a day no shopping list covers ("Zdejmij ze
+   * spiżarni to, co zjedzono"), offered while nothing was taken, and what was taken, which giving back returns
+   * (`EatenPantry`). Nothing changes by itself.
+   */
+  async entryPantry(
+    userId: string,
+    locale: Locale,
+    id: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    return this.pantryOfEntry(
+      this.prisma,
+      await this.pantryEntry(this.prisma, userId, id),
+      clientToday ?? isoDate(new Date()),
+      locale,
+    );
+  }
+
+  /** Take what the entry ate off the pantry, as offered; nothing where it took already or nothing is offered. */
+  async takeEntryPantry(
+    userId: string,
+    locale: Locale,
+    id: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    const today = clientToday ?? isoDate(new Date());
+    return this.prisma.$transaction(async (tx) => {
+      const entry = await this.pantryEntry(tx, userId, id, true);
+      const ledger = await takeEaten(tx, await this.eatingOfEntry(tx, entry), today);
+      if (ledger.length === 0) return this.pantryOfEntry(tx, entry, today, locale);
+      await tx.diaryEntry.update({ where: { id }, data: { pantryMoves: storedLedger(ledger) } });
+      return this.pantryOfEntry(tx, { ...entry, pantryMoves: ledger }, today, locale);
+    });
+  }
+
+  /** Give back to the pantry what the entry took off it: every move undone. */
+  async returnEntryPantry(
+    userId: string,
+    locale: Locale,
+    id: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantry> {
+    const today = clientToday ?? isoDate(new Date());
+    return this.prisma.$transaction(async (tx) => {
+      const entry = await this.pantryEntry(tx, userId, id, true);
+      const ledger = readLedger(entry.pantryMoves);
+      if (ledger.length === 0) return this.pantryOfEntry(tx, entry, today, locale);
+      await giveBackEaten(tx, entry.profileId, ledger);
+      await tx.diaryEntry.update({ where: { id }, data: { pantryMoves: [] } });
+      return this.pantryOfEntry(tx, { ...entry, pantryMoves: [] }, today, locale);
+    });
+  }
+
+  /** An entry of one of the user's profiles as its pantry reads it; inside a write, its profile held (`hold`). */
+  private async pantryEntry(
+    db: Prisma.TransactionClient,
+    userId: string,
+    id: string,
+    hold = false,
+  ): Promise<PantryEntry> {
+    const entry = await db.diaryEntry.findFirst({
+      where: { id, profile: { userId } },
+      select: PANTRY_ENTRY,
+    });
+    if (!entry) throw entryNotFound();
+    if (!hold) return entry;
+    await holdProfile(db, entry.profileId);
+    // Read again once held: a take of it at the same moment has written what it took.
+    const held = await db.diaryEntry.findUnique({ where: { id }, select: { pantryMoves: true } });
+    if (!held) throw entryNotFound();
+    return { ...entry, pantryMoves: held.pantryMoves };
+  }
+
+  /** What eating `entry` takes off the pantry and took (`eatenPantry`). */
+  private async pantryOfEntry(
+    db: Prisma.TransactionClient,
+    entry: PantryEntry,
+    today: string,
+    locale: Locale,
+  ): Promise<EatenPantry> {
+    return eatenPantry(db, await this.eatingOfEntry(db, entry), today, locale);
+  }
+
+  /** What eating `entry` comes to for the pantry: an entry of an ingredient or a recipe, on a day no list covers. */
+  private async eatingOfEntry(db: Prisma.TransactionClient, entry: PantryEntry): Promise<Eating> {
+    const ledger = readLedger(entry.pantryMoves);
+    const offering =
+      ledger.length === 0 &&
+      (entry.kind === 'ingredient' || entry.kind === 'recipe') &&
+      !(await listCovers(db, entry.profileId, entry.date));
+    const eaten =
+      offering || ledger.length > 0 ? await entryEaten(db, entry) : new Map<string, number>();
+    return { profileId: entry.profileId, eaten, ledger, offering };
+  }
+
+  /**
    * Copy what was eaten on one day into another of today or at most
    * `DIARY_DAYS_BACK` days before it: the entries of `from`, and the meals
    * marked as eaten that day in the profile's plans, which come in as entries
@@ -1113,6 +1220,26 @@ function perServing(recipe: {
     carbs: recipe.carbsPerServing,
   };
 }
+
+/** What an entry's pantry reads of it. */
+const PANTRY_ENTRY = {
+  profileId: true,
+  date: true,
+  kind: true,
+  ingredientId: true,
+  recipeId: true,
+  quantity: true,
+  unit: true,
+  servings: true,
+  pantryMoves: true,
+} as const;
+
+type PantryEntry = Omit<
+  Prisma.DiaryEntryGetPayload<{ select: typeof PANTRY_ENTRY }>,
+  'pantryMoves'
+> & {
+  pantryMoves: unknown;
+};
 
 function entryNotFound(): NotFoundException {
   return new NotFoundException({

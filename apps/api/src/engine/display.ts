@@ -182,6 +182,40 @@ export function displayStock(
   return { quantity: shown(quantity, nearest(quantity, 1), 1), unit };
 }
 
+/**
+ * An amount of the pantry's, in the canonical unit, in the unit the pantry counts the food in (`shoppingUnit`): what
+ * is counted in its pieces, the rest by weight or volume; null where it cannot be converted.
+ */
+function inPantryUnit(
+  quantity: number,
+  ingredient: DisplayedIngredient,
+): { value: number; unit: Unit } | null {
+  const { unit } = shoppingUnit(ingredient);
+  const value = converted(quantity, ingredient.canonicalUnit, unit, ingredient);
+  return value === null ? null : { value, unit };
+}
+
+/** An amount of the pantry's, in the canonical unit, as a row of the pantry shows it: what is counted in its pieces. */
+export function displayPantry(quantity: number, ingredient: DisplayedIngredient): DisplayAmount {
+  const counted = inPantryUnit(quantity, ingredient);
+  return counted === null
+    ? displayStock(quantity, ingredient.canonicalUnit, ingredient)
+    : displayStock(counted.value, counted.unit, ingredient);
+}
+
+/**
+ * What taking `quantity`, in the canonical unit, off the pantry takes, back in the canonical unit: the amount as the
+ * pantry shows it (`displayPantry`), to the gram, the millilitre or half a piece, since what is shown as taken is
+ * what is taken; nothing where that comes to nothing.
+ */
+export function pantryTake(quantity: number, ingredient: DisplayedIngredient): number {
+  const counted = inPantryUnit(quantity, ingredient);
+  const { value, unit } = counted ?? { value: quantity, unit: ingredient.canonicalUnit };
+  const rounded = nearest(value, unit === 'piece' ? 0.5 : 1);
+  if (rounded <= EPSILON) return 0;
+  return converted(rounded, unit, ingredient.canonicalUnit, ingredient) ?? rounded;
+}
+
 /** The unit a shopping row of the ingredient is counted in, and what to call it. */
 export function shoppingUnit(ingredient: DisplayedIngredient): {
   unit: Unit;

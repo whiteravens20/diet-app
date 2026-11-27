@@ -3675,6 +3675,198 @@
         }
       }
     },
+    "/api/diary/entries/{id}/pantry": {
+      "get": {
+        "operationId": "Diary_entryPantry",
+        "tags": [
+          "diary"
+        ],
+        "summary": "What an entry of an ingredient or a recipe takes off the pantry on a day no shopping list covers, offered while nothing was taken, and what it took (\"Zdejmij ze spiżarni to, co zjedzono\").",
+        "description": "What an entry of an ingredient or a recipe takes off the pantry on a day no shopping list covers, offered while nothing was taken, and what it took (\"Zdejmij ze spiżarni to, co zjedzono\"). Nothing changes by itself.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/entries/{id}/pantry-return": {
+      "post": {
+        "operationId": "Diary_returnEntryPantry",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Give back to the pantry what the entry took off it (\"Oddaj do spiżarni\").",
+        "description": "Give back to the pantry what the entry took off it (\"Oddaj do spiżarni\").\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/diary/entries/{id}/pantry-take": {
+      "post": {
+        "operationId": "Diary_takeEntryPantry",
+        "tags": [
+          "diary"
+        ],
+        "summary": "Take what the entry ate off the pantry, as offered: once, until it is given back.",
+        "description": "Take what the entry ate off the pantry, as offered: once, until it is given back.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
     "/api/diary/expenditure": {
       "get": {
         "operationId": "DiarySummary_expenditure",
@@ -6649,6 +6841,225 @@
         },
         "x-rate-limit": {
           "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/meals/{mealId}/pantry": {
+      "get": {
+        "operationId": "MealPlans_mealPantry",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "What eating the meal takes off the pantry on a day no shopping list covers, offered once it is marked eaten, and what was taken (\"Zdejmij ze spiżarni to, co zjedzono\").",
+        "description": "What eating the meal takes off the pantry on a day no shopping list covers, offered once it is marked eaten, and what was taken (\"Zdejmij ze spiżarni to, co zjedzono\"). Nothing changes by itself.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/meals/{mealId}/pantry-return": {
+      "post": {
+        "operationId": "MealPlans_returnMealPantry",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Give back to the pantry what eating the meal took off it (\"Oddaj do spiżarni\").",
+        "description": "Give back to the pantry what eating the meal took off it (\"Oddaj do spiżarni\").\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/meals/{mealId}/pantry-take": {
+      "post": {
+        "operationId": "MealPlans_takeMealPantry",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take what eating the meal ate off the pantry, as offered: once, until it is given back.",
+        "description": "Take what eating the meal ate off the pantry, as offered: once, until it is given back.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantry"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
           "seconds": 60
         }
       }
@@ -16111,6 +16522,9 @@
               "$ref": "#/components/schemas/EstimatedMacro"
             }
           },
+          "takenFromPantry": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -16135,6 +16549,7 @@
           "labelAtLeast",
           "estimated",
           "estimatedMacros",
+          "takenFromPantry",
           "createdAt"
         ],
         "additionalProperties": false
@@ -16500,6 +16915,35 @@
           "SHIPPED"
         ]
       },
+      "EatenFromPantry": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "eaten": {
+            "$ref": "#/components/schemas/DisplayAmount"
+          },
+          "held": {
+            "$ref": "#/components/schemas/DisplayAmount"
+          },
+          "taken": {
+            "$ref": "#/components/schemas/DisplayAmount"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "name",
+          "eaten",
+          "held",
+          "taken"
+        ],
+        "additionalProperties": false
+      },
       "EatenInOtherPlan": {
         "type": "object",
         "properties": {
@@ -16575,6 +17019,28 @@
           "topping",
           "fromPot",
           "planId"
+        ],
+        "additionalProperties": false
+      },
+      "EatenPantry": {
+        "type": "object",
+        "properties": {
+          "offer": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EatenFromPantry"
+            }
+          },
+          "taken": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EatenFromPantry"
+            }
+          }
+        },
+        "required": [
+          "offer",
+          "taken"
         ],
         "additionalProperties": false
       },
@@ -29281,6 +29747,9 @@
               "$ref": "#/components/schemas/EstimatedMacro"
             }
           },
+          "takenFromPantry": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -29315,6 +29784,7 @@
           "labelAtLeast",
           "estimated",
           "estimatedMacros",
+          "takenFromPantry",
           "createdAt",
           "planChange"
         ],

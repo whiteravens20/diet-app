@@ -54,6 +54,8 @@ export interface EatenMeal {
   topping: { amount: number; food: NonNullable<ReturnType<ToppingFoods['get']>> } | null;
   /** A portion of a dish of a joint plan cooked in one pot and split by weight. */
   fromPot: boolean;
+  /** What eating it took off the pantry, as confirmed (`PlannedMeal.pantryMoves`): the entry that keeps it keeps that. */
+  pantryMoves: unknown;
 }
 
 type Db = Pick<
@@ -110,6 +112,7 @@ export async function eatenMeals(
       plate: true,
       toppingKey: true,
       toppingAmount: true,
+      pantryMoves: true,
       shared: { select: { apart: true } },
       day: { select: { date: true, planId: true } },
       recipe: {
@@ -159,6 +162,7 @@ export async function eatenMeals(
             ? { amount: meal.toppingAmount, food: toppingFoods.get(meal.toppingKey)! }
             : null,
         fromPot: meal.shared !== null && !meal.shared.apart,
+        pantryMoves: meal.pantryMoves,
       };
     })
     .sort(

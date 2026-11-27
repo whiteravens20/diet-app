@@ -211,6 +211,11 @@ export const DiaryEntry = z.object({
   estimated: z.boolean(),
   /** Of a meal of one's own, the macronutrients that were estimated from its energy; empty for the other kinds. */
   estimatedMacros: z.array(EstimatedMacro).max(EstimatedMacro.options.length),
+  /**
+   * Something was taken off the pantry for it, as the user confirmed ("Zdejmij ze spiżarni to, co zjedzono"): its
+   * removal offers to give that back first (`POST /diary/entries/:id/pantry-return`).
+   */
+  takenFromPantry: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type DiaryEntry = z.infer<typeof DiaryEntry>;
