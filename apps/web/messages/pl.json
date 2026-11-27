@@ -2851,7 +2851,7 @@
     "portionWhole": "Poniżej podane są ilości na całe gotowanie: {mine, plural, one {{mine, number, ::group-off}\u00a0porcja} few {{mine, number, ::group-off}\u00a0porcje} many {{mine, number, ::group-off}\u00a0porcji} other {{mine, number, ::group-off}\u00a0porcji}}{same, select, yes {, tak jak w\u00a0oryginalnym przepisie.} other {. Oryginalny przepis jest na {recipe, plural, one {{recipe, number, ::group-off}\u00a0porcję} few {{recipe, number, ::group-off}\u00a0porcje} many {{recipe, number, ::group-off}\u00a0porcji} other {{recipe, number, ::group-off}\u00a0porcji}}.}}",
     "platesTitle": "Talerze",
     "platesIntro": "Plan dzieli te składniki inaczej niż przepis, żeby dzień każdej osoby trzymał jej podział makroskładników.",
-    "platesApart": "Gotowane osobno: każdy składnik w ilości na każdy talerz.",
+    "platesApart": "Gotowane osobno: każdy składnik w\u00a0ilości na każdy talerz.",
     "platesPot": "Resztę garnka podziel według wielkości porcji.",
     "platesIngredient": "Składnik",
     "platesYou": "Ty"
@@ -3477,8 +3477,8 @@
   },
   "split": {
     "portionOfWho": "{who}: {when}",
-    "title": "Podziel ugotowane",
-    "open": "Podziel ugotowane…",
+    "title": "Podziel danie",
+    "open": "Podziel danie…",
     "planIntro": "Udział każdej porcji wynika z\u00a0jej kalorii w\u00a0planie.",
     "planIntroParts": "Udział każdej porcji wynika z\u00a0planu: z\u00a0jej kalorii, a\u00a0przy jednym składniku z\u00a0tego, ile go dostaje.",
     "pageTitle": "Podział dania",
@@ -3497,7 +3497,7 @@
     },
     "wayHint": {
       "whole": "Danie mieszane, jak zupa, gulasz albo makaron w\u00a0sosie. Zamieszaj dokładnie, zanim zważysz i\u00a0nałożysz porcje.",
-      "part": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0podziel go tymi samymi udziałami, potem kolejny.",
+      "part": "Danie w częściach, na przykład kurczak, ryż i brokuł. Zważ jeden składnik, surowy albo ugotowany, i podziel go tymi samymi udziałami, potem kolejny.",
       "pieces": "Jajka, kotlety, placki. Sztuk nie podzielisz dokładnie: zaokrąglenie zmienia porcję."
     },
     "pieceCount": "Liczba sztuk",
@@ -3515,8 +3515,8 @@
     "partWhich": "Który składnik ważysz?",
     "partChoose": "Wybierz składnik",
     "partUnknown": "Wybierz składnik, który ważysz.",
-    "partRisk": "Mięso i\u00a0rybę najdokładniej podzielisz na surowo, przed smażeniem. Ryż, makaron i\u00a0kaszę odważ dla każdego na sucho, ugotuj razem i\u00a0podziel w\u00a0tych samych proporcjach: to podział przybliżony, bo nie każde ziarno wchłania tyle samo wody. Warzywa i\u00a0sos podziel wagą.",
-    "wayHintPartOwn": "Danie w\u00a0częściach, na przykład kurczak, ryż i\u00a0brokuł. Zważ jeden ugotowany składnik i\u00a0wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny.",
+    "partRisk": "Mięso i rybę najdokładniej podzielisz na surowo, przed smażeniem. Ryż, makaron i kaszę ugotuj razem, zważ po ugotowaniu i podziel jako jeden składnik: to podział przybliżony, bo nie każde ziarno wchłania tyle samo wody. Warzywa i sos podziel wagą.",
+    "wayHintPartOwn": "Danie w częściach, na przykład kurczak, ryż i brokuł. Zważ jeden składnik, surowy albo ugotowany, i wybierz go poniżej: każda porcja dostaje tyle, ile przewiduje dla niej plan. Potem kolejny.",
     "eatenLeftOut": "Bez porcji już zjedzonych: {portions}.",
     "allEaten": "Wszystkie porcje tego dania są już zjedzone.",
     "restInPot": "Zostaje w garnku",

@@ -3477,8 +3477,8 @@
   },
   "split": {
     "portionOfWho": "{who}: {when}",
-    "title": "Split what you cooked",
-    "open": "Split what you cooked…",
+    "title": "Split the dish",
+    "open": "Split the dish…",
     "planIntro": "Each portion's share comes from its calories in the plan.",
     "planIntroParts": "Each portion's share comes from the plan: from its calories, and for one part weighed alone from how much of it the portion gets.",
     "pageTitle": "Splitting a dish",
@@ -3497,7 +3497,7 @@
     },
     "wayHint": {
       "whole": "A mixed dish such as a soup, a stew or pasta in its sauce. Stir well before you weigh and serve the portions.",
-      "part": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and split it by the same shares, then the next.",
+      "part": "A dish in parts, chicken, rice and broccoli for example. Weigh one part, raw or cooked, and split it by the same shares, then the next.",
       "pieces": "Eggs, cutlets, pancakes. Pieces cannot be split exactly: rounding changes a portion."
     },
     "pieceCount": "Number of pieces",
@@ -3515,8 +3515,8 @@
     "partWhich": "Which part are you weighing?",
     "partChoose": "Choose an ingredient",
     "partUnknown": "Choose the ingredient you are weighing.",
-    "partRisk": "Meat and fish are split most exactly raw, before frying. Weigh rice, pasta and groats dry for each person, cook them together and split them in the same proportions: an approximate split, as not every grain takes up as much water. Split vegetables and sauce by weight.",
-    "wayHintPartOwn": "A dish in parts, chicken, rice and broccoli for example. Weigh one cooked part and choose it below: each portion gets as much of it as the plan gives it. Then the next.",
+    "partRisk": "Meat and fish are split most exactly raw, before frying. Cook rice, pasta and groats together, weigh them once cooked and split them as one part: an approximate split, as not every grain takes up as much water. Split vegetables and sauce by weight.",
+    "wayHintPartOwn": "A dish in parts, chicken, rice and broccoli for example. Weigh one part, raw or cooked, and choose it below: each portion gets as much of it as the plan gives it. Then the next.",
     "eatenLeftOut": "Leaving out the portions eaten already: {portions}.",
     "allEaten": "Every portion of this dish has been eaten.",
     "restInPot": "Left in the pot",
