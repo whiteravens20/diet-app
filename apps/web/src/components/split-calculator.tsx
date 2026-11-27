@@ -209,15 +209,22 @@ export function SplitCalculator({
               onChange={(e) => setScaleText(e.target.value)}
             />
           </Field>
-          <label className="flex min-h-6 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={inPot}
-              onChange={(e) => setInPot(e.target.checked)}
-            />
-            {t('inPot')}
-          </label>
+          <div className="space-y-1">
+            <label className="flex min-h-6 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={inPot}
+                aria-describedby={`${id}-pot`}
+                onChange={(e) => setInPot(e.target.checked)}
+              />
+              {t('inPot')}
+            </label>
+            {/* No pot is kept: its weight has to be known before it is filled. */}
+            <p id={`${id}-pot`} className="ml-6 text-xs text-muted-foreground">
+              {t('emptyPotHint')}
+            </p>
+          </div>
           {inPot && (
             <Field label={t('emptyPot')} error={potTooHeavy ? t('potTooHeavy') : undefined}>
               <Input

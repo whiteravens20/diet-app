@@ -192,6 +192,10 @@ export function RecipeModal({
             )}
           </p>
         )}
+        {/* A cooking of several portions is split once it is cooked: in the pot it is weighed in, empty first. */}
+        {recipe.data && portion?.whole && (
+          <p className="mb-4 text-sm text-muted-foreground">{tSplit('emptyPotHint')}</p>
+        )}
         {recipe.data && shared && !pot && (
           <p className="mb-4 text-sm text-muted-foreground">
             {t('sharedLine', {

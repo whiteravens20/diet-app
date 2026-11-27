@@ -3520,6 +3520,7 @@
     "eatenLeftOut": "Bez porcji już zjedzonych: {portions}.",
     "allEaten": "Wszystkie porcje tego dania są już zjedzone.",
     "restInPot": "Zostaje w garnku",
-    "wholePlated": "Talerze tego posiłku mają różne proporcje: dziel go składnik po składniku."
+    "wholePlated": "Talerze tego posiłku mają różne proporcje: dziel go składnik po składniku.",
+    "emptyPotHint": "Zważ pusty garnek, zanim zaczniesz gotować: przyda się przy podziale."
   }
 }

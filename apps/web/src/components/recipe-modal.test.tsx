@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -234,6 +234,20 @@ describe('the window of a recipe', () => {
     // Each cooks a plate of their own: the table holds every line, and says so.
     expect(dialog.getByText(messages.recipeModal.platesApart)).toBeInTheDocument();
     expect(dialog.queryByText(messages.recipeModal.platesIntro)).toBeNull();
+  });
+
+  it('says to weigh the empty pot before cooking a dish that is split afterwards, and not for one portion', async () => {
+    const dialog = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 2, whole: true },
+    });
+    expect(await dialog.findByText(messages.split.emptyPotHint)).toBeInTheDocument();
+    cleanup();
+
+    const single = renderWindow(() => Promise.resolve(oats), {
+      portion: { servings: 1, whole: false },
+    });
+    await single.findByText(/Below are the amounts for your meal/);
+    expect(single.queryByText(messages.split.emptyPotHint)).toBeNull();
   });
 
   it('leaves the portions of a pot to the line of the pot', async () => {

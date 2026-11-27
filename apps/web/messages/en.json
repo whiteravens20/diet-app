@@ -3520,6 +3520,7 @@
     "eatenLeftOut": "Leaving out the portions eaten already: {portions}.",
     "allEaten": "Every portion of this dish has been eaten.",
     "restInPot": "Left in the pot",
-    "wholePlated": "The plates of this meal hold their parts in different proportions: split it one part at a time."
+    "wholePlated": "The plates of this meal hold their parts in different proportions: split it one part at a time.",
+    "emptyPotHint": "Weigh the empty pot before you start cooking: the split needs it."
   }
 }

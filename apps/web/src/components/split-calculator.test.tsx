@@ -141,6 +141,14 @@ describe('the weighing calculator', () => {
     expect(amountOf('Monday, lunch')).toBe('667 g');
   });
 
+  it('asks for the empty pot before it is filled: no pot is kept', () => {
+    shown(PLANNED);
+
+    expect(screen.getByRole('checkbox', { name: texts.inPot })).toHaveAccessibleDescription(
+      texts.emptyPotHint,
+    );
+  });
+
   it('opens a dish whose plates differ on one part at a time, and says why the whole dish does not fit it', async () => {
     const plated: SplitPortion[] = PLANNED.map((portion, at) => ({
       ...portion,
