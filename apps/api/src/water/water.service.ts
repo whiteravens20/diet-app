@@ -6,6 +6,7 @@ import {
   dayAfter,
   DIARY_DAYS_BACK,
   MAX_WATER_ENTRIES_A_DAY,
+  NotificationType,
   WATER_DAYS_SHOWN,
   type AddWaterRequest,
   type WaterDay,
@@ -21,7 +22,9 @@ type Reader = PrismaService | Prisma.TransactionClient;
 /**
  * The water a profile drinks, a day of its own calendar at a time: amounts
  * pressed or typed, and an entry written by mistake removed. A day is the sum
- * of its entries, against the profile's target.
+ * of its entries, against the profile's target. Water added reads the day's
+ * reminder still unread, and keeps the next away for a while
+ * (`WaterReminderService`).
  */
 @Injectable()
 export class WaterService {
@@ -66,6 +69,16 @@ export class WaterService {
           }
           const noted = await tx.waterEntry.create({
             data: { profileId, day: new Date(day), ml },
+          });
+          // Who just drank is not told to drink: the reminder of that day still unread is read now.
+          await tx.notification.updateMany({
+            where: {
+              profileId,
+              type: NotificationType.enum.water_reminder,
+              readAt: null,
+              payload: { path: ['day'], equals: day },
+            },
+            data: { readAt: new Date() },
           });
           await keep(tx, noted.id);
           return this.dayOf(tx, profileId, day);

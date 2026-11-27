@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import {
+  dayAfter,
   ProfileInput,
   type CookingReminderPayload,
   type Profile,
@@ -54,8 +55,11 @@ describe('the reminders that keep the hours of an account', () => {
 
   describe('water', () => {
     const day = '2026-11-09';
-    const drink = (ml: number) =>
-      t.prisma.waterEntry.create({ data: { profileId: profile.id, day: new Date(day), ml } });
+    // Water added at `at`, the scan's clock: what a scan counts as drunk a moment ago is by the time it was added.
+    const drink = (ml: number, at: string, of = day) =>
+      t.prisma.waterEntry.create({
+        data: { profileId: profile.id, day: new Date(of), ml, createdAt: new Date(at) },
+      });
 
     beforeEach(async () => {
       await zone('UTC');
@@ -80,8 +84,8 @@ describe('the reminders that keep the hours of an account', () => {
       } satisfies WaterReminderPayload);
       expect(await water.scan(at(`${day}T13:00:00Z`))).toBe(0);
 
-      // Three hours on, 600 ml are still more than 250 ml behind 1167.
-      await drink(600);
+      // Three hours on, 600 ml drunk at half past twelve are still more than 250 ml behind 1167.
+      await drink(600, `${day}T12:30:00Z`);
       expect(await water.scan(at(`${day}T15:00:00Z`))).toBe(1);
       const kept = await reminders('water_reminder');
       expect(kept).toHaveLength(1);
@@ -91,11 +95,45 @@ describe('the reminders that keep the hours of an account', () => {
     });
 
     it('says nothing to a day near its pace, nor once the target is reached', async () => {
-      await drink(500);
+      await drink(500, `${day}T07:30:00Z`);
       // At noon 667 ml are due: 500 ml are within 250 of it.
       expect(await water.scan(at(`${day}T12:00:00Z`))).toBe(0);
-      await drink(1500);
+      await drink(1500, `${day}T15:00:00Z`);
       expect(await water.scan(at(`${day}T20:30:00Z`))).toBe(0);
+    });
+
+    it('keeps quiet for two hours after water is added to the day, whatever its pace, and not for water of another day', async () => {
+      await drink(100, `${day}T11:50:00Z`);
+      // At noon 667 ml are due and 100 were drunk: far behind, but ten minutes after a glass.
+      expect(await water.scan(at(`${day}T12:00:00Z`))).toBe(0);
+      expect(await water.scan(at(`${day}T13:00:00Z`))).toBe(0);
+      // Water of the day before, written at half past one, says nothing of today.
+      await drink(250, `${day}T13:30:00Z`, '2026-11-08');
+      // Two hours and ten minutes after the glass, 1000 ml are due.
+      expect(await water.scan(at(`${day}T14:00:00Z`))).toBe(1);
+      expect((await reminders('water_reminder'))[0]!.payload).toMatchObject({ ml: 100 });
+    });
+
+    it('water added to the day reads its reminder still unread, which no phone then shows, and water of another day does not', async () => {
+      // Days the API takes water for: within a year of the server's day, which the client's day has to be near.
+      const today = new Date().toISOString().slice(0, 10);
+      const recent = dayAfter(today, -1);
+      expect(await water.scan(at(`${recent}T12:00:00Z`))).toBe(1);
+      const add = (of: string) =>
+        t
+          .http()
+          .post('/api/water')
+          .set(as(user))
+          .set('X-Client-Date', today)
+          .send({ profileId: profile.id, day: of, ml: 250 })
+          .expect(201);
+
+      await add(dayAfter(recent, -1));
+      expect((await reminders('water_reminder'))[0]!.readAt).toBeNull();
+      await add(recent);
+      expect((await reminders('water_reminder'))[0]!.readAt).not.toBeNull();
+      const unread = await t.http().get('/api/notifications/unread').set(as(user)).expect(200);
+      expect(JSON.stringify(unread.body)).not.toContain('water_reminder');
     });
 
     it('reminds nobody whose profile stopped tracking water, and again once it tracks it, the reminder kept on all along', async () => {

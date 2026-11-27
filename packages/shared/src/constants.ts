@@ -275,7 +275,8 @@ export const THAWED_KEEPS_DAYS = 2;
  * When water is reminded of, by the account's clock: from the first hour to
  * before the last, while the day holds more than `WATER_REMINDER_BEHIND_ML`
  * less than an even pace to the target from `WATER_PACE_FROM_HOUR` to
- * `WATER_PACE_TO_HOUR`, at most every `WATER_REMINDER_EVERY_HOURS` hours.
+ * `WATER_PACE_TO_HOUR`, at most every `WATER_REMINDER_EVERY_HOURS` hours, and
+ * not within `WATER_REMINDER_AFTER_WATER_HOURS` hours of water added to the day.
  */
 export const WATER_REMINDER_FROM_HOUR = 9;
 export const WATER_REMINDER_TO_HOUR = 21;
@@ -283,6 +284,7 @@ export const WATER_PACE_FROM_HOUR = 8;
 export const WATER_PACE_TO_HOUR = 20;
 export const WATER_REMINDER_BEHIND_ML = 250;
 export const WATER_REMINDER_EVERY_HOURS = 3;
+export const WATER_REMINDER_AFTER_WATER_HOURS = 2;
 
 /** When a profile is reminded to weigh itself, by the account's clock: from the first hour to before the last. */
 export const WEIGHT_REMINDER_FROM_HOUR = 7;

@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   WATER_PACE_FROM_HOUR,
   WATER_PACE_TO_HOUR,
+  WATER_REMINDER_AFTER_WATER_HOURS,
   WATER_REMINDER_BEHIND_ML,
   WATER_REMINDER_EVERY_HOURS,
   WATER_REMINDER_FROM_HOUR,
@@ -22,9 +23,12 @@ const HOUR_MS = 60 * 60 * 1000;
  * and whose account's clients sent their time zone is reminded between
  * `WATER_REMINDER_FROM_HOUR` and `WATER_REMINDER_TO_HOUR` by that clock, while
  * its day holds more than `WATER_REMINDER_BEHIND_ML` less than an even pace to
- * the target from `WATER_PACE_FROM_HOUR` to `WATER_PACE_TO_HOUR`, and at most
- * every `WATER_REMINDER_EVERY_HOURS` hours; never once the target is reached.
- * Two scans at once remind it once between them.
+ * the target from `WATER_PACE_FROM_HOUR` to `WATER_PACE_TO_HOUR`, at most
+ * every `WATER_REMINDER_EVERY_HOURS` hours and not within
+ * `WATER_REMINDER_AFTER_WATER_HOURS` hours of water added to the day: who just
+ * drank is not told to drink. Never once the target is reached. Two scans at
+ * once remind it once between them; water added closes the day's reminder
+ * still unread (`WaterService.add`).
  */
 @Injectable()
 export class WaterReminderService {
@@ -52,6 +56,7 @@ export class WaterReminderService {
       },
     });
     const notSince = new Date(now.getTime() - WATER_REMINDER_EVERY_HOURS * HOUR_MS);
+    const quietSince = new Date(now.getTime() - WATER_REMINDER_AFTER_WATER_HOURS * HOUR_MS);
     let made = 0;
     for (const profile of profiles) {
       if (profile.lastWaterReminderAt && profile.lastWaterReminderAt > notSince) continue;
@@ -62,9 +67,12 @@ export class WaterReminderService {
         const held = await this.prisma.waterEntry.aggregate({
           where: { profileId: profile.id, day: new Date(clock.day) },
           _sum: { ml: true },
+          _max: { createdAt: true },
         });
         const ml = held._sum.ml ?? 0;
         if (ml >= target) continue;
+        const lastAdded = held._max.createdAt;
+        if (lastAdded && lastAdded > quietSince) continue;
         const share = Math.min(
           1,
           Math.max(
