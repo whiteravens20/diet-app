@@ -52,6 +52,7 @@ import { AddEntryDialog } from './add-entry-dialog';
 import { EditEntryDialog } from './edit-entry-dialog';
 import { useEntryAmount } from '@/components/diary-entry-amount';
 import { RemovedBar, useRemovedLater } from '@/components/removed-later';
+import { useEatenPantry } from '@/components/eaten-pantry';
 import { WaterCard } from '@/components/water-card';
 import { WeekSummaryCard } from '@/components/week-summary';
 import { DOT, held } from '@/lib/figure-line';
@@ -98,6 +99,7 @@ function DiaryContent() {
   const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
+  const eatenPantry = useEatenPantry();
   const params = useSearchParams();
   const today = localDate();
 
@@ -172,6 +174,9 @@ function DiaryContent() {
       setAdding(null);
       planChanged(written);
       await refresh();
+      // On a day no list covers, what an ingredient or a recipe written was may come off the pantry: never by itself.
+      if (written.kind === 'ingredient' || written.kind === 'recipe')
+        eatenPantry.ask(`/diary/entries/${written.id}`, 'take');
     },
     onError: (e) => setDialogError(errorText(e, t('errAdd'))),
   });
@@ -207,9 +212,11 @@ function DiaryContent() {
         eaten: !meal.eaten,
       }),
     onMutate: nextStep,
-    onSuccess: async (result, { planId }) => {
+    onSuccess: async (result, { planId, meal }) => {
       setToast(wordOf(planId, result));
       await refresh();
+      // On a day no list covers, what was eaten may come off the pantry, or what was taken go back: never by itself.
+      eatenPantry.ask(`/meal-plans/${planId}/meals/${meal.id}`, meal.eaten ? 'give-back' : 'take');
     },
     onError: (e) => setError(errorText(e, t('errEaten'))),
   });
@@ -401,7 +408,14 @@ function DiaryContent() {
                   setEditing(entry);
                 }}
                 hidden={later.hidden}
-                onRemove={later.remove}
+                onRemove={(entry) =>
+                  // What an entry took off the pantry is offered back before it goes: never by itself.
+                  entry.takenFromPantry
+                    ? eatenPantry.ask(`/diary/entries/${entry.id}`, 'remove', () =>
+                        later.remove(entry),
+                      )
+                    : later.remove(entry)
+                }
               />
             ))}
 
@@ -456,6 +470,7 @@ function DiaryContent() {
         />
       )}
       {later.waiting && <RemovedBar name={later.waiting.name} onUndo={later.undo} />}
+      {eatenPantry.dialog}
       {toast && (
         <RebalanceToast
           word={toast}

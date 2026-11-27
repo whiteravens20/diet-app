@@ -61,11 +61,14 @@ const aDay = (): DiaryDay =>
   }) as unknown as DiaryDay;
 
 function shown(answer: DiaryDay | Error) {
-  const get = vi
-    .spyOn(api, 'get')
-    .mockImplementation(() =>
-      answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer as never),
-    );
+  const get = vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    // What eating an entry takes off the pantry: nothing here.
+    path.endsWith('/pantry')
+      ? Promise.resolve({ offer: [], taken: [] } as never)
+      : answer instanceof Error
+        ? Promise.reject(answer)
+        : Promise.resolve(answer as never),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider
@@ -115,6 +118,28 @@ describe("today's card on the dashboard", () => {
     expect(await screen.findByRole('button', { name: texts.addTitle })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it.each([
+    ['an ingredient', 'ingredient', true],
+    ['a recipe', 'recipe', true],
+    ["a meal of one's own", 'meal', false],
+  ])(
+    'asks, once %s is written, what eating it takes off the pantry where that is something',
+    async (_what, kind, asked) => {
+      const { get } = shown(aDay());
+      const entry = '55555555-5555-4555-8555-555555555559';
+      vi.spyOn(api, 'post').mockResolvedValue({ id: entry, kind, planChange: null } as never);
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole('button', { name: texts.addTitle }));
+      await user.click(screen.getByRole('button', { name: 'Write it' }));
+
+      await screen.findByRole('button', { name: texts.addTitle });
+      if (asked)
+        await vi.waitFor(() => expect(get).toHaveBeenCalledWith(`/diary/entries/${entry}/pantry`));
+      else expect(get).not.toHaveBeenCalledWith(`/diary/entries/${entry}/pantry`);
+    },
+  );
 
   it("says in a word that the plan's day was sized again where what it writes moved it", async () => {
     shown(aDay());

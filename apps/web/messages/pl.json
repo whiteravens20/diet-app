@@ -2383,6 +2383,25 @@
     "portionPlans": "Dziel na porcje do {amount}: tyle twoje plany jedzą tego najwyżej w\u00a0dwa dni, a\u00a0z\u00a0zamrażarki plan bierze tylko całe paczki.",
     "portionPlan": "Część na później dziel na porcje do {amount}: tyle ten plan je tego najwyżej w\u00a0dwa dni, a\u00a0z\u00a0zamrażarki plan bierze tylko całe paczki."
   },
+  "eatenPantry": {
+    "takeTitle": "Zdejmij ze spiżarni to, co zjedzono",
+    "takeNote": "Na ten dzień nie ma listy zakupów, więc spiżarnia sama nie odejmie tego, co zjedzono.",
+    "line": "zjedzone\u00a0{eaten}\u00a0· w\u00a0spiżarni\u00a0{held}\u00a0· zdejmiesz\u00a0{taken}",
+    "take": "Zdejmij ze spiżarni",
+    "notNow": "Nie teraz",
+    "giveBackTitle": "Oddaj do spiżarni",
+    "giveBackNote": "Ten posiłek zdjął ze spiżarni to, co poniżej. Samo odznaczenie niczego nie oddaje.",
+    "takenLine": "{name}: {taken}",
+    "foods": "Składniki",
+    "giveBack": "Oddaj do spiżarni",
+    "keep": "Zostaw tak",
+    "removeTitle": "Oddać do spiżarni przed usunięciem?",
+    "removeNote": "Ten wpis zdjął ze spiżarni to, co poniżej.",
+    "giveBackAndRemove": "Oddaj i\u00a0usuń",
+    "removeOnly": "Usuń bez oddawania",
+    "errTake": "Nie udało się zdjąć tego ze spiżarni.",
+    "errGiveBack": "Nie udało się oddać tego do spiżarni."
+  },
   "settings": {
     "title": "Ustawienia",
     "subhead": "Konto, preferencje i dostawcy AI.",

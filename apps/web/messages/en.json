@@ -2383,6 +2383,25 @@
     "portionPlans": "Split it into portions of up to {amount}: that is the most your plans eat of it in two days, and a plan takes only whole packages out of the freezer.",
     "portionPlan": "Split the part for later into portions of up to {amount}: that is the most this plan eats of it in two days, and a plan takes only whole packages out of the freezer."
   },
+  "eatenPantry": {
+    "takeTitle": "Take what was eaten off the pantry",
+    "takeNote": "No shopping list covers this day, so the pantry does not take off what was eaten by itself.",
+    "line": "eaten\u00a0{eaten}\u00a0· in the pantry\u00a0{held}\u00a0· you take\u00a0{taken}",
+    "take": "Take off the pantry",
+    "notNow": "Not now",
+    "giveBackTitle": "Give back to the pantry",
+    "giveBackNote": "This meal took what is below off the pantry. Unmarking it gives nothing back by itself.",
+    "takenLine": "{name}: {taken}",
+    "foods": "Ingredients",
+    "giveBack": "Give back",
+    "keep": "Leave it",
+    "removeTitle": "Give back to the pantry before removing it?",
+    "removeNote": "This entry took what is below off the pantry.",
+    "giveBackAndRemove": "Give back and remove",
+    "removeOnly": "Remove without giving back",
+    "errTake": "Could not take it off the pantry.",
+    "errGiveBack": "Could not give it back to the pantry."
+  },
   "settings": {
     "title": "Settings",
     "subhead": "Account, preferences and AI providers.",

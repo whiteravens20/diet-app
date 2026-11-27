@@ -257,19 +257,22 @@ async function renderPage(
             ? listed
             : path.startsWith('/meal-plans/calendar?')
               ? { days: plans.flatMap(daysOnTheCalendar) }
-              : path.startsWith('/meal-plans/')
-                ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
-                : path.endsWith('/calories')
-                  ? { dailyTarget: 2209 }
-                  : path.startsWith('/favorite-sets')
-                    ? favoriteSets
-                    : path.startsWith('/recipes/')
-                      ? plans
-                          .flatMap((plan) =>
-                            plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe)),
-                          )
-                          .find((recipe) => recipe && path === `/recipes/${recipe.id}`)
-                      : []) as never,
+              : // What eating a meal takes off the pantry: nothing, unless a test says otherwise.
+                path.endsWith('/pantry')
+                ? { offer: [], taken: [] }
+                : path.startsWith('/meal-plans/')
+                  ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
+                  : path.endsWith('/calories')
+                    ? { dailyTarget: 2209 }
+                    : path.startsWith('/favorite-sets')
+                      ? favoriteSets
+                      : path.startsWith('/recipes/')
+                        ? plans
+                            .flatMap((plan) =>
+                              plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe)),
+                            )
+                            .find((recipe) => recipe && path === `/recipes/${recipe.id}`)
+                        : []) as never,
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -5735,5 +5738,76 @@ describe('the plan page, after a change that answers with the plan', () => {
     await userEvent.click(await screen.findByRole('button', { name: messages.mealPlans.evenWeek }));
 
     await toldAs('week-evened');
+  });
+});
+
+describe('the plan page, on a meal marked eaten', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** The plan open on its day, the API answering the meal's pantry with `pantry`. */
+  const open = async (pantry: object) => {
+    onTheDay('2026-01-05');
+    const plan = aPlan();
+    await renderPage(aSupply(), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    const path = `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}`;
+    const read = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((asked: string) =>
+      asked === `${path}/pantry` ? Promise.resolve(pantry as never) : read(asked),
+    );
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ offer: [], taken: [] } as never);
+    return { path, patch, post };
+  };
+  const oats = { ingredientId: '55555555-5555-4555-8555-555555555555', name: 'Rolled oats' };
+
+  it('offers to take what the meal ate off the pantry where the API offers it, and takes it only when told to', async () => {
+    const { path, patch, post } = await open({
+      offer: [
+        {
+          ...oats,
+          eaten: { quantity: 60, unit: 'g' },
+          held: { quantity: 400, unit: 'g' },
+          taken: { quantity: 60, unit: 'g' },
+        },
+      ],
+      taken: [],
+    });
+
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: ofAMeal(messages.mealPlans.markEaten) }),
+    );
+
+    expect(patch).toHaveBeenCalledWith(`${path}/eaten`, { eaten: true });
+    const dialog = within(
+      await screen.findByRole('dialog', { name: messages.eatenPantry.takeTitle }),
+    );
+    expect(dialog.getByText('Rolled oats')).toBeInTheDocument();
+    expect(
+      dialog.getByText(spaced('eaten 60 g · in the pantry 400 g · you take 60 g')),
+    ).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+    await userEvent.click(dialog.getByRole('button', { name: messages.eatenPantry.take }));
+
+    expect(post).toHaveBeenCalledWith(`${path}/pantry-take`);
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: messages.eatenPantry.takeTitle })).toBeNull(),
+    );
+  });
+
+  it('asks nothing where the API offers nothing, as on a day a shopping list covers', async () => {
+    const { patch, post } = await open({ offer: [], taken: [] });
+
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: ofAMeal(messages.mealPlans.markEaten) }),
+    );
+
+    await waitFor(() => expect(patch).toHaveBeenCalled());
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/\/pantry$/)));
+    expect(screen.queryByRole('dialog', { name: messages.eatenPantry.takeTitle })).toBeNull();
+    expect(post).not.toHaveBeenCalled();
   });
 });

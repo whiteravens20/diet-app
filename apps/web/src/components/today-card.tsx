@@ -20,6 +20,7 @@ import { localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEatenPantry } from '@/components/eaten-pantry';
 import { ReadsFailed, unread } from '@/components/load-failed';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -39,6 +40,7 @@ export function TodayCard({ profile, children }: { profile: Profile; children?: 
   const tPlans = useTranslations('mealPlans');
   const errorText = useErrorText();
   const qc = useQueryClient();
+  const eatenPantry = useEatenPantry();
   const today = localDate();
   const day = useQuery({
     queryKey: ['diary', profile.id, today],
@@ -65,6 +67,9 @@ export function TodayCard({ profile, children }: { profile: Profile; children?: 
         qc.invalidateQueries({ queryKey: ['meal-plans'] }),
         qc.invalidateQueries({ queryKey: ['meal-plan'] }),
       ]);
+      // On a day no list covers, what an ingredient or a recipe written was may come off the pantry: never by itself.
+      if (written.kind === 'ingredient' || written.kind === 'recipe')
+        eatenPantry.ask(`/diary/entries/${written.id}`, 'take');
     },
     onError: (e) => setError(errorText(e, t('errAdd'))),
   });
@@ -116,6 +121,7 @@ export function TodayCard({ profile, children }: { profile: Profile; children?: 
           onSubmit={(entry) => add.mutate({ ...entry, profileId: profile.id, date: today })}
         />
       )}
+      {eatenPantry.dialog}
     </Card>
   );
 }

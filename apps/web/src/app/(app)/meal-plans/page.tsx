@@ -43,6 +43,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AiOffNote } from '@/components/ai-off-note';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
+import { useEatenPantry } from '@/components/eaten-pantry';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { ProfileChips } from '@/components/profile-chips';
@@ -132,6 +133,7 @@ function MealPlansContent() {
   const errorText = useErrorText();
   const fmt = useFormat();
   const qc = useQueryClient();
+  const eatenPantry = useEatenPantry();
   const params = useSearchParams();
   const profiles = useQuery({
     queryKey: ['profiles'],
@@ -583,7 +585,11 @@ function MealPlansContent() {
         eaten: v.eaten,
         ...(v.forAll ? { forAll: true } : {}),
       }),
-    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onSuccess: (res, v) => {
+      showRebalance(v.planId, res);
+      // On a day no list covers, what was eaten may come off the pantry, or what was taken go back: never by itself.
+      eatenPantry.ask(`/meal-plans/${v.planId}/meals/${v.mealId}`, v.eaten ? 'take' : 'give-back');
+    },
     onError: fail(t('errEaten')),
   });
 
@@ -1446,6 +1452,7 @@ function MealPlansContent() {
           }}
         />
       )}
+      {eatenPantry.dialog}
     </div>
   );
 }

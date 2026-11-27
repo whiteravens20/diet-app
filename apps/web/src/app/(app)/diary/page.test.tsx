@@ -156,6 +156,8 @@ async function renderPage(
         total: 1,
         totalPages: 1,
       } as never);
+    // What eating a meal or an entry takes off the pantry: nothing, unless a test says otherwise.
+    if (path.endsWith('/pantry')) return Promise.resolve({ offer: [], taken: [] } as never);
     return Promise.resolve([] as never);
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -1154,5 +1156,122 @@ describe('an entry of the diary taken out', () => {
     expect(screen.queryByText('Soup from the canteen')).toBeNull();
     await act(async () => refuse());
     expect(await screen.findByText('Soup from the canteen')).toBeInTheDocument();
+  });
+});
+
+describe('what eating takes off the pantry, from the diary', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const ENTRY = '55555555-5555-4555-8555-555555555559';
+  const oats = {
+    ingredientId: '66666666-6666-4666-8666-666666666661',
+    name: 'Rolled oats',
+    eaten: { quantity: 90, unit: 'g' },
+    held: { quantity: 500, unit: 'g' },
+    taken: { quantity: 90, unit: 'g' },
+  };
+  /** The API answering what eating the meal or the entry at `path` does to the pantry with `pantry`. */
+  const pantryAt = (path: string, pantry: object) => {
+    const read = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((asked: string) =>
+      asked === `${path}/pantry` ? Promise.resolve(pantry as never) : read(asked),
+    );
+  };
+
+  it('offers, once a recipe is written, to take what it ate off the pantry, and takes it only when told to', async () => {
+    await renderPage();
+    pantryAt(`/diary/entries/${ENTRY}`, { offer: [oats], taken: [] });
+    const posted = vi.spyOn(api, 'post').mockImplementation((path: string) =>
+      Promise.resolve(
+        (path === '/diary/entries'
+          ? {
+              ...anEntry({ id: ENTRY, kind: 'recipe', recipeId: RECIPE, name: 'Oat porridge' }),
+              planChange: null,
+            }
+          : { offer: [], taken: [] }) as never,
+      ),
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: messages.diary.addTitle }));
+    const window = within(screen.getByRole('dialog', { name: messages.diary.addTitle }));
+    await user.type(
+      window.getByRole('searchbox', {
+        name: `${messages.diary.searchRecipe} ${messages.diary.searchHint}`,
+      }),
+      'oat',
+    );
+    await user.click(await window.findByRole('button', { name: /Oat porridge/ }));
+    await user.click(window.getByRole('button', { name: messages.diary.submit }));
+
+    const asked = within(
+      await screen.findByRole('dialog', { name: messages.eatenPantry.takeTitle }),
+    );
+    expect(
+      asked.getByText(spaced('eaten 90 g · in the pantry 500 g · you take 90 g')),
+    ).toBeInTheDocument();
+    expect(posted).not.toHaveBeenCalledWith(`/diary/entries/${ENTRY}/pantry-take`);
+    await user.click(asked.getByRole('button', { name: messages.eatenPantry.take }));
+
+    expect(posted).toHaveBeenCalledWith(`/diary/entries/${ENTRY}/pantry-take`);
+  });
+
+  it('offers, once a meal of the plan is marked eaten, to take what it ate off the pantry', async () => {
+    await renderPage();
+    pantryAt(`/meal-plans/${PLAN}/meals/${SOUP}`, { offer: [oats], taken: [] });
+    const patched = vi
+      .spyOn(api, 'patch')
+      .mockResolvedValue({ plan: {}, rebalance: null } as never);
+
+    const dinner = within(screen.getByRole('region', { name: 'Dinner' }));
+    await userEvent.click(dinner.getByRole('checkbox', { name: messages.diary.eatenToggle }));
+
+    expect(patched).toHaveBeenCalledWith(`/meal-plans/${PLAN}/meals/${SOUP}/eaten`, {
+      eaten: true,
+    });
+    expect(
+      await screen.findByRole('dialog', { name: messages.eatenPantry.takeTitle }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers, before an entry that took food goes, to give it back first, and removes it once given back', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
+    await renderPage(aDay({ entries: [anEntry({ takenFromPantry: true })] }));
+    pantryAt(`/diary/entries/${anEntry().id}`, { offer: [], taken: [oats] });
+    const posted = vi.spyOn(api, 'post').mockResolvedValue({ offer: [oats], taken: [] } as never);
+    const sent = vi.spyOn(api, 'request').mockResolvedValue(undefined as never);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
+
+    const asked = within(
+      await screen.findByRole('dialog', { name: messages.eatenPantry.removeTitle }),
+    );
+    expect(asked.getByText(spaced('Rolled oats: 90 g'))).toBeInTheDocument();
+    // Nothing goes before it is answered.
+    expect(screen.getByText('Soup from the canteen')).toBeInTheDocument();
+    await userEvent.click(
+      asked.getByRole('button', { name: messages.eatenPantry.giveBackAndRemove }),
+    );
+
+    expect(posted).toHaveBeenCalledWith(`/diary/entries/${anEntry().id}/pantry-return`);
+    await vi.waitFor(() => expect(screen.queryByText('Soup from the canteen')).toBeNull());
+    await act(() => vi.advanceTimersByTimeAsync(UNDO_FOR_MS));
+    expect(sent).toHaveBeenCalledWith(`/diary/entries/${anEntry().id}`, {
+      method: 'DELETE',
+      keepalive: true,
+    });
+  });
+
+  it('removes an entry that took nothing off the pantry without asking', async () => {
+    await renderPage();
+    const get = vi.mocked(api.get);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Soup from the canteen' }));
+
+    expect(screen.queryByText('Soup from the canteen')).toBeNull();
+    expect(get).not.toHaveBeenCalledWith(`/diary/entries/${anEntry().id}/pantry`);
   });
 });
