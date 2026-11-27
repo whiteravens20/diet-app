@@ -354,13 +354,51 @@ export async function repickFreezer(
   planId: string,
   today: string,
   said: ReadonlySet<string>,
-): Promise<{ kitchen: string[]; changed: string[] }> {
+): Promise<{ kitchen: string[]; changed: string[]; frozen: boolean }> {
+  const { ids, kitchen, chosen, frozen } = await choiceOf(tx, planId, today, said);
+  return { kitchen: ids, changed: kitchen ? await keepChoice(tx, kitchen, chosen) : [], frozen };
+}
+
+/** A kitchen's packages chosen again, not kept yet (`choiceOf`). */
+interface Choice {
+  /** The plans of the kitchen. */
+  ids: string[];
+  /** Null where there is no package to choose. */
+  kitchen: Kitchen | null;
+  needs: Map<string, number[]>;
+  chosen: KitchenPackage[];
+  /** A profile of the kitchen holds something in its freezer. */
+  frozen: boolean;
+}
+
+/**
+ * The packages the plans of the kitchen of `planId` take out of the freezer, chosen again (`chooseAgain`) without
+ * those of `excluded` (`packageKey`), which other plans of their profiles keep.
+ */
+async function choiceOf(
+  tx: Tx,
+  planId: string,
+  today: string,
+  said: ReadonlySet<string>,
+  excluded: ReadonlySet<string> = new Set(),
+): Promise<Choice> {
   const light = await lightKitchen(tx, planId);
   const kitchen = light.taken || light.frozen ? await kitchenOf(tx, planId, today) : null;
-  if (!kitchen) return { kitchen: light.ids, changed: [] };
-  const { counting, dates, tomorrow, kept, packages } = kitchen;
-  const chosen = chooseAgain(await needsOf(tx, kitchen), packages, tomorrow, dates.at(-1)!, said);
+  if (!kitchen)
+    return { ids: light.ids, kitchen: null, needs: new Map(), chosen: [], frozen: light.frozen };
+  const needs = await needsOf(tx, kitchen);
+  const open = kitchen.packages.filter((one) => !excluded.has(packageKey(one)));
+  const chosen = chooseAgain(needs, open, kitchen.tomorrow, kitchen.dates.at(-1)!, said);
+  return { ids: light.ids, kitchen, needs, chosen, frozen: light.frozen };
+}
 
+/** Keep with each plan of `kitchen` that counts the pantry the packages of `chosen` that are its: the plans changed. */
+async function keepChoice(
+  tx: Tx,
+  kitchen: Kitchen,
+  chosen: readonly KitchenPackage[],
+): Promise<string[]> {
+  const { counting, dates, tomorrow, kept } = kitchen;
   const changed: string[] = [];
   for (const plan of counting) {
     const before = kept.get(plan.id) ?? null;
@@ -387,8 +425,36 @@ export async function repickFreezer(
     });
     changed.push(plan.id);
   }
-  return { kitchen: light.ids, changed };
+  return changed;
 }
+
+/**
+ * The day each package of `chosen` is eaten on, by `packageKey`, as the menu's needs take them out (`thawAll`); one
+ * no day eats is eaten after all of them.
+ */
+function eatenOn(choice: Choice): Map<string, string> {
+  const { kitchen, needs, chosen } = choice;
+  const days = new Map<string, string>();
+  if (!kitchen) return days;
+  for (const ingredientId of new Set(chosen.map((one) => one.ingredientId))) {
+    const ofFood = chosen.filter((one) => one.ingredientId === ingredientId).sort(goingOffFirst);
+    const { thawed } = thawAll(
+      needs.get(ingredientId) ?? [],
+      ofFood.map((one) => ({ amount: one.amount, from: one.from })),
+    );
+    ofFood.forEach((one, at) => {
+      const day = thawed[at]?.day;
+      days.set(packageKey(one), (day === undefined ? undefined : kitchen.dates[day]) ?? NEVER);
+    });
+  }
+  return days;
+}
+
+/** The day of a package that no day of its plan eats: after every other. */
+const NEVER = '9999-12-31';
+
+/** The most rounds of choosing again a profile's plans take before a package is named by one plan alone. */
+const MOST_ROUNDS = 20;
 
 /** Whether a plan's freezer as it keeps it holds the packages of `stock`, each the same amount from the same day. */
 function sameStock(
@@ -404,21 +470,70 @@ function sameStock(
 }
 
 /**
- * Choose again what every plan of the profile `profileId` with a day after `today` takes out of the freezer, after a
- * write of a frozen row of its pantry by hand (`repickFreezer`): a package that left the freezer before it was to
- * come out, and that no list of its plan took, leaves the plan, which takes another or buys fresh. Answers the plans
- * whose choice changed.
+ * One choice of what the plans of the profile `profileId` with a day after `today` take out of its freezer: each
+ * chooses again (`choiceOf`), and a package two of them take goes to the one that eats it on the earlier day, the
+ * plan made first where they eat it on one day; the other chooses again without it, until no package is named twice.
+ * `said` is what the plans a write changed said to take out by today before it (`packagesSaid`); the others' is read.
+ * With `alone`, a profile with one such plan has its choice made again as well; without, it is left as it is. Kept
+ * with every plan; answers the plans whose choice changed.
  */
-export async function repickProfile(tx: Tx, profileId: string, today: string): Promise<string[]> {
+export async function settleProfileFreezer(
+  tx: Tx,
+  profileId: string,
+  today: string,
+  said: ReadonlySet<string> = new Set(),
+  alone = false,
+): Promise<string[]> {
   const plans = await tx.mealPlan.findMany({
     where: { profileId, days: { some: { date: { gt: new Date(today) } } } },
-    orderBy: { startDate: 'asc' },
+    orderBy: { createdAt: 'asc' },
     select: { id: true },
   });
-  const changed: string[] = [];
-  for (const plan of plans) {
-    const said = await packagesSaid(tx, plan.id, today);
-    changed.push(...(await repickFreezer(tx, plan.id, today, said)).changed);
+  if (plans.length === 0 || (plans.length === 1 && !alone)) return [];
+  const saidAll = new Set(said);
+  for (const plan of plans)
+    for (const key of await packagesSaid(tx, plan.id, today)) saidAll.add(key);
+  const excluded = new Map<string, Set<string>>(plans.map((plan) => [plan.id, new Set<string>()]));
+  let choices: Choice[] = [];
+  for (let round = 0; round < MOST_ROUNDS; round++) {
+    choices = [];
+    for (const plan of plans)
+      choices.push(await choiceOf(tx, plan.id, today, saidAll, excluded.get(plan.id)));
+    // Who eats each package of the profile's freezer, and on which day: a plan's own packages are named by its id.
+    const eaters = new Map<string, { planId: string; date: string; order: number }[]>();
+    choices.forEach((choice, order) => {
+      const planId = plans[order]!.id;
+      for (const [key, date] of eatenOn(choice)) {
+        const [owner, ingredientId, parcel] = key.split(':');
+        if (owner !== planId) continue;
+        const food = `${ingredientId}:${parcel}`;
+        eaters.set(food, [...(eaters.get(food) ?? []), { planId, date, order }]);
+      }
+    });
+    let contested = false;
+    for (const [food, list] of eaters) {
+      if (list.length < 2) continue;
+      contested = true;
+      const [first] = [...list].sort((a, b) =>
+        a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1,
+      );
+      for (const one of list)
+        if (one.planId !== first!.planId) excluded.get(one.planId)!.add(`${one.planId}:${food}`);
+    }
+    if (!contested) break;
   }
-  return changed;
+  const changed: string[] = [];
+  for (const choice of choices)
+    if (choice.kitchen) changed.push(...(await keepChoice(tx, choice.kitchen, choice.chosen)));
+  return [...new Set(changed)];
+}
+
+/**
+ * Choose again what every plan of the profile `profileId` with a day after `today` takes out of the freezer, after a
+ * write of a frozen row of its pantry by hand (`settleProfileFreezer`): a package that left the freezer before it was
+ * to come out, and that no list of its plan took, leaves the plan, which takes another or buys fresh. Answers the
+ * plans whose choice changed.
+ */
+export async function repickProfile(tx: Tx, profileId: string, today: string): Promise<string[]> {
+  return settleProfileFreezer(tx, profileId, today, new Set(), true);
 }

@@ -89,6 +89,7 @@ import {
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
+import { settleProfileFreezer } from './freezer-repick.js';
 import { keptFreezer, reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { dishTraitsOf, eaterOf, toppingOptionsOf } from './toppings-store.js';
 import { plateDishesOf } from './plates-store.js';
@@ -212,7 +213,7 @@ export class PlanGenerationService {
           where: { id: profile.id },
           data: pantryCount(result.pantryRound),
         });
-      return tx.mealPlan.create({
+      const made = await tx.mealPlan.create({
         data: {
           profileId: profile.id,
           startDate: start,
@@ -227,6 +228,9 @@ export class PlanGenerationService {
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
       });
+      // One freezer under every plan of the profile: a package the plan takes that another eats first stays there.
+      if (result.report.freezer) await settleFreezers(tx, [profile.id], today, [made.id]);
+      return made;
     });
     return this.plans.get(userId, locale, plan.id);
   }
@@ -417,6 +421,9 @@ export class PlanGenerationService {
         made.push(plan.id);
       }
       await linkShared(tx, joint.id, made, null, shared);
+      // One freezer under every plan of each profile, where either plan takes a package.
+      if (ofFirst.report.freezer || ofSecond.report.freezer)
+        await settleFreezers(tx, [first.profile.id, second.profile.id], today, made);
       return made[0]!;
     });
     return this.plans.get(userId, locale, planId);
@@ -2728,4 +2735,20 @@ async function refuseFullProfile(
       message: `A profile holds at most ${MAX_PLANS_PER_PROFILE} plans: delete an old one first.`,
     });
   }
+}
+
+/**
+ * The freezers of `profileIds` settled over their plans once the plans `made` are made (`settleProfileFreezer`): an
+ * older plan whose choice changes moves on a revision, so that a client holding it reads it again.
+ */
+async function settleFreezers(
+  tx: Prisma.TransactionClient,
+  profileIds: readonly string[],
+  today: string,
+  made: readonly string[],
+): Promise<void> {
+  for (const profileId of new Set(profileIds))
+    for (const other of await settleProfileFreezer(tx, profileId, today))
+      if (!made.includes(other))
+        await tx.mealPlan.update({ where: { id: other }, data: { revision: { increment: 1 } } });
 }

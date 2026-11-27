@@ -4,7 +4,7 @@ import { ConflictException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { PlanOptions, type DayEventCause } from '@diet-app/shared';
 import { keepEvents, markBefore, ownDays } from './day-events.js';
-import { packagesSaid, repickFreezer } from './freezer-repick.js';
+import { packagesSaid, repickFreezer, settleProfileFreezer } from './freezer-repick.js';
 import { settlePots } from './pots.js';
 import { followRests, wasteLevelOf, type FollowedRest } from './rests-follow.js';
 
@@ -217,19 +217,24 @@ export function writePlans<T>(
     const counting: { planId: string; kitchen: string }[] = [];
     /** The plans claimed that are made for cooking ahead: only their meals are eaten from pots cooked already. */
     const cooking = new Set<string>();
+    /** The profile of each plan claimed. */
+    const profileOf = new Map<string, string>();
     for (const { planId, revision } of [...plans].sort((a, b) =>
       a.planId.localeCompare(b.planId),
     )) {
-      const claimed = await tx.$queryRaw<{ options: unknown; jointPlanId: string | null }[]>`
+      const claimed = await tx.$queryRaw<
+        { options: unknown; jointPlanId: string | null; profileId: string }[]
+      >`
         UPDATE "MealPlan" SET "revision" = "revision" + 1
         WHERE "id" = ${planId} AND "revision" = ${revision}
-        RETURNING "options", "jointPlanId"`;
+        RETURNING "options", "jointPlanId", "profileId"`;
       if (claimed.length !== 1) {
         throw new ConflictException({
           error: 'PLAN_CHANGED',
           message: 'The plan changed while this request was running. Reload it and try again.',
         });
       }
+      profileOf.set(planId, claimed[0]!.profileId);
       if (wasteLevelOf(claimed[0]!.options))
         counting.push({ planId, kitchen: claimed[0]!.jointPlanId ?? planId });
       if (PlanOptions.safeParse(claimed[0]!.options).data?.mealPrepFriendly) cooking.add(planId);
@@ -272,10 +277,8 @@ export function writePlans<T>(
     // (`repickFreezer`); a plan of the kitchen whose choice changes moves on as well.
     const repicked = new Set<string>();
     const chosenAgain = new Set<string>();
-    for (const { planId } of plans) {
-      if (repicked.has(planId)) continue;
-      const { kitchen, changed } = await repickFreezer(tx, planId, today, said);
-      for (const one of kitchen) repicked.add(one);
+    const freezing = new Set<string>();
+    const chose = async (changed: readonly string[]): Promise<void> => {
       for (const other of changed) {
         chosenAgain.add(other);
         if (!claimed.has(other)) {
@@ -283,7 +286,18 @@ export function writePlans<T>(
           claimed.add(other);
         }
       }
+    };
+    for (const { planId } of plans) {
+      if (repicked.has(planId)) continue;
+      const { kitchen, changed, frozen } = await repickFreezer(tx, planId, today, said);
+      for (const one of kitchen) repicked.add(one);
+      if (frozen) freezing.add(profileOf.get(planId)!);
+      await chose(changed);
     }
+    // One freezer under every plan of a profile: a package two plans take stays with the one that eats it first, and
+    // the other chooses again (`settleProfileFreezer`).
+    for (const profileId of freezing)
+      await chose(await settleProfileFreezer(tx, profileId, today, said));
     await keepEvents(tx, marked, own, cause, today, chosenAgain);
     for (const end of endsOf.get(tx) ?? []) await end();
     return written;
@@ -374,9 +388,30 @@ export async function followKitchen(
     (followed) => moveOn(new Set(followed.map((one) => one.planId))),
     new Set(),
   );
-  const { changed } = await repickFreezer(tx, planId, today, said);
-  await moveOn(changed);
-  await keepEvents(tx, marked, new Set(), 'bought-by-weight', today, new Set(changed));
+  const { changed, frozen } = await repickFreezer(tx, planId, today, said);
+  // One freezer under every plan of the profile: the others' choice made with this one's.
+  const settled = frozen
+    ? await settleProfileFreezer(
+        tx,
+        (
+          await tx.mealPlan.findUniqueOrThrow({
+            where: { id: planId },
+            select: { profileId: true },
+          })
+        ).profileId,
+        today,
+        said,
+      )
+    : [];
+  await moveOn([...changed, ...settled]);
+  await keepEvents(
+    tx,
+    marked,
+    new Set(),
+    'bought-by-weight',
+    today,
+    new Set([...changed, ...settled]),
+  );
 }
 
 /**
