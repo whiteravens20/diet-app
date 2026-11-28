@@ -2268,7 +2268,7 @@
     "retargetNote": "The days from today get targets from the profile (calories and macros), with the same dishes in other portions. The days before them stay as they were.",
     "errRetarget": "The profile's target could not be taken.",
     "movedDiet": "The profile is on the {profile} diet now, and this plan was made for the {plan} diet.",
-    "movedMeals": "The profile eats {profile, plural, one {{profile, number, ::group-off} meal} other {{profile, number, ::group-off} meals}} a day now, and this plan {plan, number, ::group-off}.",
+    "movedMeals": "The profile eats {profile, plural, one {{profile, number, ::group-off}\u00a0meal} other {{profile, number, ::group-off}\u00a0meals}} a day now, and this plan {plan, number, ::group-off}.",
     "movedSplit": "The profile has another split of the macros than this plan now.",
     "rerollFromToday": "Make the days from today again",
     "rerollFromTodayNote": "The days from today get new dishes with the profile's diet, its number of meals a day and its target. The days before them stay as they were.",

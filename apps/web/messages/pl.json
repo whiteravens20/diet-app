@@ -2268,7 +2268,7 @@
     "retargetNote": "Dni od dziś dostaną cele z profilu (kalorie i makroskładniki), z tymi samymi daniami w innych porcjach. Wcześniejsze dni zostaną, jak były.",
     "errRetarget": "Nie udało się przyjąć celu profilu.",
     "movedDiet": "Profil ma teraz dietę „{profile}”, a ten plan ułożono dla diety „{plan}”.",
-    "movedMeals": "Profil ma teraz {profile, plural, one {{profile, number, ::group-off} posiłek} few {{profile, number, ::group-off} posiłki} many {{profile, number, ::group-off} posiłków} other {{profile, number, ::group-off} posiłku}} dziennie, a ten plan {plan, number, ::group-off}.",
+    "movedMeals": "Profil ma teraz {profile, plural, one {{profile, number, ::group-off}\u00a0posiłek} few {{profile, number, ::group-off}\u00a0posiłki} many {{profile, number, ::group-off}\u00a0posiłków} other {{profile, number, ::group-off}\u00a0posiłku}} dziennie, a ten plan {plan, number, ::group-off}.",
     "movedSplit": "Profil ma teraz inny podział makroskładników niż ten plan.",
     "rerollFromToday": "Ułóż dni od dziś od nowa",
     "rerollFromTodayNote": "Dni od dziś dostaną nowe dania z dietą, liczbą posiłków i celem profilu. Wcześniejsze dni zostaną, jak były.",
