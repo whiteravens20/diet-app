@@ -1512,7 +1512,7 @@
       "errLoad": "Nie udało się przejrzeć listy."
     },
     "partOf": "Ta lista to część listy dla domu: {profiles}. Odhaczenie tutaj zmienia tylko część tego planu.",
-    "jointNote": "Ten plan jest wspólny z {name}. Lista samego planu kupi tylko Twoją część wspólnych dań, a cały garnek obejmie lista dla domu.",
+    "jointNote": "Wspólny plan z: {name}. Lista samego planu kupi tylko Twoją część wspólnych dań, a cały garnek obejmie lista dla domu.",
     "jointHousehold": "Lista dla domu dla obu planów",
     "openHousehold": "Otwórz listę dla domu",
     "csvShares": "Dla kogo",
