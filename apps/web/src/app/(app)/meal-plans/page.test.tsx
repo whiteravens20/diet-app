@@ -1069,6 +1069,27 @@ describe('the plan page, when a plan is made again', () => {
     expect(screen.queryByRole('dialog', { name: texts.title })).toBeNull();
   });
 
+  it('opens on the whole plan from the note of a profile whose diet moved, and makes the whole plan again', async () => {
+    const plan: MealPlan = {
+      ...threeDays(),
+      dietMoved: { profileDiet: 'vegetarian', planDiet: 'vegan' },
+    };
+    const post = answering(
+      () => aPreview(),
+      () => Promise.resolve(plan),
+    );
+    await open(plan);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: messages.mealPlans.rerollFromToday }),
+    );
+    const asked = await rerollWindow();
+    expect(asked.getByRole('radio', { name: texts.whole })).toBeChecked();
+    await recalculate(asked);
+
+    expect(rerolls(post)).toEqual([[`/meal-plans/${plan.id}/regenerate`, undefined]]);
+  });
+
   it("lets the whole plan made again waste less, with what it costs on the profile's diet where the plan names none", async () => {
     const plan = threeDays();
     const post = answering(
