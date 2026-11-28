@@ -581,6 +581,7 @@ export class PlanGenerationService {
             revision: true,
             days: {
               select: {
+                id: true,
                 date: true,
                 meals: { select: { mealType: true, recipeId: true, source: true } },
               },
@@ -589,6 +590,8 @@ export class PlanGenerationService {
         })
       : null;
     const shared = new Set<MealType>();
+    /** The other plan's days whose dish a new time of this plan takes: sized again once the two are linked. */
+    const partnerDays = new Set<string>();
     for (const { dayIndex } of partner ? prepared.filled : []) {
       const spec = prepared.days[dayIndex]!;
       const theirs = partner!.days.find((day) => isoDate(day.date) === spec.isoDate);
@@ -602,13 +605,28 @@ export class PlanGenerationService {
           { slot, recipeId: dish.recipeId! },
         ];
         shared.add(slot);
+        partnerDays.add(theirs!.id);
       }
     }
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
     const outcome = await this.outcomeOf(prepared, result, options);
-    const write = (tx: Prisma.TransactionClient) =>
-      this.writeReroll(tx, prepared, result, seed, outcome, today);
+    // The days it changes: a time added, or a dish of a time dropped. The others keep their portions and the choice of
+    // them the user may have made.
+    const changed = prepared.filled.flatMap(({ dayIndex, dayId, staying }) =>
+      !prepared.days[dayIndex]!.skip &&
+      (result.assignments.some((placed) => placed.dayIndex === dayIndex) ||
+        prepared.plan.days[dayIndex]!.meals.some((meal) => !staying.includes(meal.id)))
+        ? [dayId]
+        : [],
+    );
+    const write = async (tx: Prisma.TransactionClient, link: () => Promise<void>) => {
+      await this.writeReroll(tx, prepared, result, seed, outcome, today);
+      await link();
+      // Sized once linked: a shared meal's plates and toppings are chosen with the other plan's day.
+      for (const dayId of [...changed, ...partnerDays])
+        await this.plans.rebalanceDayInternal(dayId, tx, today);
+    };
     if (partner && shared.size > 0)
       await writePlans(
         this.prisma,
@@ -618,14 +636,15 @@ export class PlanGenerationService {
         ],
         today,
         'meal-count',
-        async (tx) => {
-          await write(tx);
-          await linkShared(tx, plan.jointPlanId!, [planId, partner.id], datesOf(prepared), [
-            ...shared,
-          ]);
-        },
+        (tx) =>
+          write(tx, () =>
+            linkShared(tx, plan.jointPlanId!, [planId, partner.id], datesOf(prepared), [...shared]),
+          ),
       );
-    else await writePlan(this.prisma, planId, revision, today, 'meal-count', write);
+    else
+      await writePlan(this.prisma, planId, revision, today, 'meal-count', (tx) =>
+        write(tx, async () => {}),
+      );
     return this.plans.changedPlan(userId, locale, planId, revision, today);
   }
 
@@ -1412,10 +1431,6 @@ export class PlanGenerationService {
             : {}),
       },
     });
-    // The dishes that stayed beside the times added, or without the times dropped, are sized to the day again.
-    if (prepared.keepDishes)
-      for (const { dayIndex, dayId } of filled)
-        if (!days[dayIndex]!.skip) await this.plans.rebalanceDayInternal(dayId, tx, today);
     await this.plans.carryToOtherDays(
       tx,
       planId,

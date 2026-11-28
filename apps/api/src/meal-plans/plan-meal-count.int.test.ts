@@ -7,11 +7,12 @@ import {
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { MealPlansService } from './meal-plans.service.js';
 
 describe("a running plan, once its profile's number of meals a day moved", () => {
   let t: TestApp;
@@ -84,8 +85,24 @@ describe("a running plan, once its profile's number of meals a day moved", () =>
     await save(profile, { mealCount: 4 });
     const told = await read(before);
     expect(told.mealCountMoved).toEqual({ profileCount: 4, planCount: 3 });
+    // The day of its own number holds portions the user chose: it keeps them, and the choice.
+    const ownDay = told.days.find((day) => day.date === own)!;
+    await t.prisma.mealPlanDay.update({
+      where: { id: ownDay.id },
+      data: { keptChoice: 'kept', keptAt: new Date() },
+    });
+    await t.prisma.plannedMeal.update({
+      where: { id: ownDay.meals[0]!.id },
+      data: { quantityScale: 1.37 },
+    });
 
     const after = await take(told);
+    const kept = await t.prisma.mealPlanDay.findUniqueOrThrow({
+      where: { id: ownDay.id },
+      select: { keptChoice: true, meals: { select: { id: true, quantityScale: true } } },
+    });
+    expect(kept.keptChoice).toBe('kept');
+    expect(kept.meals.find((meal) => meal.id === ownDay.meals[0]!.id)!.quantityScale).toBe(1.37);
     expect(after.mealCountMoved).toBeNull();
     for (const [index, day] of after.days.entries()) {
       const was = dishes(told.days[index]!);
@@ -184,7 +201,20 @@ describe("a running plan, once its profile's number of meals a day moved", () =>
     );
 
     await save(ewa, { mealCount: 4 });
+    // Each day sized is sized with its snack linked already: the plates and toppings of a shared meal are chosen so.
+    const plans = t.app.get(MealPlansService);
+    const real = plans.rebalanceDayInternal.bind(plans);
+    const sized: { dayId: string; linked: boolean }[] = [];
+    vi.spyOn(plans, 'rebalanceDayInternal').mockImplementation(async (dayId, tx, at, named) => {
+      const snack = await tx.plannedMeal.findFirst({
+        where: { dayId, mealType: 'snack' },
+        select: { sharedMealId: true },
+      });
+      sized.push({ dayId, linked: snack?.sharedMealId != null });
+      return real(dayId, tx, at, named);
+    });
     const after = await take(await read(hers));
+    vi.restoreAllMocks();
     const histNow = await read(his);
     for (const day of after.days.filter((one) => one.date >= today)) {
       const herSnack = day.meals.find((meal) => meal.mealType === 'snack')!;
@@ -193,6 +223,11 @@ describe("a running plan, once its profile's number of meals a day moved", () =>
         .meals.find((meal) => meal.mealType === 'snack')!;
       expect(herSnack.recipe?.id, day.date).toBe(hisSnack.recipe?.id);
       expect(herSnack.shared?.with.mealId, day.date).toBe(hisSnack.id);
+      // Both days were sized with the two linked: hers, and his, whose snack is shared now.
+      const hisDay = histNow.days.find((one) => one.date === day.date)!;
+      expect(sized, day.date).toContainEqual({ dayId: day.id, linked: true });
+      expect(sized, day.date).toContainEqual({ dayId: hisDay.id, linked: true });
     }
+    expect(sized.every((one) => one.linked)).toBe(true);
   });
 });
