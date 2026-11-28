@@ -621,6 +621,45 @@ describe('what eating takes off the pantry', () => {
       expect(await chickenHeld()).toEqual([1000, 30]);
     });
 
+    it('takes what a meal of a plan made together that one person alone eats lacks off the other person’s pantry', async () => {
+      // I eat four meals a day, Ewa three: my snack is mine alone.
+      await t.prisma.profile.update({ where: { id: profile.id }, data: { mealCount: 4 } });
+      const plan = await aPlan(t, user, profile, {
+        startDate: today,
+        durationDays: 1,
+        withProfileId: ewa.id,
+      });
+      const snack = plan.days[0]!.meals.find((meal) => meal.mealType === 'snack')!;
+      expect(snack.shared).toBeNull();
+      const chickenRice = await t.prisma.recipe.findUniqueOrThrow({
+        where: { slug: 'chicken-rice-broccoli' },
+      });
+      await t.prisma.plannedMeal.update({
+        where: { id: snack.id },
+        data: {
+          recipeId: chickenRice.id,
+          servings: 1,
+          quantityScale: 1,
+          cookedServings: null,
+          toppingKey: null,
+          toppingAmount: null,
+          plate: Prisma.DbNull,
+          rests: [],
+        },
+      });
+      await stock(chickenId, 1000, false, 10, ewa);
+      const path = ofMeal(plan, snack.id);
+      await mark(plan, snack.id, true);
+      const eaten = Math.round(await eatenOf(snack.id, chickenId));
+
+      const offered = await pantry(path);
+      expect(lent(chickenOf(offered)!)).toEqual([eaten, 'Ewa']);
+      await pantry(path, 'take');
+      expect(await chickenHeld()).toEqual([0, 1000 - eaten]);
+      await pantry(path, 'return');
+      expect(await chickenHeld()).toEqual([0, 1000]);
+    });
+
     it('works both portions out together: each from its own pantry first, no food offered twice, and takes what it shows', async () => {
       const { mine, hers } = await together();
       await markPortion(mine, true, true);

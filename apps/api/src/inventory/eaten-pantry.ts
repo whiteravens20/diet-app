@@ -35,7 +35,7 @@ interface Taken {
   profileId?: string;
 }
 
-/** The other pantry of a joint plan's kitchen, which lends a shared meal what its own pantry lacks. */
+/** The other pantry of a joint plan's kitchen, which lends a meal of it what its own pantry lacks. */
 interface Lender {
   profileId: string;
   profileName: string;
@@ -52,7 +52,7 @@ export interface Eating {
   ledger: readonly Taken[];
   /** Whether taking it is offered: a day no list covers, eaten, and nothing taken yet. */
   offering: boolean;
-  /** Of a shared meal of a joint plan, the other profile's pantry, which lends what this one lacks; null otherwise. */
+  /** Of a meal of a joint plan, the other profile's pantry, which lends what this one lacks; null otherwise. */
   lender: Lender | null;
 }
 
@@ -206,8 +206,8 @@ export async function eatenPantry(
 /**
  * What `eatings` (one meal or entry, or both portions of a shared meal) would take off the pantry now, worked out
  * together (`sharesOf`), and what each took, named in `locale`. An offer takes of each food the lesser of what was
- * eaten and what the pantry holds of it fresh, and where a shared meal's own pantry lacks it, of what the other pantry
- * of the kitchen still holds, said as borrowed; frozen stock is not taken.
+ * eaten and what the pantry holds of it fresh, and where the own pantry of a meal of a joint plan lacks it, of what the
+ * other pantry of the kitchen still holds, said as borrowed; frozen stock is not taken.
  */
 export async function eatenPantries(
   db: Tx,

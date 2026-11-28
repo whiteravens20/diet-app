@@ -141,8 +141,8 @@ export const EatenFromPantry = z.object({
   /** What is taken off the pantry: of an offer the lesser of the two, of what was taken what it took. */
   taken: DisplayAmount,
   /**
-   * Of `taken`, what comes off the other pantry of a joint plan's kitchen, which lends what this one lacks of a shared
-   * meal, and whose it is (the profile's name); null where nothing does.
+   * Of `taken`, what comes off the other pantry of a joint plan's kitchen, which lends what this one lacks of a meal of
+   * the joint plan, and whose it is (the profile's name); null where nothing does.
    */
   borrowed: z.object({ amount: DisplayAmount, from: z.string() }).nullable(),
 });
