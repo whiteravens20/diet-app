@@ -281,6 +281,8 @@ describe('eggs in planned meals', () => {
         withProfileId: profile.id,
         startDate: '2026-01-05',
         durationDays: 2,
+        // One pot both eat from, whose eggs are counted whole together.
+        cookApart: false,
       }),
     );
     const mine = await read({ id: hers.joint!.planId });

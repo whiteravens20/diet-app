@@ -198,6 +198,8 @@ test.describe('a page shown in Polish leaves no word of one letter loose', () =>
         withProfileId: adam,
         startDate: new Date().toLocaleDateString('sv'),
         durationDays: 2,
+        // A pot both eat from, which the split by one part is for.
+        cookApart: false,
       },
       headers,
     });

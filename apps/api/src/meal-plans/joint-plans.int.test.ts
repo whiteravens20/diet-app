@@ -106,8 +106,9 @@ describe('a plan made together with another profile of the account', () => {
         const mine = at(adams, day, mealType)!;
         const hers = at(ewas, day, mealType)!;
         expect(hers.recipe!.id).toBe(mine.recipe!.id);
+        // Cooked each portion apart, as a plan made together is asked by default.
         expect(mine.shared).toMatchObject({
-          apart: false,
+          apart: true,
           with: {
             mealId: hers.id,
             planId: ewas.id,
@@ -224,7 +225,8 @@ describe('a plan made together with another profile of the account', () => {
   });
 
   it('says how a shared meal is cooked, the same in both plans, and of no meal it does not share', async () => {
-    const adams = await together();
+    // Asked for in one pot, one dinner then cooked apart.
+    const adams = await together({ cookApart: false });
     const dinner = at(adams, 1, 'dinner')!;
 
     const answered: MealPlan = (
@@ -263,7 +265,7 @@ describe('a plan made together with another profile of the account', () => {
   });
 
   it('marks in the diary a shared meal cooked in one pot as a split, and one cooked apart as none', async () => {
-    const adams = await together();
+    const adams = await together({ cookApart: false });
     const dinner = at(adams, 0, 'dinner')!;
     await t
       .http()

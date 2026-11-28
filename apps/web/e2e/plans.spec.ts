@@ -177,6 +177,8 @@ test.describe('a plan made together with another profile', () => {
     await theFormForAPlan(page, messages);
 
     await page.getByRole('combobox', { name: plans.jointPlanWith! }).selectOption({ label: 'Ewa' });
+    // The dishes both eat are cooked each portion apart unless the box is unticked.
+    await expect(page.getByRole('checkbox', { name: plans.jointCookApart! })).toBeChecked();
     const answered = page.waitForResponse(
       (res) => new URL(res.url()).pathname === '/api/meal-plans/generate',
     );
@@ -200,7 +202,7 @@ test.describe('a plan made together with another profile', () => {
     const shared = plan.days[0]!.meals.find((meal) => meal.shared !== null);
     expect(shared, 'a meal both have on the first day').toBeDefined();
     const row = page.locator(`[id="meal-${shared!.id}"]`);
-    await expect(row.getByText(plans.sharedChip!, { exact: true })).toBeVisible();
+    await expect(row.getByText(new RegExp(`^${loose(plans.sharedApartChip!)}$`))).toBeVisible();
     // The other person's portion is said in the meal's window, below.
     await expect(row.getByText(new RegExp(`^${loose('Ewa: ')}`))).toHaveCount(0);
 
