@@ -439,10 +439,12 @@ export const PlannedMeal = z.object({
   /**
    * What the profile has ruled out since this meal was planned: an allergen it
    * now avoids, an ingredient it now skips, or the recipe itself marked to
-   * avoid. A plan is never rewritten behind the user's back, so the meal stays
-   * and says so. Empty for a meal that is still fine, and for a custom meal.
+   * avoid; or, on a day from today not eaten yet, a dish outside the diet the
+   * profile has now where the plan was made for another (`MealPlan.dietMoved`).
+   * A plan is never rewritten behind the user's back, so the meal stays and
+   * says so. Empty for a meal that is still fine, and for a custom meal.
    */
-  restrictionConflicts: z.array(z.enum(['allergen', 'excluded_ingredient', 'avoided'])),
+  restrictionConflicts: z.array(z.enum(['allergen', 'excluded_ingredient', 'avoided', 'diet'])),
   /**
    * The ingredients of this meal that the profile would rather not eat, as
    * the profile has them now: the planner found no recipe without one, or the
@@ -1216,6 +1218,12 @@ export const MealPlan = z.object({
    * (`retarget`) takes with the target. False for a plan of any other diet, and where the profile left the custom diet.
    */
   splitMoved: z.boolean(),
+  /**
+   * The profile's diet now and the one the plan was made for, where they differ, the plan's diet was the profile's
+   * (none was chosen for it) and the plan has days to come; null otherwise. "Ułóż dni od dziś od nowa" (the whole plan
+   * made again) takes the profile's diet, with its split, target and number of meals a day.
+   */
+  dietMoved: z.object({ profileDiet: DietType, planDiet: DietType }).nullable(),
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
@@ -1361,6 +1369,7 @@ export const MealPlanSummary = MealPlan.omit({
   weeks: true,
   targetMoved: true,
   splitMoved: true,
+  dietMoved: true,
   report: true,
   targetMacros: true,
   packs: true,

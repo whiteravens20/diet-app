@@ -263,6 +263,93 @@ describe("a running plan, once its profile's target moved", () => {
     }
   });
 
+  /** The whole plan made again, as "Ułóż dni od dziś od nowa" asks it. */
+  const madeAgain = async (plan: MealPlan): Promise<MealPlan> =>
+    (
+      await http()
+        .post(`/api/meal-plans/${plan.id}/regenerate`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({})
+        .expect(201)
+    ).body;
+  /** What a meal says the profile ruled out, by its id. */
+  const marksOf = (plan: MealPlan, mealId: string) =>
+    plan.days.flatMap((day) => day.meals).find((meal) => meal.id === mealId)!.restrictionConflicts;
+
+  it("says that the profile's diet moved, marks the dishes from today outside it, and makes the days from today again under it", async () => {
+    const before = await made({ ...aWeek, dayOverrides: [] });
+    expect(before.dietMoved).toBeNull();
+    // A dish with meat today, tomorrow and on a day before today.
+    const chicken = await t.prisma.recipe.findUniqueOrThrow({
+      where: { slug: 'chicken-rice-broccoli' },
+    });
+    const [gone, now, next] = [from, today, dayAfter(today, 1)].map(
+      (date) => before.days.find((day) => day.date === date)!.meals[0]!,
+    );
+    for (const meal of [gone!, now!, next!])
+      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: chicken.id } });
+
+    await save({ dietType: 'vegetarian' });
+    const told = await read(before);
+    expect(told.dietMoved).toEqual({ profileDiet: 'vegetarian', planDiet: 'balanced' });
+    expect(marksOf(told, now!.id)).toContain('diet');
+    expect(marksOf(told, next!.id)).toContain('diet');
+    // A day gone, and a meal eaten, are not marked.
+    expect(marksOf(told, gone!.id)).not.toContain('diet');
+    await http()
+      .patch(`/api/meal-plans/${before.id}/meals/${now!.id}/eaten`)
+      .set(as(user))
+      .set('X-Client-Date', today)
+      .send({ eaten: true })
+      .expect(200);
+    expect(marksOf(await read(before), now!.id)).not.toContain('diet');
+
+    const after = await madeAgain(await read(before));
+    expect([after.dietType, after.dietMoved]).toEqual(['vegetarian', null]);
+    expect(
+      after.days.flatMap((day) => day.meals.flatMap((meal) => meal.restrictionConflicts)),
+    ).not.toContain('diet');
+    // What was eaten today, and the day before today, stay.
+    expect(marksOf(after, now!.id)).toEqual([]);
+    expect(after.days[0]!.meals[0]!.recipe?.id).toBe(chicken.id);
+  });
+
+  it('says nothing of a diet chosen for the plan', async () => {
+    const plan = await made({ ...aWeek, dayOverrides: [], dietType: 'balanced' });
+    await save({ dietType: 'vegetarian' });
+    const told = await read(plan);
+    expect(told.dietMoved).toBeNull();
+    expect(
+      told.days.flatMap((day) => day.meals.flatMap((meal) => meal.restrictionConflicts)),
+    ).not.toContain('diet');
+  });
+
+  it("makes the days from today again for the profile's new number of meals, a day's own number and the days gone staying", async () => {
+    const own = dayAfter(today, 2);
+    const before = await made({ ...aWeek, dayOverrides: [{ date: own, mealCount: 2 }] });
+    await save({ mealCount: 4 });
+
+    const after = await madeAgain(before);
+    for (const [index, day] of after.days.entries()) {
+      const count = day.meals.length;
+      if (day.date < today) expect(count, day.date).toBe(before.days[index]!.meals.length);
+      else if (day.date === own) expect(count, day.date).toBe(2);
+      else expect(count, day.date).toBe(4);
+    }
+    // The plan is made for four now: a day of it made again by itself gets four.
+    const tomorrow = dayAfter(today, 1);
+    const again = (
+      await http()
+        .post(`/api/meal-plans/${after.id}/regenerate`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({ from: tomorrow, to: tomorrow })
+        .expect(201)
+    ).body as MealPlan;
+    expect(again.days.find((day) => day.date === tomorrow)!.meals).toHaveLength(4);
+  });
+
   it('says nothing of a move under a hundred kcal', async () => {
     const plan = await made(aWeek);
     // A kilogram less moves the target by some ten kcal.

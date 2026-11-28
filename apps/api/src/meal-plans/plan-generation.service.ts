@@ -106,7 +106,7 @@ import {
   isSkipped,
   keepDayAims,
   parseDayOverrides,
-  planMealCount,
+  rerollMealCount,
   type DayOverridesJson,
   storedRestOf,
 } from './plan-days.js';
@@ -590,8 +590,9 @@ export class PlanGenerationService {
     const dates = plan.days.map((day) => isoDate(day.date));
     const span = spanOf(dates, range);
     const today = clientToday ?? this.today();
-    const mealCount = planMealCount(plan);
     const profileCount = plan.profile.mealCount;
+    const whole = range.from === undefined && range.to === undefined;
+    const mealCount = rerollMealCount(plan, whole, profileCount);
     const days = plan.days.map((day, index) =>
       rerollDayOf(day, dates[index]!, mealCount, profileCount),
     );
@@ -706,8 +707,8 @@ export class PlanGenerationService {
     const span = spanOf(dates, range);
     const today = clientToday ?? this.today();
     const made = PlanOptions.parse(plan.options);
-    const planCount = planMealCount(plan);
     const profileCount = plan.profile.mealCount;
+    const planCount = rerollMealCount(plan, whole, profileCount);
     const readings = plan.days.map((day, index) =>
       readReroll(
         rerollDayOf(day, dates[index]!, planCount, profileCount),
@@ -871,6 +872,7 @@ export class PlanGenerationService {
       dropIneligibleLocks: options.dropIneligibleLocks,
       fixed,
       today,
+      planCount,
     };
   }
 
@@ -1149,11 +1151,13 @@ export class PlanGenerationService {
           filled.map(({ dayIndex }) => dates[dayIndex]!),
         )
       : null;
+    // The whole plan made again is made for the number of meals it was made with this time.
     const report = whole
       ? {
           ...(merged ?? result.report),
           pantry: result.report.pantry,
           freezer: result.report.freezer,
+          ...(prepared.planCount !== null ? { mealCount: prepared.planCount } : {}),
         }
       : merged;
     return { cookedWith, moves, report };

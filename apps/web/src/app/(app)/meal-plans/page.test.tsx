@@ -169,6 +169,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   ],
   targetMoved: null,
   splitMoved: false,
+  dietMoved: null,
   weeks: [
     {
       from: '2026-01-05',

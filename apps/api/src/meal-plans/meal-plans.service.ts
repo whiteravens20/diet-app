@@ -2827,6 +2827,8 @@ export class MealPlansService {
     const options = PlanOptions.parse(plan.options);
     // The number of meals a day without one of its own is set for, read from the whole plan.
     const planCount = planMealCount(plan);
+    // Where the profile's diet is no longer the plan's: the dishes of the days from today outside it say so.
+    const dietNow = dietMoved(plan, options, today);
     // Sort meals into canonical eating order — Prisma's row order is
     // undefined and shifts after updates, which would look like other meals
     // also changed.
@@ -2959,12 +2961,20 @@ export class MealPlansService {
           dietOverride: !fitsDiet(m.recipe.dietTags, aimed.dietType),
           // What the profile ruled out after this meal was planned. The diet has
           // its own flag above, and the meal is in the slot it was planned for.
-          restrictionConflicts: violations(m.recipe, restrictions, m.mealType, {
-            diet: true,
-            meal: true,
-          }).filter(
-            (violation) => violation !== 'not_available',
-          ) as PlannedMeal['restrictionConflicts'],
+          restrictionConflicts: [
+            ...(violations(m.recipe, restrictions, m.mealType, {
+              diet: true,
+              meal: true,
+            }).filter(
+              (violation) => violation !== 'not_available',
+            ) as PlannedMeal['restrictionConflicts']),
+            ...(dietNow &&
+            eatenAt === null &&
+            isoDate(day.date) >= today &&
+            !fitsDiet(m.recipe.dietTags, dietNow.profileDiet)
+              ? (['diet'] as const)
+              : []),
+          ],
           dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
           cookAhead: cookedOnce?.marks.get(m.id) ?? null,
@@ -3104,6 +3114,7 @@ export class MealPlansService {
       days,
       targetMoved: targetMoved(plan, options, today),
       splitMoved: splitMoved(plan, today),
+      dietMoved: dietNow,
       weeks: planWeeks(
         plan.days.map((day) => ({
           id: day.id,
@@ -3912,6 +3923,21 @@ function targetMoved(
   return Math.abs(profileTarget - plan.calorieTarget) >= TARGET_MOVED_LEAST_KCAL
     ? { profileTarget, planTarget: plan.calorieTarget }
     : null;
+}
+
+/**
+ * The profile's diet now and the plan's (`MealPlan.dietMoved`), where the plan was made for the profile's diet (none was
+ * chosen for it), the profile has another now and the plan has days to come; null otherwise.
+ */
+function dietMoved(
+  plan: Pick<PlanWithRelations, 'dietType' | 'profile' | 'days'>,
+  options: { dietType: MealPlan['dietType'] | null },
+  today: string,
+): MealPlan['dietMoved'] {
+  const profileDiet = plan.profile?.dietType;
+  if (!profileDiet || options.dietType !== null || profileDiet === plan.dietType) return null;
+  if (!plan.days.some((day) => isoDate(day.date) >= today && !isSkipped(day))) return null;
+  return { profileDiet, planDiet: plan.dietType };
 }
 
 /** How far the grams of protein of a plan by protein per kilogram may part from the profile's before the plan says so. */

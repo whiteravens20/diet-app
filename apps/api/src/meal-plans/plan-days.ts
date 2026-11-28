@@ -586,6 +586,21 @@ export function dayMealCount(
 const MadeCount = z.number().int().min(2).max(5);
 
 /**
+ * How many meals a day of a plan made again is set for where it has no number of its own: the profile's now where the
+ * whole plan is made again and its number was not asked for it, so that "Ułóż ponownie" takes a new number of the
+ * profile for the days from today; the plan's otherwise (`planMealCount`).
+ */
+export function rerollMealCount(
+  plan: Parameters<typeof planMealCount>[0],
+  whole: boolean,
+  profileCount: number,
+): number | null {
+  return whole && PlanOptions.parse(plan.options).mealCount === null
+    ? profileCount
+    : planMealCount(plan);
+}
+
+/**
  * How many meals a day of a plan is set for where it has no number of its own (`dayMealCount`): the plan's, asked
  * for it; the number its days were made with, as its report keeps it; or, of a plan from before that was kept, the
  * number of meals of the catalogue most of its days without a number of their own hold, the larger where two numbers
