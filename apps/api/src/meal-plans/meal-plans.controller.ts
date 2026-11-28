@@ -28,6 +28,7 @@ import {
   DaySettingsPreview,
   EvenWeekRequest,
   RetargetPlanRequest,
+  TakeMealCountRequest,
   DayVariations,
   GeneratePlanRequest,
   KeepDayRequest,
@@ -383,6 +384,25 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.generation.retarget(user.id, locale, id, dto.revision, today);
+  }
+
+  /**
+   * Take the profile's number of meals a day from today ("Uzupełnij lub odejmij"): the times of day it adds filled,
+   * a time the other plan of a joint plan holds a dish at with that dish, shared; the dishes of the times it drops that
+   * were not eaten gone; every other dish staying, and the days sized again (`TakeMealCountRequest`).
+   */
+  @Post(':id/meal-count')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(ChangedPlan)
+  takeMealCount(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(TakeMealCountRequest)) dto: TakeMealCountRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.generation.takeMealCount(user.id, locale, id, dto.revision, today);
   }
 
   /**

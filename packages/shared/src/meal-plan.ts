@@ -1003,6 +1003,18 @@ export const RetargetPlanRequest = z.object({
 });
 export type RetargetPlanRequest = z.infer<typeof RetargetPlanRequest>;
 
+/**
+ * Take the profile's number of meals a day from today ("Uzupełnij lub odejmij", `POST /meal-plans/:id/meal-count`):
+ * the days from today without a number of their own add the times of day the new number adds, filled with new dishes
+ * (a time of day the other plan of a joint plan holds a dish at takes that dish, shared), and drop the dishes of the
+ * times it drops that were not eaten; every other dish stays, and the days are sized again to their targets. Days
+ * before today stay. A plan that changed since answers 409 `PLAN_CHANGED`.
+ */
+export const TakeMealCountRequest = z.object({
+  revision: z.number().int().min(0).max(2_147_483_647),
+});
+export type TakeMealCountRequest = z.infer<typeof TakeMealCountRequest>;
+
 /** A pack that a plan's menu opens and does not finish. */
 export const PlanOpenPack = z.object({
   ingredientId: z.string().uuid(),
@@ -1224,6 +1236,14 @@ export const MealPlan = z.object({
    * made again) takes the profile's diet, with its split, target and number of meals a day.
    */
   dietMoved: z.object({ profileDiet: DietType, planDiet: DietType }).nullable(),
+  /**
+   * The profile's number of meals a day now and the plan's, where they differ, the plan's was the profile's (none was
+   * asked for it) and a day to come has no number of its own; null otherwise. "Uzupełnij lub odejmij"
+   * (`TakeMealCountRequest`) takes it from today with the dishes staying, the whole plan made again with new ones.
+   */
+  mealCountMoved: z
+    .object({ profileCount: z.number().int(), planCount: z.number().int() })
+    .nullable(),
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
@@ -1370,6 +1390,7 @@ export const MealPlanSummary = MealPlan.omit({
   targetMoved: true,
   splitMoved: true,
   dietMoved: true,
+  mealCountMoved: true,
   report: true,
   targetMacros: true,
   packs: true,

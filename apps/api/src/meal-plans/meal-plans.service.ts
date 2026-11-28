@@ -3115,6 +3115,7 @@ export class MealPlansService {
       targetMoved: targetMoved(plan, options, today),
       splitMoved: splitMoved(plan, today),
       dietMoved: dietNow,
+      mealCountMoved: mealCountMoved(plan, options, planCount, today),
       weeks: planWeeks(
         plan.days.map((day) => ({
           id: day.id,
@@ -3938,6 +3939,28 @@ function dietMoved(
   if (!profileDiet || options.dietType !== null || profileDiet === plan.dietType) return null;
   if (!plan.days.some((day) => isoDate(day.date) >= today && !isSkipped(day))) return null;
   return { profileDiet, planDiet: plan.dietType };
+}
+
+/**
+ * The profile's number of meals a day now and the plan's (`MealPlan.mealCountMoved`), where they differ, the plan's
+ * number was the profile's (none was asked for it) and a day to come has no number of its own; null otherwise.
+ */
+function mealCountMoved(
+  plan: Pick<PlanWithRelations, 'profile' | 'days'>,
+  options: { mealCount: number | null },
+  planCount: number | null,
+  today: string,
+): MealPlan['mealCountMoved'] {
+  const profileCount = plan.profile?.mealCount;
+  if (profileCount === undefined || options.mealCount !== null) return null;
+  if (planCount === null || planCount === profileCount) return null;
+  const toCome = plan.days.some(
+    (day) =>
+      isoDate(day.date) >= today &&
+      !isSkipped(day) &&
+      parseDayOverrides(day.overrides)?.mealCount === undefined,
+  );
+  return toCome ? { profileCount, planCount } : null;
 }
 
 /** How far the grams of protein of a plan by protein per kilogram may part from the profile's before the plan says so. */

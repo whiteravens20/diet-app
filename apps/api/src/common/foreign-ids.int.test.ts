@@ -448,6 +448,12 @@ const ASKS: Ask[] = [
     () => ({ revision: 0 }),
   ],
   [
+    "take a profile's number of meals a day into its plan from today",
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/meal-count`,
+    () => ({ revision: 0 }),
+  ],
+  [
     'give the pantry a rest a plan freezes',
     'post',
     (ids) => `/api/meal-plans/${ids.plan}/frozen`,

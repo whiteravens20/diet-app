@@ -54,6 +54,11 @@ export interface RerollAsked {
   includePast: boolean;
   replaceEaten: boolean;
   replaceCustom: boolean;
+  /**
+   * Every dish of the catalogue at a time of day the day keeps stays as well ("Uzupełnij lub odejmij"): only the times
+   * a new number of meals adds are filled, and the dishes of those it drops go.
+   */
+  keepDishes?: boolean;
 }
 
 /**
@@ -117,14 +122,19 @@ export function readReroll<M extends RerollMeal>(
   if (day.date < asked.first || day.date > asked.last) return { fate: 'outside' };
   if (day.date < today && !asked.includePast) return { fate: 'past' };
   const keeps = day.skipped ? { ...asked, replaceEaten: false, replaceCustom: false } : asked;
-  const staying = day.meals.filter((meal) => stayingFor(meal, keeps) !== null);
+  const times: readonly MealType[] = MEAL_SLOTS_BY_COUNT[day.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
+  const staying = day.meals.filter(
+    (meal) =>
+      stayingFor(meal, keeps) !== null ||
+      (asked.keepDishes === true &&
+        meal.source === 'CATALOGUE' &&
+        times.includes(meal.mealType as MealType)),
+  );
   const held = heldTimes(day.meals, staying);
   return {
     fate: day.skipped ? 'skipped' : 'again',
     staying,
-    slots: (MEAL_SLOTS_BY_COUNT[day.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!).filter(
-      (slot) => !held.has(slot),
-    ),
+    slots: times.filter((slot) => !held.has(slot)),
     locks: day.locks.filter((lock) => !held.has(lock.mealType)),
   };
 }

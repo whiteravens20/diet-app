@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-240 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+241 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -207,6 +207,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/meal-plans/:id/days/:dayId/variations/take` | an account | Fill a day the way it was offered. | `TakeDayVariationRequest` | 200 `ChangedPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/frozen` | an account | "Dodaj do spiżarni": what is left of a rest of meat or fish the plan puts in the freezer goes into the pantry as frozen, in packages none bigger than the plan's portion of it, once (`KeepFrozenRequest`). | `KeepFrozenRequest` | 200 `MealPlan` | 20 in a minute |
 | `POST /api/meal-plans/:id/left` | an account | "Dodaj do spiżarni": what a pack the menu opens and does not finish leaves goes into the pantry as fresh food, dated its last day, once (`KeepLeftRequest`). | `KeepLeftRequest` | 200 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/:id/meal-count` | an account | Take the profile's number of meals a day from today ("Uzupełnij lub odejmij"): the times of day it adds filled, a time the other plan of a joint plan holds a dish at with that dish, shared; the dishes of the times it drops that were not eaten gone; every other dish staying, and the days sized again (`TakeMealCountRequest`). | `TakeMealCountRequest` | 200 `ChangedPlan` | 20 in a minute |
 | `DELETE /api/meal-plans/:id/meals/:mealId` | an account | Take a meal off its day, whichever it is (rebalances the day). | query `RemoveMealQuery` | 200 `RebalanceResult` |  |
 | `PATCH /api/meal-plans/:id/meals/:mealId/eaten` | an account | Mark a planned meal eaten or not eaten (rebalances the day). | `SetMealEatenRequest` | 200 `RebalanceResult` |  |
 | `GET /api/meal-plans/:id/meals/:mealId/leftover` | an account | Where what is left of a meal of today or yesterday can go, or the rest of the pot cooked already a meal is eaten from (`fromPot`): the next day, and the meals of it a leftover may replace. | query `LeftoverOfferQuery` | 200 `LeftoverOffer` | 60 in a minute |

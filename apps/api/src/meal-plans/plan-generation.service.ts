@@ -34,7 +34,9 @@ import {
 } from '@diet-app/shared';
 import {
   amountsPerServing,
+  fitServings,
   ownSplit,
+  slotBudgets,
   dayMacros,
   effectiveDayTarget,
   macroSplitOf,
@@ -526,6 +528,107 @@ export class PlanGenerationService {
     return this.plans.changedPlan(userId, locale, planId, changes ? revision : null, today);
   }
 
+  /**
+   * "Uzupełnij lub odejmij": the days from today of the plan without a number of meals of their own take the profile's
+   * number now (`TakeMealCountRequest`). The times of day it adds are filled with new dishes, a time of day the other
+   * plan of a joint plan holds a dish of the catalogue at with that dish where it fits this profile, the two then one
+   * shared meal; the dishes of the times it drops that were not eaten go, and every other dish stays. The days are
+   * sized again to their targets, and the plan follows the profile's number from then on.
+   */
+  async takeMealCount(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    revision: number,
+    clientToday: string | null = null,
+  ): Promise<ChangedPlan> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      select: {
+        revision: true,
+        jointPlanId: true,
+        profile: { select: { userId: true } },
+        days: { orderBy: { date: 'asc' }, select: { date: true } },
+      },
+    });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.revision !== revision) {
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed while this request was running. Reload it and try again.',
+      });
+    }
+    const today = clientToday ?? this.today();
+    const options = {
+      ...RegenerateDayRequest.parse({ dropIneligibleLocks: true }),
+      keepDishes: true,
+      takeProfileCount: true,
+    };
+    const prepared = await this.prepare(
+      userId,
+      planId,
+      { from: today, to: isoDate(plan.days.at(-1)!.date) },
+      options,
+      clientToday,
+    );
+    // A time of day it adds that the other plan holds a dish at is given that dish, which the two then share.
+    const partner = plan.jointPlanId
+      ? await this.prisma.mealPlan.findFirst({
+          where: { jointPlanId: plan.jointPlanId, id: { not: planId }, profile: { userId } },
+          select: {
+            id: true,
+            revision: true,
+            days: {
+              select: {
+                date: true,
+                meals: { select: { mealType: true, recipeId: true, source: true } },
+              },
+            },
+          },
+        })
+      : null;
+    const shared = new Set<MealType>();
+    for (const { dayIndex } of partner ? prepared.filled : []) {
+      const spec = prepared.days[dayIndex]!;
+      const theirs = partner!.days.find((day) => isoDate(day.date) === spec.isoDate);
+      for (const slot of spec.mealSlots) {
+        const dish = theirs?.meals.find(
+          (meal) => meal.mealType === slot && meal.source === 'CATALOGUE' && meal.recipeId,
+        );
+        if (!dish) continue;
+        spec.lockedSlots = [
+          ...(spec.lockedSlots ?? []).filter((lock) => lock.slot !== slot),
+          { slot, recipeId: dish.recipeId! },
+        ];
+        shared.add(slot);
+      }
+    }
+    const seed = this.nextSeed();
+    const result = await this.draw(userId, prepared, seed);
+    const outcome = await this.outcomeOf(prepared, result, options);
+    const write = (tx: Prisma.TransactionClient) =>
+      this.writeReroll(tx, prepared, result, seed, outcome, today);
+    if (partner && shared.size > 0)
+      await writePlans(
+        this.prisma,
+        [
+          { planId, revision },
+          { planId: partner.id, revision: partner.revision },
+        ],
+        today,
+        'meal-count',
+        async (tx) => {
+          await write(tx);
+          await linkShared(tx, plan.jointPlanId!, [planId, partner.id], datesOf(prepared), [
+            ...shared,
+          ]);
+        },
+      );
+    else await writePlan(this.prisma, planId, revision, today, 'meal-count', write);
+    return this.plans.changedPlan(userId, locale, planId, revision, today);
+  }
+
   /** Give one day of a plan other meals. */
   async regenerateDay(
     userId: string,
@@ -673,7 +776,14 @@ export class PlanGenerationService {
     userId: string,
     planId: string,
     range: { from?: string; to?: string },
-    options: RegenerateDayRequest & { lessWaste?: boolean; noWaste?: boolean },
+    options: RegenerateDayRequest & {
+      lessWaste?: boolean;
+      noWaste?: boolean;
+      /** Every dish at a time of day the day keeps stays, only the new times filled (`RerollAsked.keepDishes`). */
+      keepDishes?: boolean;
+      /** The days take the profile's number of meals a day now, where they have none of their own. */
+      takeProfileCount?: boolean;
+    },
     clientToday: string | null,
   ) {
     const plan = await this.prisma.mealPlan.findUnique({
@@ -708,7 +818,9 @@ export class PlanGenerationService {
     const today = clientToday ?? this.today();
     const made = PlanOptions.parse(plan.options);
     const profileCount = plan.profile.mealCount;
-    const planCount = rerollMealCount(plan, whole, profileCount);
+    const planCount = options.takeProfileCount
+      ? profileCount
+      : rerollMealCount(plan, whole, profileCount);
     const readings = plan.days.map((day, index) =>
       readReroll(
         rerollDayOf(day, dates[index]!, planCount, profileCount),
@@ -817,11 +929,51 @@ export class PlanGenerationService {
               )
               .map((meal) => meal.recipeId!),
           );
+      const calorieTarget = whole ? dayTarget(base, o, scales[dayIndex]!) : day.calorieTarget;
+      // The dishes that stay at the times the day keeps count with the share of the day their time has beside the
+      // times it adds, of what the meals that stay by themselves and the diary leave: what the new meals are drawn to
+      // fill. The day is sized again once they are drawn.
+      const dishes = options.keepDishes
+        ? reading.staying.filter(
+            (meal) =>
+              meal.source === 'CATALOGUE' &&
+              meal.recipe !== null &&
+              meal.eatenAt === null &&
+              meal.leftoverFromDate === null,
+          )
+        : [];
+      const pinned = reading.staying.filter((meal) => !dishes.includes(meal)).map(kept);
+      const budgets = slotBudgets(
+        [...dishes.map((meal) => meal.mealType as MealType), ...reading.slots],
+        Math.max(
+          0,
+          calorieTarget -
+            pinned.reduce((sum, meal) => sum + meal.calories, 0) -
+            (diary.get(iso)?.nutrition.calories ?? 0),
+        ),
+      );
+      const keptDish = (meal: (typeof dishes)[number]): KeptMeal => {
+        const recipe = meal.recipe!;
+        const servings = fitServings(
+          recipe.caloriesPerServing,
+          budgets.get(meal.mealType as MealType)!,
+        );
+        return {
+          recipeId: meal.recipeId ?? undefined,
+          calories: recipe.caloriesPerServing * servings,
+          servings,
+          macros: {
+            protein: recipe.proteinPerServing * servings,
+            fat: recipe.fatPerServing * servings,
+            carbs: recipe.carbsPerServing * servings,
+          },
+        };
+      };
       return {
         date: day.date,
         isoDate: iso,
         mealSlots: reading.slots,
-        calorieTarget: whole ? dayTarget(base, o, scales[dayIndex]!) : day.calorieTarget,
+        calorieTarget,
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
         lockedSlots: o?.lockedSlots
           ? reading.locks.map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId }))
@@ -829,7 +981,7 @@ export class PlanGenerationService {
         useUpBy: o?.useUpBy ?? false,
         skip: o?.skip ?? false,
         overrides: o,
-        kept: [...reading.staying.map(kept), ...keptOfDiary(diary.get(iso))],
+        kept: [...pinned, ...dishes.map(keptDish), ...keptOfDiary(diary.get(iso))],
         ...(avoid && avoid.size > 0 ? { avoid } : {}),
       };
     });
@@ -873,6 +1025,8 @@ export class PlanGenerationService {
       fixed,
       today,
       planCount,
+      keepDishes: options.keepDishes === true,
+      countTaken: options.takeProfileCount === true,
     };
   }
 
@@ -1151,15 +1305,20 @@ export class PlanGenerationService {
           filled.map(({ dayIndex }) => dates[dayIndex]!),
         )
       : null;
-    // The whole plan made again is made for the number of meals it was made with this time.
+    // The whole plan made again, and one that took the profile's number of meals, are made for the number of meals
+    // they were made with this time.
+    const counted =
+      (whole || prepared.countTaken) && prepared.planCount !== null
+        ? { mealCount: prepared.planCount }
+        : {};
     const report = whole
       ? {
           ...(merged ?? result.report),
           pantry: result.report.pantry,
           freezer: result.report.freezer,
-          ...(prepared.planCount !== null ? { mealCount: prepared.planCount } : {}),
+          ...counted,
         }
-      : merged;
+      : merged && { ...merged, ...counted };
     return { cookedWith, moves, report };
   }
 
@@ -1247,9 +1406,16 @@ export class PlanGenerationService {
               options: { ...made, allowRelaxations, lessWaste, noWaste },
               seed,
             }
-          : {}),
+          : // A plan that took the profile's number of meals follows the profile's from then on.
+            prepared.countTaken
+            ? { options: { ...made, mealCount: null } }
+            : {}),
       },
     });
+    // The dishes that stayed beside the times added, or without the times dropped, are sized to the day again.
+    if (prepared.keepDishes)
+      for (const { dayIndex, dayId } of filled)
+        if (!days[dayIndex]!.skip) await this.plans.rebalanceDayInternal(dayId, tx, today);
     await this.plans.carryToOtherDays(
       tx,
       planId,

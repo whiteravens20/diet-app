@@ -6436,6 +6436,80 @@
         }
       }
     },
+    "/api/meal-plans/{id}/meal-count": {
+      "post": {
+        "operationId": "MealPlans_takeMealCount",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take the profile's number of meals a day from today (\"Uzupełnij lub odejmij\"): the times of day it adds filled, a time the other plan of a joint plan holds a dish at with that dish, shared; the dishes of the times it drops that were not eaten gone; every other dish staying, and the days sized again (`TakeMealCountRequest`).",
+        "description": "Take the profile's number of meals a day from today (\"Uzupełnij lub odejmij\"): the times of day it adds filled, a time the other plan of a joint plan holds a dish at with that dish, shared; the dishes of the times it drops that were not eaten gone; every other dish staying, and the days sized again (`TakeMealCountRequest`).\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeMealCountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}": {
       "delete": {
         "operationId": "MealPlans_removeMeal",
@@ -14792,6 +14866,29 @@
               }
             ]
           },
+          "mealCountMoved": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "profileCount": {
+                    "type": "integer"
+                  },
+                  "planCount": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "profileCount",
+                  "planCount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -14912,6 +15009,7 @@
           "targetMoved",
           "splitMoved",
           "dietMoved",
+          "mealCountMoved",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",
@@ -15534,6 +15632,7 @@
           "favorite-set",
           "reroll",
           "retarget",
+          "meal-count",
           "bought-by-weight",
           "kept",
           "joint-removed",
@@ -20506,6 +20605,29 @@
               }
             ]
           },
+          "mealCountMoved": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "profileCount": {
+                    "type": "integer"
+                  },
+                  "planCount": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "profileCount",
+                  "planCount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -20616,6 +20738,7 @@
           "targetMoved",
           "splitMoved",
           "dietMoved",
+          "mealCountMoved",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",
@@ -28873,6 +28996,19 @@
         },
         "required": [
           "offer"
+        ]
+      },
+      "TakeMealCountRequest": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "revision"
         ]
       },
       "TargetLocale": {

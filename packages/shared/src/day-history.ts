@@ -36,6 +36,8 @@ export const DayEventCause = z.enum([
   'favorite-set',
   'reroll',
   'retarget',
+  // The days from today took the profile's number of meals a day ("Uzupełnij lub odejmij").
+  'meal-count',
   'bought-by-weight',
   'kept',
   // The toppings of a plan made together came off: the other plan was removed (`joint-removed`), or the profile's
