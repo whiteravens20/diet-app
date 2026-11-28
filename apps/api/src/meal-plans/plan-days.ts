@@ -456,28 +456,74 @@ export function sumNutrition(items: Amounts[]): Amounts {
   );
 }
 
+/** What a plan's day keeps of the plan as it was before a change of its diet, split or base target (`MealPlanDay.aim`). */
+const KeptAim = z.object({
+  dietType: z.string(),
+  macroSplit: z.unknown(),
+  calorieTarget: z.number(),
+});
+
+/** What a day aims at of its plan: the plan's diet, split and base target. */
+type PlanAim = { dietType: string; macroSplit: unknown; calorieTarget: number };
+
+/**
+ * The plan as a day of it aims: as the plan is, or for a day before a change of the plan's diet, split or base target
+ * from a later day, as the plan was then (`MealPlanDay.aim`, kept by `keepDayAims`).
+ */
+export function planOfDay<P extends Omit<PlanAim, 'calorieTarget'>>(
+  day: { aim: unknown },
+  plan: P,
+): P {
+  const kept = KeptAim.safeParse(day.aim);
+  return kept.success ? { ...plan, ...kept.data } : plan;
+}
+
+/**
+ * Before a change of a plan's diet, split or base target from `today`: each day of the plan before `today` that does
+ * not keep an aim of its own yet keeps the plan's as it is (`planOfDay`), so that what it aimed at stays as it was.
+ */
+export async function keepDayAims(
+  tx: Prisma.TransactionClient,
+  plan: PlanAim & { id: string },
+  today: string,
+): Promise<void> {
+  await tx.mealPlanDay.updateMany({
+    where: { planId: plan.id, date: { lt: new Date(today) }, aim: { equals: Prisma.DbNull } },
+    data: {
+      aim: {
+        dietType: plan.dietType,
+        macroSplit: (plan.macroSplit ?? null) as Prisma.InputJsonValue | null,
+        calorieTarget: plan.calorieTarget,
+      },
+    },
+  });
+}
+
 /**
  * What a day of a plan aims at of protein, fat and carbohydrate, in grams: the
  * protein of the plan's target, whatever the kind of day, and its own
- * calories in carbohydrate and fat (`dayMacros`).
+ * calories in carbohydrate and fat (`dayMacros`). A day before a change of the
+ * plan's diet, split or base target aims as the plan did then (`planOfDay`).
  */
 export const aimOfDay = (
-  day: { calorieTarget: number; overrides: unknown },
-  plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
-): Macros =>
+  day: { calorieTarget: number; overrides: unknown; aim: unknown },
+  plan: PlanAim,
+): Macros => {
+  const aimed = planOfDay(day, plan);
   // A plan of the custom diet's protein per kilogram keeps its grams of protein on every day, whatever its kind
   // or its own target; fat takes its share of the day's calories and carbohydrate the rest.
-  storedProteinGrams(plan.macroSplit) !== null
-    ? macrosForCalories(day.calorieTarget, 'custom', sharesOfPlanDay(plan, day.calorieTarget))
+  return storedProteinGrams(aimed.macroSplit) !== null
+    ? macrosForCalories(day.calorieTarget, 'custom', sharesOfPlanDay(aimed, day.calorieTarget))
     : dayMacros(
         {
           target: day.calorieTarget,
-          base: plan.calorieTarget,
+          base: aimed.calorieTarget,
           ownTarget: parseDayOverrides(day.overrides)?.calorieTarget ?? null,
         },
-        plan.dietType as DietType,
-        sharesOf(storedSplit(plan.macroSplit)),
+        aimed.dietType as DietType,
+        sharesOf(storedSplit(aimed.macroSplit)),
       );
+};
 
 /**
  * The shares of its energy a day of `calories` of a plan aims at: its diet's
@@ -501,14 +547,15 @@ export function sharesOfPlanDay(
  * carbohydrate of a diet whose carbohydrate is a ceiling, the shares an estimate of it goes by, and the plan's diet.
  */
 export function targetOfPlanDay(
-  day: { calorieTarget: number; overrides: unknown },
-  plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
+  day: { calorieTarget: number; overrides: unknown; aim: unknown },
+  plan: PlanAim,
 ): HeldTarget {
+  const aimed = planOfDay(day, plan);
   return {
     calories: day.calorieTarget,
-    ...shownTarget(aimOfDay(day, plan), day.calorieTarget, plan.dietType),
-    split: sharesOfPlanDay(plan, day.calorieTarget),
-    dietType: plan.dietType,
+    ...shownTarget(aimOfDay(day, plan), day.calorieTarget, aimed.dietType),
+    split: sharesOfPlanDay(aimed, day.calorieTarget),
+    dietType: aimed.dietType,
   };
 }
 

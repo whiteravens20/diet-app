@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '@prisma/client';
 import {
   fitsDiet,
@@ -106,6 +107,7 @@ import {
   plateSharesOf,
   storedPlateOf,
   isSkipped,
+  keepDayAims,
   parseDayOverrides,
   planMealCount,
   type DayOverridesJson,
@@ -496,6 +498,8 @@ export class PlanGenerationService {
     const changes = base.target !== plan.calorieTarget || moved.length > 0;
     if (changes) {
       await writePlan(this.prisma, planId, revision, today, 'retarget', async (tx) => {
+        // The days before today go on aiming at the target the plan had.
+        if (base.target !== plan.calorieTarget) await keepDayAims(tx, plan, today);
         await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
         for (const day of moved) {
           await tx.mealPlanDay.update({
@@ -1171,6 +1175,19 @@ export class PlanGenerationService {
         where: { id: plan.profileId },
         data: pantryCount(result.pantryRound),
       });
+    if (
+      whole &&
+      (plan.dietType !== dietType ||
+        plan.calorieTarget !== base.target ||
+        !isDeepStrictEqual(plan.macroSplit ?? null, macroSplit ?? null))
+    ) {
+      // The days before today the plan keeps go on aiming at the plan as it was; those filled again, as it is now.
+      await keepDayAims(tx, plan, today);
+      await tx.mealPlanDay.updateMany({
+        where: { id: { in: filled.map((one) => one.dayId) } },
+        data: { aim: Prisma.DbNull },
+      });
+    }
     for (const { dayIndex, dayId, staying } of filled) {
       const day = days[dayIndex]!;
       await tx.mealPlanDay.update({

@@ -56,7 +56,7 @@ import {
   mayCarry,
   type CookedMeal,
 } from './meal-plans.service.js';
-import { settleNewRecipes, wholeAddition } from './plan-days.js';
+import { planOfDay, settleNewRecipes, wholeAddition } from './plan-days.js';
 import { readPlanLimits, type LimitedRecipe } from './plan-limits.js';
 import { joinSizings, writePlan } from './plan-write.js';
 import {
@@ -571,7 +571,7 @@ export class IngredientSwapService {
       ingredients: lines,
     };
     const waived = {
-      diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType),
+      diet: !fitsDiet(recipe.dietTags, planOfDay(meal.day, meal.day.plan).dietType),
       meal: !recipe.mealTypes.includes(meal.mealType),
     };
     const found = violations(

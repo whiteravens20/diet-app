@@ -37,6 +37,7 @@ import { StoredReport, withDaysAgain } from './generation-report.js';
 import { cookingChange, MealPlansService, type CookedMeal } from './meal-plans.service.js';
 import {
   aimOfDay,
+  planOfDay,
   dayMealCount,
   isoDate,
   isSkipped,
@@ -135,7 +136,7 @@ export class DaySettingsService {
       change.drawn.length === 0 && change.resizes
         ? this.plans.resizedDay(
             left,
-            { calorieTarget: change.target, overrides: change.overrides },
+            { calorieTarget: change.target, overrides: change.overrides, aim: day.aim },
             entered,
             plan,
             await potsOfPlan(this.prisma, planId, context.today),
@@ -216,11 +217,14 @@ export class DaySettingsService {
       date,
       calorieTarget: { now: day.calorieTarget, then: change.target },
       targetMacros: {
-        now: shownTarget(aimOfDay(day, plan), day.calorieTarget, plan.dietType),
+        now: shownTarget(aimOfDay(day, plan), day.calorieTarget, planOfDay(day, plan).dietType),
         then: shownTarget(
-          aimOfDay({ calorieTarget: change.target, overrides: change.overrides }, plan),
+          aimOfDay(
+            { calorieTarget: change.target, overrides: change.overrides, aim: day.aim },
+            plan,
+          ),
           change.target,
-          plan.dietType,
+          planOfDay(day, plan).dietType,
         ),
       },
       belowSafetyFloor: !settings.skip && change.target < safetyFloor(context.profile.sex),

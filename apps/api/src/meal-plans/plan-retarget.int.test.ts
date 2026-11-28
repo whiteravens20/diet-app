@@ -113,20 +113,96 @@ describe("a running plan, once its profile's target moved", () => {
     expect(told.targetMoved).toEqual({ profileTarget: expect.any(Number), planTarget: 2135 });
     const newTarget = told.targetMoved!.profileTarget;
     expect(newTarget - 2135).toBeGreaterThanOrEqual(100);
+    const diaryOf = async (date: string) =>
+      (
+        await http()
+          .get(`/api/diary/day?profileId=${profile.id}&date=${date}`)
+          .set(as(user))
+          .set('X-Client-Date', today)
+          .expect(200)
+      ).body.target as unknown;
+    const diaryBefore = await diaryOf(from);
 
     const after = (await retarget(told)).body as MealPlan;
+    // The diary's day before today aims at what it did as well.
+    expect(await diaryOf(from)).toEqual(diaryBefore);
     expect(after.targetMoved).toBeNull();
     expect(after.weeks[0]!.target).toBe(newTarget);
     // The days from today aim at what a plan made now would give them, kinds of day kept.
     const now = await made(aWeek);
     for (const [index, day] of after.days.entries()) {
-      if (day.date < today)
+      // The days before today aim at what they did, the grams of protein of the plan's target then included.
+      if (day.date < today) {
         expect(day.calorieTarget, day.date).toBe(before.days[index]!.calorieTarget);
-      else expect(day.calorieTarget, day.date).toBe(now.days[index]!.calorieTarget);
+        expect(day.targetMacros, day.date).toEqual(before.days[index]!.targetMacros);
+      } else expect(day.calorieTarget, day.date).toBe(now.days[index]!.calorieTarget);
     }
     // A day's own target is its own, and the dishes are those the plan had.
     expect(after.days.find((day) => day.date === dayAfter(today, 3))!.calorieTarget).toBe(1800);
     expect(dishes(after)).toEqual(dishes(before));
+  });
+
+  it('keeps what the days before today aimed at when the whole plan is made again under the diet its profile has now', async () => {
+    const before = await made(aWeek);
+    // A dish with meat on a day before today, which the diet the profile takes now would not plan.
+    const chicken = await t.prisma.recipe.findUniqueOrThrow({
+      where: { slug: 'chicken-rice-broccoli' },
+    });
+    const gone = before.days[0]!;
+    await t.prisma.plannedMeal.update({
+      where: { id: gone.meals[0]!.id },
+      data: { recipeId: chicken.id },
+    });
+    const kept = await read(before);
+    expect(kept.days[0]!.meals[0]!.dietOverride).toBe(false);
+    /** A meal of one's own of 600 kcal written into the diary of the first day: its macros estimated by the day's split. */
+    const estimated = async () =>
+      (
+        await http()
+          .post('/api/diary/entries')
+          .set(as(user))
+          .set('X-Client-Date', today)
+          .send({
+            profileId: profile.id,
+            date: from,
+            mealType: 'snack',
+            kind: 'meal',
+            name: 'Kanapka',
+            nutrition: { calories: 600 },
+          })
+          .expect(201)
+      ).body.nutrition as unknown;
+    const estimatedBefore = await estimated();
+    await save({ dietType: 'vegetarian', activityLevel: 'light' });
+
+    const after = (
+      await http()
+        .post(`/api/meal-plans/${before.id}/regenerate`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({})
+        .expect(201)
+    ).body as MealPlan;
+
+    expect(after.dietType).toBe('vegetarian');
+    // The diary's day before today estimates by the split it had.
+    expect(await estimated()).toEqual(estimatedBefore);
+    for (const [index, day] of after.days.entries()) {
+      if (day.date >= today) continue;
+      expect(
+        day.meals.map((meal) => meal.recipe?.id),
+        day.date,
+      ).toEqual(kept.days[index]!.meals.map((meal) => meal.recipe?.id));
+      expect(day.targetMacros, day.date).toEqual(kept.days[index]!.targetMacros);
+      expect(
+        day.meals.map((meal) => meal.dietOverride),
+        day.date,
+      ).toEqual(kept.days[index]!.meals.map((meal) => meal.dietOverride));
+    }
+    // The days from today are made under the new diet.
+    expect(
+      after.days.filter((day) => day.date >= today).flatMap((day) => day.meals),
+    ).not.toContainEqual(expect.objectContaining({ dietOverride: true }));
   });
 
   it('says nothing of a move under a hundred kcal', async () => {

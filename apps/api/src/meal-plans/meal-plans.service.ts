@@ -116,6 +116,7 @@ import {
   dayAsItStands,
   customMacros,
   aimOfDay,
+  planOfDay,
   dayMealCount,
   planMealCount,
   macrosOff,
@@ -917,7 +918,7 @@ export class MealPlansService {
   private async ownMealOf(
     userId: string,
     locale: Locale,
-    day: { calorieTarget: number; plan: { dietType: string; macroSplit: unknown } },
+    day: { calorieTarget: number; aim: unknown; plan: { dietType: string; macroSplit: unknown } },
     req: AddCustomMealRequest,
   ): Promise<
     Pick<
@@ -955,7 +956,7 @@ export class MealPlansService {
               userId,
               of.productId,
               of.quantity,
-              sharesOfPlanDay(day.plan, day.calorieTarget),
+              sharesOfPlanDay(planOfDay(day, day.plan), day.calorieTarget),
             );
       const { calories, protein, fat, carbs } = eaten.figures;
       return {
@@ -978,7 +979,11 @@ export class MealPlansService {
     // What is typed stands as it is; only what is left out is worked out.
     const estimated = given.length < 3;
     const macros = estimated
-      ? estimatedMacros(calories, known, sharesOfPlanDay(day.plan, day.calorieTarget))
+      ? estimatedMacros(
+          calories,
+          known,
+          sharesOfPlanDay(planOfDay(day, day.plan), day.calorieTarget),
+        )
       : { protein: known.protein!, fat: known.fat!, carbs: known.carbs! };
     if (!macros) {
       throw new BadRequestException({
@@ -1793,7 +1798,11 @@ export class MealPlansService {
       .sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
     const ask = await toppingAskOfDay(
       tx,
-      { id: day.planId, profileId: day.plan.profileId, dietType: day.plan.dietType },
+      {
+        id: day.planId,
+        profileId: day.plan.profileId,
+        dietType: planOfDay(day, day.plan).dietType,
+      },
       day.date,
       places.map((m) => m.recipeId!),
     );
@@ -1847,7 +1856,7 @@ export class MealPlansService {
     );
     const aim = aimOfDay(day, day.plan);
     const bare = [...rowsWith(new Map()), ...stays].map(toEngineMeal);
-    const plates = plateDay(bare, new Map(), plating, aim, day.plan.dietType);
+    const plates = plateDay(bare, new Map(), plating, aim, planOfDay(day, day.plan).dietType);
     const platingOf = new Map(plating.map((place) => [place.mealId, place]));
     const storedPlates = new Map(
       [...plates].map(([mealId, plate]) => [
@@ -2140,7 +2149,7 @@ export class MealPlansService {
    */
   resizedDay(
     meals: RebalanceMealRow[],
-    day: { calorieTarget: number; overrides: unknown },
+    day: { calorieTarget: number; overrides: unknown; aim: unknown },
     diary: Pick<DiaryOnDay, 'nutrition'> | null,
     plan: { dietType: string; macroSplit: unknown; calorieTarget: number },
     pots: ReadonlyMap<string, Pot>,
@@ -2164,7 +2173,7 @@ export class MealPlansService {
    */
   resizes(
     meals: RebalanceMealRow[],
-    day: { calorieTarget: number; overrides: unknown },
+    day: { calorieTarget: number; overrides: unknown; aim: unknown },
     diary: Pick<DiaryOnDay, 'nutrition'> | null,
     plan: {
       dietType: string;
@@ -2882,6 +2891,8 @@ export class MealPlansService {
     );
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
+      // A day before a change of the plan's diet, split or base target goes on aiming as the plan did then.
+      const aimed = planOfDay(day, plan);
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
         // Effective amount folds the rebalancer multiplier into the baseline.
         const factor = m.servings * m.quantityScale;
@@ -2938,7 +2949,7 @@ export class MealPlansService {
           eatenAt,
           // A meal the plan's diet does not admit: a favourite swapped in on
           // purpose, or a recipe whose ingredients turned out not to qualify.
-          dietOverride: !fitsDiet(m.recipe.dietTags, plan.dietType),
+          dietOverride: !fitsDiet(m.recipe.dietTags, aimed.dietType),
           // What the profile ruled out after this meal was planned. The diet has
           // its own flag above, and the meal is in the slot it was planned for.
           restrictionConflicts: violations(m.recipe, restrictions, m.mealType, {
@@ -2993,11 +3004,11 @@ export class MealPlansService {
       const skipped = isSkipped(day);
       const standing = standingOf(dayNutrition.calories, day.calorieTarget, skipped);
       const off =
-        !skipped && meals.length > 0 && macrosOff(dayNutrition, plan, aimOfDay(day, plan));
+        !skipped && meals.length > 0 && macrosOff(dayNutrition, aimed, aimOfDay(day, plan));
       const targetMacros = shownTarget(
         aimOfDay(day, plan),
         day.calorieTarget,
-        plan.dietType,
+        aimed.dietType,
         dayNutrition.carbs,
       );
       return {
@@ -3033,8 +3044,8 @@ export class MealPlansService {
         macrosOffWhy: off
           ? whyMacrosOff({
               held: dayNutrition,
-              aim: energyShares(aimOfDay(day, plan)) ?? sharesOfPlanDay(plan, plan.calorieTarget),
-              dietType: plan.dietType,
+              aim: energyShares(aimOfDay(day, plan)) ?? sharesOfPlanDay(aimed, aimed.calorieTarget),
+              dietType: aimed.dietType,
               meals: meals.map((meal, at) => {
                 const row = orderedMeals[at]!;
                 return {
@@ -3203,6 +3214,8 @@ interface PlanWithRelations {
     date: Date;
     calorieTarget: number;
     overrides: unknown;
+    /** What it aims at of the plan as it was, for a day before a change of the plan's aim (`planOfDay`). */
+    aim: unknown;
     meals: {
       id: string;
       mealType: string;
@@ -3905,7 +3918,7 @@ async function keepDayTargets(
   const gone = (
     await tx.mealPlanDay.findMany({
       where: { planId: plan.id, date: { lt: new Date(today) } },
-      select: { date: true, calorieTarget: true, overrides: true },
+      select: { date: true, calorieTarget: true, overrides: true, aim: true },
     })
   ).filter((day) => !isSkipped(day));
   if (gone.length === 0) return;

@@ -181,6 +181,7 @@ export class DiaryService {
           planId: true,
           calorieTarget: true,
           overrides: true,
+          aim: true,
           plan: {
             select: { dietType: true, macroSplit: true, calorieTarget: true, jointPlanId: true },
           },
@@ -385,6 +386,7 @@ export class DiaryService {
           date: true,
           calorieTarget: true,
           overrides: true,
+          aim: true,
           plan: {
             select: { dietType: true, macroSplit: true, calorieTarget: true },
           },
@@ -1039,6 +1041,7 @@ export class DiaryService {
     planDay: {
       calorieTarget: number;
       overrides: unknown;
+      aim: unknown;
       plan: {
         dietType: DiaryProfile['dietType'];
         macroSplit: unknown;
@@ -1072,6 +1075,7 @@ export class DiaryService {
       select: {
         calorieTarget: true,
         overrides: true,
+        aim: true,
         plan: {
           select: { dietType: true, macroSplit: true, calorieTarget: true },
         },

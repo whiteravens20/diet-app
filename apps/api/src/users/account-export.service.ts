@@ -391,6 +391,9 @@ export class AccountExportService {
           // were: `undo`, `spread` or `kept`, and when it was made.
           keptChoice: planned.keptChoice,
           keptAt: planned.keptAt?.toISOString() ?? null,
+          // Of a day before a change of the plan's diet, split or base target: the plan's as they were, which it goes on
+          // aiming at; null while it aims at the plan as it is.
+          aim: planned.aim,
           // The changes of the day, the oldest first ("Historia dnia"): what made each, whether the account changed the
           // day or a change of other days moved it, the meals it moved as they were and became, and what it did to the
           // shopping lists and the freezer.

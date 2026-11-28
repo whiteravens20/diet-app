@@ -1081,6 +1081,9 @@ model MealPlanDay {
   keptChoice    String?
   // When it was made.
   keptAt        DateTime?
+  // What the day aimed at before a change of its plan's diet, split or base target from a later day: the plan's
+  // `dietType`, `macroSplit` and `calorieTarget` as they were then. Null while the day aims at the plan as it is.
+  aim           Json?
 
   meals  PlannedMeal[]
   events PlanDayEvent[]
