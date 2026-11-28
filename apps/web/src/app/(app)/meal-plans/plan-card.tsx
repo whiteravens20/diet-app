@@ -64,7 +64,6 @@ import { PlanPacksLine } from './plan-packs';
 import { ListNote } from './list-note';
 import { UseUp } from './use-up';
 import type { PlanChange } from './rebalance-toast';
-import { TargetMovedLine } from './target-moved-line';
 import { WeekLine } from './week-line';
 import { DOT, held } from '@/lib/figure-line';
 import { bandValues, carbsStandingOf } from '@/lib/carbs-band';
@@ -73,6 +72,12 @@ import { bandValues, carbsStandingOf } from '@/lib/carbs-band';
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
   ssr: false,
 });
+
+/** Fetched for a plan its profile moved away from: no first visit of the page waits for the note. */
+const ProfileMovedNote = dynamic(
+  () => import('./profile-moved-note').then((note) => note.ProfileMovedNote),
+  { ssr: false },
+);
 
 /** Fetched when a dish cooked ahead is split: no first visit of the page waits for the window. */
 const SplitDialog = dynamic(() => import('./split-dialog').then((dialog) => dialog.SplitDialog), {
@@ -473,11 +478,13 @@ export function PlanCard({
     no: tCommon('no'),
     skipped: t('daySkipped'),
   };
-  // The meals that hold something the profile has ruled out since the plan was made.
+  // The meals that hold something the profile has ruled out since the plan was made; a dish outside a diet the
+  // profile took since is said by the note of the profile that moved.
   const conflicts =
     plan?.days.reduce(
       (count, day) =>
-        count + day.meals.filter((meal) => meal.restrictionConflicts.length > 0).length,
+        count +
+        day.meals.filter((meal) => meal.restrictionConflicts.some((one) => one !== 'diet')).length,
       0,
     ) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
@@ -1907,12 +1914,15 @@ export function PlanCard({
               {t('conflictsNotice', { count: conflicts })}
             </p>
           )}
-          <TargetMovedLine
-            plan={plan}
-            onTaken={(changed) =>
-              onChanged(changed && { plan: changed, cause: 'retarget', date: null })
-            }
-          />
+          {(plan.targetMoved || plan.splitMoved || plan.dietMoved || plan.mealCountMoved) && (
+            <ProfileMovedNote
+              plan={plan}
+              onTaken={(changed, cause) =>
+                onChanged(changed && { plan: changed, cause: cause ?? 'retarget', date: null })
+              }
+              onReroll={() => setReroll({ scope: 'whole' })}
+            />
+          )}
           {plan.days.length > DAYS_A_WEEK ? (
             <Tabs
               label={t('planWeeks')}

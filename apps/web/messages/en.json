@@ -1699,7 +1699,7 @@
       "title": "Make the plan again",
       "scope": "What gets other meals",
       "whole": "The whole plan",
-      "wholeHint": "Made again the way it was asked for, with the profile as it is now: a diet and a calorie target the plan left to the profile follow the profile.",
+      "wholeHint": "Made again the way it was asked for, with the profile as it is now: a diet, a number of meals a day and a calorie target the plan left to the profile follow the profile.",
       "fromToday": "From today on",
       "fromTodayNotBegun": "The plan has not begun, so that is the whole of it.",
       "fromTodayOver": "Every day of this plan has passed.",
@@ -1778,12 +1778,14 @@
     "conflictChip": {
       "allergen": "Allergen",
       "excluded_ingredient": "Skipped ingredient",
-      "avoided": "Marked to avoid"
+      "avoided": "Marked to avoid",
+      "diet": "Outside the diet"
     },
     "conflictHint": {
       "allergen": "This recipe holds an allergen the profile now avoids. Swap the meal.",
       "excluded_ingredient": "This recipe uses an ingredient the profile now skips. Swap the meal or the ingredient.",
-      "avoided": "This recipe is marked to avoid for the profile. Swap the meal."
+      "avoided": "This recipe is marked to avoid for the profile. Swap the meal.",
+      "diet": "This recipe does not fit the diet the profile has now. Swap the meal, or make the days from today again."
     },
     "conflictsNotice": "{count, plural, one {One meal of this plan holds} other {{count, number, ::group-off}\u00a0meals of this plan hold}} something the profile has ruled out since the plan was made. Each is marked below: swap it, or make the plan again.",
     "offDietTag": "off-diet",
@@ -2263,8 +2265,16 @@
     "evenWeekNote": "This week's days from today get new targets: the same dishes in other portions.",
     "targetMoved": "The profile's target is now {profile, number, ::group-off}\u00a0kcal, this plan counts {plan, number, ::group-off}\u00a0kcal.",
     "retarget": "Take it from today",
-    "retargetNote": "The days from today get targets from the profile's target, with the same dishes in other portions. The days before them stay as they were.",
+    "retargetNote": "The days from today get targets from the profile (calories and macros), with the same dishes in other portions. The days before them stay as they were.",
     "errRetarget": "The profile's target could not be taken.",
+    "movedDiet": "The profile is on the {profile} diet now, and this plan was made for the {plan} diet.",
+    "movedMeals": "The profile eats {profile, plural, one {{profile, number, ::group-off} meal} other {{profile, number, ::group-off} meals}} a day now, and this plan {plan, number, ::group-off}.",
+    "movedSplit": "The profile has another split of the macros than this plan now.",
+    "rerollFromToday": "Make the days from today again",
+    "rerollFromTodayNote": "The days from today get new dishes with the profile's diet, its number of meals a day and its target. The days before them stay as they were.",
+    "takeCount": "Add or take away",
+    "takeCountNote": "The dishes stay: from today only times of day are added or taken away, and the days get new portions. The days before them stay as they were.",
+    "errTakeCount": "The profile's number of meals could not be taken.",
     "errEvenWeek": "Could not even out the week.",
     "listOutOfDateDay": "The shopping list that covers this day will need to be made again.",
     "listOutOfDateDays": "The shopping list that covers these days will need to be made again."

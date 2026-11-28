@@ -2774,6 +2774,18 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     );
   });
 
+  it('marks a dish outside a diet the profile took since, which the note of the profile says, not the notice of what was ruled out', async () => {
+    await opened(
+      aPlanOf({ restrictionConflicts: ['diet'] }, { restrictionConflicts: ['allergen'] }),
+    );
+
+    expect(screen.getByText(messages.mealPlans.conflictChip.diet)).toBeVisible();
+    expect(screen.getByText(messages.mealPlans.conflictHint.diet)).toBeVisible();
+    expect(screen.getByRole('alert').textContent).toContain(
+      'One meal of this plan holds something the profile has ruled out',
+    );
+  });
+
   it('says of a meal outside the diet of the plan that it is, and that it stays until it is swapped', async () => {
     await opened(aPlanOf({ dietOverride: true }));
 
@@ -5687,9 +5699,22 @@ describe('the plan page, after a change that answers with the plan', () => {
     await opened(plan);
     vi.spyOn(api, 'post').mockResolvedValue(changed(plan) as never);
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.retarget }));
+    // The note of a profile that moved is fetched once a plan needs it.
+    await userEvent.click(await screen.findByRole('button', { name: messages.mealPlans.retarget }));
 
     await toldAs('retarget');
+  });
+
+  it('after the profile’s number of meals is taken from today', async () => {
+    const plan = aPlan({ mealCountMoved: { profileCount: 4, planCount: 3 } });
+    await opened(plan);
+    vi.spyOn(api, 'post').mockResolvedValue(changed(plan) as never);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: messages.mealPlans.takeCount }),
+    );
+
+    await toldAs('meal-count');
   });
 
   it('after the settings of a day are saved', async () => {
