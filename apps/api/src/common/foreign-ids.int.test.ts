@@ -454,6 +454,12 @@ const ASKS: Ask[] = [
     () => ({ revision: 0 }),
   ],
   [
+    'say how a joint plan cooks the dishes both eat',
+    'patch',
+    (ids) => `/api/meal-plans/${ids.plan}/cook-apart`,
+    () => ({ apart: true }),
+  ],
+  [
     'give the pantry a rest a plan freezes',
     'post',
     (ids) => `/api/meal-plans/${ids.plan}/frozen`,

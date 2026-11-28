@@ -723,6 +723,7 @@ function MealPlansContent() {
       respectInventory: withPantry || lessWaste,
       ...askedOf(wasteLevel),
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
+      cookApart: true,
       // A joint plan is made without settings of its days.
       ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),
     };

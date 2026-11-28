@@ -2300,6 +2300,7 @@ describe('the plan page, on how a day stands against its target', () => {
             planId: '99999999-9999-4999-8999-999999999999',
             profileId: '99999999-9999-4999-8999-999999999998',
             profileName: 'Ewa',
+            cookApart: false,
           },
         }),
       );
@@ -4583,6 +4584,7 @@ describe('the plan page, on a plan made together with another profile', () => {
         planId: '14141414-1414-4414-8414-141414141414',
         profileId: ewa.id,
         profileName: 'Ewa',
+        cookApart: false,
       },
     });
     const meal = plan.days[0]!.meals[0]!;
@@ -5567,6 +5569,7 @@ describe('the plan page, on how a day is changed', () => {
         planId: '77777777-7777-4777-8777-777777777777',
         profileId: '88888888-8888-4888-8888-888888888888',
         profileName: 'Ewa',
+        cookApart: false,
       },
     });
 

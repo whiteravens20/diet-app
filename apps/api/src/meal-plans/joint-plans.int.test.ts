@@ -75,8 +75,19 @@ describe('a plan made together with another profile of the account', () => {
     const adams = await together();
     const ewas = await read(adams.joint!.planId);
 
-    expect(adams.joint).toEqual({ planId: ewas.id, profileId: ewa.id, profileName: 'Ewa' });
-    expect(ewas.joint).toEqual({ planId: adams.id, profileId: adam.id, profileName: 'Adam' });
+    // The dishes both eat are cooked apart, as a plan made together is asked by default.
+    expect(adams.joint).toEqual({
+      planId: ewas.id,
+      profileId: ewa.id,
+      profileName: 'Ewa',
+      cookApart: true,
+    });
+    expect(ewas.joint).toEqual({
+      planId: adams.id,
+      profileId: adam.id,
+      profileName: 'Adam',
+      cookApart: true,
+    });
     expect(ewas.days.map((day) => day.date)).toEqual(adams.days.map((day) => day.date));
     // Each plan follows its own profile: three meals a day for one, four for the other.
     expect(adams.days.map((day) => day.meals.length)).toEqual([3, 3, 3]);
@@ -497,6 +508,7 @@ describe('a plan made together with another profile of the account', () => {
       planId: adams.id,
       profileId: adam.id,
       profileName: 'Adam',
+      cookApart: true,
     });
   });
 

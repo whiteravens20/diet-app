@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-241 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+242 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -196,6 +196,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/meal-plans` | an account | The plans of a profile, a page at a time, narrowed by their days and by whether they are over. | query `PlanListQuery` | 200 `MealPlanPage` |  |
 | `GET /api/meal-plans/:id` | an account | One plan, with its days and their meals. |  | 200 `MealPlan` |  |
 | `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry; what was eaten from it stays in the diary, each meal marked eaten as an entry of its day. |  | 204 |  |
+| `PATCH /api/meal-plans/:id/cook-apart` | an account | Say how the dishes both people of a joint plan eat are cooked, many at once: from today and for every shared dish made later, or on one day; the shared meals either of them has eaten stay (`SetCookApartRequest`). | `SetCookApartRequest` | 200 `MealPlan` | 30 in a minute |
 | `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. A day takes one while it holds fewer than twenty meals. Sent again with the same `Idempotency-Key` within a week, it is answered with the plan as it is now, without a rebalance, and adds nothing. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `GET /api/meal-plans/:id/days/:dayId/history` | an account | A day of the plan and its changes ("Historia dnia"): what holds it, its changes the latest first, the undo of the last. |  | 200 `DayHistory` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/keep` | an account | "Zostaw porcje jak są": the day's portions as they are become the user's choice, which only their own change of the day ends. | `KeepDayRequest` | 200 `DayHistory` | 20 in a minute |

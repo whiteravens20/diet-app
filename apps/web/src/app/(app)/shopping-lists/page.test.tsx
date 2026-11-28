@@ -1192,7 +1192,7 @@ describe('the shopping page with nothing to show yet', () => {
             startDate: '2026-01-05',
             durationDays: 3,
             dietType: 'balanced',
-            joint: { planId: 'ewas-plan', profileId: 'other', profileName: 'Ewa' },
+            joint: { planId: 'ewas-plan', profileId: 'other', profileName: 'Ewa', cookApart: true },
           },
         ],
         other: [
@@ -1202,7 +1202,7 @@ describe('the shopping page with nothing to show yet', () => {
             startDate: '2026-01-05',
             durationDays: 3,
             dietType: 'balanced',
-            joint: { planId: PLAN, profileId: 'profile', profileName: 'Me' },
+            joint: { planId: PLAN, profileId: 'profile', profileName: 'Me', cookApart: true },
           },
         ],
       },

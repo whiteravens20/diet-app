@@ -1038,6 +1038,9 @@ model JointPlan {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   createdAt DateTime @default(now())
+  // Whether the dishes both eat are cooked each portion apart (`SharedMeal.apart`): what a shared meal made from now on
+  // takes, and what the switch of the whole plan sets from today. Asked when the plan is made, apart unless unticked.
+  cookApart Boolean  @default(false)
 
   plans       MealPlan[]
   sharedMeals SharedMeal[]

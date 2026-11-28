@@ -397,6 +397,7 @@ export class MealPlansService {
         // The plan made together with it, where there is one: what the list says of it.
         joint: {
           select: {
+            cookApart: true,
             plans: { select: { id: true, profileId: true, profile: { select: { name: true } } } },
           },
         },
@@ -662,14 +663,24 @@ export class MealPlansService {
       select: { id: true },
     });
     if (!other) return mine.dto;
-    const [theirs, sharedMeals] = await Promise.all([
+    const [theirs, sharedMeals, joint] = await Promise.all([
       this.assemble(userId, locale, other.id, clientToday),
       this.prisma.sharedMeal.findMany({
         where: { jointPlanId },
         select: { id: true, apart: true },
       }),
+      this.prisma.jointPlan.findUniqueOrThrow({
+        where: { id: jointPlanId },
+        select: { cookApart: true },
+      }),
     ]);
-    return joined(mine, theirs, new Map(sharedMeals.map((meal) => [meal.id, meal.apart])), locale);
+    return joined(
+      mine,
+      theirs,
+      new Map(sharedMeals.map((meal) => [meal.id, meal.apart])),
+      joint.cookApart,
+      locale,
+    );
   }
 
   /** A plan as it is answered, of its own: what it shares with another plan is added by `get`. */
@@ -1488,6 +1499,45 @@ export class MealPlansService {
         message: 'The plan shares no such meal.',
       });
     return this.get(userId, locale, planId);
+  }
+
+  /**
+   * Say how the dishes both people of the plan's joint plan eat are cooked, many at once (`SetCookApartRequest`):
+   * without a day, every shared meal from today that neither of them has eaten, and every shared dish made from then on
+   * (`JointPlan.cookApart`); with a day, the shared meals of that day not eaten. Changes none of their meals, as for one
+   * shared meal (`setSharedMeal`). A plan made alone shares no meal.
+   */
+  async setCookApart(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    apart: boolean,
+    date: string | undefined,
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      select: { jointPlanId: true, profile: { select: { userId: true } } },
+    });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    const jointPlanId = plan.jointPlanId;
+    if (!jointPlanId)
+      throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'The plan shares no meal.' });
+    const today = clientToday ?? this.today();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.sharedMeal.updateMany({
+        where: {
+          jointPlanId,
+          date: date ? new Date(date) : { gte: new Date(today) },
+          meals: { none: { eatenAt: { not: null } } },
+        },
+        data: { apart },
+      });
+      if (!date)
+        await tx.jointPlan.update({ where: { id: jointPlanId }, data: { cookApart: apart } });
+    });
+    return this.get(userId, locale, planId, clientToday);
   }
 
   /**
@@ -3181,14 +3231,22 @@ type SummarisedPlan = Prisma.MealPlanGetPayload<object> & {
       toppingAmount: number | null;
     })[];
   }[];
-  joint: { plans: { id: string; profileId: string; profile: { name: string } }[] } | null;
+  joint: {
+    cookApart: boolean;
+    plans: { id: string; profileId: string; profile: { name: string } }[];
+  } | null;
 };
 
 /** The other plan of the joint plan a plan belongs to, while it is there. */
 const jointOf = (plan: SummarisedPlan): MealPlanSummary['joint'] => {
   const other = plan.joint?.plans.find((one) => one.id !== plan.id);
   return other
-    ? { planId: other.id, profileId: other.profileId, profileName: other.profile.name }
+    ? {
+        planId: other.id,
+        profileId: other.profileId,
+        profileName: other.profile.name,
+        cookApart: plan.joint!.cookApart,
+      }
     : null;
 };
 
@@ -3433,6 +3491,8 @@ function joined(
   mine: Assembled,
   theirs: Assembled,
   apartOf: ReadonlyMap<string, boolean>,
+  /** Whether a shared dish made from now on is cooked apart (`JointPlan.cookApart`). */
+  cookApart: boolean,
   locale: Locale,
 ): MealPlan {
   const meals = (assembled: Assembled) =>
@@ -3476,7 +3536,7 @@ function joined(
   const profileName = theirs.plan.profile?.name ?? '';
   return {
     ...mine.dto,
-    joint: { planId: theirs.dto.id, profileId: theirs.dto.profileId, profileName },
+    joint: { planId: theirs.dto.id, profileId: theirs.dto.profileId, profileName, cookApart },
     days: mine.dto.days.map((day) => ({
       ...day,
       meals: day.meals.map((meal): PlannedMeal => {

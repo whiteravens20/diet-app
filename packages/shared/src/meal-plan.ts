@@ -204,6 +204,12 @@ export const GeneratePlanRequest = z
      * each changes in its own plan after. Counted as two makings of a plan.
      */
     withProfileId: z.string().uuid().optional(),
+    /**
+     * Of a plan made together (`withProfileId`): the dishes both eat are cooked each portion apart, by the amounts of
+     * each plate (the default), or in one pot split by weight. Kept by the joint plan (`MealPlan.joint.cookApart`):
+     * every shared dish made later takes it too.
+     */
+    cookApart: z.boolean().default(true),
   })
   .superRefine((request, ctx) => {
     if (request.withProfileId === request.profileId)
@@ -1272,7 +1278,17 @@ export const MealPlan = z.object({
    * Null for a plan of one person, and once the other plan is deleted.
    */
   joint: z
-    .object({ planId: z.string().uuid(), profileId: z.string().uuid(), profileName: z.string() })
+    .object({
+      planId: z.string().uuid(),
+      profileId: z.string().uuid(),
+      profileName: z.string(),
+      /**
+       * Whether the dishes both eat are cooked each portion apart: what a shared dish made from now on takes, and what
+       * the switch of the whole plan sets from today (`SetCookApartRequest`). Each shared meal says its own
+       * (`PlannedMeal.shared.apart`).
+       */
+      cookApart: z.boolean(),
+    })
     .nullable(),
 });
 export type MealPlan = z.infer<typeof MealPlan>;
@@ -1984,6 +2000,18 @@ export type RemoveMealQuery = z.infer<typeof RemoveMealQuery>;
 /** How a shared meal is cooked: `apart`, each portion on its own, or in one pot split by weight. */
 export const SetSharedMealRequest = z.object({ apart: z.boolean() });
 export type SetSharedMealRequest = z.infer<typeof SetSharedMealRequest>;
+
+/**
+ * Say how the dishes both people of a joint plan eat are cooked, many at once (`PATCH /meal-plans/:id/cook-apart`):
+ * each portion apart, or in one pot split by weight. Without `date`, every shared meal from today not eaten by either
+ * of them, and every shared dish made from then on (`MealPlan.joint.cookApart`); with it, the shared meals of that day
+ * not eaten. The same for both plans of the joint plan; no meal changes.
+ */
+export const SetCookApartRequest = z.object({
+  apart: z.boolean(),
+  date: CalendarDay.optional(),
+});
+export type SetCookApartRequest = z.infer<typeof SetCookApartRequest>;
 
 /** A portion of a meal: its servings as eaten (servings times the rebalancer's multiplier) and its kcal. */
 const Portion = z.object({ servings: z.number(), calories: z.number() });

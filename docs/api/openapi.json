@@ -5568,6 +5568,80 @@
         }
       }
     },
+    "/api/meal-plans/{id}/cook-apart": {
+      "patch": {
+        "operationId": "MealPlans_setCookApart",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Say how the dishes both people of a joint plan eat are cooked, many at once: from today and for every shared dish made later, or on one day; the shared meals either of them has eaten stay (`SetCookApartRequest`).",
+        "description": "Say how the dishes both people of a joint plan eat are cooked, many at once: from today and for every shared dish made later, or on one day; the shared meals either of them has eaten stay (`SetCookApartRequest`).\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCookApartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/days/{date}/custom-meal": {
       "post": {
         "operationId": "MealPlans_addCustomMeal",
@@ -14973,12 +15047,16 @@
                   },
                   "profileName": {
                     "type": "string"
+                  },
+                  "cookApart": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
                   "planId",
                   "profileId",
-                  "profileName"
+                  "profileName",
+                  "cookApart"
                 ],
                 "additionalProperties": false
               },
@@ -17917,6 +17995,10 @@
           "withProfileId": {
             "type": "string",
             "format": "uuid"
+          },
+          "cookApart": {
+            "default": true,
+            "type": "boolean"
           }
         },
         "required": [
@@ -20712,12 +20794,16 @@
                   },
                   "profileName": {
                     "type": "string"
+                  },
+                  "cookApart": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
                   "planId",
                   "profileId",
-                  "profileName"
+                  "profileName",
+                  "cookApart"
                 ],
                 "additionalProperties": false
               },
@@ -21069,12 +21155,16 @@
                   },
                   "profileName": {
                     "type": "string"
+                  },
+                  "cookApart": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
                   "planId",
                   "profileId",
-                  "profileName"
+                  "profileName",
+                  "cookApart"
                 ],
                 "additionalProperties": false
               },
@@ -27962,6 +28052,20 @@
           "timeZone"
         ],
         "additionalProperties": false
+      },
+      "SetCookApartRequest": {
+        "type": "object",
+        "properties": {
+          "apart": {
+            "type": "boolean"
+          },
+          "date": {
+            "$ref": "#/components/schemas/CalendarDay"
+          }
+        },
+        "required": [
+          "apart"
+        ]
       },
       "SetMealEatenRequest": {
         "type": "object",

@@ -392,7 +392,7 @@ export class PlanGenerationService {
       // Held in one order, so that two joint plans of the same two profiles asked at once wait for each other.
       for (const id of profiles.map((profile) => profile.id).sort()) await holdProfile(tx, id);
       for (const profile of profiles) await refuseFullProfile(tx, profile.id);
-      const joint = await tx.jointPlan.create({ data: { userId } });
+      const joint = await tx.jointPlan.create({ data: { userId, cookApart: req.cookApart } });
       const made: string[] = [];
       for (const [side, result] of [
         [first, ofFirst],
@@ -2636,8 +2636,9 @@ const datesOf = (prepared: Prepared): Date[] =>
 /**
  * Link each dish the two plans of a joint plan hold at the same day and shared
  * time of day as one shared meal, of the meals linked to none: on the days of
- * `dates`, or on every day. A pair linked already keeps its link, and how it
- * is cooked.
+ * `dates`, or on every day, cooked as the joint plan cooks the dishes both eat
+ * (`JointPlan.cookApart`). A pair linked already keeps its link, and how it is
+ * cooked.
  */
 async function linkShared(
   tx: Prisma.TransactionClient,
@@ -2659,6 +2660,11 @@ async function linkShared(
     const place = `${isoDate(meal.day.date)} ${meal.mealType}`;
     byPlace.set(place, [...(byPlace.get(place) ?? []), meal]);
   }
+  // How the joint plan cooks the dishes both eat: each link made takes it.
+  const { cookApart } = await tx.jointPlan.findUniqueOrThrow({
+    where: { id: jointPlanId },
+    select: { cookApart: true },
+  });
   for (const both of byPlace.values()) {
     if (both.length !== 2 || !both[0]!.recipeId || both[0]!.recipeId !== both[1]!.recipeId)
       continue;
@@ -2671,6 +2677,7 @@ async function linkShared(
         jointPlanId,
         date: both[0]!.day.date,
         mealType: both[0]!.mealType,
+        apart: cookApart,
         meals: { connect: both.map((meal) => ({ id: meal.id })) },
       },
     });
