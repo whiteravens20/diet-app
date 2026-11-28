@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-238 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+240 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -215,6 +215,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/meal-plans/:id/meals/:mealId/pantry` | an account | What eating the meal takes off the pantry on a day no shopping list covers, offered once it is marked eaten, and what was taken ("Zdejmij ze spiżarni to, co zjedzono"). Nothing changes by itself. |  | 200 `EatenPantry` | 60 in a minute |
 | `POST /api/meal-plans/:id/meals/:mealId/pantry-return` | an account | Give back to the pantry what eating the meal took off it ("Oddaj do spiżarni"). |  | 200 `EatenPantry` | 30 in a minute |
 | `POST /api/meal-plans/:id/meals/:mealId/pantry-take` | an account | Take what eating the meal ate off the pantry, as offered: once, until it is given back. |  | 200 `EatenPantry` | 30 in a minute |
+| `POST /api/meal-plans/:id/meals/:mealId/pantry-take/both` | an account | Take what both portions of a shared meal ate off the pantries, as offered together: once, until it is given back. |  | 200 `EatenPantries` | 30 in a minute |
+| `GET /api/meal-plans/:id/meals/:mealId/pantry/both` | an account | What eating the meal takes off the pantry and took, and of a shared meal of a joint plan the other person's portion with it, this plan's first: both worked out at once, each from its own pantry first and then what it lacks from the other's, so that no food is offered twice. Nothing changes by itself. |  | 200 `EatenPantries` | 60 in a minute |
 | `GET /api/meal-plans/:id/meals/:mealId/substitutes` | an account | The substitutes the catalogue's own rules name for the ingredients of a planned meal. |  | 200 a list of `SubstituteSuggestion` |  |
 | `POST /api/meal-plans/:id/rebalance` | an account | Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. | `RebalanceRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/regenerate` | an account | Make a plan again, or the days of it that the request names. | `RegenerateRequest` | 201 `ChangedPlan` | 20 in a minute |

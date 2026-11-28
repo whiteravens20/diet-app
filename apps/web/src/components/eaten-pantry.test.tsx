@@ -32,6 +32,7 @@ const OFFER: EatenPantry = {
       eaten: { quantity: 150, unit: 'g' },
       held: { quantity: 400, unit: 'g' },
       taken: { quantity: 150, unit: 'g' },
+      borrowed: null,
     },
     {
       ingredientId: EGG,
@@ -39,6 +40,7 @@ const OFFER: EatenPantry = {
       eaten: { quantity: 2, unit: 'piece', grams: 110 },
       held: { quantity: 6, unit: 'piece', grams: 330 },
       taken: { quantity: 2, unit: 'piece', grams: 110 },
+      borrowed: null,
     },
   ],
   taken: [],

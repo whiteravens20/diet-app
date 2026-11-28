@@ -251,6 +251,16 @@ const ASKS: Ask[] = [
     'post',
     (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry-return`,
   ],
+  [
+    'see what eating both portions of a shared meal takes off the pantries',
+    'get',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry/both`,
+  ],
+  [
+    'take what both portions of a shared meal ate off the pantries',
+    'post',
+    (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/pantry-take/both`,
+  ],
   ['take a meal off its day', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}`],
   [
     'see where what is left of a meal can go',

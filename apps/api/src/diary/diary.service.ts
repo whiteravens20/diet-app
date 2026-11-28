@@ -797,7 +797,15 @@ export class DiaryService {
       !(await listCovers(db, entry.profileId, entry.date));
     const eaten =
       offering || ledger.length > 0 ? await entryEaten(db, entry) : new Map<string, number>();
-    return { profileId: entry.profileId, profileName: entry.profile.name, eaten, ledger, offering };
+    // An entry eats from its own pantry alone: no plan made together counts on the other's for it.
+    return {
+      profileId: entry.profileId,
+      profileName: entry.profile.name,
+      eaten,
+      ledger,
+      offering,
+      lender: null,
+    };
   }
 
   /**

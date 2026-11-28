@@ -140,6 +140,11 @@ export const EatenFromPantry = z.object({
   held: DisplayAmount,
   /** What is taken off the pantry: of an offer the lesser of the two, of what was taken what it took. */
   taken: DisplayAmount,
+  /**
+   * Of `taken`, what comes off the other pantry of a joint plan's kitchen, which lends what this one lacks of a shared
+   * meal, and whose it is (the profile's name); null where nothing does.
+   */
+  borrowed: z.object({ amount: DisplayAmount, from: z.string() }).nullable(),
 });
 export type EatenFromPantry = z.infer<typeof EatenFromPantry>;
 
@@ -157,3 +162,10 @@ export const EatenPantry = z.object({
   taken: z.array(EatenFromPantry),
 });
 export type EatenPantry = z.infer<typeof EatenPantry>;
+
+/**
+ * Both portions of a shared meal of a joint plan, this plan's first, worked out together: each from its own pantry
+ * first, then what each lacks from what the other pantry still holds, so that no food is offered twice.
+ */
+export const EatenPantries = z.array(EatenPantry).min(1).max(2);
+export type EatenPantries = z.infer<typeof EatenPantries>;

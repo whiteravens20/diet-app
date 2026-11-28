@@ -33,6 +33,7 @@ import {
   KeepDayRequest,
   KeepFrozenRequest,
   KeepLeftRequest,
+  EatenPantries,
   EatenPantry,
   LeftoverOffer,
   LeftoverOfferQuery,
@@ -569,6 +570,39 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.plans.returnMealPantry(user.id, locale, id, mealId, today);
+  }
+
+  /**
+   * What eating the meal takes off the pantry and took, and of a shared meal of a joint plan the other person's
+   * portion with it, this plan's first: both worked out at once, each from its own pantry first and then what it
+   * lacks from the other's, so that no food is offered twice. Nothing changes by itself.
+   */
+  @Get(':id/meals/:mealId/pantry/both')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(EatenPantries)
+  mealPantries(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.mealPantries(user.id, locale, id, mealId, today);
+  }
+
+  /** Take what both portions of a shared meal ate off the pantries, as offered together: once, until it is given back. */
+  @Post(':id/meals/:mealId/pantry-take/both')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(EatenPantries)
+  takeMealPantries(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+    @ClientDate() today: string | null,
+  ) {
+    return this.plans.takeMealPantries(user.id, locale, id, mealId, today);
   }
 
   /**

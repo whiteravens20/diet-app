@@ -7064,6 +7064,152 @@
         }
       }
     },
+    "/api/meal-plans/{id}/meals/{mealId}/pantry-take/both": {
+      "post": {
+        "operationId": "MealPlans_takeMealPantries",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take what both portions of a shared meal ate off the pantries, as offered together: once, until it is given back.",
+        "description": "Take what both portions of a shared meal ate off the pantries, as offered together: once, until it is given back.\n\nAsked by an account.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantries"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/meals/{mealId}/pantry/both": {
+      "get": {
+        "operationId": "MealPlans_mealPantries",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "What eating the meal takes off the pantry and took, and of a shared meal of a joint plan the other person's portion with it, this plan's first: both worked out at once, each from its own pantry first and then what it lacks from the other's, so that no food is offered twice.",
+        "description": "What eating the meal takes off the pantry and took, and of a shared meal of a joint plan the other person's portion with it, this plan's first: both worked out at once, each from its own pantry first and then what it lacks from the other's, so that no food is offered twice. Nothing changes by itself.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EatenPantries"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}/substitutes": {
       "get": {
         "operationId": "MealPlans_substitutes",
@@ -16933,6 +17079,29 @@
           },
           "taken": {
             "$ref": "#/components/schemas/DisplayAmount"
+          },
+          "borrowed": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "$ref": "#/components/schemas/DisplayAmount"
+                  },
+                  "from": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "from"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -16940,7 +17109,8 @@
           "name",
           "eaten",
           "held",
-          "taken"
+          "taken",
+          "borrowed"
         ],
         "additionalProperties": false
       },
@@ -17021,6 +17191,14 @@
           "planId"
         ],
         "additionalProperties": false
+      },
+      "EatenPantries": {
+        "minItems": 1,
+        "maxItems": 2,
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/EatenPantry"
+        }
       },
       "EatenPantry": {
         "type": "object",

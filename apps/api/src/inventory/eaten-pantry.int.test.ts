@@ -1,6 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { dayAfter, type EatenPantry, type MealPlan, type Profile } from '@diet-app/shared';
+import {
+  dayAfter,
+  type EatenPantries,
+  type EatenPantry,
+  type MealPlan,
+  type Profile,
+} from '@diet-app/shared';
+import { Prisma } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -42,8 +49,13 @@ describe('what eating takes off the pantry', () => {
   });
 
   /** A plan of `days` days from `start` whose lunch every day is chicken, every other meal tofu, a serving each. */
-  const chickenLunches = async (start: string, days: number, mealPrepFriendly = false) => {
-    const plan = await aPlan(t, user, profile, {
+  const chickenLunches = async (
+    start: string,
+    days: number,
+    mealPrepFriendly = false,
+    of: Profile = profile,
+  ) => {
+    const plan = await aPlan(t, user, of, {
       startDate: start,
       durationDays: days,
       mealPrepFriendly,
@@ -72,11 +84,17 @@ describe('what eating takes off the pantry', () => {
         });
     return plan;
   };
-  /** Fresh stock, or a package of the freezer, of a food, good for `keeps` days. */
-  const stock = (ingredientId: string, quantity: number, frozen = false, keeps = 10) =>
+  /** Fresh stock, or a package of the freezer, of a food, good for `keeps` days, in the pantry of `of`. */
+  const stock = (
+    ingredientId: string,
+    quantity: number,
+    frozen = false,
+    keeps = 10,
+    of: Profile = profile,
+  ) =>
     t.prisma.inventoryItem.create({
       data: {
-        profileId: profile.id,
+        profileId: of.id,
         ingredientId,
         quantity,
         unit: 'g',
@@ -84,11 +102,11 @@ describe('what eating takes off the pantry', () => {
         bestBefore: new Date(dayAfter(today, keeps)),
       },
     });
-  /** What the pantry holds of a food, in grams: fresh, or in the freezer. */
-  const held = async (ingredientId: string, frozen = false) =>
+  /** What the pantry of `of` holds of a food, in grams: fresh, or in the freezer. */
+  const held = async (ingredientId: string, frozen = false, of: Profile = profile) =>
     (
       await t.prisma.inventoryItem.aggregate({
-        where: { profileId: profile.id, ingredientId, frozen },
+        where: { profileId: of.id, ingredientId, frozen },
         _sum: { quantity: true },
       })
     )._sum.quantity ?? 0;
@@ -466,6 +484,256 @@ describe('what eating takes off the pantry', () => {
     expect(lunchChicken).toBeGreaterThan(0);
   });
 
+  describe('of a meal both people of a plan made together eat', () => {
+    let ewa: Profile;
+
+    beforeEach(async () => {
+      ewa = await aProfile(t, user, { name: 'Ewa', sex: 'female', heightCm: 165, weightKg: 60 });
+    });
+
+    /** A portion of the meal both eat: its plan, its meal and its path. */
+    interface Portion {
+      planId: string;
+      mealId: string;
+      path: string;
+    }
+
+    /**
+     * A plan of today made together with Ewa: one meal both eat holds chicken in both plans, Ewa's portion half a
+     * serving; every other meal tofu. The two portions of that meal.
+     */
+    const together = async (): Promise<{ mine: Portion; hers: Portion }> => {
+      const plan = await aPlan(t, user, profile, {
+        startDate: today,
+        durationDays: 1,
+        withProfileId: ewa.id,
+      });
+      const meals = await t.prisma.plannedMeal.findMany({
+        where: { day: { planId: { in: [plan.id, plan.joint!.planId] } } },
+        select: { id: true, sharedMealId: true, day: { select: { planId: true } } },
+      });
+      const pairs = new Map<string, typeof meals>();
+      for (const meal of meals)
+        if (meal.sharedMealId)
+          pairs.set(meal.sharedMealId, [...(pairs.get(meal.sharedMealId) ?? []), meal]);
+      const [pair] = [...pairs.values()].filter((two) => two.length === 2);
+      expect(pair).toBeDefined();
+      const [tofu, chickenRice] = await Promise.all(
+        ['tofu-rice-bowl', 'chicken-rice-broccoli'].map((slug) =>
+          t.prisma.recipe.findUniqueOrThrow({ where: { slug } }),
+        ),
+      );
+      const mine = pair!.find((meal) => meal.day.planId === plan.id)!;
+      const hers = pair!.find((meal) => meal.id !== mine.id)!;
+      for (const meal of meals)
+        await t.prisma.plannedMeal.update({
+          where: { id: meal.id },
+          data: {
+            recipeId: (pair!.includes(meal) ? chickenRice! : tofu!).id,
+            servings: meal.id === hers.id ? 0.5 : 1,
+            quantityScale: 1,
+            cookedServings: null,
+            source: 'CATALOGUE',
+            leftoverFromDate: null,
+            leftoverFromMealType: null,
+            toppingKey: null,
+            toppingAmount: null,
+            plate: Prisma.DbNull,
+            rests: [],
+            eatenAt: null,
+          },
+        });
+      const portion = (meal: (typeof meals)[number]): Portion => ({
+        planId: meal.day.planId,
+        mealId: meal.id,
+        path: `/api/meal-plans/${meal.day.planId}/meals/${meal.id}`,
+      });
+      return { mine: portion(mine), hers: portion(hers) };
+    };
+    /** A portion marked eaten, or both portions of the meal at once (`forAll`). */
+    const markPortion = (portion: Portion, eaten: boolean, forAll = false) =>
+      t
+        .http()
+        .patch(`${portion.path}/eaten`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .send({ eaten, ...(forAll ? { forAll: true } : {}) })
+        .expect(200);
+    /** Both portions' pantries, asked from the portion at `path` (`get`), or taken. */
+    const both = async (path: string, act: 'get' | 'take' = 'get'): Promise<EatenPantries> =>
+      (act === 'get'
+        ? await t
+            .http()
+            .get(`${path}/pantry/both`)
+            .set(as(user))
+            .set('X-Client-Date', today)
+            .expect(200)
+        : await t
+            .http()
+            .post(`${path}/pantry-${act}/both`)
+            .set(as(user))
+            .set('X-Client-Date', today)
+            .expect(200)
+      ).body as EatenPantries;
+    const chickenOf = (pantry: EatenPantry, of: 'offer' | 'taken' = 'offer') =>
+      pantry[of].find((line) => line.ingredientId === chickenId);
+    /** Of a line, the grams the other pantry lends and whose it is; null where it lends nothing. */
+    const lent = (line: EatenPantry['offer'][number]) =>
+      line.borrowed && [grams(line.borrowed.amount), line.borrowed.from];
+    /** What the two pantries hold of chicken: mine, then Ewa's. */
+    const chickenHeld = async () => [
+      await held(chickenId, false, profile),
+      await held(chickenId, false, ewa),
+    ];
+
+    it('takes what a portion’s own pantry lacks off the other person’s, says whose, and gives each part back where it came from', async () => {
+      const { hers } = await together();
+      await stock(chickenId, 1000);
+      await stock(chickenId, 30, false, 10, ewa);
+      await markPortion(hers, true);
+      const herChicken = Math.round(await eatenOf(hers.mealId, chickenId));
+      expect(herChicken).toBeGreaterThan(30);
+
+      const offered = await pantry(hers.path);
+      expect(offered.profileName).toBe('Ewa');
+      const line = chickenOf(offered)!;
+      expect([grams(line.eaten), grams(line.held), grams(line.taken)]).toEqual([
+        herChicken,
+        30,
+        herChicken,
+      ]);
+      expect(lent(line)).toEqual([herChicken - 30, profile.name]);
+      // Nothing is taken until it is confirmed.
+      expect(await chickenHeld()).toEqual([1000, 30]);
+
+      const took = await pantry(hers.path, 'take');
+      expect(took.offer).toEqual([]);
+      const taken = chickenOf(took, 'taken')!;
+      expect([grams(taken.taken), lent(taken)]).toEqual([
+        herChicken,
+        [herChicken - 30, profile.name],
+      ]);
+      expect(await chickenHeld()).toEqual([1000 - (herChicken - 30), 0]);
+
+      // Given back, each part goes back to the pantry it came off.
+      const back = await pantry(hers.path, 'return');
+      expect(back.taken).toEqual([]);
+      expect(await chickenHeld()).toEqual([1000, 30]);
+    });
+
+    it('works both portions out together: each from its own pantry first, no food offered twice, and takes what it shows', async () => {
+      const { mine, hers } = await together();
+      await markPortion(mine, true, true);
+      const myChicken = Math.round(await eatenOf(mine.mealId, chickenId));
+      const herChicken = Math.round(await eatenOf(hers.mealId, chickenId));
+      // My pantry holds my portion and half of hers; Ewa's holds none.
+      const half = Math.round(herChicken / 2);
+      await stock(chickenId, myChicken + half);
+
+      const offered = await both(mine.path);
+      expect(offered.map((one) => one.profileName)).toEqual([profile.name, 'Ewa']);
+      const [ofMine, ofHers] = offered.map((one) => chickenOf(one)!);
+      // Asked from Ewa's portion, the same, hers first.
+      expect((await both(hers.path)).map((one) => chickenOf(one))).toEqual([ofHers, ofMine]);
+      expect([grams(ofMine!.taken), ofMine!.borrowed]).toEqual([myChicken, null]);
+      expect([grams(ofHers!.eaten), grams(ofHers!.held), grams(ofHers!.taken)]).toEqual([
+        herChicken,
+        0,
+        half,
+      ]);
+      expect(lent(ofHers!)).toEqual([half, profile.name]);
+      expect(await chickenHeld()).toEqual([myChicken + half, 0]);
+
+      const took = await both(mine.path, 'take');
+      expect(took.map((one) => one.offer)).toEqual([[], []]);
+      expect(took.map((one) => grams(chickenOf(one, 'taken')!.taken))).toEqual([myChicken, half]);
+      expect(await chickenHeld()).toEqual([0, 0]);
+
+      // Given back, each portion's parts go back to my pantry, which lent what Ewa's lacked.
+      await pantry(hers.path, 'return');
+      expect(await chickenHeld()).toEqual([half, 0]);
+      await pantry(mine.path, 'return');
+      expect(await chickenHeld()).toEqual([myChicken + half, 0]);
+    });
+
+    it('takes each portion once, and gives it back once, when both and each are confirmed at the same moment', async () => {
+      const { mine, hers } = await together();
+      await stock(chickenId, 1000);
+      await markPortion(mine, true, true);
+      const eaten =
+        Math.round(await eatenOf(mine.mealId, chickenId)) +
+        Math.round(await eatenOf(hers.mealId, chickenId));
+
+      await Promise.all([
+        both(mine.path, 'take'),
+        both(hers.path, 'take'),
+        pantry(mine.path, 'take'),
+        pantry(hers.path, 'take'),
+      ]);
+      expect(await chickenHeld()).toEqual([1000 - eaten, 0]);
+
+      await Promise.all([
+        pantry(mine.path, 'return'),
+        pantry(hers.path, 'return'),
+        pantry(hers.path, 'return'),
+      ]);
+      expect(await chickenHeld()).toEqual([1000, 0]);
+    });
+
+    it('borrows nothing for a meal of a plan alone or for an entry of the diary', async () => {
+      await stock(chickenId, 1000);
+      // Ewa's plan alone.
+      const alone = await chickenLunches(today, 1, false, ewa);
+      const lunch = alone.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!;
+      await mark(alone, lunch.id, true);
+      expect(chickenOf(await pantry(ofMeal(alone, lunch.id)))).toBeUndefined();
+      await t
+        .http()
+        .delete(`/api/meal-plans/${alone.id}`)
+        .set(as(user))
+        .set('X-Client-Date', today)
+        .expect(204);
+
+      // An entry of her diary, while a plan she makes together with me covers its day.
+      await together();
+      const entry = (
+        await t
+          .http()
+          .post('/api/diary/entries')
+          .set(as(user))
+          .set('X-Client-Date', today)
+          .send({
+            profileId: ewa.id,
+            date: today,
+            mealType: 'dinner',
+            kind: 'ingredient',
+            ingredientId: chickenId,
+            amount: { quantity: 100, unit: 'g' },
+          })
+          .expect(201)
+      ).body as { id: string };
+      expect((await pantry(`/api/diary/entries/${entry.id}`)).offer).toEqual([]);
+      expect(await chickenHeld()).toEqual([1000, 0]);
+    });
+
+    it('gives back what it can once the pantry that lent a part is gone with its profile', async () => {
+      const { mine } = await together();
+      await stock(chickenId, 30);
+      await stock(chickenId, 1000, false, 10, ewa);
+      await markPortion(mine, true);
+      await pantry(mine.path, 'take');
+      expect(await held(chickenId)).toBe(0);
+
+      await t.http().delete(`/api/profiles/${ewa.id}`).set(as(user)).expect(204);
+      // What is left to give back is my own part alone.
+      const left = await pantry(mine.path);
+      const kept = chickenOf(left, 'taken')!;
+      expect([grams(kept.taken), kept.borrowed]).toEqual([30, null]);
+      await pantry(mine.path, 'return');
+      expect(await held(chickenId)).toBe(30);
+    });
+  });
+
   it('answers a meal or an entry of another account as one that is not there', async () => {
     const plan = await chickenLunches(today, 1);
     await stock(chickenId, 1000);
@@ -494,6 +762,12 @@ describe('what eating takes off the pantry', () => {
         ['get', 'pantry'],
         ['post', 'pantry-take'],
         ['post', 'pantry-return'],
+        ...(path.includes('/meal-plans/')
+          ? ([
+              ['get', 'pantry/both'],
+              ['post', 'pantry-take/both'],
+            ] as const)
+          : []),
       ] as const)
         await t.http()[method](`${path}/${route}`).set(as(stranger)).expect(404);
     expect(await held(chickenId)).toBe(1000);

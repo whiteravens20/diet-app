@@ -21,6 +21,7 @@ import {
   type AddCustomMealRequest,
   type CookingChange,
   type DayEventCause,
+  type EatenPantries,
   type EatenPantry,
   type DayHistory,
   type DiaryEntry,
@@ -168,12 +169,14 @@ import {
 import { diaryDays, diaryOfDays, diaryOfPlans, type DiaryOnDay } from '../diary/diary-days.js';
 import { diaryMealOf, eatenMeals, entryOfEaten } from '../diary/eaten-meals.js';
 import {
+  eatenPantries,
   eatenPantry,
   giveBackEaten,
   listCovers,
   readLedger,
   storedLedger,
   takeEaten,
+  takeEatenTogether,
   type Eating,
 } from '../inventory/eaten-pantry.js';
 import { mealEaten } from './meal-eaten.js';
@@ -1157,7 +1160,11 @@ export class MealPlansService {
     const today = clientToday ?? this.today();
     return this.prisma.$transaction(async (tx) => {
       const meal = await this.heldMeal(tx, mealId);
-      const ledger = await takeEaten(tx, await this.eatingOfMeal(tx, meal), today);
+      const ledger = await takeEaten(
+        tx,
+        await this.eatingOfMeal(tx, meal, await this.portionOf(tx, meal)),
+        today,
+      );
       if (ledger.length > 0)
         await tx.plannedMeal.update({
           where: { id: mealId },
@@ -1189,28 +1196,93 @@ export class MealPlansService {
   }
 
   /**
+   * What eating the meal takes off the pantry and took, and of a shared meal of a joint plan the other person's
+   * portion with it, this plan's first (`EatenPantries`): both worked out at once, each from its own pantry first and
+   * then what it lacks from the other, so that no food is offered twice. Nothing changes by itself.
+   */
+  async mealPantries(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantries> {
+    const meal = await this.loadPlannedMeal(userId, planId, mealId);
+    const other = await this.portionOf(this.prisma, meal);
+    return this.pantriesOfMeals(
+      this.prisma,
+      other ? [meal, other] : [meal],
+      clientToday ?? this.today(),
+      locale,
+    );
+  }
+
+  /** Take what both portions of a shared meal ate off the pantries, as offered together (`mealPantries`). */
+  async takeMealPantries(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+    clientToday: string | null = null,
+  ): Promise<EatenPantries> {
+    await this.loadPlannedMeal(userId, planId, mealId);
+    const today = clientToday ?? this.today();
+    return this.prisma.$transaction(async (tx) => {
+      const portions = await this.heldPortions(tx, mealId);
+      const ledgers = await takeEatenTogether(tx, await this.eatingsOf(tx, portions), today);
+      for (const [at, ledger] of ledgers.entries())
+        if (ledger.length > 0)
+          await tx.plannedMeal.update({
+            where: { id: portions[at]!.id },
+            data: { pantryMoves: storedLedger(ledger) },
+          });
+      return this.pantriesOfMeals(tx, await this.heldPortions(tx, mealId), today, locale);
+    });
+  }
+
+  /**
    * A meal read inside a write, its profile held, so that two takes of it wait for each other: read again once held,
    * since a take of it at the same moment has written what it took.
    */
-  private async heldMeal(tx: Prisma.TransactionClient, mealId: string) {
+  private async heldMeal(tx: Prisma.TransactionClient, mealId: string): Promise<PantryMeal> {
     const read = () =>
-      tx.plannedMeal.findUniqueOrThrow({
-        where: { id: mealId },
-        select: {
-          id: true,
-          eatenAt: true,
-          pantryMoves: true,
-          day: {
-            select: {
-              date: true,
-              planId: true,
-              plan: { select: { profileId: true, profile: { select: { name: true } } } },
-            },
-          },
-        },
-      });
+      tx.plannedMeal.findUniqueOrThrow({ where: { id: mealId }, select: PANTRY_MEAL });
     await holdProfile(tx, (await read()).day.plan.profileId);
     return read();
+  }
+
+  /**
+   * A meal and the other person's portion of it (`portionOf`) read inside a write, both profiles held in the order of
+   * their ids, and read again once held.
+   */
+  private async heldPortions(tx: Prisma.TransactionClient, mealId: string): Promise<PantryMeal[]> {
+    const read = async () => {
+      const meal = await tx.plannedMeal.findUniqueOrThrow({
+        where: { id: mealId },
+        select: PANTRY_MEAL,
+      });
+      const other = await this.portionOf(tx, meal);
+      return other ? [meal, other] : [meal];
+    };
+    const profiles = (await read()).map((one) => one.day.plan.profileId).sort();
+    for (const profileId of profiles) await holdProfile(tx, profileId);
+    return read();
+  }
+
+  /**
+   * The other person's portion of a shared meal of a joint plan, whose pantry lends what the meal's own lacks; null for
+   * a meal of one plan alone. A pair whose dishes part is unlinked by the write that parts them (`writePlan`).
+   */
+  private portionOf(db: Prisma.TransactionClient, meal: PantryMeal): Promise<PantryMeal | null> {
+    if (!meal.sharedMealId) return Promise.resolve(null);
+    return db.plannedMeal.findFirst({
+      where: {
+        sharedMealId: meal.sharedMealId,
+        id: { not: meal.id },
+        day: { plan: { profile: { userId: meal.day.plan.profile.userId } } },
+      },
+      select: PANTRY_MEAL,
+    });
   }
 
   /** What eating `meal` takes off the pantry and took (`eatenPantry`). */
@@ -1220,11 +1292,43 @@ export class MealPlansService {
     today: string,
     locale: Locale,
   ): Promise<EatenPantry> {
-    return eatenPantry(db, await this.eatingOfMeal(db, meal), today, locale);
+    return eatenPantry(
+      db,
+      await this.eatingOfMeal(db, meal, await this.portionOf(db, meal)),
+      today,
+      locale,
+    );
   }
 
-  /** What eating `meal` comes to for the pantry: offered once it is eaten, on a day no list covers, until it took. */
-  private async eatingOfMeal(db: Prisma.TransactionClient, meal: PantryMeal): Promise<Eating> {
+  /** What eating `portions` (a meal, and the other person's portion of it) takes off the pantries and took. */
+  private async pantriesOfMeals(
+    db: Prisma.TransactionClient,
+    portions: readonly PantryMeal[],
+    today: string,
+    locale: Locale,
+  ): Promise<EatenPantries> {
+    return eatenPantries(db, await this.eatingsOf(db, portions), today, locale);
+  }
+
+  /** What eating each of `portions` comes to, the other's pantry lending to each. */
+  private eatingsOf(
+    db: Prisma.TransactionClient,
+    portions: readonly PantryMeal[],
+  ): Promise<Eating[]> {
+    return Promise.all(
+      portions.map((one, at) => this.eatingOfMeal(db, one, portions[1 - at] ?? null)),
+    );
+  }
+
+  /**
+   * What eating `meal` comes to for the pantry: offered once it is eaten, on a day no list covers, until it took; of a
+   * shared meal of a joint plan, `other` is the other person's portion, whose pantry lends what this one lacks.
+   */
+  private async eatingOfMeal(
+    db: Prisma.TransactionClient,
+    meal: PantryMeal,
+    other: PantryMeal | null,
+  ): Promise<Eating> {
     const ledger = readLedger(meal.pantryMoves);
     const profileId = meal.day.plan.profileId;
     const offering =
@@ -1235,7 +1339,17 @@ export class MealPlansService {
       offering || ledger.length > 0
         ? await mealEaten(db, meal.day.planId, meal.id)
         : new Map<string, number>();
-    return { profileId, profileName: meal.day.plan.profile.name, eaten, ledger, offering };
+    return {
+      profileId,
+      profileName: meal.day.plan.profile.name,
+      eaten,
+      ledger,
+      offering,
+      lender: other && {
+        profileId: other.day.plan.profileId,
+        profileName: other.day.plan.profile.name,
+      },
+    };
   }
 
   /**
@@ -3126,8 +3240,28 @@ interface PantryMeal {
   id: string;
   eatenAt: Date | null;
   pantryMoves: unknown;
-  day: { date: Date; planId: string; plan: { profileId: string; profile: { name: string } } };
+  sharedMealId: string | null;
+  day: {
+    date: Date;
+    planId: string;
+    plan: { profileId: string; profile: { name: string; userId: string } };
+  };
 }
+
+/** What eating a meal reads of it (`PantryMeal`). */
+const PANTRY_MEAL = {
+  id: true,
+  eatenAt: true,
+  pantryMoves: true,
+  sharedMealId: true,
+  day: {
+    select: {
+      date: true,
+      planId: true,
+      plan: { select: { profileId: true, profile: { select: { name: true, userId: true } } } },
+    },
+  },
+} as const satisfies Prisma.PlannedMealSelect;
 
 /** The pots cooked already a plan's meals are eaten from (`potsOf`), and what the day after each such meal is for a leftover. */
 interface PotsOfMeals {
