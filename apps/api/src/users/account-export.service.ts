@@ -209,7 +209,8 @@ export class AccountExportService {
         estimated: entry.estimated,
         // Of a meal of one's own, which macronutrients were estimated.
         estimatedMacros: entry.estimatedMacros,
-        // What it took off the pantry, as confirmed: by ingredient, the changes made to its rows, in their units.
+        // What it took off the pantry, as confirmed: by ingredient, the changes made to its rows, in their units; of a
+        // part the other pantry of a plan made together lent, the profile whose pantry it is (`profileId`).
         takenFromPantry: entry.pantryMoves,
         createdAt: entry.createdAt.toISOString(),
       }),
@@ -436,7 +437,8 @@ export class AccountExportService {
             plate: meal.plate,
             // Of a meal eaten from a pot cooked already: its servings as eaten when the pot was cooked.
             cookedServings: meal.cookedServings,
-            // What eating it took off the pantry, as confirmed: by ingredient, the changes made to its rows, in their units.
+            // What eating it took off the pantry, as confirmed: by ingredient, the changes made to its rows, in their units;
+            // of a part the other pantry of a plan made together lent, the profile whose pantry it is (`profileId`).
             takenFromPantry: meal.pantryMoves,
           })),
         })),
