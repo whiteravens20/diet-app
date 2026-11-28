@@ -318,7 +318,10 @@ describe('the pantry', () => {
   });
 
   describe('fresh stock past its best-before day', () => {
-    const stillGood = (id: string, body: Record<string, unknown>, today = '2026-11-26') =>
+    // The server's day, which a client may name as its own: one more than a day away from it is refused.
+    const today = new Date().toISOString().slice(0, 10);
+    const gone = dayAfter(today, -6);
+    const stillGood = (id: string, body: Record<string, unknown>) =>
       t
         .http()
         .post(`/api/inventory/${id}/still-good`)
@@ -327,12 +330,12 @@ describe('the pantry', () => {
         .send(body);
 
     it('is said to be still good without a new day, and is no longer once its day or amount changes', async () => {
-      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20' })).body as {
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: gone })).body as {
         id: string;
       };
 
       const kept = (await stillGood(row.id, {}).expect(200)).body as InventoryItem;
-      expect(kept).toMatchObject({ bestBefore: '2026-11-20', keptPastDate: true });
+      expect(kept).toMatchObject({ bestBefore: gone, keptPastDate: true });
 
       const changed = (
         await t
@@ -349,22 +352,21 @@ describe('the pantry', () => {
     });
 
     it("takes a new day of today or later, and refuses one before the client's day and a package of the freezer", async () => {
-      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20' })).body as {
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: gone })).body as {
         id: string;
       };
 
       expect(
-        (await stillGood(row.id, { bestBefore: '2026-11-28' }).expect(200)).body,
+        (await stillGood(row.id, { bestBefore: dayAfter(today, 2) }).expect(200)).body,
       ).toMatchObject({
-        bestBefore: '2026-11-28',
+        bestBefore: dayAfter(today, 2),
         keptPastDate: false,
       });
-      expect((await stillGood(row.id, { bestBefore: '2026-11-25' }).expect(400)).body.error).toBe(
-        'BEST_BEFORE_PAST',
-      );
-      const frozen = (
-        await add('whole-milk', 300, 'ml', { frozen: true, bestBefore: '2026-11-20' })
-      ).body as { id: string };
+      expect(
+        (await stillGood(row.id, { bestBefore: dayAfter(today, -1) }).expect(400)).body.error,
+      ).toBe('BEST_BEFORE_PAST');
+      const frozen = (await add('whole-milk', 300, 'ml', { frozen: true, bestBefore: gone }))
+        .body as { id: string };
       expect((await stillGood(frozen.id, {}).expect(409)).body.error).toBe('FROZEN_KEEPS_ITS_DAY');
     });
   });
