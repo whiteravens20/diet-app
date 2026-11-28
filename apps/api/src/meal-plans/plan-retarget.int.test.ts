@@ -220,6 +220,17 @@ describe("a running plan, once its profile's target moved", () => {
     const before = await made(aWeek);
     expect(before.splitMoved).toBe(false);
     expect(before.days.find((day) => day.date === today)!.targetMacros.protein).toBe(128);
+    // A target taken before the split was taken with it moved the plan's base, the split not: nothing to say of it.
+    const { calorieTarget } = await t.prisma.mealPlan.findUniqueOrThrow({
+      where: { id: before.id },
+      select: { calorieTarget: true },
+    });
+    await t.prisma.mealPlan.update({
+      where: { id: before.id },
+      data: { calorieTarget: calorieTarget + 300 },
+    });
+    expect((await read(before)).splitMoved).toBe(false);
+    await t.prisma.mealPlan.update({ where: { id: before.id }, data: { calorieTarget } });
 
     // 0.8 g a kilogram: 64 g, and the same target.
     await save({ customProteinPerKg: 0.8 });
@@ -233,6 +244,17 @@ describe("a running plan, once its profile's target moved", () => {
         expect(day.targetMacros, day.date).toEqual(before.days[index]!.targetMacros);
       else expect(day.targetMacros.protein, day.date).toBe(64);
     }
+    // Of the split typed, the share of fat counts; protein and carbohydrate follow the grams.
+    await save({
+      customProteinPerKg: 0.8,
+      customMacroSplit: { protein: 20, fat: 30, carbs: 50 },
+    });
+    expect((await read(before)).splitMoved).toBe(false);
+    await save({
+      customProteinPerKg: 0.8,
+      customMacroSplit: { protein: 25, fat: 35, carbs: 40 },
+    });
+    expect((await read(before)).splitMoved).toBe(true);
   });
 
   it("takes the profile's split on the custom diet from today, a target typed for the plan staying", async () => {

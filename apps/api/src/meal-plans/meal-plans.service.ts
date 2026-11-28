@@ -30,7 +30,6 @@ import {
   type KeepFrozenRequest,
   type KeepLeftRequest,
   type Locale,
-  type MacroSplit,
   type ChangedPlan,
   type MealPlan,
   type MealPlanDay,
@@ -49,11 +48,8 @@ import {
 import {
   estimatedMacros,
   fitServings,
-  ownSplit,
   proteinKcalOf,
   safetyFloor,
-  sharesOf,
-  wholePercent,
   macrosForCalories,
   shownTarget,
   rebalanceDays,
@@ -3969,9 +3965,9 @@ const SPLIT_MOVED_LEAST_PROTEIN_GRAMS = 5;
 /**
  * Whether a running plan of the custom diet aims at another split than its profile now gives it (`MealPlan.splitMoved`):
  * by shares, the profile's split as typed against the plan's; by protein per kilogram, the grams the body's weight now
- * gives `SPLIT_MOVED_LEAST_PROTEIN_GRAMS` or more apart from the plan's, or the profile's shares another split with the
- * plan's own grams and target. One made by shares and the other by protein per kilogram part too. False for a plan of
- * another diet, a profile that left the custom diet (its diet moved) or says no split, and a plan with no day to come.
+ * gives `SPLIT_MOVED_LEAST_PROTEIN_GRAMS` or more apart from the plan's, or another share of fat typed. One made by
+ * shares and the other by protein per kilogram part too. False for a plan of another diet, a profile that left the
+ * custom diet (its diet moved) or says no split, and a plan with no day to come.
  */
 function splitMoved(
   plan: Pick<PlanWithRelations, 'dietType' | 'macroSplit' | 'calorieTarget' | 'profile' | 'days'>,
@@ -3985,18 +3981,15 @@ function splitMoved(
   if (!typed || !kept) return false;
   const byGrams = profile.customProteinPerKg != null;
   if (byGrams !== (kept.proteinGrams !== undefined)) return true;
-  const apart = (one: MacroSplit, other: MacroSplit) =>
-    one.protein !== other.protein || one.fat !== other.fat || one.carbs !== other.carbs;
-  if (!byGrams) return apart(typed, kept);
+  if (!byGrams)
+    return typed.protein !== kept.protein || typed.fat !== kept.fat || typed.carbs !== kept.carbs;
+  // By protein per kilogram a plan takes of the profile its grams of protein and the share of fat typed; protein's
+  // share follows the grams at a day's target and carbohydrate takes the rest (`ownSplit`), whatever the target.
   const grams =
     proteinKcalOf(profile.customProteinPerKg!, profile.weightKg) / KCAL_PER_GRAM.protein;
-  if (Math.abs(grams - kept.proteinGrams!) >= SPLIT_MOVED_LEAST_PROTEIN_GRAMS) return true;
-  return apart(
-    wholePercent(
-      ownSplit(sharesOf(typed)!, kept.proteinGrams! * KCAL_PER_GRAM.protein, plan.calorieTarget)
-        .shares,
-    ) as MacroSplit,
-    kept,
+  return (
+    Math.abs(grams - kept.proteinGrams!) >= SPLIT_MOVED_LEAST_PROTEIN_GRAMS ||
+    typed.fat !== kept.fat
   );
 }
 
