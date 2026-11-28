@@ -205,6 +205,64 @@ describe("a running plan, once its profile's target moved", () => {
     ).not.toContainEqual(expect.objectContaining({ dietOverride: true }));
   });
 
+  it("says that the profile's protein per kilogram moved on the custom diet, the target not, and takes it from today", async () => {
+    // 80 kg at 1.6 g a kilogram: 128 g of protein a day.
+    profile = await aProfile(t, user, {
+      age: 37,
+      heightCm: 190,
+      weightKg: 80,
+      activityLevel: 'sedentary',
+      weeklyLossTarget: '0.5',
+      dietType: 'custom',
+      customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+      customProteinPerKg: 1.6,
+    });
+    const before = await made(aWeek);
+    expect(before.splitMoved).toBe(false);
+    expect(before.days.find((day) => day.date === today)!.targetMacros.protein).toBe(128);
+
+    // 0.8 g a kilogram: 64 g, and the same target.
+    await save({ customProteinPerKg: 0.8 });
+    const told = await read(before);
+    expect([told.targetMoved, told.splitMoved]).toEqual([null, true]);
+
+    const after = (await retarget(told)).body as MealPlan;
+    expect(after.splitMoved).toBe(false);
+    for (const [index, day] of after.days.entries()) {
+      if (day.date < today)
+        expect(day.targetMacros, day.date).toEqual(before.days[index]!.targetMacros);
+      else expect(day.targetMacros.protein, day.date).toBe(64);
+    }
+  });
+
+  it("takes the profile's split on the custom diet from today, a target typed for the plan staying", async () => {
+    profile = await aProfile(t, user, {
+      age: 37,
+      heightCm: 190,
+      weightKg: 80,
+      activityLevel: 'sedentary',
+      weeklyLossTarget: '0.5',
+      dietType: 'custom',
+      customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+    });
+    const before = await made({ ...aWeek, dayOverrides: [], calorieTargetOverride: 2000 });
+    expect(before.splitMoved).toBe(false);
+
+    await save({ customMacroSplit: { protein: 35, fat: 30, carbs: 35 } });
+    const told = await read(before);
+    expect([told.targetMoved, told.splitMoved]).toEqual([null, true]);
+
+    const after = (await retarget(told)).body as MealPlan;
+    expect(after.splitMoved).toBe(false);
+    for (const [index, day] of after.days.entries()) {
+      expect(day.calorieTarget, day.date).toBe(before.days[index]!.calorieTarget);
+      if (day.date < today)
+        expect(day.targetMacros, day.date).toEqual(before.days[index]!.targetMacros);
+      // A third of 2000 kcal and more in protein: 175 g, against 125 g before.
+      else expect(day.targetMacros.protein, day.date).toBe(175);
+    }
+  });
+
   it('says nothing of a move under a hundred kcal', async () => {
     const plan = await made(aWeek);
     // A kilogram less moves the target by some ten kcal.

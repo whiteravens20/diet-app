@@ -14,6 +14,7 @@ import {
   dayAfter,
   fitsDiet,
   FROZEN_KEEPS_DAYS,
+  KCAL_PER_GRAM,
   MAX_DIARY_ENTRIES_KEPT,
   MAX_MEALS_ON_A_PLAN_DAY,
   PlanOptions,
@@ -29,6 +30,7 @@ import {
   type KeepFrozenRequest,
   type KeepLeftRequest,
   type Locale,
+  type MacroSplit,
   type ChangedPlan,
   type MealPlan,
   type MealPlanDay,
@@ -47,7 +49,11 @@ import {
 import {
   estimatedMacros,
   fitServings,
+  ownSplit,
+  proteinKcalOf,
   safetyFloor,
+  sharesOf,
+  wholePercent,
   macrosForCalories,
   shownTarget,
   rebalanceDays,
@@ -60,6 +66,7 @@ import {
 } from '../engine/index.js';
 import { portionsOf, portionsUpTo } from '@diet-app/shared/portions';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
+import { storedPlanSplit, storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
 import { kitchenFreezes, levelOf } from '../engine/waste-levels.js';
 import {
@@ -3096,6 +3103,7 @@ export class MealPlansService {
       dietType: plan.dietType,
       days,
       targetMoved: targetMoved(plan, options, today),
+      splitMoved: splitMoved(plan, today),
       weeks: planWeeks(
         plan.days.map((day) => ({
           id: day.id,
@@ -3201,6 +3209,8 @@ interface PlanWithRelations {
         name: string;
         sex: Sex | null;
         mealCount: number;
+        customMacroSplit: unknown;
+        customProteinPerKg: number | null;
         preferences:
           | (LabelLimitColumns & {
               maxMealsPerDaySameKind: number | null;
@@ -3902,6 +3912,43 @@ function targetMoved(
   return Math.abs(profileTarget - plan.calorieTarget) >= TARGET_MOVED_LEAST_KCAL
     ? { profileTarget, planTarget: plan.calorieTarget }
     : null;
+}
+
+/** How far the grams of protein of a plan by protein per kilogram may part from the profile's before the plan says so. */
+const SPLIT_MOVED_LEAST_PROTEIN_GRAMS = 5;
+
+/**
+ * Whether a running plan of the custom diet aims at another split than its profile now gives it (`MealPlan.splitMoved`):
+ * by shares, the profile's split as typed against the plan's; by protein per kilogram, the grams the body's weight now
+ * gives `SPLIT_MOVED_LEAST_PROTEIN_GRAMS` or more apart from the plan's, or the profile's shares another split with the
+ * plan's own grams and target. One made by shares and the other by protein per kilogram part too. False for a plan of
+ * another diet, a profile that left the custom diet (its diet moved) or says no split, and a plan with no day to come.
+ */
+function splitMoved(
+  plan: Pick<PlanWithRelations, 'dietType' | 'macroSplit' | 'calorieTarget' | 'profile' | 'days'>,
+  today: string,
+): boolean {
+  const profile = plan.profile;
+  if (!profile || plan.dietType !== 'custom' || profile.dietType !== 'custom') return false;
+  if (!plan.days.some((day) => isoDate(day.date) >= today && !isSkipped(day))) return false;
+  const typed = storedSplit(profile.customMacroSplit);
+  const kept = storedPlanSplit(plan.macroSplit);
+  if (!typed || !kept) return false;
+  const byGrams = profile.customProteinPerKg != null;
+  if (byGrams !== (kept.proteinGrams !== undefined)) return true;
+  const apart = (one: MacroSplit, other: MacroSplit) =>
+    one.protein !== other.protein || one.fat !== other.fat || one.carbs !== other.carbs;
+  if (!byGrams) return apart(typed, kept);
+  const grams =
+    proteinKcalOf(profile.customProteinPerKg!, profile.weightKg) / KCAL_PER_GRAM.protein;
+  if (Math.abs(grams - kept.proteinGrams!) >= SPLIT_MOVED_LEAST_PROTEIN_GRAMS) return true;
+  return apart(
+    wholePercent(
+      ownSplit(sharesOf(typed)!, kept.proteinGrams! * KCAL_PER_GRAM.protein, plan.calorieTarget)
+        .shares,
+    ) as MacroSplit,
+    kept,
+  );
 }
 
 /**

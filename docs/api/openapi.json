@@ -14766,6 +14766,9 @@
               }
             ]
           },
+          "splitMoved": {
+            "type": "boolean"
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -14884,6 +14887,7 @@
           "days",
           "weeks",
           "targetMoved",
+          "splitMoved",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",
@@ -20452,6 +20456,9 @@
               }
             ]
           },
+          "splitMoved": {
+            "type": "boolean"
+          },
           "averageDailyNutrition": {
             "$ref": "#/components/schemas/Nutrition"
           },
@@ -20560,6 +20567,7 @@
           "days",
           "weeks",
           "targetMoved",
+          "splitMoved",
           "averageDailyNutrition",
           "targetMacros",
           "averageOff",

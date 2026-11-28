@@ -1210,6 +1210,12 @@ export const MealPlan = z.object({
   targetMoved: z
     .object({ profileTarget: z.number().int(), planTarget: z.number().int() })
     .nullable(),
+  /**
+   * Of a plan of the custom diet with days to come: whether its profile's split of the macros, or the grams of protein
+   * its protein per kilogram gives the body's weight now, is another than the plan's, which "Przyjmij od dziś"
+   * (`retarget`) takes with the target. False for a plan of any other diet, and where the profile left the custom diet.
+   */
+  splitMoved: z.boolean(),
   /** Averages of the plan's meals over the days that are not skipped, without the diary's entries, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
@@ -1354,6 +1360,7 @@ export const MealPlanSummary = MealPlan.omit({
   days: true,
   weeks: true,
   targetMoved: true,
+  splitMoved: true,
   report: true,
   targetMacros: true,
   packs: true,

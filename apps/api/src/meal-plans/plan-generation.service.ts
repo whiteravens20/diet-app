@@ -24,7 +24,6 @@ import {
   type Locale,
   type Macros,
   KCAL_PER_GRAM,
-  type MacroSplit,
   type ChangedPlan,
   type MealPlan,
   type MealType,
@@ -36,8 +35,6 @@ import {
 import {
   amountsPerServing,
   ownSplit,
-  proteinKcalOf,
-  wholePercent,
   dayMacros,
   effectiveDayTarget,
   macroSplitOf,
@@ -89,7 +86,7 @@ import {
   type FrozenPackage,
 } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { storedProteinGrams, storedSplit } from '../common/stored-split.js';
+import { customSplitOf, storedPlanSplit, type PlanSplit } from '../common/stored-split.js';
 import { settleProfileFreezer } from './freezer-repick.js';
 import { othersTake, type OwnPlans } from '../shopping-lists/shopping-lists.service.js';
 import { keptFreezer, reportOf, StoredReport, withDaysAgain } from './generation-report.js';
@@ -482,7 +479,12 @@ export class PlanGenerationService {
     }
     const made = PlanOptions.parse(plan.options);
     const base = this.planBase(plan.profile, made.calorieTargetOverride ?? undefined);
-    if (made.calorieTargetOverride !== null && base.holdUnder === null) {
+    // On the custom diet the plan takes the profile's split with its target: the shares, and the grams of protein of
+    // its protein per kilogram at the body's weight now. A profile that says no split leaves the plan's.
+    const split = plan.dietType === 'custom' ? customSplitOf(plan.profile, base.target) : null;
+    const splitMoves =
+      split !== null && !isDeepStrictEqual(storedPlanSplit(plan.macroSplit), split);
+    if (made.calorieTargetOverride !== null && base.holdUnder === null && !splitMoves) {
       throw new ConflictException({
         error: 'PLAN_TARGET_TYPED',
         message: 'This plan keeps the target typed for it; the profile has none to give it.',
@@ -490,22 +492,33 @@ export class PlanGenerationService {
     }
     const today = clientToday ?? this.today();
     const scales = weekScales(plan.days.map(asWeekDay));
-    const moved = plan.days.flatMap((day, index) => {
+    // The days from today sized again: those whose target moves, and every one of them where the split does.
+    const sized = plan.days.flatMap((day, index) => {
       if (isoDate(day.date) < today || isSkipped(day)) return [];
       const target = dayTarget(base, parseDayOverrides(day.overrides), scales[index]!);
-      return target === day.calorieTarget ? [] : [{ id: day.id, target }];
+      return target === day.calorieTarget && !splitMoves
+        ? []
+        : [{ id: day.id, target, moves: target !== day.calorieTarget }];
     });
-    const changes = base.target !== plan.calorieTarget || moved.length > 0;
+    const planMoves = base.target !== plan.calorieTarget || splitMoves;
+    const changes = planMoves || sized.length > 0;
     if (changes) {
       await writePlan(this.prisma, planId, revision, today, 'retarget', async (tx) => {
-        // The days before today go on aiming at the target the plan had.
-        if (base.target !== plan.calorieTarget) await keepDayAims(tx, plan, today);
-        await tx.mealPlan.update({ where: { id: planId }, data: { calorieTarget: base.target } });
-        for (const day of moved) {
-          await tx.mealPlanDay.update({
-            where: { id: day.id },
-            data: { calorieTarget: day.target },
-          });
+        // The days before today go on aiming at the target and the split the plan had.
+        if (planMoves) await keepDayAims(tx, plan, today);
+        await tx.mealPlan.update({
+          where: { id: planId },
+          data: {
+            calorieTarget: base.target,
+            ...(splitMoves ? { macroSplit: split as Prisma.InputJsonValue } : {}),
+          },
+        });
+        for (const day of sized) {
+          if (day.moves)
+            await tx.mealPlanDay.update({
+              where: { id: day.id },
+              data: { calorieTarget: day.target },
+            });
           await this.plans.rebalanceDayInternal(day.id, tx, today);
         }
       });
@@ -2717,27 +2730,10 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
 }
 
 /**
- * What a plan keeps of the split it aims at: the split in whole per cent and,
- * for one made by the custom diet's protein per kilogram, the grams of protein
- * a day each of its days aims at (`storedProteinGrams`). Clients never read it.
- */
-type PlanSplit = MacroSplit & { proteinGrams?: number };
-
-/** The split a plan keeps, with the protein of one made by protein per kilogram; null where it keeps none. */
-function storedPlanSplit(kept: unknown): PlanSplit | null {
-  const split = storedSplit(kept);
-  if (!split) return null;
-  const proteinGrams = storedProteinGrams(kept);
-  return proteinGrams === null ? split : { ...split, proteinGrams };
-}
-
-/**
  * The split a plan on `dietType` aims at for this profile: the profile's own
- * on the custom diet, and none on any other. A plan for the custom diet of a
- * profile that has said no split is refused: another diet's split under that
- * name would be a plan for something nobody asked for. Where the profile sets
- * its protein per kilogram, the plan keeps the grams of the body's weight now
- * and the split they come to at its base `target`.
+ * on the custom diet (`customSplitOf`), and none on any other. A plan for the
+ * custom diet of a profile that has said no split is refused: another diet's
+ * split under that name would be a plan for something nobody asked for.
  */
 function splitFor(
   dietType: MealPlan['dietType'],
@@ -2745,7 +2741,7 @@ function splitFor(
   target: number,
 ): PlanSplit | null {
   if (dietType !== 'custom') return null;
-  const split = storedSplit(profile.customMacroSplit);
+  const split = customSplitOf(profile, target);
   if (!split) {
     throw new BadRequestException({
       error: 'CUSTOM_SPLIT_MISSING',
@@ -2753,12 +2749,7 @@ function splitFor(
         'The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.',
     });
   }
-  if (profile.customProteinPerKg == null) return split;
-  const proteinKcal = proteinKcalOf(profile.customProteinPerKg, profile.weightKg);
-  return {
-    ...(wholePercent(ownSplit(sharesOf(split)!, proteinKcal, target).shares) as MacroSplit),
-    proteinGrams: proteinKcal / KCAL_PER_GRAM.protein,
-  };
+  return split;
 }
 
 /** Refuse a plan more for a profile that holds `MAX_PLANS_PER_PROFILE` already. */
