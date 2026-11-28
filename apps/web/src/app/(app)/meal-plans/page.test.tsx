@@ -260,19 +260,21 @@ async function renderPage(
               : // What eating a meal takes off the pantry: nothing, unless a test says otherwise.
                 path.endsWith('/pantry')
                 ? { offer: [], taken: [] }
-                : path.startsWith('/meal-plans/')
-                  ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
-                  : path.endsWith('/calories')
-                    ? { dailyTarget: 2209 }
-                    : path.startsWith('/favorite-sets')
-                      ? favoriteSets
-                      : path.startsWith('/recipes/')
-                        ? plans
-                            .flatMap((plan) =>
-                              plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe)),
-                            )
-                            .find((recipe) => recipe && path === `/recipes/${recipe.id}`)
-                        : []) as never,
+                : path.endsWith('/pantry/both')
+                  ? [{ offer: [], taken: [] }]
+                  : path.startsWith('/meal-plans/')
+                    ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
+                    : path.endsWith('/calories')
+                      ? { dailyTarget: 2209 }
+                      : path.startsWith('/favorite-sets')
+                        ? favoriteSets
+                        : path.startsWith('/recipes/')
+                          ? plans
+                              .flatMap((plan) =>
+                                plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe)),
+                              )
+                              .find((recipe) => recipe && path === `/recipes/${recipe.id}`)
+                          : []) as never,
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -4700,25 +4702,26 @@ describe('the plan page, on a plan made together with another profile', () => {
     );
   });
 
-  it("offers, once a shared meal is eaten by both, each person's portion from that person's pantry, and takes both on one press", async () => {
+  it("offers, once a shared meal is eaten by both, both people's portions at once, and takes both on one press", async () => {
     const plan = together();
     await open(plan);
     const mine = `/meal-plans/${plan.id}/meals/${plan.days[0]!.meals[0]!.id}`;
-    const hers = `/meal-plans/14141414-1414-4414-8414-141414141414/meals/${HERS}`;
     const oats = (grams: number) => ({
       ingredientId: '55555555-5555-4555-8555-555555555555',
       name: 'Rolled oats',
       eaten: { quantity: grams, unit: 'g' },
       held: { quantity: 500, unit: 'g' },
       taken: { quantity: grams, unit: 'g' },
+      borrowed: null,
     });
     const read = vi.mocked(api.get).getMockImplementation()!;
     vi.mocked(api.get).mockImplementation((asked: string) =>
-      asked === `${mine}/pantry`
-        ? Promise.resolve({ profileName: 'Me', offer: [oats(60)], taken: [] } as never)
-        : asked === `${hers}/pantry`
-          ? Promise.resolve({ profileName: 'Ewa', offer: [oats(66)], taken: [] } as never)
-          : read(asked),
+      asked === `${mine}/pantry/both`
+        ? Promise.resolve([
+            { profileName: 'Me', offer: [oats(60)], taken: [] },
+            { profileName: 'Ewa', offer: [oats(66)], taken: [] },
+          ] as never)
+        : read(asked),
     );
     vi.spyOn(api, 'patch').mockResolvedValue({ plan, rebalance: null } as never);
     const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
@@ -4738,9 +4741,8 @@ describe('the plan page, on a plan made together with another profile', () => {
     ).toBeInTheDocument();
     await userEvent.click(dialog.getByRole('button', { name: messages.eatenPantry.take }));
 
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(post).toHaveBeenCalledWith(`${mine}/pantry-take`);
-    expect(post).toHaveBeenCalledWith(`${hers}/pantry-take`);
+    await waitFor(() => expect(post).toHaveBeenCalledWith(`${mine}/pantry-take/both`));
+    expect(post).toHaveBeenCalledTimes(1);
   });
 
   it('says how a shared meal is cooked when the box is ticked', async () => {

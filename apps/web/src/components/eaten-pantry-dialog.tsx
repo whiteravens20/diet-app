@@ -15,29 +15,31 @@ import { useErrorText } from '@/lib/use-error-text';
 /** What the window asks: to take what was eaten, to give back what was taken, or that before an entry is removed. */
 export type PantryQuestion = 'take' | 'give-back' | 'remove';
 
-/** A meal's or an entry's own path (`/meal-plans/:id/meals/:mealId`, `/diary/entries/:id`) and what eating it does to its pantry. */
-export interface Portion {
-  path: string;
-  pantry: EatenPantry;
-}
-
 const TITLES = { take: 'takeTitle', 'give-back': 'giveBackTitle', remove: 'removeTitle' } as const;
 const NOTES = { take: 'takeNote', 'give-back': 'giveBackNote', remove: 'removeNote' } as const;
 
 /**
  * The window that takes what a meal or an entry ate off the pantry ("Zdejmij ze spiżarni to, co zjedzono"), or gives
  * back what it took ("Oddaj do spiżarni"): food by food, in the amounts the API shows, and nothing until it is
- * confirmed. A meal eaten by both people of a joint plan is two portions, each from its own person's pantry, taken on
- * one press. Before an entry that took food is removed, it offers to give that back first.
+ * confirmed. A shared meal of a joint plan takes what its own person's pantry lacks off the other's, saying whose; eaten
+ * by both, it is two portions, worked out together and taken on one press. Before an entry that took food is removed,
+ * it offers to give that back first.
  */
 export function EatenPantryDialog({
   ask,
-  portions,
+  path,
+  both,
+  pantries,
   remove,
   onClose,
 }: {
   ask: PantryQuestion;
-  portions: readonly Portion[];
+  /** The meal's or the entry's own path (`/meal-plans/:id/meals/:mealId`, `/diary/entries/:id`). */
+  path: string;
+  /** Of a shared meal marked eaten for both: both portions, taken together. */
+  both: boolean;
+  /** What eating it does to the pantry: of each portion with something to say, this plan's first. */
+  pantries: readonly EatenPantry[];
   /** Of a removal: removes the entry, once what it took is given back or not. */
   remove?: () => void;
   onClose: () => void;
@@ -49,10 +51,8 @@ export function EatenPantryDialog({
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const write = useMutation({
-    mutationFn: async (to: 'take' | 'return') => {
-      // One after the other: a portion taken already offers nothing, so a press again takes only what is left.
-      for (const { path } of portions) await api.post<EatenPantry>(`${path}/pantry-${to}`);
-    },
+    mutationFn: (to: 'take' | 'return') =>
+      api.post<unknown>(`${path}/pantry-${to}${both ? '/both' : ''}`),
     onMutate: () => setError(null),
     onSettled: () =>
       // The pantry, and the diary's entries, which say whether they took food.
@@ -66,13 +66,13 @@ export function EatenPantryDialog({
     },
     onError: (e, to) => setError(errorText(e, t(to === 'take' ? 'errTake' : 'errGiveBack'))),
   });
-  const both = portions.length > 1;
+  const byPerson = pantries.length > 1;
   return (
     <Dialog open onClose={onClose} label={t(TITLES[ask])} className="max-w-md">
       <div className="space-y-3 p-4 text-sm">
         <h2 className="font-semibold">{t(TITLES[ask])}</h2>
         <p>{t(NOTES[ask])}</p>
-        {both && <p>{t('byPerson')}</p>}
+        {byPerson && <p>{t('byPerson')}</p>}
         <div
           role="group"
           aria-label={t('foods')}
@@ -81,9 +81,10 @@ export function EatenPantryDialog({
           className="max-h-[60vh] space-y-3 overflow-y-auto"
           tabIndex={0}
         >
-          {portions.map(({ path, pantry }) => (
-            <div key={path} className="space-y-2">
-              {both && <h3 className="font-semibold">{pantry.profileName}</h3>}
+          {pantries.map((pantry, at) => (
+            // The portions of one meal, in the API's order: this plan's first.
+            <div key={at} className="space-y-2">
+              {byPerson && <h3 className="font-semibold">{pantry.profileName}</h3>}
               <ul className="space-y-2">
                 {(ask === 'take' ? pantry.offer : pantry.taken).map((line) => (
                   <li key={line.ingredientId}>
@@ -99,7 +100,15 @@ export function EatenPantryDialog({
                         </span>
                       </>
                     ) : (
-                      t('takenLine', { name: line.name, taken: shown(line.taken) })
+                      <span>{t('takenLine', { name: line.name, taken: shown(line.taken) })}</span>
+                    )}
+                    {line.borrowed && (
+                      <span className="block text-muted-foreground">
+                        {t('borrowed', {
+                          amount: shown(line.borrowed.amount),
+                          name: line.borrowed.from,
+                        })}
+                      </span>
                     )}
                   </li>
                 ))}

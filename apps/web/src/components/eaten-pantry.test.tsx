@@ -5,7 +5,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { EatenPantry } from '@diet-app/shared';
+import type { EatenPantries, EatenPantry } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { spaced } from '@/testing/spaces';
@@ -18,10 +18,6 @@ const PATH =
   '/meal-plans/11111111-1111-4111-8111-111111111111/meals/33333333-3333-4333-8333-333333333333';
 const CHICKEN = '55555555-5555-4555-8555-555555555551';
 const EGG = '55555555-5555-4555-8555-555555555552';
-/** The other person's meal of a meal eaten by both. */
-const OTHER =
-  '/meal-plans/11111111-1111-4111-8111-111111111112/meals/33333333-3333-4333-8333-333333333334';
-
 /** Of a lunch of chicken and two eggs, what taking it off a pantry of 400 g of chicken and six eggs would take. */
 const OFFER: EatenPantry = {
   profileName: 'Paweł',
@@ -52,6 +48,27 @@ const TAKEN: EatenPantry = {
   taken: OFFER.offer.map((line) => ({ ...line, held: { ...line.held, quantity: 0 } })),
 };
 const NOTHING: EatenPantry = { profileName: 'Paweł', offer: [], taken: [] };
+/** Ewa's portion of the same lunch eaten by both: of the chicken, 50 g her pantry lacks, which Paweł's lends. */
+const HERS: EatenPantry = {
+  profileName: 'Ewa',
+  offer: [
+    {
+      ingredientId: CHICKEN,
+      name: 'Chicken breast',
+      eaten: { quantity: 120, unit: 'g' },
+      held: { quantity: 70, unit: 'g' },
+      taken: { quantity: 120, unit: 'g' },
+      borrowed: { amount: { quantity: 50, unit: 'g' }, from: 'Paweł' },
+    },
+  ],
+  taken: [],
+};
+/** The same, once it was taken. */
+const HERS_TAKEN: EatenPantry = {
+  profileName: 'Ewa',
+  offer: [],
+  taken: HERS.offer.map((line) => ({ ...line, held: { ...line.held, quantity: 0 } })),
+};
 
 /** A page with a meal or an entry at `PATH`, which asks what eating it does to the pantry as the page would. */
 function Page({ remove }: { remove: () => void }) {
@@ -64,10 +81,10 @@ function Page({ remove }: { remove: () => void }) {
       <button type="button" onClick={() => pantry.ask(PATH, 'give-back')}>
         not eaten
       </button>
-      <button type="button" onClick={() => pantry.ask(PATH, 'remove', remove)}>
+      <button type="button" onClick={() => pantry.ask(PATH, 'remove', { remove })}>
         remove
       </button>
-      <button type="button" onClick={() => pantry.ask([PATH, OTHER], 'take')}>
+      <button type="button" onClick={() => pantry.ask(PATH, 'take', { both: true })}>
         eaten by both
       </button>
       {pantry.dialog}
@@ -75,9 +92,12 @@ function Page({ remove }: { remove: () => void }) {
   );
 }
 
-/** The page in `language`, the API answering the pantry of `PATH` with `answer` and a take or a giving back with `wrote`. */
+/**
+ * The page in `language`, the API answering the pantry of `PATH` (or of both portions of it) with `answer` and a take
+ * or a giving back with `wrote`.
+ */
 function opened(
-  answer: EatenPantry | Error,
+  answer: EatenPantry | EatenPantries | Error,
   wrote: EatenPantry | Error = NOTHING,
   language: 'en' | 'pl' = 'en',
 ) {
@@ -243,44 +263,59 @@ describe('what eating takes off the pantry, asked once a meal is eaten or an ent
     expect(post).not.toHaveBeenCalled();
   });
 
-  it("asks of a meal eaten by both about each person's portion, from that person's pantry, and takes both on one press", async () => {
-    const { get, post } = opened(OFFER, NOTHING);
-    get.mockImplementation((path: string) =>
-      Promise.resolve(
-        (path === `${OTHER}/pantry`
-          ? { ...OFFER, profileName: 'Ewa', offer: OFFER.offer.slice(0, 1) }
-          : OFFER) as never,
-      ),
-    );
+  it('says what of a portion the other person’s pantry lends, and whose, before and after it is taken', async () => {
+    const { post } = opened(HERS, NOTHING);
+
+    await press('eaten');
+
+    const window = await theWindow(texts.takeTitle);
+    expect(
+      window.getByText(spaced('eaten 120 g · in the pantry 70 g · you take 120 g')),
+    ).toBeInTheDocument();
+    expect(window.getByText(spaced("of which 50 g from Paweł's pantry"))).toBeInTheDocument();
+    // One portion: no word of each person's pantry.
+    expect(window.queryByText(texts.byPerson)).toBeNull();
+    await userEvent.click(window.getByRole('button', { name: texts.take }));
+    expect(post).toHaveBeenCalledWith(`${PATH}/pantry-take`);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    vi.mocked(api.get).mockResolvedValue(HERS_TAKEN as never);
+    await press('not eaten');
+    const back = await theWindow(texts.giveBackTitle);
+    expect(back.getByText(spaced('Chicken breast: 120 g'))).toBeInTheDocument();
+    expect(back.getByText(spaced("of which 50 g from Paweł's pantry"))).toBeInTheDocument();
+  });
+
+  it("asks of a meal eaten by both about each person's portion at once, and takes both on one press", async () => {
+    const { get, post } = opened([OFFER, HERS], NOTHING);
 
     await press('eaten by both');
 
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledWith(`${PATH}/pantry/both`);
     const window = await theWindow(texts.takeTitle);
     expect(window.getByText(texts.byPerson)).toBeInTheDocument();
-    expect(window.getByRole('heading', { name: 'Paweł' })).toBeInTheDocument();
-    expect(window.getByRole('heading', { name: 'Ewa' })).toBeInTheDocument();
+    const headings = window.getAllByRole('heading', { level: 3 }).map((one) => one.textContent);
+    expect(headings).toEqual(['Paweł', 'Ewa']);
     expect(window.getAllByText('Chicken breast')).toHaveLength(2);
+    expect(window.getByText(spaced("of which 50 g from Paweł's pantry"))).toBeInTheDocument();
     await userEvent.click(window.getByRole('button', { name: texts.take }));
 
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(post).toHaveBeenCalledWith(`${PATH}/pantry-take`);
-    expect(post).toHaveBeenCalledWith(`${OTHER}/pantry-take`);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(post.mock.calls).toEqual([[`${PATH}/pantry-take/both`]]);
   });
 
-  it("asks about the portion it can read, where the other person's cannot be read", async () => {
-    const { get } = opened(OFFER);
-    get.mockImplementation((path: string) =>
-      path === `${OTHER}/pantry`
-        ? Promise.reject(new Error('down'))
-        : Promise.resolve(OFFER as never),
-    );
+  it('asks of a meal eaten by both only about the portion with something to take, still taking both together', async () => {
+    const { post } = opened([NOTHING, HERS], NOTHING);
 
     await press('eaten by both');
 
     const window = await theWindow(texts.takeTitle);
     expect(window.queryByText(texts.byPerson)).toBeNull();
+    expect(window.queryByRole('heading', { level: 3 })).toBeNull();
     expect(window.getAllByText('Chicken breast')).toHaveLength(1);
+    await userEvent.click(window.getByRole('button', { name: texts.take }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/pantry-take/both`));
   });
 
   it('says why where taking fails, and keeps the window open', async () => {
@@ -311,5 +346,18 @@ describe('what eating takes off the pantry, asked once a meal is eaten or an ent
       ),
     ).toBeInTheDocument();
     expect(window.getByRole('button', { name: pl.eatenPantry.take })).toBeInTheDocument();
+  });
+
+  it('says in Polish what the other person’s pantry lends, and whose', async () => {
+    opened([OFFER, HERS], NOTHING, 'pl');
+
+    await press('eaten by both');
+
+    const window = await theWindow(pl.eatenPantry.takeTitle);
+    // Its spaces that hold one letter to the next word are read as spaces.
+    expect(
+      window.getByText(spaced(pl.eatenPantry.byPerson.replaceAll('\u00a0', ' '))),
+    ).toBeInTheDocument();
+    expect(window.getByText(spaced('w tym 50 g ze spiżarni: Paweł'))).toBeInTheDocument();
   });
 });

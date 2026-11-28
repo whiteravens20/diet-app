@@ -411,9 +411,9 @@ function DiaryContent() {
                 onRemove={(entry) =>
                   // What an entry took off the pantry is offered back before it goes: never by itself.
                   entry.takenFromPantry
-                    ? eatenPantry.ask(`/diary/entries/${entry.id}`, 'remove', () =>
-                        later.remove(entry),
-                      )
+                    ? eatenPantry.ask(`/diary/entries/${entry.id}`, 'remove', {
+                        remove: () => later.remove(entry),
+                      })
                     : later.remove(entry)
                 }
               />
