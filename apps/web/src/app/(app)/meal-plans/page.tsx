@@ -186,6 +186,8 @@ function MealPlansContent() {
   const [cookAhead, setCookAhead] = useState(false);
   // Another profile of the account the plan is made together with: each gets a plan, the meals at the times both have shared.
   const [withProfileId, setWithProfileId] = useState('');
+  // Of a plan made together: the dishes both eat cooked each portion apart, unless unticked.
+  const [cookApart, setCookApart] = useState(true);
   // A plan that wastes less counts the pantry: its box stays ticked while the plan is to waste less, or nothing.
   const [wasteLevel, setWasteLevel] = useState<WasteLevel>('usual');
   const lessWaste = wasteLevel !== 'usual';
@@ -615,6 +617,17 @@ function MealPlansContent() {
     onError: fail(t('errCookApart')),
   });
 
+  // How the dishes both eat are cooked, many at once: from today, or on one day.
+  const setCookApartOf = useMutation({
+    mutationFn: (v: { planId: string; apart: boolean; date?: string }) =>
+      api.patch<MealPlan>(`/meal-plans/${v.planId}/cook-apart`, {
+        apart: v.apart,
+        ...(v.date ? { date: v.date } : {}),
+      }),
+    onSuccess: (_plan, v) => void invalidateEdited(v.planId),
+    onError: fail(t('errCookApart')),
+  });
+
   const keepFrozen = useMutation({
     mutationFn: (v: { planId: string; ingredientId: string; date: string }) =>
       api.post<MealPlan>(`/meal-plans/${v.planId}/frozen`, {
@@ -723,7 +736,7 @@ function MealPlansContent() {
       respectInventory: withPantry || lessWaste,
       ...askedOf(wasteLevel),
       ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
-      cookApart: true,
+      cookApart,
       // A joint plan is made without settings of its days.
       ...(together ? { withProfileId: together.id, dayOverrides: undefined } : {}),
     };
@@ -869,6 +882,23 @@ function MealPlansContent() {
                   </select>
                 </Field>
                 <p className="text-xs text-muted-foreground">{t('jointPlanHint')}</p>
+                {withProfileId !== '' && withProfileId !== activeId && (
+                  <div>
+                    <label className="flex min-h-8 items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={cookApart}
+                        aria-describedby="cook-apart-hint"
+                        onChange={(e) => setCookApart(e.target.checked)}
+                      />
+                      {t('jointCookApart')}
+                    </label>
+                    <p id="cook-apart-hint" className="text-xs text-muted-foreground">
+                      {t('jointCookApartHint')}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {cannotPair && <p className="text-xs text-warning">{t('prepCannotPair')}</p>}
@@ -1192,6 +1222,10 @@ function MealPlansContent() {
               onSetApart={(sharedMealId, apart) => {
                 setError(null);
                 setApart.mutate({ planId: plan.id, sharedMealId, apart });
+              }}
+              onSetCookApart={(apart, date) => {
+                setError(null);
+                setCookApartOf.mutate({ planId: plan.id, apart, date });
               }}
               onKeepFrozen={(ingredientId, date) => {
                 setError(null);

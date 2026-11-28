@@ -4664,12 +4664,30 @@ describe('the plan page, on a plan made together with another profile', () => {
     expect(screen.queryByText(messages.mealPlans.advanced.hint)).not.toBeInTheDocument();
     expect(screen.queryByText(messages.mealPlans.advanced.legendDayKind)).not.toBeInTheDocument();
     expect(screen.queryByText(messages.mealPlans.advanced.perDay)).not.toBeInTheDocument();
+    // The dishes both eat are cooked apart unless the box is unticked.
+    expect(screen.getByRole('checkbox', { name: messages.mealPlans.jointCookApart })).toBeChecked();
     await userEvent.click(generate);
 
     const [path, body] = post.mock.calls.at(-1)! as [string, Record<string, unknown>];
     expect(path).toBe('/meal-plans/generate');
-    expect(body).toMatchObject({ profileId: profile.id, withProfileId: ewa.id });
+    expect(body).toMatchObject({ profileId: profile.id, withProfileId: ewa.id, cookApart: true });
     expect(body.dayOverrides).toBeUndefined();
+  });
+
+  it('asks for the dishes both eat in one pot where the box is unticked', async () => {
+    const generate = await renderPage(aSupply(), []);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);
+
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: messages.mealPlans.jointPlanWith }),
+      'Ewa',
+    );
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: messages.mealPlans.jointCookApart }),
+    );
+    await userEvent.click(generate);
+
+    expect(post.mock.calls.at(-1)![1]).toMatchObject({ withProfileId: ewa.id, cookApart: false });
   });
 
   it('offers no plan together where the account has one profile', async () => {
@@ -4793,6 +4811,25 @@ describe('the plan page, on a plan made together with another profile', () => {
 
     expect(patch).toHaveBeenCalledWith(`/meal-plans/${plan.id}/shared-meals/${SHARED}`, {
       apart: true,
+    });
+  });
+
+  it('says how the dishes both eat are cooked from today for the whole plan, and on one day', async () => {
+    const plan = together();
+    await open(plan);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(plan as never);
+
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: messages.mealPlans.jointCookApart }),
+    );
+    expect(patch).toHaveBeenCalledWith(`/meal-plans/${plan.id}/cook-apart`, { apart: true });
+
+    // The day's shared dish is cooked in one pot: the day offers to cook its shared dishes apart.
+    await unfoldDay();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.dayCookApart }));
+    expect(patch).toHaveBeenLastCalledWith(`/meal-plans/${plan.id}/cook-apart`, {
+      apart: true,
+      date: plan.days[0]!.date,
     });
   });
 

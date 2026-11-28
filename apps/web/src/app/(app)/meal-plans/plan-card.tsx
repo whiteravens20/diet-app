@@ -229,6 +229,7 @@ export function PlanCard({
   onRemoveMeal,
   onOfferFor,
   onSetApart,
+  onSetCookApart,
   onKeepFrozen,
   onKeepLeft,
   profileName,
@@ -287,6 +288,8 @@ export function PlanCard({
   onOfferFor: (forAll: boolean) => void;
   /** Say how a shared meal is cooked: each portion apart, or in one pot. */
   onSetApart: (sharedMealId: string, apart: boolean) => void;
+  /** How the dishes both people of a joint plan eat are cooked: from today, or on `date` alone. */
+  onSetCookApart: (apart: boolean, date?: string) => void;
   /** "Dodaj do spiżarni": give the pantry what is left of a rest the plan freezes, once. */
   onKeepFrozen: (ingredientId: string, date: string) => void;
   /** "Dodaj do spiżarni" of what packs of one food leave, each pack not given yet. */
@@ -708,6 +711,25 @@ export function PlanCard({
                   >
                     {t('daySettingsButton')}
                   </Button>
+                  {/* The shared dishes of the day not eaten by either, cooked the other way than most of them are. */}
+                  {(() => {
+                    const toCook = day.meals.filter(
+                      (meal) => meal.shared && meal.eatenAt === null && !meal.shared.with.eaten,
+                    );
+                    if (toCook.length === 0) return null;
+                    const apart = toCook.every((meal) => meal.shared!.apart);
+                    return (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onSetCookApart(!apart, day.date)}
+                        disabled={busy}
+                      >
+                        {t(apart ? 'dayCookTogether' : 'dayCookApart')}
+                      </Button>
+                    );
+                  })()}
                   {!day.skipped && (
                     <Button
                       type="button"
@@ -1820,6 +1842,25 @@ export function PlanCard({
               </Link>
             )}
           </div>
+          {/* How the dishes both eat are cooked, from today: a day, or a meal, is changed on its own. */}
+          {plan.joint && (
+            <div className="text-sm">
+              <label className="inline-flex min-h-8 items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={plan.joint.cookApart}
+                  disabled={busy}
+                  aria-describedby={`${plan.id}-cook-apart`}
+                  onChange={() => onSetCookApart(!plan.joint!.cookApart)}
+                />
+                {t('jointCookApart')}
+              </label>
+              <p id={`${plan.id}-cook-apart`} className="text-xs text-muted-foreground">
+                {t('jointCookApartFromToday')}
+              </p>
+            </div>
+          )}
           {printing && (
             <PlanPrintSheet plan={plan} dietLabel={dietLabel} words={words} onDone={printed} />
           )}
