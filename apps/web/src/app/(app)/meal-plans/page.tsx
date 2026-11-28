@@ -607,23 +607,16 @@ function MealPlansContent() {
     onError: fail(t('errRemoveMeal')),
   });
 
-  // How a meal both people share is cooked: the same in both plans.
+  // How the dishes both people share are cooked, the same in both plans: one meal, or many at once (from today, or
+  // on one day).
   const setApart = useMutation({
-    mutationFn: (v: { planId: string; sharedMealId: string; apart: boolean }) =>
-      api.patch<MealPlan>(`/meal-plans/${v.planId}/shared-meals/${v.sharedMealId}`, {
-        apart: v.apart,
-      }),
-    onSuccess: (_plan, v) => void invalidateEdited(v.planId),
-    onError: fail(t('errCookApart')),
-  });
-
-  // How the dishes both eat are cooked, many at once: from today, or on one day.
-  const setCookApartOf = useMutation({
-    mutationFn: (v: { planId: string; apart: boolean; date?: string }) =>
-      api.patch<MealPlan>(`/meal-plans/${v.planId}/cook-apart`, {
-        apart: v.apart,
-        ...(v.date ? { date: v.date } : {}),
-      }),
+    mutationFn: (v: { planId: string; apart: boolean; sharedMealId?: string; date?: string }) =>
+      api.patch<MealPlan>(
+        v.sharedMealId
+          ? `/meal-plans/${v.planId}/shared-meals/${v.sharedMealId}`
+          : `/meal-plans/${v.planId}/cook-apart`,
+        { apart: v.apart, ...(v.date ? { date: v.date } : {}) },
+      ),
     onSuccess: (_plan, v) => void invalidateEdited(v.planId),
     onError: fail(t('errCookApart')),
   });
@@ -1225,7 +1218,7 @@ function MealPlansContent() {
               }}
               onSetCookApart={(apart, date) => {
                 setError(null);
-                setCookApartOf.mutate({ planId: plan.id, apart, date });
+                setApart.mutate({ planId: plan.id, apart, date });
               }}
               onKeepFrozen={(ingredientId, date) => {
                 setError(null);
